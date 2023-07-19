@@ -1,0 +1,13 @@
+export const Colors = {
+  PRIMARY: "#191919",
+  BLACK: "#191919",
+  WHITE: "#FFFFFF",
+  RED: "#F66570",
+  PURPLE: "#5F50F0",
+  GRAY_100: "#FAFAFA",
+  GRAY_200: "#F6F6F6",
+  GRAY_300: "#E5E5E5",
+  GRAY_400: "#B2B2B2",
+  GRAY_500: "#7F7F7F",
+  GRAY_600: "#4C4C4C",
+};

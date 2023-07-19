@@ -1,0 +1,159 @@
+@import url("https://fonts.googleapis.com/css2?family=Poppins:wght@600&display=swap&text=0123456789");
+@import url("https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.6/dist/web/variable/pretendardvariable-dynamic-subset.css");
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+@import "react-toastify/dist/ReactToastify.css";
+
+body {
+  overflow-x: hidden;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  letter-spacing: -0.6px;
+  -webkit-text-size-adjust: none;
+  text-size-adjust: none;
+  -ms-text-size-adjust: none;
+  white-space: pre-line;
+}
+.title-9 {
+  font-size: 32px;
+  font-weight: 700;
+  line-height: 48px;
+}
+
+.title-8 {
+  font-size: 24px;
+  font-weight: 700;
+  line-height: 36px;
+}
+
+.title-7 {
+  font-size: 20px;
+  font-weight: 700;
+  line-height: 30px;
+}
+
+.title-6 {
+  font-size: 18px;
+  font-weight: 700;
+  line-height: 27px;
+}
+
+.title-5 {
+  font-size: 16px;
+  font-weight: 700;
+  line-height: 24px;
+}
+
+.title-4 {
+  font-size: 15px;
+  font-weight: 700;
+  line-height: 23px;
+}
+
+.title-3 {
+  font-size: 14px;
+  font-weight: 700;
+  line-height: 21px;
+}
+
+.title-2 {
+  font-size: 13px;
+  font-weight: 700;
+  line-height: 20px;
+}
+
+.title-1 {
+  font-size: 12px;
+  font-weight: 700;
+  line-height: 18px;
+}
+
+/* Body Styles */
+.body-11 {
+  font-size: 14px;
+  font-weight: 500;
+  line-height: 21px;
+}
+
+.body-10 {
+  font-size: 13px;
+  font-weight: 500;
+  line-height: 20px;
+}
+
+.body-9 {
+  font-size: 32px;
+  font-weight: 400;
+  line-height: 48px;
+}
+
+.body-8 {
+  font-size: 24px;
+  font-weight: 400;
+  line-height: 36px;
+}
+
+.body-7 {
+  font-size: 20px;
+  font-weight: 400;
+  line-height: 30px;
+}
+
+.body-6 {
+  font-size: 18px;
+  font-weight: 400;
+  line-height: 27px;
+}
+
+.body-5 {
+  font-size: 16px;
+  font-weight: 400;
+  line-height: 24px;
+}
+
+.body-4 {
+  font-size: 15px;
+  font-weight: 400;
+  line-height: 23px;
+}
+
+.body-3 {
+  font-size: 14px;
+  font-weight: 400;
+  line-height: 21px;
+}
+
+.body-2 {
+  font-size: 13px;
+  font-weight: 400;
+  line-height: 20px;
+}
+
+.body-1 {
+  font-size: 12px;
+  font-weight: 400;
+  line-height: 18px;
+}
+
+.modal-shadow {
+  box-shadow: 0px 10px 25px 4px rgba(0, 0, 0, 0.06),
+    0px 0px 1px 0px rgba(0, 0, 0, 0.08);
+}
+
+textarea::-webkit-scrollbar-thumb {
+  background-color: #a8a8a8;
+  scrollbar-width: thin;
+  border-radius: 15px;
+  background-clip: padding-box;
+}
+
+textarea::-webkit-scrollbar {
+  width: 3px;
+}
+
+textarea {
+  overflow: auto;
+  scrollbar-width: thin;
+  scrollbar-color: #a8a8a8 #a8a8a8;
+}
