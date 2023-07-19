@@ -1,0 +1,20 @@
+.footer-menu-bar::after{
+  content: " ";
+  background: rgba(243, 243, 243, 0.2);
+  position: relative;
+  width: 1px;
+  height: 10px;
+  left: 10px;
+  display:inline-block;
+}
+
+.footer-border::before{
+  content: " ";
+  background: rgba(243, 243, 243, 0.1);
+  position: absolute;
+  width: 150vw;
+  height: 1px;
+  left: -50vw;
+  top: 0;
+  display:inline-block;
+}

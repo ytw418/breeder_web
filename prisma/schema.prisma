@@ -1,0 +1,312 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+  relationMode = "prisma"
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+  relationMode = "prisma"
+}
+
+enum role {
+  USER
+  ADMIN
+  SUPER_USER
+}
+
+model User {
+  id              Int         @id @default(autoincrement())
+  role            role        @default(USER)
+  snsId           String      @unique
+  provider        String      
+  phone           String?     @unique
+  email           String?     @unique
+  name            String      @unique
+  avatar          String?
+  createdAt       DateTime    @default(now())
+  updatedAt       DateTime    @updatedAt
+  products        Product[]
+  posts           Post[]
+  answers         Answer[]
+  wonderings      Wondering[]
+  writtenReviews  Review[]    @relation(name: "writtenReviews")
+  receivedReviews Review[]    @relation(name: "receivedReviews")
+  fav             Fav[]
+  sales           Sale[]
+  purchases       Purchase[]
+  record          Record[]
+  messages        Message[]
+  followers       Follow[]    @relation(name: "follower")
+  following       Follow[]    @relation(name: "following")
+  chatRoomMember    ChatRoomMember[]
+  sellerTalk          TalkToSeller[]  @relation(name: "sellerTalk")
+  buyerTalk           TalkToSeller[]  @relation(name: "buyerTalk")
+  carrotseller        isCarrot[]      @relation(name: "carrotseller")
+  carrotbuyer         isCarrot[]      @relation(name: "carrotbuyer")
+  carrotcommentbuyer  CarrotComment[] @relation(name: "carrotcommentbuyer")
+  carrotcommentseller CarrotComment[] @relation(name: "carrotcommentseller")
+}
+model ChatRoom {
+  id            Int @id @default(autoincrement())
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+  chatRoomMembers  ChatRoomMember[]
+  messages        Message[]
+}
+
+
+model ChatRoomMember {
+  id        Int @id @default(autoincrement())
+  user      User @relation(fields: [userId], references: [id],onDelete: Cascade)
+  userId    Int
+  chatRoom  ChatRoom @relation(fields: [chatRoomId], references: [id], onDelete: Cascade)
+  chatRoomId Int
+
+  @@index([userId])
+  @@index([chatRoomId])
+}
+
+
+model Message {
+  id        Int      @id @default(autoincrement())
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId    Int
+  message   String   @db.MediumText
+  talktoseller   TalkToSeller? @relation(fields: [talktosellerId], references: [id], onDelete: Cascade)
+  chatRoom   ChatRoom? @relation(fields: [chatRoomId], references: [id], onDelete: Cascade)
+  
+  chatRoomId Int?
+  talktosellerId Int?
+
+  @@index([chatRoomId])
+  @@index([userId])
+  @@index([talktosellerId])
+}
+
+
+
+model TalkToSeller {
+  id              Int        @id @default(autoincrement())
+  createdAt       DateTime   @default(now())
+  updatedAt       DateTime   @updatedAt
+  buyer           User       @relation(name: "buyerTalk", fields: [createdBuyerId], references: [id], onDelete: Cascade)
+  createdBuyerId  Int
+  seller          User       @relation(name: "sellerTalk", fields: [createdSellerId], references: [id], onDelete: Cascade)
+  
+  createdSellerId Int
+  product         Product    @relation(fields: [productId], references: [id], onDelete: Cascade)
+  productId       Int
+  messages        Message[]
+  isbuy           Boolean?
+  issold          Boolean?
+  isCarrot        isCarrot[]
+  isSell          Boolean    @default(false)
+
+  @@index([createdBuyerId, createdSellerId, productId])
+  @@index([productId])
+  @@index([createdSellerId])
+}
+
+
+model Follow {
+  id           Int      @id @default(autoincrement())
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+  follower    User     @relation(name: "follower", fields: [followerId], references: [id], onDelete: Cascade)
+  followerId  Int
+  following   User     @relation(name: "following", fields: [followingId], references: [id], onDelete: Cascade)
+  followingId Int
+
+  @@index([followerId])
+  @@index([followingId])
+
+}
+
+model Product {
+  id          Int        @id @default(autoincrement())
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
+  user        User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId      Int
+  image       String
+  name        String
+  price       Int
+  description String     @db.MediumText
+  favs        Fav[]
+  sales       Sale[]
+  purchases   Purchase[]
+  records     Record[]
+  talktoseller  TalkToSeller[]
+  isCarrot      isCarrot[]
+  carrotComment CarrotComment[]
+
+  @@index([userId])
+}
+
+model Post {
+  id        Int         @id @default(autoincrement())
+  createdAt DateTime    @default(now())
+  updatedAt DateTime    @updatedAt
+  user      User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId    Int
+  question  String      @db.MediumText
+  latitude  Float?
+  longitude Float?
+  answers   Answer[]
+  wondering Wondering[]
+
+  @@index([userId])
+
+}
+
+model Answer {
+  id        Int      @id @default(autoincrement())
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId    Int
+  post      Post     @relation(fields: [postId], references: [id], onDelete: Cascade)
+  postId    Int
+  answer    String   @db.MediumText
+
+  @@index([userId])
+  @@index([postId])
+
+}
+
+model Wondering {
+  id        Int      @id @default(autoincrement())
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId    Int
+  post      Post     @relation(fields: [postId], references: [id], onDelete: Cascade)
+  postId    Int
+
+  @@index([userId])
+  @@index([postId])
+
+}
+
+model Review {
+  id           Int      @id @default(autoincrement())
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+  review       String   @db.MediumText
+  createdBy    User     @relation(name: "writtenReviews", fields: [createdById], references: [id], onDelete: Cascade)
+  createdById  Int
+  createdFor   User     @relation(name: "receivedReviews", fields: [createdForId], references: [id], onDelete: Cascade)
+  createdForId Int
+  score        Int      @default(1)
+
+  @@index([createdById])
+  @@index([createdForId])
+
+}
+
+model Sale {
+  id        Int      @id @default(autoincrement())
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId    Int
+  product   Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+  productId Int
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+   @@index([userId])
+  @@index([productId])
+  
+}
+
+model Purchase {
+  id        Int      @id @default(autoincrement())
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId    Int
+  product   Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+  productId Int
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  @@index([userId])
+  @@index([productId])
+}
+
+model Fav {
+  id        Int      @id @default(autoincrement())
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId    Int
+  product   Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+  productId Int
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  @@index([userId])
+  @@index([productId])
+}
+
+model Record {
+  id        Int      @id @default(autoincrement())
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId    Int
+  product   Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+  productId Int
+  createdAt DateTime @default(now())
+  kind      String
+  updatedAt DateTime @updatedAt
+  @@index([userId])
+  @@index([productId])
+}
+
+enum Kind {
+  Purchase
+  Sale
+  Fav
+}
+
+model isCarrot {
+  id             Int          @id @default(autoincrement())
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+  meetTime       DateTime?
+  product        Product      @relation(fields: [productId], references: [id], onDelete: Cascade)
+  productId      Int
+  buyer          User         @relation(name: "carrotbuyer", fields: [carrotbuyerId], references: [id], onDelete: Cascade)
+  carrotbuyerId  Int
+  seller         User         @relation(name: "carrotseller", fields: [carrotsellerId], references: [id], onDelete: Cascade)
+  carrotsellerId Int
+  tts            TalkToSeller @relation(fields: [ttsId], references: [id], onDelete: Cascade)
+  ttsId          Int
+
+  @@index([productId, carrotbuyerId, carrotsellerId, ttsId])
+  @@index([carrotsellerId])
+  @@index([carrotbuyerId])
+  @@index([ttsId])
+}
+
+model CarrotComment {
+  id                    Int       @id @default(autoincrement())
+  createdAt             DateTime  @default(now())
+  updatedAt             DateTime  @updatedAt
+  meetTime              DateTime?
+  product               Product   @relation(fields: [productId], references: [id], onDelete: Cascade)
+  productId             Int
+  buyer                 User      @relation(name: "carrotcommentbuyer", fields: [carrotcommentbuyerId], references: [id], onDelete: Cascade)
+  carrotcommentbuyerId  Int
+  seller                User      @relation(name: "carrotcommentseller", fields: [carrotcommentsellerId], references: [id], onDelete: Cascade)
+  carrotcommentsellerId Int
+  buyerComment          String?
+  sellerComment         String?
+  starForBuyer          Int       @default(5)
+  starForSeller         Int       @default(5)
+
+  @@index([productId, carrotcommentbuyerId, carrotcommentsellerId, starForBuyer, starForSeller])
+  @@index([carrotcommentbuyerId])
+  @@index([carrotcommentsellerId])
+}
+
+
+// chatRoom
+// 채팅방
