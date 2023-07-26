@@ -28,7 +28,7 @@ const handler = async (
     const productCount = await client.product.count();
 
     res.json({
-      ok: true,
+      success: true,
       products,
       pages: Math.ceil(productCount / 10),
     });
@@ -55,10 +55,10 @@ const handler = async (
 
     try {
       await res.revalidate("/");
-      return res.json({ ok: true, product });
+      return res.json({ success: true, product });
     } catch (error) {
       console.log(error);
-      return res.status(500).json({ ok: false, error });
+      return res.status(500).json({ success: false, error });
     }
   }
 };

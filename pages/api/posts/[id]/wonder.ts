@@ -46,10 +46,10 @@ async function handler(
 
   try {
     await res.revalidate("/community");
-    return res.json({ ok: true });
+    return res.json({ success: true });
   } catch (error) {
     console.log(error);
-    return res.status(500).json({ ok: false, error });
+    return res.status(500).json({ success: false, error });
   }
 }
 

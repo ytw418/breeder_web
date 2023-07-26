@@ -30,7 +30,7 @@ async function handler(
       },
     },
   });
-  res.json({ ok: true, stream });
+  res.json({ success: true, stream });
 }
 
 export default withApiSession(

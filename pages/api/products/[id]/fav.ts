@@ -44,7 +44,7 @@ async function handler(
     console.log(`유저아이디:${user?.id}, 상품아이디 : ${id}
     좋아요 추가`);
   }
-  res.json({ ok: true });
+  res.json({ success: true });
 }
 
 export default withApiSession(

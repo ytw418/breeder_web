@@ -2,12 +2,6 @@ import { NextApiRequest, NextApiResponse } from "next";
 import withHandler, { ResponseType } from "@libs/server/withHandler";
 
 import client from "@libs/server/client";
-import mail from "@sendgrid/mail";
-import twilio from "twilio";
-
-mail.setApiKey(process.env.SENDGRID_KEY!);
-
-const twilioClient = twilio(process.env.TWILIO_SID, process.env.TWILIO_TOKEN);
 
 async function handler(
   req: NextApiRequest,
@@ -15,7 +9,7 @@ async function handler(
 ) {
   const { phone, email } = req.body;
   const user = phone ? { phone: phone } : email ? { email } : null;
-  if (!user) return res.status(400).json({ ok: false });
+  if (!user) return res.status(400).json({ success: false });
   const payload = Math.floor(100000 + Math.random() * 900000) + "";
   const token = await client.token.create({
     data: {
@@ -53,7 +47,7 @@ async function handler(
   // }
 
   return res.json({
-    ok: true,
+    success: true,
     token,
   });
 }

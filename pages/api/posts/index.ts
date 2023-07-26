@@ -47,7 +47,7 @@ const handler = async (
     const postCount = await client.product.count();
 
     res.json({
-      ok: true,
+      success: true,
       posts,
       pages: Math.ceil(postCount / 10),
     });
@@ -72,10 +72,10 @@ const handler = async (
     });
     try {
       await res.revalidate("/community");
-      return res.json({ ok: true, post });
+      return res.json({ success: true, post });
     } catch (error) {
       console.log(error);
-      return res.status(500).json({ ok: false, error });
+      return res.status(500).json({ success: false, error });
     }
   }
 };

@@ -26,13 +26,13 @@ async function handler(
         },
       },
     });
-    res.json({ ok: true, stream });
+    res.json({ success: true, stream });
   } else if (req.method === "GET") {
     const streams = await client.stream.findMany({
       take: Number(size),
       skip: (Number(page) - 1) * Number(size),
     });
-    res.json({ ok: true, streams });
+    res.json({ success: true, streams });
     console.log("query", size);
     console.log(
       "(Number(page) - 1) * Number(size)",

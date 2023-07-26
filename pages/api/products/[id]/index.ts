@@ -57,7 +57,7 @@ const handler = async (
   );
 
   res.json({
-    ok: true,
+    success: true,
     // product,
     isLiked,
     // relatedProducts,

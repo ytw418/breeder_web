@@ -13,7 +13,7 @@ async function handler(
       where: { id: req.session.user?.id },
     });
     res.json({
-      ok: true,
+      success: true,
       profile,
     });
   }
@@ -40,7 +40,7 @@ async function handler(
       );
       if (alreadyExists) {
         return res.json({
-          ok: false,
+          success: false,
           error: "Email already taken.",
         });
       }
@@ -52,7 +52,7 @@ async function handler(
           email,
         },
       });
-      res.json({ ok: true });
+      res.json({ success: true });
     }
     if (phone && phone !== currentUser?.phone) {
       const alreadyExists = Boolean(
@@ -67,7 +67,7 @@ async function handler(
       );
       if (alreadyExists) {
         return res.json({
-          ok: false,
+          success: false,
           error: "Phone already in use.",
         });
       }
@@ -79,7 +79,7 @@ async function handler(
           phone,
         },
       });
-      res.json({ ok: true });
+      res.json({ success: true });
     }
     if (name) {
       await client.user.update({
@@ -101,7 +101,7 @@ async function handler(
         },
       });
     }
-    res.json({ ok: true });
+    res.json({ success: true });
   }
 }
 

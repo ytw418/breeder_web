@@ -61,7 +61,7 @@ async function handler(
     })
   );
   res.json({
-    ok: true,
+    success: true,
     post,
     isWondering,
   });
