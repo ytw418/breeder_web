@@ -20,9 +20,9 @@ declare global {
 
 export default async function RootLayout({ children }: PageLayoutProps) {
   return (
-    <html>
+    <html lang="ko">
       <head></head>
-      <body className="h-full w-full overflow-auto bg-White font-pretendard text-Black">
+      <body className="bg-White font-pretendard text-Black">
         <ClientComp />
         {children}
       </body>
