@@ -5,13 +5,17 @@ interface UseApiMutationState<T> {
   data?: T;
   error?: object;
 }
+
+interface MutationOption<T> {
+  data: any;
+  endpoint?: string;
+  contentType?: string;
+  onCompleted?: (result: T) => void;
+  onError?: (error: any) => void;
+}
+
 type UseApiMutationResult<T> = [
-  (
-    data: any,
-    endpoint: string,
-    contentType?: string,
-    onCompleted?: (result: T) => void
-  ) => void,
+  (options: MutationOption<T>) => void,
   UseApiMutationState<T>
 ];
 
@@ -24,19 +28,20 @@ export default function useApiMutation<T = any>(
     error: undefined,
   });
 
-  function mutation(
-    data: any,
-    endpoint: string,
-    contentType?: string,
-    onCompleted?: (result: T) => void
-  ) {
+  const mutation = ({
+    data,
+    endpoint = "",
+    contentType,
+    onCompleted,
+    onError,
+  }: MutationOption<T>) => {
     setState((prev) => ({ ...prev, loading: true }));
     fetch(url + endpoint, {
       method: "POST",
       headers: {
         "Content-Type": contentType ? contentType : "application/json",
       },
-      body: data,
+      body: contentType ? data : JSON.stringify(data),
     })
       .then((response) => response.json().catch(() => {}))
       .then((json) => {
@@ -47,11 +52,11 @@ export default function useApiMutation<T = any>(
       })
       .catch((error) => {
         setState((prev) => ({ ...prev, error, loading: false }));
-        if (onCompleted) {
-          onCompleted(error);
+        if (onError) {
+          onError(error);
         }
       });
-  }
+  };
 
   return [mutation, state];
 }

@@ -5,27 +5,27 @@ import { useEffect, useState } from "react";
 
 import { Spinner } from "@components/atoms/Spinner";
 import useApiMutation from "@libs/client/useApiMutation";
+import { LoginReqBody, LoginResponseType } from "pages/api/auth/login";
+import { USER_INFO } from "@libs/constants";
 
 export const KakaoLogin = () => {
   const searchParams = useSearchParams()!;
   const router = useRouter();
-
-  const [kakaoAuth, { loading, data, error }] = useApiMutation(
-    "https://kauth.kakao.com"
-  );
+  const [kakaoAuth, { data }] = useApiMutation("https://kauth.kakao.com");
+  const [login] = useApiMutation<LoginResponseType>("/api/auth/login");
 
   useEffect(() => {
     if (searchParams.get("code")) {
-      kakaoAuth(
-        encodeURI(
+      kakaoAuth({
+        data: encodeURI(
           `grant_type=authorization_code&client_id=${
             process.env.NEXT_PUBLIC_KAKAO_API_KEY
           }&code=${searchParams.get("code")}&redirect_uri=${process.env
             .NEXT_PUBLIC_DOMAIN_URL!}/login-loading`
         ),
-        "/oauth/token",
-        "application/x-www-form-urlencoded;charset=utf-8"
-      );
+        endpoint: "/oauth/token",
+        contentType: "application/x-www-form-urlencoded;charset=utf-8",
+      });
       return;
     } else if (searchParams.get("error")) {
       alert("카카오 로그인에 오류가 생겼습니다. 다시 시도해주세요");
@@ -67,9 +67,35 @@ export const KakaoLogin = () => {
       } = userData;
 
       console.log("userData :>> ", userData);
-      alert("카카오 로그인 완료");
+      console.log("카카오 로그인 요청 성공 :>> ");
+
+      const body: LoginReqBody = {
+        snsId: id.toString(),
+        name: nickname,
+        provider: USER_INFO.provider.KAKAO,
+        email: email,
+        avatar: thumbnail_image_url,
+      };
+      login({
+        data: body,
+        onCompleted(result) {
+          console.log("result :>> ", result);
+          if (result.success) {
+            router.replace("/");
+          } else {
+            router.replace("/auth/login");
+            alert(`로그인에 실패했습니다:${result.error}`);
+          }
+        },
+        onError(error) {
+          router.replace("/auth/login");
+          alert(error);
+        },
+      });
     } else {
-      alert("오류가 생겼습니다. 다시 시도해주세요.");
+      alert(
+        "카카오로그인 요청에 오류가 생겼습니다. 잠시 후 다시 시도해주세요."
+      );
       router.back();
     }
   };

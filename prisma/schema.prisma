@@ -12,15 +12,23 @@ datasource db {
   relationMode = "prisma"
 }
 
+enum role {
+  USER
+  ADMIN
+  SUPER_USER
+}
+
 model User {
   id              Int         @id @default(autoincrement())
+  role            role        @default(USER)
+  snsId           String      @unique
+  provider        String      
   phone           String?     @unique
   email           String?     @unique
-  name            String
+  name            String      @unique
   avatar          String?
   createdAt       DateTime    @default(now())
   updatedAt       DateTime    @updatedAt
-  tokens          Token[]
   products        Product[]
   posts           Post[]
   answers         Answer[]
@@ -33,16 +41,22 @@ model User {
   record          Record[]
   streams         Stream[]
   messages        Message[]
+  followers       Follow[]    @relation(name: "follower")
+  following       Follow[]    @relation(name: "following")
 }
 
-model Token {
-  id        Int      @id @default(autoincrement())
-  payload   String   @unique
-  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  userId    Int
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-  @@index([userId])
+model Follow {
+  id           Int      @id @default(autoincrement())
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+  follower    User     @relation(name: "follower", fields: [followerId], references: [id], onDelete: Cascade)
+  followerId  Int
+  following   User     @relation(name: "following", fields: [followingId], references: [id], onDelete: Cascade)
+  followingId Int
+
+  @@index([followerId])
+  @@index([followingId])
+
 }
 
 model Product {
@@ -61,7 +75,6 @@ model Product {
   records     Record[]
 
   @@index([userId])
-
 }
 
 model Post {
@@ -146,7 +159,7 @@ model Purchase {
   productId Int
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
-     @@index([userId])
+  @@index([userId])
   @@index([productId])
 }
 
@@ -158,7 +171,7 @@ model Fav {
   productId Int
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
-     @@index([userId])
+  @@index([userId])
   @@index([productId])
 }
 
@@ -171,7 +184,7 @@ model Record {
   createdAt DateTime @default(now())
   kind      String
   updatedAt DateTime @updatedAt
-     @@index([userId])
+  @@index([userId])
   @@index([productId])
 }
 
@@ -192,7 +205,7 @@ model Stream {
   userId      Int
   messages    Message[]
 
-     @@index([userId])
+  @@index([userId])
 
 }
 
@@ -205,6 +218,7 @@ model Message {
   message   String   @db.MediumText
   stream    Stream   @relation(fields: [streamId], references: [id], onDelete: Cascade)
   streamId  Int
-     @@index([userId])
-    @@index([streamId])
+  @@index([userId])
+  @@index([streamId])
 }
+

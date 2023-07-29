@@ -11,22 +11,20 @@ declare module "iron-session" {
   interface IronSessionData {
     user?: {
       id: number;
-      name?: string;
-      isAdult?: boolean;
-      thumbnail?: string;
-      email?: string;
-      provider?: string;
-      plingBalance?: number;
-    };
-    token?: string;
-    pending?: {
-      payment: PendingPayment;
+      snsId: string;
+      provider: string;
+      phone: string | null;
+      email: string | null;
+      name: string;
+      avatar: string | null;
+      createdAt: Date;
+      updatedAt: Date;
     };
   }
 }
 
 const sessionOptions: IronSessionOptions = {
-  cookieName: "smpwa", // sensual moment pling store cookie
+  cookieName: "kakaoDev", //
   password: process.env.COOKIE_PASSWORD!,
   cookieOptions: {
     secure: process.env.NODE_ENV === "production",
