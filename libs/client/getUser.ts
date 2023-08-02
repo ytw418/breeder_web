@@ -21,7 +21,7 @@ export type SessionUser = User | null;
 
 export async function getUser(): Promise<SessionUser> {
   const nextCookies = cookies();
-  const found = nextCookies.get("smpwa");
+  const found = nextCookies.get("kakaoDev");
 
   if (!found) return null;
   try {
