@@ -12,15 +12,15 @@ export function middleware(req: NextRequest, ev: NextFetchEvent) {
   }
 
   // 루트경로
-  if (req.nextUrl.pathname === "/") {
-    return NextResponse.redirect(new URL("/web/main", req.url));
-  }
+  // if (req.nextUrl.pathname === "/") {
+  //   return NextResponse.redirect(new URL("/", req.url));
+  // }
 }
 export const config = {
   matcher: [
-    "/",
+    // "/",
     "/admin:path*",
-    "/web/myPage",
+    "/myPage",
     // "/((?!api|_next/static|_next/image|favicon.ico).*)",
   ],
 };

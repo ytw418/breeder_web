@@ -1,3 +1,4 @@
+import { VariousProvider } from "@libs/client/VariousProvider";
 import ClientComp from "./ClientComp";
 import "/styles/globals.css";
 
@@ -23,8 +24,10 @@ export default async function RootLayout({ children }: PageLayoutProps) {
     <html lang="ko">
       <head></head>
       <body className="bg-White font-pretendard text-Black">
-        <ClientComp />
-        {children}
+        <VariousProvider>
+          <ClientComp />
+          {children}
+        </VariousProvider>
       </body>
     </html>
   );

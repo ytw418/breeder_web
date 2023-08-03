@@ -1,17 +1,22 @@
 "use client";
 import Image from "next/image";
 import React, { Dispatch, SetStateAction } from "react";
-import { FieldValues, UseFormRegister, UseFormReturn } from "react-hook-form";
+import {
+  FieldValues,
+  UseFormRegister,
+  UseFormRegisterReturn,
+  UseFormReturn,
+} from "react-hook-form";
 import { Colors } from "styles/colors";
 
 import Close from "@icons/Close.svg";
-import IconPlusLinear from "@icons/IconPlusLinear.svg";
+import PlusIcon from "@icons/PlusIcon.svg";
 
 interface ImageInputProps {
   imageUrl?: string;
   setImageUrl: Dispatch<SetStateAction<string | undefined>>;
   useFormReturn: UseFormReturn<any>;
-  register: UseFormRegister<any>;
+  register: UseFormRegisterReturn<any>;
 }
 
 const ImageInput = ({
@@ -56,7 +61,7 @@ const ImageInput = ({
           <label htmlFor="imageLoader">
             <div className="flex h-[126px] w-[126px] cursor-pointer items-center justify-center rounded-lg border-[1px] border-Gray-300 bg-White">
               <div className="flex h-[47px] w-[45px] flex-col items-center justify-between">
-                <IconPlusLinear className="block" />
+                <PlusIcon className="block" />
                 <span className="body-2">파일선택</span>
               </div>
             </div>

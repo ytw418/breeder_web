@@ -38,6 +38,13 @@ export const KakaoLogin = () => {
   }, []);
 
   useEffect(() => {
+    // alert(`${data}`);
+    // alert(`${data?.error}`);
+    if (data?.error) {
+      alert(`카카오 로그인 오류: ${JSON.stringify(data)}`);
+      return router.back();
+    }
+
     if (data && !data.error) {
       console.log(" https://kauth.kakao.com :>> ", data);
       loginWithKakao();

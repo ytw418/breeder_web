@@ -13,10 +13,11 @@ export interface ButtonProps {
   withLeftPlus?: boolean;
   withRightPlus?: boolean;
   spinner?: boolean;
-  clickAction: any;
+  clickAction?: any;
   size: "large" | "small";
   state?: "active" | "disable" | "inactive";
   widthFull?: boolean;
+  [key: string]: any;
 }
 
 export const Button = ({
@@ -30,6 +31,7 @@ export const Button = ({
   state = "active",
   widthFull = false,
   spinner,
+  className,
 }: ButtonProps) => {
   const [iconColor, setIconColor] = useState(
     state === "active"
@@ -44,6 +46,8 @@ export const Button = ({
   return (
     <button
       className={clsx(
+        "button",
+        className,
         type === "squareDefault" && "rounded-lg",
         type === "squareBorder" && "rounded-lg border border-Primary",
         type === "round" && "rounded-full px-4 py-[7px]",
@@ -64,7 +68,7 @@ export const Button = ({
       )}
       disabled={state === "disable"}
       onClick={(e) => {
-        clickAction(e);
+        clickAction?.(e);
       }}
       type={buttonType}
     >

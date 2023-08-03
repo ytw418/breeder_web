@@ -8,6 +8,7 @@ import {
   useEffect,
   useState,
 } from "react";
+import { SWRConfig } from "swr";
 
 export interface VariousContextValues {
   hasInput: boolean;
@@ -56,27 +57,34 @@ export const VariousProvider = ({
   };
 
   return (
-    <VariousContext.Provider
+    <SWRConfig
       value={{
-        setHasInput,
-        hasInput,
-        openModal,
-        setOpenModal,
-        modalContent,
-        setModalContent,
-        openLinkModal,
-        setOpenLinkModal,
-        modalLink,
-        setModalLink,
-        confirmCloseModal,
-        setConfirmCloseModal,
-        backgroundCloseModal,
-        setBackgroundCloseModal,
-        closeModal,
+        fetcher: (url: string) =>
+          fetch(url).then((response) => response.json()),
       }}
     >
-      {children}
-    </VariousContext.Provider>
+      <VariousContext.Provider
+        value={{
+          setHasInput,
+          hasInput,
+          openModal,
+          setOpenModal,
+          modalContent,
+          setModalContent,
+          openLinkModal,
+          setOpenLinkModal,
+          modalLink,
+          setModalLink,
+          confirmCloseModal,
+          setConfirmCloseModal,
+          backgroundCloseModal,
+          setBackgroundCloseModal,
+          closeModal,
+        }}
+      >
+        {children}
+      </VariousContext.Provider>
+    </SWRConfig>
   );
 };
 

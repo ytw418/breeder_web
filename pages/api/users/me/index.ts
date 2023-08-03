@@ -8,100 +8,47 @@ async function handler(
   req: NextApiRequest,
   res: NextApiResponse<ResponseType>
 ) {
-  if (req.method === "GET") {
-    const profile = await client.user.findUnique({
-      where: { id: req.session.user?.id },
-    });
-    res.json({
-      success: true,
-      profile,
-    });
-  }
-  if (req.method === "POST") {
-    const {
-      session: { user },
-      body: { email, phone, name, avatarId },
-    } = req;
-    const currentUser = await client.user.findUnique({
-      where: {
-        id: user?.id,
-      },
-    });
-    if (email && email !== currentUser?.email) {
-      const alreadyExists = Boolean(
-        await client.user.findUnique({
+  try {
+    if (req.method === "GET") {
+      const profile = await client.user.findUnique({
+        where: { id: req.session.user?.id },
+      });
+      console.log("profile :>> ", profile);
+      res.json({
+        success: true,
+        profile,
+      });
+    }
+    if (req.method === "POST") {
+      const {
+        session: { user },
+        body: { name, avatarId },
+      } = req;
+
+      if (name) {
+        await client.user.update({
           where: {
-            email,
+            id: user?.id,
           },
-          select: {
-            id: true,
+          data: {
+            name,
           },
-        })
-      );
-      if (alreadyExists) {
-        return res.json({
-          success: false,
-          error: "Email already taken.",
         });
       }
-      await client.user.update({
-        where: {
-          id: user?.id,
-        },
-        data: {
-          email,
-        },
-      });
-      res.json({ success: true });
-    }
-    if (phone && phone !== currentUser?.phone) {
-      const alreadyExists = Boolean(
-        await client.user.findUnique({
+      if (avatarId) {
+        await client.user.update({
           where: {
-            phone,
+            id: user?.id,
           },
-          select: {
-            id: true,
+          data: {
+            avatar: avatarId,
           },
-        })
-      );
-      if (alreadyExists) {
-        return res.json({
-          success: false,
-          error: "Phone already in use.",
         });
       }
-      await client.user.update({
-        where: {
-          id: user?.id,
-        },
-        data: {
-          phone,
-        },
-      });
       res.json({ success: true });
     }
-    if (name) {
-      await client.user.update({
-        where: {
-          id: user?.id,
-        },
-        data: {
-          name,
-        },
-      });
-    }
-    if (avatarId) {
-      await client.user.update({
-        where: {
-          id: user?.id,
-        },
-        data: {
-          avatar: avatarId,
-        },
-      });
-    }
-    res.json({ success: true });
+  } catch (error) {
+    res.json({ success: false, error: JSON.stringify(error) });
   }
 }
 

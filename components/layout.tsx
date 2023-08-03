@@ -31,7 +31,7 @@ export default function Layout({
       <Head>
         <title>브리더 | {seoTitle}</title>
       </Head>
-      <div className="sticky top-0 z-10 w-full bg-white h-12 justify-center text-lg px-10 font-medium text-gray-800 border-b flex items-center">
+      <div className="sticky top-0 z-10 w-full bg-white h-12 justify-center text-base px-10 font-medium text-gray-800 border-b flex items-center">
         {canGoBack ? (
           <button onClick={onClick} className="absolute left-4">
             <svg
@@ -136,10 +136,10 @@ export default function Layout({
           </Link>
 
           <Link
-            href="/web/myPage"
+            href="/myPage"
             className={clsx(
               "flex flex-col items-center space-y-2 ",
-              pathname === "/web/myPage"
+              pathname === "/myPage"
                 ? "text-orange-500"
                 : "hover:text-gray-500 transition-colors"
             )}

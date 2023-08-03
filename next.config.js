@@ -10,6 +10,9 @@ const nextConfig = {
   eslint: {
     ignoreDuringBuilds: true,
   },
+  images: {
+    domains: ["imagedelivery.net", "k.kakaocdn.net"],
+  },
 };
 
 module.exports = nextConfig;

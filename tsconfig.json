@@ -24,6 +24,8 @@
       "@libs/*": ["libs/*"],
       "@images/*": ["public/images/*"],
       "@icons/*": ["public/icons/*"],
+      "@hero/*": ["public/hero/*"],
+
       "@components/*": ["components/*"]
     }
   },
