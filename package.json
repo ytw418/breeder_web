@@ -25,6 +25,7 @@
     "firebase": "^9.15.0",
     "iron-session": "^6.3.1",
     "jwt-decode": "^3.1.2",
+    "logrocket": "^5.0.1",
     "next": "13.4.10",
     "postcss": "8.4.26",
     "prettier-plugin-tailwindcss": "^0.2.1",

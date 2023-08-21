@@ -16,7 +16,7 @@ interface ReviewWithUser extends Review {
   createdBy: User;
 }
 interface ReviewsResponse {
-  ok: boolean;
+  success: boolean;
   reviews: ReviewWithUser[];
 }
 
@@ -49,7 +49,6 @@ const MyPageClient = () => {
             <span className="body-1 text-Gray-500">{user?.email}</span>
           </div>
         </div>
-        {/* <Icon name={"chevron_right"} width="20" height="20" /> */}
       </div>
 
       <div className="ButtonBlock">

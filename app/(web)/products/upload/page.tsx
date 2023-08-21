@@ -1,8 +1,8 @@
 import React from "react";
-import MainClient from "./MainClient";
+import UploadClient from "./UploadClient";
 
 const page = () => {
-  return <MainClient />;
+  return <UploadClient />;
 };
 
 export default page;

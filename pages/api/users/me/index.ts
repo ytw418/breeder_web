@@ -13,6 +13,7 @@ async function handler(
       const profile = await client.user.findUnique({
         where: { id: req.session.user?.id },
       });
+
       console.log("profile :>> ", profile);
       res.json({
         success: true,
@@ -26,6 +27,15 @@ async function handler(
       } = req;
 
       if (name) {
+        // 닉네임 중복검사
+        const checkName = await client.user.findUnique({
+          where: { name: name },
+        });
+
+        if (checkName) {
+          return res.json({ success: false, error: "중복된 닉네임입니다." });
+        }
+
         await client.user.update({
           where: {
             id: user?.id,
@@ -56,5 +66,6 @@ export default withApiSession(
   withHandler({
     methods: ["GET", "POST"],
     handler,
+    isPrivate: true,
   })
 );

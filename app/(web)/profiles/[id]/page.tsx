@@ -1,8 +1,8 @@
 import React from "react";
-import MainClient from "./MainClient";
+import ProfileClient from "./ProfileClient";
 
 const page = () => {
-  return <MainClient />;
+  return <ProfileClient />;
 };
 
 export default page;

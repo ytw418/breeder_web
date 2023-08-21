@@ -82,6 +82,7 @@ const EditProfileClient = () => {
             router.push("/myPage");
           } else {
             alert(result.error);
+            setIsLoading(false);
           }
         },
         onError(error) {

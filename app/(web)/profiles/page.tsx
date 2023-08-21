@@ -1,8 +1,7 @@
 import React from "react";
-import MainClient from "./MainClient";
 
 const page = () => {
-  return <MainClient />;
+  return <div>null</div>;
 };
 
 export default page;

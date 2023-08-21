@@ -60,7 +60,20 @@ export const VariousProvider = ({
     <SWRConfig
       value={{
         fetcher: (url: string) =>
-          fetch(url).then((response) => response.json()),
+          fetch(url).then(async (res) => {
+            if (!res.ok) {
+              try {
+                // ok 가 false 일때 res.json() 실행
+                const data = await res.json();
+                throw new Error(data.message);
+              } catch (error) {
+                //  응답이 json이 아닐 때 res.text()
+                const data = await res.text();
+                throw new Error(data);
+              }
+            }
+            return res.json();
+          }),
       }}
     >
       <VariousContext.Provider

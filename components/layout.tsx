@@ -5,6 +5,8 @@ import Link from "next/link";
 import React from "react";
 import clsx from "clsx";
 import { usePathname, useRouter } from "next/navigation";
+import Image from "next/image";
+import logo from "@images/logo.png";
 
 interface LayoutProps {
   title?: string;
@@ -12,6 +14,7 @@ interface LayoutProps {
   hasTabBar?: boolean;
   children: React.ReactNode;
   seoTitle?: string;
+  icon?: boolean;
 }
 
 export default function Layout({
@@ -20,6 +23,7 @@ export default function Layout({
   hasTabBar,
   children,
   seoTitle,
+  icon,
 }: LayoutProps) {
   const router = useRouter();
   const pathname = usePathname();
@@ -31,7 +35,7 @@ export default function Layout({
       <Head>
         <title>브리더 | {seoTitle}</title>
       </Head>
-      <div className="sticky top-0 z-10 w-full bg-white h-12 justify-center text-base px-10 font-medium text-gray-800 border-b flex items-center">
+      <div className="sticky top-0 z-10 w-full bg-white h-12 justify-center text-base px-10 font-medium text-gray-800 flex items-center">
         {canGoBack ? (
           <button onClick={onClick} className="absolute left-4">
             <svg
@@ -50,6 +54,11 @@ export default function Layout({
             </svg>
           </button>
         ) : null}
+        {icon && (
+          <Link href={"/"} className="absolute left-4">
+            <Image src={logo} alt="로고" width={30} height={30} />
+          </Link>
+        )}
         {title ? (
           <span className={clsx(canGoBack ? "mx-auto" : "", "")}>{title}</span>
         ) : null}
