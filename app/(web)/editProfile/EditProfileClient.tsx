@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import Input from "@components/input";
 
 import { useForm } from "react-hook-form";
-import useApiMutation from "@libs/client/useApiMutation";
+import useMutation from "@libs/client/useMutation";
 import useUser from "@libs/client/useUser";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
@@ -43,7 +43,7 @@ const EditProfileClient = () => {
       );
   }, [user, setValue]);
   const [editProfile, { loading: editProfileLoading }] =
-    useApiMutation<EditProfileResponse>(`/api/users/me`);
+    useMutation<EditProfileResponse>(`/api/users/me`);
 
   const onValid = async ({ name, avatar }: EditProfileForm) => {
     if (isLoading) return;

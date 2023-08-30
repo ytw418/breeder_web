@@ -1,6 +1,6 @@
 import { useState } from "react";
 
-interface UseApiMutationState<T> {
+interface useMutationState<T> {
   loading: boolean;
   data?: T;
   error?: object;
@@ -14,15 +14,15 @@ interface MutationOption<T> {
   onError?: (error: any) => void;
 }
 
-type UseApiMutationResult<T> = [
+type useMutationResult<T> = [
   (options: MutationOption<T>) => void,
-  UseApiMutationState<T>
+  useMutationState<T>,
 ];
 
-export default function useApiMutation<T = any>(
+export default function useMutation<T = any>(
   url: string
-): UseApiMutationResult<T> {
-  const [state, setState] = useState<UseApiMutationState<T>>({
+): useMutationResult<T> {
+  const [state, setState] = useState<useMutationState<T>>({
     loading: false,
     data: undefined,
     error: undefined,

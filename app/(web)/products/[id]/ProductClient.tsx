@@ -9,7 +9,7 @@ import Link from "next/link";
 import client from "@libs/server/client";
 import { cls } from "@libs/client/utils";
 import { makeImageUrl } from "@libs/client/utils";
-import useApiMutation from "@libs/client/useApiMutation";
+import useMutation from "@libs/client/useMutation";
 import { useParams, useRouter } from "next/navigation";
 import useUser from "@libs/client/useUser";
 import { ItemDetailResponse } from "pages/api/products/[id]";
@@ -23,7 +23,7 @@ const ProductClient = ({ product, relatedProducts }: ItemDetailResponse) => {
   const { data, mutate: boundMutate } = useSWR<ItemDetailResponse>(
     query?.id ? `/api/products/${query.id}` : null
   );
-  const [toggleFav, { loading: favLoading }] = useApiMutation(
+  const [toggleFav, { loading: favLoading }] = useMutation(
     query?.id ? `/api/products/${query?.id}/fav` : ""
   );
 

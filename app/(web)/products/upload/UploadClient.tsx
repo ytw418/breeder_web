@@ -7,7 +7,7 @@ import Button from "@components/button";
 import Input from "@components/input";
 import Layout from "@components/layout";
 import TextArea from "@components/textarea";
-import useApiMutation from "@libs/client/useApiMutation";
+import useMutation from "@libs/client/useMutation";
 import { Product } from "@prisma/client";
 import Image from "next/image";
 
@@ -27,7 +27,7 @@ const UploadClient = () => {
   const router = useRouter();
   const { register, handleSubmit, watch } = useForm<UploadProductForm>();
   const [uploadProduct, { loading, data }] =
-    useApiMutation<UploadProductMutation>("/api/products");
+    useMutation<UploadProductMutation>("/api/products");
   const onValid = async ({ name, price, description }: UploadProductForm) => {
     if (loading) return;
     if (photo && photo.length > 0) {

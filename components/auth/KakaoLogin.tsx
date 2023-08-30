@@ -4,15 +4,15 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useState } from "react";
 
 import { Spinner } from "@components/atoms/Spinner";
-import useApiMutation from "@libs/client/useApiMutation";
+import useMutation from "@libs/client/useMutation";
 import { LoginReqBody, LoginResponseType } from "pages/api/auth/login";
 import { USER_INFO } from "@libs/constants";
 
 export const KakaoLogin = () => {
   const searchParams = useSearchParams()!;
   const router = useRouter();
-  const [kakaoAuth, { data }] = useApiMutation("https://kauth.kakao.com");
-  const [login] = useApiMutation<LoginResponseType>("/api/auth/login");
+  const [kakaoAuth, { data }] = useMutation("https://kauth.kakao.com");
+  const [login] = useMutation<LoginResponseType>("/api/auth/login");
 
   useEffect(() => {
     if (searchParams.get("code")) {
