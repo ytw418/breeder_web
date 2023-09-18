@@ -1,7 +1,8 @@
 import Layout from "@components/layout";
 import useMutation from "@libs/client/useMutation";
 import type { NextPage } from "next";
-import { useRouter } from "next/router";
+import { useParams, useRouter } from "next/navigation";
+
 import { useForm } from "react-hook-form";
 
 interface IForm {
@@ -10,14 +11,15 @@ interface IForm {
 }
 const CarrotDate: NextPage = () => {
   const router = useRouter(); //query:{buyerId, id:isCarrotId,  productId, sellerId}
+  const query = useParams();
 
   const [carrotComment, { loading }] = useMutation(
-    `/api/gotocarrot/update/comment/${router.query.id}?productId=${router.query.productId}&sellerId=${router.query.sellerId}&buyerId=${router.query.buyerId}`
+    `/api/gotocarrot/update/comment/${query?.id}?productId=${query?.productId}&sellerId=${query?.sellerId}&buyerId=${query?.buyerId}`
   );
   const { register, handleSubmit } = useForm<IForm>();
   const onValid = (form: IForm) => {
     if (loading) return;
-    carrotComment(form);
+    carrotComment({ data: form });
     if (!loading) {
       router.replace(`/chats`);
     }

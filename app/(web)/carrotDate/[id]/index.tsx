@@ -1,6 +1,6 @@
 import type { NextPage } from "next";
 import Layout from "@components/layout";
-import { useRouter } from "next/router";
+import { useParams, useRouter } from "next/navigation";
 import { useForm } from "react-hook-form";
 import useMutation from "@libs/client/useMutation";
 
@@ -14,22 +14,21 @@ interface IForm {
 
 const CarrotDate: NextPage = () => {
   const router = useRouter(); // query:{id:carrotId, productId, sellerId}
+  const query = useParams();
   const { register, handleSubmit } = useForm();
   const [updateCarrotDate, { data, loading }] = useMutation(
-    `/api/gotocarrot/update/${router.query.id}`
+    `/api/gotocarrot/update/${query?.id}`
   );
   const onValid = (form: IForm) => {
     if (loading) return;
     if (Number(form.month) < 10 && form.month.slice(0, 1) !== "0") {
       form.month = "0" + form.month.slice(0, 1);
     }
-    updateCarrotDate(form);
+    updateCarrotDate({ data: form });
   };
 
   if (data && data.success) {
-    router.replace(
-      `/chats/${router.query.productId}?sellerId=${router.query.sellerId}`
-    );
+    router.replace(`/chats/${query?.productId}?sellerId=${query?.sellerId}`);
   }
 
   // 현재시간 출력 시작

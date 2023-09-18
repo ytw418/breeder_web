@@ -1,6 +1,6 @@
 import useUser from "@libs/client/useUser";
 import { cls } from "@libs/client/utils";
-import { useRouter } from "next/router";
+import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 
 interface CarrotProps {
@@ -22,27 +22,12 @@ export default function CarrotDate({
   const ClickGoToCarrot = () => {
     if (textValue === "후기를 입력 해 보세요") {
       router.push(
-        {
-          pathname: `/carrotDate/comment/${CarrotData?.findCarrotData?.id}`,
-          query: {
-            productId: TTSData?.findTalkToSellerUniq?.productId,
-            sellerId: TTSData?.findTalkToSellerUniq?.createdSellerId,
-            buyerId: TTSData?.findTalkToSellerUniq?.createdBuyerId,
-          },
-        },
-        `/carrotDate/comment/${CarrotData?.findCarrotData?.id}`
+        `/carrotDate/comment/${CarrotData?.findCarrotData?.id}?productId=${TTSData?.findTalkToSellerUniq?.productId}&sellerId=${TTSData?.findTalkToSellerUniq?.createdSellerId}&buyerId=${TTSData?.findTalkToSellerUniq?.createdBuyerId}`
       );
     } else {
       if (CarrotData && CarrotData.success) {
         router.push(
-          {
-            pathname: `/carrotDate/${CarrotData?.findCarrotData?.id}`,
-            query: {
-              productId: TTSData?.findTalkToSellerUniq?.productId,
-              sellerId: TTSData?.findTalkToSellerUniq?.createdSellerId,
-            },
-          },
-          `/carrotDate/${CarrotData?.findCarrotData?.id}`
+          `/carrotDate/${CarrotData?.findCarrotData?.id}?productId=${TTSData?.findTalkToSellerUniq?.productId}@sellerId=${TTSData?.findTalkToSellerUniq?.createdSellerId}`
         );
       }
     }

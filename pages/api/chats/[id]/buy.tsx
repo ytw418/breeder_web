@@ -1,11 +1,11 @@
 import client from "@libs/server/client";
-import withHandler, { IResponseType } from "@libs/server/withHandler";
+import withHandler, { ResponseType } from "@libs/server/withHandler";
 import { NextApiRequest, NextApiResponse } from "next";
 import { withApiSession } from "@libs/server/withSession";
 
 async function handler(
   req: NextApiRequest,
-  res: NextApiResponse<IResponseType>
+  res: NextApiResponse<ResponseType>
 ) {
   const {
     body: { buyorsold, ttsId, isBuyer },
@@ -26,4 +26,6 @@ async function handler(
   }
 }
 
-export default withApiSession(withHandler({ methods: ["POST"], handler }));
+export default withApiSession(
+  withHandler({ methods: ["POST"], handler, isPrivate: true })
+);

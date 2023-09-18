@@ -7,8 +7,15 @@ import GoogleSquare from "@images/GoogleSquare.svg";
 import KakaoRound from "@images/KakaoRound.svg";
 import KakaoLogin from "@icons/kakaoLogin.svg";
 import Link from "next/link";
+import { LoginReqBody, LoginResponseType } from "pages/api/auth/login";
+import useMutation from "@libs/client/useMutation";
+import { USER_INFO } from "@libs/constants";
+import { useRouter } from "next/navigation";
 
 const LoginClient = () => {
+  const [login] = useMutation<LoginResponseType>("/api/auth/login");
+  const router = useRouter();
+
   /**카카오로그인 */
   const loginWithKakao = () => {
     window.Kakao.Auth.authorize({
@@ -26,13 +33,39 @@ const LoginClient = () => {
     provider.setCustomParameters({
       prompt: "select_account",
     });
-    signInWithPopup(getAuth(), provider)
-      .then((result) => {
-        console.log("loginWithGoogle :>> ", result);
-      })
-      .catch((error) => {
+    const googleUser = await signInWithPopup(getAuth(), provider).catch(
+      (error) => {
         console.log("error :>> ", error);
+      }
+    );
+
+    console.log("googleUser :>> ", googleUser);
+
+    if (googleUser) {
+      const body: LoginReqBody = {
+        snsId: googleUser.user.uid,
+        name: googleUser.user.displayName ?? "구글로그인 닉네임 없음",
+        provider: USER_INFO.provider.GOOGLE,
+        email: googleUser.user.email,
+        avatar: googleUser.user.photoURL ?? "",
+      };
+      login({
+        data: body,
+        onCompleted(result) {
+          console.log("result :>> ", result);
+          if (result.success) {
+            router.replace("/");
+          } else {
+            router.replace("/auth/login");
+            alert(`로그인에 실패했습니다:${result.error}`);
+          }
+        },
+        onError(error) {
+          router.replace("/auth/login");
+          alert(error);
+        },
       });
+    }
   };
 
   const loadScript = (url: string, platform: string) => {
@@ -105,13 +138,13 @@ const LoginClient = () => {
         >
           <span className="title-3">{"서비스 둘러보기"}</span>
         </Link>
-        {/* <div
+        <div
           onClick={() => loginWithGoogle()}
           className="relative flex h-[54px] w-full cursor-pointer items-center justify-center rounded-lg border border-Gray-300 px-7 py-[14px]"
         >
           <GoogleSquare className="absolute left-7" width={26} height={26} />
           <span className="title-3">{"구글로 회원가입"}</span>
-        </div> */}
+        </div>
         {/* <div
           onClick={() => loginWithApple()}
           className="relative flex h-[54px] w-full cursor-pointer items-center justify-center rounded-lg border border-Gray-300 px-7 py-[14px]"

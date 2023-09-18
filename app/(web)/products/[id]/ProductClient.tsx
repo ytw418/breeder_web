@@ -2,17 +2,16 @@
 import type { GetStaticPaths, GetStaticProps, NextPage } from "next";
 import useSWR, { useSWRConfig } from "swr";
 
-import Button from "@components/button";
 import Image from "next/image";
 import Layout from "@components/layout";
 import Link from "next/link";
-import client from "@libs/server/client";
 import { cls } from "@libs/client/utils";
 import { makeImageUrl } from "@libs/client/utils";
 import useMutation from "@libs/client/useMutation";
 import { useParams, useRouter } from "next/navigation";
 import useUser from "@libs/client/useUser";
 import { ItemDetailResponse } from "pages/api/products/[id]";
+import Button from "@components/atoms/Button";
 
 const ProductClient = ({ product, relatedProducts }: ItemDetailResponse) => {
   const query = useParams();
@@ -87,7 +86,17 @@ const ProductClient = ({ product, relatedProducts }: ItemDetailResponse) => {
             </span>
             <p className="my-6 body-3 text-gray-700">{product?.description}</p>
             <div className="flex items-center justify-between space-x-2">
-              <Button loading={false} text="판매자와 대화하기" large />
+              <Button
+                type={"squareDefault"}
+                text={"판매자에게 연락하기"}
+                size={"small"}
+                widthFull
+                clickAction={() =>
+                  router.push(
+                    `/chats/${product?.id}?sellerId=${product?.userId}&buyerId=${user?.id}`
+                  )
+                }
+              />
               <button
                 onClick={onFavClick}
                 className={cls(
@@ -136,13 +145,11 @@ const ProductClient = ({ product, relatedProducts }: ItemDetailResponse) => {
           <div className="grid grid-cols-2 gap-4 my-8">
             {relatedProducts?.map((product) => (
               <Link key={product.id} href={`/products/${product.id}`}>
-                <a>
-                  <div className="w-full h-56 mb-4 bg-slate-300" />
-                  <h3 className="-mb-1 text-gray-700">{product.name}</h3>
-                  <span className="body-3 text-gray-900">
-                    {product.price.toLocaleString()} 원
-                  </span>
-                </a>
+                <div className="w-full h-56 mb-4 bg-slate-300" />
+                <h3 className="-mb-1 text-gray-700">{product.name}</h3>
+                <span className="body-3 text-gray-900">
+                  {product.price.toLocaleString()} 원
+                </span>
               </Link>
             ))}
           </div>

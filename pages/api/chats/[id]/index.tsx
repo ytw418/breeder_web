@@ -1,11 +1,11 @@
 import client from "@libs/server/client";
-import withHandler, { IResponseType } from "@libs/server/withHandler";
+import withHandler, { ResponseType } from "@libs/server/withHandler";
 import { NextApiRequest, NextApiResponse } from "next";
 import { withApiSession } from "@libs/server/withSession";
 
 async function handler(
   req: NextApiRequest,
-  res: NextApiResponse<IResponseType>
+  res: NextApiResponse<ResponseType>
 ) {
   const {
     session: { user },
@@ -90,4 +90,6 @@ async function handler(
   }
 }
 
-export default withApiSession(withHandler({ methods: ["GET"], handler }));
+export default withApiSession(
+  withHandler({ methods: ["GET"], handler, isPrivate: true })
+);

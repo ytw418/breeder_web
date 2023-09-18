@@ -39,7 +39,6 @@ model User {
   sales           Sale[]
   purchases       Purchase[]
   record          Record[]
-  streams         Stream[]
   messages        Message[]
   followers       Follow[]    @relation(name: "follower")
   following       Follow[]    @relation(name: "following")
@@ -79,7 +78,7 @@ model Product {
   sales       Sale[]
   purchases   Purchase[]
   records     Record[]
-    talktoseller  TalkToSeller[]
+  talktoseller  TalkToSeller[]
   isCarrot      isCarrot[]
   carrotComment CarrotComment[]
 
@@ -203,20 +202,6 @@ enum Kind {
   Fav
 }
 
-model Stream {
-  id          Int       @id @default(autoincrement())
-  createdAt   DateTime  @default(now())
-  updatedAt   DateTime  @updatedAt
-  name        String
-  description String    @db.MediumText
-  price       Int
-  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
-  userId      Int
-  messages    Message[]
-
-  @@index([userId])
-
-}
 
 model Message {
   id        Int      @id @default(autoincrement())
@@ -225,13 +210,10 @@ model Message {
   user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   userId    Int
   message   String   @db.MediumText
-  stream    Stream   @relation(fields: [streamId], references: [id], onDelete: Cascade)
-  streamId  Int
   talktoseller   TalkToSeller? @relation(fields: [talktosellerId], references: [id], onDelete: Cascade)
   
   talktosellerId Int?
   @@index([userId])
-  @@index([streamId])
 }
 
 

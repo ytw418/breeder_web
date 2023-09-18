@@ -1,8 +1,8 @@
-import type { NextPage } from "next";
+"use client";
 import Layout from "@components/layout";
 import Message from "@components/message";
 import useSWR from "swr";
-import { useRouter } from "next/router";
+import { useParams, useSearchParams } from "next/navigation";
 import { CarrotComment, TalkToSeller } from "@prisma/client";
 import { useForm } from "react-hook-form";
 import useMutation from "@libs/client/useMutation";
@@ -37,6 +37,7 @@ interface IForm {
 }
 interface IBuy {
   success: boolean;
+  // [key: string]: any;
 }
 
 interface ICarrotCommentResponse {
@@ -44,44 +45,55 @@ interface ICarrotCommentResponse {
   carrotComment: CarrotComment;
 }
 
-const ChatDetail: NextPage = () => {
+const ChatRoomClient = () => {
   const { user } = useUser();
-  const router = useRouter();
 
-  const [setBuy] = useMutation<IBuy>(`/api/chats/${router.query.id}/buy`);
+  const query = useParams();
+  const searchParams = useSearchParams();
+
+  console.log("query :>> ", query);
+
+  const [setBuy] = useMutation<IBuy>(`/api/chats/${query?.id}/buy`);
 
   const { data, mutate } = useSWR<ICreateTalkToSeller>(
-    router.query.id
-      ? `/api/chats/${router.query.id}?sellerId=${router.query.sellerId}&buyerId=${router.query.buyerId}`
+    query?.id
+      ? `/api/chats/${query?.id}?sellerId=${searchParams?.get(
+          "sellerId"
+        )}&buyerId=${searchParams?.get("buyerId")}`
       : null
   );
   const { data: carrotComment } = useSWR<ICarrotCommentResponse>(
-    `/api/chats/carrotcomment?productId=${data?.findTalkToSellerUniq?.productId}&buyerId=${data?.findTalkToSellerUniq?.createdBuyerId}&sellerId=${data?.findTalkToSellerUniq?.createdSellerId}`
+    data &&
+      `/api/chats/carrotcomment?productId=${data?.findTalkToSellerUniq?.productId}&buyerId=${data?.findTalkToSellerUniq?.createdBuyerId}&sellerId=${data?.findTalkToSellerUniq?.createdSellerId}`
   );
 
   const ClickBuy = () => {
     if (data?.findTalkToSellerUniq.createdBuyerId === user?.id) {
       setBuy({
-        buyorsold:
-          data?.findTalkToSellerUniq.isbuy === null
-            ? true
-            : !data?.findTalkToSellerUniq.isbuy,
-        ttsId: data?.findTalkToSellerUniq.id,
-        isBuyer: true,
+        data: {
+          buyorsold:
+            data?.findTalkToSellerUniq.isbuy === null
+              ? true
+              : !data?.findTalkToSellerUniq.isbuy,
+          ttsId: data?.findTalkToSellerUniq.id,
+          isBuyer: true,
+        },
       });
     } else if (data?.findTalkToSellerUniq.createdSellerId === user?.id) {
       setBuy({
-        buyorsold:
-          data?.findTalkToSellerUniq.issold === null
-            ? true
-            : !data?.findTalkToSellerUniq.issold,
-        ttsId: data?.findTalkToSellerUniq.id,
-        isBuyer: false,
+        data: {
+          buyorsold:
+            data?.findTalkToSellerUniq.issold === null
+              ? true
+              : !data?.findTalkToSellerUniq.issold,
+          ttsId: data?.findTalkToSellerUniq.id,
+          isBuyer: false,
+        },
       });
     }
   };
   const [sendMessage, { loading, data: sendMessageData }] = useMutation(
-    `/api/chats/${router.query.id}/message?talktosellerid=${data?.findTalkToSellerUniq?.id}`
+    `/api/chats/${query?.id}/message?talktosellerid=${data?.findTalkToSellerUniq?.id}`
   );
   const { register, handleSubmit, reset } = useForm<IForm>();
   const onValid = (form: IForm) => {
@@ -102,7 +114,7 @@ const ChatDetail: NextPage = () => {
         } as any),
       false
     );
-    sendMessage(form);
+    sendMessage({ data: form });
     reset();
   };
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -112,17 +124,17 @@ const ChatDetail: NextPage = () => {
     }
   }, [sendMessageData, mutate]);
 
-  const { data: findCarrotData } = useSWR<ISWRCarrotResponse>(
-    `/api/gotocarrot/${data?.findTalkToSellerUniq?.id}?sellerId=${data?.findTalkToSellerUniq?.createdSellerId}&buyerId=${data?.findTalkToSellerUniq?.createdBuyerId}&productId=${data?.findTalkToSellerUniq?.productId}`
-  );
+  // const { data: findCarrotData } = useSWR<ISWRCarrotResponse>(
+  //   `/api/gotocarrot/${data?.findTalkToSellerUniq?.id}?sellerId=${data?.findTalkToSellerUniq?.createdSellerId}&buyerId=${data?.findTalkToSellerUniq?.createdBuyerId}&productId=${data?.findTalkToSellerUniq?.productId}`
+  // );
 
   return (
     <Layout canGoBack title="채팅" seoTitle="채팅">
-      <CarrotDate
+      {/* <CarrotDate
         CarrotData={findCarrotData}
         TTSData={data}
         CarrotCommentData={carrotComment}
-      />
+      /> */}
       <div className="py-14 pb-16 px-4 space-y-4">
         {data?.findTalkToSellerUniq?.messages?.map((message, index) => (
           <Message
@@ -132,7 +144,7 @@ const ChatDetail: NextPage = () => {
             reversed={user?.id === message.user.id ? true : false}
           />
         ))}
-        {data?.findTalkToSellerUniq?.messages.length !== 0 && (
+        {/* {data?.findTalkToSellerUniq?.messages.length !== 0 && (
           <div
             onClick={ClickBuy}
             className="hover:cursor-pointer flex rounded-md relative max-w-md h-10 justify-center items-center  w-full mx-auto bg-orange-400"
@@ -159,7 +171,7 @@ const ChatDetail: NextPage = () => {
               </span>
             )}
           </div>
-        )}
+        )} */}
         <form
           onSubmit={handleSubmit(onValid)}
           className="fixed py-2 bg-white  bottom-0 inset-x-0"
@@ -184,4 +196,4 @@ const ChatDetail: NextPage = () => {
   );
 };
 
-export default ChatDetail;
+export default ChatRoomClient;
