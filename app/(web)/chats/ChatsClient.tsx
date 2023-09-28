@@ -1,11 +1,12 @@
 "use client";
-import Link from "next/link";
+
 import Layout from "@components/layout";
 import useSWR from "swr";
 import { Message, Product, TalkToSeller } from "@prisma/client";
 import Image from "next/image";
 import useUser from "@libs/client/useUser";
 import { makeImageUrl } from "@libs/client/utils";
+import Link from "next/link";
 interface IWithProductAndMessage extends TalkToSeller {
   messages: Message[];
   product: Product;
@@ -25,15 +26,9 @@ const ChatsClient = () => {
       <div className="divide-y-[1px] ">
         {data?.AllChats?.map((chat, index) => (
           <Link
-            className="flex px-4 cursor-pointer py-3 items-center space-x-3"
-            href={{
-              pathname: `/chats/[id]`,
-              query: {
-                sellerId: chat.product.userId,
-              },
-            }}
-            as={`/chats/${chat.productId}`}
             key={index}
+            className="flex px-4 cursor-pointer py-3 items-center space-x-3"
+            href={`/chats/${chat.productId}?sellerId=${chat.product.userId}`}
           >
             <Image
               alt={`${chat.product.image}`}

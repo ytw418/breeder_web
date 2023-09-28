@@ -62,10 +62,10 @@ const ChatRoomClient = () => {
         )}&buyerId=${searchParams?.get("buyerId")}`
       : null
   );
-  const { data: carrotComment } = useSWR<ICarrotCommentResponse>(
-    data &&
-      `/api/chats/carrotcomment?productId=${data?.findTalkToSellerUniq?.productId}&buyerId=${data?.findTalkToSellerUniq?.createdBuyerId}&sellerId=${data?.findTalkToSellerUniq?.createdSellerId}`
-  );
+  // const { data: carrotComment } = useSWR<ICarrotCommentResponse>(
+  //   data &&
+  //     `/api/chats/carrotcomment?productId=${data?.findTalkToSellerUniq?.productId}&buyerId=${data?.findTalkToSellerUniq?.createdBuyerId}&sellerId=${data?.findTalkToSellerUniq?.createdSellerId}`
+  // );
 
   const ClickBuy = () => {
     if (data?.findTalkToSellerUniq.createdBuyerId === user?.id) {
@@ -124,6 +124,10 @@ const ChatRoomClient = () => {
     }
   }, [sendMessageData, mutate]);
 
+  useEffect(() => {
+    scrollRef?.current?.scrollIntoView();
+  }, []);
+
   // const { data: findCarrotData } = useSWR<ISWRCarrotResponse>(
   //   `/api/gotocarrot/${data?.findTalkToSellerUniq?.id}?sellerId=${data?.findTalkToSellerUniq?.createdSellerId}&buyerId=${data?.findTalkToSellerUniq?.createdBuyerId}&productId=${data?.findTalkToSellerUniq?.productId}`
   // );
@@ -174,17 +178,17 @@ const ChatRoomClient = () => {
         )} */}
         <form
           onSubmit={handleSubmit(onValid)}
-          className="fixed py-2 bg-white  bottom-0 inset-x-0"
+          className="fixed pt-3 bg-white bottom-0 inset-x-0"
         >
-          <div className="flex relative max-w-md items-center  w-full mx-auto">
+          <div className="flex relative items-center w-full mx-auto h-[40px] border-y border-Gray-300">
             <input
               {...register("message")}
               type="text"
-              className="shadow-sm rounded-full w-full border-gray-300 focus:ring-orange-500 focus:outline-none pr-12 focus:border-orange-500"
+              className="w-full border-gray-300 pr-12 pl-4"
               required
             />
             <div className="absolute inset-y-0 flex py-1.5 pr-1.5 right-0">
-              <button className="flex focus:ring-2 focus:ring-offset-2 focus:ring-orange-500 items-center bg-orange-500 rounded-full px-3 hover:bg-orange-600 text-sm text-white">
+              <button className="flex items-center bg-orange-500 rounded-full px-3 hover:bg-orange-600 text-sm text-white">
                 &rarr;
               </button>
             </div>
