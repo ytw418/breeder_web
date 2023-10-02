@@ -1,3 +1,4 @@
+import { Product } from "@prisma/client";
 import Item from "./item";
 
 import useSWR from "swr";
@@ -27,6 +28,7 @@ export default function ProductList({ kind }: ProductListProps) {
           price={record.product.price}
           hearts={record.product._count.favs}
           image={record.product?.image}
+          createdAt={record.product?.createdAt}
         />
       ))}
     </>

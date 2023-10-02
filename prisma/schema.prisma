@@ -214,6 +214,7 @@ model Message {
   
   talktosellerId Int?
   @@index([userId])
+  @@index([talktosellerId])
 }
 
 
@@ -236,6 +237,8 @@ model TalkToSeller {
   isSell          Boolean    @default(false)
 
   @@index([createdBuyerId, createdSellerId, productId])
+  @@index([productId])
+  @@index([createdSellerId])
 }
 
 model isCarrot {
@@ -253,6 +256,9 @@ model isCarrot {
   ttsId          Int
 
   @@index([productId, carrotbuyerId, carrotsellerId, ttsId])
+  @@index([carrotsellerId])
+  @@index([carrotbuyerId])
+  @@index([ttsId])
 }
 
 model CarrotComment {
@@ -272,5 +278,10 @@ model CarrotComment {
   starForSeller         Int       @default(5)
 
   @@index([productId, carrotcommentbuyerId, carrotcommentsellerId, starForBuyer, starForSeller])
+  @@index([carrotcommentbuyerId])
+  @@index([carrotcommentsellerId])
 }
 
+
+// chatRoom
+// 채팅방

@@ -11,4 +11,6 @@ async function handler(
   res.status(200).end("logout");
 }
 
-export default withApiSession(withHandler({ methods: ["POST"], handler }));
+export default withApiSession(
+  withHandler({ methods: ["POST"], handler, isPrivate: true })
+);
