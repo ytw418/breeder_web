@@ -42,12 +42,34 @@ model User {
   messages        Message[]
   followers       Follow[]    @relation(name: "follower")
   following       Follow[]    @relation(name: "following")
+  chatRooms       ChatRoom[]
+  chatRoomMember    ChatRoomMember[] 
   sellerTalk          TalkToSeller[]  @relation(name: "sellerTalk")
   buyerTalk           TalkToSeller[]  @relation(name: "buyerTalk")
   carrotseller        isCarrot[]      @relation(name: "carrotseller")
   carrotbuyer         isCarrot[]      @relation(name: "carrotbuyer")
   carrotcommentbuyer  CarrotComment[] @relation(name: "carrotcommentbuyer")
   carrotcommentseller CarrotComment[] @relation(name: "carrotcommentseller")
+}
+model ChatRoom {
+  id            Int @id @default(autoincrement())
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+  chatRoomMembers  ChatRoomMember[]
+  user          User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId        Int
+  
+  @@index([userId])
+}
+model ChatRoomMember {
+  id        Int @id @default(autoincrement())
+  user      User @relation(fields: [userId], references: [id])
+  userId    Int
+  chatRoom  ChatRoom @relation(fields: [chatRoomId], references: [id])
+  chatRoomId Int
+
+  @@index([userId])
+  @@index([chatRoomId])
 }
 
 model Follow {
@@ -212,6 +234,7 @@ model Message {
   message   String   @db.MediumText
   talktoseller   TalkToSeller? @relation(fields: [talktosellerId], references: [id], onDelete: Cascade)
   
+
   talktosellerId Int?
   @@index([userId])
   @@index([talktosellerId])
