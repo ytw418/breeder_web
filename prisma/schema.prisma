@@ -42,8 +42,7 @@ model User {
   messages        Message[]
   followers       Follow[]    @relation(name: "follower")
   following       Follow[]    @relation(name: "following")
-  chatRooms       ChatRoom[]
-  chatRoomMember    ChatRoomMember[] 
+  chatRoomMember    ChatRoomMember[]
   sellerTalk          TalkToSeller[]  @relation(name: "sellerTalk")
   buyerTalk           TalkToSeller[]  @relation(name: "buyerTalk")
   carrotseller        isCarrot[]      @relation(name: "carrotseller")
@@ -56,11 +55,10 @@ model ChatRoom {
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
   chatRoomMembers  ChatRoomMember[]
-  user          User    @relation(fields: [userId], references: [id], onDelete: Cascade)
-  userId        Int
-  
-  @@index([userId])
+  messages        Message[]
 }
+
+
 model ChatRoomMember {
   id        Int @id @default(autoincrement())
   user      User @relation(fields: [userId], references: [id])
@@ -71,6 +69,50 @@ model ChatRoomMember {
   @@index([userId])
   @@index([chatRoomId])
 }
+
+
+model Message {
+  id        Int      @id @default(autoincrement())
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId    Int
+  message   String   @db.MediumText
+  talktoseller   TalkToSeller? @relation(fields: [talktosellerId], references: [id], onDelete: Cascade)
+  chatRoom   ChatRoom? @relation(fields: [chatRoomId], references: [id], onDelete: Cascade)
+  
+  chatRoomId Int?
+  talktosellerId Int?
+
+  @@index([chatRoomId])
+  @@index([userId])
+  @@index([talktosellerId])
+}
+
+
+
+model TalkToSeller {
+  id              Int        @id @default(autoincrement())
+  createdAt       DateTime   @default(now())
+  updatedAt       DateTime   @updatedAt
+  buyer           User       @relation(name: "buyerTalk", fields: [createdBuyerId], references: [id], onDelete: Cascade)
+  createdBuyerId  Int
+  seller          User       @relation(name: "sellerTalk", fields: [createdSellerId], references: [id], onDelete: Cascade)
+  
+  createdSellerId Int
+  product         Product    @relation(fields: [productId], references: [id], onDelete: Cascade)
+  productId       Int
+  messages        Message[]
+  isbuy           Boolean?
+  issold          Boolean?
+  isCarrot        isCarrot[]
+  isSell          Boolean    @default(false)
+
+  @@index([createdBuyerId, createdSellerId, productId])
+  @@index([productId])
+  @@index([createdSellerId])
+}
+
 
 model Follow {
   id           Int      @id @default(autoincrement())
@@ -222,46 +264,6 @@ enum Kind {
   Purchase
   Sale
   Fav
-}
-
-
-model Message {
-  id        Int      @id @default(autoincrement())
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  userId    Int
-  message   String   @db.MediumText
-  talktoseller   TalkToSeller? @relation(fields: [talktosellerId], references: [id], onDelete: Cascade)
-  
-
-  talktosellerId Int?
-  @@index([userId])
-  @@index([talktosellerId])
-}
-
-
-
-model TalkToSeller {
-  id              Int        @id @default(autoincrement())
-  createdAt       DateTime   @default(now())
-  updatedAt       DateTime   @updatedAt
-  buyer           User       @relation(name: "buyerTalk", fields: [createdBuyerId], references: [id], onDelete: Cascade)
-  createdBuyerId  Int
-  seller          User       @relation(name: "sellerTalk", fields: [createdSellerId], references: [id], onDelete: Cascade)
-  
-  createdSellerId Int
-  product         Product    @relation(fields: [productId], references: [id], onDelete: Cascade)
-  productId       Int
-  messages        Message[]
-  isbuy           Boolean?
-  issold          Boolean?
-  isCarrot        isCarrot[]
-  isSell          Boolean    @default(false)
-
-  @@index([createdBuyerId, createdSellerId, productId])
-  @@index([productId])
-  @@index([createdSellerId])
 }
 
 model isCarrot {

@@ -7,11 +7,14 @@ import useSWR from "swr";
 import MainLayout from "@components/layout";
 import { Spacing } from "@components/atoms/Spacing";
 import Button from "@components/atoms/Button";
+import useMutation from "@libs/client/useMutation";
 const ProfileClient = ({}) => {
   const query = useParams();
   const { data, isLoading, error } = useSWR<UserResponse>(
     query && `/api/users/${query.id}`
   );
+
+  const [getChatRoomId, { loading }] = useMutation(`/api/chat`);
   return (
     <MainLayout canGoBack title={data?.user?.name} hasTabBar>
       <div className="flex px-4 flex-col">
@@ -24,6 +27,17 @@ const ProfileClient = ({}) => {
             text={"메시지"}
             size={"small"}
             className="flex-1"
+            clickAction={() =>
+              getChatRoomId({
+                data: { otherId: query?.id },
+                onCompleted(result) {
+                  console.log("result :>> ", result);
+                },
+                onError(error) {
+                  console.log("error :>> ", error);
+                },
+              })
+            }
           />
           <Button
             type={"squareDefault"}

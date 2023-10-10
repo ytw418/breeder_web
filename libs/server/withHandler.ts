@@ -1,3 +1,4 @@
+import { promises } from "dns";
 import { NextApiRequest, NextApiResponse } from "next";
 
 export interface ResponseType {
@@ -10,7 +11,7 @@ type method = "GET" | "POST" | "DELETE";
 
 interface ConfigType {
   methods: method[];
-  handler: (req: NextApiRequest, res: NextApiResponse) => void;
+  handler: (req: NextApiRequest, res: NextApiResponse) => Promise<void>;
   isPrivate: boolean;
 }
 
@@ -36,7 +37,7 @@ export default function withHandler({
       await handler(req, res);
     } catch (error) {
       console.log("withHandler.error", error);
-      return res.status(500).json({ message: error });
+      return res.status(500).json({ message: JSON.stringify(error) });
     }
   };
 }
