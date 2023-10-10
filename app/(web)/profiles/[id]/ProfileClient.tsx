@@ -8,13 +8,15 @@ import MainLayout from "@components/layout";
 import { Spacing } from "@components/atoms/Spacing";
 import Button from "@components/atoms/Button";
 import useMutation from "@libs/client/useMutation";
+import { ChatResponseType } from "pages/api/chat";
 const ProfileClient = ({}) => {
   const query = useParams();
   const { data, isLoading, error } = useSWR<UserResponse>(
     query && `/api/users/${query.id}`
   );
 
-  const [getChatRoomId, { loading }] = useMutation(`/api/chat`);
+  const [getChatRoomId, { loading }] =
+    useMutation<ChatResponseType>(`/api/chat`);
   return (
     <MainLayout canGoBack title={data?.user?.name} hasTabBar>
       <div className="flex px-4 flex-col">

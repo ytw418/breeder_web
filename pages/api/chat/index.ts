@@ -2,10 +2,17 @@ import client from "@libs/server/client";
 import withHandler, { ResponseType } from "@libs/server/withHandler";
 import { NextApiRequest, NextApiResponse } from "next";
 import { withApiSession } from "@libs/server/withSession";
+import { ChatRoom } from "@prisma/client";
+
+export interface ChatResponseType {
+  success: boolean;
+  error?: string;
+  ChatRoomId?: number;
+}
 
 async function handler(
   req: NextApiRequest,
-  res: NextApiResponse<ResponseType>
+  res: NextApiResponse<ChatResponseType>
 ) {
   try {
     const {
@@ -24,16 +31,15 @@ async function handler(
     const findChatRoom = await findChatRoomByUserIds(userIds);
 
     if (findChatRoom) {
-      return res.json({ success: true, findChatRoom });
+      // 채팅룸이 이미 있을 때
+      return res.json({ success: true, ChatRoomId: findChatRoom.id });
     } else {
+      // 채팅룸이 없을 떄
+      // 채팅룸 생성 > 채팅 맴버 추가
       const createdChatRoom = await createChatRoomWithMembers(userIds);
 
-      const check = await findChatRoomByUserIds(userIds);
-
-      console.log("check :>> ", check);
-
       if (createdChatRoom) {
-        return res.json({ success: true, createdChatRoom });
+        return res.json({ success: true, ChatRoomId: createdChatRoom.id });
       } else {
         return res.json({ success: false, error: "채팅방 생성 실패" });
       }
@@ -51,14 +57,10 @@ const findChatRoomByUserIds = async (userIds: number[]) => {
   return await client.chatRoom.findFirst({
     where: {
       chatRoomMembers: {
-        some: {
-          userId: { in: [8, 1] },
+        every: {
+          userId: { in: userIds },
         },
       },
-    },
-    include: {
-      messages: true,
-      chatRoomMembers: true,
     },
   });
 };
@@ -81,12 +83,8 @@ const createChatRoomWithMembers = async (userIds: number[]) => {
       chatRoomId, // ChatRoom과 연결합니다.
     })),
   });
+  console.log("createChatRoomMembers :>> ", createChatRoomMembers);
 
-  (createChatRoomMembers.count === 2){
-    return t
-  }
-
-  // ChatRoom과 ChatRoomMembers가 생성 및 연결되었습니다.
   return createdChatRoom;
 };
 
