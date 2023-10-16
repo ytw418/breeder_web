@@ -2,7 +2,6 @@ import client from "@libs/server/client";
 import withHandler, { ResponseType } from "@libs/server/withHandler";
 import { NextApiRequest, NextApiResponse } from "next";
 import { withApiSession } from "@libs/server/withSession";
-import { ChatRoom } from "@prisma/client";
 
 export interface ChatResponseType {
   success: boolean;
@@ -39,7 +38,7 @@ async function handler(
       const createdChatRoom = await createChatRoomWithMembers(userIds);
 
       if (createdChatRoom) {
-        return res.json({ success: true, ChatRoomId: createdChatRoom.id });
+        return res.json({ success: true, ChatRoomId: createdChatRoom });
       } else {
         return res.json({ success: false, error: "채팅방 생성 실패" });
       }
@@ -53,6 +52,7 @@ async function handler(
   }
 }
 
+/** 유저가 있는 채팅방 찾기 1:1 */
 const findChatRoomByUserIds = async (userIds: number[]) => {
   return await client.chatRoom.findFirst({
     where: {
@@ -64,28 +64,22 @@ const findChatRoomByUserIds = async (userIds: number[]) => {
     },
   });
 };
-
+/** ChatRoom을 생성합니다 */
 const createChatRoomWithMembers = async (userIds: number[]) => {
-  // ChatRoom을 먼저 생성합니다.
   const createdChatRoom = await client.chatRoom.create({
     data: {
-      // ChatRoomMembers를 생성하지 않습니다.
+      // ChatRoomMembers를 생성하면서 chatRoom에 연결됨
+      chatRoomMembers: {
+        createMany: {
+          data: userIds.map((userId) => ({
+            userId,
+          })),
+        },
+      },
     },
   });
 
-  // 생성된 ChatRoom의 ID를 가져옵니다.
-  const chatRoomId = createdChatRoom.id;
-
-  // ChatRoomMembers를 생성하고 ChatRoom과 연결합니다.
-  const createChatRoomMembers = await client.chatRoomMember.createMany({
-    data: userIds.map((userId) => ({
-      userId,
-      chatRoomId, // ChatRoom과 연결합니다.
-    })),
-  });
-  console.log("createChatRoomMembers :>> ", createChatRoomMembers);
-
-  return createdChatRoom;
+  return createdChatRoom.id;
 };
 
 export default withApiSession(

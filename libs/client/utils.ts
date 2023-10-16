@@ -1,3 +1,6 @@
+import { ChatRoomMember } from "@prisma/client";
+import { ChatListResponseType } from "pages/api/chat/chatList";
+
 export function cls(...classnames: string[]) {
   return classnames.join(" ");
 }
@@ -39,3 +42,15 @@ export const getTimeAgoString = (targetDate: Date): string => {
 // const targetDate = new Date('2023-08-03T12:30:00'); // 특정 날짜
 // const result = getTimeAgoString(targetDate);
 // console.log(result);
+
+export const findChatMember = (
+  chatRoomMembers: ChatListResponseType["AllChats"][0]["chatRoomMembers"],
+  userId: number,
+  option: "ME" | "OTHER" = "OTHER"
+) => {
+  if (option === "OTHER") {
+    return chatRoomMembers.find((data) => data.user.id !== userId);
+  } else if (option === "ME") {
+    return chatRoomMembers.find((data) => data.user.id === userId);
+  }
+};

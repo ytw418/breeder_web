@@ -119,10 +119,10 @@ export default function Layout({
             <span>곤충생활</span>
           </Link>
           <Link
-            href="/chats"
+            href="/chat"
             className={clsx(
               "flex flex-col items-center space-y-2 ",
-              pathname === "/chats"
+              pathname === "/chat"
                 ? "text-orange-500"
                 : "hover:text-gray-500 transition-colors"
             )}
