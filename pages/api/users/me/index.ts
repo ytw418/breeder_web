@@ -14,7 +14,7 @@ async function handler(
         where: { id: req.session.user?.id },
       });
 
-      console.log("profile :>> ", profile);
+      // console.log("profile :>> ", profile);
       res.json({
         success: true,
         profile,

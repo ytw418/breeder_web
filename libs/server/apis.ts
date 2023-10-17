@@ -13,6 +13,7 @@ export async function getProduct(id: string) {
     }
   );
   if (!res.ok) {
+    // 에러를 발생시켜 error.tsx 페이지에서 에러 처리
     try {
       // ok 가 false 일때 res.json() 실행
       const data = await res.json();

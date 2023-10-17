@@ -8,8 +8,10 @@ import { useForm } from "react-hook-form";
 import useMutation from "@libs/client/useMutation";
 import useUser from "@libs/client/useUser";
 import { useEffect, useRef } from "react";
+import { ChatRoomResponseType } from "pages/api/chat/[chatRoomId]";
+import { produce } from "immer";
 
-interface IMEssage {
+interface MessageType {
   message: string;
   id: number;
   user: {
@@ -18,26 +20,8 @@ interface IMEssage {
   };
 }
 
-interface ITalkToSellerWithMessage extends TalkToSeller {
-  messages: IMEssage[];
-}
-
-export interface ICreateTalkToSeller {
-  success: boolean;
-  findTalkToSellerUniq: ITalkToSellerWithMessage;
-}
-
 interface IForm {
   message: string;
-}
-interface IBuy {
-  success: boolean;
-  // [key: string]: any;
-}
-
-interface ICarrotCommentResponse {
-  success: boolean;
-  carrotComment: CarrotComment;
 }
 
 const ChatRoomClient = () => {
@@ -46,49 +30,16 @@ const ChatRoomClient = () => {
   const query = useParams();
   const searchParams = useSearchParams();
 
-  console.log("query :>> ", query);
+  // console.log("query :>> ", query);
 
-  const [setBuy] = useMutation<IBuy>(`/api/chats/${query?.id}/buy`);
-
-  const { data, mutate } = useSWR<ICreateTalkToSeller>(
-    query?.id
-      ? `/api/chats/${query?.id}?sellerId=${searchParams?.get(
-          "sellerId"
-        )}&buyerId=${searchParams?.get("buyerId")}`
-      : null
+  const { data, mutate } = useSWR<ChatRoomResponseType>(
+    query?.chatRoomId && `/api/chat/${query?.chatRoomId}`
   );
-  // const { data: carrotComment } = useSWR<ICarrotCommentResponse>(
-  //   data &&
-  //     `/api/chats/carrotcomment?productId=${data?.findTalkToSellerUniq?.productId}&buyerId=${data?.findTalkToSellerUniq?.createdBuyerId}&sellerId=${data?.findTalkToSellerUniq?.createdSellerId}`
-  // );
 
-  const ClickBuy = () => {
-    if (data?.findTalkToSellerUniq.createdBuyerId === user?.id) {
-      setBuy({
-        data: {
-          buyorsold:
-            data?.findTalkToSellerUniq.isbuy === null
-              ? true
-              : !data?.findTalkToSellerUniq.isbuy,
-          ttsId: data?.findTalkToSellerUniq.id,
-          isBuyer: true,
-        },
-      });
-    } else if (data?.findTalkToSellerUniq.createdSellerId === user?.id) {
-      setBuy({
-        data: {
-          buyorsold:
-            data?.findTalkToSellerUniq.issold === null
-              ? true
-              : !data?.findTalkToSellerUniq.issold,
-          ttsId: data?.findTalkToSellerUniq.id,
-          isBuyer: false,
-        },
-      });
-    }
-  };
+  console.log("12312312312312312312 :>> ", data);
+
   const [sendMessage, { loading, data: sendMessageData }] = useMutation(
-    `/api/chats/${query?.id}/message?talktosellerid=${data?.findTalkToSellerUniq?.id}`
+    `/api/chat/${query?.chatRoomId}/message`
   );
   const { register, handleSubmit, reset } = useForm<IForm>();
   const onValid = (form: IForm) => {
@@ -97,18 +48,31 @@ const ChatRoomClient = () => {
     mutate(
       (prev) =>
         prev &&
-        ({
-          ...prev,
-          findTalkToSellerUniq: {
-            ...prev.findTalkToSellerUniq,
-            messages: [
-              ...prev?.findTalkToSellerUniq?.messages,
-              { id: Date.now(), message: form.message, user: { ...user } },
-            ],
-          },
-        } as any),
+        produce(prev, (drift) => {
+          drift.chatRoom?.messages.push({
+            id: Date.now(),
+            createdAt: Date.now() as unknown as Date,
+            updatedAt: Date.now() as unknown as Date,
+            userId: user?.id!,
+            message: form.message,
+            chatRoomId: null,
+            talktosellerId: null,
+            user: { name: user?.name!, avatar: user?.avatar! },
+          });
+        }),
       false
     );
+
+    // ({
+    //   ...prev,
+    //   chatRoom: {
+    //     ...prev.chatRoom,
+    //     messages: [
+    //       ...prev?.chatRoom?.messages!,
+    //       { id: Date.now(), message: form.message, user: { ...user } },
+    //     ],
+    //   },
+    // } as ChatRoomResponseType)
     sendMessage({ data: form });
     reset();
   };
@@ -135,12 +99,12 @@ const ChatRoomClient = () => {
         CarrotCommentData={carrotComment}
       /> */}
       <div className="py-14 pb-16 px-4 space-y-4">
-        {data?.findTalkToSellerUniq?.messages?.map((message, index) => (
+        {data?.chatRoom?.messages?.map((message, index) => (
           <Message
             key={index}
-            avatarUrl={message.user.avatar}
+            avatarUrl={message.user.avatar ?? ""}
             message={message.message}
-            reversed={user?.id === message.user.id ? true : false}
+            reversed={user?.id === message.userId ? true : false}
           />
         ))}
         {/* {data?.findTalkToSellerUniq?.messages.length !== 0 && (

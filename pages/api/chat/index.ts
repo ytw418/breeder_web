@@ -47,7 +47,7 @@ async function handler(
     console.error("Error in chat handler:", error);
     return res.json({
       success: false,
-      error: "채팅 처리 중 오류가 발생했습니다.",
+      error: "채팅 처리 중 오류가 발생했습니다. >> :" + JSON.stringify(error),
     });
   }
 }
