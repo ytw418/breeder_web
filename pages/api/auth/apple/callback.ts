@@ -2,12 +2,13 @@ import jwtDecode from "jwt-decode";
 import { NextApiRequest, NextApiResponse } from "next";
 
 import { DEFAULT_THUMBNAIL_CDN, Provider, Role } from "@libs/constants";
-import withHandler from "@libs/server/withHandler";
+
 import { withApiSession } from "@libs/server/withSession";
+import withHandler, { ResponseType } from "@libs/server/withHandler";
 
 interface Decoded {
   iss: string; // https://appleid.apple.com
-  aud: string; 
+  aud: string;
   exp: number; // 1645789996
   iat: number;
   sub: string; // snsId
@@ -39,13 +40,15 @@ interface ApplePayload {
 
 async function handler(
   req: NextApiRequest,
-  res: NextApiResponse
+  res: NextApiResponse<ResponseType>
 ) {
   const {
     authorization: { code, id_token, state },
   } = req.body as ApplePayload;
   if (!id_token) {
-    return res.status(401).end();
+    return res
+      .status(401)
+      .json({ success: false, error: "id_token is undefined " });
   }
   let flashMsg = null;
   const { iss, aud, sub, email } = jwtDecode(id_token) as Decoded;
@@ -62,7 +65,6 @@ async function handler(
       error: flashMsg,
     });
   }
-
 }
 
 export default withApiSession(
