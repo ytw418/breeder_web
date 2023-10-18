@@ -1,6 +1,5 @@
 import { Metadata } from "next";
 import KakaoLogin from "@components/auth/KakaoLogin";
-import { getUser } from "@libs/client/getUser";
 
 export async function generateMetadata(): Promise<Metadata> {
   return {
