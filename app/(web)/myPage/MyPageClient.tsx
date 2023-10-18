@@ -11,6 +11,7 @@ import Image from "next/image";
 import Icon from "@libs/Icon";
 import Button from "@components/atoms/Button";
 import { useRouter } from "next/navigation";
+import useLogout from "hooks/useLogout";
 
 interface ReviewWithUser extends Review {
   createdBy: User;
@@ -23,6 +24,7 @@ interface ReviewsResponse {
 const MyPageClient = () => {
   const { user } = useUser();
   const { data } = useSWR<ReviewsResponse>("/api/reviews");
+  const handleLogout = useLogout();
   const router = useRouter();
   console.log("user :>> ", user);
   return (
@@ -58,6 +60,14 @@ const MyPageClient = () => {
           size="small"
           widthFull
           clickAction={() => router.push("/editProfile")}
+          className="mt-2"
+        />
+        <Button
+          type="squareBorder"
+          text="로그아웃"
+          size="small"
+          widthFull
+          clickAction={() => handleLogout()}
           className="mt-5"
         />
       </div>

@@ -1,6 +1,6 @@
 "use client";
 import Profile from "@components/atoms/Profile";
-import { useParams } from "next/navigation";
+import { useParams, useRouter } from "next/navigation";
 import { UserResponse } from "pages/api/users/[id]";
 import React from "react";
 import useSWR from "swr";
@@ -9,7 +9,8 @@ import { Spacing } from "@components/atoms/Spacing";
 import Button from "@components/atoms/Button";
 import useMutation from "@libs/client/useMutation";
 import { ChatResponseType } from "pages/api/chat";
-const ProfileClient = ({}) => {
+const ProfileClient = () => {
+  const router = useRouter();
   const query = useParams();
   const { data, isLoading, error } = useSWR<UserResponse>(
     query && `/api/users/${query.id}`
@@ -33,10 +34,14 @@ const ProfileClient = ({}) => {
               getChatRoomId({
                 data: { otherId: query?.id },
                 onCompleted(result) {
-                  console.log("result :>> ", result);
+                  if (result.success) {
+                    router.push(`/chat/${result.ChatRoomId}`);
+                  } else {
+                    alert(result.error);
+                  }
                 },
                 onError(error) {
-                  console.log("error :>> ", error);
+                  alert(error);
                 },
               })
             }
