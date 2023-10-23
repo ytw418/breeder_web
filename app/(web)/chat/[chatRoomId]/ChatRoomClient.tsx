@@ -31,7 +31,8 @@ const ChatRoomClient = () => {
   const { register, handleSubmit, reset } = useForm<Form>();
   const onValid = async (form: Form) => {
     if (form.message.length < 1) return;
-    if (loading) return;
+    reset();
+    // if (loading) return;
     await mutate(
       (prev) =>
         prev &&

@@ -12,10 +12,13 @@ import { useParams, useRouter } from "next/navigation";
 import useUser from "@libs/client/useUser";
 import { ItemDetailResponse } from "pages/api/products/[id]";
 import Button from "@components/atoms/Button";
+import { ChatResponseType } from "pages/api/chat";
 
 const ProductClient = ({ product, relatedProducts }: ItemDetailResponse) => {
   const query = useParams();
 
+  const [getChatRoomId, { loading }] =
+    useMutation<ChatResponseType>(`/api/chat`);
   const { user, isLoading } = useUser();
   const router = useRouter();
   const { mutate } = useSWRConfig();
@@ -92,9 +95,19 @@ const ProductClient = ({ product, relatedProducts }: ItemDetailResponse) => {
                 size={"small"}
                 widthFull
                 clickAction={() =>
-                  router.push(
-                    `/chats/${product?.id}?sellerId=${product?.userId}&buyerId=${user?.id}`
-                  )
+                  getChatRoomId({
+                    data: { otherId: data?.product?.userId },
+                    onCompleted(result) {
+                      if (result.success) {
+                        router.push(`/chat/${result.ChatRoomId}`);
+                      } else {
+                        alert(result.error);
+                      }
+                    },
+                    onError(error) {
+                      alert(error);
+                    },
+                  })
                 }
               />
               <button
