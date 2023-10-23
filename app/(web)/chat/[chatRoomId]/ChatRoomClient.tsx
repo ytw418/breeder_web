@@ -55,6 +55,7 @@ const ChatRoomClient = () => {
     reset();
   };
   const scrollRef = useRef<HTMLDivElement>(null);
+
   useEffect(() => {
     if (sendMessageData && sendMessageData.success) {
       scrollRef?.current?.scrollIntoView();
@@ -63,7 +64,7 @@ const ChatRoomClient = () => {
 
   useEffect(() => {
     scrollRef?.current?.scrollIntoView();
-  }, []);
+  }, [data]);
 
   return (
     <Layout canGoBack title="채팅" seoTitle="채팅">
@@ -71,7 +72,7 @@ const ChatRoomClient = () => {
         {data?.chatRoom?.messages?.map((message, index) => (
           <Message
             key={index}
-            avatarUrl={message.user.avatar ?? ""}
+            avatarUrl={message.user.avatar}
             message={message.message}
             reversed={user?.id === message.userId ? true : false}
           />
@@ -79,13 +80,13 @@ const ChatRoomClient = () => {
 
         <form
           onSubmit={handleSubmit(onValid)}
-          className="fixed pt-3 bg-white bottom-0 inset-x-0"
+          className="fixed bottom-0 inset-x-0"
         >
-          <div className="flex relative items-center w-full mx-auto h-[40px] border-y border-Gray-300">
+          <div className="flex relative items-center w-full mx-auto border-y border-Gray-300">
             <input
               {...register("message")}
               type="text"
-              className="w-full border-gray-300 pr-12 pl-4"
+              className="w-full border-gray-300 pr-12 pl-4 h-[40px]"
               required
             />
             <div className="absolute inset-y-0 flex py-1.5 pr-1.5 right-0">

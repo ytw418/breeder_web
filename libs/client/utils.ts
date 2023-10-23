@@ -1,13 +1,23 @@
 import { ChatRoomMember } from "@prisma/client";
 import { ChatListResponseType } from "pages/api/chat/chatList";
-
+import defaultImage from "@images/defaultImage.png";
 export function cls(...classnames: string[]) {
   return classnames.join(" ");
 }
 
 type Variants = "avatar" | "product" | "list" | "public";
 
-export function makeImageUrl(imageId: string, variant: Variants) {
+export function makeImageUrl(
+  imageId: string | undefined | null,
+  variant: Variants
+) {
+  if (!imageId) {
+    return defaultImage;
+  }
+  if (imageId.includes("http")) {
+    // 구글이나 카카오 로그인시 프로필 사진의 경우
+    return imageId;
+  }
   return `https://imagedelivery.net/OvWZrAz6J6K7n9LKUH5pKw/${imageId}/${variant}`;
 }
 

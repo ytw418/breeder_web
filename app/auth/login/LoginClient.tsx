@@ -54,9 +54,9 @@ const LoginClient = () => {
         onCompleted(result) {
           console.log("result :>> ", result);
           if (result.success) {
-            router.replace("/");
+            router.push("/");
           } else {
-            router.replace("/auth/login");
+            router.push("/auth/login");
             alert(`로그인에 실패했습니다:${result.error}`);
           }
         },
