@@ -158,7 +158,13 @@ const ProductClient = ({ product, relatedProducts }: ItemDetailResponse) => {
           <div className="grid grid-cols-2 gap-4 my-8">
             {relatedProducts?.map((product) => (
               <Link key={product.id} href={`/products/${product.id}`}>
-                <div className="w-full h-56 mb-4 bg-slate-300" />
+                <Image
+                  src={makeImageUrl(product.image, "product")}
+                  height={224}
+                  width={150}
+                  alt={product.name}
+                  className="w-full h-56 mb-4 bg-slate-300"
+                />
                 <h3 className="-mb-1 text-gray-700">{product.name}</h3>
                 <span className="body-3 text-gray-900">
                   {product.price.toLocaleString()} 원

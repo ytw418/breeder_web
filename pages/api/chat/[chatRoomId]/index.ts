@@ -2,7 +2,7 @@ import client from "@libs/server/client";
 import withHandler, { ResponseType } from "@libs/server/withHandler";
 import { NextApiRequest, NextApiResponse } from "next";
 import { withApiSession } from "@libs/server/withSession";
-import { ChatRoom, Message, User } from "@prisma/client";
+import { ChatRoom, ChatRoomMember, Message, User } from "@prisma/client";
 
 interface MessageWithUser extends Message {
   user: {
@@ -11,7 +11,14 @@ interface MessageWithUser extends Message {
   };
 }
 
+interface ChatRoomMemberWithUser extends ChatRoomMember {
+  user: {
+    name: string;
+  };
+}
+
 interface ChatRoomWithMessage extends ChatRoom {
+  chatRoomMembers: ChatRoomMemberWithUser[];
   messages: MessageWithUser[];
 }
 
@@ -38,6 +45,15 @@ async function handler(
       id: +chatRoomId,
     },
     include: {
+      chatRoomMembers: {
+        include: {
+          user: {
+            select: {
+              name: true,
+            },
+          },
+        },
+      },
       messages: {
         include: {
           user: {

@@ -37,16 +37,27 @@ const UploadClient = () => {
       const {
         result: { id },
       } = await (await fetch(uploadURL, { method: "POST", body: form })).json();
-      uploadProduct({ data: { name, price, description, photoId: id } });
+      uploadProduct({
+        data: { name, price, description, photoId: id },
+        onCompleted(result) {
+          console.log("result :>> ", result);
+          if (result.success) {
+            return router.push(`/products/${result.product.id}`);
+          }
+        },
+      });
     } else {
-      uploadProduct({ data: { name, price, description } });
+      uploadProduct({
+        data: { name, price, description },
+        onCompleted(result) {
+          if (result.success) {
+            return router.push(`/products/${result.product.id}`);
+          }
+        },
+      });
     }
   };
-  useEffect(() => {
-    if (data?.success) {
-      router.replace(`/products/${data.product.id}`);
-    }
-  }, [data, router]);
+
   const photo = watch("photo");
   const [photoPreview, setPhotoPreview] = useState("");
   useEffect(() => {
@@ -56,7 +67,7 @@ const UploadClient = () => {
     }
   }, [photo]);
   return (
-    <Layout canGoBack title="거래글">
+    <Layout canGoBack title="판매">
       <form className="p-4 space-y-4" onSubmit={handleSubmit(onValid)}>
         <div>
           {photoPreview ? (

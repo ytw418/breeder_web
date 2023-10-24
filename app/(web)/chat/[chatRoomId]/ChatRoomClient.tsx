@@ -3,13 +3,14 @@
 import Layout from "@components/layout";
 import Message from "@components/message";
 import useSWR from "swr";
-import { useParams } from "next/navigation";
+import { useParams, useSearchParams } from "next/navigation";
 import { useForm } from "react-hook-form";
 import useMutation from "@libs/client/useMutation";
 import useUser from "@libs/client/useUser";
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import { ChatRoomResponseType } from "pages/api/chat/[chatRoomId]";
 import { produce } from "immer";
+import { findChatMember } from "@libs/client/utils";
 
 interface Form {
   message: string;
@@ -19,6 +20,9 @@ const ChatRoomClient = () => {
   const { user } = useUser();
 
   const query = useParams();
+  const searchParams = useSearchParams();
+
+  const [title, setTitle] = useState("");
 
   const { data, mutate } = useSWR<ChatRoomResponseType>(
     query?.chatRoomId && `/api/chat/${query?.chatRoomId}`
@@ -66,8 +70,17 @@ const ChatRoomClient = () => {
     scrollRef?.current?.scrollIntoView();
   }, [data]);
 
+  // 채팅방 타이틀 판매자 연락으로 넘어 올 때
+  useEffect(() => {
+    const _title = data?.chatRoom?.chatRoomMembers.find(
+      (data) => data.userId !== user?.id
+    )?.user.name;
+
+    return setTitle(_title ?? "");
+  }, [data]);
+
   return (
-    <Layout canGoBack title="채팅" seoTitle="채팅">
+    <Layout canGoBack title={title} seoTitle={"채팅방"}>
       <div className="py-14 pb-16 px-4 space-y-4">
         {data?.chatRoom?.messages?.map((message, index) => (
           <Message
@@ -86,7 +99,7 @@ const ChatRoomClient = () => {
             <input
               {...register("message")}
               type="text"
-              className="w-full border-gray-300 pr-12 pl-4 h-[40px]"
+              className="w-full border-gray-300 pr-12 pl-4 h-[40px] outline-none"
               required
             />
             <div className="absolute inset-y-0 flex py-1.5 pr-1.5 right-0">

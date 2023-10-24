@@ -54,7 +54,6 @@ const handler = async (
     });
 
     try {
-      await res.revalidate("/");
       return res.json({ success: true, product });
     } catch (error) {
       console.log(error);

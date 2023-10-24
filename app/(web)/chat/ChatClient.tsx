@@ -21,7 +21,10 @@ const ChatClient = () => {
           <Link
             key={index}
             className="flex px-4 cursor-pointer py-3 items-center space-x-3"
-            href={`/chat/${chat.id}`}
+            href={`/chat/${chat.id}?title=${findChatMember(
+              chat.chatRoomMembers,
+              user?.id!
+            )?.user.name}`}
           >
             <Image
               alt={`${findChatMember(chat.chatRoomMembers, user?.id!)?.user
