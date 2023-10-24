@@ -51,8 +51,6 @@ const ChatRoomClient = () => {
   const query = useParams();
   const searchParams = useSearchParams();
 
-  console.log("query :>> ", query);
-
   const [setBuy] = useMutation<IBuy>(`/api/chats/${query?.id}/buy`);
 
   const { data, mutate } = useSWR<ICreateTalkToSeller>(

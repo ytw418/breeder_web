@@ -54,14 +54,13 @@ const EditProfileClient = () => {
       name: name,
       avatarId: null,
     };
-    console.log("avatar :>> ", avatar);
 
     try {
       if (avatar && avatar.length > 0 && user) {
         const { uploadURL } = await (await fetch(`/api/files`)).json();
         const form = new FormData();
         form.append("file", avatar[0], user?.id + "");
-        console.log("uploadURL :>> ", uploadURL);
+
         const {
           result: { id },
         } = await (
@@ -71,7 +70,6 @@ const EditProfileClient = () => {
           }).then()
         ).json();
 
-        console.log("id :>> ", id);
         editProfileBody.avatarId = id;
       }
 

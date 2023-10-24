@@ -8,12 +8,11 @@ import useUser from "@libs/client/useUser";
 import { findChatMember, makeImageUrl } from "@libs/client/utils";
 import Link from "next/link";
 import { ChatListResponseType } from "pages/api/chat/chatList";
+import { useEffect } from "react";
 
 const ChatClient = () => {
   const { data } = useSWR<ChatListResponseType>(`/api/chat/chatList`);
   const { user } = useUser();
-
-  console.log("data :>> ", data);
 
   return (
     <Layout hasTabBar title="채팅v2" seoTitle="채팅">

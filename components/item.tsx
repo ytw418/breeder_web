@@ -25,7 +25,7 @@ export default function Item({
   createdAt,
 }: ItemProps) {
   const linkRef = useRef<HTMLAnchorElement>(null);
-  console.log("createdAt :>> ", createdAt);
+
   return (
     <div
       className="flex px-4 cursor-pointer justify-between"

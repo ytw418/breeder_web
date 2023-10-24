@@ -20,7 +20,6 @@ const ChatsClient = () => {
   const { user } = useUser();
   const { data } = useSWR<IChatsResponse>(`/api/chats`);
 
-  console.log("data :>> ", data);
   return (
     <Layout hasTabBar title="채팅" seoTitle="채팅">
       <div className="divide-y-[1px] ">

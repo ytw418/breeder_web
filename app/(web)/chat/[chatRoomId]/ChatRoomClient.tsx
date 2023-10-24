@@ -17,7 +17,6 @@ interface Form {
 
 const ChatRoomClient = () => {
   const { user } = useUser();
-  console.log("클라이언트");
 
   const query = useParams();
 

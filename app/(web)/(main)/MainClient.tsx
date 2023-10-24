@@ -27,7 +27,6 @@ interface ProductsResponse {
 
 const getKey = (pageIndex: number, previousPageData: ProductsResponse) => {
   if (previousPageData && !previousPageData.products.length) return null;
-  console.log("pageIndex: getkey", pageIndex);
 
   return `/api/products?page=${pageIndex + 1}`;
 };

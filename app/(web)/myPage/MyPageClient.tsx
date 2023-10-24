@@ -26,7 +26,7 @@ const MyPageClient = () => {
   const { data } = useSWR<ReviewsResponse>("/api/reviews");
   const handleLogout = useLogout();
   const router = useRouter();
-  console.log("user :>> ", user);
+
   return (
     <div className="px-4">
       <div className="Profile flex flex-row justify-between items-center mt-4">

@@ -13,9 +13,6 @@ async function handler(
     body: { message },
   } = req;
 
-  console.log("요청왔어요");
-
-  console.log("chatRoomId :>> ", chatRoomId);
   await client.message.create({
     data: {
       message,

@@ -4,7 +4,7 @@ import { getProduct } from "@libs/server/apis";
 
 const page = async ({ params: { id } }: { params: { id: string } }) => {
   const data = await getProduct(id);
-  console.log("data :>> ", data);
+
   return (
     <div>
       <ProductClient

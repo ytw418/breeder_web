@@ -1,8 +1,6 @@
 import { NextFetchEvent, NextRequest, NextResponse } from "next/server";
 
 export function middleware(req: NextRequest, ev: NextFetchEvent) {
-  console.log("미들웨어 실행");
-
   // 비로그인 접근 제한
   if (req.nextUrl.pathname.includes("myPage")) {
     const found = req.cookies.get("kakaoDev");
