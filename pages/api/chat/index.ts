@@ -23,15 +23,17 @@ async function handler(
       return res.json({ success: false, error: "otherId 가 없습니다." });
     }
 
-    const userIds = [user?.id!, +otherId];
+    const userIds = [user?.id!, otherId];
 
     console.log("userIds :>> ", userIds);
 
     const findChatRoom = await findChatRoomByUserIds(userIds);
 
+    console.log("findChatRoom :>> ", findChatRoom);
+
     if (findChatRoom) {
       // 채팅룸이 이미 있을 때
-      return res.json({ success: true, ChatRoomId: findChatRoom.id });
+      return res.json({ success: true, ChatRoomId: findChatRoom[0].id });
     } else {
       // 채팅룸이 없을 떄
       // 채팅룸 생성 > 채팅 맴버 추가
@@ -54,13 +56,16 @@ async function handler(
 
 /** 유저가 있는 채팅방 찾기 1:1 */
 const findChatRoomByUserIds = async (userIds: number[]) => {
-  return await client.chatRoom.findFirst({
+  return await client.chatRoom.findMany({
     where: {
       chatRoomMembers: {
         every: {
           userId: { in: userIds },
         },
       },
+    },
+    select: {
+      chatRoomMembers: true,
     },
   });
 };
