@@ -5,7 +5,7 @@ import React, { useEffect } from "react";
 import AppleSquare from "@images/AppleSquare.svg";
 import GoogleSquare from "@images/GoogleSquare.svg";
 import KakaoRound from "@images/KakaoRound.svg";
-import KakaoLogin from "@icons/kakaoLogin.svg";
+
 import Link from "next/link";
 import { LoginReqBody, LoginResponseType } from "pages/api/auth/login";
 import useMutation from "@libs/client/useMutation";
@@ -132,8 +132,8 @@ const LoginClient = () => {
           onClick={() => loginWithKakao()}
           className="button relative flex h-[54px] w-full items-center bg-[#FAE100] justify-center rounded-lg border border-Gray-300 px-7 py-[14px]"
         >
-          {/* <KakaoRound className="absolute left-7" width={26} height={26} /> */}
-          <KakaoLogin className="absolute left-7" width={26} height={26} />
+          <KakaoRound className="absolute left-7" width={26} height={26} />
+          {/* <KakaoLogin className="absolute left-7" width={26} height={26} /> */}
           <span className="title-3">{"카카오로 계속하기"}</span>
         </button>
         <Link

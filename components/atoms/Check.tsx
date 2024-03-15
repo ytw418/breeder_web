@@ -1,12 +1,12 @@
 import React, { useState } from "react";
 import { UseFormRegisterReturn } from "react-hook-form";
 
-import CheckBoxActive from "@icons/CheckBoxActive.svg";
-import CheckBoxDefault from "@icons/CheckBoxDefault.svg";
-import CheckBoxDisable from "@icons/CheckBoxDisable.svg";
-import RadioActive from "@icons/RadioActive.svg";
-import RadioDefault from "@icons/RadioDefault.svg";
-import RadioDisable from "@icons/RadioDisable.svg";
+import CheckBoxActive from "@hero/plus.svg";
+import CheckBoxDefault from "@hero/plus.svg";
+import CheckBoxDisable from "@hero/plus.svg";
+import RadioActive from "@hero/plus.svg";
+import RadioDefault from "@hero/plus.svg";
+import RadioDisable from "@hero/plus.svg";
 
 interface CheckProps {
   type: "checkbox" | "radio";
