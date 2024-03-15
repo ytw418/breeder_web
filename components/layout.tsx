@@ -93,7 +93,7 @@ export default function Layout({
             </svg>
             <span>홈</span>
           </Link>
-          <Link
+          {/* <Link
             href="/community"
             className={clsx(
               "flex flex-col items-center space-y-2 ",
@@ -117,7 +117,7 @@ export default function Layout({
               ></path>
             </svg>
             <span>곤충생활</span>
-          </Link>
+          </Link> */}
           <Link
             href="/chat"
             className={clsx(
