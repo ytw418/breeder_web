@@ -20,6 +20,8 @@ const LoginClient = () => {
   const loginWithKakao = () => {
     window.Kakao.Auth.authorize({
       redirectUri: process.env.NEXT_PUBLIC_DOMAIN_URL + `/login-loading`,
+      prompt: "select_account",
+      throughTalk: false,
     });
   };
   /**애플로그인 */
