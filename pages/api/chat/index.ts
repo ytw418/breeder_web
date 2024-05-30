@@ -70,7 +70,7 @@ const findChatRoomByUserIds = async (userIds: number[]) => {
     where: {
       chatRoomMembers: {
         some: {
-          userId: { in: userIds },
+          AND: [{ userId: userIds[0] }, { userId: userIds[1] }],
         },
       },
     },

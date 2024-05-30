@@ -31,7 +31,6 @@ const LoginClient = () => {
   };
   /**구글로그인 */
   const loginWithGoogle = async () => {
-    alert("dd");
     const provider = new GoogleAuthProvider();
     provider.addScope("profile");
     provider.addScope("email");
@@ -44,7 +43,6 @@ const LoginClient = () => {
       }
     );
 
-    alert(googleUser);
     console.log("googleUser :>> ", googleUser);
 
     if (googleUser) {
