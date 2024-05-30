@@ -8,8 +8,6 @@ import useMutation from "@libs/client/useMutation";
 import { LoginReqBody, LoginResponseType } from "pages/api/auth/login";
 import { USER_INFO } from "@libs/constants";
 
-import { Suspense } from "react";
-
 export const KakaoLogin = () => {
   const searchParams = useSearchParams()!;
   const router = useRouter();
@@ -113,11 +111,9 @@ export const KakaoLogin = () => {
   };
 
   return (
-    <Suspense>
-      <div className="flex min-h-screen w-full items-center justify-center">
-        <Spinner />
-      </div>
-    </Suspense>
+    <div className="flex min-h-screen w-full items-center justify-center">
+      <Spinner />
+    </div>
   );
 };
 
