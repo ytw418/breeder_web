@@ -101,6 +101,15 @@ const LoginClient = () => {
         script = document.createElement("script")!;
         script.setAttribute("type", "application/javascript");
         script.setAttribute("src", url);
+
+        if (platform === "kakao") {
+          script.setAttribute(
+            "integrity",
+            "sha384-TiCUE00h649CAMonG018J2ujOgDKW/kVWlChEuu4jK2vxfAAD0eZxzCKakxg55G4"
+          );
+          script.setAttribute("crossorigin", "anonymous");
+        }
+
         document.body.appendChild(script);
         script.addEventListener("load", handleScript);
         script.addEventListener("error", handleScript);
@@ -113,7 +122,10 @@ const LoginClient = () => {
   };
 
   useEffect(() => {
-    loadScript("https://developers.kakao.com/sdk/js/kakao.js", "kakao");
+    loadScript(
+      "https://t1.kakaocdn.net/kakao_js_sdk/2.7.2/kakao.min.js",
+      "kakao"
+    );
     loadScript(
       "https://appleid.cdn-apple.com/appleauth/static/jsapi/appleid/1/en_US/appleid.auth.js",
       "apple"

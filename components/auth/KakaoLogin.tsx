@@ -42,10 +42,11 @@ export const KakaoLogin = () => {
 
   useEffect(() => {
     // alert(`${data}`);
-    // alert(`${data?.error}`);
+
     if (data?.error) {
-      alert(`카카오 로그인 오류: ${JSON.stringify(data)}`);
-      return router.back();
+      // alert(`카카오 로그인 오류: ${JSON.stringify(data)}`);
+      console.log("data :>> ", data);
+      return;
     }
 
     if (data && !data.error) {
