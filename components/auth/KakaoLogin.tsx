@@ -28,7 +28,10 @@ export const KakaoLogin = () => {
       });
       return;
     } else if (searchParams.get("error")) {
-      alert("카카오 로그인에 오류가 생겼습니다. 다시 시도해주세요");
+      alert(`카카오 로그인에 오류가 생겼습니다. 다시 시도해주세요
+      - ${searchParams.get("error")}
+      - ${searchParams.get("error_description")}
+      `);
       console.log(searchParams.get("error"));
       console.log(searchParams.get("error_description"));
       router.back();
