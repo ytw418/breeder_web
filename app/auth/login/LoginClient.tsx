@@ -59,6 +59,7 @@ const LoginClient = () => {
           console.log("result :>> ", result);
           if (result.success) {
             router.push("/");
+            router.refresh();
           } else {
             router.push("/auth/login");
             alert(`로그인에 실패했습니다:${result.error}`);
@@ -148,12 +149,6 @@ const LoginClient = () => {
           {/* <KakaoLogin className="absolute left-7" width={26} height={26} /> */}
           <span className="title-3">{"카카오로 계속하기"}</span>
         </button>
-        <Link
-          href={"/"}
-          className="button relative flex h-[54px] w-full items-center justify-center rounded-lg border border-Gray-300 px-7 py-[14px]"
-        >
-          <span className="title-3">{"서비스 둘러보기"}</span>
-        </Link>
         <div
           onClick={() => loginWithGoogle()}
           className="relative flex h-[54px] w-full cursor-pointer items-center justify-center rounded-lg border border-Gray-300 px-7 py-[14px]"
@@ -161,6 +156,12 @@ const LoginClient = () => {
           <GoogleSquare className="absolute left-7" width={26} height={26} />
           <span className="title-3">{"구글로 회원가입"}</span>
         </div>
+        <Link
+          href={"/"}
+          className="button relative flex h-[54px] w-full items-center justify-center rounded-lg border border-Gray-300 px-7 py-[14px]"
+        >
+          <span className="title-3">{"서비스 둘러보기"}</span>
+        </Link>
         {/* <div
           onClick={() => loginWithApple()}
           className="relative flex h-[54px] w-full cursor-pointer items-center justify-center rounded-lg border border-Gray-300 px-7 py-[14px]"
