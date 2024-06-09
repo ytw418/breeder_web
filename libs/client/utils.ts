@@ -12,7 +12,7 @@ export function makeImageUrl(
   variant: Variants
 ) {
   if (!imageId) {
-    return defaultImage;
+    return defaultImage as any as string;
   }
   if (imageId.includes("http")) {
     // 구글이나 카카오 로그인시 프로필 사진의 경우

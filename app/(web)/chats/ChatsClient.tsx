@@ -18,7 +18,9 @@ interface IChatsResponse {
 
 const ChatsClient = () => {
   const { user } = useUser();
-  const { data } = useSWR<IChatsResponse>(`/api/chats`);
+  const { data } = useSWR<IChatsResponse>(`/api/chats`, {
+    refreshInterval: 1000,
+  });
 
   return (
     <Layout hasTabBar title="채팅" seoTitle="채팅">

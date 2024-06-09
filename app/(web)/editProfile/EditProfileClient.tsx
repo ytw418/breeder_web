@@ -9,6 +9,7 @@ import useUser from "@libs/client/useUser";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
 import Button from "@components/atoms/Button";
+import { makeImageUrl } from "@libs/client/utils";
 
 interface EditProfileForm {
   name?: string;
@@ -23,7 +24,7 @@ interface EditProfileResponse {
 const EditProfileClient = () => {
   const [isLoading, setIsLoading] = useState(false);
   const router = useRouter();
-  const { user } = useUser();
+  const { user, mutate } = useUser();
   const {
     register,
     setValue,
@@ -35,12 +36,7 @@ const EditProfileClient = () => {
 
   useEffect(() => {
     if (user?.name) setValue("name", user.name);
-    if (user?.avatar)
-      setAvatarPreview(
-        user.avatar.includes("http")
-          ? user.avatar
-          : `https://imagedelivery.net/OvWZrAz6J6K7n9LKUH5pKw/${user.avatar}/avatar`
-      );
+    if (user?.avatar) setAvatarPreview(makeImageUrl(user?.avatar, "avatar"));
   }, [user, setValue]);
   const [editProfile, { loading: editProfileLoading }] =
     useMutation<EditProfileResponse>(`/api/users/me`);
@@ -51,7 +47,7 @@ const EditProfileClient = () => {
     setIsLoading(true);
 
     const editProfileBody = {
-      name: name,
+      name: name === user?.name ? null : name,
       avatarId: null,
     };
 
@@ -77,6 +73,7 @@ const EditProfileClient = () => {
         data: editProfileBody,
         onCompleted(result) {
           if (result.success) {
+            mutate();
             router.push("/myPage");
           } else {
             alert(result.error);
