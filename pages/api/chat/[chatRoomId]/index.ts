@@ -68,6 +68,7 @@ async function handler(
   });
 
   if (chatRoom) {
+    console.log("chatRoom :>> ", chatRoom);
     return res.json({ success: true, chatRoom });
   } else {
     return res.json({ success: false, error: "chatRoom을 찾을 수 없습니다." });

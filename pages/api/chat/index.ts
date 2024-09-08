@@ -69,7 +69,7 @@ const findChatRoomByUserIds = async (userIds: number[]) => {
   return await client.chatRoom.findFirst({
     where: {
       chatRoomMembers: {
-        some: {
+        every: {
           AND: [{ userId: userIds[0] }, { userId: userIds[1] }],
         },
       },
