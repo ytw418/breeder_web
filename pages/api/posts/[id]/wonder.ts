@@ -12,7 +12,7 @@ async function handler(
     query: { id = "" },
     session: { user },
   } = req;
-  const alreadyExists = await client.wondering.findFirst({
+  const alreadyExists = await client.like.findFirst({
     where: {
       userId: user?.id,
       postId: +id.toString(),
@@ -22,13 +22,13 @@ async function handler(
     },
   });
   if (alreadyExists) {
-    await client.wondering.delete({
+    await client.like.delete({
       where: {
         id: alreadyExists.id,
       },
     });
   } else {
-    await client.wondering.create({
+    await client.like.create({
       data: {
         user: {
           connect: {

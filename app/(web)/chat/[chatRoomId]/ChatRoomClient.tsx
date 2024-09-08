@@ -28,6 +28,8 @@ const ChatRoomClient = () => {
     query?.chatRoomId && `/api/chat/${query?.chatRoomId}`
   );
 
+  console.log("채팅방 data :>> ", data);
+
   const [sendMessage, { loading, data: sendMessageData }] = useMutation(
     `/api/chat/${query?.chatRoomId}/message`
   );
@@ -47,7 +49,6 @@ const ChatRoomClient = () => {
             userId: user?.id!,
             message: form.message,
             chatRoomId: null,
-            talktosellerId: null,
             user: { name: user?.name!, avatar: user?.avatar! },
           });
         }),

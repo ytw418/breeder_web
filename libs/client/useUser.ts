@@ -11,7 +11,7 @@ interface ProfileResponse {
 export default function useUser() {
   const { data, error, mutate } = useSWR<ProfileResponse>("/api/users/me");
 
-  console.log("data :>> ", data);
+  console.log("로그인 유저 :>> ", data);
 
-  return { user: data?.profile, isLoading: !data && !error , mutate };
+  return { user: data?.profile, isLoading: !data && !error, mutate };
 }

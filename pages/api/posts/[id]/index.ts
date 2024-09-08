@@ -24,9 +24,9 @@ async function handler(
           avatar: true,
         },
       },
-      answers: {
+      comments: {
         select: {
-          answer: true,
+          comment: true,
           id: true,
           createdAt: true,
           user: {
@@ -43,14 +43,14 @@ async function handler(
 
       _count: {
         select: {
-          answers: true,
-          wondering: true,
+          comments: true,
+          Likes: true,
         },
       },
     },
   });
-  const isWondering = Boolean(
-    await client.wondering.findFirst({
+  const isLike = Boolean(
+    await client.like.findFirst({
       where: {
         postId: +id.toString(),
         userId: user?.id,
@@ -63,7 +63,7 @@ async function handler(
   res.json({
     success: true,
     post,
-    isWondering,
+    isLike,
   });
 }
 

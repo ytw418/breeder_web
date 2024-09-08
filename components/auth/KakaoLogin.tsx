@@ -45,7 +45,7 @@ export const KakaoLogin = () => {
 
     if (data?.error) {
       // alert(`카카오 로그인 오류: ${JSON.stringify(data)}`);
-      console.log("data :>> ", data);
+      console.log("로그인 data :>> ", data);
       return;
     }
 
