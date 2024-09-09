@@ -1,17 +1,13 @@
 import React from "react";
-import ProductClient from "./ProductClient";
-import { getProduct } from "@libs/server/apis";
+import ProductClient from "./PostClient";
+import { getPost } from "@libs/server/apis";
 
 const page = async ({ params: { id } }: { params: { id: string } }) => {
-  const data = await getProduct(id);
+  const data = await getPost(id);
 
   return (
     <div>
-      <ProductClient
-        product={data.product}
-        relatedProducts={data.relatedProducts}
-        success={true}
-      />
+      <ProductClient post={data.post} success={true} />
     </div>
   );
 };
