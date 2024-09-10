@@ -84,33 +84,11 @@ const PostClient = ({ post, isLiked }: PostDetailResponse) => {
             </div>
           </Link>
           <div className="mt-5">
-            <h1 className="title-7 font-bold text-gray-900">{post?.name}</h1>
-            <span className="block mt-3 body-4 text-gray-900">
-              {post?.price?.toLocaleString()} 원
-            </span>
+            <h1 className="title-7 font-bold text-gray-900">
+              {post?.title ?? "-"}
+            </h1>
             <p className="my-6 body-3 text-gray-700">{post?.description}</p>
             <div className="flex items-center justify-between space-x-2">
-              <Button
-                type={"squareDefault"}
-                text={"판매자에게 연락하기"}
-                size={"small"}
-                widthFull
-                clickAction={() =>
-                  getChatRoomId({
-                    data: { otherId: data?.post?.userId },
-                    onCompleted(result) {
-                      if (result.success) {
-                        router.push(`/chat/${result.ChatRoomId}`);
-                      } else {
-                        alert(result.error);
-                      }
-                    },
-                    onError(error) {
-                      alert(error);
-                    },
-                  })
-                }
-              />
               <button
                 onClick={onFavClick}
                 className={cls(
