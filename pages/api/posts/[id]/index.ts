@@ -5,13 +5,36 @@ import client from "@libs/server/client";
 import { withApiSession } from "@libs/server/withSession";
 import { Comment, Post, User, Prisma } from "@prisma/client";
 
-interface PostDetail extends Post {
-  user: User;
-  comments: Comment[];
+interface PostDetail {
+  user: {
+    id: number;
+    name: string;
+    avatar: string | null;
+  };
+  comments: {
+    id: number;
+    user: {
+      id: number;
+      name: string;
+      avatar: string | null;
+    };
+    comment: string;
+    createdAt: Date;
+  }[];
   _count: {
     comments: number;
     Likes: number;
   };
+  id: number;
+  createdAt: Date;
+  updatedAt: Date;
+  userId: number;
+  title: string;
+  description: string;
+  type: string | null;
+  latitude: number | null;
+  longitude: number | null;
+  image: string;
 }
 
 export interface PostDetailResponse {
