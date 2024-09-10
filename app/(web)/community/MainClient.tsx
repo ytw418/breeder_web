@@ -62,7 +62,7 @@ const MainClient = () => {
           <Spinner />
         </div>
       )}
-      <FloatingButton href="/products/upload">
+      <FloatingButton href="/community/upload">
         <svg
           className="w-6 h-6"
           xmlns="http://www.w3.org/2000/svg"
@@ -82,83 +82,5 @@ const MainClient = () => {
     </div>
   );
 };
-
-// const Page: NextPage<ProductsResponse> = ({ products, pages }) => {
-//   // unstable_serialize 사용
-//   // https://github.com/vercel/swr/issues/1520#issuecomment-933247768
-//   return (
-//     <SWRConfig
-//       value={{
-//         fallback: {
-//           [unstable_serialize(getKey)]: [
-//             {
-//               success: true,
-//               products,
-//               pages,
-//             },
-//           ],
-//         },
-//       }}
-//     >
-//       <Home />
-//     </SWRConfig>
-//   );
-// };
-
-// export const getStaticProps: GetStaticProps = async (ctx) => {
-//   const products = await client.product.findMany({
-//     include: {
-//       _count: {
-//         select: {
-//           favs: true,
-//         },
-//       },
-//     },
-//     orderBy: [{ createdAt: "desc" }],
-//     take: 10,
-//     skip: 0,
-//   });
-//   console.log("products:홈화면 pages/index ", products);
-
-//   if (!products) return { props: {} };
-
-//   const productCount = await client.product.count();
-
-//   return {
-//     props: {
-//       success: true,
-//       products: JSON.parse(JSON.stringify(products)),
-//       pages: Math.ceil(productCount / 10),
-//     },
-//   };
-// };
-
-// export const getServerSideProps: GetServerSideProps = async (ctx) => {
-//   console.log(ctx);
-//   const products = await client.product.findMany({
-//     include: {
-//       _count: {
-//         select: {
-//           favs: true,
-//         },
-//       },
-//     },
-//     take: 10,
-//     skip: 0,
-//   });
-
-//   if (!products) return { props: {} };
-
-//   const productCount = await client.product.count();
-//   // await new Promise((resolve) => setTimeout(resolve, 5000));
-
-//   return {
-//     props: {
-//       success: true,
-//       products: JSON.parse(JSON.stringify(products)),
-//       pages: Math.ceil(productCount / 10),
-//     },
-//   };
-// };
 
 export default MainClient;

@@ -21,3 +21,11 @@ npx prisma studio
 npm install @prisma/client
 npx prisma generate
 ```
+
+- 최신 20240909
+
+```bash
+npx prisma migrate dev
+or
+npx prisma db push
+```

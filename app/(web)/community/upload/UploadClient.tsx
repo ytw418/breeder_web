@@ -8,75 +8,82 @@ import Input from "@components/input";
 import Layout from "@components/layout";
 import TextArea from "@components/textarea";
 import useMutation from "@libs/client/useMutation";
-import { Product } from "@prisma/client";
+import { Post } from "@prisma/client";
 import Image from "next/image";
 
-interface UploadProductForm {
-  name: string;
-  price: number;
+interface UploadPostForm {
+  title: string;
   description: string;
-  photo: FileList;
+  image: FileList;
 }
 
-interface UploadProductMutation {
+interface UploadPostMutation {
   success: boolean;
-  product: Product;
+  post: Post;
 }
 
 const UploadClient = () => {
   const router = useRouter();
-  const { register, handleSubmit, watch } = useForm<UploadProductForm>();
-  const [uploadProduct, { loading, data }] =
-    useMutation<UploadProductMutation>("/api/products");
-  const onValid = async ({ name, price, description }: UploadProductForm) => {
+  const { register, handleSubmit, watch } = useForm<UploadPostForm>();
+  const [uploadPost, { loading, data }] =
+    useMutation<UploadPostMutation>("/api/posts");
+
+  const onValid = async ({ title, image, description }: UploadPostForm) => {
     if (loading) return;
-    if (photo && photo.length > 0) {
+
+    if (image && image.length > 0) {
       const { uploadURL } = await (await fetch(`/api/files`)).json();
       const form = new FormData();
-      form.append("file", photo[0], name);
+      form.append("file", image[0], title);
       const {
         result: { id },
       } = await (await fetch(uploadURL, { method: "POST", body: form })).json();
-      uploadProduct({
-        data: { name, price, description, photoId: id },
+
+      uploadPost({
+        data: { title, description, image: id },
         onCompleted(result) {
-          console.log("result :>> ", result);
+          console.log("uploadPost result :>> ", result);
           if (result.success) {
-            return router.push(`/products/${result.product.id}`);
+            return router.push(`/posts/${result.post.id}`);
+          } else {
+            alert("등록 실패");
           }
         },
       });
     } else {
-      uploadProduct({
-        data: { name, price, description },
+      uploadPost({
+        data: { title, description },
         onCompleted(result) {
+          console.log("uploadPost result :>> ", result);
           if (result.success) {
-            return router.push(`/products/${result.product.id}`);
+            return router.push(`/posts/${result.post.id}`);
+          } else {
+            alert("등록 실패");
           }
         },
       });
     }
   };
 
-  const photo = watch("photo");
-  const [photoPreview, setPhotoPreview] = useState("");
+  const image = watch("image");
+  const [imagePreview, setImagePreview] = useState("");
   useEffect(() => {
-    if (photo && photo.length > 0) {
-      const file = photo[0];
-      setPhotoPreview(URL.createObjectURL(file));
+    if (image && image.length > 0) {
+      const file = image[0];
+      setImagePreview(URL.createObjectURL(file));
     }
-  }, [photo]);
+  }, [image]);
   return (
-    <Layout canGoBack title="판매">
+    <Layout canGoBack title="게시물 작성">
       <form className="p-4 space-y-4" onSubmit={handleSubmit(onValid)}>
         <div>
-          {photoPreview ? (
+          {imagePreview ? (
             <Image
               width={500}
               height={500}
-              src={photoPreview}
+              src={imagePreview}
               alt="업로드이미지"
-              className="w-full text-gray-600 rounded-md"
+              className="w-full text-gray-600 rounded-md h-48 object-cover"
             />
           ) : (
             <label className="w-full cursor-pointer text-gray-600 hover:border-orange-500 hover:text-orange-500 flex items-center justify-center border-2 border-dashed border-gray-300 h-48 rounded-md">
@@ -95,7 +102,7 @@ const UploadClient = () => {
                 />
               </svg>
               <input
-                {...register("photo")}
+                {...register("image")}
                 accept="image/*"
                 className="hidden"
                 type="file"
@@ -104,27 +111,19 @@ const UploadClient = () => {
           )}
         </div>
         <Input
-          register={register("name", { required: true })}
+          register={register("title", { required: true })}
           required
           label="제목"
           name="name"
           type="text"
         />
-        <Input
-          register={register("price", { required: true })}
-          required
-          label="가격"
-          name="price"
-          type="text"
-          kind="price"
-        />
         <TextArea
           register={register("description", { required: true })}
           name="description"
-          label="자세한 설명"
+          label="내용"
           required
         />
-        <Button text={loading ? "Loading..." : "Upload item"} />
+        <Button text={loading ? "등록중..." : "등록"} />
       </form>
     </Layout>
   );

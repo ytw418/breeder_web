@@ -10,47 +10,48 @@ import { makeImageUrl } from "@libs/client/utils";
 import useMutation from "@libs/client/useMutation";
 import { useParams, useRouter } from "next/navigation";
 import useUser from "@libs/client/useUser";
-import { ItemDetailResponse } from "pages/api/products/[id]";
+
 import Button from "@components/atoms/Button";
 import { ChatResponseType } from "pages/api/chat";
+import { PostDetailResponse } from "pages/api/posts/[id]";
 
-const ProductClient = ({ product, relatedProducts }: ItemDetailResponse) => {
+const PostClient = ({ post, isLiked }: PostDetailResponse) => {
   const query = useParams();
+
+  console.log("post :>> ", post);
 
   const [getChatRoomId, { loading }] =
     useMutation<ChatResponseType>(`/api/chat`);
   const { user, isLoading } = useUser();
   const router = useRouter();
   const { mutate } = useSWRConfig();
-  const { data, mutate: boundMutate } = useSWR<ItemDetailResponse>(
-    query?.id ? `/api/products/${query.id}` : null
+  const { data, mutate: boundMutate } = useSWR<PostDetailResponse>(
+    query?.id ? `/api/posts/${query.id}` : null
   );
   const [toggleFav, { loading: favLoading }] = useMutation(
-    query?.id ? `/api/products/${query?.id}/fav` : ""
+    query?.id ? `/api/posts/${query?.id}/fav` : ""
   );
 
   const onFavClick = () => {
     if (!favLoading) toggleFav({ data: {} });
     if (!data) return;
     boundMutate((prev) => prev && { ...prev, isLiked: !prev.isLiked }, false);
-    // mutate("/api/users/me", (prev: any) => ({ success: !prev.success }), false); // 다른 component 의 cache 를 수정
-    // mutate("/api/users/me") // 단순 refetch
   };
 
   return (
     <Layout
-      seoTitle={product?.name || "상세 정보"}
-      title={product?.name || "상세 정보"}
+      seoTitle={post?.title || "상세 정보"}
+      title={post?.title || "상세 정보"}
       canGoBack
     >
       <div className="px-4">
         <div className="mb-8">
-          {product?.image ? (
+          {post?.image ? (
             <div className="relative h-96">
               <Image
-                src={makeImageUrl(product.image, "public")}
+                src={makeImageUrl(post.image, "public")}
                 className="object-cover bg-slate-300"
-                alt="product"
+                alt="post"
                 layout="fill"
                 priority={true}
               />
@@ -59,12 +60,12 @@ const ProductClient = ({ product, relatedProducts }: ItemDetailResponse) => {
             <div className="h-96 bg-slate-300" />
           )}
           <Link
-            href={`/profiles/${product?.user?.id}`}
+            href={`/profiles/${post?.user?.id}`}
             className="flex items-center py-3 space-x-3 border-t border-b cursor-pointer"
           >
-            {product?.user?.avatar ? (
+            {post?.user?.avatar ? (
               <Image
-                src={makeImageUrl(product.user.avatar, "avatar")}
+                src={makeImageUrl(post.user.avatar, "avatar")}
                 className="w-12 h-12 rounded-full bg-slate-300"
                 width={48}
                 height={48}
@@ -75,7 +76,7 @@ const ProductClient = ({ product, relatedProducts }: ItemDetailResponse) => {
             )}
             <div>
               <p className="text-sm font-medium text-gray-700">
-                {product?.user?.name}
+                {post?.user?.name}
               </p>
               <div className="text-xs font-medium text-gray-500">
                 프로필 보기 &rarr;
@@ -83,11 +84,11 @@ const ProductClient = ({ product, relatedProducts }: ItemDetailResponse) => {
             </div>
           </Link>
           <div className="mt-5">
-            <h1 className="title-7 font-bold text-gray-900">{product?.name}</h1>
+            <h1 className="title-7 font-bold text-gray-900">{post?.name}</h1>
             <span className="block mt-3 body-4 text-gray-900">
-              {product?.price?.toLocaleString()} 원
+              {post?.price?.toLocaleString()} 원
             </span>
-            <p className="my-6 body-3 text-gray-700">{product?.description}</p>
+            <p className="my-6 body-3 text-gray-700">{post?.description}</p>
             <div className="flex items-center justify-between space-x-2">
               <Button
                 type={"squareDefault"}
@@ -96,7 +97,7 @@ const ProductClient = ({ product, relatedProducts }: ItemDetailResponse) => {
                 widthFull
                 clickAction={() =>
                   getChatRoomId({
-                    data: { otherId: data?.product?.userId },
+                    data: { otherId: data?.post?.userId },
                     onCompleted(result) {
                       if (result.success) {
                         router.push(`/chat/${result.ChatRoomId}`);
@@ -153,29 +154,9 @@ const ProductClient = ({ product, relatedProducts }: ItemDetailResponse) => {
             </div>
           </div>
         </div>
-        <div>
-          <h2 className="text-2xl font-bold text-gray-900">연관 상품</h2>
-          <div className="grid grid-cols-2 gap-4 my-8">
-            {relatedProducts?.map((product) => (
-              <Link key={product.id} href={`/products/${product.id}`}>
-                <Image
-                  src={makeImageUrl(product.image, "product")}
-                  height={224}
-                  width={150}
-                  alt={product.name}
-                  className="w-full h-56 mb-4 bg-slate-300"
-                />
-                <h3 className="-mb-1 text-gray-700">{product.name}</h3>
-                <span className="body-3 text-gray-900">
-                  {product.price.toLocaleString()} 원
-                </span>
-              </Link>
-            ))}
-          </div>
-        </div>
       </div>
     </Layout>
   );
 };
 
-export default ProductClient;
+export default PostClient;

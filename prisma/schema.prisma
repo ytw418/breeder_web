@@ -125,6 +125,7 @@ model Post {
   userId    Int
   title    String
   description String
+  type String?
   comments Comment[]
   latitude  Float?
   longitude Float?

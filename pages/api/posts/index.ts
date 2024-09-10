@@ -73,7 +73,8 @@ const handler = async (
       },
     });
     try {
-      await res.revalidate("/community");
+      // await res.revalidate("/community");
+      // FIXME: 재검증 로직 나중에 확인
       return res.json({ success: true, post });
     } catch (error) {
       console.log(error);
