@@ -9,8 +9,8 @@ import {
 } from "react-hook-form";
 import { Colors } from "styles/colors";
 
-import Close from "@icons/Close.svg";
-import PlusIcon from "@icons/PlusIcon.svg";
+import Close from "@hero/plus.svg";
+import PlusIcon from "@hero/plus.svg";
 
 interface ImageInputProps {
   imageUrl?: string;

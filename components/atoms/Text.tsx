@@ -1,6 +1,6 @@
 import { ReactElement } from "react";
 
-import Required from "@icons/Required.svg";
+import Required from "@hero/plus.svg";
 
 import Tooltip from "./Tooltip";
 
@@ -28,7 +28,6 @@ export default function Text({ text, required, tip, description }: TextProps) {
 
       {description &&
         (typeof description === "object" ? (
-          //ReactElement
           description
         ) : (
           <span className="body-2 text-Gray-400">{description}</span>

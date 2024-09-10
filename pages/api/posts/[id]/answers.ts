@@ -11,10 +11,10 @@ async function handler(
   const {
     query: { id = "" },
     session: { user },
-    body: { answer },
+    body: { comment },
   } = req;
 
-  const newAnswer = await client.answer.create({
+  const newAnswer = await client.comment.create({
     data: {
       user: {
         connect: {
@@ -26,7 +26,7 @@ async function handler(
           id: +id.toString(),
         },
       },
-      answer,
+      comment: comment,
     },
   });
   console.log(newAnswer);

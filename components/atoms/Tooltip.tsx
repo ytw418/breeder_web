@@ -1,8 +1,8 @@
 import React, { useEffect, useRef, useState } from "react";
 import { Colors } from "styles/colors";
 
-import Close from "@icons/Close.svg";
-import Tip from "@icons/Tip.svg";
+import Close from "@hero/plus.svg";
+import Tip from "@hero/plus.svg";
 
 const Tooltip = ({ tip }: { tip: { title?: string; text: string } }) => {
   const [isOpenTooltip, setIsOpenTooltip] = useState(false);

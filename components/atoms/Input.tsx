@@ -6,9 +6,9 @@ import {
 } from "react-hook-form/dist/types/form";
 import { Colors } from "styles/colors";
 
-import ArrowDownLinear from "@icons/ArrowDownLinear.svg";
-import Clip from "@icons/Clip.svg";
-import Close from "@icons/Close.svg";
+import ArrowDownLinear from "@hero/plus.svg";
+import Clip from "@hero/plus.svg";
+import Close from "@hero/plus.svg";
 import { useVariousData } from "@libs/client/VariousProvider";
 
 interface InputProps {

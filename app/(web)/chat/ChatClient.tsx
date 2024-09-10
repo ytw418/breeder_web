@@ -2,7 +2,7 @@
 
 import Layout from "@components/layout";
 import useSWR from "swr";
-import { Message, Product, TalkToSeller } from "@prisma/client";
+
 import Image from "next/image";
 import useUser from "@libs/client/useUser";
 import { findChatMember, makeImageUrl } from "@libs/client/utils";

@@ -32,7 +32,7 @@ const ProfileClient = () => {
             className="flex-1"
             clickAction={() =>
               getChatRoomId({
-                data: { otherId: query?.id },
+                data: { otherId: Number(query?.id) },
                 onCompleted(result) {
                   if (result.success) {
                     router.push(`/chat/${result.ChatRoomId}`);

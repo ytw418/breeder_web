@@ -3,6 +3,10 @@ import withHandler, { ResponseType } from "@libs/server/withHandler";
 import { NextApiRequest, NextApiResponse } from "next";
 import { withApiSession } from "@libs/server/withSession";
 
+export interface ChatRequestType {
+  otherId: number;
+}
+
 export interface ChatResponseType {
   success: boolean;
   error?: string;
@@ -22,12 +26,20 @@ async function handler(
     if (!otherId) {
       return res.json({ success: false, error: "otherId 가 없습니다." });
     }
+    if (typeof otherId !== "number") {
+      return res.json({
+        success: false,
+        error: "otherId가 number가 아닙니다.",
+      });
+    }
 
-    const userIds = [user?.id!, +otherId];
+    const userIds = [user?.id!, otherId];
 
     console.log("userIds :>> ", userIds);
 
     const findChatRoom = await findChatRoomByUserIds(userIds);
+
+    console.log("findChatRoom :>> ", findChatRoom);
 
     if (findChatRoom) {
       // 채팅룸이 이미 있을 때
@@ -58,7 +70,7 @@ const findChatRoomByUserIds = async (userIds: number[]) => {
     where: {
       chatRoomMembers: {
         every: {
-          userId: { in: userIds },
+          AND: [{ userId: userIds[0] }, { userId: userIds[1] }],
         },
       },
     },

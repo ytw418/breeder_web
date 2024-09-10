@@ -5,7 +5,7 @@ import React, { useEffect } from "react";
 import AppleSquare from "@images/AppleSquare.svg";
 import GoogleSquare from "@images/GoogleSquare.svg";
 import KakaoRound from "@images/KakaoRound.svg";
-import KakaoLogin from "@icons/kakaoLogin.svg";
+
 import Link from "next/link";
 import { LoginReqBody, LoginResponseType } from "pages/api/auth/login";
 import useMutation from "@libs/client/useMutation";
@@ -20,6 +20,8 @@ const LoginClient = () => {
   const loginWithKakao = () => {
     window.Kakao.Auth.authorize({
       redirectUri: process.env.NEXT_PUBLIC_DOMAIN_URL + `/login-loading`,
+      prompt: "select_account",
+      throughTalk: false,
     });
   };
   /**애플로그인 */
@@ -29,7 +31,6 @@ const LoginClient = () => {
   };
   /**구글로그인 */
   const loginWithGoogle = async () => {
-    alert("dd");
     const provider = new GoogleAuthProvider();
     provider.addScope("profile");
     provider.addScope("email");
@@ -42,7 +43,6 @@ const LoginClient = () => {
       }
     );
 
-    alert(googleUser);
     console.log("googleUser :>> ", googleUser);
 
     if (googleUser) {
@@ -59,6 +59,7 @@ const LoginClient = () => {
           console.log("result :>> ", result);
           if (result.success) {
             router.push("/");
+            router.refresh();
           } else {
             router.push("/auth/login");
             alert(`로그인에 실패했습니다:${result.error}`);
@@ -99,6 +100,15 @@ const LoginClient = () => {
         script = document.createElement("script")!;
         script.setAttribute("type", "application/javascript");
         script.setAttribute("src", url);
+
+        if (platform === "kakao") {
+          script.setAttribute(
+            "integrity",
+            "sha384-TiCUE00h649CAMonG018J2ujOgDKW/kVWlChEuu4jK2vxfAAD0eZxzCKakxg55G4"
+          );
+          script.setAttribute("crossorigin", "anonymous");
+        }
+
         document.body.appendChild(script);
         script.addEventListener("load", handleScript);
         script.addEventListener("error", handleScript);
@@ -111,7 +121,10 @@ const LoginClient = () => {
   };
 
   useEffect(() => {
-    loadScript("https://developers.kakao.com/sdk/js/kakao.js", "kakao");
+    loadScript(
+      "https://t1.kakaocdn.net/kakao_js_sdk/2.7.2/kakao.min.js",
+      "kakao"
+    );
     loadScript(
       "https://appleid.cdn-apple.com/appleauth/static/jsapi/appleid/1/en_US/appleid.auth.js",
       "apple"
@@ -132,16 +145,10 @@ const LoginClient = () => {
           onClick={() => loginWithKakao()}
           className="button relative flex h-[54px] w-full items-center bg-[#FAE100] justify-center rounded-lg border border-Gray-300 px-7 py-[14px]"
         >
-          {/* <KakaoRound className="absolute left-7" width={26} height={26} /> */}
-          <KakaoLogin className="absolute left-7" width={26} height={26} />
+          <KakaoRound className="absolute left-7" width={26} height={26} />
+          {/* <KakaoLogin className="absolute left-7" width={26} height={26} /> */}
           <span className="title-3">{"카카오로 계속하기"}</span>
         </button>
-        <Link
-          href={"/"}
-          className="button relative flex h-[54px] w-full items-center justify-center rounded-lg border border-Gray-300 px-7 py-[14px]"
-        >
-          <span className="title-3">{"서비스 둘러보기"}</span>
-        </Link>
         <div
           onClick={() => loginWithGoogle()}
           className="relative flex h-[54px] w-full cursor-pointer items-center justify-center rounded-lg border border-Gray-300 px-7 py-[14px]"
@@ -149,6 +156,12 @@ const LoginClient = () => {
           <GoogleSquare className="absolute left-7" width={26} height={26} />
           <span className="title-3">{"구글로 회원가입"}</span>
         </div>
+        <Link
+          href={"/"}
+          className="button relative flex h-[54px] w-full items-center justify-center rounded-lg border border-Gray-300 px-7 py-[14px]"
+        >
+          <span className="title-3">{"서비스 둘러보기"}</span>
+        </Link>
         {/* <div
           onClick={() => loginWithApple()}
           className="relative flex h-[54px] w-full cursor-pointer items-center justify-center rounded-lg border border-Gray-300 px-7 py-[14px]"

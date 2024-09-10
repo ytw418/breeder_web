@@ -26,8 +26,8 @@ const handler = async (
         },
         _count: {
           select: {
-            answers: true,
-            wondering: true,
+            comments: true,
+            Likes: true,
           },
         },
       },
@@ -54,13 +54,15 @@ const handler = async (
   }
   if (req.method === "POST") {
     const {
-      body: { question, latitude, longitude },
+      body: { description, title, image, latitude, longitude },
       session: { user },
     } = req;
 
     const post = await client.post.create({
       data: {
-        question,
+        title,
+        image,
+        description,
         latitude,
         longitude,
         user: {
@@ -71,7 +73,8 @@ const handler = async (
       },
     });
     try {
-      await res.revalidate("/community");
+      // await res.revalidate("/community");
+      // FIXME: 재검증 로직 나중에 확인
       return res.json({ success: true, post });
     } catch (error) {
       console.log(error);

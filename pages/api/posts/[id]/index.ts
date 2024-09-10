@@ -3,6 +3,46 @@ import withHandler, { ResponseType } from "@libs/server/withHandler";
 
 import client from "@libs/server/client";
 import { withApiSession } from "@libs/server/withSession";
+import { Comment, Post, User, Prisma } from "@prisma/client";
+
+interface PostDetail {
+  user: {
+    id: number;
+    name: string;
+    avatar: string | null;
+  };
+  comments: {
+    id: number;
+    user: {
+      id: number;
+      name: string;
+      avatar: string | null;
+    };
+    comment: string;
+    createdAt: Date;
+  }[];
+  _count: {
+    comments: number;
+    Likes: number;
+  };
+  id: number;
+  createdAt: Date;
+  updatedAt: Date;
+  userId: number;
+  title: string;
+  description: string;
+  type: string | null;
+  latitude: number | null;
+  longitude: number | null;
+  image: string;
+}
+
+export interface PostDetailResponse {
+  success: boolean;
+  error?: string;
+  post?: PostDetail;
+  isLiked?: boolean;
+}
 
 async function handler(
   req: NextApiRequest,
@@ -24,9 +64,9 @@ async function handler(
           avatar: true,
         },
       },
-      answers: {
+      comments: {
         select: {
-          answer: true,
+          comment: true,
           id: true,
           createdAt: true,
           user: {
@@ -43,14 +83,17 @@ async function handler(
 
       _count: {
         select: {
-          answers: true,
-          wondering: true,
+          comments: true,
+          Likes: true,
         },
       },
     },
   });
-  const isWondering = Boolean(
-    await client.wondering.findFirst({
+
+  post;
+
+  const isLike = Boolean(
+    await client.like.findFirst({
       where: {
         postId: +id.toString(),
         userId: user?.id,
@@ -63,7 +106,7 @@ async function handler(
   res.json({
     success: true,
     post,
-    isWondering,
+    isLike,
   });
 }
 
@@ -74,3 +117,19 @@ export default withApiSession(
     isPrivate: false,
   })
 );
+
+type post = null | {
+  user: unknown;
+  comments: unknown;
+  _count: unknown;
+  id: number;
+  createdAt: Date;
+  updatedAt: Date;
+  userId: number;
+  title: string;
+  description: string;
+  type: null | string;
+  latitude: null | number;
+  longitude: null | number;
+  image: string;
+};

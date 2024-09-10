@@ -4,7 +4,7 @@ import clsx from "clsx";
 import { useState } from "react";
 
 import { Spinner } from "@components/auth/Spinner";
-import PlusIcon from "@icons/PlusIcon.svg";
+import PlusIcon from "@hero/plus.svg";
 
 export interface ButtonProps {
   buttonType?: "submit" | "button" | "reset";

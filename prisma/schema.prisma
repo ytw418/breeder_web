@@ -7,8 +7,9 @@ generator client {
 }
 
 datasource db {
-  provider = "mysql"
+  provider = "postgresql"
   url      = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
   relationMode = "prisma"
 }
 
@@ -31,8 +32,8 @@ model User {
   updatedAt       DateTime    @updatedAt
   products        Product[]
   posts           Post[]
-  answers         Answer[]
-  wonderings      Wondering[]
+  Likes           Like[]
+  Comments        Comment[]
   writtenReviews  Review[]    @relation(name: "writtenReviews")
   receivedReviews Review[]    @relation(name: "receivedReviews")
   fav             Fav[]
@@ -43,12 +44,7 @@ model User {
   followers       Follow[]    @relation(name: "follower")
   following       Follow[]    @relation(name: "following")
   chatRoomMember    ChatRoomMember[]
-  sellerTalk          TalkToSeller[]  @relation(name: "sellerTalk")
-  buyerTalk           TalkToSeller[]  @relation(name: "buyerTalk")
-  carrotseller        isCarrot[]      @relation(name: "carrotseller")
-  carrotbuyer         isCarrot[]      @relation(name: "carrotbuyer")
-  carrotcommentbuyer  CarrotComment[] @relation(name: "carrotcommentbuyer")
-  carrotcommentseller CarrotComment[] @relation(name: "carrotcommentseller")
+
 }
 model ChatRoom {
   id            Int @id @default(autoincrement())
@@ -77,41 +73,16 @@ model Message {
   updatedAt DateTime @updatedAt
   user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   userId    Int
-  message   String   @db.MediumText
-  talktoseller   TalkToSeller? @relation(fields: [talktosellerId], references: [id], onDelete: Cascade)
+  message   String   
   chatRoom   ChatRoom? @relation(fields: [chatRoomId], references: [id], onDelete: Cascade)
-  
   chatRoomId Int?
-  talktosellerId Int?
+
 
   @@index([chatRoomId])
   @@index([userId])
-  @@index([talktosellerId])
 }
 
 
-
-model TalkToSeller {
-  id              Int        @id @default(autoincrement())
-  createdAt       DateTime   @default(now())
-  updatedAt       DateTime   @updatedAt
-  buyer           User       @relation(name: "buyerTalk", fields: [createdBuyerId], references: [id], onDelete: Cascade)
-  createdBuyerId  Int
-  seller          User       @relation(name: "sellerTalk", fields: [createdSellerId], references: [id], onDelete: Cascade)
-  
-  createdSellerId Int
-  product         Product    @relation(fields: [productId], references: [id], onDelete: Cascade)
-  productId       Int
-  messages        Message[]
-  isbuy           Boolean?
-  issold          Boolean?
-  isCarrot        isCarrot[]
-  isSell          Boolean    @default(false)
-
-  @@index([createdBuyerId, createdSellerId, productId])
-  @@index([productId])
-  @@index([createdSellerId])
-}
 
 
 model Follow {
@@ -137,14 +108,11 @@ model Product {
   image       String
   name        String
   price       Int
-  description String     @db.MediumText
+  description String     
   favs        Fav[]
   sales       Sale[]
   purchases   Purchase[]
   records     Record[]
-  talktoseller  TalkToSeller[]
-  isCarrot      isCarrot[]
-  carrotComment CarrotComment[]
 
   @@index([userId])
 }
@@ -155,17 +123,20 @@ model Post {
   updatedAt DateTime    @updatedAt
   user      User        @relation(fields: [userId], references: [id], onDelete: Cascade)
   userId    Int
-  question  String      @db.MediumText
+  title    String
+  description String
+  type String?
+  comments Comment[]
   latitude  Float?
   longitude Float?
-  answers   Answer[]
-  wondering Wondering[]
+  Likes      Like[]
+  image       String
 
   @@index([userId])
 
 }
 
-model Answer {
+model Comment {
   id        Int      @id @default(autoincrement())
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -173,14 +144,15 @@ model Answer {
   userId    Int
   post      Post     @relation(fields: [postId], references: [id], onDelete: Cascade)
   postId    Int
-  answer    String   @db.MediumText
+  comment String
 
   @@index([userId])
   @@index([postId])
 
 }
 
-model Wondering {
+
+model Like {
   id        Int      @id @default(autoincrement())
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -198,7 +170,7 @@ model Review {
   id           Int      @id @default(autoincrement())
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
-  review       String   @db.MediumText
+  review       String   
   createdBy    User     @relation(name: "writtenReviews", fields: [createdById], references: [id], onDelete: Cascade)
   createdById  Int
   createdFor   User     @relation(name: "receivedReviews", fields: [createdForId], references: [id], onDelete: Cascade)
@@ -266,46 +238,7 @@ enum Kind {
   Fav
 }
 
-model isCarrot {
-  id             Int          @id @default(autoincrement())
-  createdAt      DateTime     @default(now())
-  updatedAt      DateTime     @updatedAt
-  meetTime       DateTime?
-  product        Product      @relation(fields: [productId], references: [id], onDelete: Cascade)
-  productId      Int
-  buyer          User         @relation(name: "carrotbuyer", fields: [carrotbuyerId], references: [id], onDelete: Cascade)
-  carrotbuyerId  Int
-  seller         User         @relation(name: "carrotseller", fields: [carrotsellerId], references: [id], onDelete: Cascade)
-  carrotsellerId Int
-  tts            TalkToSeller @relation(fields: [ttsId], references: [id], onDelete: Cascade)
-  ttsId          Int
 
-  @@index([productId, carrotbuyerId, carrotsellerId, ttsId])
-  @@index([carrotsellerId])
-  @@index([carrotbuyerId])
-  @@index([ttsId])
-}
-
-model CarrotComment {
-  id                    Int       @id @default(autoincrement())
-  createdAt             DateTime  @default(now())
-  updatedAt             DateTime  @updatedAt
-  meetTime              DateTime?
-  product               Product   @relation(fields: [productId], references: [id], onDelete: Cascade)
-  productId             Int
-  buyer                 User      @relation(name: "carrotcommentbuyer", fields: [carrotcommentbuyerId], references: [id], onDelete: Cascade)
-  carrotcommentbuyerId  Int
-  seller                User      @relation(name: "carrotcommentseller", fields: [carrotcommentsellerId], references: [id], onDelete: Cascade)
-  carrotcommentsellerId Int
-  buyerComment          String?
-  sellerComment         String?
-  starForBuyer          Int       @default(5)
-  starForSeller         Int       @default(5)
-
-  @@index([productId, carrotcommentbuyerId, carrotcommentsellerId, starForBuyer, starForSeller])
-  @@index([carrotcommentbuyerId])
-  @@index([carrotcommentsellerId])
-}
 
 
 // chatRoom
