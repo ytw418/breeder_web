@@ -1,6 +1,7 @@
 import { VariousProvider } from "@libs/client/VariousProvider";
 import ClientComp from "./ClientComp";
 import "/styles/globals.css";
+import { ThemeProvider } from "@components/theme-provider";
 
 export interface PageLayoutProps {
   children: React.ReactNode;
@@ -23,11 +24,20 @@ export default async function RootLayout({ children }: PageLayoutProps) {
   return (
     <html lang="ko">
       <head></head>
-      <body className="bg-White font-pretendard text-Black">
-        <VariousProvider>
-          <ClientComp />
-          {children}
-        </VariousProvider>
+      <body>
+        <ThemeProvider
+          attribute="class"
+          defaultTheme="dark"
+          enableSystem
+          disableTransitionOnChange
+        >
+          <div className="font-pretendard">
+            <VariousProvider>
+              <ClientComp />
+              {children}
+            </VariousProvider>
+          </div>
+        </ThemeProvider>
       </body>
     </html>
   );

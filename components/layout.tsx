@@ -94,10 +94,10 @@ export default function Layout({
             <span>홈</span>
           </Link>
           <Link
-            href="/community"
+            href="/posts"
             className={clsx(
               "flex flex-col items-center space-y-2 ",
-              pathname === "/community"
+              pathname === "/posts"
                 ? "text-orange-500"
                 : "hover:text-gray-500 transition-colors"
             )}
