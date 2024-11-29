@@ -1,31 +1,52 @@
-```bash
-npm install prisma --save-dev
-npx prisma
-npx prisma init
+## 📦 설치 방법
 
-brew -v // brew 설치 필요 설치 확인
-brew install planetscale/tap/pscale
-brew install mysql-client
-brew upgrade pscale
+1. **레포지토리 클론**:
 
-pscale auth login
-pscale org switch <ORGANIZATION_NAME> <= 선택 *** 조직을 하나 이상 생성 했을때 ex: pscale org switch breeder or ytw418
-pscale connect <너의 pscale db 이름> ex: pscale connect breeder_db
+   ```bash
+   git clone https://github.com/yourusername/breeder.git
+   cd breeder
+   ```
 
-- DATABASE_URL="mysql://127.0.0.1:57520/<db name>
+2. **의존성 설치**:
 
+   ```bash
+   npm install
+   ```
 
-npx prisma db push
-npx prisma studio
+3. **데이터베이스 설정**:
 
-npm install @prisma/client
-npx prisma generate
-```
+   ```bash
+   npx prisma db push
+   ```
 
-- 최신 20240909
+4. **개발 서버 실행**:
 
-```bash
-npx prisma migrate dev
-or
-npx prisma db push
-```
+   ```bash
+   npm run dev
+   ```
+
+5. **브라우저 열기**:
+   `http://localhost:3000`으로 이동하여 앱을 탐색하세요.
+
+## 📜 스크립트
+
+- `npm run dev`: 개발 서버 시작
+- `npm run build`: 프로덕션 빌드
+- `npm run start`: 프로덕션 서버 시작
+- `npx prisma studio`: Prisma Studio를 열어 데이터베이스 관리
+
+## 🤝 기여
+
+기여를 환영합니다! 자세한 내용은 [기여 가이드라인](CONTRIBUTING.md)을 참조하세요.
+
+## 📄 라이선스
+
+이 프로젝트는 MIT 라이선스에 따라 라이선스가 부여됩니다. 자세한 내용은 [LICENSE](LICENSE) 파일을 참조하세요.
+
+## 🌟 감사의 말
+
+- 오픈 소스 커뮤니티의 귀중한 리소스와 도구에 감사드립니다.
+
+---
+
+Breeder와 함께 곤충의 세계를 탐험하고 기여하며 즐기세요! 🐜
