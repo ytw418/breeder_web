@@ -1,7 +1,13 @@
 import Image from "next/image";
 import React from "react";
 import { User } from "@prisma/client";
-const Profile = ({ user }: { user?: User }) => {
+const Profile = ({
+  user,
+  imageClassName,
+}: {
+  user?: User;
+  imageClassName?: string;
+}) => {
   return (
     <div className="Profile flex flex-row justify-between items-center mt-4">
       <div className="flex items-center space-x-3">
