@@ -1,3 +1,62 @@
+# 🐞 Breeder
+
+**Breeder**에 오신 것을 환영합니다! 이 웹 애플리케이션은 곤충 애호가들을 연결하고 곤충 관련 콘텐츠를 공유하고 발견할 수 있는 플랫폼을 제공합니다. 최신 기술을 활용하여 매끄럽고 몰입감 있는 사용자 경험을 제공합니다.
+
+## 🚀 주요 기능
+
+- **사용자 인증**: 인기 있는 OAuth 제공자를 통한 안전한 로그인 및 회원가입
+- **게시물 관리**: 풍부한 텍스트와 이미지 지원으로 게시물 생성, 수정, 삭제
+- **실시간 채팅**: 다른 사용자와 실시간 대화 가능
+- **무한 스크롤**: 게시물을 손쉽게 탐색할 수 있는 무한 스크롤
+- **반응형 디자인**: 데스크톱과 모바일 기기 모두에 최적화
+
+## 🛠️ 기술 스택
+
+- **프론트엔드**: React, Next.js, Tailwind CSS
+- **백엔드**: Node.js, Prisma, PlanetScale
+- **데이터베이스**: MySQL
+- **인증**: NextAuth.js
+- **실시간**: SWR, useSWRInfinite
+- **배포**: Vercel
+
+## 📂 프로젝트 구조
+
+├── app
+│ ├── (web)
+│ │ ├── posts
+│ │ │ ├── [id]
+│ │ │ │ └── PostClient.tsx
+│ │ │ ├── MainClient.tsx
+│ │ │ └── upload
+│ │ │ └── UploadClient.tsx
+│ ├── (main)
+│ │ └── MainClient.tsx
+├── components
+│ ├── layout.tsx
+│ └── item.tsx
+├── libs
+│ └── server
+│ └── apis.ts
+├── pages
+│ ├── api
+│ │ └── posts
+│ │ ├── index.ts
+│ │ └── [id]
+│ │ └── index.ts
+├── public
+│ └── images
+│ ├── KakaoRound.svg
+│ ├── GoogleRound.svg
+│ ├── AppleSquare.svg
+│ ├── AppleRound.svg
+│ └── HeaderLogo.svg
+├── styles
+│ ├── globals.css
+│ ├── style.css
+│ └── colors.ts
+└── README.md
+🐜
+
 ## 📦 설치 방법
 
 1. **레포지토리 클론**:
