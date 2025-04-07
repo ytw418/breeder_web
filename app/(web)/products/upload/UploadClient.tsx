@@ -210,6 +210,7 @@ const UploadClient = () => {
               id="name"
               {...register("name", { required: "상품명을 입력해주세요" })}
               placeholder="상품명을 입력해주세요"
+              className="focus:ring-2 focus:ring-[#3182F6]/20 focus:border-transparent"
             />
           </div>
 
@@ -217,9 +218,12 @@ const UploadClient = () => {
             <Label htmlFor="description">상품 설명</Label>
             <Textarea
               id="description"
-              {...register("description", { required: "상품 설명을 입력해주세요" })}
+              {...register("description", {
+                required: "상품 설명을 입력해주세요",
+              })}
               placeholder="상품 설명을 입력해주세요"
               rows={4}
+              className="focus:ring-2 focus:ring-[#3182F6]/20 focus:border-transparent"
             />
           </div>
 
@@ -228,17 +232,18 @@ const UploadClient = () => {
             <Input
               id="price"
               type="number"
-              {...register("price", { 
+              {...register("price", {
                 required: "가격을 입력해주세요",
-                valueAsNumber: true 
+                valueAsNumber: true,
               })}
               placeholder="가격을 입력해주세요"
+              className="focus:ring-2 focus:ring-[#3182F6]/20 focus:border-transparent"
             />
           </div>
 
           <Button
             type="submit"
-            className="w-full"
+            className="w-full focus:ring-2 focus:ring-[#3182F6]/20 focus:border-transparent"
             disabled={isUploading}
             loading={isUploading}
           >

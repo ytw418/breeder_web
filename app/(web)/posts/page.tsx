@@ -1,8 +1,8 @@
 import React from "react";
-import MainClient from "./MainClient";
+import PostsClient from "./PostsClient";
 
 const page = () => {
-  return <MainClient />;
+  return <PostsClient />;
 };
 
 export default page;
