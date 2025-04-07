@@ -25,19 +25,12 @@ export default async function RootLayout({ children }: PageLayoutProps) {
     <html lang="ko">
       <head></head>
       <body>
-        <ThemeProvider
-          attribute="class"
-          defaultTheme="dark"
-          enableSystem
-          disableTransitionOnChange
-        >
-          <div className="font-pretendard">
-            <VariousProvider>
-              <ClientComp />
-              {children}
-            </VariousProvider>
-          </div>
-        </ThemeProvider>
+        <div className="font-pretendard">
+          <VariousProvider>
+            <ClientComp />
+            {children}
+          </VariousProvider>
+        </div>
       </body>
     </html>
   );
