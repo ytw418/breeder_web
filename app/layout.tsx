@@ -1,36 +1,49 @@
+import type { Metadata } from "next";
+import { Inter } from "next/font/google";
+import "./globals.css";
+import { ToastContainer } from "react-toastify";
+import { ThemeProvider } from "@components/theme-provider";
 import { VariousProvider } from "@libs/client/VariousProvider";
 import ClientComp from "./ClientComp";
-import "/styles/globals.css";
-import { ThemeProvider } from "@components/theme-provider";
 
-export interface PageLayoutProps {
+const inter = Inter({ subsets: ["latin"] });
+
+export const metadata: Metadata = {
+  title: "Breeder",
+  description: "Breeder Web Application",
+};
+
+export default function RootLayout({
+  children,
+}: {
   children: React.ReactNode;
-}
-
-declare global {
-  interface Window {
-    Kakao: any;
-    AppleID: any;
-    dataLayer: any;
-    currentPage: number;
-    gtag: any;
-  }
-  interface RetainableProps {
-    retainedPage: number;
-  }
-}
-
-export default async function RootLayout({ children }: PageLayoutProps) {
+}) {
   return (
     <html lang="ko">
-      <head></head>
-      <body>
-        <div className="font-pretendard">
+      <body className={inter.className}>
+        <ThemeProvider
+          attribute="class"
+          defaultTheme="system"
+          enableSystem
+          disableTransitionOnChange
+        >
           <VariousProvider>
             <ClientComp />
             {children}
           </VariousProvider>
-        </div>
+          <ToastContainer
+            position="top-right"
+            autoClose={2000}
+            hideProgressBar={false}
+            newestOnTop
+            closeOnClick
+            rtl={false}
+            pauseOnFocusLoss
+            draggable
+            pauseOnHover
+            theme="light"
+          />
+        </ThemeProvider>
       </body>
     </html>
   );

@@ -1,7 +1,7 @@
 "use client";
 import type { GetStaticPaths, GetStaticProps, NextPage } from "next";
 import useSWR, { useSWRConfig } from "swr";
-
+import { useState } from "react";
 import Image from "next/image";
 import Layout from "@components/layout";
 import Link from "next/link";
@@ -15,6 +15,7 @@ import Button from "@components/atoms/Button";
 import { ChatResponseType } from "pages/api/chat";
 
 const ProductClient = ({ product, relatedProducts }: ItemDetailResponse) => {
+  const [currentImageIndex, setCurrentImageIndex] = useState(0);
   const query = useParams();
 
   const [getChatRoomId, { loading }] =
@@ -33,8 +34,20 @@ const ProductClient = ({ product, relatedProducts }: ItemDetailResponse) => {
     if (!favLoading) toggleFav({ data: {} });
     if (!data) return;
     boundMutate((prev) => prev && { ...prev, isLiked: !prev.isLiked }, false);
-    // mutate("/api/users/me", (prev: any) => ({ success: !prev.success }), false); // 다른 component 의 cache 를 수정
-    // mutate("/api/users/me") // 단순 refetch
+  };
+
+  const nextImage = () => {
+    if (!product?.photos?.length) return;
+    setCurrentImageIndex((prev) =>
+      prev === product.photos.length - 1 ? 0 : prev + 1
+    );
+  };
+
+  const prevImage = () => {
+    if (!product?.photos?.length) return;
+    setCurrentImageIndex((prev) =>
+      prev === 0 ? product.photos.length - 1 : prev - 1
+    );
   };
 
   return (
@@ -45,19 +58,81 @@ const ProductClient = ({ product, relatedProducts }: ItemDetailResponse) => {
     >
       <div className="px-4">
         <div className="mb-8">
-          {product?.image ? (
-            <div className="relative h-96">
-              <Image
-                src={makeImageUrl(product.image, "public")}
-                className="object-cover bg-slate-300"
-                alt="product"
-                layout="fill"
-                priority={true}
-              />
-            </div>
-          ) : (
-            <div className="h-96 bg-slate-300" />
-          )}
+          <div className="relative h-96">
+            {product?.photos && product.photos.length > 0 ? (
+              <>
+                <Image
+                  src={makeImageUrl(
+                    product.photos[currentImageIndex],
+                    "public"
+                  )}
+                  className="object-cover bg-slate-300"
+                  alt={`상품 이미지 ${currentImageIndex + 1}`}
+                  layout="fill"
+                  priority={true}
+                />
+                {product.photos.length > 1 && (
+                  <>
+                    <button
+                      onClick={prevImage}
+                      className="absolute left-2 top-1/2 -translate-y-1/2 bg-black/50 text-white p-2 rounded-full hover:bg-black/70"
+                      aria-label="이전 이미지"
+                    >
+                      <svg
+                        className="w-6 h-6"
+                        fill="none"
+                        stroke="currentColor"
+                        viewBox="0 0 24 24"
+                      >
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth={2}
+                          d="M15 19l-7-7 7-7"
+                        />
+                      </svg>
+                    </button>
+                    <button
+                      onClick={nextImage}
+                      className="absolute right-2 top-1/2 -translate-y-1/2 bg-black/50 text-white p-2 rounded-full hover:bg-black/70"
+                      aria-label="다음 이미지"
+                    >
+                      <svg
+                        className="w-6 h-6"
+                        fill="none"
+                        stroke="currentColor"
+                        viewBox="0 0 24 24"
+                      >
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth={2}
+                          d="M9 5l7 7-7 7"
+                        />
+                      </svg>
+                    </button>
+                    <div className="absolute bottom-4 left-1/2 -translate-x-1/2 flex gap-2">
+                      {product.photos.map((_, index) => (
+                        <button
+                          key={index}
+                          onClick={() => setCurrentImageIndex(index)}
+                          className={cls(
+                            "w-2 h-2 rounded-full transition-all",
+                            currentImageIndex === index
+                              ? "bg-white"
+                              : "bg-white/50"
+                          )}
+                          aria-label={`${index + 1}번 이미지로 이동`}
+                        />
+                      ))}
+                    </div>
+                  </>
+                )}
+              </>
+            ) : (
+              <div className="h-96 bg-slate-300" />
+            )}
+          </div>
           <Link
             href={`/profiles/${product?.user?.id}`}
             className="flex items-center py-3 space-x-3 border-t border-b cursor-pointer"
@@ -159,7 +234,7 @@ const ProductClient = ({ product, relatedProducts }: ItemDetailResponse) => {
             {relatedProducts?.map((product) => (
               <Link key={product.id} href={`/products/${product.id}`}>
                 <Image
-                  src={makeImageUrl(product.image, "product")}
+                  src={makeImageUrl(product.photos?.[0] || "", "product")}
                   height={224}
                   width={150}
                   alt={product.name}

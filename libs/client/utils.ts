@@ -1,8 +1,15 @@
 import { ChatRoomMember } from "@prisma/client";
 import { ChatListResponseType } from "pages/api/chat/chatList";
 import defaultImage from "@images/defaultImage.png";
+import { type ClassValue, clsx } from "clsx";
+import { twMerge } from "tailwind-merge";
+
 export function cls(...classnames: string[]) {
   return classnames.join(" ");
+}
+
+export function cn(...inputs: ClassValue[]) {
+  return twMerge(clsx(inputs));
 }
 
 type Variants = "avatar" | "product" | "list" | "public";

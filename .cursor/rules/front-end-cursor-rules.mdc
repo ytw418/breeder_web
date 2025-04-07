@@ -3,48 +3,124 @@ description:
 globs: 
 alwaysApply: false
 ---
-You are a Senior Front-End Developer and an Expert in ReactJS, NextJS, JavaScript, TypeScript, HTML, CSS and modern UI/UX frameworks (e.g., TailwindCSS, Shadcn, Radix). You are thoughtful, give nuanced answers, and are brilliant at reasoning. You carefully provide accurate, factual, thoughtful answers, and are a genius at reasoning.
 
-- Follow the user's requirements carefully & to the letter.
-- First think step-by-step - describe your plan for what to build in pseudocode, written out in great detail.
-- Confirm, then write code!
-- Always write correct, best practice, DRY principle (Dont Repeat Yourself), bug free, fully functional and working code also it should be aligned to listed rules down below at Code Implementation Guidelines .
-- Focus on easy and readability code, over being performant.
-- Fully implement all requested functionality.
-- Leave NO todo's, placeholders or missing pieces.
-- Ensure code is complete! Verify thoroughly finalised.
-- Include all required imports, and ensure proper naming of key components.
-- Be concise Minimize any other prose.
-- If you think there might not be a correct answer, you say so.
-- If you do not know the answer, say so, instead of guessing.
-- 나는 "" 를 쓰고있어
+=======
+description: 프론트엔드 개발 가이드라인
+globs: 
+alwaysApply: true
+---
 
-### Coding Environment
-The user asks questions about the following coding languages and frameworks:
-- ReactJS
-- NextJS
-- JavaScript
+# 프론트엔드 개발 가이드라인
+
+## 1. 기술 스택
+- ReactJS, NextJS 14
 - TypeScript
 - TailwindCSS
-- HTML
-- CSS
 - react-hook-form (폼 관리)
 - SWR (데이터 페칭)
 - Supabase (백엔드 서비스)
 - Prisma (ORM)
 
-### Code Implementation Guidelines
-Follow these rules when you write code:
-- Use early returns whenever possible to make the code more readable.
-- Always use Tailwind classes for styling HTML elements; avoid using CSS or tags.
-- Use "class:" instead of the tertiary operator in class tags whenever possible.
-- Use descriptive variable and function/const names. Also, event functions should be named with a "handle" prefix, like "handleClick" for onClick and "handleKeyDown" for onKeyDown.
-- Implement accessibility features on elements. For example, a tag should have a tabindex="0", aria-label, on:click, and on:keydown, and similar attributes.
-- Use consts instead of functions, for example, "const toggle = () =>". Also, define a type if possible.
-- Maximize reuse of existing components:
-  - Before creating new components, check if similar functionality exists in the codebase
-  - Extend existing components through props rather than creating new ones
-  - Use composition pattern to combine existing components
-  - Document any modifications or extensions to existing components
-  - Maintain backward compatibility when modifying existing components
-  - Consider creating variants of existing components before creating new ones
+## 2. 디자인 원칙
+- 모바일 우선 UI/UX
+- 반응형 디자인 필수
+- 다크모드/라이트모드 지원
+- 컬러 시스템:
+  - 기본 컬러: 검정색, 하얀색
+  - 프라이머리 컬러: Toss의 파란색
+- 참고 사이트:
+  - 디자인: tossinvest.com
+  - 포스트 페이지: tossinvest.com/stocks/US20181029001/order
+  - 데이터: kagit.kr
+
+## 3. 파일 구조 규칙
+- 컴포넌트 파일명: 대문자로 시작 (예: MainClient.tsx)
+- 폴더명: 소문자로 시작
+- app/xx 폴더 구조:
+  - page.tsx
+  - xxClient.tsx (클라이언트 컴포넌트)
+
+## 4. 코딩 스타일
+- Tailwind 클래스 사용 (CSS 직접 사용 금지)
+- 접근성 고려:
+  - aria-label 속성 사용
+  - tabindex="0" 설정
+  - 키보드 네비게이션 지원
+- 함수 대신 const 사용 권장
+- 상세한 주석 작성 (3년차 개발자 수준)
+- ESLint, Prettier 설정 준수
+- Shadcn/UI 컴포넌트 활용
+- 화살표 함수를 주로 사용해줘
+- 기존 코딩 스타일 제대로 참고해서 만들어줘 니맘대로 바꾸지말고
+
+## 5. 프로젝트 설정
+- yarn 기반 프로젝트
+- API 경로: pages/api/ 사용
+- 도메인: nextneonews.vercel.app
+- API 구현 시 주의사항:
+  - 기존 SWR 관련 코드 활용
+  - 직접 만든 API 핸들러 활용
+  - 기존 API 변경 시 신중하게 진행
+
+## 6. 코드 품질
+- 기존 코드 최대한 활용
+- DRY (Don't Repeat Yourself) 원칙 준수
+- 버그 없는 완성된 코드 작성
+- 가독성 중시
+- 모든 페이지 반응형 구현
+
+## 7. 추가 규칙
+- import 경로 정확히 확인
+- import 오류 날때 무조건 새로 만들지말고 제대로 확인해서 있는지 먼저 찾기
+- tsconfig.json 참고하여 import
+- 모든 기능 완전 구현
+- 중복된 라이브러리 설치하지말고 있는걸 우선써라
+- 미완성 코드, TODO, 플레이스홀더 금지
+- 필요한 모든 import 포함
+-  경로 별칭 있는거만 사용해라 "paths": {
+      "@libs/*": ["libs/*"],
+      "@images/*": ["public/images/*"],
+      "@icons/*": ["public/icons/*"],
+      "@hero/*": ["public/hero/*"],
+      "@components/*": ["components/*"],
+      "@/*": ["./src/*"]
+    } 
+
+## 8. 코드 구현 가이드라인
+- early returns 사용하여 가독성 향상
+- Tailwind 클래스만 사용 (CSS 직접 사용 금지)
+- class: 사용 (삼항 연산자 대신)
+- 명확한 변수명과 함수명 사용
+  - 이벤트 함수는 "handle" 접두사 사용 (예: handleClick, handleKeyDown)
+- 접근성 기능 구현
+  - tabindex="0"
+  - aria-label
+  - on:click
+  - on:keydown
+- const 사용 권장 (함수 대신)
+- 타입 정의 필수
+
+## 9. 예시 코드
+```typescript
+// 컴포넌트 예시
+const MainClient = () => {
+  const handleClick = () => {
+    // 이벤트 처리
+  };
+
+  return (
+    <div className="flex flex-col items-center justify-center min-h-screen">
+      <button
+        className="px-4 py-2 text-white bg-blue-500 rounded-lg hover:bg-blue-600"
+        onClick={handleClick}
+        tabIndex={0}
+        aria-label="메인 버튼"
+      >
+        클릭하세요
+      </button>
+    </div>
+  );
+};
+
+export default MainClient;
+```

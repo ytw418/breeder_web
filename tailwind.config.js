@@ -17,20 +17,6 @@ module.exports = {
           "conic-gradient(from 180deg at 50% 50%, var(--tw-gradient-stops))",
       },
       colors: {
-        // Black: "#191919",
-        // White: "#FFFFFF",
-        // Primary: "#f97316",
-        // Purple: "#5F50F0",
-        // Red: "#F66570",
-        // Modal: "#000000",
-        // Gray: {
-        //   100: "#FAFAFA",
-        //   200: "#F6F6F6",
-        //   300: "#E5E5E5",
-        //   400: "#B2B2B2",
-        //   500: "#7F7F7F",
-        //   600: "#4C4C4C",
-        // },
         background: "hsl(var(--background))",
         foreground: "hsl(var(--foreground))",
         card: {
@@ -84,5 +70,9 @@ module.exports = {
     },
   },
 
-  plugins: [require("tailwind-scrollbar-hide"), require("tailwindcss-animate")],
+  plugins: [
+    require("tailwind-scrollbar-hide"),
+    require("tailwindcss-animate"),
+    require("@tailwindcss/forms"),
+  ],
 };
