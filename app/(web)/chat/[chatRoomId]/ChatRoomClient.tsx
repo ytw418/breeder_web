@@ -9,7 +9,7 @@ import useMutation from "@libs/client/useMutation";
 import useUser from "@libs/client/useUser";
 import { useEffect, useRef, useState } from "react";
 import { produce } from "immer";
-import { findChatMember } from "@libs/client/utils";
+
 import { ToastContainer, toast } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
 import { ChatRoomResponse, ChatRoom } from "pages/api/chat/[chatRoomId]";
