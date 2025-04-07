@@ -19,7 +19,7 @@
         "name": "next"
       }
     ],
-    "baseUrl": ".", // 추가
+    "baseUrl": ".",
     "paths": {
       "@libs/*": ["libs/*"],
       "@images/*": ["public/images/*"],

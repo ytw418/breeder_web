@@ -101,54 +101,85 @@ const EditProfileClient = () => {
     }
   }, [avatar]);
   return (
-    <form onSubmit={handleSubmit(onValid)} className="py-10 px-4 space-y-4">
-      <div className="flex items-center space-x-3">
-        {avatarPreview ? (
-          <Image
-            alt="프로필 이미지"
-            src={avatarPreview}
-            height={60}
-            width={60}
-            className="w-14 h-14 rounded-full bg-slate-500"
-          />
-        ) : (
-          <div className="w-14 h-14 rounded-full bg-slate-500" />
-        )}
-        <label
-          htmlFor="picture"
-          className="cursor-pointer py-2 px-3 border hover:bg-gray-50 border-gray-300 rounded-md shadow-sm text-sm font-medium focus:ring-2 focus:ring-offset-2 focus:ring-orange-500 text-gray-700"
-        >
-          이미지 변경
-          <input
-            {...register("avatar")}
-            id="picture"
-            type="file"
-            className="hidden"
-            accept="image/*"
-          />
-        </label>
-      </div>
-      <Input
-        register={register("name", {
-          maxLength: {
-            value: 10,
-            message: "최대 10글자까지 입력가능합니다.",
-          },
-        })}
-        required={false}
-        label="닉네임"
-        name="name"
-        type="text"
-      />
+    <form
+      onSubmit={handleSubmit(onValid)}
+      className="max-w-2xl mx-auto p-6 space-y-8"
+    >
+      <div className="bg-white rounded-2xl shadow-[0_2px_8px_rgba(0,0,0,0.08)] p-6">
+        <div className="flex flex-col items-center space-y-6">
+          <div className="relative group">
+            {avatarPreview ? (
+              <Image
+                alt="프로필 이미지"
+                src={avatarPreview}
+                height={96}
+                width={96}
+                className="w-24 h-24 rounded-full object-cover ring-2 ring-[#3182F6]/10 group-hover:ring-[#3182F6]/20 transition-all"
+              />
+            ) : (
+              <div className="w-24 h-24 rounded-full bg-gray-100 ring-2 ring-[#3182F6]/10 group-hover:ring-[#3182F6]/20 transition-all" />
+            )}
+            <label
+              htmlFor="picture"
+              className="absolute -bottom-2 -right-2 bg-white p-2 rounded-full shadow-md cursor-pointer hover:bg-gray-50 transition-colors"
+            >
+              <svg
+                className="w-5 h-5 text-[#3182F6]"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth="2"
+                  d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.414-.828A2 2 0 0110.93 3h2.14a2 2 0 011.664.89l.414.828A2 2 0 0016.07 7H17a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z"
+                />
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth="2"
+                  d="M15 13a3 3 0 11-6 0 3 3 0 016 0z"
+                />
+              </svg>
+              <input
+                {...register("avatar")}
+                id="picture"
+                type="file"
+                className="hidden"
+                accept="image/*"
+              />
+            </label>
+          </div>
 
-      {/* <Button text={isLoading ? "로딩중" : "완료"} disabled={isLoading} /> */}
+          <div className="w-full">
+            <Input
+              register={register("name", {
+                maxLength: {
+                  value: 10,
+                  message: "최대 10글자까지 입력가능합니다.",
+                },
+              })}
+              required={false}
+              name="name"
+              type="text"
+              label="닉네임"
+              placeholder="닉네임을 입력해주세요"
+            />
+            {errors.name && (
+              <p className="mt-2 text-sm text-red-500">{errors.name.message}</p>
+            )}
+          </div>
+        </div>
+      </div>
+
       <Button
         buttonType="submit"
         type="squareDefault"
         text="프로필 저장"
         size="small"
         widthFull
-        className="mt-5"
+        className="bg-[#3182F6] hover:bg-[#3182F6]/90 text-white font-medium py-3 rounded-xl transition-all shadow-md hover:shadow-lg focus:outline-none focus:ring-2 focus:ring-[#3182F6]/20 focus:border-transparent"
         spinner={isLoading}
         state={
           watch("name") === user?.name && !watch("avatar")?.[0]

@@ -52,7 +52,7 @@ const MainClient = () => {
               price={product?.price}
               hearts={product?._count?.favs}
               key={product?.id}
-              image={product?.image}
+              image={product?.photos[0]}
               createdAt={product.createdAt}
             />
           ));

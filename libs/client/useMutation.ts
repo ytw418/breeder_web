@@ -16,7 +16,7 @@ interface MutationOption<T> {
 
 type useMutationResult<T> = [
   (options: MutationOption<T>) => void,
-  useMutationState<T>,
+  useMutationState<T>
 ];
 
 export default function useMutation<T = any>(

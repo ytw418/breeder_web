@@ -25,6 +25,8 @@ CREATE TABLE "ChatRoom" (
     "id" SERIAL NOT NULL,
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updatedAt" TIMESTAMP(3) NOT NULL,
+    "type" TEXT,
+    "productId" INTEGER,
 
     CONSTRAINT "ChatRoom_pkey" PRIMARY KEY ("id")
 );
@@ -46,24 +48,8 @@ CREATE TABLE "Message" (
     "userId" INTEGER NOT NULL,
     "message" TEXT NOT NULL,
     "chatRoomId" INTEGER,
-    "talktosellerId" INTEGER,
 
     CONSTRAINT "Message_pkey" PRIMARY KEY ("id")
-);
-
--- CreateTable
-CREATE TABLE "TalkToSeller" (
-    "id" SERIAL NOT NULL,
-    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    "updatedAt" TIMESTAMP(3) NOT NULL,
-    "createdBuyerId" INTEGER NOT NULL,
-    "createdSellerId" INTEGER NOT NULL,
-    "productId" INTEGER NOT NULL,
-    "isbuy" BOOLEAN,
-    "issold" BOOLEAN,
-    "isSell" BOOLEAN NOT NULL DEFAULT false,
-
-    CONSTRAINT "TalkToSeller_pkey" PRIMARY KEY ("id")
 );
 
 -- CreateTable
@@ -80,13 +66,13 @@ CREATE TABLE "Follow" (
 -- CreateTable
 CREATE TABLE "Product" (
     "id" SERIAL NOT NULL,
-    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    "updatedAt" TIMESTAMP(3) NOT NULL,
-    "userId" INTEGER NOT NULL,
-    "image" TEXT NOT NULL,
     "name" TEXT NOT NULL,
     "price" INTEGER NOT NULL,
     "description" TEXT NOT NULL,
+    "photos" TEXT[] DEFAULT ARRAY[]::TEXT[],
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+    "userId" INTEGER NOT NULL,
 
     CONSTRAINT "Product_pkey" PRIMARY KEY ("id")
 );
@@ -97,34 +83,37 @@ CREATE TABLE "Post" (
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updatedAt" TIMESTAMP(3) NOT NULL,
     "userId" INTEGER NOT NULL,
-    "question" TEXT NOT NULL,
+    "title" TEXT NOT NULL,
+    "description" TEXT NOT NULL,
+    "type" TEXT,
     "latitude" DOUBLE PRECISION,
     "longitude" DOUBLE PRECISION,
+    "image" TEXT NOT NULL,
 
     CONSTRAINT "Post_pkey" PRIMARY KEY ("id")
 );
 
 -- CreateTable
-CREATE TABLE "Answer" (
+CREATE TABLE "Comment" (
     "id" SERIAL NOT NULL,
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updatedAt" TIMESTAMP(3) NOT NULL,
     "userId" INTEGER NOT NULL,
     "postId" INTEGER NOT NULL,
-    "answer" TEXT NOT NULL,
+    "comment" TEXT NOT NULL,
 
-    CONSTRAINT "Answer_pkey" PRIMARY KEY ("id")
+    CONSTRAINT "Comment_pkey" PRIMARY KEY ("id")
 );
 
 -- CreateTable
-CREATE TABLE "Wondering" (
+CREATE TABLE "Like" (
     "id" SERIAL NOT NULL,
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updatedAt" TIMESTAMP(3) NOT NULL,
     "userId" INTEGER NOT NULL,
     "postId" INTEGER NOT NULL,
 
-    CONSTRAINT "Wondering_pkey" PRIMARY KEY ("id")
+    CONSTRAINT "Like_pkey" PRIMARY KEY ("id")
 );
 
 -- CreateTable
@@ -185,37 +174,6 @@ CREATE TABLE "Record" (
     CONSTRAINT "Record_pkey" PRIMARY KEY ("id")
 );
 
--- CreateTable
-CREATE TABLE "isCarrot" (
-    "id" SERIAL NOT NULL,
-    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    "updatedAt" TIMESTAMP(3) NOT NULL,
-    "meetTime" TIMESTAMP(3),
-    "productId" INTEGER NOT NULL,
-    "carrotbuyerId" INTEGER NOT NULL,
-    "carrotsellerId" INTEGER NOT NULL,
-    "ttsId" INTEGER NOT NULL,
-
-    CONSTRAINT "isCarrot_pkey" PRIMARY KEY ("id")
-);
-
--- CreateTable
-CREATE TABLE "CarrotComment" (
-    "id" SERIAL NOT NULL,
-    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    "updatedAt" TIMESTAMP(3) NOT NULL,
-    "meetTime" TIMESTAMP(3),
-    "productId" INTEGER NOT NULL,
-    "carrotcommentbuyerId" INTEGER NOT NULL,
-    "carrotcommentsellerId" INTEGER NOT NULL,
-    "buyerComment" TEXT,
-    "sellerComment" TEXT,
-    "starForBuyer" INTEGER NOT NULL DEFAULT 5,
-    "starForSeller" INTEGER NOT NULL DEFAULT 5,
-
-    CONSTRAINT "CarrotComment_pkey" PRIMARY KEY ("id")
-);
-
 -- CreateIndex
 CREATE UNIQUE INDEX "User_snsId_key" ON "User"("snsId");
 
@@ -241,18 +199,6 @@ CREATE INDEX "Message_chatRoomId_idx" ON "Message"("chatRoomId");
 CREATE INDEX "Message_userId_idx" ON "Message"("userId");
 
 -- CreateIndex
-CREATE INDEX "Message_talktosellerId_idx" ON "Message"("talktosellerId");
-
--- CreateIndex
-CREATE INDEX "TalkToSeller_createdBuyerId_createdSellerId_productId_idx" ON "TalkToSeller"("createdBuyerId", "createdSellerId", "productId");
-
--- CreateIndex
-CREATE INDEX "TalkToSeller_productId_idx" ON "TalkToSeller"("productId");
-
--- CreateIndex
-CREATE INDEX "TalkToSeller_createdSellerId_idx" ON "TalkToSeller"("createdSellerId");
-
--- CreateIndex
 CREATE INDEX "Follow_followerId_idx" ON "Follow"("followerId");
 
 -- CreateIndex
@@ -265,16 +211,16 @@ CREATE INDEX "Product_userId_idx" ON "Product"("userId");
 CREATE INDEX "Post_userId_idx" ON "Post"("userId");
 
 -- CreateIndex
-CREATE INDEX "Answer_userId_idx" ON "Answer"("userId");
+CREATE INDEX "Comment_userId_idx" ON "Comment"("userId");
 
 -- CreateIndex
-CREATE INDEX "Answer_postId_idx" ON "Answer"("postId");
+CREATE INDEX "Comment_postId_idx" ON "Comment"("postId");
 
 -- CreateIndex
-CREATE INDEX "Wondering_userId_idx" ON "Wondering"("userId");
+CREATE INDEX "Like_userId_idx" ON "Like"("userId");
 
 -- CreateIndex
-CREATE INDEX "Wondering_postId_idx" ON "Wondering"("postId");
+CREATE INDEX "Like_postId_idx" ON "Like"("postId");
 
 -- CreateIndex
 CREATE INDEX "Review_createdById_idx" ON "Review"("createdById");
@@ -305,24 +251,3 @@ CREATE INDEX "Record_userId_idx" ON "Record"("userId");
 
 -- CreateIndex
 CREATE INDEX "Record_productId_idx" ON "Record"("productId");
-
--- CreateIndex
-CREATE INDEX "isCarrot_productId_carrotbuyerId_carrotsellerId_ttsId_idx" ON "isCarrot"("productId", "carrotbuyerId", "carrotsellerId", "ttsId");
-
--- CreateIndex
-CREATE INDEX "isCarrot_carrotsellerId_idx" ON "isCarrot"("carrotsellerId");
-
--- CreateIndex
-CREATE INDEX "isCarrot_carrotbuyerId_idx" ON "isCarrot"("carrotbuyerId");
-
--- CreateIndex
-CREATE INDEX "isCarrot_ttsId_idx" ON "isCarrot"("ttsId");
-
--- CreateIndex
-CREATE INDEX "CarrotComment_productId_carrotcommentbuyerId_carrotcomments_idx" ON "CarrotComment"("productId", "carrotcommentbuyerId", "carrotcommentsellerId", "starForBuyer", "starForSeller");
-
--- CreateIndex
-CREATE INDEX "CarrotComment_carrotcommentbuyerId_idx" ON "CarrotComment"("carrotcommentbuyerId");
-
--- CreateIndex
-CREATE INDEX "CarrotComment_carrotcommentsellerId_idx" ON "CarrotComment"("carrotcommentsellerId");

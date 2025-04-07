@@ -8,60 +8,68 @@ const handler = async (
   req: NextApiRequest,
   res: NextApiResponse<ResponseType>
 ) => {
-  if (req.method === "GET") {
-    const {
-      query: { page },
-    } = req;
-
-    const products = await client.product.findMany({
-      include: {
-        _count: {
-          select: {
-            favs: true,
-          },
-        },
-      },
-      orderBy: [{ createdAt: "desc" }],
-      take: 10,
-      skip: page ? (+page - 1) * 10 : 0,
-    });
-    const productCount = await client.product.count();
-
-    res.json({
-      success: true,
-      products,
-      pages: Math.ceil(productCount / 10),
-    });
-  }
   if (req.method === "POST") {
     const {
-      body: { name, price, description, photoId },
+      body: { name, price, description, photos },
       session: { user },
     } = req;
+
+    if (!user?.id) {
+      return res.status(401).json({ success: false, error: "Unauthorized" });
+    }
 
     const product = await client.product.create({
       data: {
         name,
         price: +price,
         description,
-        image: photoId,
+        photos: photos || [], // photos가 없을 경우 빈 배열 사용
         user: {
           connect: {
-            id: user?.id,
+            id: user.id,
           },
         },
       },
     });
 
-    try {
-      return res.json({ success: true, product });
-    } catch (error) {
-      console.log(error);
-      return res.status(500).json({ success: false, error });
-    }
+    return res.json({
+      success: true,
+      product,
+    });
+  }
+
+  if (req.method === "GET") {
+    const products = await client.product.findMany({
+      include: {
+        user: {
+          select: {
+            id: true,
+            name: true,
+            avatar: true,
+          },
+        },
+        _count: {
+          select: {
+            favs: true,
+          },
+        },
+      },
+      orderBy: {
+        createdAt: "desc",
+      },
+    });
+
+    return res.json({
+      success: true,
+      products,
+    });
   }
 };
 
 export default withApiSession(
-  withHandler({ methods: ["POST", "GET"], isPrivate: false, handler })
+  withHandler({
+    methods: ["GET", "POST"],
+    isPrivate: false,
+    handler,
+  })
 );

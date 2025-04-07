@@ -1,7 +1,7 @@
 "use client";
 import Profile from "@components/atoms/Profile";
 import { useParams, useRouter } from "next/navigation";
-import { UserResponse } from "pages/api/users/[id]";
+
 import React from "react";
 import useSWR from "swr";
 import MainLayout from "@components/layout";
@@ -9,6 +9,7 @@ import { Spacing } from "@components/atoms/Spacing";
 import Button from "@components/atoms/Button";
 import useMutation from "@libs/client/useMutation";
 import { ChatResponseType } from "pages/api/chat";
+import { UserResponse } from "pages/api/users/[id]";
 const ProfileClient = () => {
   const router = useRouter();
   const query = useParams();
