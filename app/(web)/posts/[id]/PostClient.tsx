@@ -3,7 +3,7 @@ import type { GetStaticPaths, GetStaticProps, NextPage } from "next";
 import useSWR, { useSWRConfig } from "swr";
 
 import Image from "next/image";
-import Layout from "@components/layout";
+import Layout from "@components/features/layout";
 import Link from "next/link";
 import { cls } from "@libs/client/utils";
 import { makeImageUrl } from "@libs/client/utils";

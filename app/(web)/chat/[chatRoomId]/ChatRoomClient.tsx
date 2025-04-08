@@ -1,7 +1,7 @@
 "use client";
 
-import Layout from "@components/layout";
-import Message from "@components/message";
+import Layout from "@components/features/layout";
+
 import useSWR from "swr";
 import { useParams, useSearchParams } from "next/navigation";
 import { useForm } from "react-hook-form";
@@ -18,6 +18,7 @@ import Image from "next/image";
 import { makeImageUrl } from "@libs/client/utils";
 import { useSWRConfig } from "swr";
 import { User } from "@prisma/client";
+import Message from "@components/features/message";
 
 interface Form {
   message: string;
@@ -283,13 +284,13 @@ const ChatRoomClient = () => {
           <input
             {...register("message")}
             type="text"
-            className="w-full px-4 py-3 pr-12 rounded-xl bg-gray-50 focus:outline-none focus:ring-2 focus:ring-[#3182F6]/20 focus:border-transparent transition-all"
+            className="w-full px-4 py-3 pr-12 rounded-xl bg-gray-50 focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent transition-all"
             placeholder="메시지를 입력하세요"
             required
           />
           <button
             type="submit"
-            className="absolute right-6 flex items-center justify-center w-8 h-8 rounded-full bg-[#3182F6] hover:bg-[#3182F6]/90 text-white transition-colors shadow-sm"
+            className="absolute right-6 flex items-center justify-center w-8 h-8 rounded-full bg-primary hover:bg-primary/90 text-white transition-colors shadow-sm"
           >
             <svg
               className="w-4 h-4"

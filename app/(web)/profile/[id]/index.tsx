@@ -1,7 +1,7 @@
 import useUser from "@libs/client/useUser";
 import { useParams } from "next/navigation";
 import useSWR from "swr";
-import Layout from "@components/layout";
+import Layout from "@components/features/layout";
 import Link from "next/link";
 import Image from "next/image";
 import { makeImageUrl } from "@libs/client/utils";

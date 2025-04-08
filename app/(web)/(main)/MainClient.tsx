@@ -5,8 +5,8 @@ import LogRocket from "logrocket";
 
 import { SWRConfig } from "swr";
 import useSWRInfinite, { unstable_serialize } from "swr/infinite";
-import FloatingButton from "@components/floating-button";
-import Item from "@components/item";
+import FloatingButton from "@components/atoms/floating-button";
+import Item from "@components/features/item";
 
 import { useInfiniteScroll } from "@libs/client/useInfiniteScroll";
 

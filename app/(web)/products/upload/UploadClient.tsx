@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { useForm } from "react-hook-form";
 import { Button } from "@components/ui/button";
 import { Input } from "@components/ui/input";
-import Layout from "@components/layout";
+import Layout from "@components/features/layout";
 import { Textarea } from "@components/ui/textarea";
 import useMutation from "@libs/client/useMutation";
 import { Product } from "@prisma/client";
@@ -210,7 +210,7 @@ const UploadClient = () => {
               id="name"
               {...register("name", { required: "상품명을 입력해주세요" })}
               placeholder="상품명을 입력해주세요"
-              className="focus:ring-2 focus:ring-[#3182F6]/20 focus:border-transparent"
+              className=" focus:border-transparent"
             />
           </div>
 
@@ -223,7 +223,7 @@ const UploadClient = () => {
               })}
               placeholder="상품 설명을 입력해주세요"
               rows={4}
-              className="focus:ring-2 focus:ring-[#3182F6]/20 focus:border-transparent"
+              className="focus:border-transparent"
             />
           </div>
 
@@ -237,13 +237,13 @@ const UploadClient = () => {
                 valueAsNumber: true,
               })}
               placeholder="가격을 입력해주세요"
-              className="focus:ring-2 focus:ring-[#3182F6]/20 focus:border-transparent"
+              className="focus:border-transparent"
             />
           </div>
 
           <Button
             type="submit"
-            className="w-full focus:ring-2 focus:ring-[#3182F6]/20 focus:border-transparent"
+            className="w-full focus:border-transparent"
             disabled={isUploading}
             loading={isUploading}
           >

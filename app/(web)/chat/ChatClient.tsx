@@ -1,6 +1,6 @@
 "use client";
 
-import Layout from "@components/layout";
+import Layout from "@components/features/layout";
 import useSWR from "swr";
 import Image from "next/image";
 import useUser from "@libs/client/useUser";
@@ -102,7 +102,7 @@ const ChatClient = () => {
                     : null}
                 </span>
                 {chatRoom.product && (
-                  <span className="text-xs text-[#3182F6]">
+                  <span className="text-xs text-primary">
                     {chatRoom.product.name}
                   </span>
                 )}

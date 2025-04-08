@@ -2,7 +2,7 @@ import type { NextPage, NextPageContext } from "next";
 import { Review, User } from "@prisma/client";
 import useSWR, { SWRConfig } from "swr";
 
-import Layout from "@components/layout";
+import Layout from "@components/features/layout";
 import Link from "next/link";
 import client from "@libs/server/client";
 import { cls } from "@libs/client/utils";

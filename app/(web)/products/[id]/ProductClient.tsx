@@ -1,17 +1,15 @@
 "use client";
-import type { GetStaticPaths, GetStaticProps, NextPage } from "next";
-import useSWR, { useSWRConfig } from "swr";
-import { useState } from "react";
-import Image from "next/image";
-import Layout from "@components/layout";
-import Link from "next/link";
-import { cls } from "@libs/client/utils";
-import { makeImageUrl } from "@libs/client/utils";
+import Layout from "@components/features/layout";
 import useMutation from "@libs/client/useMutation";
-import { useParams, useRouter } from "next/navigation";
 import useUser from "@libs/client/useUser";
+import { cls, makeImageUrl } from "@libs/client/utils";
+import Image from "next/image";
+import Link from "next/link";
+import { useParams, useRouter } from "next/navigation";
 import { ItemDetailResponse } from "pages/api/products/[id]";
-import Button from "@components/atoms/Button";
+import { useState } from "react";
+import useSWR, { useSWRConfig } from "swr";
+
 import { ChatResponseType } from "pages/api/chat";
 import { toast } from "react-toastify";
 
@@ -200,7 +198,7 @@ const ProductClient = ({ product, relatedProducts }: ItemDetailResponse) => {
               {product?.user?.avatar ? (
                 <Image
                   src={makeImageUrl(product.user.avatar, "avatar")}
-                  className="w-10 h-10 rounded-full object-cover ring-2 ring-[#3182F6]/10 group-hover:ring-[#3182F6]/20 transition-all"
+                  className="w-10 h-10 rounded-full object-cover ring-2 ring-primary/10 group-hover:ring-primary/20 transition-all"
                   width={40}
                   height={40}
                   alt="avatar"
@@ -209,7 +207,7 @@ const ProductClient = ({ product, relatedProducts }: ItemDetailResponse) => {
                 <div className="w-10 h-10 rounded-full bg-gray-200" />
               )}
               <div>
-                <p className="font-medium text-gray-900 group-hover:text-[#3182F6] transition-colors">
+                <p className="font-medium text-gray-900 group-hover:text-primary transition-colors">
                   {product?.user?.name}
                 </p>
                 <p className="text-xs text-gray-500">프로필 보기</p>
@@ -225,7 +223,7 @@ const ProductClient = ({ product, relatedProducts }: ItemDetailResponse) => {
                 <button
                   onClick={onFavClick}
                   className={cls(
-                    "p-2 rounded-full transition-all hover:scale-110 focus:outline-none focus:ring-2 focus:ring-[#3182F6]/20",
+                    "p-2 rounded-full transition-all hover:scale-110 focus:outline-none focus:ring-2 focus:ring-primary",
                     data?.isLiked
                       ? "text-red-500"
                       : "text-gray-400 hover:text-gray-500"
@@ -262,7 +260,7 @@ const ProductClient = ({ product, relatedProducts }: ItemDetailResponse) => {
               </div>
 
               <div className="flex items-baseline space-x-2">
-                <p className="text-2xl font-bold text-[#3182F6] tracking-tight">
+                <p className="text-2xl font-bold text-primary tracking-tight">
                   {product?.price?.toLocaleString()}원
                 </p>
               </div>
@@ -276,7 +274,7 @@ const ProductClient = ({ product, relatedProducts }: ItemDetailResponse) => {
               <div className="flex items-center justify-between">
                 <button
                   onClick={onContactClick}
-                  className="flex-1 bg-[#3182F6] text-white py-3 px-4 rounded-xl font-medium hover:bg-[#1B64DA] transition-colors"
+                  className="flex-1 bg-primary text-white py-3 px-4 rounded-xl font-medium hover:bg-primary/90 transition-colors"
                 >
                   판매자에게 연락하기
                 </button>
@@ -296,7 +294,7 @@ const ProductClient = ({ product, relatedProducts }: ItemDetailResponse) => {
                 <Link
                   key={product.id}
                   href={`/products/${product.id}`}
-                  className="group focus:outline-none focus:ring-2 focus:ring-[#3182F6]/20 rounded-xl"
+                  className="group focus:outline-none focus:ring-2 focus:ring-primary rounded-xl"
                 >
                   <div className="relative aspect-square rounded-xl overflow-hidden shadow-sm hover:shadow-md transition-all">
                     <Image
@@ -307,10 +305,10 @@ const ProductClient = ({ product, relatedProducts }: ItemDetailResponse) => {
                     />
                   </div>
                   <div className="mt-3">
-                    <h3 className="text-sm font-medium text-gray-900 truncate group-hover:text-[#3182F6] transition-colors">
+                    <h3 className="text-sm font-medium text-gray-900 truncate group-hover:text-primary transition-colors">
                       {product.name}
                     </h3>
-                    <p className="text-[#3182F6] font-medium text-sm">
+                    <p className="text-primary font-medium text-sm">
                       {product.price.toLocaleString()}원
                     </p>
                   </div>
