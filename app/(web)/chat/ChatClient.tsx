@@ -102,7 +102,7 @@ const ChatClient = () => {
                     : null}
                 </span>
                 {chatRoom.product && (
-                  <span className="text-xs text-[#3182F6]">
+                  <span className="text-xs text-primary">
                     {chatRoom.product.name}
                   </span>
                 )}

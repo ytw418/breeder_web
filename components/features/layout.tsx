@@ -99,7 +99,7 @@ export default function Layout({
             className={clsx(
               "flex flex-col items-center space-y-1.5",
               pathname === "/"
-                ? "text-[#3182F6]"
+                ? "text-primary"
                 : "text-gray-600 hover:text-gray-900 transition-colors"
             )}
           >
@@ -124,7 +124,7 @@ export default function Layout({
             className={clsx(
               "flex flex-col items-center space-y-1.5",
               pathname === "/posts"
-                ? "text-[#3182F6]"
+                ? "text-primary"
                 : "text-gray-600 hover:text-gray-900 transition-colors"
             )}
           >
@@ -149,7 +149,7 @@ export default function Layout({
             className={clsx(
               "flex flex-col items-center space-y-1.5 relative",
               pathname === "/chat"
-                ? "text-[#3182F6]"
+                ? "text-primary"
                 : "text-gray-600 hover:text-gray-900 transition-colors"
             )}
           >
@@ -179,7 +179,7 @@ export default function Layout({
             className={clsx(
               "flex flex-col items-center space-y-1.5",
               pathname === "/myPage"
-                ? "text-[#3182F6]"
+                ? "text-primary"
                 : "text-gray-600 hover:text-gray-900 transition-colors"
             )}
           >

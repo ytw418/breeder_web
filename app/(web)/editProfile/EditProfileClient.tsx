@@ -114,17 +114,17 @@ const EditProfileClient = () => {
                 src={avatarPreview}
                 height={96}
                 width={96}
-                className="w-24 h-24 rounded-full object-cover ring-2 ring-[#3182F6]/10 group-hover:ring-[#3182F6]/20 transition-all"
+                className="w-24 h-24 rounded-full object-cover ring-2 ring-primary/10 group-hover:ring-primary/20 transition-all"
               />
             ) : (
-              <div className="w-24 h-24 rounded-full bg-gray-100 ring-2 ring-[#3182F6]/10 group-hover:ring-[#3182F6]/20 transition-all" />
+              <div className="w-24 h-24 rounded-full bg-gray-100 ring-2 ring-primary/10 group-hover:ring-primary/20 transition-all" />
             )}
             <label
               htmlFor="picture"
               className="absolute -bottom-2 -right-2 bg-white p-2 rounded-full shadow-md cursor-pointer hover:bg-gray-50 transition-colors"
             >
               <svg
-                className="w-5 h-5 text-[#3182F6]"
+                className="w-5 h-5 text-primary"
                 fill="none"
                 stroke="currentColor"
                 viewBox="0 0 24 24"
