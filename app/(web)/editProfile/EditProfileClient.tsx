@@ -1,15 +1,15 @@
 "use client";
 import { useEffect, useState } from "react";
 
-import Input from "@components/input";
-
 import { useForm } from "react-hook-form";
 import useMutation from "@libs/client/useMutation";
 import useUser from "@libs/client/useUser";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
-import Button from "@components/atoms/Button";
+
 import { makeImageUrl } from "@libs/client/utils";
+import { Input } from "@components/ui/input";
+import { Button } from "@components/ui/button";
 
 interface EditProfileForm {
   name?: string;
@@ -154,7 +154,7 @@ const EditProfileClient = () => {
 
           <div className="w-full">
             <Input
-              register={register("name", {
+              {...register("name", {
                 maxLength: {
                   value: 10,
                   message: "최대 10글자까지 입력가능합니다.",
@@ -163,8 +163,8 @@ const EditProfileClient = () => {
               required={false}
               name="name"
               type="text"
-              label="닉네임"
               placeholder="닉네임을 입력해주세요"
+              className="w-full"
             />
             {errors.name && (
               <p className="mt-2 text-sm text-red-500">{errors.name.message}</p>
@@ -174,21 +174,24 @@ const EditProfileClient = () => {
       </div>
 
       <Button
-        buttonType="submit"
-        type="squareDefault"
-        text="프로필 저장"
-        size="small"
-        widthFull
-        className="bg-[#3182F6] hover:bg-[#3182F6]/90 text-white font-medium py-3 rounded-xl transition-all shadow-md hover:shadow-lg focus:outline-none focus:ring-2 focus:ring-[#3182F6]/20 focus:border-transparent"
-        spinner={isLoading}
-        state={
+        type="submit"
+        variant="default"
+        size="sm"
+        fullWidth
+        disabled={
           watch("name") === user?.name && !watch("avatar")?.[0]
-            ? "disable"
+            ? true
             : isLoading
-            ? "disable"
-            : "active"
+            ? true
+            : false
         }
-      />
+      >
+        {isLoading ? (
+          <div className="h-5 w-5 animate-spin rounded-full border-2 border-current border-t-transparent" />
+        ) : (
+          "프로필 저장"
+        )}
+      </Button>
     </form>
   );
 };

@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import { Inter } from "next/font/google";
 import "./globals.css";
 import { ToastContainer } from "react-toastify";
-import { ThemeProvider } from "@components/theme-provider";
+import { ThemeProvider } from "@components/features/theme-provider";
 import { VariousProvider } from "@libs/client/VariousProvider";
 import ClientComp from "./ClientComp";
 

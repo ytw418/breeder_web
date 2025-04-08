@@ -4,9 +4,8 @@ import { useParams, useRouter } from "next/navigation";
 
 import React from "react";
 import useSWR from "swr";
-import MainLayout from "@components/layout";
-import { Spacing } from "@components/atoms/Spacing";
-import Button from "@components/atoms/Button";
+import MainLayout from "@components/features/layout";
+import { Button } from "@components/ui/button";
 import useMutation from "@libs/client/useMutation";
 import { ChatResponseType } from "pages/api/chat";
 import { UserResponse } from "pages/api/users/[id]";
@@ -22,16 +21,15 @@ const ProfileClient = () => {
   return (
     <MainLayout canGoBack title={data?.user?.name} hasTabBar>
       <div className="flex px-4 flex-col">
-        <Spacing size={16} />
+        <div className="mt-4" />
         <Profile user={data?.user} />
-        <Spacing size={20} />
+        <div className="mt-5" />
         <div className="flex flex-row gap-1">
           <Button
-            type={"squareDefault"}
-            text={"메시지"}
-            size={"small"}
+            variant="default"
+            size="sm"
             className="flex-1"
-            clickAction={() =>
+            onClick={() =>
               getChatRoomId({
                 data: { otherId: Number(query?.id) },
                 onCompleted(result) {
@@ -46,13 +44,12 @@ const ProfileClient = () => {
                 },
               })
             }
-          />
-          <Button
-            type={"squareDefault"}
-            text={"팔로우"}
-            size={"small"}
-            className="flex-2"
-          />
+          >
+            메시지
+          </Button>
+          <Button variant="default" size="sm" className="flex-2">
+            팔로우
+          </Button>
         </div>
       </div>
     </MainLayout>

@@ -1,7 +1,7 @@
 "use client";
 
-import Layout from "@components/layout";
-import Message from "@components/message";
+import Layout from "@components/features/layout";
+
 import useSWR from "swr";
 import { useParams, useSearchParams } from "next/navigation";
 import { useForm } from "react-hook-form";
@@ -18,6 +18,7 @@ import Image from "next/image";
 import { makeImageUrl } from "@libs/client/utils";
 import { useSWRConfig } from "swr";
 import { User } from "@prisma/client";
+import Message from "@components/features/message";
 
 interface Form {
   message: string;

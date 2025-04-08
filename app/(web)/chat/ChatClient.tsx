@@ -1,6 +1,6 @@
 "use client";
 
-import Layout from "@components/layout";
+import Layout from "@components/features/layout";
 import useSWR from "swr";
 import Image from "next/image";
 import useUser from "@libs/client/useUser";

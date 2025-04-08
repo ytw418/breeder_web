@@ -1,17 +1,15 @@
 "use client";
-import type { GetStaticPaths, GetStaticProps, NextPage } from "next";
-import useSWR, { useSWRConfig } from "swr";
-import { useState } from "react";
-import Image from "next/image";
-import Layout from "@components/layout";
-import Link from "next/link";
-import { cls } from "@libs/client/utils";
-import { makeImageUrl } from "@libs/client/utils";
+import Layout from "@components/features/layout";
 import useMutation from "@libs/client/useMutation";
-import { useParams, useRouter } from "next/navigation";
 import useUser from "@libs/client/useUser";
+import { cls, makeImageUrl } from "@libs/client/utils";
+import Image from "next/image";
+import Link from "next/link";
+import { useParams, useRouter } from "next/navigation";
 import { ItemDetailResponse } from "pages/api/products/[id]";
-import Button from "@components/atoms/Button";
+import { useState } from "react";
+import useSWR, { useSWRConfig } from "swr";
+
 import { ChatResponseType } from "pages/api/chat";
 import { toast } from "react-toastify";
 
