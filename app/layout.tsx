@@ -71,9 +71,9 @@ export const metadata: Metadata = {
   },
   verification: {
     google: "YV_Riopc7DmVS7LUL6geEhhs2DmQghxBUUBoeuTWhR0",
-    naver: "naver-site-verification-code",
+
     other: {
-      "naver-site-verification": "naver-site-verification-code",
+      "naver-site-verification": "893792f973a4f49bf92ed203678ddc2bbc02eed6",
     },
   },
   alternates: {
@@ -91,7 +91,7 @@ export default function RootLayout({
       <head>
         <meta
           name="naver-site-verification"
-          content="naver-site-verification-code"
+          content="893792f973a4f49bf92ed203678ddc2bbc02eed6"
         />
         <meta
           name="google-site-verification"
