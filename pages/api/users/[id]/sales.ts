@@ -9,12 +9,12 @@ async function handler(
   res: NextApiResponse<ResponseType>
 ) {
   const {
-    session: { user },
+    query: { id },
   } = req;
 
   const sales = await client.sale.findMany({
     where: {
-      userId: user?.id,
+      userId: Number(id),
     },
     include: {
       product: {
@@ -38,6 +38,6 @@ export default withApiSession(
   withHandler({
     methods: ["GET"],
     handler,
-    isPrivate: true,
+    isPrivate: false,
   })
 );

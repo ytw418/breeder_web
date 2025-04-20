@@ -4,16 +4,17 @@ import useSWR from "swr";
 import Image from "next/image";
 import Link from "next/link";
 import { makeImageUrl } from "@libs/client/utils";
+import { Spinner } from "@components/atoms/Spinner";
 
 const MyPostList = ({ userId }: { userId?: number }) => {
   const { data, isLoading } = useSWR<ProductListResponse>(
     userId ? `/api/users/${userId}/productList` : null
   );
 
-  if (isLoading) {
+  if (!userId || isLoading) {
     return (
       <div className="flex justify-center items-center h-32">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+        <Spinner />
       </div>
     );
   }

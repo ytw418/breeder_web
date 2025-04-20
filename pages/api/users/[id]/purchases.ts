@@ -9,11 +9,11 @@ async function handler(
   res: NextApiResponse<ResponseType>
 ) {
   const {
-    session: { user },
+    query: { id },
   } = req;
-  const favs = await client.fav.findMany({
+  const purchases = await client.purchase.findMany({
     where: {
-      userId: user?.id,
+      userId: Number(id),
     },
     include: {
       product: {
@@ -29,7 +29,7 @@ async function handler(
   });
   res.json({
     success: true,
-    favs,
+    purchases,
   });
 }
 
@@ -37,6 +37,6 @@ export default withApiSession(
   withHandler({
     methods: ["GET"],
     handler,
-    isPrivate: true,
+    isPrivate: false,
   })
 );

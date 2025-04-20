@@ -1,11 +1,19 @@
+"use client";
 import Link from "next/link";
 import React from "react";
+import { useParams } from "next/navigation";
+import useUser from "@libs/client/useUser";
 
-const MySaleHistroy = () => {
+const MySaleHistroyMenu = () => {
+  const params = useParams();
+  const { user } = useUser();
+  // 마이페이지면 user.id 다른 유저의 프로필페이지면 params.id
+  const id = params?.id ? Number(params?.id) : user?.id;
+
   return (
     <div className="grid grid-cols-3 gap-4">
       <Link
-        href="/profile/sold"
+        href={`/profiles/${id}/sales`}
         className="flex flex-col items-center p-4 bg-white rounded-2xl shadow-sm hover:shadow-md transition-shadow"
       >
         <div className="w-14 h-14 bg-primary/10 text-primary rounded-full flex items-center justify-center mb-2">
@@ -27,7 +35,7 @@ const MySaleHistroy = () => {
       </Link>
 
       <Link
-        href="/profile/bought"
+        href={`/profiles/${id}/purchases`}
         className="flex flex-col items-center p-4 bg-white rounded-2xl shadow-sm hover:shadow-md transition-shadow"
       >
         <div className="w-14 h-14 bg-primary/10 text-primary rounded-full flex items-center justify-center mb-2">
@@ -49,7 +57,7 @@ const MySaleHistroy = () => {
       </Link>
 
       <Link
-        href="/profile/loved"
+        href={`/profiles/${id}/favs`}
         className="flex flex-col items-center p-4 bg-white rounded-2xl shadow-sm hover:shadow-md transition-shadow"
       >
         <div className="w-14 h-14 bg-primary/10 text-primary rounded-full flex items-center justify-center mb-2">
@@ -73,4 +81,4 @@ const MySaleHistroy = () => {
   );
 };
 
-export default MySaleHistroy;
+export default MySaleHistroyMenu;

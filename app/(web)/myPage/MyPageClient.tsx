@@ -15,7 +15,7 @@ import useLogout from "../../../hooks/useLogout";
 import { Avatar, AvatarFallback, AvatarImage } from "@components/ui/avatar";
 import { Card, CardContent } from "@components/ui/card";
 import MyPostList from "@components/features/profile/myPostList";
-import MySaleHistroy from "@components/features/profile/mySaleHistroy";
+import MySaleHistroyMenu from "@components/features/profile/MySaleHistroyMenu";
 
 interface ReviewWithUser extends Review {
   createdBy: User;
@@ -42,13 +42,11 @@ const MyPageClient = () => {
         <CardContent className="p-6">
           <div className="flex items-center gap-4">
             <Avatar className="h-16 w-16">
-              <AvatarImage src={avatarUrl || ""} alt={user?.name || "사용자"} />
-              <AvatarFallback>{user?.name?.[0] || "?"}</AvatarFallback>
+              <AvatarImage src={avatarUrl || ""} alt={user?.name || ""} />
+              <AvatarFallback></AvatarFallback>
             </Avatar>
             <div className="flex-1">
-              <h2 className="text-xl font-semibold">
-                {user?.name || "사용자"}
-              </h2>
+              <h2 className="text-xl font-semibold">{user?.name || ""}</h2>
               <p className="text-sm text-gray-500">{user?.email || ""}</p>
             </div>
           </div>
@@ -74,7 +72,7 @@ const MyPageClient = () => {
         </CardContent>
       </Card>
 
-      <MySaleHistroy />
+      <MySaleHistroyMenu />
       {/* 등록한 게시글 목록 */}
       <MyPostList userId={user?.id} />
     </div>

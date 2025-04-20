@@ -1,18 +1,16 @@
 "use client";
-import Profile from "@components/atoms/Profile";
 import { useParams, useRouter } from "next/navigation";
 
-import React from "react";
-import useSWR from "swr";
 import MainLayout from "@components/features/layout";
+import MyPostList from "@components/features/profile/myPostList";
+import MySaleHistroyMenu from "@components/features/profile/MySaleHistroyMenu";
 import { Button } from "@components/ui/button";
+import { Card, CardContent } from "@components/ui/card";
 import useMutation from "@libs/client/useMutation";
+import { Avatar, AvatarFallback, AvatarImage } from "@radix-ui/react-avatar";
 import { ChatResponseType } from "pages/api/chat";
 import { UserResponse } from "pages/api/users/[id]";
-import MyPostList from "@components/features/profile/myPostList";
-import MySaleHistroy from "@components/features/profile/mySaleHistroy";
-import { Card, CardContent } from "@components/ui/card";
-import { Avatar, AvatarFallback, AvatarImage } from "@radix-ui/react-avatar";
+import useSWR from "swr";
 const ProfileClient = () => {
   const router = useRouter();
   const query = useParams();
@@ -31,13 +29,13 @@ const ProfileClient = () => {
               <Avatar className="h-16 w-16">
                 <AvatarImage
                   src={data?.user?.avatar || ""}
-                  alt={data?.user?.name || "사용자"}
+                  alt={data?.user?.name || ""}
                 />
-                <AvatarFallback>{data?.user?.name}</AvatarFallback>
+                <AvatarFallback></AvatarFallback>
               </Avatar>
               <div className="flex-1">
                 <h2 className="text-xl font-semibold">
-                  {data?.user?.name || "사용자"}
+                  {data?.user?.name || ""}
                 </h2>
                 <p className="text-sm text-gray-500">
                   {data?.user?.email || ""}
@@ -66,7 +64,7 @@ const ProfileClient = () => {
           </CardContent>
         </Card>
 
-        <MySaleHistroy />
+        <MySaleHistroyMenu />
 
         {/* 등록한 게시글 목록 */}
         {query?.id && <MyPostList userId={Number(query?.id)} />}

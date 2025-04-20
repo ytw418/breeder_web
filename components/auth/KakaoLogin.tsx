@@ -3,10 +3,10 @@
 import { useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useState } from "react";
 
-import { Spinner } from "@components/atoms/Spinner";
 import useMutation from "@libs/client/useMutation";
 import { LoginReqBody, LoginResponseType } from "pages/api/auth/login";
 import { USER_INFO } from "@libs/constants";
+import { Spinner } from "@components/atoms/Spinner";
 
 export const KakaoLogin = () => {
   const searchParams = useSearchParams()!;
