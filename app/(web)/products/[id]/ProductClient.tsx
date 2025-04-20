@@ -58,6 +58,9 @@ const ProductClient = ({ product, relatedProducts }: ItemDetailResponse) => {
   const onFavClick = () => {
     if (!favLoading) toggleFav({ data: {} });
     if (!data) return;
+    if (!user) {
+      return router.push("/auth/login");
+    }
     boundMutate((prev) => prev && { ...prev, isLiked: !prev.isLiked }, false);
   };
 
@@ -76,6 +79,10 @@ const ProductClient = ({ product, relatedProducts }: ItemDetailResponse) => {
   };
 
   const onContactClick = () => {
+    if (!user) {
+      return router.push("/auth/login");
+    }
+
     if (!product || !user) return;
 
     getChatRoomId({
