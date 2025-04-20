@@ -19,6 +19,7 @@ import { makeImageUrl } from "@libs/client/utils";
 import { useSWRConfig } from "swr";
 import { User } from "@prisma/client";
 import Message from "@components/features/message";
+import SkeletonChatRoom from "@components/atoms/SkeletonChatRoom";
 
 interface Form {
   message: string;
@@ -43,7 +44,7 @@ const ChatRoomClient = () => {
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const chatContainerRef = useRef<HTMLDivElement>(null);
 
-  const { data, mutate } = useSWR<ChatRoomResponse>(
+  const { data, mutate, isLoading } = useSWR<ChatRoomResponse>(
     chatRoomId && `/api/chat/${chatRoomId}`
   );
 
@@ -208,6 +209,14 @@ const ChatRoomClient = () => {
     }
     setShowConfirmDialog(false);
   };
+
+  if (isLoading) {
+    return (
+      <Layout canGoBack title={title} seoTitle={"채팅방"}>
+        <SkeletonChatRoom />
+      </Layout>
+    );
+  }
 
   return (
     <Layout canGoBack title={title} seoTitle={"채팅방"}>

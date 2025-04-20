@@ -11,12 +11,8 @@ import useMutation from "@libs/client/useMutation";
 import { useParams, useRouter } from "next/navigation";
 import useUser from "@libs/client/useUser";
 
-// import Button from "@components/atoms/Button";
-import { Button } from "@/components/ui/button";
 import { ChatResponseType } from "pages/api/chat";
 import { PostDetailResponse } from "pages/api/posts/[id]";
-import { Spacing } from "@components/atoms/Spacing";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 
 const PostClient = ({ post, isLiked }: PostDetailResponse) => {
   const query = useParams();

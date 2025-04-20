@@ -11,8 +11,8 @@ import Item from "@components/features/item";
 import { useInfiniteScroll } from "@libs/client/useInfiniteScroll";
 
 import { Product } from "@prisma/client";
-import { Spinner } from "@components/auth/Spinner";
 
+import SkeletonItem from "@components/atoms/SkeletonItem";
 LogRocket.init("xwhowu/breeder");
 
 export interface ProductWithCount extends Product {
@@ -58,8 +58,10 @@ const MainClient = () => {
           ));
         })
       ) : (
-        <div className="absolute top-[45%] left-[47%]">
-          <Spinner />
+        <div className="space-y-5">
+          {[...Array(5)].map((_, i) => (
+            <SkeletonItem key={i} />
+          ))}
         </div>
       )}
       <FloatingButton href="/products/upload">

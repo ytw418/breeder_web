@@ -14,6 +14,8 @@ import { useRouter } from "next/navigation";
 import useLogout from "../../../hooks/useLogout";
 import { Avatar, AvatarFallback, AvatarImage } from "@components/ui/avatar";
 import { Card, CardContent } from "@components/ui/card";
+import MyPostList from "@components/features/profile/myPostList";
+import MySaleHistroyMenu from "@components/features/profile/MySaleHistroyMenu";
 
 interface ReviewWithUser extends Review {
   createdBy: User;
@@ -40,13 +42,11 @@ const MyPageClient = () => {
         <CardContent className="p-6">
           <div className="flex items-center gap-4">
             <Avatar className="h-16 w-16">
-              <AvatarImage src={avatarUrl || ""} alt={user?.name || "사용자"} />
-              <AvatarFallback>{user?.name?.[0] || "?"}</AvatarFallback>
+              <AvatarImage src={avatarUrl || ""} alt={user?.name || ""} />
+              <AvatarFallback></AvatarFallback>
             </Avatar>
             <div className="flex-1">
-              <h2 className="text-xl font-semibold">
-                {user?.name || "사용자"}
-              </h2>
+              <h2 className="text-xl font-semibold">{user?.name || ""}</h2>
               <p className="text-sm text-gray-500">{user?.email || ""}</p>
             </div>
           </div>
@@ -72,73 +72,9 @@ const MyPageClient = () => {
         </CardContent>
       </Card>
 
-      <div className="grid grid-cols-3 gap-4">
-        <Link
-          href="/profile/sold"
-          className="flex flex-col items-center p-4 bg-white rounded-2xl shadow-sm hover:shadow-md transition-shadow"
-        >
-          <div className="w-14 h-14 bg-primary/10 text-primary rounded-full flex items-center justify-center mb-2">
-            <svg
-              className="w-6 h-6"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth="2"
-                d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z"
-              />
-            </svg>
-          </div>
-          <span className="text-sm font-medium">판매내역</span>
-        </Link>
-
-        <Link
-          href="/profile/bought"
-          className="flex flex-col items-center p-4 bg-white rounded-2xl shadow-sm hover:shadow-md transition-shadow"
-        >
-          <div className="w-14 h-14 bg-primary/10 text-primary rounded-full flex items-center justify-center mb-2">
-            <svg
-              className="w-6 h-6"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth="2"
-                d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z"
-              />
-            </svg>
-          </div>
-          <span className="text-sm font-medium">구매내역</span>
-        </Link>
-
-        <Link
-          href="/profile/loved"
-          className="flex flex-col items-center p-4 bg-white rounded-2xl shadow-sm hover:shadow-md transition-shadow"
-        >
-          <div className="w-14 h-14 bg-primary/10 text-primary rounded-full flex items-center justify-center mb-2">
-            <svg
-              className="w-6 h-6"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth="2"
-                d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z"
-              />
-            </svg>
-          </div>
-          <span className="text-sm font-medium">관심목록</span>
-        </Link>
-      </div>
+      <MySaleHistroyMenu />
+      {/* 등록한 게시글 목록 */}
+      <MyPostList userId={user?.id} />
     </div>
   );
 };
