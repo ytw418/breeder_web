@@ -27,6 +27,8 @@ const ProductClient = ({ product, relatedProducts }: ItemDetailResponse) => {
   const [getChatRoomId] = useMutation<ChatResponseType>(`/api/chat`);
   const { user } = useUser();
   const router = useRouter();
+  const params = useParams();
+  const { mutate } = useSWRConfig();
 
   // 상품 상세 정보 데이터 페칭
   const { data, mutate: boundMutate } = useSWR<ItemDetailResponse>(
@@ -41,6 +43,11 @@ const ProductClient = ({ product, relatedProducts }: ItemDetailResponse) => {
   // 터치 이벤트 상태 관리
   const [touchStart, setTouchStart] = useState(0);
   const [touchEnd, setTouchEnd] = useState(0);
+
+  // 상품 삭제 API 호출
+  const [deleteProduct, { loading: deleteLoading }] = useMutation(
+    `/api/products/${params?.id}`
+  );
 
   /**
    * 터치 시작 이벤트 핸들러
@@ -138,6 +145,26 @@ const ProductClient = ({ product, relatedProducts }: ItemDetailResponse) => {
       },
     });
   };
+
+  // 상품 삭제 핸들러
+  const handleDelete = async () => {
+    if (deleteLoading) return;
+    if (!confirm("정말로 이 상품을 삭제하시겠습니까?")) return;
+
+    try {
+      await deleteProduct({
+        data: {
+          action: "delete",
+        },
+      });
+      toast.success("상품이 삭제되었습니다.");
+      router.push("/");
+    } catch (error) {
+      toast.error("상품 삭제에 실패했습니다.");
+    }
+  };
+
+  const isLiked = data?.isLiked || false;
 
   return (
     <Layout
@@ -265,44 +292,6 @@ const ProductClient = ({ product, relatedProducts }: ItemDetailResponse) => {
                 <h1 className="text-xl font-semibold text-gray-900 tracking-tight">
                   {product?.name}
                 </h1>
-                {/* 관심 상품 버튼 */}
-                <button
-                  onClick={onFavClick}
-                  className={cls(
-                    "p-2 rounded-full transition-all hover:scale-110 focus:outline-none focus:ring-2 focus:ring-primary",
-                    data?.isLiked
-                      ? "text-red-500"
-                      : "text-gray-400 hover:text-gray-500"
-                  )}
-                >
-                  {data?.isLiked ? (
-                    <svg
-                      className="w-5 h-5"
-                      fill="currentColor"
-                      viewBox="0 0 20 20"
-                    >
-                      <path
-                        fillRule="evenodd"
-                        d="M3.172 5.172a4 4 0 015.656 0L10 6.343l1.172-1.171a4 4 0 115.656 5.656L10 17.657l-6.828-6.829a4 4 0 010-5.656z"
-                        clipRule="evenodd"
-                      />
-                    </svg>
-                  ) : (
-                    <svg
-                      className="w-5 h-5"
-                      fill="none"
-                      stroke="currentColor"
-                      viewBox="0 0 24 24"
-                    >
-                      <path
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        strokeWidth="2"
-                        d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z"
-                      />
-                    </svg>
-                  )}
-                </button>
               </div>
 
               {/* 가격 정보 */}
@@ -320,13 +309,70 @@ const ProductClient = ({ product, relatedProducts }: ItemDetailResponse) => {
               </div>
 
               {/* 연락하기 버튼 */}
-              <div className="flex items-center justify-between">
-                <button
-                  onClick={onContactClick}
-                  className="flex-1 bg-primary text-white py-3 px-4 rounded-xl font-medium hover:bg-primary/90 transition-colors"
-                >
-                  판매자에게 연락하기
-                </button>
+              <div className="flex items-center justify-between space-x-2">
+                {user?.id === product?.user?.id ? (
+                  <div className="flex space-x-2 w-full">
+                    <Link
+                      href={`/products/${params?.id}/edit`}
+                      className="flex-1 bg-gray-100 text-gray-700 py-3 rounded-md hover:bg-gray-200 transition-colors text-center"
+                    >
+                      수정하기
+                    </Link>
+                    <button
+                      onClick={handleDelete}
+                      disabled={deleteLoading}
+                      className="flex-1 bg-red-100 text-red-600 py-3 rounded-md hover:bg-red-200 transition-colors disabled:opacity-50"
+                    >
+                      {deleteLoading ? "삭제 중..." : "삭제하기"}
+                    </button>
+                  </div>
+                ) : (
+                  <>
+                    <button
+                      onClick={onContactClick}
+                      className="flex-1 bg-primary text-white py-3 rounded-md hover:bg-primary-dark transition-colors"
+                    >
+                      판매자와 채팅하기
+                    </button>
+                    <button
+                      onClick={onFavClick}
+                      className={cls(
+                        "p-3 rounded-md flex items-center justify-center",
+                        isLiked
+                          ? "text-red-500 hover:bg-red-50"
+                          : "text-gray-400 hover:bg-gray-100"
+                      )}
+                    >
+                      {isLiked ? (
+                        <svg
+                          className="w-6 h-6"
+                          fill="currentColor"
+                          viewBox="0 0 20 20"
+                        >
+                          <path
+                            fillRule="evenodd"
+                            d="M3.172 5.172a4 4 0 015.656 0L10 6.343l1.172-1.171a4 4 0 115.656 5.656L10 17.657l-6.828-6.829a4 4 0 010-5.656z"
+                            clipRule="evenodd"
+                          />
+                        </svg>
+                      ) : (
+                        <svg
+                          className="w-6 h-6"
+                          fill="none"
+                          stroke="currentColor"
+                          viewBox="0 0 24 24"
+                        >
+                          <path
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            strokeWidth="2"
+                            d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z"
+                          />
+                        </svg>
+                      )}
+                    </button>
+                  </>
+                )}
               </div>
             </div>
           </div>

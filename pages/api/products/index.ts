@@ -39,6 +39,10 @@ const handler = async (
   }
 
   if (req.method === "GET") {
+    const {
+      query: { page = 1, size = 10 },
+    } = req;
+
     const products = await client.product.findMany({
       include: {
         user: {
@@ -57,11 +61,16 @@ const handler = async (
       orderBy: {
         createdAt: "desc",
       },
+      take: Number(size),
+      skip: (Number(page) - 1) * Number(size),
     });
+
+    const productCount = await client.product.count();
 
     return res.json({
       success: true,
       products,
+      pages: Math.ceil(productCount / Number(size)),
     });
   }
 };
