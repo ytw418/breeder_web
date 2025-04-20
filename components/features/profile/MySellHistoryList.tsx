@@ -3,23 +3,16 @@ import Item from "../item";
 import useSWR from "swr";
 import MainLayout from "@components/features/layout";
 import SkeletonItem from "@components/atoms/SkeletonItem";
+import ItemWrapper from "../item/ItemWrapper";
+import { MySellHistoryResponseType } from "pages/api/users/[id]/sales";
 
 interface ProductListProps {
   kind: "favs" | "sales" | "purchases";
   id: number;
 }
 
-interface Record {
-  id: number;
-  product: any;
-}
-
-interface ProductListResponse {
-  [key: string]: Record[];
-}
-
 export default function MySellHistoryList({ kind, id }: ProductListProps) {
-  const { data, isLoading } = useSWR<ProductListResponse>(
+  const { data, isLoading } = useSWR<MySellHistoryResponseType>(
     `/api/users/${id}/${kind}`
   );
 
@@ -41,17 +34,21 @@ export default function MySellHistoryList({ kind, id }: ProductListProps) {
 
   return data ? (
     <MainLayout hasTabBar canGoBack title={`${titleMap[kind]}`}>
-      {data[kind]?.map((record) => (
-        <Item
-          id={record.product.id}
-          key={record.id}
-          title={record.product.name}
-          price={record.product.price}
-          hearts={record.product._count.favs}
-          image={record.product?.image}
-          createdAt={record.product?.createdAt}
-        />
-      ))}
+      <div className="space-y-5">
+        {data.mySellHistoryData?.map((record) => (
+          <ItemWrapper key={record.product.id}>
+            <Item
+              id={record.product.id}
+              key={record.id}
+              title={record.product.name}
+              price={record.product.price}
+              hearts={record.product._count.favs}
+              image={record.product?.photos[0]}
+              createdAt={record.product?.createdAt}
+            />
+          </ItemWrapper>
+        ))}
+      </div>
     </MainLayout>
   ) : null;
 }

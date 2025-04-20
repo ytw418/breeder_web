@@ -3,16 +3,40 @@ import withHandler, { ResponseType } from "@libs/server/withHandler";
 
 import client from "@libs/server/client";
 import { withApiSession } from "@libs/server/withSession";
+import MySellHistoryList from "../../../../components/features/profile/MySellHistoryList";
+
+interface Sale {
+  id: number;
+  userId: number;
+  productId: number;
+  createdAt: Date;
+  product: {
+    id: number;
+    name: string;
+    price: number;
+    description: string;
+    photos: string[];
+    createdAt: Date;
+    _count: {
+      favs: number;
+    };
+  };
+}
+
+export interface MySellHistoryResponseType {
+  success: boolean;
+  mySellHistoryData: Sale[];
+}
 
 async function handler(
   req: NextApiRequest,
-  res: NextApiResponse<ResponseType>
+  res: NextApiResponse<MySellHistoryResponseType>
 ) {
   const {
     query: { id },
   } = req;
 
-  const sales = await client.sale.findMany({
+  const mySellHistoryData = await client.sale.findMany({
     where: {
       userId: Number(id),
     },
@@ -30,7 +54,7 @@ async function handler(
   });
   res.json({
     success: true,
-    sales,
+    mySellHistoryData,
   });
 }
 
