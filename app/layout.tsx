@@ -9,8 +9,61 @@ import ClientComp from "./ClientComp";
 const inter = Inter({ subsets: ["latin"] });
 
 export const metadata: Metadata = {
-  title: "Breeder",
-  description: "Breeder Web Application",
+  title: {
+    default: "Breeder - 반려동물 전문 커뮤니티",
+    template: "%s | Breeder",
+  },
+  description: "반려동물 관련 상품을 쉽게 구매하고 판매할 수 있는 마켓플레이스",
+  keywords: [
+    "곤충",
+    "외곤",
+    "파충류",
+    "건조표본",
+    "헤라클레스",
+    "사슴벌레",
+    "극태",
+    "왕사",
+    "장수풍뎅이",
+  ],
+  authors: [{ name: "Breeder Team" }],
+  openGraph: {
+    type: "website",
+    locale: "ko_KR",
+    url: "https://breeder-web.vercel.app",
+    siteName: "Breeder",
+    title: "Breeder - 반려동물 전문 마켓",
+    description:
+      "반려동물 관련 상품을 쉽게 구매하고 판매할 수 있는 마켓플레이스",
+    images: [
+      {
+        url: "/og-image.png",
+        width: 1200,
+        height: 630,
+        alt: "Breeder",
+      },
+    ],
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "Breeder - 반려동물 전문 마켓",
+    description:
+      "반려동물 관련 상품을 쉽게 구매하고 판매할 수 있는 마켓플레이스",
+    images: ["/og-image.png"],
+  },
+  robots: {
+    index: true,
+    follow: true,
+    googleBot: {
+      index: true,
+      follow: true,
+      "max-video-preview": -1,
+      "max-image-preview": "large",
+      "max-snippet": -1,
+    },
+  },
+  verification: {
+    google: "your-google-site-verification",
+  },
 };
 
 export default function RootLayout({
