@@ -79,14 +79,14 @@ export default function Layout({
           </Link>
         )}
         {title ? (
-          <span
+          <h1
             className={clsx(
               "text-lg font-semibold tracking-tight",
               canGoBack ? "mx-auto" : ""
             )}
           >
             {title}
-          </span>
+          </h1>
         ) : null}
       </div>
       <div className={clsx("max-w-xl mx-auto", hasTabBar ? "pb-[81px]" : "")}>

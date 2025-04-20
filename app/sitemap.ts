@@ -5,25 +5,25 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   // 정적 페이지 URL
   const staticPages: MetadataRoute.Sitemap = [
     {
-      url: "https://breeder.com",
+      url: "https://breeder-web.vercel.app",
       lastModified: new Date(),
       changeFrequency: "daily",
       priority: 1,
     },
     {
-      url: "https://breeder.com/products",
+      url: "https://breeder-web.vercel.app/products",
       lastModified: new Date(),
       changeFrequency: "hourly",
       priority: 0.8,
     },
     {
-      url: "https://breeder.com/chat",
+      url: "https://breeder-web.vercel.app/chat",
       lastModified: new Date(),
       changeFrequency: "daily",
       priority: 0.7,
     },
     {
-      url: "https://breeder.com/profiles",
+      url: "https://breeder-web.vercel.app/profiles",
       lastModified: new Date(),
       changeFrequency: "daily",
       priority: 0.7,
@@ -39,7 +39,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   });
 
   const productPages: MetadataRoute.Sitemap = products.map((product) => ({
-    url: `https://breeder.com/products/${product.id}`,
+    url: `https://breeder-web.vercel.app/products/${product.id}`,
     lastModified: product.updatedAt,
     changeFrequency: "daily",
     priority: 0.9,

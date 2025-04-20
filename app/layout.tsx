@@ -10,20 +10,26 @@ const inter = Inter({ subsets: ["latin"] });
 
 export const metadata: Metadata = {
   title: {
-    default: "Breeder - 반려동물 전문 커뮤니티",
+    default: "Breeder - 외국곤충 전문 마켓",
     template: "%s | Breeder",
   },
-  description: "반려동물 관련 상품을 쉽게 구매하고 판매할 수 있는 마켓플레이스",
+  description:
+    "외국곤충, 건조표본, 헤라클레스, 사슴벌레, 극태, 왕사, 장수풍뎅이 등 다양한 곤충을 구매하고 판매할 수 있는 전문 마켓플레이스",
   keywords: [
-    "곤충",
     "외곤",
-    "파충류",
+    "외국곤충",
     "건조표본",
     "헤라클레스",
     "사슴벌레",
     "극태",
     "왕사",
     "장수풍뎅이",
+    "곤충",
+    "곤충표본",
+    "곤충수집",
+    "곤충쇼핑",
+    "곤충판매",
+    "곤충구매",
   ],
   authors: [{ name: "Breeder Team" }],
   openGraph: {
@@ -31,9 +37,9 @@ export const metadata: Metadata = {
     locale: "ko_KR",
     url: "https://breeder-web.vercel.app",
     siteName: "Breeder",
-    title: "Breeder - 반려동물 전문 마켓",
+    title: "Breeder - 외국곤충 전문 마켓",
     description:
-      "반려동물 관련 상품을 쉽게 구매하고 판매할 수 있는 마켓플레이스",
+      "외국곤충, 건조표본, 헤라클레스, 사슴벌레, 극태, 왕사, 장수풍뎅이 등 다양한 곤충을 구매하고 판매할 수 있는 전문 마켓플레이스",
     images: [
       {
         url: "/og-image.png",
@@ -45,10 +51,12 @@ export const metadata: Metadata = {
   },
   twitter: {
     card: "summary_large_image",
-    title: "Breeder - 반려동물 전문 마켓",
+    title: "Breeder - 외국곤충 전문 마켓",
     description:
-      "반려동물 관련 상품을 쉽게 구매하고 판매할 수 있는 마켓플레이스",
+      "외국곤충, 건조표본, 헤라클레스, 사슴벌레, 극태, 왕사, 장수풍뎅이 등 다양한 곤충을 구매하고 판매할 수 있는 전문 마켓플레이스",
     images: ["/og-image.png"],
+    site: "@breeder",
+    creator: "@breeder",
   },
   robots: {
     index: true,
@@ -62,7 +70,14 @@ export const metadata: Metadata = {
     },
   },
   verification: {
-    google: "your-google-site-verification",
+    google: "YV_Riopc7DmVS7LUL6geEhhs2DmQghxBUUBoeuTWhR0",
+    naver: "naver-site-verification-code",
+    other: {
+      "naver-site-verification": "naver-site-verification-code",
+    },
+  },
+  alternates: {
+    canonical: "https://breeder-web.vercel.app",
   },
 };
 
@@ -73,6 +88,16 @@ export default function RootLayout({
 }) {
   return (
     <html lang="ko">
+      <head>
+        <meta
+          name="naver-site-verification"
+          content="naver-site-verification-code"
+        />
+        <meta
+          name="google-site-verification"
+          content="YV_Riopc7DmVS7LUL6geEhhs2DmQghxBUUBoeuTWhR0"
+        />
+      </head>
       <body className={inter.className}>
         {/* <ThemeProvider
           attribute="class"
