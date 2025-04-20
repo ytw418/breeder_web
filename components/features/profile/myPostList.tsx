@@ -5,9 +5,9 @@ import Image from "next/image";
 import Link from "next/link";
 import { makeImageUrl } from "@libs/client/utils";
 
-const MyPostList = ({ userId }: { userId: number }) => {
+const MyPostList = ({ userId }: { userId?: number }) => {
   const { data, isLoading } = useSWR<ProductListResponse>(
-    `/api/users/${userId}/productList`
+    userId ? `/api/users/${userId}/productList` : null
   );
 
   if (isLoading) {
