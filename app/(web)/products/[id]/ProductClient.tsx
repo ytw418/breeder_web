@@ -13,33 +13,55 @@ import useSWR, { useSWRConfig } from "swr";
 import { ChatResponseType } from "pages/api/chat";
 import { toast } from "react-toastify";
 
+/**
+ * 상품 상세 페이지의 클라이언트 컴포넌트
+ * @param product - 상품 상세 정보
+ * @param relatedProducts - 연관 상품 목록
+ */
 const ProductClient = ({ product, relatedProducts }: ItemDetailResponse) => {
+  // 이미지 슬라이더 상태 관리
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
   const query = useParams();
 
-  const [getChatRoomId, { loading }] =
-    useMutation<ChatResponseType>(`/api/chat`);
-  const { user, isLoading } = useUser();
+  // 채팅방 생성 API 호출
+  const [getChatRoomId] = useMutation<ChatResponseType>(`/api/chat`);
+  const { user } = useUser();
   const router = useRouter();
-  const { mutate } = useSWRConfig();
+
+  // 상품 상세 정보 데이터 페칭
   const { data, mutate: boundMutate } = useSWR<ItemDetailResponse>(
     query?.id ? `/api/products/${query.id}` : null
   );
+
+  // 관심 상품 등록/취소 API 호출
   const [toggleFav, { loading: favLoading }] = useMutation(
     query?.id ? `/api/products/${query?.id}/fav` : ""
   );
 
+  // 터치 이벤트 상태 관리
   const [touchStart, setTouchStart] = useState(0);
   const [touchEnd, setTouchEnd] = useState(0);
 
+  /**
+   * 터치 시작 이벤트 핸들러
+   * @param e - 터치 이벤트 객체
+   */
   const handleTouchStart = (e: React.TouchEvent) => {
     setTouchStart(e.targetTouches[0].clientX);
   };
 
+  /**
+   * 터치 이동 이벤트 핸들러
+   * @param e - 터치 이벤트 객체
+   */
   const handleTouchMove = (e: React.TouchEvent) => {
     setTouchEnd(e.targetTouches[0].clientX);
   };
 
+  /**
+   * 터치 종료 이벤트 핸들러
+   * 이미지 슬라이드 방향 결정 및 처리
+   */
   const handleTouchEnd = () => {
     if (!touchStart || !touchEnd) return;
 
@@ -55,6 +77,9 @@ const ProductClient = ({ product, relatedProducts }: ItemDetailResponse) => {
     }
   };
 
+  /**
+   * 관심 상품 등록/취소 핸들러
+   */
   const onFavClick = () => {
     if (!favLoading) toggleFav({ data: {} });
     if (!data) return;
@@ -64,6 +89,9 @@ const ProductClient = ({ product, relatedProducts }: ItemDetailResponse) => {
     boundMutate((prev) => prev && { ...prev, isLiked: !prev.isLiked }, false);
   };
 
+  /**
+   * 다음 이미지로 이동
+   */
   const nextImage = () => {
     if (!product?.photos?.length) return;
     setCurrentImageIndex((prev) =>
@@ -71,6 +99,9 @@ const ProductClient = ({ product, relatedProducts }: ItemDetailResponse) => {
     );
   };
 
+  /**
+   * 이전 이미지로 이동
+   */
   const prevImage = () => {
     if (!product?.photos?.length) return;
     setCurrentImageIndex((prev) =>
@@ -78,6 +109,9 @@ const ProductClient = ({ product, relatedProducts }: ItemDetailResponse) => {
     );
   };
 
+  /**
+   * 판매자와 채팅 시작 핸들러
+   */
   const onContactClick = () => {
     if (!user) {
       return router.push("/auth/login");
@@ -109,9 +143,11 @@ const ProductClient = ({ product, relatedProducts }: ItemDetailResponse) => {
     <Layout
       seoTitle={product?.name || "상세 정보"}
       title={product?.name || "상세 정보"}
+      hasTabBar
       canGoBack
     >
       <div className="max-w-3xl mx-auto px-4">
+        {/* 상품 카드 컨테이너 */}
         <div className="bg-white rounded-2xl shadow-[0_2px_8px_rgba(0,0,0,0.08)] overflow-hidden">
           {/* 상품 이미지 섹션 */}
           <div
@@ -132,6 +168,7 @@ const ProductClient = ({ product, relatedProducts }: ItemDetailResponse) => {
                   layout="fill"
                   priority={true}
                 />
+                {/* 이미지 네비게이션 버튼 */}
                 {product.photos.length > 1 && (
                   <>
                     <button
@@ -172,6 +209,7 @@ const ProductClient = ({ product, relatedProducts }: ItemDetailResponse) => {
                         />
                       </svg>
                     </button>
+                    {/* 이미지 인디케이터 */}
                     <div className="absolute bottom-4 left-1/2 -translate-x-1/2 flex gap-2">
                       {product.photos.map((_, index) => (
                         <button
@@ -227,6 +265,7 @@ const ProductClient = ({ product, relatedProducts }: ItemDetailResponse) => {
                 <h1 className="text-xl font-semibold text-gray-900 tracking-tight">
                   {product?.name}
                 </h1>
+                {/* 관심 상품 버튼 */}
                 <button
                   onClick={onFavClick}
                   className={cls(
@@ -266,18 +305,21 @@ const ProductClient = ({ product, relatedProducts }: ItemDetailResponse) => {
                 </button>
               </div>
 
+              {/* 가격 정보 */}
               <div className="flex items-baseline space-x-2">
                 <p className="text-2xl font-bold text-primary tracking-tight">
                   {product?.price?.toLocaleString()}원
                 </p>
               </div>
 
+              {/* 상품 설명 */}
               <div className="bg-gray-50 rounded-xl p-4">
                 <p className="text-sm text-gray-700 whitespace-pre-line leading-relaxed">
                   {product?.description}
                 </p>
               </div>
 
+              {/* 연락하기 버튼 */}
               <div className="flex items-center justify-between">
                 <button
                   onClick={onContactClick}
@@ -293,15 +335,15 @@ const ProductClient = ({ product, relatedProducts }: ItemDetailResponse) => {
         {/* 연관 상품 섹션 */}
         {relatedProducts && relatedProducts.length > 0 && (
           <div className="mt-12">
-            <h2 className="text-lg font-semibold text-gray-900 mb-6 tracking-tight">
+            <h2 className="text-lg font-semibold text-gray-900 mb-6">
               연관 상품
             </h2>
-            <div className="grid grid-cols-2 md:grid-cols-3 gap-6">
+            <div className="grid grid-cols-4 md:grid-cols-3 gap-6">
               {relatedProducts.map((product) => (
                 <Link
                   key={product.id}
                   href={`/products/${product.id}`}
-                  className="group focus:outline-none focus:ring-2 focus:ring-primary rounded-xl"
+                  className="group focus:outline-none rounded-xl"
                 >
                   <div className="relative aspect-square rounded-xl overflow-hidden shadow-sm hover:shadow-md transition-all">
                     <Image

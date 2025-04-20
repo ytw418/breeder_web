@@ -3,15 +3,16 @@ import withHandler, { ResponseType } from "@libs/server/withHandler";
 
 import client from "@libs/server/client";
 import { withApiSession } from "@libs/server/withSession";
+import { MySellHistoryResponseType } from "./sales";
 
 async function handler(
   req: NextApiRequest,
-  res: NextApiResponse<ResponseType>
+  res: NextApiResponse<MySellHistoryResponseType>
 ) {
   const {
     query: { id },
   } = req;
-  const purchases = await client.purchase.findMany({
+  const mySellHistoryData = await client.purchase.findMany({
     where: {
       userId: Number(id),
     },
@@ -29,7 +30,7 @@ async function handler(
   });
   res.json({
     success: true,
-    purchases,
+    mySellHistoryData,
   });
 }
 

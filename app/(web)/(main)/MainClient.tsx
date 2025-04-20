@@ -13,6 +13,7 @@ import { useInfiniteScroll } from "@libs/client/useInfiniteScroll";
 import { Product } from "@prisma/client";
 
 import SkeletonItem from "@components/atoms/SkeletonItem";
+import ItemWrapper from "@components/features/item/ItemWrapper";
 LogRocket.init("xwhowu/breeder");
 
 export interface ProductWithCount extends Product {
@@ -46,15 +47,17 @@ const MainClient = () => {
       {data ? (
         data?.map((result) => {
           return result?.products?.map((product) => (
-            <Item
-              id={product?.id}
-              title={product?.name}
-              price={product?.price}
-              hearts={product?._count?.favs}
-              key={product?.id}
-              image={product?.photos[0]}
-              createdAt={product.createdAt}
-            />
+            <ItemWrapper key={product?.id}>
+              <Item
+                id={product?.id}
+                title={product?.name}
+                price={product?.price}
+                hearts={product?._count?.favs}
+                key={product?.id}
+                image={product?.photos[0]}
+                createdAt={product.createdAt}
+              />
+            </ItemWrapper>
           ));
         })
       ) : (
