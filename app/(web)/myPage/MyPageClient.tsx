@@ -14,6 +14,7 @@ import { useRouter } from "next/navigation";
 import useLogout from "../../../hooks/useLogout";
 import { Avatar, AvatarFallback, AvatarImage } from "@components/ui/avatar";
 import { Card, CardContent } from "@components/ui/card";
+import MyPostList from "@components/features/myPostList";
 
 interface ReviewWithUser extends Review {
   createdBy: User;
@@ -139,6 +140,9 @@ const MyPageClient = () => {
           <span className="text-sm font-medium">관심목록</span>
         </Link>
       </div>
+
+      {/* 등록한 게시글 목록 */}
+      {user?.id && <MyPostList userId={user?.id} />}
     </div>
   );
 };
