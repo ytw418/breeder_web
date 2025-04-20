@@ -194,6 +194,7 @@ const ProductClient = ({ product, relatedProducts }: ItemDetailResponse) => {
                   alt={`상품 이미지 ${currentImageIndex + 1}`}
                   layout="fill"
                   priority={true}
+                  quality={100}
                 />
                 {/* 이미지 네비게이션 버튼 */}
                 {product.photos.length > 1 && (
