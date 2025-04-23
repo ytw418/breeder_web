@@ -11,8 +11,9 @@ import Item from "@components/features/item";
 import { useInfiniteScroll } from "@libs/client/useInfiniteScroll";
 
 import { Product } from "@prisma/client";
-import { Spinner } from "@components/auth/Spinner";
 
+import SkeletonItem from "@components/atoms/SkeletonItem";
+import ItemWrapper from "@components/features/item/ItemWrapper";
 LogRocket.init("xwhowu/breeder");
 
 export interface ProductWithCount extends Product {
@@ -42,24 +43,27 @@ const MainClient = () => {
   }, [setSize, page]);
 
   return (
-    <div className="flex flex-col mb-5 space-y-5 h-full">
+    <div className="flex flex-col my-4 space-y-5 h-full">
       {data ? (
-        data?.map((result) => {
+        data.map((result) => {
           return result?.products?.map((product) => (
-            <Item
-              id={product?.id}
-              title={product?.name}
-              price={product?.price}
-              hearts={product?._count?.favs}
-              key={product?.id}
-              image={product?.photos[0]}
-              createdAt={product.createdAt}
-            />
+            <ItemWrapper key={product?.id}>
+              <Item
+                id={product?.id}
+                title={product?.name}
+                price={product?.price}
+                hearts={product?._count?.favs}
+                image={product?.photos[0]}
+                createdAt={product.createdAt}
+              />
+            </ItemWrapper>
           ));
         })
       ) : (
-        <div className="absolute top-[45%] left-[47%]">
-          <Spinner />
+        <div className="space-y-5">
+          {[...Array(5)].map((_, i) => (
+            <SkeletonItem key={i} />
+          ))}
         </div>
       )}
       <FloatingButton href="/products/upload">
@@ -82,83 +86,4 @@ const MainClient = () => {
     </div>
   );
 };
-
-// const Page: NextPage<ProductsResponse> = ({ products, pages }) => {
-//   // unstable_serialize 사용
-//   // https://github.com/vercel/swr/issues/1520#issuecomment-933247768
-//   return (
-//     <SWRConfig
-//       value={{
-//         fallback: {
-//           [unstable_serialize(getKey)]: [
-//             {
-//               success: true,
-//               products,
-//               pages,
-//             },
-//           ],
-//         },
-//       }}
-//     >
-//       <Home />
-//     </SWRConfig>
-//   );
-// };
-
-// export const getStaticProps: GetStaticProps = async (ctx) => {
-//   const products = await client.product.findMany({
-//     include: {
-//       _count: {
-//         select: {
-//           favs: true,
-//         },
-//       },
-//     },
-//     orderBy: [{ createdAt: "desc" }],
-//     take: 10,
-//     skip: 0,
-//   });
-//   console.log("products:홈화면 pages/index ", products);
-
-//   if (!products) return { props: {} };
-
-//   const productCount = await client.product.count();
-
-//   return {
-//     props: {
-//       success: true,
-//       products: JSON.parse(JSON.stringify(products)),
-//       pages: Math.ceil(productCount / 10),
-//     },
-//   };
-// };
-
-// export const getServerSideProps: GetServerSideProps = async (ctx) => {
-//   console.log(ctx);
-//   const products = await client.product.findMany({
-//     include: {
-//       _count: {
-//         select: {
-//           favs: true,
-//         },
-//       },
-//     },
-//     take: 10,
-//     skip: 0,
-//   });
-
-//   if (!products) return { props: {} };
-
-//   const productCount = await client.product.count();
-//   // await new Promise((resolve) => setTimeout(resolve, 5000));
-
-//   return {
-//     props: {
-//       success: true,
-//       products: JSON.parse(JSON.stringify(products)),
-//       pages: Math.ceil(productCount / 10),
-//     },
-//   };
-// };
-
 export default MainClient;

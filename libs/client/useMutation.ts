@@ -15,8 +15,8 @@ interface MutationOption<T> {
 }
 
 type useMutationResult<T> = [
-  (options: MutationOption<T>) => void,
-  useMutationState<T>
+  (options: MutationOption<T>) => Promise<T>,
+  useMutationState<T>,
 ];
 
 export default function useMutation<T = any>(
@@ -28,15 +28,15 @@ export default function useMutation<T = any>(
     error: undefined,
   });
 
-  const mutation = ({
+  const mutation = async ({
     data,
     endpoint = "",
     contentType,
     onCompleted,
     onError,
-  }: MutationOption<T>) => {
+  }: MutationOption<T>): Promise<T> => {
     setState((prev) => ({ ...prev, loading: true }));
-    fetch(url + endpoint, {
+    return fetch(url + endpoint, {
       method: "POST",
       headers: {
         "Content-Type": contentType ? contentType : "application/json",
@@ -49,12 +49,14 @@ export default function useMutation<T = any>(
         if (onCompleted) {
           onCompleted(json);
         }
+        return json;
       })
       .catch((error) => {
         setState((prev) => ({ ...prev, error, loading: false }));
         if (onError) {
           onError(error);
         }
+        throw error;
       });
   };
 

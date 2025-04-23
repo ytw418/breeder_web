@@ -3,18 +3,18 @@ import withHandler, { ResponseType } from "@libs/server/withHandler";
 
 import client from "@libs/server/client";
 import { withApiSession } from "@libs/server/withSession";
+import { MySellHistoryResponseType } from "./sales";
 
 async function handler(
   req: NextApiRequest,
-  res: NextApiResponse<ResponseType>
+  res: NextApiResponse<MySellHistoryResponseType>
 ) {
   const {
-    session: { user },
+    query: { id },
   } = req;
-
-  const sales = await client.sale.findMany({
+  const mySellHistoryData = await client.fav.findMany({
     where: {
-      userId: user?.id,
+      userId: Number(id),
     },
     include: {
       product: {
@@ -30,7 +30,7 @@ async function handler(
   });
   res.json({
     success: true,
-    sales,
+    mySellHistoryData,
   });
 }
 
@@ -38,6 +38,6 @@ export default withApiSession(
   withHandler({
     methods: ["GET"],
     handler,
-    isPrivate: true,
+    isPrivate: false,
   })
 );
