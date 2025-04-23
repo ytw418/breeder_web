@@ -57,6 +57,8 @@ alwaysApply: true
 - Shadcn/UI 컴포넌트 활용
 - 화살표 함수를 주로 사용해줘
 - 기존 코딩 스타일 제대로 참고해서 만들어줘 니맘대로 바꾸지말고
+- https://frontend-fundamentals.com/code/ 페이지에 접속해서 좋은코드를 만드는 전략을 참고해서 만들어
+- 
 
 ## 5. 프로젝트 설정
 - yarn 기반 프로젝트
@@ -141,3 +143,44 @@ const MainClient = () => {
 
 export default MainClient;
 ```
+
+
+## 10. 예시 코드
+```typescript
+// 컴포넌트 예시
+function SubmitButton() {
+  const isViewer = useRole() === "viewer";
+
+  return isViewer ? <ViewerSubmitButton /> : <AdminSubmitButton />;
+}
+
+function ViewerSubmitButton() {
+  return <TextButton disabled>Submit</TextButton>;
+}
+
+function AdminSubmitButton() {
+  useEffect(() => {
+    showAnimation();
+  }, []);
+
+  return <Button type="submit">Submit</Button>;
+}
+```
+
+
+## 11. 예시 코드
+```typescript
+// 컴포넌트 예시
+import { NumberParam, useQueryParam } from "use-query-params";
+
+export function useCardIdQueryParam() {
+  const [cardId, _setCardId] = useQueryParam("cardId", NumberParam);
+
+  const setCardId = useCallback((cardId: number) => {
+    _setCardId({ cardId }, "replaceIn");
+  }, []);
+
+  return [cardId ?? undefined, setCardId] as const;
+}
+```
+
