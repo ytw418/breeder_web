@@ -1,24 +1,53 @@
 import { NextApiRequest, NextApiResponse } from "next";
 import withHandler, { ResponseType } from "@libs/server/withHandler";
-
 import client from "@libs/server/client";
 import { withApiSession } from "@libs/server/withSession";
 
-const handler = async (
+async function handler(
   req: NextApiRequest,
   res: NextApiResponse<ResponseType>
-) => {
+) {
   if (req.method === "GET") {
     const {
-      query: { page = 1 },
+      query: { cursor, limit = 10, category, author, search },
     } = req;
 
-    // const parsedLatitude = parseFloat(latitude.toString());
-    // const parsedLongitude = parseFloat(longitude.toString());
-
     const posts = await client.post.findMany({
+      take: Number(limit) + 1,
+      ...(cursor && {
+        cursor: {
+          id: Number(cursor),
+        },
+        skip: 1,
+      }),
+      where: {
+        ...(category && category !== "all" ? {
+          category: {
+            name: category as string
+          }
+        } : {}),
+        ...(author ? {
+          authorId: Number(author)
+        } : {}),
+        ...(search ? {
+          OR: [
+            { title: { contains: search as string, mode: "insensitive" } },
+            { content: { contains: search as string, mode: "insensitive" } },
+          ],
+        } : {}),
+      },
+      orderBy: {
+        createdAt: "desc",
+      },
       include: {
-        user: {
+        author: {
+          select: {
+            id: true,
+            name: true,
+            avatar: true,
+          },
+        },
+        category: {
           select: {
             id: true,
             name: true,
@@ -27,62 +56,74 @@ const handler = async (
         _count: {
           select: {
             comments: true,
-            Likes: true,
+            likes: true,
           },
         },
       },
-      take: 10,
-      skip: page ? (+page - 1) * 10 : 0,
-      // where: {
-      //   latitude: {
-      //     gte: parsedLatitude - 0.01,
-      //     lte: parsedLatitude + 0.01,
-      //   },
-      //   longitude: {
-      //     gte: parsedLongitude - 0.01,
-      //     lte: parsedLongitude + 0.01,
-      //   },
-      // },
     });
-    const postCount = await client.product.count();
 
-    res.json({
+    const hasMore = posts.length > Number(limit);
+    const nextCursor = hasMore ? posts[posts.length - 1].id : null;
+    const filteredPosts = hasMore ? posts.slice(0, -1) : posts;
+
+    return res.json({
       success: true,
-      posts,
-      pages: Math.ceil(postCount / 10),
+      posts: filteredPosts,
+      nextCursor,
     });
   }
+
   if (req.method === "POST") {
     const {
-      body: { description, title, image, latitude, longitude },
+      body: { title, content, category = "all" },
       session: { user },
     } = req;
+
+    if (!user) {
+      return res.status(401).json({
+        success: false,
+        error: "인증되지 않은 요청입니다.",
+      });
+    }
+
+    if (!title || !content) {
+      return res.status(400).json({
+        success: false,
+        error: "제목과 내용은 필수입니다.",
+      });
+    }
 
     const post = await client.post.create({
       data: {
         title,
-        image,
-        description,
-        latitude,
-        longitude,
-        user: {
+        content,
+        author: {
           connect: {
-            id: user?.id,
+            id: user.id,
+          },
+        },
+        category: {
+          connect: {
+            name: category,
           },
         },
       },
     });
-    try {
-      // await res.revalidate("/community");
-      // FIXME: 재검증 로직 나중에 확인
-      return res.json({ success: true, post });
-    } catch (error) {
-      console.log(error);
-      return res.status(500).json({ success: false, error });
-    }
+
+    return res.json({
+      success: true,
+      post: {
+        id: post.id,
+      },
+    });
   }
-};
+}
 
 export default withApiSession(
-  withHandler({ methods: ["POST", "GET"], isPrivate: false, handler })
+  withHandler({
+    methods: ["GET", "POST"],
+    isPrivate: false,
+    handler,
+  })
 );
+

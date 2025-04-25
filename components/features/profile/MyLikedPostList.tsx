@@ -8,10 +8,11 @@ interface PostWithUser {
   id: number;
   title: string;
   content: string;
+  createdAt: string;
   author: {
     id: number;
     name: string;
-    avatar: string | null;
+    avatar?: string;
   };
   _count: {
     comments: number;
@@ -20,21 +21,21 @@ interface PostWithUser {
 }
 
 interface PostsResponse {
-  success: boolean;
+  ok: boolean;
   posts: PostWithUser[];
 }
 
-interface MyPostListProps {
-  userId?: number;
+interface MyLikedPostListProps {
+  userId: number;
   limit?: number;
 }
 
-const MyPostList = ({ userId, limit }: MyPostListProps) => {
+const MyLikedPostList = ({ userId, limit }: MyLikedPostListProps) => {
   const { data, isLoading } = useSWR<PostsResponse>(
-    userId ? `/api/users/${userId}/posts` : null
+    `/api/users/${userId}/likes${limit ? `?limit=${limit}` : ""}`
   );
 
-  if (!userId || isLoading) {
+  if (isLoading) {
     return (
       <div className="flex justify-center items-center h-32">
         <Spinner />
@@ -42,19 +43,17 @@ const MyPostList = ({ userId, limit }: MyPostListProps) => {
     );
   }
 
-  if (!data?.posts.length) {
+  if (!data?.posts || data.posts.length === 0) {
     return (
-      <div className="flex justify-center items-center h-32 text-gray-500">
-        등록된 게시물이 없습니다.
+      <div className="text-center py-8 text-gray-500">
+        좋아요한 게시물이 없습니다.
       </div>
     );
   }
 
-  const posts = limit ? data.posts.slice(0, limit) : data.posts;
-
   return (
     <div className="space-y-4">
-      {posts.map((post) => (
+      {data.posts.map((post) => (
         <Link key={post.id} href={`/posts/${post.id}`}>
           <Card className="p-4">
             <div className="flex items-center space-x-2">
@@ -84,4 +83,4 @@ const MyPostList = ({ userId, limit }: MyPostListProps) => {
   );
 };
 
-export default MyPostList;
+export default MyLikedPostList; 

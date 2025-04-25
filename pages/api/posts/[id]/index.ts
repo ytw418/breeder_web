@@ -1,9 +1,8 @@
 import { NextApiRequest, NextApiResponse } from "next";
 import withHandler, { ResponseType } from "@libs/server/withHandler";
-
 import client from "@libs/server/client";
 import { withApiSession } from "@libs/server/withSession";
-import { Comment, Post, User, Prisma } from "@prisma/client";
+import { uploadImage } from "@libs/server/utils";
 
 interface PostDetail {
   user: {
@@ -49,72 +48,179 @@ async function handler(
   res: NextApiResponse<ResponseType>
 ) {
   const {
-    query: { id = "" },
+    query: { id },
     session: { user },
   } = req;
-  const post = await client.post.findUnique({
-    where: {
-      id: +id.toString(),
-    },
-    include: {
-      user: {
-        select: {
-          id: true,
-          name: true,
-          avatar: true,
-        },
+
+  if (req.method === "GET") {
+    const post = await client.post.findUnique({
+      where: {
+        id: Number(id),
       },
-      comments: {
-        select: {
-          comment: true,
-          id: true,
-          createdAt: true,
-          user: {
-            select: {
-              id: true,
-              name: true,
-              avatar: true,
-            },
+      include: {
+        author: {
+          select: {
+            id: true,
+            name: true,
+            avatar: true,
           },
         },
-        take: 10,
-        skip: 20,
-      },
-
-      _count: {
-        select: {
-          comments: true,
-          Likes: true,
+        category: {
+          select: {
+            id: true,
+            name: true,
+          },
+        },
+        comments: {
+          include: {
+            author: {
+              select: {
+                id: true,
+                name: true,
+                avatar: true,
+              },
+            },
+          },
+          orderBy: {
+            createdAt: "desc",
+          },
+        },
+        _count: {
+          select: {
+            comments: true,
+            likes: true,
+          },
         },
       },
-    },
-  });
+    });
 
-  post;
+    if (!post) {
+      return res.status(404).json({
+        success: false,
+        error: "게시글이 존재하지 않습니다.",
+      });
+    }
 
-  const isLike = Boolean(
-    await client.like.findFirst({
+    const isLiked = user?.id
+      ? Boolean(
+          await client.postLike.findFirst({
+            where: {
+              postId: post.id,
+              userId: user.id,
+            },
+          })
+        )
+      : false;
+
+    return res.json({
+      success: true,
+      post: {
+        ...post,
+        isLiked,
+      },
+    });
+  }
+
+  if (req.method === "PUT") {
+    if (!user) {
+      return res.status(401).json({
+        success: false,
+        error: "인증되지 않은 요청입니다.",
+      });
+    }
+
+    const post = await client.post.findUnique({
       where: {
-        postId: +id.toString(),
-        userId: user?.id,
+        id: Number(id),
       },
-      select: {
-        id: true,
+    });
+
+    if (!post) {
+      return res.status(404).json({
+        success: false,
+        error: "게시글이 존재하지 않습니다.",
+      });
+    }
+
+    if (post.authorId !== user.id) {
+      return res.status(403).json({
+        success: false,
+        error: "권한이 없습니다.",
+      });
+    }
+
+    const {
+      body: { title, content },
+    } = req;
+
+    if (!title || !content) {
+      return res.status(400).json({
+        success: false,
+        error: "제목과 내용은 필수입니다.",
+      });
+    }
+
+    const updatedPost = await client.post.update({
+      where: {
+        id: Number(id),
       },
-    })
-  );
-  res.json({
-    success: true,
-    post,
-    isLike,
-  });
+      data: {
+        title,
+        content,
+      },
+    });
+
+    return res.json({
+      success: true,
+      post: updatedPost,
+    });
+  }
+
+  if (req.method === "DELETE") {
+    if (!user) {
+      return res.status(401).json({
+        success: false,
+        error: "인증되지 않은 요청입니다.",
+      });
+    }
+
+    const post = await client.post.findUnique({
+      where: {
+        id: Number(id),
+      },
+    });
+
+    if (!post) {
+      return res.status(404).json({
+        success: false,
+        error: "게시글이 존재하지 않습니다.",
+      });
+    }
+
+    if (post.authorId !== user.id) {
+      return res.status(403).json({
+        success: false,
+        error: "권한이 없습니다.",
+      });
+    }
+
+    await client.post.delete({
+      where: {
+        id: Number(id),
+      },
+    });
+
+    return res.json({
+      success: true,
+    });
+  }
 }
 
 export default withApiSession(
   withHandler({
-    methods: ["GET"],
-    handler,
+    methods: ["GET", "PUT", "DELETE"],
     isPrivate: false,
+    handler,
   })
 );
 
