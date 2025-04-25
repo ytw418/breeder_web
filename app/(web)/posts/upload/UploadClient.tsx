@@ -11,11 +11,21 @@ import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { useForm } from "react-hook-form";
+import { toast } from "react-toastify";
+import useUser from "@libs/client/useUser";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@components/ui/select";
 
 interface UploadPostForm {
   title: string;
   description: string;
-  image: FileList;
+  image?: FileList;
+  category: string;
 }
 
 interface UploadPostMutation {
@@ -23,13 +33,27 @@ interface UploadPostMutation {
   post: Post;
 }
 
+const CATEGORIES = [
+  { value: "all", label: "전체" },
+  { value: "question", label: "질문" },
+  { value: "share", label: "공유" },
+  { value: "notice", label: "공지" },
+];
+
 const UploadClient = () => {
   const router = useRouter();
-  const { register, handleSubmit, watch } = useForm<UploadPostForm>();
+  const { user, isLoading } = useUser();
+  const { register, handleSubmit, watch, setValue } = useForm<UploadPostForm>();
   const [uploadPost, { loading, data }] =
     useMutation<UploadPostMutation>("/api/posts");
 
-  const onValid = async ({ title, image, description }: UploadPostForm) => {
+  useEffect(() => {
+    if (!isLoading && !user) {
+      router.push("/auth/login");
+    }
+  }, [user, isLoading, router]);
+
+  const onValid = async ({ title, image, description, category }: UploadPostForm) => {
     if (loading) return;
 
     if (image && image.length > 0) {
@@ -41,25 +65,25 @@ const UploadClient = () => {
       } = await (await fetch(uploadURL, { method: "POST", body: form })).json();
 
       uploadPost({
-        data: { title, description, image: id },
+        data: { title, content: description, image: id, category },
         onCompleted(result) {
-          console.log("uploadPost result :>> ", result);
           if (result.success) {
+            toast.success("게시물이 등록되었습니다.");
             return router.push(`/posts/${result.post.id}`);
           } else {
-            alert("등록 실패");
+            toast.error("게시물 등록에 실패했습니다.");
           }
         },
       });
     } else {
       uploadPost({
-        data: { title, description },
+        data: { title, content: description, category },
         onCompleted(result) {
-          console.log("uploadPost result :>> ", result);
           if (result.success) {
+            toast.success("게시물이 등록되었습니다.");
             return router.push(`/posts/${result.post.id}`);
           } else {
-            alert("등록 실패");
+            toast.error("게시물 등록에 실패했습니다.");
           }
         },
       });
@@ -74,6 +98,11 @@ const UploadClient = () => {
       setImagePreview(URL.createObjectURL(file));
     }
   }, [image]);
+
+  if (isLoading || !user) {
+    return null;
+  }
+
   return (
     <Layout canGoBack title="게시물 작성">
       <form className="p-4 space-y-6" onSubmit={handleSubmit(onValid)}>
@@ -137,23 +166,46 @@ const UploadClient = () => {
         </div>
 
         <div className="space-y-2">
-          <Label htmlFor="title">제목</Label>
+          <Label htmlFor="category">카테고리</Label>
+          <Select
+            onValueChange={(value: string) => setValue("category", value)}
+            defaultValue="all"
+          >
+            <SelectTrigger>
+              <SelectValue placeholder="카테고리를 선택해주세요" />
+            </SelectTrigger>
+            <SelectContent>
+              {CATEGORIES.map((category) => (
+                <SelectItem key={category.value} value={category.value}>
+                  {category.label}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+
+        <div className="space-y-2">
+          <Label htmlFor="title">
+            제목 <span className="text-red-500">*</span>
+          </Label>
           <Input
-            {...register("title", { required: true })}
+            {...register("title", { required: "제목을 입력해주세요" })}
             required
             name="title"
             type="text"
-            placeholder="제목을 입력해주세요"
+            placeholder="제목을 입력해주세요 (필수)"
           />
         </div>
 
         <div className="space-y-2">
-          <Label htmlFor="description">내용</Label>
+          <Label htmlFor="description">
+            내용 <span className="text-red-500">*</span>
+          </Label>
           <Textarea
-            {...register("description", { required: true })}
+            {...register("description", { required: "내용을 입력해주세요" })}
             name="description"
             required
-            placeholder="내용을 입력해주세요"
+            placeholder="내용을 입력해주세요 (필수)"
             className="min-h-[120px]"
           />
         </div>

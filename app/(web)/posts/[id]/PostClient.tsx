@@ -13,6 +13,14 @@ import useUser from "@libs/client/useUser";
 
 import { ChatResponseType } from "pages/api/chat";
 import { PostDetailResponse } from "pages/api/posts/[id]";
+import { useForm } from "react-hook-form";
+import { Button } from "@components/ui/button";
+import { Textarea } from "@components/ui/textarea";
+import { toast } from "sonner";
+
+interface CommentForm {
+  comment: string;
+}
 
 const PostClient = ({ post, isLiked }: PostDetailResponse) => {
   const query = useParams();
@@ -30,6 +38,10 @@ const PostClient = ({ post, isLiked }: PostDetailResponse) => {
   const [toggleFav, { loading: favLoading }] = useMutation(
     query?.id ? `/api/posts/${query?.id}/fav` : ""
   );
+  const { register, handleSubmit, reset } = useForm<CommentForm>();
+  const [addComment, { loading: addCommentLoading }] = useMutation(
+    query?.id ? `/api/posts/${query.id}/comments` : ""
+  );
 
   const onFavClick = () => {
     if (!favLoading) toggleFav({ data: {} });
@@ -37,106 +49,107 @@ const PostClient = ({ post, isLiked }: PostDetailResponse) => {
     boundMutate((prev) => prev && { ...prev, isLiked: !prev.isLiked }, false);
   };
 
+  const onValid = async (formData: CommentForm) => {
+    if (addCommentLoading || !query?.id) return;
+    
+    addComment({
+      data: formData,
+      onCompleted: (result) => {
+        if (result.success) {
+          toast.success("댓글이 등록되었습니다.");
+          reset();
+          mutate(`/api/posts/${query.id}`);
+        } else {
+          toast.error("댓글 등록에 실패했습니다.");
+        }
+      },
+    });
+  };
+
   return (
     <Layout
       seoTitle={post?.title || "상세 정보"}
       title={post?.title || "상세 정보"}
       canGoBack
+      hasTabBar
     >
-      <div className="px-4">
-        <div className="mb-8">
-          {post?.image ? (
-            <div className="relative h-96">
-              <Image
-                src={makeImageUrl(post.image, "public")}
-                className="object-cover bg-slate-300"
-                alt="post"
-                layout="fill"
-                priority={true}
+      <div className="flex flex-col space-y-4 p-4">
+        {/* 작성자 정보 */}
+        <div className="flex items-center space-x-2">
+          <div className="w-8 h-8 rounded-full bg-gray-200 overflow-hidden">
+            {post?.user?.avatar && (
+              <img
+                src={post.user.avatar}
+                alt={post.user.name}
+                className="w-full h-full object-cover"
               />
-            </div>
-          ) : (
-            <div className="h-96 bg-slate-300" />
-          )}
-          <Link
-            href={`/profiles/${post?.user?.id}`}
-            className="flex items-center py-3 space-x-3 border-t border-b cursor-pointer"
-          >
-            {post?.user?.avatar ? (
-              <Image
-                src={makeImageUrl(post.user.avatar, "avatar")}
-                className="w-12 h-12 rounded-full bg-slate-300"
-                width={48}
-                height={48}
-                alt="avatar"
-              />
-            ) : (
-              <div className="w-12 h-12 rounded-full bg-slate-300" />
             )}
-            <div>
-              <p className="text-sm font-medium text-gray-700">
-                {post?.user?.name}
-              </p>
-              <div className="text-xs font-medium text-gray-500">
-                프로필 보기 &rarr;
+          </div>
+          <span className="font-medium">{post?.user?.name}</span>
+        </div>
+
+        {/* 게시물 내용 */}
+        <div className="space-y-4">
+          <h3 className="text-lg font-semibold">{post?.title}</h3>
+          <p className="text-gray-600 whitespace-pre-wrap">{post?.description}</p>
+          
+          {/* 이미지 */}
+          {post?.image && (
+            <div className="relative aspect-square rounded-lg overflow-hidden">
+              <img
+                src={post.image}
+                alt={post.title}
+                className="w-full h-full object-cover"
+              />
+            </div>
+          )}
+
+          {/* 좋아요/댓글 수 */}
+          <div className="flex items-center space-x-4 text-sm text-gray-500">
+            <span>댓글 {post?._count?.comments}</span>
+            <span>좋아요 {post?._count?.Likes}</span>
+          </div>
+        </div>
+
+        {/* 댓글 목록 */}
+        <div className="space-y-4">
+          <h4 className="font-medium">댓글</h4>
+          {post?.comments?.map((comment) => (
+            <div key={comment.id} className="flex items-start space-x-2">
+              <div className="w-6 h-6 rounded-full bg-gray-200 overflow-hidden">
+                {comment.user?.avatar && (
+                  <img
+                    src={comment.user.avatar}
+                    alt={comment.user.name}
+                    className="w-full h-full object-cover"
+                  />
+                )}
+              </div>
+              <div className="flex-1">
+                <div className="flex items-center space-x-2">
+                  <span className="text-sm font-medium">{comment.user?.name}</span>
+                  <span className="text-xs text-gray-500">
+                    {new Date(comment.createdAt).toLocaleDateString()}
+                  </span>
+                </div>
+                <p className="text-sm text-gray-600">{comment.comment}</p>
               </div>
             </div>
-          </Link>
-          <div className="flex items-center justify-between space-x-2">
-            <button
-              onClick={onFavClick}
-              className={cls(
-                "flex items-center justify-center rounded-md p-3 hover:bg-gray-100 focus:outline-none",
-                data?.isLiked
-                  ? "text-red-500 hover:text-red-600"
-                  : "text-gray-400  hover:text-gray-500 "
-              )}
-            >
-              {data?.isLiked ? (
-                <svg
-                  className="w-6 h-6"
-                  fill="currentColor"
-                  viewBox="0 0 20 20"
-                  xmlns="http://www.w3.org/2000/svg"
-                >
-                  <path
-                    fillRule="evenodd"
-                    d="M3.172 5.172a4 4 0 015.656 0L10 6.343l1.172-1.171a4 4 0 115.656 5.656L10 17.657l-6.828-6.829a4 4 0 010-5.656z"
-                    clipRule="evenodd"
-                  />
-                </svg>
-              ) : (
-                <svg
-                  className="w-6 h-6 "
-                  xmlns="http://www.w3.org/2000/svg"
-                  fill="none"
-                  viewBox="0 0 24 24"
-                  stroke="currentColor"
-                  aria-hidden="true"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth="2"
-                    d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z"
-                  />
-                </svg>
-              )}
-            </button>
-          </div>
-          <div className="mt-5">
-            <h1 className="title-7 font-bold text-gray-900">
-              {post?.title ?? "-"}
-            </h1>
-            <p className="my-6 body-3 text-gray-700">{post?.description}</p>
-          </div>
-          <div>
-            {post?.comments.map((data) => (
-              <div key={data.id}>
-                <div></div>
-              </div>
-            ))}
-          </div>
+          ))}
+
+          {/* 댓글 입력 폼 */}
+          {user && (
+            <form onSubmit={handleSubmit(onValid)} className="space-y-2">
+              <Textarea
+                {...register("comment", { required: "댓글을 입력해주세요" })}
+                placeholder="댓글을 입력해주세요"
+                className="min-h-[100px]"
+              />
+              <Button type="submit" disabled={addCommentLoading} className="w-full">
+                {addCommentLoading ? "등록 중..." : "댓글 등록"}
+              </Button>
+            </form>
+          )}
         </div>
       </div>
     </Layout>

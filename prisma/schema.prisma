@@ -22,18 +22,19 @@ enum role {
 model User {
   id              Int         @id @default(autoincrement())
   role            role        @default(USER)
-  snsId           String      @unique
-  provider        String      
+  snsId           String?     @unique
+  provider        String?     
   phone           String?     @unique
-  email           String?     @unique
-  name            String      @unique
+  email           String      @unique
+  name            String      
   avatar          String?
   createdAt       DateTime    @default(now())
   updatedAt       DateTime    @updatedAt
-  products        Product[]
   posts           Post[]
+  comments        Comment[]
+  postLikes       PostLike[]
+  products        Product[]
   Likes           Like[]
-  Comments        Comment[]
   writtenReviews  Review[]    @relation(name: "writtenReviews")
   receivedReviews Review[]    @relation(name: "receivedReviews")
   fav             Fav[]
@@ -43,9 +44,9 @@ model User {
   messages        Message[]
   followers       Follow[]    @relation(name: "follower")
   following       Follow[]    @relation(name: "following")
-  chatRoomMember    ChatRoomMember[]
-
+  chatRoomMember  ChatRoomMember[]
 }
+
 model ChatRoom {
   id              Int               @id @default(autoincrement())
   type            String            @default("profile") // profile or product
@@ -59,7 +60,6 @@ model ChatRoom {
   sellerConfirmed Boolean           @default(false)
   isCompleted     Boolean           @default(false)
 }
-
 
 model ChatRoomMember {
   id         Int      @id @default(autoincrement())
@@ -75,7 +75,6 @@ model ChatRoomMember {
   @@unique([userId, chatRoomId])
 }
 
-
 model Message {
   id        Int      @id @default(autoincrement())
   createdAt DateTime @default(now())
@@ -86,13 +85,9 @@ model Message {
   chatRoom   ChatRoom? @relation(fields: [chatRoomId], references: [id], onDelete: Cascade)
   chatRoomId Int?
 
-
   @@index([chatRoomId])
   @@index([userId])
 }
-
-
-
 
 model Follow {
   id           Int      @id @default(autoincrement())
@@ -105,7 +100,6 @@ model Follow {
 
   @@index([followerId])
   @@index([followingId])
-
 }
 
 model Product {
@@ -126,39 +120,47 @@ model Product {
 }
 
 model Post {
-  id        Int         @id @default(autoincrement())
-  createdAt DateTime    @default(now())
-  updatedAt DateTime    @updatedAt
-  user      User        @relation(fields: [userId], references: [id], onDelete: Cascade)
-  userId    Int
-  title    String
-  description String
-  type String?
-  comments Comment[]
-  latitude  Float?
-  longitude Float?
-  Likes      Like[]
-  image       String
+  id          Int        @id @default(autoincrement())
+  title       String
+  content     String
+  image       String?
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
+  author      User       @relation(fields: [authorId], references: [id])
+  authorId    Int
+  category    Category?  @relation(fields: [categoryId], references: [id])
+  categoryId  Int?
+  comments    Comment[]
+  likes       PostLike[]
+  oldLikes    Like[]
+}
 
-  @@index([userId])
-
+model Category {
+  id     Int     @id @default(autoincrement())
+  name   String  @unique
+  posts  Post[]
 }
 
 model Comment {
   id        Int      @id @default(autoincrement())
+  content   String
   createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  userId    Int
-  post      Post     @relation(fields: [postId], references: [id], onDelete: Cascade)
+  post      Post     @relation(fields: [postId], references: [id])
   postId    Int
-  comment String
-
-  @@index([userId])
-  @@index([postId])
-
+  author    User     @relation(fields: [authorId], references: [id])
+  authorId  Int
 }
 
+model PostLike {
+  id        Int      @id @default(autoincrement())
+  post      Post     @relation(fields: [postId], references: [id])
+  postId    Int
+  user      User     @relation(fields: [userId], references: [id])
+  userId    Int
+  createdAt DateTime @default(now())
+
+  @@unique([postId, userId])
+}
 
 model Like {
   id        Int      @id @default(autoincrement())
@@ -171,7 +173,6 @@ model Like {
 
   @@index([userId])
   @@index([postId])
-
 }
 
 model Review {
@@ -187,7 +188,6 @@ model Review {
 
   @@index([createdById])
   @@index([createdForId])
-
 }
 
 model Sale {
@@ -246,9 +246,6 @@ enum Kind {
   Sale
   Fav
 }
-
-
-
 
 // chatRoom
 // 채팅방
