@@ -3,3 +3,124 @@ description:
 globs: 
 alwaysApply: true
 ---
+## 내 프로젝트 경로를 알려줄게
+## 새로운 파일이나 폴더가 추가되면 너가 자동으로 이 파일을 업데이트 해줘!
+
+
+프로젝트/
+├── app/
+│   ├── (web)/
+│   │   ├── chat/
+│   │   │   ├── [chatRoomId]/
+│   │   │   │   ├── ChatRoomClient.tsx
+│   │   │   │   └── page.tsx
+│   │   │   ├── ChatClient.tsx
+│   │   │   └── page.tsx
+│   │   ├── products/
+│   │   ├── posts/
+│   │   ├── myPage/
+│   │   ├── editProfile/
+│   │   ├── profiles/
+│   │   ├── color/
+│   │   └── (main)/
+│   ├── admin/
+│   ├── auth/
+│   ├── layout.tsx
+│   ├── loading.tsx
+│   ├── error.tsx
+│   ├── ClientComp.tsx
+│   ├── robots.txt
+│   ├── sitemap.ts
+│   ├── robots.ts
+│   └── globals.css
+├── components/
+│   ├── features/
+│   │   ├── MainLayout.tsx
+│   │   ├── message.tsx
+│   │   ├── theme-provider.tsx
+│   │   ├── chat/
+│   │   ├── item/
+│   │   └── profile/
+│   ├── atoms/
+│   │   ├── SkeletonItem.tsx
+│   │   ├── SkeletonChat.tsx
+│   │   ├── SkeletonChatRoom.tsx
+│   │   ├── Tooltip.tsx
+│   │   ├── floating-button.tsx
+│   │   ├── Profile.tsx
+│   │   ├── Text.tsx
+│   │   ├── Check.tsx
+│   │   ├── ImageInput.tsx
+│   │   ├── Spacing.tsx
+│   │   └── Spinner.tsx
+│   ├── ui/
+│   └── auth/
+├── hooks/
+│   ├── useInfiniteScroll.ts
+│   ├── useMutation.ts
+│   ├── useUser.ts
+│   └── useLogout.ts
+├── libs/
+│   ├── client/
+│   ├── server/
+│   │   ├── UniqueName.ts
+│   │   ├── getUser.ts
+│   │   ├── withSession.ts
+│   │   ├── withHandler.ts
+│   │   ├── client.ts
+│   │   └── apis.ts
+│   ├── Icon/
+│   └── constants.ts
+├── pages/
+│   ├── api/
+│   │   ├── products/
+│   │   ├── chat/
+│   │   │   ├── [chatRoomId]/
+│   │   │   │   ├── index.ts
+│   │   │   │   ├── message.tsx
+│   │   │   │   ├── read.ts
+│   │   │   │   └── confirm.tsx
+│   │   │   ├── chatList.tsx
+│   │   │   ├── index.ts
+│   │   │   └── unread-count.tsx
+│   │   ├── users/
+│   │   │   ├── [id]/
+│   │   │   │   ├── sales.ts
+│   │   │   │   ├── productList.ts
+│   │   │   │   ├── favs.ts
+│   │   │   │   ├── purchases.ts
+│   │   │   │   └── index.ts
+│   │   │   └── me/
+│   │   ├── posts/
+│   │   ├── auth/
+│   │   ├── reviews.ts
+│   │   └── files.ts
+│   └── ...
+├── prisma/
+│   ├── schema.prisma
+│   └── migrations/
+├── public/
+│   ├── hero/
+│   ├── images/
+│   ├── next.svg
+│   └── vercel.svg
+├── src/
+│   ├── components/
+│   └── lib/
+├── styles/
+├── .vscode/
+├── .next/
+├── node_modules/
+├── package.json
+├── tsconfig.json
+├── .eslintrc.json
+├── README.md
+├── next.config.js
+├── tailwind.config.js
+├── postcss.config.js
+├── .gitignore
+├── firebase.js
+├── test.js
+├── 기획서.md
+├── components.json
+└── 기타 파일들...

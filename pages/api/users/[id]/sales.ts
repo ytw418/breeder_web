@@ -13,7 +13,7 @@ interface Sale {
   product: {
     id: number;
     name: string;
-    price: number;
+    price: number | null;
     description: string;
     photos: string[];
     createdAt: Date;

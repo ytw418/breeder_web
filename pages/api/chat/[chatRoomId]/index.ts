@@ -1,12 +1,7 @@
-import { NextApiRequest, NextApiResponse } from "next";
-import { withApiSession } from "@libs/server/withSession";
-import withHandler from "@libs/server/withHandler";
 import client from "@libs/server/client";
-import {
-  ChatRoom as PrismaChatRoom,
-  Message as PrismaMessage,
-  User,
-} from "@prisma/client";
+import withHandler from "@libs/server/withHandler";
+import { withApiSession } from "@libs/server/withSession";
+import { NextApiRequest, NextApiResponse } from "next";
 
 // 채팅방 멤버 인터페이스 정의
 export interface ChatRoomMember {
@@ -38,7 +33,7 @@ export interface Message {
 interface Product {
   id: number;
   name: string;
-  price: number;
+  price: number | null;
   photos: string[];
   user: {
     id: number;

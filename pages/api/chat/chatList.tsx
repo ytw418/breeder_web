@@ -26,7 +26,7 @@ interface ChatListResponse {
     product?: {
       id: number;
       name: string;
-      price: number;
+      price: number | null;
       photos: string[];
     };
     unreadCount: number;
