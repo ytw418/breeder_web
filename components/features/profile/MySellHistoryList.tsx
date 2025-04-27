@@ -1,5 +1,5 @@
 "use client";
-import Item from "../item";
+import Item from "../item/item";
 import useSWR from "swr";
 import MainLayout from "@components/features/MainLayout";
 import SkeletonItem from "@components/atoms/SkeletonItem";

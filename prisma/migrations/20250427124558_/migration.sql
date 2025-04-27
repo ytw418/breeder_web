@@ -23,10 +23,13 @@ CREATE TABLE "User" (
 -- CreateTable
 CREATE TABLE "ChatRoom" (
     "id" SERIAL NOT NULL,
+    "type" TEXT NOT NULL DEFAULT 'profile',
+    "productId" INTEGER,
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updatedAt" TIMESTAMP(3) NOT NULL,
-    "type" TEXT,
-    "productId" INTEGER,
+    "buyerConfirmed" BOOLEAN NOT NULL DEFAULT false,
+    "sellerConfirmed" BOOLEAN NOT NULL DEFAULT false,
+    "isCompleted" BOOLEAN NOT NULL DEFAULT false,
 
     CONSTRAINT "ChatRoom_pkey" PRIMARY KEY ("id")
 );
@@ -36,6 +39,10 @@ CREATE TABLE "ChatRoomMember" (
     "id" SERIAL NOT NULL,
     "userId" INTEGER NOT NULL,
     "chatRoomId" INTEGER NOT NULL,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "lastReadAt" TIMESTAMP(3),
+    "isBuyer" BOOLEAN NOT NULL DEFAULT false,
 
     CONSTRAINT "ChatRoomMember_pkey" PRIMARY KEY ("id")
 );
@@ -69,7 +76,7 @@ CREATE TABLE "Product" (
     "name" TEXT NOT NULL,
     "price" INTEGER NOT NULL,
     "description" TEXT NOT NULL,
-    "photos" TEXT[] DEFAULT ARRAY[]::TEXT[],
+    "photos" TEXT[],
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updatedAt" TIMESTAMP(3) NOT NULL,
     "userId" INTEGER NOT NULL,
@@ -136,6 +143,7 @@ CREATE TABLE "Sale" (
     "productId" INTEGER NOT NULL,
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updatedAt" TIMESTAMP(3) NOT NULL,
+    "status" TEXT NOT NULL DEFAULT 'pending',
 
     CONSTRAINT "Sale_pkey" PRIMARY KEY ("id")
 );
@@ -147,6 +155,7 @@ CREATE TABLE "Purchase" (
     "productId" INTEGER NOT NULL,
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updatedAt" TIMESTAMP(3) NOT NULL,
+    "status" TEXT NOT NULL DEFAULT 'pending',
 
     CONSTRAINT "Purchase_pkey" PRIMARY KEY ("id")
 );
@@ -187,10 +196,13 @@ CREATE UNIQUE INDEX "User_email_key" ON "User"("email");
 CREATE UNIQUE INDEX "User_name_key" ON "User"("name");
 
 -- CreateIndex
-CREATE INDEX "ChatRoomMember_userId_idx" ON "ChatRoomMember"("userId");
+CREATE INDEX "ChatRoom_productId_idx" ON "ChatRoom"("productId");
 
 -- CreateIndex
 CREATE INDEX "ChatRoomMember_chatRoomId_idx" ON "ChatRoomMember"("chatRoomId");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "ChatRoomMember_userId_chatRoomId_key" ON "ChatRoomMember"("userId", "chatRoomId");
 
 -- CreateIndex
 CREATE INDEX "Message_chatRoomId_idx" ON "Message"("chatRoomId");

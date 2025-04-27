@@ -3,3 +3,31 @@ description:
 globs: 
 alwaysApply: true
 ---
+## 코딩 룰
+
+- 이미지 관련
+이미지를 사용할때는 Nextjs의 Image 컴포넌트를 사용하고 src 에는 makeImageUrl() 유틸 함수를 사용해줘
+경로 : import { makeImageUrl } from "@libs/client/utils";
+  
+  예시
+  ```
+    <Image
+      src={makeImageUrl(image, "product")}
+      className="w-20 h-20 bg-gray-400 rounded-md"
+      alt={title || "상품"}
+      width={80}
+      height={80}
+    />
+  ```
+
+
+- className 관련
+className={} 에서는 cn 함수를 import 해서 사용한다. 
+경로 : import { cn } from "@libs/client/utils";
+
+예시
+```
+<div>
+className={cn("pt10 px20")}
+</div>
+```

@@ -45,7 +45,9 @@ const MyPostList = ({ userId }: { userId?: number }) => {
                 {product.name}
               </span>
               <span className="text-sm font-semibold text-primary">
-                {product.price.toLocaleString()}원
+                {product.price
+                  ? `${product.price.toLocaleString()}원`
+                  : "가격 미정"}
               </span>
             </div>
           </div>

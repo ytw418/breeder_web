@@ -405,7 +405,7 @@ const ProductClient = ({ product, relatedProducts }: ItemDetailResponse) => {
                       {product.name}
                     </h3>
                     <p className="text-primary font-medium text-sm">
-                      {product.price.toLocaleString()}원
+                      {product.price?.toLocaleString()}원
                     </p>
                   </div>
                 </Link>

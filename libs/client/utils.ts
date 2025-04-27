@@ -2,15 +2,43 @@ import defaultImage from "@images/defaultImage.png";
 import { type ClassValue, clsx } from "clsx";
 import { twMerge } from "tailwind-merge";
 
+/**
+ * 클래스 이름을 병합하는 함수
+ * @param inputs 클래스 이름 배열
+ * @returns 병합된 클래스 이름
+ *
+ * 예시
+ * cn("text-red-500", "text-blue-500") => "text-red-500 text-blue-500"
+ * cn("text-red-500", "text-blue-500", "text-green-500") => "text-red-500 text-blue-500 text-green-500"
+ *
+ */
 export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
 }
 
 type Variants = "avatar" | "product" | "list" | "public";
 
+/**
+ * 이미지 주소를 생성하는 함수
+ * @param imageId 이미지 id
+ * @param variant 이미지 타입 기본값 "public"
+ * @returns 이미지 주소
+ *
+ * imageId 는 클라우드 플레어에서 받은 이미지 id 이다.
+ * 클라우드 플레어아이디 말고 그냥 이미지 주소를 넣어도 된다.
+ *
+ * 클라우드 플레어 경로
+ * https://imagedelivery.net/OvWZrAz6J6K7n9LKUH5pKw/${imageId}/${variant}
+ *
+ * 예시
+ * https://imagedelivery.net/OvWZrAz6J6K7n9LKUH5pKw/1234567890/public
+ * https://imagedelivery.net/OvWZrAz6J6K7n9LKUH5pKw/1234567890/avatar
+ * https://imagedelivery.net/OvWZrAz6J6K7n9LKUH5pKw/1234567890/product
+ * https://imagedelivery.net/OvWZrAz6J6K7n9LKUH5pKw/1234567890/list
+ */
 export function makeImageUrl(
   imageId: string | undefined | null,
-  variant: Variants
+  variant: undefined | Variants = "public"
 ) {
   if (!imageId) {
     return defaultImage as any as string;
@@ -22,6 +50,17 @@ export function makeImageUrl(
   return `https://imagedelivery.net/OvWZrAz6J6K7n9LKUH5pKw/${imageId}/${variant}`;
 }
 
+/**
+ * 시간 차이를 계산하는 함수
+ * @param targetDate 비교할 날짜
+ * @returns 시간 차이 문자열
+ *
+ * 예시
+ * 1년 전
+ * 1달 전
+ * 1일 전
+ *
+ */
 export const getTimeAgoString = (targetDate: Date): string => {
   const now = new Date();
   const diffInMilliseconds = now.getTime() - targetDate.getTime();

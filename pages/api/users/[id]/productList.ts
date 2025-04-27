@@ -15,7 +15,7 @@ export interface ProductListResponse {
   products: {
     id: number;
     name: string;
-    price: number;
+    price?: number;
     description: string;
     photos: string[];
     createdAt: Date;

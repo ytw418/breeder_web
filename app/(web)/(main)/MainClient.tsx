@@ -4,7 +4,7 @@ import LogRocket from "logrocket";
 import { useEffect } from "react";
 
 import FloatingButton from "@components/atoms/floating-button";
-import Item from "@components/features/item";
+import Item from "@components/features/item/item";
 import useSWRInfinite from "swr/infinite";
 
 import { useInfiniteScroll } from "hooks/useInfiniteScroll";

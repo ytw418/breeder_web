@@ -113,7 +113,7 @@ const ChatRoomClient = () => {
       (member) => member.user.id !== user?.id
     )?.user.name;
     setTitle(_title ?? "");
-  }, [data]);
+  }, [data, user?.id]);
 
   useEffect(() => {
     if (data?.chatRoom) {
@@ -237,7 +237,9 @@ const ChatRoomClient = () => {
               <div className="flex flex-col">
                 <h3 className="font-semibold">{data.chatRoom.product.name}</h3>
                 <p className="text-sm text-gray-500">
-                  {data.chatRoom.product.price.toLocaleString()}원
+                  {data.chatRoom.product.price
+                    ? `${data.chatRoom.product.price.toLocaleString()}원`
+                    : "가격 미정"}
                 </p>
               </div>
             </Link>
