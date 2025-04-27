@@ -1,19 +1,14 @@
 ---
 description: 
 globs: 
-alwaysApply: false
+alwaysApply: true
 ---
 ---
-description: 
-globs: 
-alwaysApply: false
----
-
-=======
 description: 프론트엔드 개발 가이드라인
 globs: 
 alwaysApply: true
 ---
+
 
 # 📱 프론트엔드 개발 가이드라인
 
@@ -71,7 +66,7 @@ app/xx/
 ### 컴포넌트
 - Shadcn/UI 컴포넌트 활용
 - 기존 코딩 스타일 유지
-- [frontend-fundamentals.com/code/](mdc:https:/frontend-fundamentals.com/code) 참고
+- @frontend-fundamentals.com/code/ 참고
 
 ## 5. 🔧 프로젝트 설정
 - **패키지 매니저**: npm
