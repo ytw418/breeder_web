@@ -94,7 +94,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
       images: product.photos[0],
     },
     alternates: {
-      canonical: `https://breeder.com/products/${params.id}`,
+      canonical: `https://breeder-web.vercel.app/products/${params.id}`,
     },
     robots: {
       index: true,
@@ -151,13 +151,13 @@ function generateBreadcrumbJsonLd(product: any) {
         "@type": "ListItem",
         position: 1,
         name: "홈",
-        item: "https://breeder.com",
+        item: "https://breeder-web.vercel.app",
       },
       {
         "@type": "ListItem",
         position: 2,
         name: product.name,
-        item: `https://breeder.com/products/${product.id}`,
+        item: `https://breeder-web.vercel.app/products/${product.id}`,
       },
     ],
   };

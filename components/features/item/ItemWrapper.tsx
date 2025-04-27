@@ -1,8 +1,7 @@
 "use client";
 
 import React from "react";
-import { cls } from "@libs/client/utils";
-
+import { cn } from "@libs/client/utils";
 interface ItemWrapperProps {
   children: React.ReactNode;
   className?: string;
@@ -11,7 +10,7 @@ interface ItemWrapperProps {
 const ItemWrapper = ({ children, className = "" }: ItemWrapperProps) => {
   return (
     <div
-      className={cls(
+      className={cn(
         "group bg-white rounded-xl transition-all duration-200 hover:bg-gray-50",
         className
       )}

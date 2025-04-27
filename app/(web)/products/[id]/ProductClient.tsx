@@ -1,8 +1,8 @@
 "use client";
 import Layout from "@components/features/layout";
-import useMutation from "@libs/client/useMutation";
-import useUser from "@libs/client/useUser";
-import { cls, makeImageUrl } from "@libs/client/utils";
+import { cn, makeImageUrl } from "@libs/client/utils";
+import useMutation from "hooks/useMutation";
+import useUser from "hooks/useUser";
 import Image from "next/image";
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
@@ -243,7 +243,7 @@ const ProductClient = ({ product, relatedProducts }: ItemDetailResponse) => {
                         <button
                           key={index}
                           onClick={() => setCurrentImageIndex(index)}
-                          className={cls(
+                          className={cn(
                             "w-2 h-2 rounded-full transition-all",
                             currentImageIndex === index
                               ? "bg-white"
@@ -337,7 +337,7 @@ const ProductClient = ({ product, relatedProducts }: ItemDetailResponse) => {
                     </button>
                     <button
                       onClick={onFavClick}
-                      className={cls(
+                      className={cn(
                         "p-3 rounded-md flex items-center justify-center",
                         isLiked
                           ? "text-red-500 hover:bg-red-50"

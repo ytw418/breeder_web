@@ -6,7 +6,7 @@ import MyPostList from "@components/features/profile/myPostList";
 import MySaleHistroyMenu from "@components/features/profile/MySaleHistroyMenu";
 import { Button } from "@components/ui/button";
 import { Card, CardContent } from "@components/ui/card";
-import useMutation from "@libs/client/useMutation";
+import useMutation from "hooks/useMutation";
 import { Avatar, AvatarFallback, AvatarImage } from "@radix-ui/react-avatar";
 import { ChatResponseType } from "pages/api/chat";
 import { UserResponse } from "pages/api/users/[id]";

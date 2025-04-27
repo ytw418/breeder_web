@@ -1,10 +1,8 @@
-export default function robots() {
-  return {
-    rules: {
-      userAgent: '*',
-      allow: '/',
-      disallow: ['/api/*', '/_next/*'],
-    },
-    sitemap: 'https://breeder-web.vercel.app/sitemap.xml',
-  };
-} 
+User-agent: *
+Allow: /
+Disallow: /api/
+Disallow: /_next/
+Disallow: /private/
+Disallow: /admin/
+
+Sitemap: https://breeder-web.vercel.app/sitemap.xml

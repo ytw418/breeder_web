@@ -1,21 +1,13 @@
-import type { NextPage, NextPageContext } from "next";
 import { Review, User } from "@prisma/client";
-import useSWR, { SWRConfig } from "swr";
 
-import Layout from "@components/features/layout";
-import Link from "next/link";
-import client from "@libs/server/client";
-import { cls } from "@libs/client/utils";
-import useUser from "@libs/client/useUser";
-import Image from "next/image";
-import Icon from "@libs/Icon";
-import { Button } from "@components/ui/button";
-import { useRouter } from "next/navigation";
-import useLogout from "../../../hooks/useLogout";
-import { Avatar, AvatarFallback, AvatarImage } from "@components/ui/avatar";
-import { Card, CardContent } from "@components/ui/card";
 import MyPostList from "@components/features/profile/myPostList";
 import MySaleHistroyMenu from "@components/features/profile/MySaleHistroyMenu";
+import { Avatar, AvatarFallback, AvatarImage } from "@components/ui/avatar";
+import { Button } from "@components/ui/button";
+import { Card, CardContent } from "@components/ui/card";
+import useUser from "hooks/useUser";
+import { useRouter } from "next/navigation";
+import useLogout from "../../../hooks/useLogout";
 
 interface ReviewWithUser extends Review {
   createdBy: User;

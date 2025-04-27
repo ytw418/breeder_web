@@ -3,7 +3,7 @@
 import Layout from "@components/features/layout";
 import useSWR from "swr";
 import Image from "next/image";
-import useUser from "@libs/client/useUser";
+import useUser from "hooks/useUser";
 import { makeImageUrl } from "@libs/client/utils";
 import Link from "next/link";
 import { useEffect } from "react";

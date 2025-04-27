@@ -1,10 +1,10 @@
 import React from "react";
 import ChatsClient from "../chat/ChatClient";
-import { getUser } from "@libs/client/getUser";
+import { getSessionUser } from "@libs/server/getUser";
 import { redirect, useRouter } from "next/navigation";
 
 const Page = async () => {
-  const user = await getUser();
+  const user = await getSessionUser();
 
   if (!user) {
     return redirect("/auth/login");

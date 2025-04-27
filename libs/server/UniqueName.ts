@@ -1,4 +1,4 @@
-import { randomUsername } from "@libs/randomName";
+import { randomUsername } from "@libs/client/randomName";
 import client from "@libs/server/client";
 import { v4 } from "uuid";
 // 유니크한 무작위 닉네임 생성 함수

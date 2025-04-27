@@ -2,7 +2,7 @@
 import Link from "next/link";
 import React from "react";
 import { useParams } from "next/navigation";
-import useUser from "@libs/client/useUser";
+import useUser from "hooks/useUser";
 
 const MySaleHistroyMenu = () => {
   const params = useParams();
