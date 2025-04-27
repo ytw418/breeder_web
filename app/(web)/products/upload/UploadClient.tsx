@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { useForm } from "react-hook-form";
 import { Button } from "@components/ui/button";
 import { Input } from "@components/ui/input";
-import Layout from "@components/features/layout";
+import Layout from "@components/features/MainLayout";
 import { Textarea } from "@components/ui/textarea";
 import useMutation from "hooks/useMutation";
 import { Product } from "@prisma/client";

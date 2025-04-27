@@ -1,7 +1,7 @@
 "use client";
 import { useParams, useRouter } from "next/navigation";
 
-import MainLayout from "@components/features/layout";
+import MainLayout from "@components/features/MainLayout";
 import MyPostList from "@components/features/profile/myPostList";
 import MySaleHistroyMenu from "@components/features/profile/MySaleHistroyMenu";
 import { Button } from "@components/ui/button";

@@ -1,7 +1,7 @@
 "use client";
 import useSWR, { useSWRConfig } from "swr";
 
-import Layout from "@components/features/layout";
+import Layout from "@components/features/MainLayout";
 import Image from "next/image";
 import Link from "next/link";
 
