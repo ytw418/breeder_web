@@ -2,112 +2,116 @@
 
 ## [브리더 접속하기](https://breeder-web.vercel.app/)
 
-**Breeder**에 오신 것을 환영합니다! 이 웹 애플리케이션은 곤충 애호가들을 연결하고 곤충 관련 콘텐츠를 공유하고 발견할 수 있는 플랫폼을 제공합니다. 최신 기술을 활용하여 매끄럽고 몰입감 있는 사용자 경험을 제공합니다.
+## 📚 프로젝트 소개
 
-## 🚀 주요 기능
+- Next.js, TypeScript, Prisma, TailwindCSS 기반의 중고거래/커뮤니티 플랫폼
+- 주요 도메인: 상품, 유저, 채팅, 리뷰 등
 
-- **사용자 인증**: 인기 있는 OAuth 제공자를 통한 안전한 로그인 및 회원가입
-- **게시물 관리**: 풍부한 텍스트와 이미지 지원으로 게시물 생성, 수정, 삭제
-- **실시간 채팅**: 다른 사용자와 실시간 대화 가능
-- **무한 스크롤**: 게시물을 손쉽게 탐색할 수 있는 무한 스크롤
-- **반응형 디자인**: 데스크톱과 모바일 기기 모두에 최적화
+---
 
-## 🛠️ 기술 스택
+## ⚡️ 프로젝트 실행 방법
 
-- **프론트엔드**: React, Next.js, Tailwind CSS
-- **백엔드**: Node.js, Prisma, PlanetScale
-- **데이터베이스**: MySQL
-- **인증**: NextAuth.js
-- **실시간**: SWR, useSWRInfinite
-- **배포**: Vercel
-
-## 📂 프로젝트 구조
-
-├── app
-│ ├── (web)
-│ │ ├── posts
-│ │ │ ├── [id]
-│ │ │ │ └── PostClient.tsx
-│ │ │ ├── MainClient.tsx
-│ │ │ └── upload
-│ │ │ └── UploadClient.tsx
-│ ├── (main)
-│ │ └── MainClient.tsx
-├── components
-│ ├── layout.tsx
-│ └── item.tsx
-├── libs
-│ └── server
-│ └── apis.ts
-├── pages
-│ ├── api
-│ │ └── posts
-│ │ ├── index.ts
-│ │ └── [id]
-│ │ └── index.ts
-├── public
-│ └── images
-│ ├── KakaoRound.svg
-│ ├── GoogleRound.svg
-│ ├── AppleSquare.svg
-│ ├── AppleRound.svg
-│ └── HeaderLogo.svg
-├── styles
-│ ├── globals.css
-│ ├── style.css
-│ └── colors.ts
-└── README.md
-🐜
-
-## 📦 설치 방법
-
-1. **레포지토리 클론**:
-
+1. **프로젝트 클론**
    ```bash
-   git clone https://github.com/yourusername/breeder.git
-   cd breeder
+   git clone https://github.com/your-org/breeder_web.git
+   cd breeder_web
    ```
-
-2. **의존성 설치**:
-
+2. **패키지 설치**
    ```bash
    npm install
    ```
-
-3. **데이터베이스 설정**:
-
+3. **환경 변수 설정**
+   - `.env` 파일을 생성하고 필요한 환경변수를 입력하세요. (예시: `.env` 참고)
+   - 소유자에게 env 파일을 공유받아주세요
+   - vercel에 env 를 확인하세요.
+4. **Prisma 초기화 및 마이그레이션**
    ```bash
-   npx prisma db push
+   npx prisma init
+   npx prisma migrate dev --name init
+   npx prisma generate
    ```
-
-4. **개발 서버 실행**:
-
+5. **개발 서버 실행**
    ```bash
    npm run dev
    ```
 
-5. **브라우저 열기**:
-   `http://localhost:3000`으로 이동하여 앱을 탐색하세요.
+---
 
-## 📜 스크립트
+## 📁 주요 폴더 구조
 
-- `npm run dev`: 개발 서버 시작
-- `npm run build`: 프로덕션 빌드
-- `npm run start`: 프로덕션 서버 시작
-- `npx prisma studio`: Prisma Studio를 열어 데이터베이스 관리
-
-## 🤝 기여
-
-기여를 환영합니다! 자세한 내용은 [기여 가이드라인](CONTRIBUTING.md)을 참조하세요.
-
-## 📄 라이선스
-
-이 프로젝트는 MIT 라이선스에 따라 라이선스가 부여됩니다. 자세한 내용은 [LICENSE](LICENSE) 파일을 참조하세요.
-
-## 🌟 감사의 말
-
-- 오픈 소스 커뮤니티의 귀중한 리소스와 도구에 감사드립니다.
+```
+app/                # 페이지 및 클라이언트 컴포넌트
+pages/api/          # API 라우트 (도메인별 하위 폴더)
+components/         # UI/기능 컴포넌트
+libs/               # 서버/클라이언트 공통 유틸리티
+public/             # 정적 파일(이미지 등)
+.cursor/rules/      # 프로젝트 코드/아키텍처 룰
+```
 
 ---
 
-Breeder와 함께 곤충의 세계를 탐험하고 기여하며 즐기세요! 🐜
+## 🛠️ 기술 스택
+
+- **프레임워크**: Next.js 14, React
+- **언어**: TypeScript
+- **스타일**: TailwindCSS
+- **상태관리**: react-hook-form, SWR
+- **ORM/DB**: Prisma
+- **인증**: iron-session
+
+---
+
+## 📝 주요 개발 가이드/룰
+
+- 글로벌, 페이지, API 등 [Cursor Rules](.cursor/rules/)로 관리
+- API 작성 시 반드시 [api-rule.mdc](.cursor/rules/api-rule.mdc) 참고
+- 페이지/컴포넌트 작성 시 [page-rule.mdc](.cursor/rules/page-rule.mdc) 참고
+- DB 접근은 반드시 [libs/server/client.ts](libs/server/client.ts) 사용
+- 모든 응답은 `{ success: boolean, ... }` 형태로 통일
+- 상세 가이드: `.cursor/rules/` 폴더 참고
+
+---
+
+## 📦 주요 API 명세
+
+### [상품 API 명세](pages/api/products.md)
+
+- 상품 목록 조회: `GET /api/products`
+- 상품 등록: `POST /api/products`
+- 상품 상세: `GET /api/products/[id]`
+- 상품 수정/삭제: `POST /api/products/[id]`
+- 관심 상품 등록/취소: `POST /api/products/[id]/fav`
+- 특정 유저의 상품 목록: `GET /api/users/[id]/productList`
+
+### [유저 API 명세](pages/api/users.md)
+
+- 내 정보 조회/수정: `GET/POST /api/users/me`
+- 특정 유저 정보: `GET /api/users/[id]`
+- 특정 유저의 상품 목록: `GET /api/users/[id]/productList`
+- 특정 유저의 구매 내역: `GET /api/users/[id]/purchases`
+
+---
+
+## 🧑‍💻 개발/코딩 규칙
+
+- TailwindCSS만 사용, CSS 직접 작성 금지
+- 함수/컴포넌트명, 파일/폴더명 네이밍 규칙 준수
+- 불필요한 콘솔/디버깅 코드 금지
+- 상세한 주석, 타입 명시 필수
+- PR 리뷰 필수, 커밋 메시지 컨벤션 준수
+
+---
+
+## 🗂️ 기타 참고
+
+- [global-rule.mdc](.cursor/rules/global-rule.mdc): 프로젝트 전역 룰
+- [page-rule.mdc](.cursor/rules/page-rule.mdc): 페이지 작성 룰
+- [api-rule.mdc](.cursor/rules/api-rule.mdc): API 작성 룰
+- 기타 세부 룰 및 예시는 `.cursor/rules/` 폴더 참고
+
+---
+
+## ✨ 기여 및 문의
+
+- 코드/문서 기여 환영합니다!
+- 문의: 담당자 또는 이슈 등록

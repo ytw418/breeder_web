@@ -23,7 +23,7 @@ interface UnreadCountResponse {
   unreadCount: number;
 }
 
-export default function Layout({
+export default function MainLayout({
   title,
   canGoBack,
   hasTabBar,

@@ -1,6 +1,6 @@
 "use client";
 
-import Layout from "@components/features/layout";
+import Layout from "@components/features/MainLayout";
 
 import useMutation from "hooks/useMutation";
 import useUser from "hooks/useUser";

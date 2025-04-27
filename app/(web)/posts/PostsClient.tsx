@@ -2,7 +2,7 @@
 
 import { useEffect } from "react";
 
-import Layout from "@components/features/layout";
+import Layout from "@components/features/MainLayout";
 
 export default function PostsClient() {
   return (

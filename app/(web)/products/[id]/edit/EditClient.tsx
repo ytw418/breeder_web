@@ -1,5 +1,5 @@
 "use client";
-import Layout from "@components/features/layout";
+import Layout from "@components/features/MainLayout";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { useForm } from "react-hook-form";

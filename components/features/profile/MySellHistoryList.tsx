@@ -1,7 +1,7 @@
 "use client";
 import Item from "../item";
 import useSWR from "swr";
-import MainLayout from "@components/features/layout";
+import MainLayout from "@components/features/MainLayout";
 import SkeletonItem from "@components/atoms/SkeletonItem";
 import ItemWrapper from "../item/ItemWrapper";
 import { MySellHistoryResponseType } from "pages/api/users/[id]/sales";
