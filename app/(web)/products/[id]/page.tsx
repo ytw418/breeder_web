@@ -21,11 +21,12 @@ export async function generateStaticParams() {
   const products = await client.product.findMany({
     select: {
       id: true,
+      name: true,
     },
   });
 
   return products.map((product) => ({
-    id: product.id.toString(),
+    id: `${product.id}-${product.name}`,
   }));
 }
 
@@ -44,7 +45,8 @@ export const revalidate = 60;
  * - robots 메타 태그로 검색 엔진 크롤링 제어
  */
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
-  const data = await getProduct(params.id);
+  const productId = params.id.split("-")[0];
+  const data = await getProduct(productId);
 
   if (!data.success || !data.product) {
     return {
@@ -171,7 +173,8 @@ function generateBreadcrumbJsonLd(product: any) {
  * - 브레드크럼 네비게이션 제공
  */
 export default async function ProductPage({ params }: Props) {
-  const data = await getProduct(params.id);
+  const productId = params.id.split("-")[0];
+  const data = await getProduct(productId);
 
   if (!data.success || !data.product) {
     notFound();
