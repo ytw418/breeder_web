@@ -3,8 +3,8 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "dev": "next dev & prisma generate & next lint & tsc --noEmit",
-    "build": "next build",
+    "dev": "next dev && next lint && tsc --noEmit",
+    "build": "next lint && tsc --noEmit && next build",
     "start": "next start",
     "lint": "next lint",
     "typecheck": "tsc --noEmit"

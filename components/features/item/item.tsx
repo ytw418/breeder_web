@@ -32,7 +32,7 @@ export default function Item({
       onClick={() => linkRef.current?.click()}
     >
       <div className="flex space-x-4 flex-1">
-        <Link href={`/products/${id}`}>
+        <Link href={`/products/${id}-${title}`}>
           <Image
             src={makeImageUrl(image, "product")}
             className="w-20 h-20 bg-gray-400 rounded-md"
@@ -44,7 +44,7 @@ export default function Item({
         <div className="pt-2 flex flex-col flex-1">
           <Link
             ref={linkRef}
-            href={`/products/${id}`}
+            href={`/products/${id}-${title}`}
             className="text-sm font-medium text-gray-900"
           >
             {title}

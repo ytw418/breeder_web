@@ -35,11 +35,12 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     select: {
       id: true,
       updatedAt: true,
+      name: true,
     },
   });
 
   const productPages: MetadataRoute.Sitemap = products.map((product) => ({
-    url: `https://breeder-web.vercel.app/products/${product.id}`,
+    url: `https://breeder-web.vercel.app/products/${product.id}-${product.name}`,
     lastModified: product.updatedAt,
     changeFrequency: "daily",
     priority: 0.9,
