@@ -8,7 +8,7 @@ import { useRef } from "react";
 interface ItemProps {
   title: string;
   id: number;
-  price: number;
+  price: number | null;
   comments?: number;
   hearts: number;
   image: string;
@@ -49,7 +49,9 @@ export default function Item({
           >
             {title}
           </Link>
-          <span className="font-medium mt-1 text-gray-900">${price}</span>
+          <span className="font-medium mt-1 text-gray-900">
+            {price ? `${price.toLocaleString()}원` : "가격 미정"}
+          </span>
           <span className="body-1 mt-1 text-Gray-500">
             {getTimeAgoString(new Date(createdAt))}
           </span>
