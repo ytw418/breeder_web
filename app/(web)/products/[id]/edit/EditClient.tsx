@@ -3,7 +3,7 @@ import Layout from "@components/features/layout";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { useForm } from "react-hook-form";
-import useMutation from "@libs/client/useMutation";
+import useMutation from "hooks/useMutation";
 import { Product } from "@prisma/client";
 import { toast } from "react-toastify";
 

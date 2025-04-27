@@ -2,24 +2,23 @@
 
 import Layout from "@components/features/layout";
 
-import useSWR from "swr";
-import { useParams, useSearchParams } from "next/navigation";
-import { useForm } from "react-hook-form";
-import useMutation from "@libs/client/useMutation";
-import useUser from "@libs/client/useUser";
-import { useEffect, useRef, useState } from "react";
+import useMutation from "hooks/useMutation";
+import useUser from "hooks/useUser";
 import { produce } from "immer";
+import { useParams } from "next/navigation";
+import { useEffect, useRef, useState } from "react";
+import { useForm } from "react-hook-form";
+import useSWR from "swr";
 
-import { ToastContainer, toast } from "react-toastify";
-import "react-toastify/dist/ReactToastify.css";
-import { ChatRoomResponse, ChatRoom } from "pages/api/chat/[chatRoomId]";
-import Link from "next/link";
-import Image from "next/image";
-import { makeImageUrl } from "@libs/client/utils";
-import { useSWRConfig } from "swr";
-import { User } from "@prisma/client";
-import Message from "@components/features/message";
 import SkeletonChatRoom from "@components/atoms/SkeletonChatRoom";
+import Message from "@components/features/message";
+import { makeImageUrl } from "@libs/client/utils";
+import Image from "next/image";
+import Link from "next/link";
+import { ChatRoomResponse } from "pages/api/chat/[chatRoomId]";
+import { ToastContainer } from "react-toastify";
+import "react-toastify/dist/ReactToastify.css";
+import { useSWRConfig } from "swr";
 
 interface Form {
   message: string;

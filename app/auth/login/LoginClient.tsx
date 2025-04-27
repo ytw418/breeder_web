@@ -8,7 +8,7 @@ import KakaoRound from "@images/KakaoRound.svg";
 
 import Link from "next/link";
 import { LoginReqBody, LoginResponseType } from "pages/api/auth/login";
-import useMutation from "@libs/client/useMutation";
+import useMutation from "hooks/useMutation";
 import { USER_INFO } from "@libs/constants";
 import { useRouter } from "next/navigation";
 

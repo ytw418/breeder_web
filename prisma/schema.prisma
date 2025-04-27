@@ -58,6 +58,8 @@ model ChatRoom {
   buyerConfirmed  Boolean           @default(false)
   sellerConfirmed Boolean           @default(false)
   isCompleted     Boolean           @default(false)
+
+  @@index([productId])
 }
 
 
@@ -73,6 +75,7 @@ model ChatRoomMember {
   isBuyer    Boolean  @default(false)
 
   @@unique([userId, chatRoomId])
+  @@index([chatRoomId])
 }
 
 
@@ -123,6 +126,8 @@ model Product {
   purchases   Purchase[]
   records     Record[]
   chatRooms   ChatRoom[]
+
+  @@index([userId])
 }
 
 model Post {

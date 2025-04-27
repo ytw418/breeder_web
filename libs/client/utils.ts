@@ -1,12 +1,6 @@
-import { ChatRoomMember } from "@prisma/client";
-
 import defaultImage from "@images/defaultImage.png";
 import { type ClassValue, clsx } from "clsx";
 import { twMerge } from "tailwind-merge";
-
-export function cls(...classnames: string[]) {
-  return classnames.join(" ");
-}
 
 export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));

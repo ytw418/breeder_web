@@ -1,14 +1,13 @@
 "use client";
 
-import { useEffect } from "react";
 import LogRocket from "logrocket";
+import { useEffect } from "react";
 
-import { SWRConfig } from "swr";
-import useSWRInfinite, { unstable_serialize } from "swr/infinite";
 import FloatingButton from "@components/atoms/floating-button";
 import Item from "@components/features/item";
+import useSWRInfinite from "swr/infinite";
 
-import { useInfiniteScroll } from "@libs/client/useInfiniteScroll";
+import { useInfiniteScroll } from "hooks/useInfiniteScroll";
 
 import { Product } from "@prisma/client";
 

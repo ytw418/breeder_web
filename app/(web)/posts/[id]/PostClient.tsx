@@ -1,15 +1,14 @@
 "use client";
-import type { GetStaticPaths, GetStaticProps, NextPage } from "next";
 import useSWR, { useSWRConfig } from "swr";
 
-import Image from "next/image";
 import Layout from "@components/features/layout";
+import Image from "next/image";
 import Link from "next/link";
-import { cls } from "@libs/client/utils";
-import { makeImageUrl } from "@libs/client/utils";
-import useMutation from "@libs/client/useMutation";
+
+import { cn, makeImageUrl } from "@libs/client/utils";
+import useMutation from "hooks/useMutation";
+import useUser from "hooks/useUser";
 import { useParams, useRouter } from "next/navigation";
-import useUser from "@libs/client/useUser";
 
 import { ChatResponseType } from "pages/api/chat";
 import { PostDetailResponse } from "pages/api/posts/[id]";
@@ -85,7 +84,7 @@ const PostClient = ({ post, isLiked }: PostDetailResponse) => {
           <div className="flex items-center justify-between space-x-2">
             <button
               onClick={onFavClick}
-              className={cls(
+              className={cn(
                 "flex items-center justify-center rounded-md p-3 hover:bg-gray-100 focus:outline-none",
                 data?.isLiked
                   ? "text-red-500 hover:text-red-600"

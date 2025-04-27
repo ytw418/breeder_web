@@ -7,7 +7,7 @@ import { Button } from "@components/ui/button";
 import { Input } from "@components/ui/input";
 import Layout from "@components/features/layout";
 import { Textarea } from "@components/ui/textarea";
-import useMutation from "@libs/client/useMutation";
+import useMutation from "hooks/useMutation";
 import { Product } from "@prisma/client";
 import Image from "next/image";
 import { toast } from "react-toastify";

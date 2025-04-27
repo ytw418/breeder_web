@@ -2,8 +2,8 @@
 import { useEffect, useState } from "react";
 
 import { useForm } from "react-hook-form";
-import useMutation from "@libs/client/useMutation";
-import useUser from "@libs/client/useUser";
+import useMutation from "hooks/useMutation";
+import useUser from "hooks/useUser";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
 

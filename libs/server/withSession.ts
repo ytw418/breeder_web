@@ -23,6 +23,18 @@ declare module "iron-session" {
   }
 }
 
+export type SessionUser = {
+  id: number;
+  snsId: string;
+  provider: string;
+  phone: string | null;
+  email: string | null;
+  name: string;
+  avatar: string | null;
+  createdAt: Date;
+  updatedAt: Date;
+};
+
 const sessionOptions: IronSessionOptions = {
   cookieName: "kakaoDev", //
   password: process.env.COOKIE_PASSWORD!,
@@ -39,7 +51,7 @@ export function withApiSession(fn: any) {
 
 // Theses types are compatible with InferGetStaticPropsType https://nextjs.org/docs/basic-features/data-fetching#typescript-use-getstaticprops
 export function withSessionSsr<
-  P extends { [key: string]: unknown } = { [key: string]: unknown }
+  P extends { [key: string]: unknown } = { [key: string]: unknown },
 >(
   handler: (
     context: GetServerSidePropsContext

@@ -11,7 +11,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       priority: 1,
     },
     {
-      url: "https://breeder-web.vercel.app/products",
+      url: "https://breeder-web.vercel.app/products/[id]",
       lastModified: new Date(),
       changeFrequency: "hourly",
       priority: 0.8,
@@ -23,7 +23,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       priority: 0.7,
     },
     {
-      url: "https://breeder-web.vercel.app/profiles",
+      url: "https://breeder-web.vercel.app/profiles/[id]",
       lastModified: new Date(),
       changeFrequency: "daily",
       priority: 0.7,
