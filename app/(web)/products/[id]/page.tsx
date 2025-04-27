@@ -50,7 +50,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 
   if (!data.success || !data.product) {
     return {
-      title: "상품을 찾을 수 없습니다 | Breeder",
+      title: "상품을 찾을 수 없습니다",
       description: "요청한 상품을 찾을 수 없습니다.",
       robots: {
         index: false,
@@ -63,7 +63,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const description = product.description.slice(0, 160);
 
   return {
-    title: `${product.name} | Breeder`,
+    title: `${String(product.name) || "상품 이름 없음"}`,
     description: `${description}...`,
     keywords: [
       product.name,
@@ -96,7 +96,12 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
       images: product.photos[0],
     },
     alternates: {
-      canonical: `https://breeder-web.vercel.app/products/${params.id}`,
+      // alternates 옵션은 페이지의 대체 버전을 지정하는 메타데이터입니다.
+      // canonical: 이 페이지의 표준/정식 URL을 지정합니다. 검색엔진이 중복 콘텐츠를 처리할 때 이 URL을 우선적으로 인덱싱합니다.
+      // languages: 다국어 지원을 위한 대체 언어 버전의 URL을 지정할 수 있습니다.
+      // media: 다양한 미디어 타입(예: print, screen)에 대한 대체 버전을 지정할 수 있습니다.
+      // types: 다양한 문서 타입에 대한 대체 버전을 지정할 수 있습니다.
+      canonical: `https://breeder-web.vercel.app/products/${params.id}-${product.name}`,
     },
     robots: {
       index: true,
@@ -159,7 +164,7 @@ function generateBreadcrumbJsonLd(product: any) {
         "@type": "ListItem",
         position: 2,
         name: product.name,
-        item: `https://breeder-web.vercel.app/products/${product.id}`,
+        item: `https://breeder-web.vercel.app/products/${product.id}-${product.name}`,
       },
     ],
   };

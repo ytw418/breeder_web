@@ -44,7 +44,7 @@ export default function Item({
         <div className="pt-2 flex flex-col flex-1">
           <Link
             ref={linkRef}
-            href={`/products/${id}`}
+            href={`/products/${id}-${title}`}
             className="text-sm font-medium text-gray-900"
           >
             {title}
