@@ -19,9 +19,19 @@ enum role {
   SUPER_USER
 }
 
+enum UserStatus {
+  ACTIVE        // 사용중
+  BANNED        // 영구정지
+  DELETED       // 삭제
+  SUSPENDED_7D  // 7일정지
+  SUSPENDED_30D // 한달정지
+}
+
+
 model User {
   id              Int         @id @default(autoincrement())
   role            role        @default(USER)
+  status          UserStatus @default(ACTIVE)
   snsId           String      @unique
   provider        String      
   phone           String?     @unique
@@ -44,6 +54,7 @@ model User {
   followers       Follow[]    @relation(name: "follower")
   following       Follow[]    @relation(name: "following")
   chatRoomMember    ChatRoomMember[]
+
 
 }
 model ChatRoom {
@@ -114,7 +125,7 @@ model Follow {
 model Product {
   id          Int         @id @default(autoincrement())
   name        String
-  price       Int
+  price       Int?
   description String
   photos      String[]
   createdAt   DateTime    @default(now())
@@ -126,6 +137,25 @@ model Product {
   purchases   Purchase[]
   records     Record[]
   chatRooms   ChatRoom[]
+
+  // 2025.04.26일 추가 필드(아직 미사용)
+  category String? // 예를 들면 곤충/강아지/고양이/파충류/물고기/기타/전체 등등 
+  tags     String[]  // 태그는 문자열 배열로 저장
+  isSold    Boolean @default(false)
+  isDeleted Boolean @default(false)
+  isHidden  Boolean @default(false)
+  location       String?    // 거래 지역
+  viewCount      Int        @default(0) // 조회수
+  wishCount      Int        @default(0) // 찜/관심 수
+  status         String     @default("판매중") // 판매 상태: 판매중, 예약중, 판매완료 등
+  condition      String?    // 상품 컨디션: 새상품, 중고 등
+  contactCount   Int        @default(0) // 문의/채팅 수
+  expireAt       DateTime?  // 게시글 만료일
+  deliveryType   String?    // 직거래/택배 등
+  priceOfferable Boolean    @default(true) // 가격 제안 가능 여부
+  mainImage      String?    // 대표 이미지
+  isFeatured     Boolean    @default(false) // 추천 상품 여부
+  reportCount    Int        @default(0) // 신고 횟수
 
   @@index([userId])
 }
