@@ -1,5 +1,5 @@
 "use client";
-import Image from "next/image";
+import Image from "@components/atoms/Image";
 import Link from "next/link";
 import { getTimeAgoString, makeImageUrl } from "@libs/client/utils";
 import { Colors } from "styles/colors";

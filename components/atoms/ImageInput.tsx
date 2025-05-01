@@ -1,5 +1,5 @@
 "use client";
-import Image from "next/image";
+import Image from "@components/atoms/Image";
 import React, { Dispatch, SetStateAction } from "react";
 import {
   FieldValues,

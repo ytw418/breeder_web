@@ -7,7 +7,7 @@ import { Textarea } from "@components/ui/textarea";
 import { Label } from "@components/ui/label";
 import useMutation from "hooks/useMutation";
 import { Post } from "@prisma/client";
-import Image from "next/image";
+import Image from "@components/atoms/Image";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { useForm } from "react-hook-form";

@@ -2,7 +2,7 @@
 
 import Layout from "@components/features/MainLayout";
 import useSWR from "swr";
-import Image from "next/image";
+import Image from "@components/atoms/Image";
 import useUser from "hooks/useUser";
 import { makeImageUrl } from "@libs/client/utils";
 import Link from "next/link";

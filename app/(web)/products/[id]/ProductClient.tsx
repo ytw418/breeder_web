@@ -3,7 +3,7 @@ import Layout from "@components/features/MainLayout";
 import { cn, makeImageUrl } from "@libs/client/utils";
 import useMutation from "hooks/useMutation";
 import useUser from "hooks/useUser";
-import Image from "next/image";
+import Image from "@components/atoms/Image";
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import { ItemDetailResponse } from "pages/api/products/[id]";

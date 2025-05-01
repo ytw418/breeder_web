@@ -4,7 +4,7 @@ import { getProduct } from "@libs/server/apis";
 import ProductClient from "./ProductClient";
 import client from "@libs/server/client";
 import Script from "next/script";
-import Image from "next/image";
+import Image from "@components/atoms/Image";
 
 interface Props {
   params: {

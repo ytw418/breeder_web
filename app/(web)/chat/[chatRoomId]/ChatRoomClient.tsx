@@ -13,12 +13,13 @@ import useSWR from "swr";
 import SkeletonChatRoom from "@components/atoms/SkeletonChatRoom";
 import Message from "@components/features/message";
 import { makeImageUrl } from "@libs/client/utils";
-import Image from "next/image";
+
 import Link from "next/link";
 import { ChatRoomResponse } from "pages/api/chat/[chatRoomId]";
 import { ToastContainer } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
 import { useSWRConfig } from "swr";
+import Image from "@components/atoms/Image";
 
 interface Form {
   message: string;

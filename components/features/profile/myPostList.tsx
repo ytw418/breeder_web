@@ -1,7 +1,7 @@
 import { ProductListResponse } from "pages/api/users/[id]/productList";
 import React from "react";
 import useSWR from "swr";
-import Image from "next/image";
+import Image from "@components/atoms/Image";
 import Link from "next/link";
 import { makeImageUrl } from "@libs/client/utils";
 import { Spinner } from "@components/atoms/Spinner";
