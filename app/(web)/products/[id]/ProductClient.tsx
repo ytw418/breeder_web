@@ -192,7 +192,8 @@ const ProductClient = ({ product, relatedProducts }: ItemDetailResponse) => {
                   )}
                   className="object-cover"
                   alt={`상품 이미지 ${currentImageIndex + 1}`}
-                  layout="fill"
+                  fill={true}
+                  sizes="600px"
                   priority={true}
                   quality={100}
                 />
@@ -396,7 +397,8 @@ const ProductClient = ({ product, relatedProducts }: ItemDetailResponse) => {
                     <Image
                       src={makeImageUrl(product.photos?.[0] || "", "product")}
                       alt={product.name}
-                      layout="fill"
+                      fill={true}
+                      sizes="100%"
                       className="object-cover group-hover:scale-105 transition-transform duration-300"
                     />
                   </div>

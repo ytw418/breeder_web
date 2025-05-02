@@ -50,7 +50,6 @@ const PostClient = ({ post, isLiked }: PostDetailResponse) => {
                 src={makeImageUrl(post.image, "public")}
                 className="object-cover bg-slate-300"
                 alt="post"
-                layout="fill"
                 priority={true}
               />
             </div>

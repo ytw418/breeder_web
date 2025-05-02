@@ -36,7 +36,8 @@ const MyPostList = ({ userId }: { userId?: number }) => {
               <Image
                 src={makeImageUrl(product.photos[0], "product")}
                 alt={product.name}
-                fill
+                fill={true}
+                sizes="100%"
                 className="object-cover transition-transform hover:scale-105"
               />
             </div>

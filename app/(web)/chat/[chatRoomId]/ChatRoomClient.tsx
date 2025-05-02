@@ -229,10 +229,11 @@ const ChatRoomClient = () => {
             >
               <div className="relative w-20 h-20">
                 <Image
-                  fill
                   src={makeImageUrl(data.chatRoom.product.photos[0], "product")}
                   alt={data.chatRoom.product.name}
                   className="object-cover rounded-md"
+                  fill={true}
+                  sizes="100%"
                 />
               </div>
               <div className="flex flex-col">
