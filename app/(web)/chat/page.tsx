@@ -1,7 +1,7 @@
 import React from "react";
 import ChatsClient from "../chat/ChatClient";
 import { getSessionUser } from "@libs/server/getUser";
-import { redirect, useRouter } from "next/navigation";
+import { redirect } from "next/navigation";
 
 const Page = async () => {
   const user = await getSessionUser();

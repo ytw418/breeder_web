@@ -32,7 +32,13 @@ const categories = {
 
 // 고정 곤충 이미지 URL 배열
 const insectImageUrls = [
-  "https://auc-pctr.c.yimg.jp/i/auctions.c.yimg.jp/images.auctions.yahoo.co.jp/image/dr000/auc0104/user/1ece66cb44bd6e632bc36bbabb7c2abf5e0a326d6605062e0c559575dc970527/i-img300x300-1745943905683922tonatb23.jpg?pri=l&w=300&h=300&up=0&nf_src=sy&nf_path=images/auc/pc/top/image/1.0.3/na_170x170.png&nf_st=200",
+  "https://auc-pctr.c.yimg.jp/i/auctions.c.yimg.jp/images.auctions.yahoo.co.jp/image/dr000/auc0104/user/b9e32c0322dc2a6bce50b67be6b2c7ea8c912c7c0185447b54c12999a848de4f/i-img1200x900-17458857429089u6nzuv35.jpg?pri=l&w=300&h=300&up=0&nf_src=sy&nf_path=images/auc/pc/top/image/1.0.3/na_170x170.png&nf_st=200",
+  "https://auc-pctr.c.yimg.jp/i/auctions.c.yimg.jp/images.auctions.yahoo.co.jp/image/dr000/auc0105/user/1abc7c36ace59d9c37b5a03715c12c35db0a57c5f328264ba494d12a47b909fa/i-img686x386-1746161643528778kf8zzm22.jpg?pri=l&w=300&h=300&up=0&nf_src=sy&nf_path=images/auc/pc/top/image/1.0.3/na_170x170.png&nf_st=200",
+  "https://auc-pctr.c.yimg.jp/i/auctions.c.yimg.jp/images.auctions.yahoo.co.jp/image/dr000/auc0105/user/46695d2fa991748d9e157a6d2dc04d240ae503def762de6b763efae64fe801f6/i-img1200x900-17461068849664xumrsw15376.jpg?pri=l&w=300&h=300&up=0&nf_src=sy&nf_path=images/auc/pc/top/image/1.0.3/na_170x170.png&nf_st=200",
+  "https://auc-pctr.c.yimg.jp/i/auctions.c.yimg.jp/images.auctions.yahoo.co.jp/image/dr000/auc0104/user/8c141b468069c2c2bf7d8b547e71adb493c397b3916151d694b9f0189bdc1e9b/i-img899x1200-17457369172202z4dzlu36526.jpg?pri=l&w=300&h=300&up=0&nf_src=sy&nf_path=images/auc/pc/top/image/1.0.3/na_170x170.png&nf_st=200",
+  "https://auc-pctr.c.yimg.jp/i/auctions.c.yimg.jp/images.auctions.yahoo.co.jp/image/dr000/auc0104/user/0ea6b363f3d6397aa4a216bbc41aa83153a261c4aae12d6fda02e3a4633fa743/i-img1200x900-17458823742382avlsue36.jpg?pri=l&w=300&h=300&up=0&nf_src=sy&nf_path=images/auc/pc/top/image/1.0.3/na_170x170.png&nf_st=200",
+  "https://auc-pctr.c.yimg.jp/i/auctions.c.yimg.jp/images.auctions.yahoo.co.jp/image/dr000/auc0104/user/21d50af00a5092aa9bff5cede6f518a7030cf997a86cbdb8a675b67778451351/i-img900x1200-17458568061497jlhmx3332.jpg?pri=l&w=300&h=300&up=0&nf_src=sy&nf_path=images/auc/pc/top/image/1.0.3/na_170x170.png&nf_st=200",
+  "https://auc-pctr.c.yimg.jp/i/auctions.c.yimg.jp/images.auctions.yahoo.co.jp/image/dr000/auc0105/user/f7768300c0145fe14746f13c9e4b491bbb0adab4962353f416b906445c08c033/i-img900x1200-17460583487615e82mnp152823.jpg?pri=l&w=300&h=300&up=0&nf_src=sy&nf_path=images/auc/pc/top/image/1.0.3/na_170x170.png&nf_st=200",
 ];
 
 // 더 안정적인 랜덤 이미지 생성 함수
@@ -59,6 +65,11 @@ const genders = ["수컷", "암컷", "미확인"];
 const origins = ["일본", "대만", "태국", "인도네시아", "말레이시아", "필리핀"];
 
 async function main() {
+  // 기존 상품 데이터 전체 삭제
+  console.log("상품 데이터 삭제 중...");
+  await client.product.deleteMany({});
+  console.log("상품 데이터 삭제 완료");
+
   // Create 10 users
   for (let i = 0; i < 10; i++) {
     await client.user.create({
@@ -78,7 +89,7 @@ async function main() {
   if (!user) return;
 
   // 상품 생성
-  for (let i = 0; i < 20; i++) {
+  for (let i = 0; i < 50; i++) {
     // 카테고리와 종류 랜덤 선택
     const category = faker.helpers.arrayElement(Object.keys(categories));
     const species = faker.helpers.arrayElement(

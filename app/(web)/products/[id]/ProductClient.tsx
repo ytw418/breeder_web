@@ -88,11 +88,12 @@ const ProductClient = ({ product, relatedProducts }: ItemDetailResponse) => {
    * 관심 상품 등록/취소 핸들러
    */
   const onFavClick = () => {
-    if (!favLoading) toggleFav({ data: {} });
-    if (!data) return;
     if (!user) {
       return router.push("/auth/login");
     }
+    if (!favLoading) toggleFav({ data: {} });
+    if (!data) return;
+
     boundMutate((prev) => prev && { ...prev, isLiked: !prev.isLiked }, false);
   };
 

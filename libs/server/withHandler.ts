@@ -37,6 +37,7 @@ export default function withHandler({
       await handler(req, res);
     } catch (error) {
       console.log("withHandler.error", error);
+      console.log("error.req", req);
       return res.status(500).json({ message: JSON.stringify(error) });
     }
   };

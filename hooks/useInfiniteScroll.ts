@@ -4,6 +4,7 @@ export function useInfiniteScroll(threshold = 0.8) {
   const [page, setPage] = useState(1);
 
   const handleScroll = useCallback(() => {
+    console.log("page :>> ", page);
     const scrollTop =
       document.documentElement.scrollTop || document.body.scrollTop;
     const scrollHeight =
