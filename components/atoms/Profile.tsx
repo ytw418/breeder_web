@@ -1,4 +1,4 @@
-import Image from "next/image";
+import Image from "@components/atoms/Image";
 import React from "react";
 import { User } from "@prisma/client";
 const Profile = ({

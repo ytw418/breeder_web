@@ -1,7 +1,7 @@
 import { ProductListResponse } from "pages/api/users/[id]/productList";
 import React from "react";
 import useSWR from "swr";
-import Image from "next/image";
+import Image from "@components/atoms/Image";
 import Link from "next/link";
 import { makeImageUrl } from "@libs/client/utils";
 import { Spinner } from "@components/atoms/Spinner";
@@ -36,7 +36,8 @@ const MyPostList = ({ userId }: { userId?: number }) => {
               <Image
                 src={makeImageUrl(product.photos[0], "product")}
                 alt={product.name}
-                fill
+                fill={true}
+                sizes="100%"
                 className="object-cover transition-transform hover:scale-105"
               />
             </div>

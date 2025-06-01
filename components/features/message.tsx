@@ -1,6 +1,6 @@
 import { makeImageUrl } from "@libs/client/utils";
 import clsx from "clsx";
-import Image from "next/image";
+import Image from "@components/atoms/Image";
 
 interface MessageProps {
   message: string;

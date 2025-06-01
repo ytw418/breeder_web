@@ -2,7 +2,7 @@
 import useSWR, { useSWRConfig } from "swr";
 
 import Layout from "@components/features/MainLayout";
-import Image from "next/image";
+import Image from "@components/atoms/Image";
 import Link from "next/link";
 
 import { cn, makeImageUrl } from "@libs/client/utils";
@@ -50,7 +50,6 @@ const PostClient = ({ post, isLiked }: PostDetailResponse) => {
                 src={makeImageUrl(post.image, "public")}
                 className="object-cover bg-slate-300"
                 alt="post"
-                layout="fill"
                 priority={true}
               />
             </div>

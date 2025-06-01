@@ -3,7 +3,7 @@ import Layout from "@components/features/MainLayout";
 import { cn, makeImageUrl } from "@libs/client/utils";
 import useMutation from "hooks/useMutation";
 import useUser from "hooks/useUser";
-import Image from "next/image";
+import Image from "@components/atoms/Image";
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import { ItemDetailResponse } from "pages/api/products/[id]";
@@ -88,11 +88,12 @@ const ProductClient = ({ product, relatedProducts }: ItemDetailResponse) => {
    * 관심 상품 등록/취소 핸들러
    */
   const onFavClick = () => {
-    if (!favLoading) toggleFav({ data: {} });
-    if (!data) return;
     if (!user) {
       return router.push("/auth/login");
     }
+    if (!favLoading) toggleFav({ data: {} });
+    if (!data) return;
+
     boundMutate((prev) => prev && { ...prev, isLiked: !prev.isLiked }, false);
   };
 
@@ -192,7 +193,8 @@ const ProductClient = ({ product, relatedProducts }: ItemDetailResponse) => {
                   )}
                   className="object-cover"
                   alt={`상품 이미지 ${currentImageIndex + 1}`}
-                  layout="fill"
+                  fill={true}
+                  sizes="600px"
                   priority={true}
                   quality={100}
                 />
@@ -396,7 +398,8 @@ const ProductClient = ({ product, relatedProducts }: ItemDetailResponse) => {
                     <Image
                       src={makeImageUrl(product.photos?.[0] || "", "product")}
                       alt={product.name}
-                      layout="fill"
+                      fill={true}
+                      sizes="100%"
                       className="object-cover group-hover:scale-105 transition-transform duration-300"
                     />
                   </div>

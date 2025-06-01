@@ -13,12 +13,13 @@ import useSWR from "swr";
 import SkeletonChatRoom from "@components/atoms/SkeletonChatRoom";
 import Message from "@components/features/message";
 import { makeImageUrl } from "@libs/client/utils";
-import Image from "next/image";
+
 import Link from "next/link";
 import { ChatRoomResponse } from "pages/api/chat/[chatRoomId]";
 import { ToastContainer } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
 import { useSWRConfig } from "swr";
+import Image from "@components/atoms/Image";
 
 interface Form {
   message: string;
@@ -228,10 +229,11 @@ const ChatRoomClient = () => {
             >
               <div className="relative w-20 h-20">
                 <Image
-                  fill
                   src={makeImageUrl(data.chatRoom.product.photos[0], "product")}
                   alt={data.chatRoom.product.name}
                   className="object-cover rounded-md"
+                  fill={true}
+                  sizes="100%"
                 />
               </div>
               <div className="flex flex-col">

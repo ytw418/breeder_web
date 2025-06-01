@@ -5,7 +5,7 @@ import Link from "next/link";
 import React from "react";
 import clsx from "clsx";
 import { usePathname, useRouter } from "next/navigation";
-import Image from "next/image";
+import Image from "@components/atoms/Image";
 import logo from "@images/logo.png";
 import useSWR from "swr";
 

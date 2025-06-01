@@ -26,9 +26,11 @@ async function handler(
     body: { action, data },
   } = req;
 
+  const productId = id?.toString()?.split("-")[0];
+
   const product = await client.product.findUnique({
     where: {
-      id: Number(id),
+      id: Number(productId),
     },
     include: {
       user: {
@@ -81,6 +83,7 @@ async function handler(
           },
         },
       },
+      take: 20,
     });
 
     return res.json({
@@ -103,7 +106,7 @@ async function handler(
       case "delete":
         await client.product.delete({
           where: {
-            id: Number(id),
+            id: Number(productId),
           },
         });
         return res.json({
@@ -113,7 +116,7 @@ async function handler(
       case "update":
         const updatedProduct = await client.product.update({
           where: {
-            id: Number(id),
+            id: Number(productId),
           },
           data: {
             name: data.name,

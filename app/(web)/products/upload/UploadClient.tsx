@@ -9,7 +9,7 @@ import Layout from "@components/features/MainLayout";
 import { Textarea } from "@components/ui/textarea";
 import useMutation from "hooks/useMutation";
 import { Product } from "@prisma/client";
-import Image from "next/image";
+import Image from "@components/atoms/Image";
 import { toast } from "react-toastify";
 import { Label } from "@components/ui/label";
 
