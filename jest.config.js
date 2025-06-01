@@ -16,6 +16,10 @@ module.exports = {
     "^@images/(.*)$": "<rootDir>/public/images/$1",
     "^@icons/(.*)$": "<rootDir>/public/icons/$1",
     "^@hero/(.*)$": "<rootDir>/public/hero/$1",
+    "\\.(css|less|scss|sass)$": "identity-obj-proxy",
+    "\\.(jpg|jpeg|png|gif|webp|svg)$": "<rootDir>/__mocks__/fileMock.js",
+    "^@images/(.*)\\.(png|jpg|jpeg|gif|webp|svg)$":
+      "<rootDir>/__mocks__/fileMock.js",
   },
 
   // 테스트 실행 전에 실행할 파일
@@ -27,6 +31,17 @@ module.exports = {
       "ts-jest",
       {
         tsconfig: "tsconfig.json",
+        babelConfig: true,
+      },
+    ],
+    "^.+\\.(js|jsx)$": [
+      "babel-jest",
+      {
+        presets: [
+          "@babel/preset-env",
+          "@babel/preset-react",
+          "@babel/preset-typescript",
+        ],
       },
     ],
   },
@@ -46,5 +61,10 @@ module.exports = {
         titleTemplate: "{title}",
       },
     ],
+  ],
+
+  // node_modules 변환 제외 패턴
+  transformIgnorePatterns: [
+    "/node_modules/(?!(@babel|@testing-library|@emotion|@mui|@prisma|@svgr)/)",
   ],
 };
