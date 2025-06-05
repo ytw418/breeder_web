@@ -25,7 +25,7 @@ export default function Message({
           alt={`프로필 이미지`}
           width={20}
           height={20}
-          src={makeImageUrl(avatarUrl, "public")}
+          src={makeImageUrl(avatarUrl, "avatar")}
           className="w-[30px] h-[30px] rounded-full bg-slate-300"
         />
       )}

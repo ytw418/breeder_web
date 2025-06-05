@@ -130,7 +130,7 @@ const ChatRoomClient = () => {
   }, [data?.chatRoom?.messages.length]);
 
   const otherUser = data?.chatRoom?.chatRoomMembers.find(
-    (member) => member.userId !== user?.id
+    (member) => member.user.id !== user?.id
   )?.user;
 
   const isBuyer =
