@@ -233,7 +233,6 @@ const ProductClient = ({ product, relatedProducts }: ItemDetailResponse) => {
     <Layout
       seoTitle={product?.name || "상세 정보"}
       title={product?.name || "상세 정보"}
-      hasTabBar
       canGoBack
     >
       <div className="max-w-3xl mx-auto px-4">

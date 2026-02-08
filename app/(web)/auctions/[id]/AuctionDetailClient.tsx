@@ -98,7 +98,7 @@ const AuctionDetailClient = () => {
 
   if (!auction) {
     return (
-      <Layout canGoBack hasTabBar title="경매" seoTitle="경매">
+      <Layout canGoBack title="경매" seoTitle="경매">
         <div className="flex items-center justify-center h-[60vh]">
           <div className="animate-spin w-8 h-8 border-2 border-primary border-t-transparent rounded-full" />
         </div>
@@ -107,7 +107,7 @@ const AuctionDetailClient = () => {
   }
 
   return (
-    <Layout canGoBack hasTabBar title="경매 상세" seoTitle={auction.title}>
+    <Layout canGoBack title="경매 상세" seoTitle={auction.title}>
       <div className="pb-24">
         {/* 이미지 슬라이더 */}
         <div className="relative aspect-[4/3] bg-gray-100">

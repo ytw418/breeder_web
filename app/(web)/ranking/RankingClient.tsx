@@ -61,7 +61,7 @@ const RankingClient = () => {
   }, [activeTab, period, species]);
 
   return (
-    <Layout canGoBack hasTabBar title="랭킹" seoTitle="랭킹">
+    <Layout canGoBack title="랭킹" seoTitle="랭킹">
       <div className="flex flex-col min-h-screen">
         {/* 메인 탭 */}
         <div className="sticky top-14 z-10 bg-white border-b border-gray-100">

@@ -28,6 +28,18 @@ interface UnreadCountResponse {
 /** 사이드 메뉴 아이템 */
 const MENU_ITEMS = [
   {
+    label: "홈",
+    href: "/",
+    icon: (
+      <path
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        strokeWidth="2"
+        d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"
+      />
+    ),
+  },
+  {
     label: "알림",
     href: "/notifications",
     icon: (
@@ -48,30 +60,6 @@ const MENU_ITEMS = [
         strokeLinejoin="round"
         strokeWidth="2"
         d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"
-      />
-    ),
-  },
-  {
-    label: "검색",
-    href: "/search",
-    icon: (
-      <path
-        strokeLinecap="round"
-        strokeLinejoin="round"
-        strokeWidth="2"
-        d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
-      />
-    ),
-  },
-  {
-    label: "마이페이지",
-    href: "/myPage",
-    icon: (
-      <path
-        strokeLinecap="round"
-        strokeLinejoin="round"
-        strokeWidth="2"
-        d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"
       />
     ),
   },
@@ -128,6 +116,7 @@ export default function MainLayout({
             <button
               onClick={onClick}
               className="absolute left-4 p-2 rounded-full hover:bg-gray-50 transition-colors"
+              aria-label="뒤로가기"
             >
               <svg
                 className="w-6 h-6 text-gray-600"
@@ -144,10 +133,11 @@ export default function MainLayout({
                 ></path>
               </svg>
             </button>
-            <Link
-              href="/"
+            {/* 햄버거 메뉴 버튼 */}
+            <button
+              onClick={() => setMenuOpen(true)}
               className="absolute right-4 p-2 rounded-full hover:bg-gray-50 transition-colors"
-              aria-label="홈으로 이동"
+              aria-label="메뉴"
             >
               <svg
                 className="w-6 h-6 text-gray-600"
@@ -160,10 +150,10 @@ export default function MainLayout({
                   strokeLinecap="round"
                   strokeLinejoin="round"
                   strokeWidth="2"
-                  d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"
+                  d="M4 6h16M4 12h16M4 18h16"
                 ></path>
               </svg>
-            </Link>
+            </button>
           </>
         ) : null}
         {icon && (
