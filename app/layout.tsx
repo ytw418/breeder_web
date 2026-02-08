@@ -2,10 +2,9 @@ import type { Metadata } from "next";
 import { Inter } from "next/font/google";
 import "./globals.css";
 import { ToastContainer } from "react-toastify";
-import { ThemeProvider } from "@components/features/theme-provider";
 import { VariousProvider } from "@libs/client/VariousProvider";
 import ClientComp from "./ClientComp";
-
+import { Analytics } from "@vercel/analytics/next";
 const inter = Inter({ subsets: ["latin"] });
 
 export const metadata: Metadata = {
@@ -111,6 +110,7 @@ export default function RootLayout({
         > */}
         <VariousProvider>
           <ClientComp />
+          <Analytics />
           {children}
         </VariousProvider>
         <ToastContainer

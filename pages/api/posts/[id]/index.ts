@@ -3,7 +3,6 @@ import withHandler, { ResponseType } from "@libs/server/withHandler";
 
 import client from "@libs/server/client";
 import { withApiSession } from "@libs/server/withSession";
-import { Comment, Post, User, Prisma } from "@prisma/client";
 
 interface PostDetail {
   user: {
@@ -31,9 +30,7 @@ interface PostDetail {
   userId: number;
   title: string;
   description: string;
-  type: string | null;
-  latitude: number | null;
-  longitude: number | null;
+  category: string | null;
   image: string;
 }
 
@@ -52,6 +49,7 @@ async function handler(
     query: { id = "" },
     session: { user },
   } = req;
+
   const post = await client.post.findUnique({
     where: {
       id: +id.toString(),
@@ -77,10 +75,8 @@ async function handler(
             },
           },
         },
-        take: 10,
-        skip: 20,
+        orderBy: { createdAt: "asc" },
       },
-
       _count: {
         select: {
           comments: true,
@@ -90,9 +86,11 @@ async function handler(
     },
   });
 
-  post;
+  if (!post) {
+    return res.status(404).json({ success: false, error: "게시글을 찾을 수 없습니다." });
+  }
 
-  const isLike = Boolean(
+  const isLiked = Boolean(
     await client.like.findFirst({
       where: {
         postId: +id.toString(),
@@ -103,10 +101,11 @@ async function handler(
       },
     })
   );
+
   res.json({
     success: true,
     post,
-    isLike,
+    isLiked,
   });
 }
 
@@ -117,19 +116,3 @@ export default withApiSession(
     isPrivate: false,
   })
 );
-
-type post = null | {
-  user: unknown;
-  comments: unknown;
-  _count: unknown;
-  id: number;
-  createdAt: Date;
-  updatedAt: Date;
-  userId: number;
-  title: string;
-  description: string;
-  type: null | string;
-  latitude: null | number;
-  longitude: null | number;
-  image: string;
-};
