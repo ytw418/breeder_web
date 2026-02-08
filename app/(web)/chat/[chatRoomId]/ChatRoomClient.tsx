@@ -1,52 +1,52 @@
 "use client";
 
 import Layout from "@components/features/MainLayout";
-
 import useMutation from "hooks/useMutation";
 import useUser from "hooks/useUser";
 import { produce } from "immer";
-import { useParams } from "next/navigation";
+import { useParams, useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import { useForm } from "react-hook-form";
-import useSWR from "swr";
+import useSWR, { useSWRConfig } from "swr";
 
 import SkeletonChatRoom from "@components/atoms/SkeletonChatRoom";
 import Message from "@components/features/message";
+import Image from "@components/atoms/Image";
 import { makeImageUrl } from "@libs/client/utils";
 
-import Link from "next/link";
 import { ChatRoomResponse } from "pages/api/chat/[chatRoomId]";
-import { ToastContainer } from "react-toastify";
-import "react-toastify/dist/ReactToastify.css";
-import { useSWRConfig } from "swr";
-import Image from "@components/atoms/Image";
+import { ReadResponse } from "pages/api/chat/[chatRoomId]/read";
 
 interface Form {
   message: string;
 }
 
-interface ReadResponse {
-  success: boolean;
-  error?: string;
-  unreadCount?: number;
-  lastReadAt?: Date;
-}
-
 const ChatRoomClient = () => {
   const { user } = useUser();
   const { mutate: globalMutate } = useSWRConfig();
+  const router = useRouter();
   const params = useParams();
   const chatRoomId = params?.chatRoomId as string;
-  const [showConfirmDialog, setShowConfirmDialog] = useState(false);
 
   const [title, setTitle] = useState("");
   const [isAtBottom, setIsAtBottom] = useState(true);
+  const [imageUploading, setImageUploading] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const chatContainerRef = useRef<HTMLDivElement>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
+  // 3초마다 새 메시지 폴링
   const { data, mutate, isLoading } = useSWR<ChatRoomResponse>(
-    chatRoomId && `/api/chat/${chatRoomId}`
+    chatRoomId && `/api/chat/${chatRoomId}`,
+    { refreshInterval: 3000 }
   );
+
+  // 접근 권한 없거나 에러 시 로그인 페이지로 이동
+  useEffect(() => {
+    if (data && !data.success) {
+      router.replace("/auth/login");
+    }
+  }, [data, router]);
 
   const [sendMessage, { loading, data: sendMessageData }] = useMutation(
     `/api/chat/${chatRoomId}/message`
@@ -70,16 +70,21 @@ const ChatRoomClient = () => {
     }
   };
 
+  // 텍스트 메시지 전송
   const onValid = async (form: Form) => {
-    if (form.message.length < 1) return;
+    if (form.message.length < 1 || loading) return;
     reset();
+
+    // 낙관적 업데이트
     await mutate(
       (prev) =>
         prev &&
-        produce(prev, (drift) => {
-          drift.chatRoom?.messages.push({
+        produce(prev, (draft) => {
+          draft.chatRoom?.messages.push({
             id: Date.now(),
+            type: "TEXT",
             message: form.message,
+            image: null,
             createdAt: new Date().toISOString(),
             user: {
               id: user?.id!,
@@ -91,7 +96,60 @@ const ChatRoomClient = () => {
       false
     );
     scrollToBottom();
-    sendMessage({ data: form });
+    sendMessage({ data: { type: "TEXT", message: form.message } });
+  };
+
+  // 이미지 메시지 전송
+  const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file || imageUploading) return;
+
+    setImageUploading(true);
+
+    try {
+      // 1. Cloudflare direct upload URL 발급
+      const uploadUrlRes = await fetch("/api/files");
+      const { uploadURL, id: imageId } = await uploadUrlRes.json();
+
+      // 2. Cloudflare에 이미지 업로드
+      const formData = new FormData();
+      formData.append("file", file);
+      await fetch(uploadURL, { method: "POST", body: formData });
+
+      // 3. 낙관적 업데이트로 이미지 미리 표시
+      await mutate(
+        (prev) =>
+          prev &&
+          produce(prev, (draft) => {
+            draft.chatRoom?.messages.push({
+              id: Date.now(),
+              type: "IMAGE",
+              message: "사진을 보냈습니다.",
+              image: imageId,
+              createdAt: new Date().toISOString(),
+              user: {
+                id: user?.id!,
+                name: user?.name!,
+                avatar: user?.avatar || null,
+              },
+            });
+          }),
+        false
+      );
+      scrollToBottom();
+
+      // 4. 서버에 이미지 메시지 전송
+      sendMessage({ data: { type: "IMAGE", image: imageId } });
+    } catch (error) {
+      console.error("이미지 업로드 실패:", error);
+      alert("이미지 업로드에 실패했습니다.");
+    } finally {
+      setImageUploading(false);
+      // 파일 인풋 초기화
+      if (fileInputRef.current) {
+        fileInputRef.current.value = "";
+      }
+    }
   };
 
   useEffect(() => {
@@ -109,6 +167,7 @@ const ChatRoomClient = () => {
     }
   }, []);
 
+  // 상대방 이름을 타이틀로 설정
   useEffect(() => {
     const _title = data?.chatRoom?.chatRoomMembers.find(
       (member) => member.user.id !== user?.id
@@ -116,6 +175,7 @@ const ChatRoomClient = () => {
     setTitle(_title ?? "");
   }, [data, user?.id]);
 
+  // 메시지 읽음 처리
   useEffect(() => {
     if (data?.chatRoom) {
       markAsRead({
@@ -129,224 +189,123 @@ const ChatRoomClient = () => {
     }
   }, [data?.chatRoom?.messages.length]);
 
-  const otherUser = data?.chatRoom?.chatRoomMembers.find(
-    (member) => member.userId !== user?.id
-  )?.user;
-
-  const isBuyer =
-    data?.chatRoom?.type === "product"
-      ? data.chatRoom.product?.user?.id === user?.id
-        ? false // 현재 사용자가 상품 소유자면 판매자
-        : true // 현재 사용자가 상품 소유자가 아니면 구매자
-      : false;
-
-  const getTransactionStatus = () => {
-    if (!data?.chatRoom) return "";
-
-    if (data.chatRoom.isCompleted) {
-      return "거래가 완료되었습니다.";
-    }
-
-    if (isBuyer) {
-      //판매자만 확정하고 구매자는 확정하지 않았을떄
-      if (data.chatRoom.buyerConfirmed) {
-        return "구매 확정을 완료했습니다. 판매자가 판매를 확정하면 거래가 완료됩니다.";
-      }
-      if (data.chatRoom.sellerConfirmed) {
-        return "판매자가 판매를 확정했습니다. 구매확정을 클릭하면 거래가 완료됩니다.";
-      }
-
-      return "구매를 확정 하시겠습니까?";
-    } else {
-      if (data.chatRoom.sellerConfirmed) {
-        return "판매 확정을 완료했습니다. 구매자가 구매를 확정하면 거래가 완료됩니다.";
-      }
-      if (data.chatRoom.buyerConfirmed) {
-        return "구매자가 구매를 확정했습니다. 판매확정을 클릭하면 거래가 완료됩니다.";
-      }
-      return "판매를 확정 하시겠습니까?";
-    }
-  };
-
-  const getConfirmDialogMessage = () => {
-    if (!data?.chatRoom) return "";
-
-    if (isBuyer) {
-      if (data.chatRoom.sellerConfirmed) {
-        return "판매자가 판매를 확정했습니다. 구매확정을 클릭하면 거래가 완료됩니다. 정말 구매를 확정하시겠습니까?";
-      }
-      return "정말 구매를 확정하시겠습니까? 확정 후에는 취소할 수 없습니다.";
-    } else {
-      if (data.chatRoom.buyerConfirmed) {
-        return "구매자가 구매를 확정했습니다. 판매확정을 클릭하면 거래가 완료됩니다. 정말 판매를 확정하시겠습니까?";
-      }
-      return "정말 판매를 확정하시겠습니까? 확정 후에는 취소할 수 없습니다.";
-    }
-  };
-
-  const handleConfirm = async () => {
-    try {
-      const response = await fetch(`/api/chat/${chatRoomId}/confirm`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          isBuyer,
-        }),
-      });
-
-      const data = await response.json();
-
-      if (data.success) {
-        globalMutate(`/api/chat/${chatRoomId}`);
-      } else {
-        alert(data.error);
-      }
-    } catch (error) {
-      console.error("Error confirming transaction:", error);
-      alert("거래 확정에 실패했습니다.");
-    }
-    setShowConfirmDialog(false);
-  };
-
   if (isLoading) {
     return (
-      <Layout canGoBack title={title} seoTitle={"채팅방"}>
+      <Layout canGoBack title={title} seoTitle="채팅방">
         <SkeletonChatRoom />
       </Layout>
     );
   }
 
   return (
-    <Layout canGoBack title={title} seoTitle={"채팅방"}>
-      <div className="px-4 py-4">
-        {data?.chatRoom?.type === "product" && data?.chatRoom?.product && (
-          <div className="flex gap-4 items-center">
-            <Link
-              href={`/products/${data.chatRoom.product.id}`}
-              className="flex items-center gap-4"
-            >
-              <div className="relative w-20 h-20">
-                <Image
-                  src={makeImageUrl(data.chatRoom.product.photos[0], "product")}
-                  alt={data.chatRoom.product.name}
-                  className="object-cover rounded-md"
-                  fill={true}
-                  sizes="100%"
-                />
-              </div>
-              <div className="flex flex-col">
-                <h3 className="font-semibold">{data.chatRoom.product.name}</h3>
-                <p className="text-sm text-gray-500">
-                  {data.chatRoom.product.price
-                    ? `${data.chatRoom.product.price.toLocaleString()}원`
-                    : "가격 미정"}
-                </p>
-              </div>
-            </Link>
-            <div className="flex-1">
-              <div className="flex justify-between items-center">
-                <p className="text-sm text-gray-500">
-                  {getTransactionStatus()}
-                </p>
-                {!data.chatRoom.isCompleted && (
-                  <button
-                    onClick={() => setShowConfirmDialog(true)}
-                    disabled={
-                      (isBuyer && data.chatRoom.buyerConfirmed) ||
-                      (!isBuyer && data.chatRoom.sellerConfirmed)
-                    }
-                    className={`px-3 py-1 text-sm rounded-md ${
-                      (isBuyer && data.chatRoom.buyerConfirmed) ||
-                      (!isBuyer && data.chatRoom.sellerConfirmed)
-                        ? "bg-gray-200 text-gray-500 cursor-not-allowed"
-                        : "bg-orange-500 text-white hover:bg-orange-600"
-                    }`}
-                  >
-                    {isBuyer ? "구매 확정" : "판매 확정"}
-                  </button>
-                )}
-              </div>
-            </div>
-          </div>
-        )}
-      </div>
-
+    <Layout canGoBack title={title} seoTitle="채팅방">
       <div
         ref={chatContainerRef}
-        className="py-4 pb-24 px-4 space-y-4 overflow-y-auto h-[calc(100vh-8rem)]"
+        className="py-4 pb-24 px-4 space-y-4 overflow-y-auto h-[calc(100vh-4rem)]"
       >
         {data?.chatRoom?.messages?.map((message) => (
           <Message
             key={message.id}
             avatarUrl={message.user.avatar}
             message={message.message}
+            type={message.type}
+            image={message.image}
             reversed={user?.id === message.user.id}
           />
         ))}
         <div ref={messagesEndRef} />
       </div>
 
+      {/* 메시지 입력 폼 */}
       <form
         onSubmit={handleSubmit(onValid)}
         className="fixed bottom-0 inset-x-0 bg-white/80 backdrop-blur-sm border-t border-gray-100"
       >
-        <div className="flex relative items-center w-full max-w-xl mx-auto px-4 py-3">
-          <input
-            {...register("message")}
-            type="text"
-            className="w-full px-4 py-3 pr-12 rounded-xl bg-gray-50 focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent transition-all"
-            placeholder="메시지를 입력하세요"
-            required
-          />
+        <div className="flex relative items-center w-full max-w-xl mx-auto px-4 py-3 gap-2">
+          {/* 이미지 첨부 버튼 */}
           <button
-            type="submit"
-            className="absolute right-6 flex items-center justify-center w-8 h-8 rounded-full bg-primary hover:bg-primary/90 text-white transition-colors shadow-sm"
+            type="button"
+            onClick={() => fileInputRef.current?.click()}
+            disabled={imageUploading}
+            className="flex items-center justify-center w-10 h-10 rounded-full bg-gray-100 hover:bg-gray-200 transition-colors flex-shrink-0"
+            aria-label="이미지 첨부"
           >
-            <svg
-              className="w-4 h-4"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth="2"
-                d="M12 5l7 7-7 7M5 12h14"
-              />
-            </svg>
+            {imageUploading ? (
+              <svg
+                className="w-5 h-5 animate-spin text-gray-400"
+                fill="none"
+                viewBox="0 0 24 24"
+              >
+                <circle
+                  className="opacity-25"
+                  cx="12"
+                  cy="12"
+                  r="10"
+                  stroke="currentColor"
+                  strokeWidth="4"
+                />
+                <path
+                  className="opacity-75"
+                  fill="currentColor"
+                  d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"
+                />
+              </svg>
+            ) : (
+              <svg
+                className="w-5 h-5 text-gray-500"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth="2"
+                  d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"
+                />
+              </svg>
+            )}
           </button>
-        </div>
-      </form>
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept="image/png, image/jpeg, image/jpg, image/webp"
+            className="hidden"
+            onChange={handleImageUpload}
+          />
 
-      {showConfirmDialog && data?.chatRoom && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white p-6 rounded-lg max-w-sm w-full mx-4">
-            <h3 className="text-lg font-semibold mb-4">
-              {isBuyer ? "구매 확정" : "판매 확정"}
-            </h3>
-            <p className="text-gray-600 mb-6">{getConfirmDialogMessage()}</p>
-            <div className="flex justify-end gap-2">
-              <button
-                onClick={() => setShowConfirmDialog(false)}
-                className="px-4 py-2 text-gray-600 hover:bg-gray-100 rounded-md"
+          {/* 텍스트 입력 */}
+          <div className="flex-1 relative">
+            <input
+              {...register("message")}
+              type="text"
+              className="w-full px-4 py-3 pr-12 rounded-xl bg-gray-50 focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent transition-all"
+              placeholder="메시지를 입력하세요"
+              required
+            />
+            <button
+              type="submit"
+              disabled={loading}
+              className="absolute right-2 top-1/2 -translate-y-1/2 flex items-center justify-center w-8 h-8 rounded-full bg-primary hover:bg-primary/90 text-white transition-colors shadow-sm"
+              aria-label="메시지 전송"
+            >
+              <svg
+                className="w-4 h-4"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
               >
-                취소
-              </button>
-              <button
-                onClick={handleConfirm}
-                className="px-4 py-2 bg-orange-500 text-white hover:bg-orange-600 rounded-md"
-              >
-                확정
-              </button>
-            </div>
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth="2"
+                  d="M12 5l7 7-7 7M5 12h14"
+                />
+              </svg>
+            </button>
           </div>
         </div>
-      )}
-
-      <ToastContainer />
+      </form>
     </Layout>
   );
 };

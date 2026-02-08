@@ -130,8 +130,6 @@ const ProductClient = ({ product, relatedProducts }: ItemDetailResponse) => {
     getChatRoomId({
       data: {
         otherId: product.user.id,
-        productId: product.id,
-        type: "product",
       },
       onCompleted: (result) => {
         if (result.success && result.ChatRoomId) {
