@@ -17,6 +17,7 @@ interface LayoutProps {
   children: React.ReactNode;
   seoTitle?: string;
   icon?: boolean;
+  showSearch?: boolean;
 }
 
 interface UnreadCountResponse {
@@ -103,6 +104,7 @@ export default function MainLayout({
   children,
   seoTitle,
   icon,
+  showSearch,
 }: LayoutProps) {
   const router = useRouter();
   const pathname = usePathname();
@@ -175,27 +177,52 @@ export default function MainLayout({
                 className="rounded-lg"
               />
             </Link>
-            {/* 햄버거 메뉴 버튼 */}
-            <button
-              onClick={() => setMenuOpen(true)}
-              className="absolute right-4 p-2 rounded-full hover:bg-gray-50 transition-colors"
-              aria-label="메뉴"
-            >
-              <svg
-                className="w-6 h-6 text-gray-600"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-                xmlns="http://www.w3.org/2000/svg"
+            <div className="absolute right-4 flex items-center gap-1">
+              {/* 검색 버튼 */}
+              {showSearch && (
+                <Link
+                  href="/search"
+                  className="p-2 rounded-full hover:bg-gray-50 transition-colors"
+                  aria-label="검색"
+                >
+                  <svg
+                    className="w-6 h-6 text-gray-600"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                    xmlns="http://www.w3.org/2000/svg"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth="2"
+                      d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
+                    ></path>
+                  </svg>
+                </Link>
+              )}
+              {/* 햄버거 메뉴 버튼 */}
+              <button
+                onClick={() => setMenuOpen(true)}
+                className="p-2 rounded-full hover:bg-gray-50 transition-colors"
+                aria-label="메뉴"
               >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth="2"
-                  d="M4 6h16M4 12h16M4 18h16"
-                ></path>
-              </svg>
-            </button>
+                <svg
+                  className="w-6 h-6 text-gray-600"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                  xmlns="http://www.w3.org/2000/svg"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth="2"
+                    d="M4 6h16M4 12h16M4 18h16"
+                  ></path>
+                </svg>
+              </button>
+            </div>
           </>
         )}
         {title ? (

@@ -46,7 +46,7 @@ export default function PostsClient() {
   }, [selectedCategory]);
 
   return (
-    <Layout icon hasTabBar seoTitle="곤충생활">
+    <Layout icon hasTabBar seoTitle="곤충생활" showSearch>
       <div className="flex flex-col h-full">
         {/* 헤더 타이틀 */}
         <div className="px-4 pt-3 pb-1">

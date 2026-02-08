@@ -67,7 +67,7 @@ export default function AuctionsClient() {
   }, [selectedStatus]);
 
   return (
-    <Layout icon hasTabBar seoTitle="경매">
+    <Layout icon hasTabBar seoTitle="경매" showSearch>
       <div className="flex flex-col h-full">
         {/* 헤더 */}
         <div className="px-4 pt-3 pb-1">
