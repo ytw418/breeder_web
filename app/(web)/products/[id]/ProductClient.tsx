@@ -49,6 +49,14 @@ const ProductClient = ({ product, relatedProducts }: ItemDetailResponse) => {
     `/api/products/${params?.id}`
   );
 
+  // 상태 변경 API
+  const [updateStatus, { loading: statusLoading }] = useMutation(
+    `/api/products/${params?.id}`
+  );
+
+  // 상태 드롭다운 표시 여부
+  const [showStatusMenu, setShowStatusMenu] = useState(false);
+
   /**
    * 터치 시작 이벤트 핸들러
    * @param e - 터치 이벤트 객체
@@ -91,10 +99,26 @@ const ProductClient = ({ product, relatedProducts }: ItemDetailResponse) => {
     if (!user) {
       return router.push("/auth/login");
     }
-    if (!favLoading) toggleFav({ data: {} });
-    if (!data) return;
+    if (favLoading) return;
 
+    // 낙관적 UI 업데이트
     boundMutate((prev) => prev && { ...prev, isLiked: !prev.isLiked }, false);
+
+    toggleFav({
+      data: {},
+      onCompleted(result) {
+        if (!result.success) {
+          // 실패 시 롤백
+          boundMutate();
+          toast.error("관심목록 처리에 실패했습니다.");
+        }
+      },
+      onError() {
+        // 에러 시 롤백
+        boundMutate();
+        toast.error("오류가 발생했습니다. 다시 시도해주세요.");
+      },
+    });
   };
 
   /**
@@ -163,7 +187,47 @@ const ProductClient = ({ product, relatedProducts }: ItemDetailResponse) => {
     }
   };
 
+  /** 판매 상태 변경 (판매중/예약중) */
+  const handleStatusChange = async (newStatus: string) => {
+    setShowStatusMenu(false);
+    await updateStatus({
+      data: { action: "status_change", data: { status: newStatus } },
+      onCompleted() {
+        boundMutate();
+        toast.success(`상태가 "${newStatus}"으로 변경되었습니다.`);
+      },
+    });
+  };
+
+  /** 판매완료 처리 */
+  const handleSold = async () => {
+    setShowStatusMenu(false);
+    if (!confirm("판매완료로 변경하시겠습니까? 판매내역에 기록됩니다.")) return;
+    await updateStatus({
+      data: { action: "sold" },
+      onCompleted() {
+        boundMutate();
+        toast.success("판매완료 처리되었습니다.");
+      },
+    });
+  };
+
+  /** 구매확정 */
+  const handlePurchase = async () => {
+    if (!confirm("이 상품을 구매확정 하시겠습니까? 구매내역에 기록됩니다.")) return;
+    await updateStatus({
+      data: { action: "purchase" },
+      onCompleted() {
+        boundMutate();
+        toast.success("구매확정 되었습니다.");
+      },
+    });
+  };
+
   const isLiked = data?.isLiked || false;
+  const currentStatus = data?.product?.status || product?.status || "판매중";
+  const isOwner = user?.id === product?.user?.id;
+  const hasPurchased = data?.hasPurchased || false;
 
   return (
     <Layout
@@ -290,9 +354,23 @@ const ProductClient = ({ product, relatedProducts }: ItemDetailResponse) => {
             {/* 상품 상세 정보 */}
             <div className="space-y-4">
               <div className="flex items-center justify-between">
-                <h1 className="text-xl font-semibold text-gray-900 tracking-tight">
-                  {product?.name}
-                </h1>
+                <div className="flex items-center gap-2">
+                  <h1 className="text-xl font-semibold text-gray-900 tracking-tight">
+                    {product?.name}
+                  </h1>
+                  <span
+                    className={cn(
+                      "text-xs px-2 py-0.5 rounded-full font-medium",
+                      currentStatus === "판매중"
+                        ? "bg-green-100 text-green-700"
+                        : currentStatus === "예약중"
+                        ? "bg-yellow-100 text-yellow-700"
+                        : "bg-gray-200 text-gray-500"
+                    )}
+                  >
+                    {currentStatus}
+                  </span>
+                </div>
               </div>
 
               {/* 가격 정보 */}
@@ -309,69 +387,149 @@ const ProductClient = ({ product, relatedProducts }: ItemDetailResponse) => {
                 </p>
               </div>
 
-              {/* 연락하기 버튼 */}
-              <div className="flex items-center justify-between space-x-2">
-                {user?.id === product?.user?.id ? (
-                  <div className="flex space-x-2 w-full">
-                    <Link
-                      href={`/products/${params?.id}/edit`}
-                      className="flex-1 bg-gray-100 text-gray-700 py-3 rounded-md hover:bg-gray-200 transition-colors text-center"
-                    >
-                      수정하기
-                    </Link>
-                    <button
-                      onClick={handleDelete}
-                      disabled={deleteLoading}
-                      className="flex-1 bg-red-100 text-red-600 py-3 rounded-md hover:bg-red-200 transition-colors disabled:opacity-50"
-                    >
-                      {deleteLoading ? "삭제 중..." : "삭제하기"}
-                    </button>
-                  </div>
+              {/* 액션 버튼 영역 */}
+              <div className="space-y-3">
+                {isOwner ? (
+                  <>
+                    {/* 판매자 전용: 상태 변경 드롭다운 */}
+                    <div className="relative">
+                      <button
+                        onClick={() => setShowStatusMenu(!showStatusMenu)}
+                        disabled={statusLoading}
+                        className={cn(
+                          "w-full flex items-center justify-center gap-2 py-3 rounded-lg font-medium transition-colors",
+                          currentStatus === "판매완료"
+                            ? "bg-gray-200 text-gray-500 cursor-not-allowed"
+                            : "bg-primary text-white hover:bg-primary/90"
+                        )}
+                      >
+                        {statusLoading
+                          ? "처리 중..."
+                          : currentStatus === "판매완료"
+                          ? "판매완료"
+                          : "상태 변경"}
+                        {currentStatus !== "판매완료" && (
+                          <svg
+                            className={cn(
+                              "w-4 h-4 transition-transform",
+                              showStatusMenu && "rotate-180"
+                            )}
+                            fill="none"
+                            stroke="currentColor"
+                            viewBox="0 0 24 24"
+                          >
+                            <path
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                              strokeWidth={2}
+                              d="M19 9l-7 7-7-7"
+                            />
+                          </svg>
+                        )}
+                      </button>
+                      {showStatusMenu && currentStatus !== "판매완료" && (
+                        <div className="absolute top-full left-0 right-0 mt-1 bg-white border border-gray-200 rounded-lg shadow-lg z-10 overflow-hidden">
+                          {currentStatus !== "판매중" && (
+                            <button
+                              onClick={() => handleStatusChange("판매중")}
+                              className="w-full px-4 py-3 text-left text-sm hover:bg-gray-50 flex items-center gap-2"
+                            >
+                              <span className="w-2 h-2 rounded-full bg-green-500" />
+                              판매중으로 변경
+                            </button>
+                          )}
+                          {currentStatus !== "예약중" && (
+                            <button
+                              onClick={() => handleStatusChange("예약중")}
+                              className="w-full px-4 py-3 text-left text-sm hover:bg-gray-50 flex items-center gap-2"
+                            >
+                              <span className="w-2 h-2 rounded-full bg-yellow-500" />
+                              예약중으로 변경
+                            </button>
+                          )}
+                          <button
+                            onClick={handleSold}
+                            className="w-full px-4 py-3 text-left text-sm hover:bg-gray-50 flex items-center gap-2 border-t border-gray-100"
+                          >
+                            <span className="w-2 h-2 rounded-full bg-gray-400" />
+                            판매완료로 변경
+                          </button>
+                        </div>
+                      )}
+                    </div>
+
+                    {/* 판매자 전용: 수정/삭제 */}
+                    <div className="flex space-x-2">
+                      <Link
+                        href={`/products/${params?.id}/edit`}
+                        className="flex-1 bg-gray-100 text-gray-700 py-3 rounded-lg hover:bg-gray-200 transition-colors text-center text-sm font-medium"
+                      >
+                        수정하기
+                      </Link>
+                      <button
+                        onClick={handleDelete}
+                        disabled={deleteLoading}
+                        className="flex-1 bg-red-50 text-red-600 py-3 rounded-lg hover:bg-red-100 transition-colors disabled:opacity-50 text-sm font-medium"
+                      >
+                        {deleteLoading ? "삭제 중..." : "삭제하기"}
+                      </button>
+                    </div>
+                  </>
                 ) : (
                   <>
-                    <button
-                      onClick={onContactClick}
-                      className="flex-1 bg-primary text-white py-3 rounded-md hover:bg-primary-dark transition-colors"
-                    >
-                      판매자와 채팅하기
-                    </button>
-                    <button
-                      onClick={onFavClick}
-                      className={cn(
-                        "p-3 rounded-md flex items-center justify-center",
-                        isLiked
-                          ? "text-red-500 hover:bg-red-50"
-                          : "text-gray-400 hover:bg-gray-100"
-                      )}
-                    >
-                      {isLiked ? (
-                        <svg
-                          className="w-6 h-6"
-                          fill="currentColor"
-                          viewBox="0 0 20 20"
-                        >
-                          <path
-                            fillRule="evenodd"
-                            d="M3.172 5.172a4 4 0 015.656 0L10 6.343l1.172-1.171a4 4 0 115.656 5.656L10 17.657l-6.828-6.829a4 4 0 010-5.656z"
-                            clipRule="evenodd"
-                          />
-                        </svg>
-                      ) : (
-                        <svg
-                          className="w-6 h-6"
-                          fill="none"
-                          stroke="currentColor"
-                          viewBox="0 0 24 24"
-                        >
-                          <path
-                            strokeLinecap="round"
-                            strokeLinejoin="round"
-                            strokeWidth="2"
-                            d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z"
-                          />
-                        </svg>
-                      )}
-                    </button>
+                    {/* 구매자: 채팅 + 찜 + 구매확정 */}
+                    <div className="flex items-center space-x-2">
+                      <button
+                        onClick={onContactClick}
+                        className="flex-1 bg-primary text-white py-3 rounded-lg hover:bg-primary/90 transition-colors font-medium"
+                      >
+                        판매자와 채팅하기
+                      </button>
+                      <button
+                        onClick={onFavClick}
+                        className={cn(
+                          "p-3 rounded-lg flex items-center justify-center",
+                          isLiked
+                            ? "text-red-500 hover:bg-red-50"
+                            : "text-gray-400 hover:bg-gray-100"
+                        )}
+                      >
+                        {isLiked ? (
+                          <svg className="w-6 h-6" fill="currentColor" viewBox="0 0 20 20">
+                            <path
+                              fillRule="evenodd"
+                              d="M3.172 5.172a4 4 0 015.656 0L10 6.343l1.172-1.171a4 4 0 115.656 5.656L10 17.657l-6.828-6.829a4 4 0 010-5.656z"
+                              clipRule="evenodd"
+                            />
+                          </svg>
+                        ) : (
+                          <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                              strokeWidth="2"
+                              d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z"
+                            />
+                          </svg>
+                        )}
+                      </button>
+                    </div>
+
+                    {/* 판매완료 상품에 대한 구매확정 버튼 */}
+                    {currentStatus === "판매완료" && !hasPurchased && (
+                      <button
+                        onClick={handlePurchase}
+                        disabled={statusLoading}
+                        className="w-full py-3 rounded-lg bg-green-600 text-white font-medium hover:bg-green-700 transition-colors disabled:opacity-50"
+                      >
+                        {statusLoading ? "처리 중..." : "구매확정"}
+                      </button>
+                    )}
+                    {currentStatus === "판매완료" && hasPurchased && (
+                      <div className="w-full py-3 rounded-lg bg-gray-100 text-gray-500 text-center text-sm font-medium">
+                        구매확정 완료
+                      </div>
+                    )}
                   </>
                 )}
               </div>

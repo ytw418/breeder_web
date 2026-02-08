@@ -211,6 +211,7 @@ const ChatRoomClient = () => {
             type={message.type}
             image={message.image}
             reversed={user?.id === message.user.id}
+            userId={message.user.id}
           />
         ))}
         <div ref={messagesEndRef} />

@@ -3,6 +3,23 @@ import withHandler, { ResponseType } from "@libs/server/withHandler";
 
 import client from "@libs/server/client";
 import { withApiSession } from "@libs/server/withSession";
+import { notifyFollowers } from "@libs/server/notification";
+import { Post, User } from "@prisma/client";
+
+/** 게시글 목록 응답 타입 */
+export interface PostWithUser extends Post {
+  user: Pick<User, "id" | "name" | "avatar">;
+  _count: {
+    comments: number;
+    Likes: number;
+  };
+}
+
+export interface PostsListResponse {
+  success: boolean;
+  posts: PostWithUser[];
+  pages: number;
+}
 
 const handler = async (
   req: NextApiRequest,
@@ -10,41 +27,36 @@ const handler = async (
 ) => {
   if (req.method === "GET") {
     const {
-      query: { page = 1 },
+      query: { page = 1, category },
     } = req;
 
-    // const parsedLatitude = parseFloat(latitude.toString());
-    // const parsedLongitude = parseFloat(longitude.toString());
+    // 카테고리 필터링 조건
+    const where = category && category !== "전체" ? { category: String(category) } : {};
 
-    const posts = await client.post.findMany({
-      include: {
-        user: {
-          select: {
-            id: true,
-            name: true,
+    const [posts, postCount] = await Promise.all([
+      client.post.findMany({
+        where,
+        include: {
+          user: {
+            select: {
+              id: true,
+              name: true,
+              avatar: true,
+            },
+          },
+          _count: {
+            select: {
+              comments: true,
+              Likes: true,
+            },
           },
         },
-        _count: {
-          select: {
-            comments: true,
-            Likes: true,
-          },
-        },
-      },
-      take: 10,
-      skip: page ? (+page - 1) * 10 : 0,
-      // where: {
-      //   latitude: {
-      //     gte: parsedLatitude - 0.01,
-      //     lte: parsedLatitude + 0.01,
-      //   },
-      //   longitude: {
-      //     gte: parsedLongitude - 0.01,
-      //     lte: parsedLongitude + 0.01,
-      //   },
-      // },
-    });
-    const postCount = await client.product.count();
+        orderBy: { createdAt: "desc" },
+        take: 10,
+        skip: page ? (+page - 1) * 10 : 0,
+      }),
+      client.post.count({ where }),
+    ]);
 
     res.json({
       success: true,
@@ -52,19 +64,19 @@ const handler = async (
       pages: Math.ceil(postCount / 10),
     });
   }
+
   if (req.method === "POST") {
     const {
-      body: { description, title, image, latitude, longitude },
+      body: { description, title, image, category },
       session: { user },
     } = req;
 
     const post = await client.post.create({
       data: {
         title,
-        image,
+        image: image || "",
         description,
-        latitude,
-        longitude,
+        category: category || null,
         user: {
           connect: {
             id: user?.id,
@@ -72,14 +84,26 @@ const handler = async (
         },
       },
     });
-    try {
-      // await res.revalidate("/community");
-      // FIXME: 재검증 로직 나중에 확인
-      return res.json({ success: true, post });
-    } catch (error) {
-      console.log(error);
-      return res.status(500).json({ success: false, error });
+
+    // 팔로워들에게 새 게시글 등록 알림
+    const author = user?.id
+      ? await client.user.findUnique({
+          where: { id: user.id },
+          select: { name: true },
+        })
+      : null;
+
+    if (author && user?.id) {
+      notifyFollowers({
+        senderId: user.id,
+        type: "NEW_POST",
+        message: `${author.name}님이 새 글을 작성했습니다: ${title}`,
+        targetId: post.id,
+        targetType: "post",
+      });
     }
+
+    return res.json({ success: true, post });
   }
 };
 

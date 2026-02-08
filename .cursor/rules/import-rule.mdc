@@ -22,6 +22,27 @@ alwaysApply: true
 │   │   ├── editProfile/
 │   │   ├── profiles/
 │   │   ├── color/
+│   │   ├── auctions/
+│   │   │   ├── AuctionsClient.tsx
+│   │   │   ├── page.tsx
+│   │   │   ├── [id]/
+│   │   │   │   ├── AuctionDetailClient.tsx
+│   │   │   │   └── page.tsx
+│   │   │   └── create/
+│   │   │       ├── CreateAuctionClient.tsx
+│   │   │       └── page.tsx
+│   │   ├── ranking/
+│   │   │   ├── RankingClient.tsx
+│   │   │   └── page.tsx
+│   │   ├── search/
+│   │   │   ├── SearchClient.tsx
+│   │   │   └── page.tsx
+│   │   ├── notifications/
+│   │   │   ├── NotificationsClient.tsx
+│   │   │   └── page.tsx
+│   │   ├── settings/
+│   │   │   ├── SettingsClient.tsx
+│   │   │   └── page.tsx
 │   │   └── (main)/
 │   ├── admin/
 │   ├── auth/
@@ -68,6 +89,7 @@ alwaysApply: true
 │   │   ├── withSession.ts
 │   │   ├── withHandler.ts
 │   │   ├── client.ts
+│   │   ├── notification.ts
 │   │   └── apis.ts
 │   ├── Icon/
 │   └── constants.ts
@@ -89,10 +111,23 @@ alwaysApply: true
 │   │   │   │   ├── productList.ts
 │   │   │   │   ├── favs.ts
 │   │   │   │   ├── purchases.ts
+│   │   │   │   ├── follow.ts
 │   │   │   │   └── index.ts
 │   │   │   └── me/
 │   │   ├── posts/
 │   │   ├── auth/
+│   │   ├── auctions/
+│   │   │   ├── index.ts
+│   │   │   └── [id]/
+│   │   │       ├── index.ts
+│   │   │       └── bid.ts
+│   │   ├── ranking/
+│   │   │   ├── index.ts
+│   │   │   └── record.ts
+│   │   ├── search/
+│   │   │   └── index.ts
+│   │   ├── notifications/
+│   │   │   └── index.ts
 │   │   ├── reviews.ts
 │   │   └── files.ts
 │   └── ...

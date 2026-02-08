@@ -13,6 +13,8 @@ interface ItemProps {
   hearts: number;
   image: string;
   createdAt: Date;
+  category?: string | null;
+  status?: string | null;
 }
 
 export default function Item({
@@ -23,6 +25,8 @@ export default function Item({
   id,
   image,
   createdAt,
+  category,
+  status,
 }: ItemProps) {
   const linkRef = useRef<HTMLAnchorElement>(null);
 
@@ -52,13 +56,25 @@ export default function Item({
           <span className="font-medium mt-1 text-gray-900">
             {price ? `${price.toLocaleString()}원` : "가격 미정"}
           </span>
-          <span className="body-1 mt-1 text-Gray-500">
-            {getTimeAgoString(new Date(createdAt))}
-          </span>
+          <div className="flex items-center gap-1.5 mt-1">
+            {category && (
+              <span className="text-xs text-primary bg-primary/10 px-1.5 py-0.5 rounded">
+                {category}
+              </span>
+            )}
+            {status && status !== "판매중" && (
+              <span className="text-xs text-gray-500 bg-gray-100 px-1.5 py-0.5 rounded">
+                {status}
+              </span>
+            )}
+            <span className="text-xs text-gray-400">
+              {getTimeAgoString(new Date(createdAt))}
+            </span>
+          </div>
         </div>
       </div>
       <div className="flex space-x-2 items-end justify-end">
-        <div className="flex space-x-0.5 items-center text-sm  text-gray-600">
+        <div className="flex space-x-0.5 items-center text-sm text-gray-600">
           <svg
             className="w-4 h-4"
             fill={Colors.RED}
@@ -75,7 +91,7 @@ export default function Item({
           </svg>
           <span>{hearts}</span>
         </div>
-        <div className="flex space-x-0.5 items-center text-sm  text-gray-600">
+        <div className="flex space-x-0.5 items-center text-sm text-gray-600">
           <svg
             className="w-4 h-4"
             fill="none"

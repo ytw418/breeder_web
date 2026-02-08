@@ -59,8 +59,11 @@ model User {
   followers       Follow[]    @relation(name: "follower")
   following       Follow[]    @relation(name: "following")
   chatRoomMember    ChatRoomMember[]
-
-
+  notifications     Notification[]  @relation(name: "notifications")
+  sentNotifications Notification[]  @relation(name: "sentNotifications")
+  auctions        Auction[]
+  bids            Bid[]
+  insectRecords   InsectRecord[]
 }
 model ChatRoom {
   id              Int               @id @default(autoincrement())
@@ -152,8 +155,11 @@ model Product {
   mainImage      String?    // 대표 이미지
   isFeatured     Boolean    @default(false) // 추천 상품 여부
   reportCount    Int        @default(0) // 신고 횟수
+  productType    String?    // 생물, 용품
 
   @@index([userId])
+  @@index([category])
+  @@index([status])
 }
 
 model Post {
@@ -165,6 +171,7 @@ model Post {
   title    String
   description String
   type String?
+  category  String?     // 게시글 카테고리 (자유, 질문, 정보, 자랑, 후기)
   comments Comment[]
   latitude  Float?
   longitude Float?
@@ -172,7 +179,7 @@ model Post {
   image       String
 
   @@index([userId])
-
+  @@index([category])
 }
 
 model Comment {
@@ -276,4 +283,106 @@ enum Kind {
   Purchase
   Sale
   Fav
+}
+
+enum NotificationType {
+  LIKE          // 좋아요
+  COMMENT       // 댓글
+  CHAT          // 채팅 메시지
+  FOLLOW        // 팔로우
+  FAV           // 상품 찜
+  NEW_PRODUCT   // 팔로우한 유저가 새 상품 등록
+  NEW_POST      // 팔로우한 유저가 새 게시글 등록
+  BID           // 내 경매에 새 입찰
+  OUTBID        // 내가 입찰한 경매에서 더 높은 입찰 발생
+  AUCTION_WON   // 경매 낙찰
+  AUCTION_END   // 내 경매 종료
+  NEW_RECORD    // 기네스북 기록 갱신
+}
+
+model Notification {
+  id         Int              @id @default(autoincrement())
+  type       NotificationType
+  message    String           // 알림 메시지 (예: "홍길동님이 좋아요를 눌렀습니다")
+  isRead     Boolean          @default(false)
+  user       User             @relation(name: "notifications", fields: [userId], references: [id], onDelete: Cascade)
+  userId     Int              // 알림을 받는 유저
+  sender     User             @relation(name: "sentNotifications", fields: [senderId], references: [id], onDelete: Cascade)
+  senderId   Int              // 알림을 발생시킨 유저
+  targetId   Int?             // 대상 ID (게시글, 상품, 채팅방, 경매 등)
+  targetType String?          // 대상 타입 ("post", "product", "chatRoom", "auction")
+  createdAt  DateTime         @default(now())
+  updatedAt  DateTime         @updatedAt
+
+  @@index([userId])
+  @@index([senderId])
+  @@index([userId, isRead])
+}
+
+// ============================================================
+// 경매 시스템
+// ============================================================
+
+model Auction {
+  id              Int       @id @default(autoincrement())
+  title           String
+  description     String
+  photos          String[]
+  category        String?   // 종 카테고리 (장수풍뎅이, 사슴벌레 등)
+  startPrice      Int       // 시작가
+  currentPrice    Int       // 현재 최고 입찰가
+  minBidIncrement Int       @default(1000) // 최소 입찰 단위 (원)
+  endAt           DateTime  // 경매 종료 시간
+  status          String    @default("진행중") // 진행중, 종료, 유찰, 취소
+
+  user            User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId          Int
+  bids            Bid[]
+  winnerId        Int?      // 낙찰자 ID
+
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  @@index([userId])
+  @@index([status])
+  @@index([endAt])
+  @@index([category])
+}
+
+model Bid {
+  id         Int      @id @default(autoincrement())
+  amount     Int      // 입찰 금액
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId     Int
+  auction    Auction  @relation(fields: [auctionId], references: [id], onDelete: Cascade)
+  auctionId  Int
+  createdAt  DateTime @default(now())
+
+  @@index([auctionId])
+  @@index([userId])
+}
+
+// ============================================================
+// 기네스북 (곤충 기록 시스템)
+// ============================================================
+
+model InsectRecord {
+  id          Int      @id @default(autoincrement())
+  species     String   // 종명 (장수풍뎅이, 사슴벌레 등)
+  recordType  String   // "size" (크기 mm) 또는 "weight" (무게 g)
+  value       Float    // 실제 측정값
+  photo       String   // 증거 사진 (Cloudflare Image ID)
+  description String?  // 추가 설명
+
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId      Int
+
+  isVerified  Boolean  @default(false) // 관리자 검증 여부
+
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([species, recordType])
+  @@index([userId])
+  @@index([species, recordType, value])
 }

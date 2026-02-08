@@ -11,6 +11,8 @@ import Image from "@components/atoms/Image";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { useForm } from "react-hook-form";
+import { cn } from "@libs/client/utils";
+import { POST_CATEGORIES } from "@libs/constants";
 
 interface UploadPostForm {
   title: string;
@@ -26,11 +28,19 @@ interface UploadPostMutation {
 const UploadClient = () => {
   const router = useRouter();
   const { register, handleSubmit, watch } = useForm<UploadPostForm>();
-  const [uploadPost, { loading, data }] =
+  const [uploadPost, { loading }] =
     useMutation<UploadPostMutation>("/api/posts");
+
+  // 카테고리 선택 상태
+  const [selectedCategory, setSelectedCategory] = useState<string>("");
 
   const onValid = async ({ title, image, description }: UploadPostForm) => {
     if (loading) return;
+
+    if (!selectedCategory) {
+      alert("카테고리를 선택해주세요.");
+      return;
+    }
 
     if (image && image.length > 0) {
       const { uploadURL } = await (await fetch(`/api/files`)).json();
@@ -41,9 +51,8 @@ const UploadClient = () => {
       } = await (await fetch(uploadURL, { method: "POST", body: form })).json();
 
       uploadPost({
-        data: { title, description, image: id },
+        data: { title, description, image: id, category: selectedCategory },
         onCompleted(result) {
-          console.log("uploadPost result :>> ", result);
           if (result.success) {
             return router.push(`/posts/${result.post.id}`);
           } else {
@@ -53,9 +62,8 @@ const UploadClient = () => {
       });
     } else {
       uploadPost({
-        data: { title, description },
+        data: { title, description, category: selectedCategory },
         onCompleted(result) {
-          console.log("uploadPost result :>> ", result);
           if (result.success) {
             return router.push(`/posts/${result.post.id}`);
           } else {
@@ -74,9 +82,33 @@ const UploadClient = () => {
       setImagePreview(URL.createObjectURL(file));
     }
   }, [image]);
+
   return (
-    <Layout canGoBack title="게시물 작성">
+    <Layout canGoBack title="글 작성" seoTitle="글 작성">
       <form className="p-4 space-y-6" onSubmit={handleSubmit(onValid)}>
+        {/* 카테고리 선택 */}
+        <div className="space-y-2">
+          <Label>카테고리</Label>
+          <div className="flex flex-wrap gap-2">
+            {POST_CATEGORIES.map((cat) => (
+              <button
+                key={cat.id}
+                type="button"
+                onClick={() => setSelectedCategory(cat.id)}
+                className={cn(
+                  "px-4 py-2 rounded-full text-sm font-medium transition-colors",
+                  selectedCategory === cat.id
+                    ? "bg-gray-900 text-white"
+                    : "bg-gray-100 text-gray-600 hover:bg-gray-200"
+                )}
+              >
+                {cat.name}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {/* 이미지 업로드 */}
         <div>
           {imagePreview ? (
             <div className="relative">
@@ -124,7 +156,7 @@ const UploadClient = () => {
                     strokeLinejoin="round"
                   />
                 </svg>
-                <span className="mt-2 text-sm">이미지 업로드</span>
+                <span className="mt-2 text-sm">이미지 업로드 (선택)</span>
               </div>
               <input
                 {...register("image")}
@@ -136,6 +168,7 @@ const UploadClient = () => {
           )}
         </div>
 
+        {/* 제목 */}
         <div className="space-y-2">
           <Label htmlFor="title">제목</Label>
           <Input
@@ -147,14 +180,15 @@ const UploadClient = () => {
           />
         </div>
 
+        {/* 내용 */}
         <div className="space-y-2">
           <Label htmlFor="description">내용</Label>
           <Textarea
             {...register("description", { required: true })}
             name="description"
             required
-            placeholder="내용을 입력해주세요"
-            className="min-h-[120px]"
+            placeholder="곤충에 대한 이야기를 자유롭게 나눠보세요"
+            className="min-h-[160px]"
           />
         </div>
 

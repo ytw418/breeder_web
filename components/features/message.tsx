@@ -2,6 +2,7 @@ import { makeImageUrl } from "@libs/client/utils";
 import { cn } from "@libs/client/utils";
 import Image from "@components/atoms/Image";
 import { MessageType } from "@prisma/client";
+import Link from "next/link";
 
 interface MessageProps {
   message: string;
@@ -9,6 +10,7 @@ interface MessageProps {
   avatarUrl?: string | null;
   type?: MessageType;
   image?: string | null;
+  userId?: number; // 프로필 이동을 위한 유저 ID
 }
 
 export default function Message({
@@ -17,7 +19,18 @@ export default function Message({
   reversed,
   type = "TEXT",
   image,
+  userId,
 }: MessageProps) {
+  const avatarElement = (
+    <Image
+      alt="프로필 이미지"
+      width={30}
+      height={30}
+      src={makeImageUrl(avatarUrl, "public")}
+      className="w-[30px] h-[30px] rounded-full bg-slate-300 flex-shrink-0"
+    />
+  );
+
   return (
     <div
       className={cn(
@@ -25,15 +38,14 @@ export default function Message({
         reversed ? "flex-row-reverse space-x-reverse" : "space-x-2"
       )}
     >
-      {!reversed && (
-        <Image
-          alt="프로필 이미지"
-          width={30}
-          height={30}
-          src={makeImageUrl(avatarUrl, "public")}
-          className="w-[30px] h-[30px] rounded-full bg-slate-300 flex-shrink-0"
-        />
-      )}
+      {!reversed &&
+        (userId ? (
+          <Link href={`/profiles/${userId}`} className="flex-shrink-0">
+            {avatarElement}
+          </Link>
+        ) : (
+          avatarElement
+        ))}
 
       {type === "IMAGE" && image ? (
         <div className="max-w-[70%] rounded-lg overflow-hidden">

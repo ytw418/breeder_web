@@ -1,5 +1,5 @@
 import React from "react";
-import ProductClient from "./PostClient";
+import PostClient from "./PostClient";
 import { getPost } from "@libs/server/apis";
 
 const page = async ({ params: { id } }: { params: { id: string } }) => {
@@ -7,7 +7,7 @@ const page = async ({ params: { id } }: { params: { id: string } }) => {
 
   return (
     <div>
-      <ProductClient post={data.post} success={true} />
+      <PostClient post={data.post} success={true} />
     </div>
   );
 };

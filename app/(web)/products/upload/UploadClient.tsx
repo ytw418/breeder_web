@@ -12,6 +12,8 @@ import { Product } from "@prisma/client";
 import Image from "@components/atoms/Image";
 import { toast } from "react-toastify";
 import { Label } from "@components/ui/label";
+import { cn } from "@libs/client/utils";
+import { CATEGORIES, PRODUCT_TYPES } from "@libs/constants";
 
 interface UploadProductForm {
   name: string;
@@ -44,6 +46,8 @@ const UploadClient = () => {
   const [imageFiles, setImageFiles] = useState<File[]>([]);
   const [previews, setPreviews] = useState<string[]>([]);
   const [isUploading, setIsUploading] = useState(false);
+  const [selectedCategory, setSelectedCategory] = useState<string>("");
+  const [selectedProductType, setSelectedProductType] = useState<string>("");
 
   const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;
@@ -51,8 +55,6 @@ const UploadClient = () => {
       const newFiles = Array.from(files);
       const totalFiles = [...imageFiles, ...newFiles].slice(0, 5);
       setImageFiles(totalFiles);
-
-      // 미리보기 URL 생성
       const newPreviews = totalFiles.map((file) => URL.createObjectURL(file));
       setPreviews(newPreviews);
     }
@@ -61,21 +63,29 @@ const UploadClient = () => {
   const removeImage = (index: number) => {
     const newFiles = [...imageFiles];
     const newPreviews = [...previews];
-
     URL.revokeObjectURL(previews[index]);
-
     newFiles.splice(index, 1);
     newPreviews.splice(index, 1);
-
     setImageFiles(newFiles);
     setPreviews(newPreviews);
   };
 
   const onSubmit = async (data: UploadProductForm) => {
+    if (!selectedCategory) {
+      toast.error("카테고리를 선택해주세요.");
+      return;
+    }
+    if (!selectedProductType) {
+      toast.error("상품 타입을 선택해주세요.");
+      return;
+    }
+
     try {
       setIsUploading(true);
+      let photoIds: string[] = [];
+
       if (imageFiles.length > 0) {
-        const photoIds = await Promise.all(
+        photoIds = await Promise.all(
           imageFiles.map(async (file) => {
             const { uploadURL } = await (await fetch(`/api/files`)).json();
             const form = new FormData();
@@ -88,34 +98,23 @@ const UploadClient = () => {
             return id;
           })
         );
-
-        await uploadProduct({
-          data: {
-            name: data.name,
-            price: data.price,
-            description: data.description,
-            photos: photoIds,
-          },
-          onCompleted(result) {
-            if (result.success) {
-              router.push(`/products/${result.product.id}`);
-            }
-          },
-        });
-      } else {
-        await uploadProduct({
-          data: {
-            name: data.name,
-            price: data.price,
-            description: data.description,
-          },
-          onCompleted(result) {
-            if (result.success) {
-              router.push(`/products/${result.product.id}`);
-            }
-          },
-        });
       }
+
+      await uploadProduct({
+        data: {
+          name: data.name,
+          price: data.price,
+          description: data.description,
+          photos: photoIds,
+          category: selectedCategory,
+          productType: selectedProductType,
+        },
+        onCompleted(result) {
+          if (result.success) {
+            router.push(`/products/${result.product.id}`);
+          }
+        },
+      });
     } catch (error) {
       console.error("상품 등록 중 오류가 발생했습니다:", error);
       toast.error("상품 등록에 실패했습니다. 다시 시도해주세요.");
@@ -137,6 +136,7 @@ const UploadClient = () => {
         onSubmit={handleSubmit(onSubmit)}
         className="space-y-8 px-4 py-10 max-w-xl mx-auto"
       >
+        {/* 상품 이미지 */}
         <div className="space-y-2">
           <div className="font-medium text-gray-800">상품 이미지</div>
           <div className="flex gap-3 overflow-x-auto pb-4">
@@ -173,7 +173,7 @@ const UploadClient = () => {
               </div>
             ))}
             {previews.length < 5 && (
-              <label className="w-24 h-24 cursor-pointer text-gray-600 hover:border-primary-500 hover:text-primary-500 flex flex-col items-center justify-center rounded-xl border-2 border-dashed border-gray-300 flex-shrink-0 transition-colors">
+              <label className="w-24 h-24 cursor-pointer text-gray-600 hover:border-primary hover:text-primary flex flex-col items-center justify-center rounded-xl border-2 border-dashed border-gray-300 flex-shrink-0 transition-colors">
                 <svg
                   className="h-8 w-8"
                   stroke="currentColor"
@@ -203,6 +203,52 @@ const UploadClient = () => {
             * 최대 5장까지 업로드 가능합니다.
           </p>
         </div>
+
+        {/* 카테고리 선택 */}
+        <div className="space-y-2">
+          <Label>카테고리</Label>
+          <div className="flex flex-wrap gap-2">
+            {CATEGORIES.map((cat) => (
+              <button
+                key={cat.id}
+                type="button"
+                onClick={() => setSelectedCategory(cat.id)}
+                className={cn(
+                  "px-4 py-2 rounded-full text-sm font-medium transition-colors border",
+                  selectedCategory === cat.id
+                    ? "bg-primary text-white border-primary"
+                    : "bg-white text-gray-700 border-gray-200 hover:border-primary hover:text-primary"
+                )}
+              >
+                {cat.name}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {/* 상품 타입 선택 */}
+        <div className="space-y-2">
+          <Label>상품 타입</Label>
+          <div className="flex gap-2">
+            {PRODUCT_TYPES.map((type) => (
+              <button
+                key={type.id}
+                type="button"
+                onClick={() => setSelectedProductType(type.id)}
+                className={cn(
+                  "px-6 py-2 rounded-full text-sm font-medium transition-colors border",
+                  selectedProductType === type.id
+                    ? "bg-primary text-white border-primary"
+                    : "bg-white text-gray-700 border-gray-200 hover:border-primary hover:text-primary"
+                )}
+              >
+                {type.name}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {/* 상품 정보 */}
         <div className="space-y-6">
           <div className="space-y-2">
             <Label htmlFor="name">상품명</Label>
@@ -210,7 +256,7 @@ const UploadClient = () => {
               id="name"
               {...register("name", { required: "상품명을 입력해주세요" })}
               placeholder="상품명을 입력해주세요"
-              className=" focus:border-transparent"
+              className="focus:border-transparent"
             />
           </div>
 

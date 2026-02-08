@@ -1,3 +1,69 @@
+// ============================================================
+// 카테고리 시스템
+// ============================================================
+
+/** 상품 타입 (생물/용품) */
+export const PRODUCT_TYPES = [
+  { id: "생물", name: "생물" },
+  { id: "용품", name: "용품" },
+] as const;
+
+export type ProductType = (typeof PRODUCT_TYPES)[number]["id"];
+
+/** 곤충 카테고리 (대분류) */
+export const CATEGORIES = [
+  { id: "장수풍뎅이", name: "장수풍뎅이" },
+  { id: "사슴벌레", name: "사슴벌레" },
+  { id: "타란튤라", name: "타란튤라" },
+  { id: "전갈", name: "전갈" },
+  { id: "나비/나방", name: "나비/나방" },
+  { id: "개미", name: "개미" },
+  { id: "기타곤충", name: "기타곤충" },
+] as const;
+
+export type Category = (typeof CATEGORIES)[number]["id"];
+
+/** 게시글 카테고리 */
+export const POST_CATEGORIES = [
+  { id: "자유", name: "자유" },
+  { id: "질문", name: "질문" },
+  { id: "정보", name: "정보" },
+  { id: "자랑", name: "자랑" },
+  { id: "후기", name: "후기" },
+  { id: "사진", name: "사진" },
+  { id: "변이", name: "변이" },
+] as const;
+
+export type PostCategory = (typeof POST_CATEGORIES)[number]["id"];
+
+/** 상품 상태 */
+export const PRODUCT_STATUS = [
+  { id: "판매중", name: "판매중" },
+  { id: "예약중", name: "예약중" },
+  { id: "판매완료", name: "판매완료" },
+] as const;
+
+/** 경매 상태 */
+export const AUCTION_STATUS = [
+  { id: "진행중", name: "진행중" },
+  { id: "종료", name: "종료" },
+  { id: "유찰", name: "유찰" },
+] as const;
+
+export type AuctionStatus = (typeof AUCTION_STATUS)[number]["id"];
+
+/** 기네스북 기록 타입 */
+export const RECORD_TYPES = [
+  { id: "size", name: "크기 (mm)", unit: "mm" },
+  { id: "weight", name: "무게 (g)", unit: "g" },
+] as const;
+
+export type RecordType = (typeof RECORD_TYPES)[number]["id"];
+
+// ============================================================
+// 기본 상수
+// ============================================================
+
 /** 이미지 서버 디폴트 유저 썸네일, 신규 가입시 필요 */
 export const DEFAULT_THUMBNAIL_CDN = "";
 
