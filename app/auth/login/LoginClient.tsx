@@ -16,6 +16,19 @@ const LoginClient = () => {
   const [login] = useMutation<LoginResponseType>("/api/auth/login");
   const router = useRouter();
 
+  // 배포 환경에서 APPLE 설정이 없거나 JSON 형식이 깨져도
+  // 로그인 페이지가 런타임 에러로 죽지 않도록 방어한다.
+  const getAppleAuthConfig = () => {
+    const rawConfig = process.env.NEXT_PUBLIC_APPLE_AUTH_CONFIG;
+    if (!rawConfig) return null;
+    try {
+      return JSON.parse(rawConfig.replace(/:RTN_URL/gi, window.location.host));
+    } catch (error) {
+      console.error("Invalid NEXT_PUBLIC_APPLE_AUTH_CONFIG:", error);
+      return null;
+    }
+  };
+
   /**카카오로그인 */
   const loginWithKakao = () => {
     window.Kakao.Auth.authorize({
@@ -77,16 +90,20 @@ const LoginClient = () => {
     const handleScript = (e: any) => {
       if (e.type === "load") {
         if (platform === "kakao") {
-          window.Kakao.init(process.env.NEXT_PUBLIC_KAKAO_JAVASCRIPT_KEY);
+          // Fast Refresh 시 중복 init 경고를 막기 위해 최초 1회만 초기화한다.
+          if (window.Kakao && !window.Kakao.isInitialized?.()) {
+            window.Kakao.init(process.env.NEXT_PUBLIC_KAKAO_JAVASCRIPT_KEY);
+          }
         } else if (platform === "apple") {
-          window.AppleID.auth.init(
-            JSON.parse(
-              process.env.NEXT_PUBLIC_APPLE_AUTH_CONFIG!.replace(
-                /:RTN_URL/gi,
-                window.location.host
-              )
-            )
-          );
+          const appleConfig = getAppleAuthConfig();
+          if (!appleConfig) {
+            // 애플 설정이 없으면 기능만 비활성화하고 페이지는 계속 동작시킨다.
+            console.warn("Apple login config is missing. Skipping Apple SDK init.");
+            return;
+          }
+          if (window.AppleID?.auth) {
+            window.AppleID.auth.init(appleConfig);
+          }
         } else {
           console.log("error: unknown sdk platform");
         }
@@ -94,7 +111,7 @@ const LoginClient = () => {
         console.log(e.error);
       }
     };
-    if (window) {
+    if (typeof window !== "undefined") {
       let script = document.querySelector(`script[src="${url}"]`);
       if (!script) {
         script = document.createElement("script")!;
@@ -115,6 +132,16 @@ const LoginClient = () => {
         return script;
       }
       if (script) {
+        // 이미 스크립트가 존재하는 경우(HMR/뒤로가기 등)도 SDK 초기화 상태를 맞춰준다.
+        if (platform === "kakao" && window.Kakao && !window.Kakao.isInitialized?.()) {
+          window.Kakao.init(process.env.NEXT_PUBLIC_KAKAO_JAVASCRIPT_KEY);
+        }
+        if (platform === "apple" && window.AppleID?.auth) {
+          const appleConfig = getAppleAuthConfig();
+          if (appleConfig) {
+            window.AppleID.auth.init(appleConfig);
+          }
+        }
         return null;
       }
     } else return null;
