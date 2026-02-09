@@ -60,7 +60,7 @@ const ProfileClient = () => {
     : "";
 
   return (
-    <MainLayout canGoBack title={user?.name} hasTabBar>
+    <MainLayout canGoBack title={user?.name}>
       <div className="flex flex-col">
         {/* 프로필 헤더 */}
         <div className="px-6 pt-6 pb-4">

@@ -2,11 +2,10 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { useForm } from "react-hook-form";
+import { Controller, useForm } from "react-hook-form";
 import { Button } from "@components/ui/button";
 import { Input } from "@components/ui/input";
 import Layout from "@components/features/MainLayout";
-import { Textarea } from "@components/ui/textarea";
 import useMutation from "hooks/useMutation";
 import { Product } from "@prisma/client";
 import Image from "@components/atoms/Image";
@@ -14,6 +13,7 @@ import { toast } from "react-toastify";
 import { Label } from "@components/ui/label";
 import { cn } from "@libs/client/utils";
 import { CATEGORIES, PRODUCT_TYPES } from "@libs/constants";
+import MarkdownEditor from "@components/features/product/MarkdownEditor";
 
 interface UploadProductForm {
   name: string;
@@ -40,7 +40,14 @@ const LoadingSpinner = () => (
 
 const UploadClient = () => {
   const router = useRouter();
-  const { register, handleSubmit } = useForm<UploadProductForm>();
+  const {
+    register,
+    handleSubmit,
+    control,
+    formState: { errors },
+  } = useForm<UploadProductForm>({
+    defaultValues: { description: "" },
+  });
   const [uploadProduct, { loading, data }] =
     useMutation<UploadProductMutation>("/api/products");
   const [imageFiles, setImageFiles] = useState<File[]>([]);
@@ -262,15 +269,23 @@ const UploadClient = () => {
 
           <div className="space-y-2">
             <Label htmlFor="description">상품 설명</Label>
-            <Textarea
-              id="description"
-              {...register("description", {
-                required: "상품 설명을 입력해주세요",
-              })}
-              placeholder="상품 설명을 입력해주세요"
-              rows={4}
-              className="focus:border-transparent"
+            <Controller
+              name="description"
+              control={control}
+              rules={{ required: "상품 설명을 입력해주세요" }}
+              render={({ field }) => (
+                <MarkdownEditor
+                  id="description"
+                  value={field.value || ""}
+                  onChange={field.onChange}
+                  placeholder="상품 설명을 입력해주세요"
+                  rows={8}
+                />
+              )}
             />
+            {errors.description && (
+              <p className="text-sm text-red-500">{errors.description.message}</p>
+            )}
           </div>
 
           <div className="space-y-2">

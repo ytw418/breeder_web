@@ -4,6 +4,7 @@ import { cn, makeImageUrl } from "@libs/client/utils";
 import useMutation from "hooks/useMutation";
 import useUser from "hooks/useUser";
 import Image from "@components/atoms/Image";
+import MarkdownPreview from "@components/features/product/MarkdownPreview";
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import { ItemDetailResponse } from "pages/api/products/[id]";
@@ -233,7 +234,6 @@ const ProductClient = ({ product, relatedProducts }: ItemDetailResponse) => {
     <Layout
       seoTitle={product?.name || "상세 정보"}
       title={product?.name || "상세 정보"}
-      hasTabBar
       canGoBack
     >
       <div className="max-w-3xl mx-auto px-4">
@@ -382,9 +382,10 @@ const ProductClient = ({ product, relatedProducts }: ItemDetailResponse) => {
 
               {/* 상품 설명 */}
               <div className="bg-gray-50 rounded-xl p-4">
-                <p className="text-sm text-gray-700 whitespace-pre-line leading-relaxed">
-                  {product?.description}
-                </p>
+                <MarkdownPreview
+                  content={data?.product?.description ?? product?.description ?? ""}
+                  emptyText="상품 설명이 없습니다."
+                />
               </div>
 
               {/* 액션 버튼 영역 */}

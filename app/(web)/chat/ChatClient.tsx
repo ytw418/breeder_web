@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import Layout from "@components/features/MainLayout";
 import useSWR from "swr";
 import Image from "@components/atoms/Image";
@@ -12,18 +13,78 @@ import SkeletonChat from "@components/atoms/SkeletonChat";
 import { ChatListResponse } from "pages/api/chat/chatList";
 
 const ChatClient = () => {
+  const [searchKeyword, setSearchKeyword] = useState("");
+
   // 5초마다 채팅 목록 새로고침
   const { data, isLoading } = useSWR<ChatListResponse>("/api/chat/chatList", {
     refreshInterval: 5000,
   });
   const { user } = useUser();
 
+  // 검색어로 채팅방 필터링 (상대방 이름 기준)
+  const filteredChatRooms = data?.chatRooms?.filter((chatRoom) => {
+    if (!searchKeyword.trim()) return true;
+    const otherUser = chatRoom.chatRoomMembers.find(
+      (member) => member.user.id !== user?.id
+    )?.user;
+    return otherUser?.name
+      ?.toLowerCase()
+      .includes(searchKeyword.trim().toLowerCase());
+  });
+
   return (
     <Layout icon hasTabBar title="채팅" seoTitle="채팅">
+      {/* 검색 입력 */}
+      <div className="px-4 pt-3 pb-2">
+        <div className="relative">
+          <input
+            type="text"
+            value={searchKeyword}
+            onChange={(e) => setSearchKeyword(e.target.value)}
+            placeholder="대화 상대 검색"
+            className="w-full px-4 py-2.5 pl-10 rounded-xl bg-gray-100 text-sm focus:outline-none focus:ring-2 focus:ring-primary/20 focus:bg-white transition-all"
+          />
+          <svg
+            className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400"
+            fill="none"
+            stroke="currentColor"
+            viewBox="0 0 24 24"
+          >
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              strokeWidth="2"
+              d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
+            />
+          </svg>
+          {searchKeyword && (
+            <button
+              type="button"
+              onClick={() => setSearchKeyword("")}
+              className="absolute right-3 top-1/2 -translate-y-1/2 p-0.5 rounded-full bg-gray-300 hover:bg-gray-400 transition-colors"
+            >
+              <svg
+                className="w-3.5 h-3.5 text-white"
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke="currentColor"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth="2.5"
+                  d="M6 18L18 6M6 6l12 12"
+                />
+              </svg>
+            </button>
+          )}
+        </div>
+      </div>
+
       <div className="divide-y-[1px]">
         {isLoading
           ? [...Array(10)].map((_, index) => <SkeletonChat key={index} />)
-          : data?.chatRooms?.map((chatRoom) => {
+          : filteredChatRooms?.map((chatRoom) => {
               const otherUser = chatRoom.chatRoomMembers.find(
                 (member) => member.user.id !== user?.id
               )?.user;
@@ -83,6 +144,15 @@ const ChatClient = () => {
                 </Link>
               );
             })}
+
+        {/* 검색 결과 없음 */}
+        {!isLoading &&
+          searchKeyword.trim() &&
+          filteredChatRooms?.length === 0 && (
+            <div className="flex flex-col items-center justify-center py-16 text-gray-400">
+              <p className="text-sm font-medium">검색 결과가 없습니다</p>
+            </div>
+          )}
       </div>
     </Layout>
   );

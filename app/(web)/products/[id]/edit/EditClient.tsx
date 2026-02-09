@@ -1,8 +1,8 @@
 "use client";
 import Layout from "@components/features/MainLayout";
+import MarkdownEditor from "@components/features/product/MarkdownEditor";
 import { useRouter } from "next/navigation";
-import { useState } from "react";
-import { useForm } from "react-hook-form";
+import { Controller, useForm } from "react-hook-form";
 import useMutation from "hooks/useMutation";
 import { Product } from "@prisma/client";
 import { toast } from "react-toastify";
@@ -26,6 +26,7 @@ export default function EditClient({ product }: EditClientProps) {
   const {
     register,
     handleSubmit,
+    control,
     formState: { errors },
   } = useForm<EditForm>({
     defaultValues: {
@@ -135,11 +136,19 @@ export default function EditClient({ product }: EditClientProps) {
           >
             상품 설명
           </label>
-          <textarea
-            {...register("description", { required: true })}
-            id="description"
-            rows={4}
-            className="appearance-none w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-primary focus:border-primary"
+          <Controller
+            name="description"
+            control={control}
+            rules={{ required: true }}
+            render={({ field }) => (
+              <MarkdownEditor
+                id="description"
+                value={field.value || ""}
+                onChange={field.onChange}
+                placeholder="상품 설명을 입력해주세요"
+                rows={10}
+              />
+            )}
           />
           {errors.description && (
             <p className="mt-1 text-sm text-red-600">
