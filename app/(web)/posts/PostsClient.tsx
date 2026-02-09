@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import Image from "@components/atoms/Image";
+import useSWR from "swr";
 
 import Layout from "@components/features/MainLayout";
 import FloatingButton from "@components/atoms/floating-button";
@@ -12,9 +13,47 @@ import { useInfiniteScroll } from "hooks/useInfiniteScroll";
 import { cn, getTimeAgoString, makeImageUrl } from "@libs/client/utils";
 import { POST_CATEGORIES } from "@libs/constants";
 import { PostsListResponse } from "pages/api/posts";
+import { RankingResponse } from "pages/api/ranking";
 
 /** 카테고리 탭 목록 */
 const TABS = [{ id: "전체", name: "전체" }, ...POST_CATEGORIES];
+
+const NOTICE_BANNERS = [
+  {
+    id: "notice-1",
+    label: "공지",
+    title: "게시글 작성 전 커뮤니티 운영 가이드를 확인해 주세요.",
+    fallbackHref: "/posts",
+  },
+  {
+    id: "notice-2",
+    label: "필독",
+    title: "거래 유도/홍보성 글은 사전 안내 없이 삭제될 수 있습니다.",
+    fallbackHref: "/posts",
+  },
+];
+
+const getMedalClass = (rank: number) => {
+  if (rank === 1) return "bg-yellow-400 text-white";
+  if (rank === 2) return "bg-gray-400 text-white";
+  if (rank === 3) return "bg-amber-700 text-white";
+  return "bg-gray-200 text-gray-600";
+};
+
+const SectionHeader = ({
+  title,
+  href,
+}: {
+  title: string;
+  href: string;
+}) => (
+  <div className="px-4 flex items-center justify-between">
+    <h2 className="text-base font-bold text-gray-900">{title}</h2>
+    <Link href={href} className="text-sm text-gray-500 hover:text-gray-700">
+      더보기 &gt;
+    </Link>
+  </div>
+);
 
 export default function PostsClient() {
   const [selectedCategory, setSelectedCategory] = useState("전체");
@@ -30,6 +69,15 @@ export default function PostsClient() {
   };
 
   const { data, setSize, mutate } = useSWRInfinite<PostsListResponse>(getKey);
+  const { data: hotRankingData } = useSWR<RankingResponse>(
+    "/api/ranking?tab=coolInsect"
+  );
+  const { data: guinnessData } = useSWR<RankingResponse>(
+    "/api/ranking?tab=guinness"
+  );
+  const { data: breederData } = useSWR<RankingResponse>(
+    "/api/ranking?tab=breeder"
+  );
   const page = useInfiniteScroll();
 
   useEffect(() => {
@@ -43,7 +91,12 @@ export default function PostsClient() {
 
   useEffect(() => {
     mutate();
-  }, [selectedCategory]);
+  }, [selectedCategory, mutate]);
+
+  const hotPosts = hotRankingData?.postRanking?.slice(0, 5) ?? [];
+  const guinnessRecords = guinnessData?.records?.slice(0, 3) ?? [];
+  const breederRanking = breederData?.breederRanking?.slice(0, 5) ?? [];
+  const noticeLinkedPosts = data?.[0]?.posts ?? [];
 
   return (
     <Layout icon hasTabBar seoTitle="곤충생활" showSearch>
@@ -52,6 +105,232 @@ export default function PostsClient() {
         <div className="px-4 pt-3 pb-1">
           <h1 className="text-xl font-bold text-gray-900">곤충생활</h1>
         </div>
+
+        {/* 공지/고정 게시글 */}
+        <section className="px-4 py-3 space-y-2">
+          {NOTICE_BANNERS.map((notice, index) => {
+            const linkedPost = noticeLinkedPosts[index];
+            const href = linkedPost ? `/posts/${linkedPost.id}` : notice.fallbackHref;
+            const title = linkedPost ? linkedPost.title : notice.title;
+
+            return (
+              <Link
+                key={notice.id}
+                href={href}
+                className="block rounded-xl border border-amber-200 bg-gradient-to-r from-amber-50 to-orange-50 px-3 py-2.5"
+              >
+                <div className="flex items-center gap-2">
+                  <span className="inline-flex px-2 py-0.5 text-[11px] font-semibold rounded-full bg-amber-500 text-white">
+                    {notice.label}
+                  </span>
+                  <p className="text-sm font-medium text-amber-900 line-clamp-1">
+                    {title}
+                  </p>
+                </div>
+              </Link>
+            );
+          })}
+        </section>
+
+        {/* HOT 게시글 */}
+        <section className="py-6 bg-gray-50">
+          <SectionHeader title="HOT 게시글" href="/ranking" />
+          <div className="mt-3 flex overflow-x-auto scrollbar-hide snap-x snap-mandatory gap-3 px-4">
+            {hotRankingData ? (
+              hotPosts.length > 0 ? (
+                hotPosts.map((post) => (
+                  <Link
+                    key={post.id}
+                    href={`/posts/${post.id}`}
+                    className="snap-start shrink-0 w-40 rounded-xl bg-white shadow-sm border border-gray-100 overflow-hidden"
+                  >
+                    <div className="relative aspect-square bg-gray-100">
+                      {post.image ? (
+                        <Image
+                          src={makeImageUrl(post.image, "public")}
+                          className="object-cover"
+                          fill
+                          sizes="160px"
+                          alt={post.title}
+                        />
+                      ) : (
+                        <div className="w-full h-full bg-gray-100" />
+                      )}
+                    </div>
+                    <div className="p-3">
+                      <h3 className="text-sm font-semibold text-gray-900 line-clamp-1">
+                        {post.title}
+                      </h3>
+                      <p className="mt-1 text-xs text-gray-500">❤️ {post._count.Likes}</p>
+                    </div>
+                  </Link>
+                ))
+              ) : (
+                <div className="text-sm text-gray-400 px-1 py-2">
+                  표시할 HOT 게시글이 없습니다.
+                </div>
+              )
+            ) : (
+              [...Array(3)].map((_, i) => (
+                <div
+                  key={i}
+                  className="snap-start shrink-0 w-40 rounded-xl bg-white shadow-sm border border-gray-100 overflow-hidden animate-pulse"
+                >
+                  <div className="aspect-square bg-gray-200" />
+                  <div className="p-3 space-y-2">
+                    <div className="h-3 bg-gray-200 rounded w-4/5" />
+                    <div className="h-3 bg-gray-200 rounded w-1/3" />
+                  </div>
+                </div>
+              ))
+            )}
+          </div>
+        </section>
+
+        {/* 기네스북 미리보기 */}
+        <section className="py-6">
+          <SectionHeader title="기네스북" href="/ranking" />
+          <div className="mt-3 flex overflow-x-auto scrollbar-hide snap-x snap-mandatory gap-3 px-4">
+            {guinnessData ? (
+              guinnessRecords.length > 0 ? (
+                guinnessRecords.map((record, index) => (
+                  <Link
+                    key={record.id}
+                    href="/ranking"
+                    className="snap-start shrink-0 w-56 rounded-xl bg-white shadow-sm border border-gray-100 p-4"
+                  >
+                    <div className="flex items-start justify-between">
+                      <span
+                        className={cn(
+                          "w-7 h-7 rounded-full text-xs font-bold flex items-center justify-center",
+                          getMedalClass(index + 1)
+                        )}
+                      >
+                        {index + 1}
+                      </span>
+                      <p className="text-xs text-gray-400">{record.species}</p>
+                    </div>
+                    <p className="mt-3 text-sm font-semibold text-gray-900">
+                      {record.recordType === "size" ? "크기" : "무게"} 기록
+                    </p>
+                    <p className="mt-1 text-xl font-bold text-primary">
+                      {record.value}
+                      <span className="text-xs font-normal text-gray-400 ml-1">
+                        {record.recordType === "size" ? "mm" : "g"}
+                      </span>
+                    </p>
+                    <div className="mt-3 flex items-center gap-2">
+                      {record.user.avatar ? (
+                        <Image
+                          src={makeImageUrl(record.user.avatar, "avatar")}
+                          className="w-6 h-6 rounded-full object-cover"
+                          width={24}
+                          height={24}
+                          alt=""
+                        />
+                      ) : (
+                        <div className="w-6 h-6 rounded-full bg-gray-200" />
+                      )}
+                      <span className="text-xs text-gray-500">{record.user.name}</span>
+                    </div>
+                  </Link>
+                ))
+              ) : (
+                <div className="text-sm text-gray-400 px-1 py-2">
+                  표시할 기네스 기록이 없습니다.
+                </div>
+              )
+            ) : (
+              [...Array(3)].map((_, i) => (
+                <div
+                  key={i}
+                  className="snap-start shrink-0 w-56 rounded-xl bg-white shadow-sm border border-gray-100 p-4 animate-pulse"
+                >
+                  <div className="h-7 w-7 rounded-full bg-gray-200" />
+                  <div className="mt-3 h-4 bg-gray-200 rounded w-2/5" />
+                  <div className="mt-2 h-6 bg-gray-200 rounded w-1/2" />
+                  <div className="mt-3 h-4 bg-gray-200 rounded w-1/3" />
+                </div>
+              ))
+            )}
+          </div>
+        </section>
+
+        {/* TOP 브리더 */}
+        <section className="py-6 bg-gray-50">
+          <SectionHeader title="TOP 브리더" href="/ranking" />
+          <div className="mt-3 flex overflow-x-auto scrollbar-hide snap-x snap-mandatory gap-3 px-4">
+            {breederData ? (
+              breederRanking.length > 0 ? (
+                breederRanking.map((breeder, index) => (
+                  <Link
+                    key={breeder.user.id}
+                    href={`/profiles/${breeder.user.id}`}
+                    className="snap-start shrink-0 w-44 rounded-xl bg-white shadow-sm border border-gray-100 p-3"
+                  >
+                    <div className="flex items-center justify-between">
+                      {index < 3 ? (
+                        <span className="text-base leading-none">
+                          {index === 0 ? "🥇" : index === 1 ? "🥈" : "🥉"}
+                        </span>
+                      ) : (
+                        <span className="text-xs font-bold text-gray-500">
+                          {index + 1}위
+                        </span>
+                      )}
+                      <span className="text-xs text-gray-400">점수</span>
+                    </div>
+                    <div className="mt-3 flex items-center gap-2">
+                      {breeder.user.avatar ? (
+                        <Image
+                          src={makeImageUrl(breeder.user.avatar, "avatar")}
+                          className="w-9 h-9 rounded-full object-cover"
+                          width={36}
+                          height={36}
+                          alt=""
+                        />
+                      ) : (
+                        <div className="w-9 h-9 rounded-full bg-gray-200" />
+                      )}
+                      <div className="min-w-0">
+                        <p className="text-sm font-semibold text-gray-900 truncate">
+                          {breeder.user.name}
+                        </p>
+                        <p className="text-xs text-gray-400">
+                          ❤️ {breeder.totalLikes}
+                        </p>
+                      </div>
+                    </div>
+                    <p className="mt-3 text-lg font-bold text-primary">
+                      {breeder.score.toLocaleString()}
+                    </p>
+                  </Link>
+                ))
+              ) : (
+                <div className="text-sm text-gray-400 px-1 py-2">
+                  표시할 브리더 랭킹이 없습니다.
+                </div>
+              )
+            ) : (
+              [...Array(3)].map((_, i) => (
+                <div
+                  key={i}
+                  className="snap-start shrink-0 w-44 rounded-xl bg-white shadow-sm border border-gray-100 p-3 animate-pulse"
+                >
+                  <div className="h-4 bg-gray-200 rounded w-1/4" />
+                  <div className="mt-3 flex items-center gap-2">
+                    <div className="w-9 h-9 rounded-full bg-gray-200" />
+                    <div className="space-y-1 flex-1">
+                      <div className="h-3 bg-gray-200 rounded w-2/3" />
+                      <div className="h-3 bg-gray-200 rounded w-1/3" />
+                    </div>
+                  </div>
+                  <div className="mt-3 h-5 bg-gray-200 rounded w-1/2" />
+                </div>
+              ))
+            )}
+          </div>
+        </section>
 
         {/* 카테고리 탭 */}
         <div className="sticky top-14 z-10 bg-white/80 backdrop-blur-sm border-b border-gray-100">
@@ -72,6 +351,10 @@ export default function PostsClient() {
             ))}
           </div>
         </div>
+
+        <section id="all-posts" className="px-4 pt-6 pb-2">
+          <h2 className="text-base font-bold text-gray-900">전체 게시글</h2>
+        </section>
 
         {/* 게시글 목록 */}
         <div className="flex flex-col divide-y divide-gray-100">
