@@ -9,6 +9,11 @@ const DASHBOARD_MENUS = [
     href: "/admin/banners",
   },
   {
+    title: "랜딩 페이지",
+    description: "배너 링크로 연결할 간단한 페이지를 제작합니다.",
+    href: "/admin/landing-pages",
+  },
+  {
     title: "유저 관리",
     description: "유저 목록 확인, 권한 변경, 삭제를 수행합니다.",
     href: "/admin/users",

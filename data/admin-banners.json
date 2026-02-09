@@ -1,1 +1,26 @@
-[]
+[
+  {
+    "id": 1770602992854,
+    "title": "배너테스트1",
+    "description": "배너입니다",
+    "href": "/22",
+    "bgClass": "from-emerald-500 to-teal-500",
+    "order": 1
+  },
+  {
+    "id": 1770603190776,
+    "title": "event1",
+    "description": "설명",
+    "href": "/content/1",
+    "bgClass": "from-emerald-500 to-teal-500",
+    "order": 1
+  },
+  {
+    "id": 1770603219027,
+    "title": "네이버이벤트",
+    "description": "네이버",
+    "href": "https://www.naver.com/",
+    "bgClass": "from-emerald-500 to-teal-500",
+    "order": 1
+  }
+]

@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
 import useSWR from "swr";
 import { toast } from "react-toastify";
 import { Button } from "@components/ui/button";
@@ -21,8 +22,56 @@ interface BannerResponse {
   isSample?: boolean;
 }
 
+interface LandingPagesResponse {
+  success: boolean;
+  pages: {
+    id: number;
+    slug: string;
+    title: string;
+    isPublished: boolean;
+  }[];
+}
+
+const HREF_EXAMPLES = [
+  {
+    label: "랜딩 페이지",
+    value: "/content/spring-event",
+  },
+  {
+    label: "사이트 내부",
+    value: "/ranking",
+  },
+  {
+    label: "외부 링크",
+    value: "https://example.com/event",
+  },
+];
+
+const getHrefGuide = (href: string) => {
+  const value = href.trim();
+  if (!value) {
+    return "링크를 입력하면 이동 방식 안내가 표시됩니다.";
+  }
+
+  if (/^https?:\/\//i.test(value)) {
+    return "외부 URL 링크입니다. 예: https://...";
+  }
+
+  if (/^\/content\/[a-z0-9-]+$/.test(value)) {
+    return "랜딩 페이지 링크 형식이 맞습니다.";
+  }
+
+  if (value.startsWith("/")) {
+    return "사이트 내부 경로 링크입니다.";
+  }
+
+  return "권장 형식이 아닙니다. /path 또는 https://... 형식을 사용하세요.";
+};
+
 export default function AdminBannersPage() {
   const { data, mutate } = useSWR<BannerResponse>("/api/admin/banners");
+  const { data: landingPagesData } =
+    useSWR<LandingPagesResponse>("/api/admin/landing-pages");
   const [form, setForm] = useState({
     title: "",
     description: "",
@@ -95,6 +144,24 @@ export default function AdminBannersPage() {
         )}
       </div>
 
+      <div className="rounded-xl border border-blue-100 bg-blue-50 p-4 space-y-2">
+        <p className="text-sm font-semibold text-blue-900">처음이면 이렇게 진행하세요</p>
+        <p className="text-sm text-blue-800">
+          1) 배너를 눌렀을 때 보여줄 페이지가 필요하면 먼저
+          {" "}
+          <Link href="/admin/landing-pages" className="font-semibold underline underline-offset-2">
+            랜딩 페이지 관리
+          </Link>
+          에서 페이지를 만드세요.
+        </p>
+        <p className="text-sm text-blue-800">
+          2) 이미 만들어둔 다른 페이지가 있다면 그 링크를 그대로 사용해도 됩니다.
+        </p>
+        <p className="text-sm text-blue-800">
+          3) 아래 배너 생성 폼의 <span className="font-semibold">링크</span> 칸에 붙여넣고 저장하면 끝입니다.
+        </p>
+      </div>
+
       <form
         onSubmit={handleCreate}
         className="bg-white rounded-lg border border-gray-200 p-4 space-y-3"
@@ -117,6 +184,55 @@ export default function AdminBannersPage() {
           value={form.href}
           onChange={(event) => setForm((prev) => ({ ...prev, href: event.target.value }))}
         />
+        <div className="rounded-md bg-gray-50 border border-gray-100 p-3 space-y-2">
+          <p className="text-xs font-semibold text-gray-800">링크 입력 가이드</p>
+          <p className="text-xs text-gray-600">
+            1) 랜딩 페이지를 만들려면:
+            {" "}
+            <Link href="/admin/landing-pages" className="font-semibold underline underline-offset-2">
+              /admin/landing-pages
+            </Link>
+          </p>
+          <p className="text-xs text-gray-600">
+            2) 배너 링크 입력: <span className="font-mono">/content/slug</span> 또는 내부경로(
+            <span className="font-mono">/ranking</span>) 또는 외부URL(
+            <span className="font-mono">https://...</span>)
+          </p>
+          <div className="flex flex-wrap gap-2 pt-1">
+            {HREF_EXAMPLES.map((item) => (
+              <button
+                key={item.value}
+                type="button"
+                onClick={() => setForm((prev) => ({ ...prev, href: item.value }))}
+                className="px-2 py-1 rounded-md border border-gray-200 text-xs text-gray-700 hover:bg-gray-100"
+              >
+                {item.label}: <span className="font-mono">{item.value}</span>
+              </button>
+            ))}
+          </div>
+          <p className="text-xs text-emerald-700 bg-emerald-50 border border-emerald-100 rounded-md px-2 py-1.5">
+            현재 링크 상태: {getHrefGuide(form.href)}
+          </p>
+        </div>
+        {landingPagesData?.pages?.length ? (
+          <div className="flex flex-wrap gap-2">
+            {landingPagesData.pages
+              .filter((page) => page.isPublished)
+              .slice(0, 6)
+              .map((page) => (
+                <button
+                  key={page.id}
+                  type="button"
+                  onClick={() =>
+                    setForm((prev) => ({ ...prev, href: `/content/${page.slug}` }))
+                  }
+                  className="px-2 py-1 rounded-md border border-gray-200 text-xs text-gray-700 hover:bg-gray-50"
+                >
+                  페이지 선택: {page.title}
+                </button>
+              ))}
+          </div>
+        ) : null}
         <div className="grid grid-cols-2 gap-2">
           <Input
             placeholder="bgClass (예: from-sky-500 to-cyan-500)"
@@ -167,4 +283,3 @@ export default function AdminBannersPage() {
     </div>
   );
 }
-
