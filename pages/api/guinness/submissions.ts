@@ -8,6 +8,14 @@ import {
   readGuinnessSubmissions,
   writeGuinnessSubmissions,
 } from "@libs/server/guinness-submissions";
+import {
+  findGuinnessSpeciesMatch,
+  isValidSpeciesName,
+  normalizeSpeciesText,
+  readGuinnessSpecies,
+  upsertGuinnessSpeciesCandidate,
+  writeGuinnessSpecies,
+} from "@libs/server/guinness-species";
 
 export type { GuinnessSubmission } from "@libs/server/guinness-submissions";
 
@@ -80,6 +88,12 @@ async function handler(
         error: "종명과 기록 타입을 올바르게 입력해주세요.",
       });
     }
+    if (!isValidSpeciesName(normalizedSpecies)) {
+      return res.status(400).json({
+        success: false,
+        error: "종명은 한글만 2~30자로 입력해주세요.",
+      });
+    }
 
     if (Number.isNaN(normalizedValue) || normalizedValue <= 0) {
       return res
@@ -149,6 +163,24 @@ async function handler(
     }
 
     const submissions = await readGuinnessSubmissions();
+    const speciesCatalog = await readGuinnessSpecies();
+    const matchedSpecies = findGuinnessSpeciesMatch(speciesCatalog, normalizedSpecies);
+    const resolvedSpecies = matchedSpecies?.name || normalizedSpecies;
+    let resolvedSpeciesId = matchedSpecies?.id || null;
+    const resolvedSpeciesRawText = matchedSpecies ? null : normalizedSpecies;
+
+    if (!matchedSpecies) {
+      const candidate = upsertGuinnessSpeciesCandidate(speciesCatalog, normalizedSpecies);
+      if (candidate.created) {
+        await writeGuinnessSpecies(candidate.items);
+      }
+      if (candidate.species) {
+        resolvedSpeciesId = candidate.species.id;
+      }
+    }
+
+    const sameSpecies = (value: string) =>
+      normalizeSpeciesText(value) === normalizeSpeciesText(resolvedSpecies);
 
     if (action === "resubmit") {
       const submissionId = Number(id);
@@ -177,7 +209,7 @@ async function handler(
           item.id !== submissionId &&
           item.userId === me.id &&
           item.status === "pending" &&
-          item.species === normalizedSpecies &&
+          sameSpecies(item.species) &&
           item.recordType === normalizedRecordType
       );
       if (hasSamePending) {
@@ -190,7 +222,9 @@ async function handler(
       const now = new Date().toISOString();
       const updated: GuinnessSubmission = {
         ...target,
-        species: normalizedSpecies,
+        species: resolvedSpecies,
+        speciesId: resolvedSpeciesId,
+        speciesRawText: resolvedSpeciesRawText,
         recordType: normalizedRecordType,
         value: normalizedValue,
         measurementDate: parsedMeasurementDate,
@@ -228,7 +262,7 @@ async function handler(
       (item) =>
         item.userId === me.id &&
         item.status === "pending" &&
-        item.species === normalizedSpecies &&
+        sameSpecies(item.species) &&
         item.recordType === normalizedRecordType
     );
     if (hasSamePending) {
@@ -258,7 +292,9 @@ async function handler(
       id: Date.now(),
       userId: me.id,
       userName: me.name,
-      species: normalizedSpecies,
+      species: resolvedSpecies,
+      speciesId: resolvedSpeciesId,
+      speciesRawText: resolvedSpeciesRawText,
       recordType: normalizedRecordType,
       value: normalizedValue,
       measurementDate: parsedMeasurementDate,

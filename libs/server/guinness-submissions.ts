@@ -17,6 +17,8 @@ export interface GuinnessSubmission {
   userId: number;
   userName: string;
   species: string;
+  speciesId: number | null;
+  speciesRawText: string | null;
   recordType: GuinnessRecordType;
   value: number;
   measurementDate: string | null;
@@ -53,7 +55,9 @@ export async function readGuinnessSubmissions(): Promise<GuinnessSubmission[]> {
         1000000 + index,
       userId: Number(item.userId) || 0,
       userName: String(item.userName || ""),
-      species: String(item.species || ""),
+      species: String(item.species || item.speciesRawText || ""),
+      speciesId: Number(item.speciesId) || null,
+      speciesRawText: item.speciesRawText || null,
       recordType: item.recordType === "weight" ? "weight" : "size",
       value: Number(item.value) || 0,
       measurementDate: item.measurementDate || null,

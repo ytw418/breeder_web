@@ -14,7 +14,7 @@ async function handler(req: NextApiRequest, res: NextApiResponse<ResponseType>) 
     return res.status(400).json({
       success: false,
       error:
-        "기네스북은 심사 기반으로 변경되었습니다. /guinness 페이지에서 신청해주세요.",
+        "기네스북은 심사 기반으로 변경되었습니다. /guinness/apply 페이지에서 신청해주세요.",
     });
   }
 }
@@ -22,4 +22,3 @@ async function handler(req: NextApiRequest, res: NextApiResponse<ResponseType>) 
 export default withApiSession(
   withHandler({ methods: ["POST"], handler, isPrivate: true })
 );
-

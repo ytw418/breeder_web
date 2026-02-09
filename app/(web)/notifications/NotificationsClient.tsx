@@ -46,7 +46,7 @@ const getNotificationLink = (
     case "record":
       return `/guinness`;
     case "guinness_submission":
-      return `/guinness`;
+      return `/guinness/apply`;
     default:
       return "#";
   }

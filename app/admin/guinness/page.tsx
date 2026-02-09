@@ -11,6 +11,7 @@ import {
   GuinnessSubmission,
   GuinnessSubmissionsResponse,
 } from "pages/api/guinness/submissions";
+import { GuinnessSpecies, GuinnessSpeciesListResponse } from "pages/api/guinness/species";
 
 interface AdminGuinnessSubmissionsResponse extends GuinnessSubmissionsResponse {
   submissions: GuinnessSubmission[];
@@ -21,6 +22,10 @@ interface AdminGuinnessSubmissionsResponse extends GuinnessSubmissionsResponse {
       userName: string;
     }
   >;
+}
+
+interface AdminGuinnessSpeciesResponse extends GuinnessSpeciesListResponse {
+  species: GuinnessSpecies[];
 }
 
 const STATUS_LABEL: Record<GuinnessSubmission["status"], string> = {
@@ -72,11 +77,15 @@ const getSlaText = (dueAt: string) => {
   const mins = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
   return `SLA 남은 시간 ${hours}시간 ${mins}분`;
 };
+const sanitizeSpeciesInput = (value: string) =>
+  String(value || "").replace(/[^가-힣ㄱ-ㅎㅏ-ㅣ]/g, "");
 
 export default function AdminGuinnessPage() {
   const { data, mutate } = useSWR<AdminGuinnessSubmissionsResponse>(
     "/api/admin/guinness-submissions"
   );
+  const { data: speciesData, mutate: mutateSpecies } =
+    useSWR<AdminGuinnessSpeciesResponse>("/api/admin/guinness-species");
   const [memoById, setMemoById] = useState<Record<number, string>>({});
   const [reasonCodeById, setReasonCodeById] = useState<Record<number, string>>({});
   const [processingId, setProcessingId] = useState<number | null>(null);
@@ -84,6 +93,10 @@ export default function AdminGuinnessPage() {
     "all" | "pending" | "approved" | "rejected"
   >("pending");
   const [keyword, setKeyword] = useState("");
+  const [newSpeciesName, setNewSpeciesName] = useState("");
+  const [newSpeciesAliases, setNewSpeciesAliases] = useState("");
+  const [speciesKeyword, setSpeciesKeyword] = useState("");
+  const [speciesProcessingId, setSpeciesProcessingId] = useState<number | null>(null);
 
   const summary = useMemo(() => {
     const items = data?.submissions || [];
@@ -110,6 +123,20 @@ export default function AdminGuinnessPage() {
       return statusMatched && keywordMatched;
     });
   }, [data?.submissions, keyword, statusFilter]);
+
+  const filteredSpecies = useMemo(() => {
+    const items = speciesData?.species || [];
+    const normalizedKeyword = speciesKeyword.trim().toLowerCase();
+
+    if (!normalizedKeyword) return items;
+    return items.filter((item) => {
+      const nameMatched = item.name.toLowerCase().includes(normalizedKeyword);
+      const aliasMatched = item.aliases.some((alias) =>
+        alias.toLowerCase().includes(normalizedKeyword)
+      );
+      return nameMatched || aliasMatched;
+    });
+  }, [speciesData?.species, speciesKeyword]);
 
   const reviewSubmission = async (
     submission: GuinnessSubmission,
@@ -147,6 +174,69 @@ export default function AdminGuinnessPage() {
     }
   };
 
+  const createSpecies = async () => {
+    const name = newSpeciesName.trim();
+    if (!name) {
+      toast.error("등록할 종명을 입력해주세요.");
+      return;
+    }
+
+    try {
+      setSpeciesProcessingId(-1);
+      const res = await fetch("/api/admin/guinness-species", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          action: "create",
+          name,
+          aliases: newSpeciesAliases,
+        }),
+      });
+      const result = await res.json();
+      if (!result.success) {
+        return toast.error(result.error || "종 등록에 실패했습니다.");
+      }
+      toast.success("공식 종으로 등록되었습니다.");
+      setNewSpeciesName("");
+      setNewSpeciesAliases("");
+      mutateSpecies();
+    } catch {
+      toast.error("종 등록 중 오류가 발생했습니다.");
+    } finally {
+      setSpeciesProcessingId(null);
+    }
+  };
+
+  const updateSpecies = async (
+    species: GuinnessSpecies,
+    action: "approve" | "toggle-active"
+  ) => {
+    try {
+      setSpeciesProcessingId(species.id);
+      const res = await fetch("/api/admin/guinness-species", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action, id: species.id }),
+      });
+      const result = await res.json();
+      if (!result.success) {
+        return toast.error(result.error || "종 상태 변경에 실패했습니다.");
+      }
+      toast.success(
+        action === "approve"
+          ? "공식 종으로 승인되었습니다."
+          : species.isActive
+            ? "종이 비활성화되었습니다."
+            : "종이 활성화되었습니다."
+      );
+      mutateSpecies();
+    } catch {
+      toast.error("종 상태 변경 중 오류가 발생했습니다.");
+    } finally {
+      setSpeciesProcessingId(null);
+    }
+  };
+
   return (
     <div className="space-y-6">
       <div className="flex items-end justify-between">
@@ -179,6 +269,116 @@ export default function AdminGuinnessPage() {
           <p className="text-xl font-bold text-rose-800">{summary.rejected}</p>
         </div>
       </div>
+
+      <section className="rounded-xl border border-gray-200 bg-white p-4 space-y-4">
+        <div className="flex items-start justify-between gap-4">
+          <div>
+            <h3 className="text-base font-semibold text-gray-900">종 마스터 관리</h3>
+            <p className="mt-1 text-xs text-gray-500 leading-relaxed">
+              유저가 입력한 미등록 종은 후보 상태로 누적됩니다. 후보를 승인하면 유저
+              신청 폼 자동완성 목록에 공식 종으로 노출됩니다.
+            </p>
+          </div>
+          <span className="text-xs text-gray-400">
+            총 {speciesData?.species?.length || 0}개
+          </span>
+        </div>
+
+        <div className="grid grid-cols-1 gap-2 md:grid-cols-[1fr_1fr_auto]">
+          <Input
+            value={newSpeciesName}
+            onChange={(event) =>
+              setNewSpeciesName(sanitizeSpeciesInput(event.target.value))
+            }
+            placeholder="새 종명 (예: 아틀라스장수풍뎅이)"
+          />
+          <Input
+            value={newSpeciesAliases}
+            onChange={(event) => setNewSpeciesAliases(event.target.value)}
+            placeholder="별칭/학명 (쉼표로 구분)"
+          />
+          <Button
+            type="button"
+            disabled={speciesProcessingId === -1}
+            onClick={createSpecies}
+          >
+            공식 종 등록
+          </Button>
+        </div>
+
+        <Input
+          value={speciesKeyword}
+          onChange={(event) => setSpeciesKeyword(event.target.value)}
+          placeholder="등록된 종 검색 (이름/별칭)"
+        />
+
+        <div className="space-y-2 max-h-[360px] overflow-y-auto pr-1">
+          {filteredSpecies.map((item) => (
+            <div
+              key={item.id}
+              className="rounded-lg border border-gray-200 bg-gray-50 px-3 py-2.5"
+            >
+              <div className="flex items-center justify-between gap-2">
+                <div className="min-w-0">
+                  <p className="text-sm font-semibold text-gray-900 truncate">{item.name}</p>
+                  <p className="mt-0.5 text-xs text-gray-500">
+                    별칭: {item.aliases.length > 0 ? item.aliases.join(", ") : "-"}
+                  </p>
+                </div>
+                <div className="flex items-center gap-1.5">
+                  <span
+                    className={`rounded-full px-2 py-0.5 text-[11px] font-semibold ${
+                      item.isOfficial
+                        ? "bg-emerald-100 text-emerald-700"
+                        : "bg-amber-100 text-amber-700"
+                    }`}
+                  >
+                    {item.isOfficial ? "공식" : "후보"}
+                  </span>
+                  <span
+                    className={`rounded-full px-2 py-0.5 text-[11px] font-semibold ${
+                      item.isActive
+                        ? "bg-blue-100 text-blue-700"
+                        : "bg-gray-200 text-gray-600"
+                    }`}
+                  >
+                    {item.isActive ? "활성" : "비활성"}
+                  </span>
+                </div>
+              </div>
+
+              <div className="mt-2 flex justify-end gap-2">
+                {!item.isOfficial && (
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="outline"
+                    disabled={speciesProcessingId === item.id}
+                    onClick={() => updateSpecies(item, "approve")}
+                  >
+                    후보 승인
+                  </Button>
+                )}
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="outline"
+                  disabled={speciesProcessingId === item.id}
+                  onClick={() => updateSpecies(item, "toggle-active")}
+                >
+                  {item.isActive ? "비활성화" : "활성화"}
+                </Button>
+              </div>
+            </div>
+          ))}
+
+          {filteredSpecies.length === 0 && (
+            <div className="rounded-lg border border-dashed border-gray-200 bg-gray-50 px-3 py-8 text-center text-sm text-gray-500">
+              조건에 맞는 종 데이터가 없습니다.
+            </div>
+          )}
+        </div>
+      </section>
 
       <div className="rounded-xl border border-gray-200 bg-white p-3 space-y-3">
         <div className="flex flex-wrap gap-2">
@@ -234,6 +434,11 @@ export default function AdminGuinnessPage() {
                     {submission.value}
                     {submission.recordType === "size" ? "mm" : "g"}
                   </p>
+                  {submission.speciesRawText && (
+                    <p className="mt-1 text-xs text-amber-700">
+                      미등록 종 직접입력: {submission.speciesRawText}
+                    </p>
+                  )}
                   <p className="mt-1 text-xs text-gray-500">
                     신청자 {submission.userName} (#{submission.userId}) ·{" "}
                     {new Date(submission.submittedAt).toLocaleString()}
