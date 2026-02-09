@@ -7,6 +7,7 @@ import Link from "next/link";
 import Layout from "@components/features/MainLayout";
 import { cn, makeImageUrl } from "@libs/client/utils";
 import { RankingResponse, BreederRank } from "pages/api/ranking";
+import { useRouter } from "next/navigation";
 
 /** 메인 탭 */
 const TABS = [
@@ -42,7 +43,8 @@ const getMedalColor = (rank: number) => {
 };
 
 const RankingClient = () => {
-  const [activeTab, setActiveTab] = useState("guinness");
+  const router = useRouter();
+  const [activeTab, setActiveTab] = useState("coolInsect");
   const [period, setPeriod] = useState("all");
   const [species, setSpecies] = useState("전체");
 
@@ -60,6 +62,14 @@ const RankingClient = () => {
     mutate();
   }, [activeTab, period, species]);
 
+  const handleMainTabClick = (tabId: string) => {
+    if (tabId === "guinness") {
+      router.push("/guinness");
+      return;
+    }
+    setActiveTab(tabId);
+  };
+
   return (
     <Layout canGoBack title="랭킹" seoTitle="랭킹">
       <div className="flex flex-col min-h-screen">
@@ -69,7 +79,7 @@ const RankingClient = () => {
             {TABS.map((tab) => (
               <button
                 key={tab.id}
-                onClick={() => setActiveTab(tab.id)}
+                onClick={() => handleMainTabClick(tab.id)}
                 className={cn(
                   "flex-shrink-0 flex items-center gap-1.5 px-4 py-3 text-sm font-medium whitespace-nowrap transition-colors border-b-2",
                   activeTab === tab.id

@@ -50,7 +50,7 @@ async function handler(
 
     /** 1) 기네스북 (곤충 크기/무게 기록) */
     if (tab === "guinness") {
-      const where: any = {};
+      const where: any = { isVerified: true };
       if (species && species !== "전체") where.species = String(species);
       if (monthStart) where.createdAt = { gte: monthStart };
 

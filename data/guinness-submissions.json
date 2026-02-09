@@ -1,0 +1,49 @@
+[
+  {
+    "id": 1770609657741,
+    "userId": 2,
+    "userName": "토끼기잉1",
+    "species": "장수풍뎅이",
+    "recordType": "size",
+    "value": 72.44,
+    "measurementDate": null,
+    "description": "귀요미 풍뎅이",
+    "proofPhotos": [
+      "d9d79f92-a6d6-4017-7cd7-88afc1860500"
+    ],
+    "contactPhone": "01086932795",
+    "contactEmail": "ytw418@naver.com",
+    "consentToContact": false,
+    "status": "approved",
+    "reviewMemo": "fff",
+    "reviewedBy": 2,
+    "reviewedAt": "2026-02-09T04:01:22.306Z",
+    "approvedRecordId": 1,
+    "createdAt": "2026-02-09T04:00:57.741Z",
+    "updatedAt": "2026-02-09T04:01:22.306Z"
+  },
+  {
+    "id": 1770610131034,
+    "userId": 2,
+    "userName": "토끼기잉1",
+    "species": "장수풍뎅이",
+    "recordType": "size",
+    "value": 22,
+    "measurementDate": "1998-07-02T00:00:00.000Z",
+    "description": "2213",
+    "proofPhotos": [
+      "333f358d-cfad-4f5b-f85d-2db93b35b100",
+      "4490681b-a327-4e0c-4a8e-c8b9d7937700"
+    ],
+    "contactPhone": "01086932795",
+    "contactEmail": "ytw418@naver.com",
+    "consentToContact": true,
+    "status": "pending",
+    "reviewMemo": null,
+    "reviewedBy": null,
+    "reviewedAt": null,
+    "approvedRecordId": null,
+    "createdAt": "2026-02-09T04:08:51.034Z",
+    "updatedAt": "2026-02-09T04:08:51.034Z"
+  }
+]

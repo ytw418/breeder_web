@@ -10,6 +10,7 @@ const ADMIN_MENUS = [
   { name: "대시보드", href: "/admin" },
   { name: "배너 관리", href: "/admin/banners" },
   { name: "랜딩 페이지", href: "/admin/landing-pages" },
+  { name: "기네스북 심사", href: "/admin/guinness" },
   { name: "유저 관리", href: "/admin/users" },
   { name: "게시물 관리", href: "/admin/posts" }, // 추후 구현
   { name: "상품 관리", href: "/admin/products" },
@@ -23,14 +24,23 @@ export default function AdminLayout({
   const { user, isLoading } = useUser();
   const router = useRouter();
   const pathname = usePathname();
+  const normalizedEmail = user?.email?.trim().toLowerCase();
+  const isWhitelistedEmail = normalizedEmail === "ytw418@naver.com";
+  const hasAccess = Boolean(
+    user &&
+      (user.role === "ADMIN" ||
+        user.role === "SUPER_USER" ||
+        isWhitelistedEmail)
+  );
 
   useEffect(() => {
-    if (!isLoading && (!user || (user.role !== "ADMIN" && !user.email?.includes("ytw418@naver")))) {
-      // router.replace("/"); // 실제 적용 시 주석 해제
+    if (!isLoading && !hasAccess) {
+      router.replace("/");
     }
-  }, [user, isLoading, router]);
+  }, [hasAccess, isLoading, router]);
 
   if (isLoading) return <div className="p-10">Loading Admin...</div>;
+  if (!hasAccess) return <div className="p-10 text-gray-500">권한 확인 중...</div>;
 
   return (
     <div className="min-h-screen bg-gray-100 flex">
