@@ -204,21 +204,21 @@ async function handler(
         }
       }
 
-      const target = await client.guinnessSpecies.findUnique({ where: { id } });
-      if (!target) {
+      const current = await client.guinnessSpecies.findUnique({ where: { id } });
+      if (!current) {
         return res
           .status(404)
           .json({ success: false, error: "대상을 찾을 수 없습니다." });
       }
 
-      const name = hasNameInput ? nextName : target.name;
+      const name = hasNameInput ? nextName : current.name;
       const aliases = hasAliasesInput
         ? buildAliasesFromText(String(aliasesInput || ""))
             .filter(
               (alias) => normalizeSpeciesText(alias) !== normalizeSpeciesText(name)
             )
             .filter((alias, index, array) => array.indexOf(alias) === index)
-        : target.aliases;
+        : current.aliases;
 
       const updatedItem = await client.guinnessSpecies.update({
         where: { id },
