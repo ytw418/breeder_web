@@ -10,7 +10,9 @@
     "typecheck": "tsc --noEmit",
     "test": "jest",
     "test:watch": "jest --watch",
-    "test:coverage": "jest --coverage"
+    "test:coverage": "jest --coverage",
+    "seed:dummy": "ts-node --transpile-only --compiler-options '{\"module\":\"CommonJS\"}' prisma/seed-dummy.ts",
+    "seed:dummy:reset": "ts-node --transpile-only --compiler-options '{\"module\":\"CommonJS\"}' prisma/seed-dummy.ts --reset"
   },
   "dependencies": {
     "@heroicons/react": "^2.0.18",

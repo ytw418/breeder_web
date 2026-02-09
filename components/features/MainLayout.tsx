@@ -97,8 +97,18 @@ export default function MainLayout({
   const router = useRouter();
   const pathname = usePathname();
   const [menuOpen, setMenuOpen] = useState(false);
+  const [shouldFetchUnread, setShouldFetchUnread] = useState(true);
   const { data: unreadData } = useSWR<UnreadCountResponse>(
-    "/api/chat/unread-count"
+    shouldFetchUnread ? "/api/chat/unread-count" : null,
+    {
+      onError: (swrError: Error & { status?: number }) => {
+        // 비로그인 상태에서는 동일 401 요청을 반복하지 않는다.
+        if (swrError?.status === 401 || swrError?.status === 403) {
+          setShouldFetchUnread(false);
+        }
+      },
+      revalidateOnFocus: false,
+    }
   );
 
   const onClick = () => {

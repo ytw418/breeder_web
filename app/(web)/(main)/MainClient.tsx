@@ -227,7 +227,7 @@ const MainClient = () => {
         <SectionHeader title="인기 상품" subtitle="좋아요가 많은 상품" />
         <div className="app-rail mt-3 flex gap-3 pl-5 pr-4">
           {popularProductsData ? (
-            popularProductsData.products.map((product) => (
+            popularProductsData.products.map((product, index) => (
               <Link
                 key={product.id}
                 href={`/products/${product.id}`}
@@ -240,6 +240,7 @@ const MainClient = () => {
                     className="object-cover"
                     fill
                     sizes="160px"
+                    priority={index === 0}
                   />
                 </div>
                 <div className="p-3">
@@ -286,7 +287,7 @@ const MainClient = () => {
         />
         <div className="app-rail mt-3 flex gap-3 pl-5 pr-4">
           {ongoingAuctionsData ? (
-            ongoingAuctionsData.auctions.slice(0, 5).map((auction) => (
+            ongoingAuctionsData.auctions.slice(0, 5).map((auction, index) => (
               <Link
                 key={auction.id}
                 href={`/auctions/${auction.id}`}
@@ -299,6 +300,7 @@ const MainClient = () => {
                     className="object-cover"
                     fill
                     sizes="224px"
+                    priority={index === 0}
                   />
                   <span className="absolute top-2 left-2 px-2 py-1 rounded-full bg-black/70 text-white text-[11px] font-semibold">
                     {auction.status}

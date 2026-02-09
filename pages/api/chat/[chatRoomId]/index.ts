@@ -38,11 +38,18 @@ export interface ChatRoom {
   messages: Message[];
 }
 
+export interface ChatPagination {
+  limit: number;
+  hasMore: boolean;
+  nextCursor: number | null;
+}
+
 // API 응답 인터페이스
 export interface ChatRoomResponse {
   success: boolean;
   error?: string;
   chatRoom?: ChatRoom;
+  pagination?: ChatPagination;
 }
 
 async function handler(
@@ -51,7 +58,7 @@ async function handler(
 ) {
   try {
     const {
-      query: { chatRoomId },
+      query: { chatRoomId, limit = "20", beforeId },
       session: { user },
     } = req;
 
@@ -61,32 +68,31 @@ async function handler(
         .json({ success: false, error: "로그인이 필요합니다." });
     }
 
-    // 채팅방 조회 + 멤버 권한 체크 (findFirst로 멤버십 검증)
+    const roomId = Number(chatRoomId);
+    if (Number.isNaN(roomId)) {
+      return res
+        .status(400)
+        .json({ success: false, error: "유효하지 않은 채팅방 ID입니다." });
+    }
+
+    const parsedLimit = Number(limit);
+    const pageSize = Number.isNaN(parsedLimit)
+      ? 20
+      : Math.min(Math.max(parsedLimit, 1), 50);
+    const parsedBeforeId =
+      beforeId === undefined ? null : Number(beforeId);
+    const hasBeforeCursor =
+      parsedBeforeId !== null && !Number.isNaN(parsedBeforeId);
+
+    // 채팅방 조회 + 멤버 권한 체크
     const chatRoom = await client.chatRoom.findFirst({
       where: {
-        id: +chatRoomId!,
+        id: roomId,
         chatRoomMembers: {
           some: { userId: user.id },
         },
       },
       include: {
-        messages: {
-          select: {
-            id: true,
-            type: true,
-            message: true,
-            image: true,
-            createdAt: true,
-            user: {
-              select: {
-                id: true,
-                name: true,
-                avatar: true,
-              },
-            },
-          },
-          orderBy: { createdAt: "asc" },
-        },
         chatRoomMembers: {
           select: {
             id: true,
@@ -111,11 +117,57 @@ async function handler(
         .json({ success: false, error: "채팅방을 찾을 수 없습니다." });
     }
 
+    const messageWhere: {
+      chatRoomId: number;
+      id?: { lt: number };
+    } = { chatRoomId: roomId };
+    if (hasBeforeCursor && parsedBeforeId !== null) {
+      messageWhere.id = { lt: parsedBeforeId };
+    }
+
+    // 최신순으로 pageSize만 가져온 뒤, UI 표시용으로 다시 오름차순 정렬
+    const latestChunk = await client.message.findMany({
+      where: messageWhere,
+      select: {
+        id: true,
+        type: true,
+        message: true,
+        image: true,
+        createdAt: true,
+        user: {
+          select: {
+            id: true,
+            name: true,
+            avatar: true,
+          },
+        },
+      },
+      orderBy: { id: "desc" },
+      take: pageSize,
+    });
+
+    const orderedMessages = [...latestChunk].reverse();
+    const oldestMessageId = orderedMessages[0]?.id;
+
+    const olderMessage = oldestMessageId
+      ? await client.message.findFirst({
+          where: {
+            chatRoomId: roomId,
+            id: { lt: oldestMessageId },
+          },
+          select: { id: true },
+          orderBy: { id: "desc" },
+        })
+      : null;
+
+    const hasMore = Boolean(olderMessage);
+    const nextCursor = hasMore ? oldestMessageId ?? null : null;
+
     return res.json({
       success: true,
       chatRoom: {
         id: chatRoom.id,
-        messages: chatRoom.messages.map((message) => ({
+        messages: orderedMessages.map((message) => ({
           ...message,
           createdAt: message.createdAt.toISOString(),
         })),
@@ -123,6 +175,11 @@ async function handler(
           ...member,
           lastReadAt: member.lastReadAt?.toISOString() || null,
         })),
+      },
+      pagination: {
+        limit: pageSize,
+        hasMore,
+        nextCursor,
       },
     });
   } catch (error) {
