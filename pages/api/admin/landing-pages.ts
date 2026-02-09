@@ -1,9 +1,8 @@
-import { promises as fs } from "fs";
-import path from "path";
 import { NextApiRequest, NextApiResponse } from "next";
 import withHandler, { ResponseType } from "@libs/server/withHandler";
 import { withApiSession } from "@libs/server/withSession";
 import { hasAdminAccess } from "./_utils";
+import client from "@libs/server/client";
 
 export interface LandingPageRecord {
   id: number;
@@ -11,30 +10,11 @@ export interface LandingPageRecord {
   title: string;
   content: string;
   isPublished: boolean;
-  createdAt: string;
-  updatedAt: string;
+  createdAt: string | Date;
+  updatedAt: string | Date;
 }
-
-const DATA_DIR = path.join(process.cwd(), "data");
-const LANDING_PAGES_FILE = path.join(DATA_DIR, "admin-landing-pages.json");
 
 const slugRegex = /^[a-z0-9-]+$/;
-
-async function readLandingPages(): Promise<LandingPageRecord[]> {
-  try {
-    const text = await fs.readFile(LANDING_PAGES_FILE, "utf-8");
-    const parsed = JSON.parse(text);
-    if (!Array.isArray(parsed)) return [];
-    return parsed as LandingPageRecord[];
-  } catch {
-    return [];
-  }
-}
-
-async function writeLandingPages(pages: LandingPageRecord[]) {
-  await fs.mkdir(DATA_DIR, { recursive: true });
-  await fs.writeFile(LANDING_PAGES_FILE, JSON.stringify(pages, null, 2), "utf-8");
-}
 
 async function handler(req: NextApiRequest, res: NextApiResponse<ResponseType>) {
   const {
@@ -49,10 +29,12 @@ async function handler(req: NextApiRequest, res: NextApiResponse<ResponseType>) 
   }
 
   if (req.method === "GET") {
-    const pages = await readLandingPages();
+    const pages = await client.landingPage.findMany({
+      orderBy: { updatedAt: "desc" },
+    });
     return res.json({
       success: true,
-      pages: pages.sort((a, b) => b.updatedAt.localeCompare(a.updatedAt)),
+      pages,
     });
   }
 
@@ -75,25 +57,24 @@ async function handler(req: NextApiRequest, res: NextApiResponse<ResponseType>) 
         });
       }
 
-      const pages = await readLandingPages();
-      if (pages.some((page) => page.slug === normalizedSlug)) {
+      const exists = await client.landingPage.findUnique({
+        where: { slug: normalizedSlug },
+      });
+      if (exists) {
         return res
           .status(400)
           .json({ success: false, error: "이미 존재하는 slug입니다." });
       }
 
-      const now = new Date().toISOString();
-      const nextPage: LandingPageRecord = {
-        id: Date.now(),
-        slug: normalizedSlug,
-        title: String(title).trim(),
-        content: String(content),
-        isPublished: Boolean(isPublished),
-        createdAt: now,
-        updatedAt: now,
-      };
+      const nextPage = await client.landingPage.create({
+        data: {
+          slug: normalizedSlug,
+          title: String(title).trim(),
+          content: String(content),
+          isPublished: Boolean(isPublished),
+        },
+      });
 
-      await writeLandingPages([...pages, nextPage]);
       return res.json({ success: true, page: nextPage });
     }
 
@@ -104,8 +85,9 @@ async function handler(req: NextApiRequest, res: NextApiResponse<ResponseType>) 
           .json({ success: false, error: "id가 필요합니다." });
       }
 
-      const pages = await readLandingPages();
-      const target = pages.find((page) => page.id === Number(id));
+      const target = await client.landingPage.findUnique({
+        where: { id: Number(id) },
+      });
       if (!target) {
         return res
           .status(404)
@@ -121,29 +103,29 @@ async function handler(req: NextApiRequest, res: NextApiResponse<ResponseType>) 
         });
       }
 
-      const slugConflict = pages.find(
-        (page) => page.slug === nextSlug && page.id !== Number(id)
-      );
+      const slugConflict = await client.landingPage.findFirst({
+        where: {
+          slug: nextSlug,
+          NOT: { id: Number(id) },
+        },
+      });
       if (slugConflict) {
         return res
           .status(400)
           .json({ success: false, error: "이미 존재하는 slug입니다." });
       }
 
-      const updated: LandingPageRecord = {
-        ...target,
-        slug: nextSlug,
-        title: typeof title === "string" ? title.trim() : target.title,
-        content: typeof content === "string" ? content : target.content,
-        isPublished:
-          typeof isPublished === "boolean" ? isPublished : target.isPublished,
-        updatedAt: new Date().toISOString(),
-      };
+      const updated = await client.landingPage.update({
+        where: { id: Number(id) },
+        data: {
+          slug: nextSlug,
+          title: typeof title === "string" ? title.trim() : target.title,
+          content: typeof content === "string" ? content : target.content,
+          isPublished:
+            typeof isPublished === "boolean" ? isPublished : target.isPublished,
+        },
+      });
 
-      const nextPages = pages.map((page) =>
-        page.id === updated.id ? updated : page
-      );
-      await writeLandingPages(nextPages);
       return res.json({ success: true, page: updated });
     }
 
@@ -158,9 +140,16 @@ async function handler(req: NextApiRequest, res: NextApiResponse<ResponseType>) 
       return res.status(400).json({ success: false, error: "id가 필요합니다." });
     }
 
-    const pages = await readLandingPages();
-    const nextPages = pages.filter((page) => page.id !== Number(id));
-    await writeLandingPages(nextPages);
+    const target = await client.landingPage.findUnique({
+      where: { id: Number(id) },
+    });
+    if (!target) {
+      return res
+        .status(404)
+        .json({ success: false, error: "페이지를 찾을 수 없습니다." });
+    }
+
+    await client.landingPage.delete({ where: { id: Number(id) } });
     return res.json({ success: true });
   }
 }

@@ -42,17 +42,19 @@ async function handler(
   const { tab, period = "all", species } = req.query;
 
   try {
-    // 월간 필터 (이번 달 1일~현재)
+    // 기간 필터 (이번 달/올해)
     const now = new Date();
-    const monthStart = period === "monthly"
-      ? new Date(now.getFullYear(), now.getMonth(), 1)
-      : undefined;
+    const monthStart =
+      period === "monthly" ? new Date(now.getFullYear(), now.getMonth(), 1) : undefined;
+    const yearStart =
+      period === "yearly" ? new Date(now.getFullYear(), 0, 1) : undefined;
+    const periodStart = monthStart || yearStart;
 
     /** 1) 기네스북 (곤충 크기/무게 기록) */
     if (tab === "guinness") {
       const where: any = { isVerified: true };
       if (species && species !== "전체") where.species = String(species);
-      if (monthStart) where.createdAt = { gte: monthStart };
+      if (periodStart) where.createdAt = { gte: periodStart };
 
       const records = await client.insectRecord.findMany({
         where,
@@ -69,7 +71,7 @@ async function handler(
     /** 2) 멋진 곤충 랭킹 (사진 카테고리 좋아요순) */
     if (tab === "coolInsect") {
       const where: any = { category: "사진" };
-      if (monthStart) where.createdAt = { gte: monthStart };
+      if (periodStart) where.createdAt = { gte: periodStart };
 
       const postRanking = await client.post.findMany({
         where,
@@ -87,7 +89,7 @@ async function handler(
     /** 3) 변이 랭킹 (변이 카테고리 좋아요순) */
     if (tab === "mutation") {
       const where: any = { category: "변이" };
-      if (monthStart) where.createdAt = { gte: monthStart };
+      if (periodStart) where.createdAt = { gte: periodStart };
 
       const postRanking = await client.post.findMany({
         where,
@@ -125,7 +127,7 @@ async function handler(
         by: ["userId"],
         where: {
           post: { category: { in: ["사진", "변이"] } },
-          ...(monthStart ? { createdAt: { gte: monthStart } } : {}),
+          ...(periodStart ? { createdAt: { gte: periodStart } } : {}),
         },
         _count: { id: true },
       });

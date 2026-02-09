@@ -11,7 +11,7 @@ import { useRouter } from "next/navigation";
 
 /** 메인 탭 */
 const TABS = [
-  { id: "guinness", name: "기네스북", icon: "🏆" },
+  { id: "guinness", name: "브리더북", icon: "🏆" },
   { id: "coolInsect", name: "멋진 곤충", icon: "🪲" },
   { id: "mutation", name: "희귀 변이", icon: "✨" },
   { id: "breeder", name: "최고 브리더", icon: "👑" },
@@ -21,6 +21,7 @@ const TABS = [
 const PERIOD_TABS = [
   { id: "all", name: "역대" },
   { id: "monthly", name: "이번 달" },
+  { id: "yearly", name: "올해" },
 ];
 
 /** 종 필터 (기네스북용) */
@@ -30,8 +31,9 @@ const SPECIES_OPTIONS = [
   "사슴벌레",
   "왕사슴벌레",
   "넓적사슴벌레",
-  "코카서스장수풍뎅이",
-  "헤라클레스장수풍뎅이",
+  "애사슴벌레",
+  "톱사슴벌레",
+  "미야마사슴벌레",
 ];
 
 /** 랭킹 메달 색상 */
@@ -46,11 +48,11 @@ const RankingClient = () => {
   const router = useRouter();
   const [activeTab, setActiveTab] = useState("coolInsect");
   const [period, setPeriod] = useState("all");
-  const [species, setSpecies] = useState("전체");
+  const [species, setSpecies] = useState(SPECIES_OPTIONS[0] || "");
 
   const apiUrl = () => {
     let url = `/api/ranking?tab=${activeTab}&period=${period}`;
-    if (activeTab === "guinness" && species !== "전체") {
+    if (activeTab === "guinness" && species) {
       url += `&species=${species}`;
     }
     return url;
@@ -61,6 +63,12 @@ const RankingClient = () => {
   useEffect(() => {
     mutate();
   }, [activeTab, period, species]);
+
+  useEffect(() => {
+    if (activeTab === "guinness" && !species && SPECIES_OPTIONS.length > 0) {
+      setSpecies(SPECIES_OPTIONS[0]);
+    }
+  }, [activeTab, species]);
 
   const handleMainTabClick = (tabId: string) => {
     if (tabId === "guinness") {
@@ -76,7 +84,7 @@ const RankingClient = () => {
     PERIOD_TABS.find((tab) => tab.id === period)?.name ?? "역대";
   const summaryCta =
     activeTab === "breeder"
-      ? { href: "/guinness", label: "기네스북 보기" }
+      ? { href: "/guinness", label: "브리더북 보기" }
       : { href: "/posts/upload", label: "게시글 올리기" };
 
   return (
@@ -200,7 +208,9 @@ const RankingClient = () => {
 
 /** 기네스북 콘텐츠 */
 const GuinnessContent = ({ records }: { records: RankingResponse["records"] }) => {
-  if (!records || records.length === 0) {
+  const sizeRecords = records.filter((record) => record.recordType === "size");
+
+  if (!sizeRecords.length) {
     return (
       <EmptyState
         title="아직 등록된 기록이 없습니다"
@@ -211,7 +221,7 @@ const GuinnessContent = ({ records }: { records: RankingResponse["records"] }) =
 
   return (
     <div className="space-y-3 app-reveal-fade">
-      {records.map((record, i) => (
+      {sizeRecords.map((record, i) => (
         <div
           key={record.id}
           className={cn(
@@ -244,9 +254,7 @@ const GuinnessContent = ({ records }: { records: RankingResponse["records"] }) =
           <div className="flex-1 min-w-0">
             <p className="app-title-md truncate">{record.species}</p>
             <div className="mt-1 flex items-center gap-1.5">
-              <span className="app-pill-muted">
-                {record.recordType === "size" ? "크기" : "무게"}
-              </span>
+              <span className="app-pill-muted">체장</span>
               <Link href={`/profiles/${record.user.id}`} className="app-caption text-slate-500 hover:text-slate-700">
                 {record.user.name}
               </Link>
@@ -257,9 +265,7 @@ const GuinnessContent = ({ records }: { records: RankingResponse["records"] }) =
           <div className="text-right flex-shrink-0">
             <p className="text-lg font-bold text-primary">
               {record.value}
-              <span className="app-caption ml-0.5">
-                {record.recordType === "size" ? "mm" : "g"}
-              </span>
+              <span className="app-caption ml-0.5">mm</span>
             </p>
             <p className="app-caption">공식 기록</p>
           </div>

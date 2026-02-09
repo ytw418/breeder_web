@@ -1,5 +1,4 @@
-import { promises as fs } from "fs";
-import path from "path";
+import client from "@libs/server/client";
 
 export interface GuinnessSpecies {
   id: number;
@@ -7,12 +6,10 @@ export interface GuinnessSpecies {
   aliases: string[];
   isActive: boolean;
   isOfficial: boolean;
-  createdAt: string;
-  updatedAt: string;
+  createdAt: string | Date;
+  updatedAt: string | Date;
 }
 
-const DATA_DIR = path.join(process.cwd(), "data");
-const SPECIES_FILE = path.join(DATA_DIR, "guinness-species.json");
 const SPECIES_NAME_REGEX = /^[가-힣ㄱ-ㅎㅏ-ㅣ]{2,30}$/;
 
 const DEFAULT_SPECIES = [
@@ -20,17 +17,13 @@ const DEFAULT_SPECIES = [
   "사슴벌레",
   "왕사슴벌레",
   "넓적사슴벌레",
-  "코카서스장수풍뎅이",
-  "헤라클레스장수풍뎅이",
   "애사슴벌레",
   "톱사슴벌레",
-  "다이오우히라타사슴벌레",
-  "기라파톱사슴벌레",
-  "팔라완왕넓적사슴벌레",
-  "엘라푸스왕사슴벌레",
+  "미야마사슴벌레",
 ] as const;
 
-const normalizeDisplayName = (value: string) => value.replace(/\s+/g, " ").trim();
+const normalizeDisplayName = (value: string) =>
+  value.replace(/\s+/g, " ").trim();
 
 export const normalizeSpeciesText = (value: string) =>
   normalizeDisplayName(value).toLowerCase().replace(/\s+/g, "");
@@ -62,7 +55,9 @@ const toSpecies = (
   item: Partial<GuinnessSpecies> & { canonicalName?: string },
   index: number
 ): GuinnessSpecies | null => {
-  const name = normalizeDisplayName(String(item.name || item.canonicalName || ""));
+  const name = normalizeDisplayName(
+    String(item.name || item.canonicalName || "")
+  );
   if (!name) return null;
 
   const now = new Date().toISOString();
@@ -92,24 +87,11 @@ const buildDefaultSpecies = (): GuinnessSpecies[] => {
 };
 
 export async function readGuinnessSpecies(): Promise<GuinnessSpecies[]> {
-  try {
-    const text = await fs.readFile(SPECIES_FILE, "utf-8");
-    const parsed = JSON.parse(text);
-    if (!Array.isArray(parsed)) return buildDefaultSpecies();
-
-    const normalized = parsed
-      .map((item, index) => toSpecies(item || {}, index))
-      .filter((item): item is GuinnessSpecies => Boolean(item));
-
-    return normalized.length > 0 ? normalized : buildDefaultSpecies();
-  } catch {
+  const items = await client.guinnessSpecies.findMany();
+  if (!items.length) {
     return buildDefaultSpecies();
   }
-}
-
-export async function writeGuinnessSpecies(items: GuinnessSpecies[]) {
-  await fs.mkdir(DATA_DIR, { recursive: true });
-  await fs.writeFile(SPECIES_FILE, JSON.stringify(items, null, 2), "utf-8");
+  return items;
 }
 
 export function findGuinnessSpeciesMatch(
@@ -150,7 +132,9 @@ export function searchGuinnessSpecies(
   const scored = sortedBase
     .map((item) => {
       const normalizedName = normalizeSpeciesText(item.name);
-      const aliasNormalized = item.aliases.map((alias) => normalizeSpeciesText(alias));
+      const aliasNormalized = item.aliases.map((alias) =>
+        normalizeSpeciesText(alias)
+      );
       const candidates = [normalizedName, ...aliasNormalized];
 
       let score = 99;
@@ -185,7 +169,11 @@ export function searchGuinnessSpecies(
 export function upsertGuinnessSpeciesCandidate(
   items: GuinnessSpecies[],
   rawSpecies: string
-): { items: GuinnessSpecies[]; species: GuinnessSpecies | null; created: boolean } {
+): {
+  items: GuinnessSpecies[];
+  species: GuinnessSpecies | null;
+  created: boolean;
+} {
   const name = normalizeDisplayName(rawSpecies);
   if (!name) {
     return { items, species: null, created: false };

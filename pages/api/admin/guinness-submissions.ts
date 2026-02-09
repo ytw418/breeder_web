@@ -8,8 +8,6 @@ import {
   GuinnessRejectionReasonCode,
   GuinnessSubmission,
   GuinnessSubmissionStatus,
-  readGuinnessSubmissions,
-  writeGuinnessSubmissions,
 } from "@libs/server/guinness-submissions";
 
 interface AdminGuinnessSubmissionsResponse extends ResponseType {
@@ -51,7 +49,7 @@ async function handler(
   }
 
   if (req.method === "GET") {
-    const submissions = await readGuinnessSubmissions();
+    const submissions = await client.guinnessSubmission.findMany();
     const sorted = submissions.sort((a, b) => {
       if (a.status !== b.status) {
         if (a.status === "pending") return -1;
@@ -124,8 +122,9 @@ async function handler(
         .json({ success: false, error: "심사 결과(status)가 올바르지 않습니다." });
     }
 
-    const submissions = await readGuinnessSubmissions();
-    const target = submissions.find((item) => item.id === submissionId);
+    const target = await client.guinnessSubmission.findUnique({
+      where: { id: submissionId },
+    });
     if (!target) {
       return res
         .status(404)
@@ -142,7 +141,7 @@ async function handler(
     const normalizedReasonCode = String(
       reviewReasonCode || ""
     ) as GuinnessRejectionReasonCode;
-    const now = new Date().toISOString();
+    const now = new Date();
     let approvedRecordId: number | null = null;
 
     if (
@@ -170,21 +169,17 @@ async function handler(
       approvedRecordId = created.id;
     }
 
-    const updated: GuinnessSubmission = {
-      ...target,
-      status: nextStatus,
-      reviewReasonCode: nextStatus === "rejected" ? normalizedReasonCode : null,
-      reviewMemo: normalizedMemo || null,
-      reviewedBy: user?.id ?? null,
-      reviewedAt: now,
-      approvedRecordId,
-      updatedAt: now,
-    };
-
-    const nextItems = submissions.map((item) =>
-      item.id === updated.id ? updated : item
-    );
-    await writeGuinnessSubmissions(nextItems);
+    const updated = await client.guinnessSubmission.update({
+      where: { id: submissionId },
+      data: {
+        status: nextStatus,
+        reviewReasonCode: nextStatus === "rejected" ? normalizedReasonCode : null,
+        reviewMemo: normalizedMemo || null,
+        reviewedBy: user?.id ?? null,
+        reviewedAt: now,
+        approvedRecordId,
+      },
+    });
 
     if (user?.id) {
       await createNotification({
@@ -193,8 +188,8 @@ async function handler(
         senderId: user.id,
         message:
           nextStatus === "approved"
-            ? `기네스북 신청이 승인되었습니다. (${target.species} ${target.value}${target.recordType === "size" ? "mm" : "g"})`
-            : "기네스북 신청이 반려되었습니다. 심사 메모를 확인해주세요.",
+            ? `브리더북 신청이 승인되었습니다. (${target.species} ${target.value}${target.recordType === "size" ? "mm" : "g"})`
+            : "브리더북 신청이 반려되었습니다. 심사 메모를 확인해주세요.",
         targetId: approvedRecordId || target.id,
         targetType: nextStatus === "approved" ? "record" : "guinness_submission",
       });

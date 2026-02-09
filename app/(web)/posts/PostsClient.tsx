@@ -208,13 +208,15 @@ export default function PostsClient() {
           </div>
         </section>
 
-        {/* 기네스북 미리보기 */}
+        {/* 브리더북 미리보기 */}
         <section className="app-section app-reveal app-reveal-2">
-          <SectionHeader title="기네스북" href="/guinness" />
+          <SectionHeader title="브리더북" href="/guinness" />
           <div className="app-rail mt-3 flex gap-3 px-4">
             {guinnessData ? (
-              guinnessRecords.length > 0 ? (
-                guinnessRecords.map((record, index) => (
+              guinnessRecords.filter((record) => record.recordType === "size").length > 0 ? (
+                guinnessRecords
+                  .filter((record) => record.recordType === "size")
+                  .map((record, index) => (
                   <Link
                     key={record.id}
                     href="/guinness"
@@ -232,13 +234,11 @@ export default function PostsClient() {
                       <p className="app-caption">{record.species}</p>
                     </div>
                     <p className="mt-3 app-title-md">
-                      {record.recordType === "size" ? "크기" : "무게"} 기록
+                      체장 기록
                     </p>
                     <p className="mt-1 text-xl font-bold text-primary">
                       {record.value}
-                      <span className="app-caption ml-1">
-                        {record.recordType === "size" ? "mm" : "g"}
-                      </span>
+                      <span className="app-caption ml-1">mm</span>
                     </p>
                     <div className="mt-3 flex items-center gap-2">
                       {record.user.avatar ? (
@@ -258,7 +258,7 @@ export default function PostsClient() {
                 ))
               ) : (
                 <div className="app-body-sm text-slate-400 px-1 py-2">
-                  표시할 기네스 기록이 없습니다.
+                  표시할 체장 기록이 없습니다.
                 </div>
               )
             ) : (

@@ -56,7 +56,7 @@ const getMedalClass = (rank: number) => {
 
 interface SubmissionDraft {
   species: string;
-  recordType: "size" | "weight";
+  recordType: "size";
   value: string;
   measurementDate: string;
   description: string;
@@ -88,7 +88,7 @@ export default function GuinnessApplyClient() {
 
   const [species, setSpecies] = useState("");
   const [isSpeciesComposing, setIsSpeciesComposing] = useState(false);
-  const [recordType, setRecordType] = useState<"size" | "weight">("size");
+  const [recordType] = useState<"size">("size");
   const [value, setValue] = useState("");
   const [measurementDate, setMeasurementDate] = useState("");
   const [description, setDescription] = useState("");
@@ -126,7 +126,6 @@ export default function GuinnessApplyClient() {
       try {
         const parsed = JSON.parse(saved) as SubmissionDraft;
         if (parsed.species) setSpecies(sanitizeSpeciesInput(parsed.species));
-        if (parsed.recordType) setRecordType(parsed.recordType);
         setValue(parsed.value || "");
         setMeasurementDate(parsed.measurementDate || "");
         setDescription(parsed.description || "");
@@ -171,7 +170,9 @@ export default function GuinnessApplyClient() {
     consentToContact,
   ]);
 
-  const records = rankingData?.records || [];
+  const records = (rankingData?.records || []).filter(
+    (record) => record.recordType === "size"
+  );
   const mySubmissions = submissionData?.submissions || [];
   const popularSpecies = popularSpeciesData?.species || [];
   const searchedSpecies = searchedSpeciesData?.species || [];
@@ -253,7 +254,6 @@ export default function GuinnessApplyClient() {
   const startResubmit = (submission: GuinnessSubmission) => {
     setEditingSubmissionId(submission.id);
     setSpecies(sanitizeSpeciesInput(submission.species));
-    setRecordType(submission.recordType);
     setValue(String(submission.value));
     setMeasurementDate(
       submission.measurementDate
@@ -363,7 +363,7 @@ export default function GuinnessApplyClient() {
       toast.success(
         editingSubmissionId
           ? "수정 재신청이 접수되었습니다."
-          : "기네스북 신청이 접수되었습니다. 심사 후 반영됩니다."
+          : "기록 신청이 접수되었습니다. 심사 후 반영됩니다."
       );
       resetForm();
       mutate();
@@ -375,12 +375,12 @@ export default function GuinnessApplyClient() {
   };
 
   return (
-    <Layout canGoBack title="기네스북 등록" seoTitle="기네스북 등록">
+    <Layout canGoBack title="브리더북 등록" seoTitle="브리더북 등록" showHome>
       <div className="app-page pb-10">
         <section className="px-4 pt-5">
           <div className="app-card border-transparent bg-gradient-to-r from-amber-500 to-orange-500 p-5 text-white">
-            <p className="text-xs font-semibold text-white/80">Guinness of Breeder</p>
-            <h1 className="mt-1 text-2xl font-bold">공식 기네스북</h1>
+            <p className="text-xs font-semibold text-white/80">Breeder Records</p>
+            <h1 className="mt-1 text-2xl font-bold">브리더북 체장 등록</h1>
             <p className="mt-2 text-sm text-white/90 leading-relaxed">
               증빙 자료와 연락처를 제출하면 어드민 심사를 거쳐 공식 기록으로 등록됩니다.
             </p>
@@ -388,65 +388,8 @@ export default function GuinnessApplyClient() {
               href="/guinness"
               className="mt-4 inline-flex h-9 items-center rounded-lg bg-white/95 px-3 text-xs font-semibold text-amber-700"
             >
-              공식 기록 리스트 보기
+              브리더북 보기
             </Link>
-          </div>
-        </section>
-
-        <section className="px-4 pt-6">
-          <div className="mb-3 flex items-center justify-between">
-                <h2 className="app-section-title">공식 인증 랭킹</h2>
-                <span className="text-xs text-slate-400">승인 기록만 노출</span>
-          </div>
-          <div className="space-y-2">
-            {records.length > 0 ? (
-              records.slice(0, 10).map((record, index) => (
-                <div
-                  key={record.id}
-                  className="app-card p-3"
-                >
-                  <div className="flex items-center gap-3">
-                    <span
-                      className={`w-7 h-7 rounded-full text-xs font-bold flex items-center justify-center ${getMedalClass(
-                        index + 1
-                      )}`}
-                    >
-                      {index + 1}
-                    </span>
-                    <div className="w-12 h-12 rounded-lg bg-gray-100 overflow-hidden flex-shrink-0">
-                      <Image
-                        src={makeImageUrl(record.photo, "avatar")}
-                        className="w-full h-full object-cover"
-                        width={48}
-                        height={48}
-                        alt=""
-                      />
-                    </div>
-                    <div className="min-w-0 flex-1">
-                      <p className="text-sm font-semibold text-slate-900 truncate">
-                        {record.species}
-                      </p>
-                      <p className="text-xs text-slate-500">{record.user.name}</p>
-                    </div>
-                    <p className="text-lg font-bold text-primary">
-                      {record.value}
-                      <span className="ml-1 text-xs font-normal text-slate-400">
-                        {record.recordType === "size" ? "mm" : "g"}
-                      </span>
-                    </p>
-                  </div>
-                </div>
-              ))
-            ) : (
-              <div className="app-card border-dashed px-4 py-10 text-center">
-                <p className="text-sm font-medium text-slate-600">
-                  아직 공식 인증 기록이 없습니다.
-                </p>
-                <p className="mt-1 text-xs text-slate-400">
-                  아래에서 첫 공식 기록을 신청해보세요.
-                </p>
-              </div>
-            )}
           </div>
         </section>
 
@@ -469,7 +412,7 @@ export default function GuinnessApplyClient() {
                 )}
               </div>
               <p className="mt-1 text-xs text-slate-500">
-                신청 후 최대 {SLA_HOURS}시간 내 심사를 목표로 하며, 승인 시 기네스북에 반영됩니다.
+                신청 후 최대 {SLA_HOURS}시간 내 심사를 목표로 하며, 승인 시 브리더북에 반영됩니다.
               </p>
             </div>
 
@@ -549,27 +492,20 @@ export default function GuinnessApplyClient() {
                     </div>
                   )}
                 </div>
-                <select
-                  value={recordType}
-                  onChange={(event) =>
-                    setRecordType(event.target.value as "size" | "weight")
-                  }
-                  className="h-10 rounded-md border border-gray-200 px-3 text-sm"
-                >
-                  <option value="size">크기 (mm)</option>
-                  <option value="weight">무게 (g)</option>
-                </select>
+                <div className="flex h-10 items-center rounded-md border border-gray-200 px-3 text-sm text-slate-700">
+                  체장 (mm)
+                </div>
               </div>
 
               <div className="rounded-md border border-amber-100 bg-amber-50 px-3 py-2">
                 <p className="text-xs text-amber-800">
                   {species.trim() ? (
                     <>
-                      현재 {species} {recordType === "size" ? "크기" : "무게"} 공식 최고 기록:
+                      현재 {species} 체장 공식 최고 기록:
                       {" "}
                       <span className="font-semibold">
                         {activeTopRecord
-                          ? `${activeTopRecord.value}${recordType === "size" ? "mm" : "g"} (${activeTopRecord.user.name})`
+                          ? `${activeTopRecord.value}mm (${activeTopRecord.user.name})`
                           : "없음"}
                       </span>
                     </>
@@ -585,9 +521,7 @@ export default function GuinnessApplyClient() {
                 step="0.01"
                 value={value}
                 onChange={(event) => setValue(event.target.value)}
-                placeholder={
-                  recordType === "size" ? "측정값 입력 (예: 84.5)" : "측정값 입력 (예: 32.8)"
-                }
+                placeholder="체장 입력 (예: 84.5)"
               />
 
               <Input
@@ -737,7 +671,7 @@ export default function GuinnessApplyClient() {
               </label>
 
               <Button type="submit" disabled={!isFormReady || submitting} className="w-full">
-                {submitting ? "신청 접수 중..." : "기네스북 심사 신청"}
+                {submitting ? "신청 접수 중..." : "브리더북 심사 신청"}
               </Button>
             </form>
           </div>
@@ -758,10 +692,7 @@ export default function GuinnessApplyClient() {
                   <div className="flex items-start justify-between gap-3">
                     <div>
                       <p className="text-sm font-semibold text-slate-900">
-                        {submission.species} ·{" "}
-                        {submission.recordType === "size" ? "크기" : "무게"}{" "}
-                        {submission.value}
-                        {submission.recordType === "size" ? "mm" : "g"}
+                        {submission.species} · 체장 {submission.value}mm
                       </p>
                       <p className="mt-1 text-xs text-slate-400">
                         신청일 {new Date(submission.submittedAt).toLocaleString()}

@@ -1,5 +1,7 @@
 import { faker } from "@faker-js/faker";
 import { PrismaClient } from "@prisma/client";
+import { promises as fs } from "fs";
+import path from "path";
 
 const client = new PrismaClient();
 
@@ -128,6 +130,128 @@ ${species} ${grade} 등급 ${size} 사이즈 ${gender}입니다.
         userId: user.id,
       },
     });
+  }
+
+  const dataDir = path.join(process.cwd(), "data");
+  const readJsonArray = async <T>(fileName: string): Promise<T[]> => {
+    try {
+      const text = await fs.readFile(path.join(dataDir, fileName), "utf-8");
+      const parsed = JSON.parse(text);
+      return Array.isArray(parsed) ? (parsed as T[]) : [];
+    } catch {
+      return [];
+    }
+  };
+
+  const defaultSpecies = [
+    "장수풍뎅이",
+    "사슴벌레",
+    "왕사슴벌레",
+    "넓적사슴벌레",
+    "애사슴벌레",
+    "톱사슴벌레",
+    "미야마사슴벌레",
+  ];
+
+  const existingSpeciesCount = await client.guinnessSpecies.count();
+  if (existingSpeciesCount === 0) {
+    const speciesSeed = await readJsonArray<{
+      name: string;
+      aliases?: string[];
+      isActive?: boolean;
+      isOfficial?: boolean;
+    }>("guinness-species.json");
+    const speciesSource = speciesSeed.length
+      ? speciesSeed
+      : defaultSpecies.map((name) => ({ name }));
+    await client.guinnessSpecies.createMany({
+      data: speciesSource.map((item) => ({
+        name: item.name,
+        aliases: item.aliases ?? [],
+        isActive: item.isActive ?? true,
+        isOfficial: item.isOfficial ?? true,
+      })),
+      skipDuplicates: true,
+    });
+  }
+
+  const existingBannerCount = await client.adminBanner.count();
+  if (existingBannerCount === 0) {
+    const bannerSeed = await readJsonArray<{
+      title: string;
+      description: string;
+      href: string;
+      bgClass: string;
+      order: number;
+      image?: string;
+    }>("admin-banners.json");
+    if (bannerSeed.length > 0) {
+      await client.adminBanner.createMany({
+        data: bannerSeed.map((item, index) => ({
+          title: item.title,
+          description: item.description,
+          href: item.href,
+          bgClass: item.bgClass || "from-slate-500 to-slate-600",
+          order: item.order ?? index + 1,
+          image: item.image,
+        })),
+      });
+    }
+  }
+
+  const existingLandingCount = await client.landingPage.count();
+  if (existingLandingCount === 0) {
+    const landingSeed = await readJsonArray<{
+      slug: string;
+      title: string;
+      content: string;
+      isPublished?: boolean;
+    }>("admin-landing-pages.json");
+    if (landingSeed.length > 0) {
+      await client.landingPage.createMany({
+        data: landingSeed.map((item) => ({
+          slug: item.slug,
+          title: item.title,
+          content: item.content,
+          isPublished: item.isPublished ?? true,
+        })),
+        skipDuplicates: true,
+      });
+    }
+  }
+
+  const existingSubmissionCount = await client.guinnessSubmission.count();
+  if (existingSubmissionCount === 0) {
+    const firstUser = await client.user.findFirst();
+    const speciesList = await client.guinnessSpecies.findMany({
+      select: { id: true, name: true },
+      orderBy: { id: "asc" },
+      take: 2,
+    });
+    if (firstUser && speciesList.length > 0) {
+      const now = new Date();
+      const submissions = speciesList.map((item, index) => ({
+        userId: firstUser.id,
+        userName: firstUser.name,
+        species: item.name,
+        speciesId: item.id,
+        speciesRawText: null,
+        recordType: "size" as const,
+        value: 70 + index * 5,
+        measurementDate: null,
+        description: "브리더북 더미 기록",
+        proofPhotos: ["seed-photo-placeholder"],
+        contactPhone: "01000000000",
+        contactEmail: "seed@example.com",
+        consentToContact: true,
+        submittedAt: now,
+        slaDueAt: new Date(now.getTime() + 72 * 60 * 60 * 1000),
+        resubmitCount: 0,
+        status: "pending" as const,
+      }));
+
+      await client.guinnessSubmission.createMany({ data: submissions });
+    }
   }
 
   console.log("Seed data created successfully");

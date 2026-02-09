@@ -8,9 +8,8 @@ import {
   findGuinnessSpeciesMatch,
   isValidSpeciesName,
   normalizeSpeciesText,
-  readGuinnessSpecies,
-  writeGuinnessSpecies,
 } from "@libs/server/guinness-species";
+import client from "@libs/server/client";
 
 interface AdminGuinnessSpeciesResponse extends ResponseType {
   species?: GuinnessSpecies[];
@@ -43,7 +42,7 @@ async function handler(
     const { q = "" } = req.query;
     const keyword = normalizeSpeciesText(String(q || ""));
 
-    const all = await readGuinnessSpecies();
+    const all = await client.guinnessSpecies.findMany();
     const filtered = keyword
       ? all.filter((item) => {
           const nameMatched = normalizeSpeciesText(item.name).includes(keyword);
@@ -59,7 +58,7 @@ async function handler(
 
   if (req.method === "POST") {
     const { action } = req.body;
-    const all = await readGuinnessSpecies();
+    const all = await client.guinnessSpecies.findMany();
 
     if (action === "create") {
       const name = String(req.body.name || "").trim();
@@ -83,24 +82,24 @@ async function handler(
         });
       }
 
-      const now = new Date().toISOString();
-      const nextId = all.reduce((max, item) => Math.max(max, item.id), 0) + 1;
       const aliases = buildAliasesFromText(String(req.body.aliases || "")).filter(
         (alias) => normalizeSpeciesText(alias) !== normalizeSpeciesText(name)
       );
-      const created: GuinnessSpecies = {
-        id: nextId,
-        name,
-        aliases,
-        isActive: true,
-        isOfficial: true,
-        createdAt: now,
-        updatedAt: now,
-      };
+      const created = await client.guinnessSpecies.create({
+        data: {
+          name,
+          aliases,
+          isActive: true,
+          isOfficial: true,
+        },
+      });
 
-      const nextItems = [...all, created];
-      await writeGuinnessSpecies(nextItems);
-      return res.json({ success: true, speciesItem: created, species: sortSpecies(nextItems) });
+      const nextItems = await client.guinnessSpecies.findMany();
+      return res.json({
+        success: true,
+        speciesItem: created,
+        species: sortSpecies(nextItems),
+      });
     }
 
     if (action === "approve") {
@@ -111,25 +110,21 @@ async function handler(
           .json({ success: false, error: "승인할 종 id가 필요합니다." });
       }
 
-      let updatedItem: GuinnessSpecies | null = null;
-      const nextItems = all.map((item) => {
-        if (item.id !== id) return item;
-        updatedItem = {
-          ...item,
-          isOfficial: true,
-          isActive: true,
-          updatedAt: new Date().toISOString(),
-        };
-        return updatedItem;
-      });
-
-      if (!updatedItem) {
+      const target = await client.guinnessSpecies.findUnique({ where: { id } });
+      if (!target) {
         return res
           .status(404)
           .json({ success: false, error: "대상을 찾을 수 없습니다." });
       }
 
-      await writeGuinnessSpecies(nextItems);
+      const updatedItem = await client.guinnessSpecies.update({
+        where: { id },
+        data: {
+          isOfficial: true,
+          isActive: true,
+        },
+      });
+      const nextItems = await client.guinnessSpecies.findMany();
       return res.json({
         success: true,
         speciesItem: updatedItem,
@@ -145,24 +140,21 @@ async function handler(
           .json({ success: false, error: "수정할 종 id가 필요합니다." });
       }
 
-      let updatedItem: GuinnessSpecies | null = null;
-      const nextItems = all.map((item) => {
-        if (item.id !== id) return item;
-        updatedItem = {
-          ...item,
-          isActive: !item.isActive,
-          updatedAt: new Date().toISOString(),
-        };
-        return updatedItem;
-      });
-
-      if (!updatedItem) {
+      const target = await client.guinnessSpecies.findUnique({ where: { id } });
+      if (!target) {
         return res
           .status(404)
           .json({ success: false, error: "대상을 찾을 수 없습니다." });
       }
 
-      await writeGuinnessSpecies(nextItems);
+      const updatedItem = await client.guinnessSpecies.update({
+        where: { id },
+        data: {
+          isActive: !target.isActive,
+        },
+      });
+
+      const nextItems = await client.guinnessSpecies.findMany();
       return res.json({
         success: true,
         speciesItem: updatedItem,
@@ -219,30 +211,31 @@ async function handler(
         }
       }
 
-      let updatedItem: GuinnessSpecies | null = null;
-      const nextItems = all.map((item) => {
-        if (item.id !== id) return item;
+      const target = await client.guinnessSpecies.findUnique({ where: { id } });
+      if (!target) {
+        return res
+          .status(404)
+          .json({ success: false, error: "대상을 찾을 수 없습니다." });
+      }
 
-        const name = hasNameInput ? nextName : item.name;
-        const aliases = hasAliasesInput
-          ? buildAliasesFromText(String(aliasesInput || ""))
-              .filter(
-                (alias) => normalizeSpeciesText(alias) !== normalizeSpeciesText(name)
-              )
-              .filter((alias, index, array) => array.indexOf(alias) === index)
-          : item.aliases;
+      const name = hasNameInput ? nextName : target.name;
+      const aliases = hasAliasesInput
+        ? buildAliasesFromText(String(aliasesInput || ""))
+            .filter(
+              (alias) => normalizeSpeciesText(alias) !== normalizeSpeciesText(name)
+            )
+            .filter((alias, index, array) => array.indexOf(alias) === index)
+        : target.aliases;
 
-        updatedItem = {
-          ...item,
+      const updatedItem = await client.guinnessSpecies.update({
+        where: { id },
+        data: {
           name,
           aliases,
-          updatedAt: new Date().toISOString(),
-        };
-
-        return updatedItem;
+        },
       });
 
-      await writeGuinnessSpecies(nextItems);
+      const nextItems = await client.guinnessSpecies.findMany();
       return res.json({
         success: true,
         speciesItem: updatedItem || undefined,

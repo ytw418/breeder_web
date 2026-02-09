@@ -1,9 +1,8 @@
-import { promises as fs } from "fs";
-import path from "path";
 import { NextApiRequest, NextApiResponse } from "next";
 import withHandler, { ResponseType } from "@libs/server/withHandler";
 import { withApiSession } from "@libs/server/withSession";
 import { hasAdminAccess } from "./_utils";
+import client from "@libs/server/client";
 
 export interface AdminBanner {
   id: number;
@@ -14,9 +13,6 @@ export interface AdminBanner {
   order: number;
   image?: string;
 }
-
-const DATA_DIR = path.join(process.cwd(), "data");
-const BANNERS_FILE = path.join(DATA_DIR, "admin-banners.json");
 
 const SAMPLE_BANNERS: AdminBanner[] = [
   {
@@ -45,31 +41,17 @@ const SAMPLE_BANNERS: AdminBanner[] = [
   },
 ];
 
-async function readStoredBanners(): Promise<AdminBanner[]> {
-  try {
-    const text = await fs.readFile(BANNERS_FILE, "utf-8");
-    const parsed = JSON.parse(text);
-    if (!Array.isArray(parsed)) return [];
-    return parsed as AdminBanner[];
-  } catch {
-    return [];
-  }
-}
-
-async function writeStoredBanners(banners: AdminBanner[]) {
-  await fs.mkdir(DATA_DIR, { recursive: true });
-  await fs.writeFile(BANNERS_FILE, JSON.stringify(banners, null, 2), "utf-8");
-}
-
 async function handler(req: NextApiRequest, res: NextApiResponse<ResponseType>) {
   if (req.method === "GET") {
-    const banners = await readStoredBanners();
+    const banners = await client.adminBanner.findMany({
+      orderBy: { order: "asc" },
+    });
     if (!banners.length) {
       return res.json({ success: true, banners: SAMPLE_BANNERS, isSample: true });
     }
     return res.json({
       success: true,
-      banners: banners.sort((a, b) => a.order - b.order),
+      banners,
       isSample: false,
     });
   }
@@ -93,19 +75,21 @@ async function handler(req: NextApiRequest, res: NextApiResponse<ResponseType>) 
         .json({ success: false, error: "필수값(title, description, href)이 필요합니다." });
     }
 
-    const banners = await readStoredBanners();
-    const nextBanner: AdminBanner = {
-      id: Date.now(),
+    const banners = await client.adminBanner.findMany({
+      orderBy: { order: "asc" },
+    });
+    const nextOrder =
+      Number(order) || (banners.length ? banners[banners.length - 1].order + 1 : 1);
+    const nextBanner = {
       title: String(title),
       description: String(description),
       href: String(href),
       bgClass: String(bgClass || "from-slate-500 to-slate-600"),
-      order: Number(order) || banners.length + 1,
+      order: nextOrder,
     };
 
-    const nextBanners = [...banners, nextBanner].sort((a, b) => a.order - b.order);
-    await writeStoredBanners(nextBanners);
-    return res.json({ success: true, banner: nextBanner });
+    const created = await client.adminBanner.create({ data: nextBanner });
+    return res.json({ success: true, banner: created });
   }
 
   if (req.method === "DELETE") {
@@ -114,15 +98,21 @@ async function handler(req: NextApiRequest, res: NextApiResponse<ResponseType>) 
       return res.status(400).json({ success: false, error: "ID가 필요합니다." });
     }
 
-    const banners = await readStoredBanners();
+    const banners = await client.adminBanner.findMany();
     if (!banners.length) {
       return res
         .status(400)
         .json({ success: false, error: "샘플 데이터는 삭제할 수 없습니다." });
     }
 
-    const filtered = banners.filter((banner) => banner.id !== Number(id));
-    await writeStoredBanners(filtered);
+    const target = await client.adminBanner.findUnique({
+      where: { id: Number(id) },
+    });
+    if (!target) {
+      return res.status(404).json({ success: false, error: "대상을 찾을 수 없습니다." });
+    }
+
+    await client.adminBanner.delete({ where: { id: Number(id) } });
     return res.json({ success: true });
   }
 }

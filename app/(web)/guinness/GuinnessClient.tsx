@@ -7,11 +7,12 @@ import Image from "@components/atoms/Image";
 import { cn, makeImageUrl } from "@libs/client/utils";
 import { RankingResponse } from "pages/api/ranking";
 import { GuinnessSpeciesListResponse } from "pages/api/guinness/species";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 
 const PERIOD_TABS = [
   { id: "all", name: "역대" },
   { id: "monthly", name: "이번 달" },
+  { id: "yearly", name: "올해" },
 ] as const;
 
 const getMedalClass = (rank: number) => {
@@ -23,13 +24,11 @@ const getMedalClass = (rank: number) => {
 
 export default function GuinnessClient() {
   const [period, setPeriod] = useState<(typeof PERIOD_TABS)[number]["id"]>("all");
-  const [species, setSpecies] = useState("전체");
+  const [species, setSpecies] = useState("");
 
   const apiUrl = useMemo(() => {
-    const query = new URLSearchParams({ tab: "guinness", period });
-    if (species !== "전체") {
-      query.set("species", species);
-    }
+    if (!species) return null;
+    const query = new URLSearchParams({ tab: "guinness", period, species });
     return `/api/ranking?${query.toString()}`;
   }, [period, species]);
 
@@ -37,28 +36,36 @@ export default function GuinnessClient() {
   const { data: speciesData } =
     useSWR<GuinnessSpeciesListResponse>("/api/guinness/species?limit=100");
 
+  const speciesOptions = useMemo(
+    () => (speciesData?.species || []).map((item) => item.name),
+    [speciesData?.species]
+  );
+
+  useEffect(() => {
+    if (!species && speciesOptions.length > 0) {
+      setSpecies(speciesOptions[0]);
+    }
+  }, [species, speciesOptions]);
+
   const records = data?.records || [];
-  const speciesOptions = useMemo(() => {
-    const names = (speciesData?.species || []).map((item) => item.name);
-    return ["전체", ...names];
-  }, [speciesData?.species]);
+  const sizeRecords = records.filter((record) => record.recordType === "size");
 
   return (
-    <Layout canGoBack title="기네스북" seoTitle="기네스북">
+    <Layout canGoBack title="브리더북" seoTitle="브리더북" showHome>
       <div className="app-page pb-20">
         <section className="px-4 pt-5 app-reveal">
           <div className="app-card bg-gradient-to-r from-amber-500 to-orange-500 p-5 text-white border-transparent">
-            <p className="text-xs font-semibold text-white/80">Guinness of Breeder</p>
-            <h1 className="mt-1 text-2xl font-bold">기네스북 상세</h1>
+            <p className="text-xs font-semibold text-white/80">Breeder Records</p>
+            <h1 className="mt-1 text-2xl font-bold">브리더북 체장 랭킹</h1>
             <p className="mt-2 text-sm leading-relaxed text-white/95">
-              본 페이지의 기록은 우리 서비스 심사 절차를 통과한 데이터만 노출되며,
-              공식적으로 인정된 기록입니다.
+              당신의 체장 기록을 등록하세요. 본 페이지의 기록은 심사 절차를 통과한
+              데이터만 노출되며 공식적으로 인정된 기록입니다.
             </p>
             <Link
               href="/guinness/apply"
               className="app-card-interactive mt-4 inline-flex h-10 items-center rounded-lg bg-white px-4 text-sm font-semibold text-amber-700"
             >
-              기네스북 등록하기
+              브리더북 등록하기
             </Link>
           </div>
         </section>
@@ -105,9 +112,9 @@ export default function GuinnessClient() {
 
         <section className="px-4 pt-4 app-reveal app-reveal-2">
           {data ? (
-            records.length > 0 ? (
+            sizeRecords.length > 0 ? (
               <div className="space-y-2">
-                {records.map((record, index) => (
+                {sizeRecords.map((record, index) => (
                   <div
                     key={record.id}
                     className="app-card app-card-interactive p-3"
@@ -136,12 +143,10 @@ export default function GuinnessClient() {
                       <div className="text-right">
                         <p className="text-lg font-bold text-primary leading-none">
                           {record.value}
-                          <span className="ml-1 text-xs font-normal text-slate-400">
-                            {record.recordType === "size" ? "mm" : "g"}
-                          </span>
+                          <span className="ml-1 text-xs font-normal text-slate-400">mm</span>
                         </p>
                         <p className="mt-1 text-xs text-slate-400">
-                          {record.recordType === "size" ? "크기" : "무게"}
+                          체장
                         </p>
                       </div>
                     </div>
@@ -157,7 +162,7 @@ export default function GuinnessClient() {
                   href="/guinness/apply"
                   className="mt-3 inline-flex h-9 items-center rounded-md bg-primary px-3 text-xs font-semibold text-white"
                 >
-                  첫 기록 등록하기
+                  첫 체장 기록 등록하기
                 </Link>
               </div>
             )
@@ -191,7 +196,7 @@ export default function GuinnessClient() {
             href="/guinness/apply"
             className="app-card-interactive flex h-12 w-full items-center justify-center rounded-xl bg-slate-900 text-sm font-semibold text-white shadow-lg"
           >
-            기네스북 등록하기
+            브리더북 등록하기
           </Link>
         </div>
       </div>

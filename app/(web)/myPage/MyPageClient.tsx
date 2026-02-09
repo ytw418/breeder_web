@@ -25,7 +25,7 @@ type ActivityTab = "posts" | "comments" | "guinness" | "products";
 const TAB_META: { id: ActivityTab; name: string }[] = [
   { id: "posts", name: "게시물" },
   { id: "comments", name: "댓글" },
-  { id: "guinness", name: "기네스북" },
+  { id: "guinness", name: "브리더북" },
   { id: "products", name: "상품" },
 ];
 
@@ -59,13 +59,13 @@ const GuinnessSubmissionList = ({
   if (!submissions.length) {
     return (
       <div className="app-card flex h-36 flex-col items-center justify-center text-slate-500">
-        <p className="app-title-md text-slate-600">기네스북 신청 내역이 없습니다</p>
-        <p className="app-caption mt-1">측정 기록을 신청해 공식 인증을 받아보세요.</p>
+        <p className="app-title-md text-slate-600">체장 기록 신청 내역이 없습니다</p>
+        <p className="app-caption mt-1">체장 기록을 신청해 공식 인증을 받아보세요.</p>
         <Link
           href="/guinness/apply"
           className="mt-3 rounded-lg bg-slate-900 px-3 py-1.5 text-xs font-semibold text-white"
         >
-          기네스북 등록하기
+          브리더북 등록하기
         </Link>
       </div>
     );
@@ -78,8 +78,7 @@ const GuinnessSubmissionList = ({
           <div className="flex items-start justify-between gap-2">
             <div className="min-w-0">
               <p className="app-title-md truncate">
-                {submission.species} · {submission.value}
-                {submission.recordType === "size" ? "mm" : "g"}
+                {submission.species} · 체장 {submission.value}mm
               </p>
               <p className="app-caption mt-1">
                 신청일 {new Date(submission.submittedAt).toLocaleDateString("ko-KR")}
@@ -102,7 +101,7 @@ const GuinnessSubmissionList = ({
           <div className="mt-2 flex items-center gap-2">
             {submission.status === "approved" ? (
               <Link href="/guinness" className="app-pill-muted">
-                공식 기네스북 보기
+                브리더북 보기
               </Link>
             ) : (
               <Link href="/guinness/apply" className="app-pill-muted">
@@ -140,9 +139,9 @@ const MyPageClient = () => {
   const profileUser = data?.user;
   const mySubmissions = useMemo(
     () =>
-      [...(guinnessData?.submissions || [])].sort((a, b) =>
-        b.submittedAt.localeCompare(a.submittedAt)
-      ),
+      [...(guinnessData?.submissions || [])]
+        .filter((submission) => submission.recordType === "size")
+        .sort((a, b) => b.submittedAt.localeCompare(a.submittedAt)),
     [guinnessData?.submissions]
   );
 
@@ -199,7 +198,7 @@ const MyPageClient = () => {
               <span className="text-lg font-bold text-gray-900">
                 {profileUser?._count?.insectRecords ?? 0}
               </span>
-              <span className="text-xs text-gray-500">공식기록</span>
+              <span className="text-xs text-gray-500">공식 기록</span>
             </div>
             <div className="flex flex-col items-center">
               <span className="text-lg font-bold text-gray-900">

@@ -18,6 +18,7 @@ interface LayoutProps {
   seoTitle?: string;
   icon?: boolean;
   showSearch?: boolean;
+  showHome?: boolean;
 }
 
 interface UnreadCountResponse {
@@ -93,6 +94,7 @@ export default function MainLayout({
   seoTitle,
   icon,
   showSearch,
+  showHome,
 }: LayoutProps) {
   const router = useRouter();
   const pathname = usePathname();
@@ -143,6 +145,28 @@ export default function MainLayout({
                 ></path>
               </svg>
             </button>
+            {showHome ? (
+              <Link
+                href="/"
+                className="absolute left-14 rounded-full p-2 transition-colors hover:bg-slate-100"
+                aria-label="홈으로 가기"
+              >
+                <svg
+                  className="w-6 h-6 text-slate-600"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                  xmlns="http://www.w3.org/2000/svg"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth="2"
+                    d="M3 12l9-7 9 7v8a1 1 0 01-1 1h-5v-7H9v7H4a1 1 0 01-1-1v-8z"
+                  />
+                </svg>
+              </Link>
+            ) : null}
             {/* 햄버거 메뉴 버튼 */}
             <button
               onClick={() => setMenuOpen(true)}

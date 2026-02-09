@@ -5,8 +5,6 @@ import client from "@libs/server/client";
 import {
   GuinnessRecordType,
   GuinnessSubmission,
-  readGuinnessSubmissions,
-  writeGuinnessSubmissions,
 } from "@libs/server/guinness-submissions";
 import {
   findGuinnessSpeciesMatch,
@@ -14,7 +12,6 @@ import {
   normalizeSpeciesText,
   readGuinnessSpecies,
   upsertGuinnessSpeciesCandidate,
-  writeGuinnessSpecies,
 } from "@libs/server/guinness-species";
 
 export type { GuinnessSubmission } from "@libs/server/guinness-submissions";
@@ -29,8 +26,8 @@ const PHONE_REGEX = /^[0-9+\-\s()]{8,20}$/;
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const SLA_HOURS = 72;
 
-const getSlaDueAt = (base: string) =>
-  new Date(new Date(base).getTime() + SLA_HOURS * 60 * 60 * 1000).toISOString();
+const getSlaDueAt = (base: Date) =>
+  new Date(base.getTime() + SLA_HOURS * 60 * 60 * 1000);
 
 async function handler(
   req: NextApiRequest,
@@ -47,11 +44,10 @@ async function handler(
   }
 
   if (req.method === "GET") {
-    const submissions = await readGuinnessSubmissions();
-    const mine = submissions
-      .filter((item) => item.userId === user.id)
-      .sort((a, b) => b.submittedAt.localeCompare(a.submittedAt));
-
+    const mine = await client.guinnessSubmission.findMany({
+      where: { userId: user.id },
+      orderBy: { submittedAt: "desc" },
+    });
     return res.json({ success: true, submissions: mine });
   }
 
@@ -133,7 +129,7 @@ async function handler(
       });
     }
 
-    let parsedMeasurementDate: string | null = null;
+    let parsedMeasurementDate: Date | null = null;
     if (normalizedMeasurementDate) {
       const measurement = new Date(normalizedMeasurementDate);
       if (Number.isNaN(measurement.getTime())) {
@@ -148,7 +144,7 @@ async function handler(
           .status(400)
           .json({ success: false, error: "미래 날짜는 측정일로 선택할 수 없습니다." });
       }
-      parsedMeasurementDate = measurement.toISOString();
+      parsedMeasurementDate = measurement;
     }
 
     const me = await client.user.findUnique({
@@ -162,7 +158,9 @@ async function handler(
         .json({ success: false, error: "사용자 정보를 찾을 수 없습니다." });
     }
 
-    const submissions = await readGuinnessSubmissions();
+    const userSubmissions = await client.guinnessSubmission.findMany({
+      where: { userId: me.id },
+    });
     const speciesCatalog = await readGuinnessSpecies();
     const matchedSpecies = findGuinnessSpeciesMatch(speciesCatalog, normalizedSpecies);
     const resolvedSpecies = matchedSpecies?.name || normalizedSpecies;
@@ -171,11 +169,25 @@ async function handler(
 
     if (!matchedSpecies) {
       const candidate = upsertGuinnessSpeciesCandidate(speciesCatalog, normalizedSpecies);
-      if (candidate.created) {
-        await writeGuinnessSpecies(candidate.items);
-      }
-      if (candidate.species) {
-        resolvedSpeciesId = candidate.species.id;
+      if (candidate.created && candidate.species) {
+        try {
+          const created = await client.guinnessSpecies.create({
+            data: {
+              name: candidate.species.name,
+              aliases: candidate.species.aliases,
+              isActive: candidate.species.isActive,
+              isOfficial: candidate.species.isOfficial,
+              createdAt: new Date(candidate.species.createdAt),
+              updatedAt: new Date(candidate.species.updatedAt),
+            },
+          });
+          resolvedSpeciesId = created.id;
+        } catch {
+          const existing = await client.guinnessSpecies.findUnique({
+            where: { name: candidate.species.name },
+          });
+          resolvedSpeciesId = existing?.id || null;
+        }
       }
     }
 
@@ -190,8 +202,10 @@ async function handler(
           .json({ success: false, error: "재신청할 신청 id가 필요합니다." });
       }
 
-      const target = submissions.find((item) => item.id === submissionId);
-      if (!target || target.userId !== me.id) {
+      const target = await client.guinnessSubmission.findFirst({
+        where: { id: submissionId, userId: me.id },
+      });
+      if (!target) {
         return res
           .status(404)
           .json({ success: false, error: "재신청 대상을 찾을 수 없습니다." });
@@ -204,10 +218,9 @@ async function handler(
         });
       }
 
-      const hasSamePending = submissions.some(
+      const hasSamePending = userSubmissions.some(
         (item) =>
           item.id !== submissionId &&
-          item.userId === me.id &&
           item.status === "pending" &&
           sameSpecies(item.species) &&
           item.recordType === normalizedRecordType
@@ -219,36 +232,32 @@ async function handler(
         });
       }
 
-      const now = new Date().toISOString();
-      const updated: GuinnessSubmission = {
-        ...target,
-        species: resolvedSpecies,
-        speciesId: resolvedSpeciesId,
-        speciesRawText: resolvedSpeciesRawText,
-        recordType: normalizedRecordType,
-        value: normalizedValue,
-        measurementDate: parsedMeasurementDate,
-        description: normalizedDescription || null,
-        proofPhotos: normalizedProofPhotos,
-        contactPhone: normalizedPhone || null,
-        contactEmail: normalizedEmail || null,
-        consentToContact: hasConsent,
-        submittedAt: now,
-        slaDueAt: getSlaDueAt(now),
-        resubmitCount: (target.resubmitCount || 0) + 1,
-        status: "pending",
-        reviewReasonCode: null,
-        reviewMemo: null,
-        reviewedBy: null,
-        reviewedAt: null,
-        approvedRecordId: null,
-        updatedAt: now,
-      };
-
-      const nextItems = submissions.map((item) =>
-        item.id === updated.id ? updated : item
-      );
-      await writeGuinnessSubmissions(nextItems);
+      const now = new Date();
+      const updated = await client.guinnessSubmission.update({
+        where: { id: submissionId },
+        data: {
+          species: resolvedSpecies,
+          speciesId: resolvedSpeciesId,
+          speciesRawText: resolvedSpeciesRawText,
+          recordType: normalizedRecordType,
+          value: normalizedValue,
+          measurementDate: parsedMeasurementDate,
+          description: normalizedDescription || null,
+          proofPhotos: normalizedProofPhotos,
+          contactPhone: normalizedPhone || null,
+          contactEmail: normalizedEmail || null,
+          consentToContact: hasConsent,
+          submittedAt: now,
+          slaDueAt: getSlaDueAt(now),
+          resubmitCount: (target.resubmitCount || 0) + 1,
+          status: "pending",
+          reviewReasonCode: null,
+          reviewMemo: null,
+          reviewedBy: null,
+          reviewedAt: null,
+          approvedRecordId: null,
+        },
+      });
       return res.json({ success: true, submission: updated });
     }
 
@@ -258,9 +267,8 @@ async function handler(
         .json({ success: false, error: "지원하지 않는 action 입니다." });
     }
 
-    const hasSamePending = submissions.some(
+    const hasSamePending = userSubmissions.some(
       (item) =>
-        item.userId === me.id &&
         item.status === "pending" &&
         sameSpecies(item.species) &&
         item.recordType === normalizedRecordType
@@ -274,9 +282,8 @@ async function handler(
 
     const startOfToday = new Date();
     startOfToday.setHours(0, 0, 0, 0);
-    const todayCount = submissions.filter(
+    const todayCount = userSubmissions.filter(
       (item) =>
-        item.userId === me.id &&
         new Date(item.createdAt).getTime() >= startOfToday.getTime()
     ).length;
     if (todayCount >= 3) {
@@ -286,37 +293,28 @@ async function handler(
       });
     }
 
-    const now = new Date().toISOString();
-
-    const submission: GuinnessSubmission = {
-      id: Date.now(),
-      userId: me.id,
-      userName: me.name,
-      species: resolvedSpecies,
-      speciesId: resolvedSpeciesId,
-      speciesRawText: resolvedSpeciesRawText,
-      recordType: normalizedRecordType,
-      value: normalizedValue,
-      measurementDate: parsedMeasurementDate,
-      description: normalizedDescription || null,
-      proofPhotos: normalizedProofPhotos,
-      contactPhone: normalizedPhone || null,
-      contactEmail: normalizedEmail || null,
-      consentToContact: hasConsent,
-      submittedAt: now,
-      slaDueAt: getSlaDueAt(now),
-      resubmitCount: 0,
-      status: "pending",
-      reviewReasonCode: null,
-      reviewMemo: null,
-      reviewedBy: null,
-      reviewedAt: null,
-      approvedRecordId: null,
-      createdAt: now,
-      updatedAt: now,
-    };
-
-    await writeGuinnessSubmissions([...submissions, submission]);
+    const now = new Date();
+    const submission = await client.guinnessSubmission.create({
+      data: {
+        userId: me.id,
+        userName: me.name,
+        species: resolvedSpecies,
+        speciesId: resolvedSpeciesId,
+        speciesRawText: resolvedSpeciesRawText,
+        recordType: normalizedRecordType,
+        value: normalizedValue,
+        measurementDate: parsedMeasurementDate,
+        description: normalizedDescription || null,
+        proofPhotos: normalizedProofPhotos,
+        contactPhone: normalizedPhone || null,
+        contactEmail: normalizedEmail || null,
+        consentToContact: hasConsent,
+        submittedAt: now,
+        slaDueAt: getSlaDueAt(now),
+        resubmitCount: 0,
+        status: "pending",
+      },
+    });
     return res.json({ success: true, submission });
   }
 }
