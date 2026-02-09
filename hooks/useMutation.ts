@@ -1,9 +1,10 @@
 import { useCallback, useState } from "react";
+import { ApiResponseBase } from "@libs/client/apiResponse";
 
 interface useMutationState<T> {
   loading: boolean;
   data?: T;
-  error?: object;
+  error?: Error;
 }
 
 interface MutationOption<T> {
@@ -38,28 +39,66 @@ export default function useMutation<T = any>(
       onError,
     }: MutationOption<T>): Promise<T> => {
       setState((prev) => ({ ...prev, loading: true }));
-      return fetch(url + endpoint, {
-        method: "POST",
-        headers: {
-          "Content-Type": contentType ? contentType : "application/json",
-        },
-        body: contentType ? data : JSON.stringify(data),
-      })
-        .then((response) => response.json().catch(() => {}))
-        .then((json) => {
-          setState((prev) => ({ ...prev, data: json, loading: false }));
-          if (onCompleted) {
-            onCompleted(json);
-          }
-          return json;
-        })
-        .catch((error) => {
-          setState((prev) => ({ ...prev, error, loading: false }));
-          if (onError) {
-            onError(error);
-          }
-          throw error;
+      try {
+        const response = await fetch(url + endpoint, {
+          method: "POST",
+          headers: {
+            "Content-Type": contentType ? contentType : "application/json",
+          },
+          body: contentType ? data : JSON.stringify(data),
         });
+
+        const contentTypeHeader = response.headers.get("content-type") || "";
+        const parsed = contentTypeHeader.includes("application/json")
+          ? await response.json().catch(() => null)
+          : await response.text().catch(() => "");
+
+        // 계약:
+        // 1) HTTP 실패(4xx/5xx)는 throw하지 않고 payload로 반환
+        // 2) 네트워크/런타임 예외만 throw
+        const normalized = (() => {
+          if (parsed && typeof parsed === "object" && !Array.isArray(parsed)) {
+            const asRecord = parsed as Record<string, unknown>;
+            const apiShape = asRecord as Partial<ApiResponseBase>;
+            return {
+              ...asRecord,
+              status: response.status,
+              success:
+                typeof apiShape.success === "boolean"
+                  ? apiShape.success
+                  : response.ok,
+            } as T;
+          }
+
+          if (response.ok) {
+            return parsed as T;
+          }
+
+          const message =
+            typeof parsed === "string" && parsed.trim()
+              ? parsed
+              : "요청 처리 중 오류가 발생했습니다.";
+
+          return {
+            success: false,
+            status: response.status,
+            message,
+          } as T;
+        })();
+
+        setState((prev) => ({ ...prev, data: normalized, loading: false }));
+        onCompleted?.(normalized);
+        return normalized;
+      } catch (error) {
+        const normalizedError =
+          error instanceof Error
+            ? error
+            : new Error("네트워크 오류가 발생했습니다.");
+
+        setState((prev) => ({ ...prev, error: normalizedError, loading: false }));
+        onError?.(normalizedError);
+        throw normalizedError;
+      }
     },
     [url]
   );

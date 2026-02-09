@@ -12,6 +12,9 @@ export interface UserResponse {
       followers: number;
       following: number;
       products: number;
+      posts: number;
+      Comments: number;
+      insectRecords: number;
       receivedReviews: number;
     };
   };
@@ -40,6 +43,9 @@ async function handler(
           followers: true,
           following: true,
           products: true,
+          posts: true,
+          Comments: true,
+          insectRecords: true,
           receivedReviews: true,
         },
       },
