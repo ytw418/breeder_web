@@ -25,7 +25,7 @@ type ActivityTab = "posts" | "comments" | "guinness" | "products";
 const TAB_META: { id: ActivityTab; name: string }[] = [
   { id: "posts", name: "게시물" },
   { id: "comments", name: "댓글" },
-  { id: "guinness", name: "브리더북" },
+  { id: "guinness", name: "브리디북" },
   { id: "products", name: "상품" },
 ];
 
@@ -65,7 +65,7 @@ const GuinnessSubmissionList = ({
           href="/guinness/apply"
           className="mt-3 rounded-lg bg-slate-900 px-3 py-1.5 text-xs font-semibold text-white"
         >
-          브리더북 등록하기
+          브리디북 등록하기
         </Link>
       </div>
     );
@@ -101,7 +101,7 @@ const GuinnessSubmissionList = ({
           <div className="mt-2 flex items-center gap-2">
             {submission.status === "approved" ? (
               <Link href="/guinness" className="app-pill-muted">
-                브리더북 보기
+                브리디북 보기
               </Link>
             ) : (
               <Link href="/guinness/apply" className="app-pill-muted">

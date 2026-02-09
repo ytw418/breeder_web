@@ -28,7 +28,7 @@ export default function robots(): MetadataRoute.Robots {
         disallow: ["/"],
       },
     ],
-    sitemap: "https://breeder-web.vercel.app/sitemap.xml",
-    host: "https://breeder-web.vercel.app",
+    sitemap: "https://bredy.app/sitemap.xml",
+    host: "https://bredy.app",
   };
 }

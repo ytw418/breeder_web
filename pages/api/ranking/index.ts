@@ -9,8 +9,8 @@ export interface RecordWithUser extends InsectRecord {
   user: Pick<User, "id" | "name" | "avatar">;
 }
 
-/** 브리더 랭킹 응답 */
-export interface BreederRank {
+/** 브리디 랭킹 응답 */
+export interface BredyRank {
   user: Pick<User, "id" | "name" | "avatar">;
   totalLikes: number;
   recordCount: number;
@@ -29,8 +29,8 @@ export interface RankingResponse {
   error?: string;
   // 기네스북
   records?: RecordWithUser[];
-  // 브리더 랭킹
-  breederRanking?: BreederRank[];
+  // 브리디 랭킹
+  bredyRanking?: BredyRank[];
   // 멋진 곤충 / 변이 랭킹 (좋아요 기반 게시글)
   postRanking?: PostRank[];
 }
@@ -104,8 +104,8 @@ async function handler(
       return res.json({ success: true, postRanking });
     }
 
-    /** 4) 최고 브리더 랭킹 (종합 점수) */
-    if (tab === "breeder") {
+    /** 4) 최고 브리디 랭킹 (종합 점수) */
+    if (tab === "bredy") {
       // 유저별 점수 계산을 위해 관련 데이터 조회
       const users = await client.user.findMany({
         select: {
@@ -135,7 +135,7 @@ async function handler(
       const likesMap = new Map(userLikes.map((l) => [l.userId, l._count.id]));
 
       // 점수 계산: 기록 x 30 + 좋아요 x 5 + 경매 x 20 + 팔로워 x 10
-      const breederRanking: BreederRank[] = users
+      const bredyRanking: BredyRank[] = users
         .map((u) => {
           const totalLikes = likesMap.get(u.id) || 0;
           return {
@@ -154,7 +154,7 @@ async function handler(
         .sort((a, b) => b.score - a.score)
         .slice(0, 50);
 
-      return res.json({ success: true, breederRanking });
+      return res.json({ success: true, bredyRanking });
     }
 
     // 기본: 전체 탭 없으면 에러

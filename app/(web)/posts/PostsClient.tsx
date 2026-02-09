@@ -85,8 +85,8 @@ export default function PostsClient() {
   const { data: guinnessData } = useSWR<RankingResponse>(
     "/api/ranking?tab=guinness"
   );
-  const { data: breederData } = useSWR<RankingResponse>(
-    "/api/ranking?tab=breeder"
+  const { data: bredyData } = useSWR<RankingResponse>(
+    "/api/ranking?tab=bredy"
   );
   const { data: noticeData } = useSWR<NoticePostsResponse>("/api/posts/notices");
   const page = useInfiniteScroll();
@@ -106,7 +106,7 @@ export default function PostsClient() {
 
   const hotPosts = hotRankingData?.postRanking?.slice(0, 5) ?? [];
   const guinnessRecords = guinnessData?.records?.slice(0, 3) ?? [];
-  const breederRanking = breederData?.breederRanking?.slice(0, 5) ?? [];
+  const bredyRanking = bredyData?.bredyRanking?.slice(0, 5) ?? [];
   const noticePosts = noticeData?.posts ?? [];
   const displayNotices =
     noticePosts.length > 0
@@ -208,9 +208,9 @@ export default function PostsClient() {
           </div>
         </section>
 
-        {/* 브리더북 미리보기 */}
+        {/* 브리디북 미리보기 */}
         <section className="app-section app-reveal app-reveal-2">
-          <SectionHeader title="브리더북" href="/guinness" />
+          <SectionHeader title="브리디북" href="/guinness" />
           <div className="app-rail mt-3 flex gap-3 px-4">
             {guinnessData ? (
               guinnessRecords.filter((record) => record.recordType === "size").length > 0 ? (
@@ -277,16 +277,16 @@ export default function PostsClient() {
           </div>
         </section>
 
-        {/* TOP 브리더 */}
+        {/* TOP 브리디 */}
         <section className="app-section-muted app-reveal app-reveal-3">
-          <SectionHeader title="TOP 브리더" href="/ranking" />
+          <SectionHeader title="TOP 브리디" href="/ranking" />
           <div className="app-rail mt-3 flex gap-3 px-4">
-            {breederData ? (
-              breederRanking.length > 0 ? (
-                breederRanking.map((breeder, index) => (
+            {bredyData ? (
+              bredyRanking.length > 0 ? (
+                bredyRanking.map((bredy, index) => (
                   <Link
-                    key={breeder.user.id}
-                    href={`/profiles/${breeder.user.id}`}
+                    key={bredy.user.id}
+                    href={`/profiles/${bredy.user.id}`}
                     className="snap-start shrink-0 w-44 app-card app-card-interactive p-3"
                   >
                     <div className="flex items-center justify-between">
@@ -302,9 +302,9 @@ export default function PostsClient() {
                       <span className="app-caption">점수</span>
                     </div>
                     <div className="mt-3 flex items-center gap-2">
-                      {breeder.user.avatar ? (
+                      {bredy.user.avatar ? (
                         <Image
-                          src={makeImageUrl(breeder.user.avatar, "avatar")}
+                          src={makeImageUrl(bredy.user.avatar, "avatar")}
                           className="w-9 h-9 rounded-full object-cover"
                           width={36}
                           height={36}
@@ -315,21 +315,21 @@ export default function PostsClient() {
                       )}
                       <div className="min-w-0">
                         <p className="app-title-md truncate">
-                          {breeder.user.name}
+                          {bredy.user.name}
                         </p>
                         <p className="app-caption">
-                          ❤️ {breeder.totalLikes}
+                          ❤️ {bredy.totalLikes}
                         </p>
                       </div>
                     </div>
                     <p className="mt-3 text-lg font-bold text-primary">
-                      {breeder.score.toLocaleString()}
+                      {bredy.score.toLocaleString()}
                     </p>
                   </Link>
                 ))
               ) : (
                 <div className="app-body-sm text-slate-400 px-1 py-2">
-                  표시할 브리더 랭킹이 없습니다.
+                  표시할 브리디 랭킹이 없습니다.
                 </div>
               )
             ) : (

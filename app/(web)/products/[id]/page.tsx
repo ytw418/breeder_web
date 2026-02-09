@@ -86,7 +86,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
         alt: product.name,
       })),
       type: "website",
-      siteName: "Breeder",
+      siteName: "Bredy",
       locale: "ko_KR",
     },
     twitter: {
@@ -101,7 +101,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
       // languages: 다국어 지원을 위한 대체 언어 버전의 URL을 지정할 수 있습니다.
       // media: 다양한 미디어 타입(예: print, screen)에 대한 대체 버전을 지정할 수 있습니다.
       // types: 다양한 문서 타입에 대한 대체 버전을 지정할 수 있습니다.
-      canonical: `https://breeder-web.vercel.app/products/${params.id}-${product.name}`,
+      canonical: `https://bredy.app/products/${params.id}-${product.name}`,
     },
     robots: {
       index: true,
@@ -158,13 +158,13 @@ function generateBreadcrumbJsonLd(product: any) {
         "@type": "ListItem",
         position: 1,
         name: "홈",
-        item: "https://breeder-web.vercel.app",
+        item: "https://bredy.app",
       },
       {
         "@type": "ListItem",
         position: 2,
         name: product.name,
-        item: `https://breeder-web.vercel.app/products/${product.id}-${product.name}`,
+        item: `https://bredy.app/products/${product.id}-${product.name}`,
       },
     ],
   };

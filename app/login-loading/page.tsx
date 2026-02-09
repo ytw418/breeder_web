@@ -3,8 +3,8 @@ import KakaoLogin from "@components/auth/KakaoLogin";
 import { Suspense } from "react";
 export async function generateMetadata(): Promise<Metadata> {
   return {
-    title: "브리더 로그인 페이지",
-    description: "브리더 로그인 페이지입니다.",
+    title: "브리디 로그인 페이지",
+    description: "브리디 로그인 페이지입니다.",
   };
 }
 

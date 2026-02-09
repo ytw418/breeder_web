@@ -1,6 +1,6 @@
-# 🐞 Breeder
+# 🐞 Bredy
 
-## [브리더 접속하기](https://breeder-web.vercel.app/)
+## [브리디 접속하기](https://bredy.app/)
 
 ## 📚 프로젝트 소개
 
@@ -13,8 +13,8 @@
 
 1. **프로젝트 클론**
    ```bash
-   git clone https://github.com/your-org/breeder_web.git
-   cd breeder_web
+   git clone https://github.com/your-org/bredy_web.git
+   cd bredy_web
    ```
 2. **패키지 설치**
    ```bash

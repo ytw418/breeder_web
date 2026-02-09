@@ -51,12 +51,12 @@ export default function GuinnessClient() {
   const sizeRecords = records.filter((record) => record.recordType === "size");
 
   return (
-    <Layout canGoBack title="브리더북" seoTitle="브리더북" showHome>
+    <Layout canGoBack title="브리디북" seoTitle="브리디북" showHome>
       <div className="app-page pb-20">
         <section className="px-4 pt-5 app-reveal">
           <div className="app-card bg-gradient-to-r from-amber-500 to-orange-500 p-5 text-white border-transparent">
-            <p className="text-xs font-semibold text-white/80">Breeder Records</p>
-            <h1 className="mt-1 text-2xl font-bold">브리더북 체장 랭킹</h1>
+            <p className="text-xs font-semibold text-white/80">Bredy Records</p>
+            <h1 className="mt-1 text-2xl font-bold">브리디북 체장 랭킹</h1>
             <p className="mt-2 text-sm leading-relaxed text-white/95">
               당신의 체장 기록을 등록하세요. 본 페이지의 기록은 심사 절차를 통과한
               데이터만 노출되며 공식적으로 인정된 기록입니다.
@@ -65,7 +65,7 @@ export default function GuinnessClient() {
               href="/guinness/apply"
               className="app-card-interactive mt-4 inline-flex h-10 items-center rounded-lg bg-white px-4 text-sm font-semibold text-amber-700"
             >
-              브리더북 등록하기
+              브리디북 등록하기
             </Link>
           </div>
         </section>
@@ -196,7 +196,7 @@ export default function GuinnessClient() {
             href="/guinness/apply"
             className="app-card-interactive flex h-12 w-full items-center justify-center rounded-xl bg-slate-900 text-sm font-semibold text-white shadow-lg"
           >
-            브리더북 등록하기
+            브리디북 등록하기
           </Link>
         </div>
       </div>

@@ -3,9 +3,9 @@
 import Link from "next/link";
 import Layout from "@components/features/MainLayout";
 
-export default function BreederbookLandingClient() {
+export default function BredybookLandingClient() {
   return (
-    <Layout title="브리더북" seoTitle="브리더북" icon>
+    <Layout title="브리디북" seoTitle="브리디북" icon>
       <div className="relative overflow-hidden bg-gradient-to-b from-slate-950 via-slate-900 to-slate-950 text-white">
         <div className="pointer-events-none absolute -top-24 left-1/2 h-72 w-72 -translate-x-1/2 rounded-full bg-amber-400/30 blur-3xl" />
         <div className="pointer-events-none absolute -right-20 top-48 h-80 w-80 rounded-full bg-emerald-400/20 blur-3xl" />
@@ -13,7 +13,7 @@ export default function BreederbookLandingClient() {
 
         <section className="relative mx-auto max-w-5xl px-6 pb-16 pt-14">
           <div className="inline-flex items-center gap-2 rounded-full border border-white/15 bg-white/10 px-4 py-1 text-xs font-semibold uppercase tracking-[0.2em] text-white/80">
-            Breederbook
+            Bredybook
             <span className="h-1 w-1 rounded-full bg-amber-300" />
             Official Records
           </div>
@@ -31,19 +31,19 @@ export default function BreederbookLandingClient() {
               href="/guinness/apply"
               className="inline-flex h-12 items-center justify-center rounded-xl bg-amber-400 px-6 text-sm font-semibold text-slate-950 shadow-lg shadow-amber-400/30 transition hover:translate-y-[-1px]"
             >
-              브리더북 기록하러 가기
+              브리디북 기록하러 가기
             </Link>
             <Link
               href="/guinness"
               className="inline-flex h-12 items-center justify-center rounded-xl border border-white/20 bg-white/5 px-6 text-sm font-semibold text-white/90 transition hover:bg-white/10"
             >
-              브리더북 기록 보기
+              브리디북 기록 보기
             </Link>
             <Link
               href="/"
               className="inline-flex h-12 items-center justify-center rounded-xl border border-white/15 bg-white/5 px-6 text-sm font-semibold text-white/90 transition hover:bg-white/10"
             >
-              브리더 서비스 구경하기
+              브리디 서비스 구경하기
             </Link>
           </div>
 
@@ -51,7 +51,7 @@ export default function BreederbookLandingClient() {
             {[
               {
                 title: "공식 검증 프로세스",
-                body: "사진/측정 기준을 통과한 기록만 브리더북에 등록됩니다.",
+                body: "사진/측정 기준을 통과한 기록만 브리디북에 등록됩니다.",
               },
               {
                 title: "종별 체장 랭킹",
@@ -59,7 +59,7 @@ export default function BreederbookLandingClient() {
               },
               {
                 title: "신뢰 가능한 증명",
-                body: "브리더의 명성을 숫자로 쌓고, 기록으로 증명합니다.",
+                body: "브리디의 명성을 숫자로 쌓고, 기록으로 증명합니다.",
               },
             ].map((item) => (
               <div
@@ -86,7 +86,7 @@ export default function BreederbookLandingClient() {
                   당신의 기록이 기준이 됩니다
                 </h2>
                 <p className="mt-2 text-sm text-slate-200">
-                  측정 기록을 남기고, 브리더북에서 공식 인증을 받아보세요.
+                  측정 기록을 남기고, 브리디북에서 공식 인증을 받아보세요.
                 </p>
               </div>
               <Link

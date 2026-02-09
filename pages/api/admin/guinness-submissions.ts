@@ -188,8 +188,8 @@ async function handler(
         senderId: user.id,
         message:
           nextStatus === "approved"
-            ? `브리더북 신청이 승인되었습니다. (${target.species} ${target.value}${target.recordType === "size" ? "mm" : "g"})`
-            : "브리더북 신청이 반려되었습니다. 심사 메모를 확인해주세요.",
+            ? `브리디북 신청이 승인되었습니다. (${target.species} ${target.value}${target.recordType === "size" ? "mm" : "g"})`
+            : "브리디북 신청이 반려되었습니다. 심사 메모를 확인해주세요.",
         targetId: approvedRecordId || target.id,
         targetType: nextStatus === "approved" ? "record" : "guinness_submission",
       });

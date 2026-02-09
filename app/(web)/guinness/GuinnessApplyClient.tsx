@@ -375,12 +375,12 @@ export default function GuinnessApplyClient() {
   };
 
   return (
-    <Layout canGoBack title="브리더북 등록" seoTitle="브리더북 등록" showHome>
+    <Layout canGoBack title="브리디북 등록" seoTitle="브리디북 등록" showHome>
       <div className="app-page pb-10">
         <section className="px-4 pt-5">
           <div className="app-card border-transparent bg-gradient-to-r from-amber-500 to-orange-500 p-5 text-white">
-            <p className="text-xs font-semibold text-white/80">Breeder Records</p>
-            <h1 className="mt-1 text-2xl font-bold">브리더북 체장 등록</h1>
+            <p className="text-xs font-semibold text-white/80">Bredy Records</p>
+            <h1 className="mt-1 text-2xl font-bold">브리디북 체장 등록</h1>
             <p className="mt-2 text-sm text-white/90 leading-relaxed">
               증빙 자료와 연락처를 제출하면 어드민 심사를 거쳐 공식 기록으로 등록됩니다.
             </p>
@@ -388,7 +388,7 @@ export default function GuinnessApplyClient() {
               href="/guinness"
               className="mt-4 inline-flex h-9 items-center rounded-lg bg-white/95 px-3 text-xs font-semibold text-amber-700"
             >
-              브리더북 보기
+              브리디북 보기
             </Link>
           </div>
         </section>
@@ -412,7 +412,7 @@ export default function GuinnessApplyClient() {
                 )}
               </div>
               <p className="mt-1 text-xs text-slate-500">
-                신청 후 최대 {SLA_HOURS}시간 내 심사를 목표로 하며, 승인 시 브리더북에 반영됩니다.
+                신청 후 최대 {SLA_HOURS}시간 내 심사를 목표로 하며, 승인 시 브리디북에 반영됩니다.
               </p>
             </div>
 
@@ -540,7 +540,7 @@ export default function GuinnessApplyClient() {
                 <Input
                   value={contactEmail}
                   onChange={(event) => setContactEmail(event.target.value)}
-                  placeholder="이메일 (예: breeder@example.com)"
+                  placeholder="이메일 (예: bredy@example.com)"
                 />
                 <p className="text-[11px] text-slate-400">
                   전화번호/이메일 중 1개 이상 필수, 형식 오류 시 신청이 제한됩니다.
@@ -671,7 +671,7 @@ export default function GuinnessApplyClient() {
               </label>
 
               <Button type="submit" disabled={!isFormReady || submitting} className="w-full">
-                {submitting ? "신청 접수 중..." : "브리더북 심사 신청"}
+                {submitting ? "신청 접수 중..." : "브리디북 심사 신청"}
               </Button>
             </form>
           </div>

@@ -6,15 +6,15 @@ import Image from "@components/atoms/Image";
 import Link from "next/link";
 import Layout from "@components/features/MainLayout";
 import { cn, makeImageUrl } from "@libs/client/utils";
-import { RankingResponse, BreederRank } from "pages/api/ranking";
+import { RankingResponse, BredyRank } from "pages/api/ranking";
 import { useRouter } from "next/navigation";
 
 /** 메인 탭 */
 const TABS = [
-  { id: "guinness", name: "브리더북", icon: "🏆" },
+  { id: "guinness", name: "브리디북", icon: "🏆" },
   { id: "coolInsect", name: "멋진 곤충", icon: "🪲" },
   { id: "mutation", name: "희귀 변이", icon: "✨" },
-  { id: "breeder", name: "최고 브리더", icon: "👑" },
+  { id: "bredy", name: "최고 브리디", icon: "👑" },
 ];
 
 /** 기간 서브탭 */
@@ -83,8 +83,8 @@ const RankingClient = () => {
   const activePeriodName =
     PERIOD_TABS.find((tab) => tab.id === period)?.name ?? "역대";
   const summaryCta =
-    activeTab === "breeder"
-      ? { href: "/guinness", label: "브리더북 보기" }
+    activeTab === "bredy"
+      ? { href: "/guinness", label: "브리디북 보기" }
       : { href: "/posts/upload", label: "게시글 올리기" };
 
   return (
@@ -194,9 +194,9 @@ const RankingClient = () => {
                 <PostRankingContent posts={data.postRanking || []} />
               )}
 
-              {/* 최고 브리더 */}
-              {activeTab === "breeder" && (
-                <BreederRankingContent ranking={data.breederRanking || []} />
+              {/* 최고 브리디 */}
+              {activeTab === "bredy" && (
+                <BredyRankingContent ranking={data.bredyRanking || []} />
               )}
             </>
           )}
@@ -379,8 +379,8 @@ const PostRankingContent = ({ posts }: { posts: RankingResponse["postRanking"] }
   );
 };
 
-/** 최고 브리더 콘텐츠 */
-const BreederRankingContent = ({ ranking }: { ranking: RankingResponse["breederRanking"] }) => {
+/** 최고 브리디 콘텐츠 */
+const BredyRankingContent = ({ ranking }: { ranking: RankingResponse["bredyRanking"] }) => {
   if (!ranking || ranking.length === 0) {
     return (
       <EmptyState
@@ -396,21 +396,21 @@ const BreederRankingContent = ({ ranking }: { ranking: RankingResponse["breederR
       {ranking.length >= 3 && (
         <div className="flex items-end justify-center gap-3 py-6 mb-4">
           {/* 2등 */}
-          <TopBreederCard rank={2} data={ranking[1]} />
+          <TopBredyCard rank={2} data={ranking[1]} />
           {/* 1등 */}
-          <TopBreederCard rank={1} data={ranking[0]} />
+          <TopBredyCard rank={1} data={ranking[0]} />
           {/* 3등 */}
-          <TopBreederCard rank={3} data={ranking[2]} />
+          <TopBredyCard rank={3} data={ranking[2]} />
         </div>
       )}
 
       {/* 나머지 리스트 */}
-      {ranking.slice(ranking.length >= 3 ? 3 : 0).map((breeder, i) => {
+      {ranking.slice(ranking.length >= 3 ? 3 : 0).map((bredy, i) => {
         const rank = ranking.length >= 3 ? i + 4 : i + 1;
         return (
           <Link
-            key={breeder.user.id}
-            href={`/profiles/${breeder.user.id}`}
+            key={bredy.user.id}
+            href={`/profiles/${bredy.user.id}`}
             className="app-card app-card-interactive flex items-center gap-3 p-3 transition-colors hover:bg-slate-50"
           >
             <div
@@ -421,9 +421,9 @@ const BreederRankingContent = ({ ranking }: { ranking: RankingResponse["breederR
             >
               {rank}
             </div>
-            {breeder.user.avatar ? (
+            {bredy.user.avatar ? (
               <Image
-                src={makeImageUrl(breeder.user.avatar, "avatar")}
+                src={makeImageUrl(bredy.user.avatar, "avatar")}
                 className="w-10 h-10 rounded-full object-cover flex-shrink-0"
                 width={40}
                 height={40}
@@ -433,20 +433,20 @@ const BreederRankingContent = ({ ranking }: { ranking: RankingResponse["breederR
               <div className="w-10 h-10 rounded-full bg-slate-200 flex-shrink-0" />
             )}
             <div className="flex-1 min-w-0">
-              <p className="app-title-md">{breeder.user.name}</p>
+              <p className="app-title-md">{bredy.user.name}</p>
               <div className="mt-1 flex flex-wrap items-center gap-1.5">
-                <span className="app-pill-muted">기록 {breeder.recordCount}</span>
-                <span className="app-pill-muted">경매 {breeder.auctionCount}</span>
+                <span className="app-pill-muted">기록 {bredy.recordCount}</span>
+                <span className="app-pill-muted">경매 {bredy.auctionCount}</span>
                 <span className="app-pill-muted bg-rose-50 text-rose-500">
                   <svg className="h-3.5 w-3.5" viewBox="0 0 24 24" fill="currentColor">
                     <path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z" />
                   </svg>
-                  {breeder.totalLikes}
+                  {bredy.totalLikes}
                 </span>
               </div>
             </div>
             <div className="text-right flex-shrink-0">
-              <p className="text-sm font-bold text-primary">{breeder.score.toLocaleString()}</p>
+              <p className="text-sm font-bold text-primary">{bredy.score.toLocaleString()}</p>
               <p className="app-caption text-[10px]">점</p>
             </div>
           </Link>
@@ -456,13 +456,13 @@ const BreederRankingContent = ({ ranking }: { ranking: RankingResponse["breederR
   );
 };
 
-/** Top 3 브리더 카드 */
-const TopBreederCard = ({
+/** Top 3 브리디 카드 */
+const TopBredyCard = ({
   rank,
   data,
 }: {
   rank: number;
-  data: BreederRank;
+  data: BredyRank;
 }) => {
   if (!data) return null;
   const isFirst = rank === 1;

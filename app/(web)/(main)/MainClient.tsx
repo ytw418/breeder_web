@@ -166,7 +166,7 @@ const MainClient = () => {
         <div className="px-5 pb-3">
           <p className="app-kicker">TODAY</p>
           <h1 className="mt-1 text-[22px] font-extrabold tracking-[-0.03em] text-slate-950">
-            브리더 홈
+            브리디 홈
           </h1>
         </div>
         <div className="px-5">
@@ -184,7 +184,7 @@ const MainClient = () => {
                   banner.bgClass || "from-gray-500 to-gray-600"
                 )}
               >
-                <span className="app-kicker text-white/75 relative z-10">Breeder</span>
+                <span className="app-kicker text-white/75 relative z-10">Bredy</span>
                 <h2 className="mt-2 app-title-lg text-white relative z-10">{banner.title}</h2>
                 <p className="mt-1 app-body-sm text-white/90 line-clamp-2 relative z-10">
                   {banner.description}
@@ -212,20 +212,20 @@ const MainClient = () => {
         </div>
       </section>
 
-      {/* 브리더북 랜딩 */}
+      {/* 브리디북 랜딩 */}
       <section className="app-section app-reveal app-reveal-1">
         <SectionHeader
-          title="브리더북"
+          title="브리디북"
           subtitle="당신의 브리딩 실력을 기록하세요"
-          href="/breederbook-landing"
+          href="/bredybook-landing"
           actionLabel="바로가기"
         />
         <div className="mt-3 px-5">
           <Link
-            href="/breederbook-landing"
+            href="/bredybook-landing"
             className="app-card app-card-interactive block overflow-hidden border-transparent bg-gradient-to-r from-slate-900 via-slate-800 to-slate-900 p-5 text-white"
           >
-            <p className="app-kicker text-white/70">Breederbook</p>
+            <p className="app-kicker text-white/70">Bredybook</p>
             <h3 className="mt-2 text-lg font-semibold">
               당신의 기록을 새로운 스탠다드로
             </h3>
@@ -233,7 +233,7 @@ const MainClient = () => {
               이제 더이상 카더라 기네스는 그만. 공식 기록으로 증명하세요.
             </p>
             <span className="mt-4 inline-flex h-8 items-center rounded-full bg-white/15 px-3 text-xs font-semibold">
-              브리더북 기록하러 가기
+              브리디북 기록하러 가기
             </span>
           </Link>
         </div>

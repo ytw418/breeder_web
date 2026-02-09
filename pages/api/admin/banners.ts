@@ -17,7 +17,7 @@ export interface AdminBanner {
 const SAMPLE_BANNERS: AdminBanner[] = [
   {
     id: 10001,
-    title: "브리더 봄 시즌 이벤트",
+    title: "브리디 봄 시즌 이벤트",
     description: "인기 품목 특가와 무료 배송 쿠폰을 확인해보세요.",
     href: "/search",
     bgClass: "from-emerald-500 to-teal-500",
@@ -34,7 +34,7 @@ const SAMPLE_BANNERS: AdminBanner[] = [
   {
     id: 10003,
     title: "랭킹 리워드 업데이트",
-    description: "이번 달 TOP 브리더 보상을 확인해보세요.",
+    description: "이번 달 TOP 브리디 보상을 확인해보세요.",
     href: "/ranking",
     bgClass: "from-orange-500 to-amber-500",
     order: 3,

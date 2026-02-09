@@ -120,7 +120,7 @@ export default function MainLayout({
   return (
     <div className="relative min-h-screen bg-gradient-to-b from-slate-50 via-white to-slate-50/70">
       <Head>
-        <title>브리더 | {seoTitle}</title>
+        <title>브리디 | {seoTitle}</title>
       </Head>
       <div className="sticky top-0 z-30 h-14 w-full border-b border-slate-200/80 bg-white/90 text-base font-medium text-slate-800 backdrop-blur-xl shadow-[0_1px_0_rgba(15,23,42,0.04)] flex items-center justify-center">
         {canGoBack ? (

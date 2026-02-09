@@ -5,4 +5,4 @@ Disallow: /_next/
 Disallow: /private/
 Disallow: /admin/
 
-Sitemap: https://breeder-web.vercel.app/sitemap.xml
+Sitemap: https://bredy.app/sitemap.xml

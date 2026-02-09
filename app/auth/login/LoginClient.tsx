@@ -161,10 +161,10 @@ const LoginClient = () => {
   return (
     <div className="flex h-screen w-full items-center justify-center p-5 flex-col">
       <div className="flex flex-col items-center mb-[80px]">
-        <h1 className="title-10 text-Primary">브리더</h1>
-        <span className="body-3">곤충생활은 브리더에서</span>
+        <h1 className="title-10 text-Primary">브리디</h1>
+        <span className="body-3">곤충생활은 브리디에서</span>
         <span className="body-3">
-          생물인들과 소통하고 브리더에서 안전거래하세요
+          생물인들과 소통하고 브리디에서 안전거래하세요
         </span>
       </div>
       <div className="flex h-auto w-full flex-col items-center justify-center gap-y-4">
@@ -202,12 +202,12 @@ const LoginClient = () => {
       </div>
       <div className="body-1 text-Gray-400">
         <span>
-          서비스 이용시 브리더의{" "}
+          서비스 이용시 브리디의{" "}
           <Link
             target="_blank"
             className="text-Primary"
             href={
-              "https://breeder.notion.site/8a2ca657b9a047498c95ab42ce3d2b75"
+              "https://bredy.notion.site/8a2ca657b9a047498c95ab42ce3d2b75"
             }
           >
             이용약관
@@ -217,7 +217,7 @@ const LoginClient = () => {
             target="_blank"
             className="text-Primary"
             href={
-              "https://breeder.notion.site/be44680c8d5b43848d0aff25c7c2edba"
+              "https://bredy.notion.site/be44680c8d5b43848d0aff25c7c2edba"
             }
           >
             개인정보처리동의서

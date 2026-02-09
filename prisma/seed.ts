@@ -240,7 +240,7 @@ ${species} ${grade} 등급 ${size} 사이즈 ${gender}입니다.
         recordType: "size" as const,
         value: 70 + index * 5,
         measurementDate: null,
-        description: "브리더북 더미 기록",
+        description: "브리디북 더미 기록",
         proofPhotos: ["seed-photo-placeholder"],
         contactPhone: "01000000000",
         contactEmail: "seed@example.com",
