@@ -6,6 +6,7 @@ import useSWR from "swr";
 import { toast } from "react-toastify";
 import { Button } from "@components/ui/button";
 import { Input } from "@components/ui/input";
+import useConfirmDialog from "hooks/useConfirmDialog";
 
 interface BannerItem {
   id: number;
@@ -72,6 +73,7 @@ export default function AdminBannersPage() {
   const { data, mutate } = useSWR<BannerResponse>("/api/admin/banners");
   const { data: landingPagesData } =
     useSWR<LandingPagesResponse>("/api/admin/landing-pages");
+  const { confirm, confirmDialog } = useConfirmDialog();
   const [form, setForm] = useState({
     title: "",
     description: "",
@@ -119,7 +121,14 @@ export default function AdminBannersPage() {
   };
 
   const handleDelete = async (id: number) => {
-    if (!confirm("이 배너를 삭제하시겠습니까?")) return;
+    const confirmed = await confirm({
+      title: "이 배너를 삭제할까요?",
+      description: "삭제 후에는 복구할 수 없습니다.",
+      confirmText: "삭제",
+      tone: "danger",
+    });
+    if (!confirmed) return;
+
     try {
       const res = await fetch(`/api/admin/banners?id=${id}`, { method: "DELETE" });
       const result = await res.json();
@@ -134,38 +143,39 @@ export default function AdminBannersPage() {
   };
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <h2 className="text-2xl font-bold text-gray-900">배너 관리</h2>
-        {data?.isSample && (
-          <span className="text-xs font-semibold px-2 py-1 rounded-full bg-amber-100 text-amber-700">
-            샘플 데이터 표시중
-          </span>
-        )}
-      </div>
+    <>
+      <div className="space-y-6">
+        <div className="flex items-center justify-between">
+          <h2 className="text-2xl font-bold text-gray-900">배너 관리</h2>
+          {data?.isSample && (
+            <span className="text-xs font-semibold px-2 py-1 rounded-full bg-amber-100 text-amber-700">
+              샘플 데이터 표시중
+            </span>
+          )}
+        </div>
 
-      <div className="rounded-xl border border-blue-100 bg-blue-50 p-4 space-y-2">
-        <p className="text-sm font-semibold text-blue-900">처음이면 이렇게 진행하세요</p>
-        <p className="text-sm text-blue-800">
-          1) 배너를 눌렀을 때 보여줄 페이지가 필요하면 먼저
-          {" "}
-          <Link href="/admin/landing-pages" className="font-semibold underline underline-offset-2">
-            랜딩 페이지 관리
-          </Link>
-          에서 페이지를 만드세요.
-        </p>
-        <p className="text-sm text-blue-800">
-          2) 이미 만들어둔 다른 페이지가 있다면 그 링크를 그대로 사용해도 됩니다.
-        </p>
-        <p className="text-sm text-blue-800">
-          3) 아래 배너 생성 폼의 <span className="font-semibold">링크</span> 칸에 붙여넣고 저장하면 끝입니다.
-        </p>
-      </div>
+        <div className="rounded-xl border border-blue-100 bg-blue-50 p-4 space-y-2">
+          <p className="text-sm font-semibold text-blue-900">처음이면 이렇게 진행하세요</p>
+          <p className="text-sm text-blue-800">
+            1) 배너를 눌렀을 때 보여줄 페이지가 필요하면 먼저
+            {" "}
+            <Link href="/admin/landing-pages" className="font-semibold underline underline-offset-2">
+              랜딩 페이지 관리
+            </Link>
+            에서 페이지를 만드세요.
+          </p>
+          <p className="text-sm text-blue-800">
+            2) 이미 만들어둔 다른 페이지가 있다면 그 링크를 그대로 사용해도 됩니다.
+          </p>
+          <p className="text-sm text-blue-800">
+            3) 아래 배너 생성 폼의 <span className="font-semibold">링크</span> 칸에 붙여넣고 저장하면 끝입니다.
+          </p>
+        </div>
 
-      <form
-        onSubmit={handleCreate}
-        className="bg-white rounded-lg border border-gray-200 p-4 space-y-3"
-      >
+        <form
+          onSubmit={handleCreate}
+          className="bg-white rounded-lg border border-gray-200 p-4 space-y-3"
+        >
         <h3 className="text-sm font-semibold text-gray-800">새 배너 추가</h3>
         <Input
           placeholder="제목"
@@ -249,37 +259,39 @@ export default function AdminBannersPage() {
           />
         </div>
         <Button type="submit">배너 생성</Button>
-      </form>
+        </form>
 
-      <div className="space-y-3">
-        {(data?.banners || []).map((banner) => (
-          <div key={banner.id} className="bg-white rounded-lg border border-gray-200 p-4">
-            <div className="flex items-start justify-between gap-4">
-              <div className="min-w-0">
-                <p className="text-sm font-semibold text-gray-900">{banner.title}</p>
-                <p className="text-sm text-gray-500 mt-1">{banner.description}</p>
-                <p className="text-xs text-gray-400 mt-2">링크: {banner.href}</p>
-                <p className="text-xs text-gray-400">스타일: {banner.bgClass}</p>
-                <p className="text-xs text-gray-400">정렬: {banner.order}</p>
+        <div className="space-y-3">
+          {(data?.banners || []).map((banner) => (
+            <div key={banner.id} className="bg-white rounded-lg border border-gray-200 p-4">
+              <div className="flex items-start justify-between gap-4">
+                <div className="min-w-0">
+                  <p className="text-sm font-semibold text-gray-900">{banner.title}</p>
+                  <p className="text-sm text-gray-500 mt-1">{banner.description}</p>
+                  <p className="text-xs text-gray-400 mt-2">링크: {banner.href}</p>
+                  <p className="text-xs text-gray-400">스타일: {banner.bgClass}</p>
+                  <p className="text-xs text-gray-400">정렬: {banner.order}</p>
+                </div>
+                <Button
+                  variant="destructive"
+                  size="sm"
+                  disabled={Boolean(data?.isSample)}
+                  onClick={() => handleDelete(banner.id)}
+                >
+                  삭제
+                </Button>
               </div>
-              <Button
-                variant="destructive"
-                size="sm"
-                disabled={Boolean(data?.isSample)}
-                onClick={() => handleDelete(banner.id)}
-              >
-                삭제
-              </Button>
             </div>
-          </div>
-        ))}
+          ))}
 
-        {data?.banners?.length === 0 && (
-          <div className="text-sm text-gray-500 bg-white rounded-lg border border-gray-200 p-6 text-center">
-            배너 데이터가 없습니다.
-          </div>
-        )}
+          {data?.banners?.length === 0 && (
+            <div className="text-sm text-gray-500 bg-white rounded-lg border border-gray-200 p-6 text-center">
+              배너 데이터가 없습니다.
+            </div>
+          )}
+        </div>
       </div>
-    </div>
+      {confirmDialog}
+    </>
   );
 }

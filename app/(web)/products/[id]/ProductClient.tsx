@@ -13,6 +13,7 @@ import useSWR, { useSWRConfig } from "swr";
 
 import { ChatResponseType } from "pages/api/chat";
 import { toast } from "react-toastify";
+import useConfirmDialog from "hooks/useConfirmDialog";
 
 /**
  * 상품 상세 페이지의 클라이언트 컴포넌트
@@ -57,6 +58,7 @@ const ProductClient = ({ product, relatedProducts }: ItemDetailResponse) => {
 
   // 상태 드롭다운 표시 여부
   const [showStatusMenu, setShowStatusMenu] = useState(false);
+  const { confirm, confirmDialog } = useConfirmDialog();
 
   /**
    * 터치 시작 이벤트 핸들러
@@ -173,7 +175,13 @@ const ProductClient = ({ product, relatedProducts }: ItemDetailResponse) => {
   // 상품 삭제 핸들러
   const handleDelete = async () => {
     if (deleteLoading) return;
-    if (!confirm("정말로 이 상품을 삭제하시겠습니까?")) return;
+    const confirmed = await confirm({
+      title: "이 상품을 삭제할까요?",
+      description: "삭제 후에는 복구할 수 없습니다.",
+      confirmText: "삭제",
+      tone: "danger",
+    });
+    if (!confirmed) return;
 
     try {
       await deleteProduct({
@@ -191,6 +199,13 @@ const ProductClient = ({ product, relatedProducts }: ItemDetailResponse) => {
   /** 판매 상태 변경 (판매중/예약중) */
   const handleStatusChange = async (newStatus: string) => {
     setShowStatusMenu(false);
+    const confirmed = await confirm({
+      title: `상태를 "${newStatus}"(으)로 변경할까요?`,
+      description: "변경 후에도 다시 상태를 조정할 수 있습니다.",
+      confirmText: "변경",
+    });
+    if (!confirmed) return;
+
     await updateStatus({
       data: { action: "status_change", data: { status: newStatus } },
       onCompleted() {
@@ -203,7 +218,13 @@ const ProductClient = ({ product, relatedProducts }: ItemDetailResponse) => {
   /** 판매완료 처리 */
   const handleSold = async () => {
     setShowStatusMenu(false);
-    if (!confirm("판매완료로 변경하시겠습니까? 판매내역에 기록됩니다.")) return;
+    const confirmed = await confirm({
+      title: "판매완료로 변경할까요?",
+      description: "판매내역에 기록됩니다.",
+      confirmText: "판매완료",
+    });
+    if (!confirmed) return;
+
     await updateStatus({
       data: { action: "sold" },
       onCompleted() {
@@ -215,7 +236,13 @@ const ProductClient = ({ product, relatedProducts }: ItemDetailResponse) => {
 
   /** 구매확정 */
   const handlePurchase = async () => {
-    if (!confirm("이 상품을 구매확정 하시겠습니까? 구매내역에 기록됩니다.")) return;
+    const confirmed = await confirm({
+      title: "구매확정 할까요?",
+      description: "구매내역에 기록됩니다.",
+      confirmText: "구매확정",
+    });
+    if (!confirmed) return;
+
     await updateStatus({
       data: { action: "purchase" },
       onCompleted() {
@@ -574,6 +601,7 @@ const ProductClient = ({ product, relatedProducts }: ItemDetailResponse) => {
           </div>
         )}
       </div>
+      {confirmDialog}
     </Layout>
   );
 };

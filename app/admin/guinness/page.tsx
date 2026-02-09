@@ -7,6 +7,7 @@ import Image from "@components/atoms/Image";
 import { makeImageUrl } from "@libs/client/utils";
 import { Button } from "@components/ui/button";
 import { Input } from "@components/ui/input";
+import useConfirmDialog from "hooks/useConfirmDialog";
 import {
   GuinnessSubmission,
   GuinnessSubmissionsResponse,
@@ -97,6 +98,7 @@ export default function AdminGuinnessPage() {
   const [newSpeciesAliases, setNewSpeciesAliases] = useState("");
   const [speciesKeyword, setSpeciesKeyword] = useState("");
   const [speciesProcessingId, setSpeciesProcessingId] = useState<number | null>(null);
+  const { confirm, confirmDialog } = useConfirmDialog();
 
   const summary = useMemo(() => {
     const items = data?.submissions || [];
@@ -147,6 +149,20 @@ export default function AdminGuinnessPage() {
       toast.error("반려 사유 템플릿을 선택해주세요.");
       return;
     }
+
+    const confirmed = await confirm({
+      title:
+        status === "approved"
+          ? "이 신청을 승인할까요?"
+          : "이 신청을 반려할까요?",
+      description:
+        status === "approved"
+          ? "승인 시 공식 기네스 기록에 반영됩니다."
+          : "반려 사유와 메모가 신청자에게 전달됩니다.",
+      confirmText: status === "approved" ? "승인" : "반려",
+      tone: status === "approved" ? "default" : "danger",
+    });
+    if (!confirmed) return;
 
     try {
       setProcessingId(submission.id);
@@ -211,6 +227,25 @@ export default function AdminGuinnessPage() {
     species: GuinnessSpecies,
     action: "approve" | "toggle-active"
   ) => {
+    const isToggleToInactive = action === "toggle-active" && species.isActive;
+    const confirmed = await confirm({
+      title:
+        action === "approve"
+          ? "이 종을 공식 종으로 승인할까요?"
+          : isToggleToInactive
+            ? "이 종을 비활성화할까요?"
+            : "이 종을 활성화할까요?",
+      description:
+        action === "approve"
+          ? "승인 후 유저 신청 폼 자동완성에 공식 종으로 노출됩니다."
+          : isToggleToInactive
+            ? "비활성화하면 신청 폼 추천 목록에서 제외됩니다."
+            : "활성화하면 신청 폼 추천 목록에 다시 노출됩니다.",
+      confirmText: action === "approve" ? "승인" : isToggleToInactive ? "비활성화" : "활성화",
+      tone: isToggleToInactive ? "danger" : "default",
+    });
+    if (!confirmed) return;
+
     try {
       setSpeciesProcessingId(species.id);
       const res = await fetch("/api/admin/guinness-species", {
@@ -238,7 +273,8 @@ export default function AdminGuinnessPage() {
   };
 
   return (
-    <div className="space-y-6">
+    <>
+      <div className="space-y-6">
       <div className="flex items-end justify-between">
         <div>
           <h2 className="text-2xl font-bold text-gray-900">기네스북 심사</h2>
@@ -597,6 +633,8 @@ export default function AdminGuinnessPage() {
           </div>
         )}
       </div>
-    </div>
+      </div>
+      {confirmDialog}
+    </>
   );
 }

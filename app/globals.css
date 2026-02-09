@@ -355,29 +355,39 @@ textarea {
   }
 
   .app-chip {
-    @apply inline-flex flex-shrink-0 items-center gap-2 whitespace-nowrap rounded-xl border px-3.5 py-2 text-sm font-semibold transition-all;
-    will-change: transform;
+    @apply inline-flex h-9 flex-shrink-0 items-center gap-1.5 whitespace-nowrap rounded-xl border px-3.5 text-[13px] font-semibold transition-[border-color,background-color,color,box-shadow];
   }
 
   .app-chip-active {
-    @apply border-slate-900 bg-slate-900 text-white shadow-sm;
+    @apply border-slate-900 bg-slate-900 text-white;
+    box-shadow:
+      0 1px 2px rgba(15, 23, 42, 0.12),
+      inset 0 1px 0 rgba(255, 255, 255, 0.08);
   }
 
   .app-chip-muted {
-    @apply border-slate-200 bg-slate-50 text-slate-600 hover:bg-white hover:text-slate-800;
+    @apply border-slate-200 bg-white text-slate-600;
   }
 }
 
 @media (hover: hover) {
   .app-card-interactive:hover {
-    transform: translateY(-1px);
+    transform: none;
+    border-color: rgba(148, 163, 184, 0.5);
     box-shadow:
-      0 3px 10px rgba(15, 23, 42, 0.07),
-      0 8px 16px rgba(15, 23, 42, 0.05);
+      0 1px 2px rgba(15, 23, 42, 0.05),
+      0 6px 14px rgba(15, 23, 42, 0.06);
   }
 
   .app-chip:hover {
-    transform: translateY(-1px);
+    transform: none;
+  }
+
+  .app-chip-muted:hover {
+    border-color: rgba(148, 163, 184, 0.45);
+    background-color: rgba(248, 250, 252, 0.95);
+    color: rgb(30, 41, 59);
+    box-shadow: 0 1px 2px rgba(15, 23, 42, 0.05);
   }
 
   .app-section-link:hover > span {
@@ -392,7 +402,7 @@ textarea {
 .app-card-interactive:active,
 .app-chip:active,
 .app-fab:active {
-  transform: scale(0.99);
+  transform: scale(0.985);
 }
 
 .app-section-link > span {
@@ -416,4 +426,40 @@ textarea {
   .app-section-link > span {
     transition: none !important;
   }
+}
+
+/* Toast (react-toastify) */
+.Toastify__toast-container--bottom-center.app-toast-container {
+  left: 50%;
+  transform: translateX(-50%);
+  width: min(420px, calc(100% - 20px));
+  bottom: calc(14px + env(safe-area-inset-bottom));
+  padding: 0;
+}
+
+.app-toast {
+  min-height: 48px;
+  margin: 0 0 8px;
+  border-radius: 12px;
+  border: 1px solid #e2e8f0;
+  background: #fff;
+  color: #0f172a;
+  box-shadow: 0 6px 18px rgba(15, 23, 42, 0.08);
+  padding: 11px 13px;
+}
+
+.app-toast .Toastify__toast-body {
+  margin: 0;
+  padding: 0;
+  font-size: 14px;
+  font-weight: 500;
+  line-height: 1.4;
+  letter-spacing: -0.01em;
+  white-space: normal;
+}
+
+.app-toast .Toastify__toast-icon {
+  width: 16px;
+  margin-inline-end: 8px;
+  color: #475569;
 }

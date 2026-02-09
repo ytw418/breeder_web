@@ -337,33 +337,35 @@ const MainClient = () => {
 
       {/* 카테고리 탭 */}
       <div className="app-sticky-rail app-reveal app-reveal-3">
-        <div className="px-4 py-2.5">
-          <div className="app-rail flex gap-2 snap-none">
-            {TABS.map((tab) => {
-              const isActive = selectedCategory === tab.id;
-              return (
-                <button
-                  key={tab.id}
-                  onClick={() => handleCategoryChange(tab.id)}
-                  className={cn(
-                    "app-chip",
-                    isActive
-                      ? "app-chip-active"
-                      : "app-chip-muted"
-                  )}
-                >
-                  <span
+        <div className="px-4 py-3">
+          <div className="app-card p-2">
+            <div className="app-rail flex gap-2 snap-none">
+              {TABS.map((tab) => {
+                const isActive = selectedCategory === tab.id;
+                return (
+                  <button
+                    key={tab.id}
+                    onClick={() => handleCategoryChange(tab.id)}
                     className={cn(
-                      "w-2 h-2 rounded-full",
+                      "app-chip",
                       isActive
-                        ? "bg-white/90"
-                        : CATEGORY_ACCENT[tab.id] ?? "bg-slate-400"
+                        ? "app-chip-active"
+                        : "app-chip-muted"
                     )}
-                  />
-                  {tab.name}
-                </button>
-              );
-            })}
+                  >
+                    <span
+                      className={cn(
+                        "w-2 h-2 rounded-full",
+                        isActive
+                          ? "bg-white/90"
+                          : CATEGORY_ACCENT[tab.id] ?? "bg-slate-400"
+                      )}
+                    />
+                    {tab.name}
+                  </button>
+                );
+              })}
+            </div>
           </div>
         </div>
       </div>
