@@ -8,16 +8,7 @@ interface ItemWrapperProps {
 }
 
 const ItemWrapper = ({ children, className = "" }: ItemWrapperProps) => {
-  return (
-    <div
-      className={cn(
-        "group bg-white rounded-xl transition-all duration-200 hover:bg-gray-50",
-        className
-      )}
-    >
-      {children}
-    </div>
-  );
+  return <div className={cn("w-full", className)}>{children}</div>;
 };
 
 export default ItemWrapper;

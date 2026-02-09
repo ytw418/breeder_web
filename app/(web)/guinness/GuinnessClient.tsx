@@ -45,9 +45,9 @@ export default function GuinnessClient() {
 
   return (
     <Layout canGoBack title="기네스북" seoTitle="기네스북">
-      <div className="min-h-screen bg-gradient-to-b from-amber-50/70 via-white to-white pb-20">
-        <section className="px-4 pt-5">
-          <div className="rounded-2xl bg-gradient-to-r from-amber-500 to-orange-500 p-5 text-white shadow-sm">
+      <div className="app-page pb-20">
+        <section className="px-4 pt-5 app-reveal">
+          <div className="app-card bg-gradient-to-r from-amber-500 to-orange-500 p-5 text-white border-transparent">
             <p className="text-xs font-semibold text-white/80">Guinness of Breeder</p>
             <h1 className="mt-1 text-2xl font-bold">기네스북 상세</h1>
             <p className="mt-2 text-sm leading-relaxed text-white/95">
@@ -56,14 +56,15 @@ export default function GuinnessClient() {
             </p>
             <Link
               href="/guinness/apply"
-              className="mt-4 inline-flex h-10 items-center rounded-lg bg-white px-4 text-sm font-semibold text-amber-700"
+              className="app-card-interactive mt-4 inline-flex h-10 items-center rounded-lg bg-white px-4 text-sm font-semibold text-amber-700"
             >
               기네스북 등록하기
             </Link>
           </div>
         </section>
 
-        <section className="px-4 pt-5 space-y-3">
+        <section className="px-4 pt-5 space-y-3 app-reveal app-reveal-1">
+          <div className="app-card p-2.5 space-y-2.5">
           <div className="flex gap-2">
             {PERIOD_TABS.map((tab) => (
               <button
@@ -71,10 +72,10 @@ export default function GuinnessClient() {
                 type="button"
                 onClick={() => setPeriod(tab.id)}
                 className={cn(
-                  "rounded-full px-3 py-1.5 text-xs font-medium transition-colors",
+                  "app-chip rounded-full px-3 py-1.5 text-xs",
                   period === tab.id
-                    ? "bg-gray-900 text-white"
-                    : "border border-gray-200 bg-white text-gray-600"
+                    ? "app-chip-active"
+                    : "app-chip-muted bg-white"
                 )}
               >
                 {tab.name}
@@ -82,33 +83,34 @@ export default function GuinnessClient() {
             ))}
           </div>
 
-          <div className="flex gap-2 overflow-x-auto scrollbar-hide pb-1">
+          <div className="app-rail flex gap-2 snap-none">
             {speciesOptions.map((item) => (
               <button
                 key={item}
                 type="button"
                 onClick={() => setSpecies(item)}
                 className={cn(
-                  "shrink-0 rounded-full px-3 py-1.5 text-xs font-medium transition-colors",
+                  "app-chip shrink-0 rounded-full px-3 py-1.5 text-xs",
                   species === item
-                    ? "bg-primary text-white"
-                    : "border border-gray-200 bg-white text-gray-600"
+                    ? "border-primary bg-primary text-white"
+                    : "app-chip-muted bg-white"
                 )}
               >
                 {item}
               </button>
             ))}
           </div>
+          </div>
         </section>
 
-        <section className="px-4 pt-4">
+        <section className="px-4 pt-4 app-reveal app-reveal-2">
           {data ? (
             records.length > 0 ? (
               <div className="space-y-2">
                 {records.map((record, index) => (
                   <div
                     key={record.id}
-                    className="rounded-xl border border-gray-100 bg-white p-3 shadow-sm"
+                    className="app-card app-card-interactive p-3"
                   >
                     <div className="flex items-center gap-3">
                       <span
@@ -118,7 +120,7 @@ export default function GuinnessClient() {
                       >
                         {index + 1}
                       </span>
-                      <div className="h-12 w-12 overflow-hidden rounded-lg bg-gray-100">
+                      <div className="h-12 w-12 overflow-hidden rounded-lg bg-slate-100">
                         <Image
                           src={makeImageUrl(record.photo, "avatar")}
                           className="h-full w-full object-cover"
@@ -128,17 +130,17 @@ export default function GuinnessClient() {
                         />
                       </div>
                       <div className="min-w-0 flex-1">
-                        <p className="truncate text-sm font-semibold text-gray-900">{record.species}</p>
-                        <p className="text-xs text-gray-500">{record.user.name}</p>
+                        <p className="truncate text-sm font-semibold text-slate-900">{record.species}</p>
+                        <p className="text-xs text-slate-500">{record.user.name}</p>
                       </div>
                       <div className="text-right">
                         <p className="text-lg font-bold text-primary leading-none">
                           {record.value}
-                          <span className="ml-1 text-xs font-normal text-gray-400">
+                          <span className="ml-1 text-xs font-normal text-slate-400">
                             {record.recordType === "size" ? "mm" : "g"}
                           </span>
                         </p>
-                        <p className="mt-1 text-xs text-gray-400">
+                        <p className="mt-1 text-xs text-slate-400">
                           {record.recordType === "size" ? "크기" : "무게"}
                         </p>
                       </div>
@@ -147,8 +149,8 @@ export default function GuinnessClient() {
                 ))}
               </div>
             ) : (
-              <div className="rounded-xl border border-dashed border-gray-200 bg-white px-4 py-12 text-center">
-                <p className="text-sm font-medium text-gray-600">
+              <div className="app-card border-dashed px-4 py-12 text-center">
+                <p className="text-sm font-medium text-slate-600">
                   조건에 맞는 공식 기록이 아직 없습니다.
                 </p>
                 <Link
@@ -187,7 +189,7 @@ export default function GuinnessClient() {
         <div className="fixed bottom-[88px] left-1/2 z-20 w-full max-w-screen-sm -translate-x-1/2 px-4">
           <Link
             href="/guinness/apply"
-            className="flex h-12 w-full items-center justify-center rounded-xl bg-gray-900 text-sm font-semibold text-white shadow-lg"
+            className="app-card-interactive flex h-12 w-full items-center justify-center rounded-xl bg-slate-900 text-sm font-semibold text-white shadow-lg"
           >
             기네스북 등록하기
           </Link>

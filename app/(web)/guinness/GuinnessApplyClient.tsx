@@ -376,9 +376,9 @@ export default function GuinnessApplyClient() {
 
   return (
     <Layout canGoBack title="기네스북 등록" seoTitle="기네스북 등록">
-      <div className="min-h-screen bg-gradient-to-b from-amber-50/70 via-white to-white pb-10">
+      <div className="app-page pb-10">
         <section className="px-4 pt-5">
-          <div className="rounded-2xl bg-gradient-to-r from-amber-500 to-orange-500 p-5 text-white shadow-sm">
+          <div className="app-card border-transparent bg-gradient-to-r from-amber-500 to-orange-500 p-5 text-white">
             <p className="text-xs font-semibold text-white/80">Guinness of Breeder</p>
             <h1 className="mt-1 text-2xl font-bold">공식 기네스북</h1>
             <p className="mt-2 text-sm text-white/90 leading-relaxed">
@@ -395,15 +395,15 @@ export default function GuinnessApplyClient() {
 
         <section className="px-4 pt-6">
           <div className="mb-3 flex items-center justify-between">
-            <h2 className="text-base font-bold text-gray-900">공식 인증 랭킹</h2>
-            <span className="text-xs text-gray-400">승인 기록만 노출</span>
+                <h2 className="app-section-title">공식 인증 랭킹</h2>
+                <span className="text-xs text-slate-400">승인 기록만 노출</span>
           </div>
           <div className="space-y-2">
             {records.length > 0 ? (
               records.slice(0, 10).map((record, index) => (
                 <div
                   key={record.id}
-                  className="rounded-xl border border-gray-100 bg-white p-3 shadow-sm"
+                  className="app-card p-3"
                 >
                   <div className="flex items-center gap-3">
                     <span
@@ -423,14 +423,14 @@ export default function GuinnessApplyClient() {
                       />
                     </div>
                     <div className="min-w-0 flex-1">
-                      <p className="text-sm font-semibold text-gray-900 truncate">
+                      <p className="text-sm font-semibold text-slate-900 truncate">
                         {record.species}
                       </p>
-                      <p className="text-xs text-gray-500">{record.user.name}</p>
+                      <p className="text-xs text-slate-500">{record.user.name}</p>
                     </div>
                     <p className="text-lg font-bold text-primary">
                       {record.value}
-                      <span className="ml-1 text-xs font-normal text-gray-400">
+                      <span className="ml-1 text-xs font-normal text-slate-400">
                         {record.recordType === "size" ? "mm" : "g"}
                       </span>
                     </p>
@@ -438,11 +438,11 @@ export default function GuinnessApplyClient() {
                 </div>
               ))
             ) : (
-              <div className="rounded-xl border border-dashed border-gray-200 bg-white px-4 py-10 text-center">
-                <p className="text-sm font-medium text-gray-600">
+              <div className="app-card border-dashed px-4 py-10 text-center">
+                <p className="text-sm font-medium text-slate-600">
                   아직 공식 인증 기록이 없습니다.
                 </p>
-                <p className="mt-1 text-xs text-gray-400">
+                <p className="mt-1 text-xs text-slate-400">
                   아래에서 첫 공식 기록을 신청해보세요.
                 </p>
               </div>
@@ -451,10 +451,10 @@ export default function GuinnessApplyClient() {
         </section>
 
         <section className="px-4 pt-8">
-          <div className="rounded-2xl border border-gray-200 bg-white p-4 shadow-sm">
+          <div className="app-card p-4">
             <div className="mb-4">
               <div className="flex items-center justify-between gap-3">
-                <h2 className="text-base font-bold text-gray-900">
+                <h2 className="app-section-title">
                   {editingSubmissionId ? "반려 건 수정 재신청" : "기록 신청하기"}
                 </h2>
                 {editingSubmissionId && (
@@ -468,7 +468,7 @@ export default function GuinnessApplyClient() {
                   </Button>
                 )}
               </div>
-              <p className="mt-1 text-xs text-gray-500">
+              <p className="mt-1 text-xs text-slate-500">
                 신청 후 최대 {SLA_HOURS}시간 내 심사를 목표로 하며, 승인 시 기네스북에 반영됩니다.
               </p>
             </div>
@@ -497,13 +497,13 @@ export default function GuinnessApplyClient() {
                       <option key={item.id} value={item.name} />
                     ))}
                   </datalist>
-                  <p className="text-[11px] leading-relaxed text-gray-500">
+                  <p className="text-[11px] leading-relaxed text-slate-500">
                     한글만 입력할 수 있습니다. 검색 결과가 없으면 후보 종으로 접수되며,
                     어드민 승인 후 공식 분류에 반영됩니다.
                   </p>
                   {species.trim() && (
-                    <div className="rounded-md border border-gray-200 bg-gray-50 px-2 py-2">
-                      <p className="px-1 text-[11px] font-semibold text-gray-500">
+                    <div className="rounded-md border border-slate-200 bg-slate-50 px-2 py-2">
+                      <p className="px-1 text-[11px] font-semibold text-slate-500">
                         검색 결과
                       </p>
                       {speciesSearchResults.length > 0 ? (
@@ -515,8 +515,8 @@ export default function GuinnessApplyClient() {
                               onClick={() => setSpecies(item.name)}
                               className={`rounded-full border px-2.5 py-1 text-xs ${
                                 species === item.name
-                                  ? "border-gray-900 bg-gray-900 text-white"
-                                  : "border-gray-200 bg-white text-gray-600"
+                                  ? "border-slate-900 bg-slate-900 text-white"
+                                  : "border-slate-200 bg-white text-slate-600"
                               }`}
                             >
                               {item.name}
@@ -524,7 +524,7 @@ export default function GuinnessApplyClient() {
                           ))}
                         </div>
                       ) : (
-                        <p className="mt-1 px-1 text-xs text-gray-500">
+                        <p className="mt-1 px-1 text-xs text-slate-500">
                           검색된 공식 종이 없습니다. 그대로 신청하면 후보 종으로 등록됩니다.
                         </p>
                       )}
@@ -539,8 +539,8 @@ export default function GuinnessApplyClient() {
                           onClick={() => setSpecies(item.name)}
                           className={`shrink-0 rounded-full border px-2.5 py-1 text-xs transition-colors ${
                             species === item.name
-                              ? "border-gray-900 bg-gray-900 text-white"
-                              : "border-gray-200 bg-white text-gray-600"
+                              ? "border-slate-900 bg-slate-900 text-white"
+                              : "border-slate-200 bg-white text-slate-600"
                           }`}
                         >
                           {item.name}
@@ -608,7 +608,7 @@ export default function GuinnessApplyClient() {
                   onChange={(event) => setContactEmail(event.target.value)}
                   placeholder="이메일 (예: breeder@example.com)"
                 />
-                <p className="text-[11px] text-gray-400">
+                <p className="text-[11px] text-slate-400">
                   전화번호/이메일 중 1개 이상 필수, 형식 오류 시 신청이 제한됩니다.
                 </p>
               </div>
@@ -620,9 +620,9 @@ export default function GuinnessApplyClient() {
                 placeholder="측정 환경, 측정 도구, 개체 특이사항 등 심사에 필요한 내용을 입력해주세요."
               />
 
-              <div className="rounded-lg border border-gray-100 bg-gray-50 px-3 py-3">
-                <p className="text-xs font-semibold text-gray-700">증빙 사진 첨부</p>
-                <p className="mt-1 text-[11px] text-gray-500">
+              <div className="rounded-lg border border-slate-100 bg-slate-50 px-3 py-3">
+                <p className="text-xs font-semibold text-slate-700">증빙 사진 첨부</p>
+                <p className="mt-1 text-[11px] text-slate-500">
                   원본 사진 최대 3장. 측정 수치와 개체가 식별되게 촬영해주세요.
                 </p>
                 <input
@@ -644,14 +644,14 @@ export default function GuinnessApplyClient() {
                     setProofFiles(combined);
                     event.currentTarget.value = "";
                   }}
-                  className="mt-2 block w-full text-xs text-gray-600 file:mr-3 file:rounded-md file:border-0 file:bg-white file:px-2 file:py-1 file:text-xs file:font-medium file:text-gray-700"
+                  className="mt-2 block w-full text-xs text-slate-600 file:mr-3 file:rounded-md file:border-0 file:bg-white file:px-2 file:py-1 file:text-xs file:font-medium file:text-slate-700"
                 />
                 {(existingProofPhotos.length > 0 || proofPreviews.length > 0) && (
                   <div className="mt-3 grid grid-cols-3 gap-2">
                     {existingProofPhotos.map((photoId, index) => (
                       <div
                         key={`existing-${photoId}-${index}`}
-                        className="relative aspect-square overflow-hidden rounded-md bg-white border border-gray-200"
+                        className="relative aspect-square overflow-hidden rounded-md bg-white border border-slate-200"
                       >
                         <Image
                           src={makeImageUrl(photoId, "public")}
@@ -676,7 +676,7 @@ export default function GuinnessApplyClient() {
                     {proofPreviews.map((preview, index) => (
                       <div
                         key={`${preview}-${index}`}
-                        className="relative aspect-square overflow-hidden rounded-md bg-white border border-gray-200"
+                        className="relative aspect-square overflow-hidden rounded-md bg-white border border-slate-200"
                       >
                         {/* eslint-disable-next-line @next/next/no-img-element */}
                         <img
@@ -699,9 +699,9 @@ export default function GuinnessApplyClient() {
                 )}
               </div>
 
-              <div className="rounded-lg border border-gray-100 bg-white px-3 py-3">
-                <p className="text-xs font-semibold text-gray-700">신청 전 체크리스트</p>
-                <label className="mt-2 flex items-start gap-2 text-xs text-gray-600">
+              <div className="rounded-lg border border-slate-100 bg-white px-3 py-3">
+                <p className="text-xs font-semibold text-slate-700">신청 전 체크리스트</p>
+                <label className="mt-2 flex items-start gap-2 text-xs text-slate-600">
                   <input
                     type="checkbox"
                     checked={checklistPhotoClear}
@@ -709,7 +709,7 @@ export default function GuinnessApplyClient() {
                   />
                   사진에서 개체와 측정 수치가 명확히 보입니다.
                 </label>
-                <label className="mt-1.5 flex items-start gap-2 text-xs text-gray-600">
+                <label className="mt-1.5 flex items-start gap-2 text-xs text-slate-600">
                   <input
                     type="checkbox"
                     checked={checklistToolVisible}
@@ -717,7 +717,7 @@ export default function GuinnessApplyClient() {
                   />
                   측정 도구(자/저울)가 식별 가능하게 촬영했습니다.
                 </label>
-                <label className="mt-1.5 flex items-start gap-2 text-xs text-gray-600">
+                <label className="mt-1.5 flex items-start gap-2 text-xs text-slate-600">
                   <input
                     type="checkbox"
                     checked={checklistRealInfo}
@@ -727,7 +727,7 @@ export default function GuinnessApplyClient() {
                 </label>
               </div>
 
-              <label className="flex items-start gap-2 text-xs text-gray-600">
+              <label className="flex items-start gap-2 text-xs text-slate-600">
                 <input
                   type="checkbox"
                   checked={consentToContact}
@@ -745,29 +745,29 @@ export default function GuinnessApplyClient() {
 
         <section className="px-4 pt-8">
           <div className="mb-3 flex items-center justify-between">
-            <h2 className="text-base font-bold text-gray-900">내 신청 현황</h2>
-            <span className="text-xs text-gray-400">{mySubmissions.length}건</span>
+            <h2 className="app-section-title">내 신청 현황</h2>
+            <span className="text-xs text-slate-400">{mySubmissions.length}건</span>
           </div>
           <div className="space-y-2">
             {mySubmissions.length > 0 ? (
               mySubmissions.map((submission) => (
                 <div
                   key={submission.id}
-                  className="rounded-xl border border-gray-100 bg-white p-3 shadow-sm"
+                  className="app-card p-3"
                 >
                   <div className="flex items-start justify-between gap-3">
                     <div>
-                      <p className="text-sm font-semibold text-gray-900">
+                      <p className="text-sm font-semibold text-slate-900">
                         {submission.species} ·{" "}
                         {submission.recordType === "size" ? "크기" : "무게"}{" "}
                         {submission.value}
                         {submission.recordType === "size" ? "mm" : "g"}
                       </p>
-                      <p className="mt-1 text-xs text-gray-400">
+                      <p className="mt-1 text-xs text-slate-400">
                         신청일 {new Date(submission.submittedAt).toLocaleString()}
                       </p>
                       {submission.measurementDate && (
-                        <p className="mt-1 text-xs text-gray-400">
+                        <p className="mt-1 text-xs text-slate-400">
                           측정일 {new Date(submission.measurementDate).toLocaleDateString()}
                         </p>
                       )}
@@ -784,12 +784,12 @@ export default function GuinnessApplyClient() {
                     </span>
                   </div>
                   {submission.reviewMemo && (
-                    <p className="mt-2 rounded-md bg-gray-50 px-2 py-1.5 text-xs text-gray-600">
+                    <p className="mt-2 rounded-md bg-slate-50 px-2 py-1.5 text-xs text-slate-600">
                       심사 메모: {submission.reviewMemo}
                     </p>
                   )}
                   {submission.reviewReasonCode && (
-                    <p className="mt-1 text-xs text-gray-500">
+                    <p className="mt-1 text-xs text-slate-500">
                       반려 사유:{" "}
                       {REVIEW_REASON_LABELS[submission.reviewReasonCode] || "기타"}
                     </p>
@@ -808,8 +808,8 @@ export default function GuinnessApplyClient() {
                 </div>
               ))
             ) : (
-              <div className="rounded-xl border border-dashed border-gray-200 bg-white px-4 py-8 text-center">
-                <p className="text-sm text-gray-500">아직 신청한 내역이 없습니다.</p>
+              <div className="app-card border-dashed px-4 py-8 text-center">
+                <p className="text-sm text-slate-500">아직 신청한 내역이 없습니다.</p>
               </div>
             )}
           </div>

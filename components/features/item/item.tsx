@@ -2,8 +2,6 @@
 import Image from "@components/atoms/Image";
 import Link from "next/link";
 import { getTimeAgoString, makeImageUrl } from "@libs/client/utils";
-import { Colors } from "styles/colors";
-import { useRef } from "react";
 
 interface ItemProps {
   title: string;
@@ -28,87 +26,61 @@ export default function Item({
   category,
   status,
 }: ItemProps) {
-  const linkRef = useRef<HTMLAnchorElement>(null);
-
   return (
-    <div
-      className="flex px-4 cursor-pointer justify-between"
-      onClick={() => linkRef.current?.click()}
+    <Link
+      href={`/products/${id}-${title}`}
+      className="app-card app-card-interactive block overflow-hidden px-4 py-3"
     >
-      <div className="flex space-x-4 flex-1">
-        <Link href={`/products/${id}-${title}`}>
+      <div className="flex items-center gap-3">
+        <div className="h-20 w-20 flex-shrink-0 overflow-hidden rounded-xl bg-slate-100">
           <Image
             src={makeImageUrl(image, "product")}
-            className="w-20 h-20 bg-gray-400 rounded-md"
+            className="h-full w-full object-cover"
             alt="productList"
             width={80}
             height={80}
           />
-        </Link>
-        <div className="pt-2 flex flex-col flex-1">
-          <Link
-            ref={linkRef}
-            href={`/products/${id}-${title}`}
-            className="text-sm font-medium text-gray-900"
-          >
-            {title}
-          </Link>
-          <span className="font-medium mt-1 text-gray-900">
-            {price ? `${price.toLocaleString()}원` : "가격 미정"}
-          </span>
-          <div className="flex items-center gap-1.5 mt-1">
-            {category && (
-              <span className="text-xs text-primary bg-primary/10 px-1.5 py-0.5 rounded">
-                {category}
-              </span>
-            )}
+        </div>
+
+        <div className="min-w-0 flex-1">
+          <div className="mb-1.5 flex items-center gap-1.5">
+            {category && <span className="app-pill-accent">{category}</span>}
             {status && status !== "판매중" && (
-              <span className="text-xs text-gray-500 bg-gray-100 px-1.5 py-0.5 rounded">
-                {status}
-              </span>
+              <span className="app-pill-muted">{status}</span>
             )}
-            <span className="text-xs text-gray-400">
-              {getTimeAgoString(new Date(createdAt))}
-            </span>
+            <span className="app-caption">{getTimeAgoString(new Date(createdAt))}</span>
           </div>
+          <p className="app-title-md line-clamp-1">{title}</p>
+          <p className="mt-1 text-[15px] font-bold tracking-tight text-primary">
+            {price ? `${price.toLocaleString()}원` : "가격 미정"}
+          </p>
+        </div>
+
+        <div className="flex flex-col items-end gap-1.5">
+          <span className="app-pill-muted bg-rose-50 text-rose-500">
+            <svg className="h-3.5 w-3.5" viewBox="0 0 24 24" fill="currentColor">
+              <path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54z" />
+            </svg>
+            {hearts}
+          </span>
+          <span className="app-pill-muted">
+            <svg
+              className="h-3.5 w-3.5"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth="2"
+                d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"
+              />
+            </svg>
+            {comments ?? 0}
+          </span>
         </div>
       </div>
-      <div className="flex space-x-2 items-end justify-end">
-        <div className="flex space-x-0.5 items-center text-sm text-gray-600">
-          <svg
-            className="w-4 h-4"
-            fill={Colors.RED}
-            stroke={Colors.RED}
-            viewBox="0 0 24 24"
-            xmlns="http://www.w3.org/2000/svg"
-          >
-            <path
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              strokeWidth="2"
-              d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z"
-            ></path>
-          </svg>
-          <span>{hearts}</span>
-        </div>
-        <div className="flex space-x-0.5 items-center text-sm text-gray-600">
-          <svg
-            className="w-4 h-4"
-            fill="none"
-            stroke="currentColor"
-            viewBox="0 0 24 24"
-            xmlns="http://www.w3.org/2000/svg"
-          >
-            <path
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              strokeWidth="2"
-              d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"
-            ></path>
-          </svg>
-          <span>{comments ?? "0"}</span>
-        </div>
-      </div>
-    </div>
+    </Link>
   );
 }

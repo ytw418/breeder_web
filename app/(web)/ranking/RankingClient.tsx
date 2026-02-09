@@ -70,21 +70,30 @@ const RankingClient = () => {
     setActiveTab(tabId);
   };
 
+  const activeTabName =
+    TABS.find((tab) => tab.id === activeTab)?.name ?? "랭킹";
+  const activePeriodName =
+    PERIOD_TABS.find((tab) => tab.id === period)?.name ?? "역대";
+  const summaryCta =
+    activeTab === "breeder"
+      ? { href: "/guinness", label: "기네스북 보기" }
+      : { href: "/posts/upload", label: "게시글 올리기" };
+
   return (
     <Layout canGoBack title="랭킹" seoTitle="랭킹">
-      <div className="flex flex-col min-h-screen">
+      <div className="app-page flex flex-col min-h-screen">
         {/* 메인 탭 */}
-        <div className="sticky top-14 z-10 bg-white border-b border-gray-100">
-          <div className="flex overflow-x-auto scrollbar-hide px-2">
+        <div className="app-sticky-rail">
+          <div className="app-rail flex px-3 snap-none">
             {TABS.map((tab) => (
               <button
                 key={tab.id}
                 onClick={() => handleMainTabClick(tab.id)}
                 className={cn(
-                  "flex-shrink-0 flex items-center gap-1.5 px-4 py-3 text-sm font-medium whitespace-nowrap transition-colors border-b-2",
+                  "flex-shrink-0 flex items-center gap-1.5 px-3.5 py-3 text-[14px] font-semibold tracking-[-0.01em] whitespace-nowrap transition-colors border-b-2",
                   activeTab === tab.id
-                    ? "border-gray-900 text-gray-900"
-                    : "border-transparent text-gray-400 hover:text-gray-600"
+                    ? "border-slate-900 text-slate-900"
+                    : "border-transparent text-slate-400 hover:text-slate-600"
                 )}
               >
                 <span>{tab.icon}</span>
@@ -95,7 +104,7 @@ const RankingClient = () => {
         </div>
 
         {/* 서브탭 (기간 + 종 필터) */}
-        <div className="px-4 py-3 space-y-3 bg-gray-50/50">
+        <div className="px-4 py-3 space-y-3 bg-slate-50/70 border-b border-slate-100 app-reveal-fade">
           {/* 기간 */}
           <div className="flex gap-2">
             {PERIOD_TABS.map((p) => (
@@ -103,10 +112,10 @@ const RankingClient = () => {
                 key={p.id}
                 onClick={() => setPeriod(p.id)}
                 className={cn(
-                  "px-3 py-1.5 rounded-full text-xs font-medium transition-colors",
+                  "app-chip px-3 py-1.5 rounded-full text-xs tracking-tight",
                   period === p.id
-                    ? "bg-gray-900 text-white"
-                    : "bg-white text-gray-500 border border-gray-200"
+                    ? "app-chip-active"
+                    : "app-chip-muted bg-white"
                 )}
               >
                 {p.name}
@@ -116,16 +125,16 @@ const RankingClient = () => {
 
           {/* 종 필터 (기네스북) */}
           {activeTab === "guinness" && (
-            <div className="flex gap-2 overflow-x-auto scrollbar-hide">
+            <div className="app-rail flex gap-2 snap-none">
               {SPECIES_OPTIONS.map((sp) => (
                 <button
                   key={sp}
                   onClick={() => setSpecies(sp)}
                   className={cn(
-                    "flex-shrink-0 px-3 py-1.5 rounded-full text-xs font-medium transition-colors",
+                    "app-chip px-3 py-1.5 rounded-full text-xs tracking-tight",
                     species === sp
-                      ? "bg-primary text-white"
-                      : "bg-white text-gray-500 border border-gray-200"
+                      ? "border-primary bg-primary text-white"
+                      : "app-chip-muted bg-white"
                   )}
                 >
                   {sp}
@@ -136,11 +145,26 @@ const RankingClient = () => {
         </div>
 
         {/* 콘텐츠 영역 */}
-        <div className="flex-1 px-4 py-4">
+        <div className="flex-1 px-4 py-4 app-reveal">
+          <div className="app-card mb-3 p-3">
+            <div className="flex items-end justify-between gap-3">
+              <div>
+                <p className="app-kicker">랭킹 기준</p>
+                <p className="mt-1 app-body-md text-slate-700">
+                  {activeTabName} · {activePeriodName}
+                </p>
+              </div>
+              <Link href={summaryCta.href} className="app-section-link text-xs">
+                {summaryCta.label}
+                <span aria-hidden="true">›</span>
+              </Link>
+            </div>
+          </div>
+
           {!data ? (
             <div className="space-y-3">
               {[...Array(5)].map((_, i) => (
-                <div key={i} className="flex items-center gap-3 p-3 animate-pulse">
+                <div key={i} className="app-card flex items-center gap-3 p-3 animate-pulse">
                   <div className="w-8 h-8 rounded-full bg-gray-200" />
                   <div className="w-12 h-12 rounded-lg bg-gray-200" />
                   <div className="flex-1 space-y-2">
@@ -186,13 +210,13 @@ const GuinnessContent = ({ records }: { records: RankingResponse["records"] }) =
   }
 
   return (
-    <div className="space-y-3">
+    <div className="space-y-3 app-reveal-fade">
       {records.map((record, i) => (
         <div
           key={record.id}
           className={cn(
-            "flex items-center gap-3 p-3 rounded-xl transition-colors",
-            i < 3 ? "bg-gradient-to-r from-yellow-50/80 to-transparent" : "bg-white"
+            "app-card app-card-interactive flex items-center gap-3 p-3 transition-colors",
+            i < 3 ? "ring-1 ring-amber-200/70 bg-gradient-to-r from-amber-50/70 to-white" : ""
           )}
         >
           {/* 순위 */}
@@ -206,7 +230,7 @@ const GuinnessContent = ({ records }: { records: RankingResponse["records"] }) =
           </div>
 
           {/* 증거 사진 */}
-          <div className="w-14 h-14 rounded-lg overflow-hidden bg-gray-100 flex-shrink-0">
+          <div className="w-14 h-14 rounded-lg overflow-hidden bg-slate-100 flex-shrink-0">
             <Image
               src={makeImageUrl(record.photo, "avatar")}
               className="w-full h-full object-cover"
@@ -218,25 +242,26 @@ const GuinnessContent = ({ records }: { records: RankingResponse["records"] }) =
 
           {/* 정보 */}
           <div className="flex-1 min-w-0">
-            <p className="text-sm font-semibold text-gray-900 truncate">
-              {record.species}
-            </p>
-            <p className="text-xs text-gray-400">
-              {record.recordType === "size" ? "크기" : "무게"}
-            </p>
+            <p className="app-title-md truncate">{record.species}</p>
+            <div className="mt-1 flex items-center gap-1.5">
+              <span className="app-pill-muted">
+                {record.recordType === "size" ? "크기" : "무게"}
+              </span>
+              <Link href={`/profiles/${record.user.id}`} className="app-caption text-slate-500 hover:text-slate-700">
+                {record.user.name}
+              </Link>
+            </div>
           </div>
 
           {/* 기록 + 유저 */}
           <div className="text-right flex-shrink-0">
             <p className="text-lg font-bold text-primary">
               {record.value}
-              <span className="text-xs font-normal text-gray-400 ml-0.5">
+              <span className="app-caption ml-0.5">
                 {record.recordType === "size" ? "mm" : "g"}
               </span>
             </p>
-            <Link href={`/profiles/${record.user.id}`} className="text-xs text-gray-400 hover:text-gray-600">
-              {record.user.name}
-            </Link>
+            <p className="app-caption">공식 기록</p>
           </div>
         </div>
       ))}
@@ -264,7 +289,7 @@ const PostRankingContent = ({ posts }: { posts: RankingResponse["postRanking"] }
             <Link
               key={post.id}
               href={`/posts/${post.id}`}
-              className="relative overflow-hidden rounded-xl aspect-square"
+              className="relative overflow-hidden rounded-xl aspect-square app-card-interactive"
             >
               {post.image && (
                 <Image
@@ -304,7 +329,7 @@ const PostRankingContent = ({ posts }: { posts: RankingResponse["postRanking"] }
           <Link
             key={post.id}
             href={`/posts/${post.id}`}
-            className="flex items-center gap-3 p-3 rounded-xl hover:bg-gray-50 transition-colors"
+            className="app-card app-card-interactive flex items-center gap-3 p-3 transition-colors hover:bg-slate-50"
           >
             <div
               className={cn(
@@ -314,7 +339,7 @@ const PostRankingContent = ({ posts }: { posts: RankingResponse["postRanking"] }
             >
               {rank}
             </div>
-            <div className="w-12 h-12 rounded-lg overflow-hidden bg-gray-100 flex-shrink-0">
+            <div className="w-12 h-12 rounded-lg overflow-hidden bg-slate-100 flex-shrink-0">
               {post.image && (
                 <Image
                   src={makeImageUrl(post.image, "public")}
@@ -326,15 +351,15 @@ const PostRankingContent = ({ posts }: { posts: RankingResponse["postRanking"] }
               )}
             </div>
             <div className="flex-1 min-w-0">
-              <p className="text-sm font-medium text-gray-900 truncate">{post.title}</p>
-              <p className="text-xs text-gray-400">{post.user.name}</p>
+              <p className="app-title-md truncate">{post.title}</p>
+              <p className="app-caption">{post.user.name}</p>
             </div>
-            <div className="flex items-center gap-1 text-sm text-red-400 font-medium flex-shrink-0">
-              <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
+            <span className="app-pill-muted bg-rose-50 text-rose-500 flex-shrink-0">
+              <svg className="h-3.5 w-3.5" fill="currentColor" viewBox="0 0 24 24">
                 <path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z" />
               </svg>
               {post._count.Likes}
-            </div>
+            </span>
           </Link>
         );
       })}
@@ -354,7 +379,7 @@ const BreederRankingContent = ({ ranking }: { ranking: RankingResponse["breederR
   }
 
   return (
-    <div className="space-y-3">
+    <div className="space-y-3 app-reveal-fade">
       {/* Top 3 큰 카드 */}
       {ranking.length >= 3 && (
         <div className="flex items-end justify-center gap-3 py-6 mb-4">
@@ -374,7 +399,7 @@ const BreederRankingContent = ({ ranking }: { ranking: RankingResponse["breederR
           <Link
             key={breeder.user.id}
             href={`/profiles/${breeder.user.id}`}
-            className="flex items-center gap-3 p-3 rounded-xl hover:bg-gray-50 transition-colors"
+            className="app-card app-card-interactive flex items-center gap-3 p-3 transition-colors hover:bg-slate-50"
           >
             <div
               className={cn(
@@ -393,21 +418,24 @@ const BreederRankingContent = ({ ranking }: { ranking: RankingResponse["breederR
                 alt=""
               />
             ) : (
-              <div className="w-10 h-10 rounded-full bg-gray-200 flex-shrink-0" />
+              <div className="w-10 h-10 rounded-full bg-slate-200 flex-shrink-0" />
             )}
             <div className="flex-1 min-w-0">
-              <p className="text-sm font-semibold text-gray-900">{breeder.user.name}</p>
-              <div className="flex items-center gap-2 text-xs text-gray-400">
-                <span>기록 {breeder.recordCount}</span>
-                <span>·</span>
-                <span>경매 {breeder.auctionCount}</span>
-                <span>·</span>
-                <span>❤️ {breeder.totalLikes}</span>
+              <p className="app-title-md">{breeder.user.name}</p>
+              <div className="mt-1 flex flex-wrap items-center gap-1.5">
+                <span className="app-pill-muted">기록 {breeder.recordCount}</span>
+                <span className="app-pill-muted">경매 {breeder.auctionCount}</span>
+                <span className="app-pill-muted bg-rose-50 text-rose-500">
+                  <svg className="h-3.5 w-3.5" viewBox="0 0 24 24" fill="currentColor">
+                    <path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z" />
+                  </svg>
+                  {breeder.totalLikes}
+                </span>
               </div>
             </div>
             <div className="text-right flex-shrink-0">
               <p className="text-sm font-bold text-primary">{breeder.score.toLocaleString()}</p>
-              <p className="text-[10px] text-gray-400">점</p>
+              <p className="app-caption text-[10px]">점</p>
             </div>
           </Link>
         );
@@ -431,7 +459,7 @@ const TopBreederCard = ({
     <Link
       href={`/profiles/${data.user.id}`}
       className={cn(
-        "flex flex-col items-center",
+        "flex flex-col items-center app-card-interactive",
         isFirst ? "order-2" : rank === 2 ? "order-1" : "order-3"
       )}
     >
@@ -447,26 +475,36 @@ const TopBreederCard = ({
         {data.user.avatar ? (
           <Image
             src={makeImageUrl(data.user.avatar, "avatar")}
-            className={cn("rounded-full object-cover border-2", isFirst ? "border-yellow-400" : "border-gray-300")}
+            className={cn(
+              "rounded-full object-cover border-2",
+              isFirst ? "border-yellow-400" : "border-slate-300"
+            )}
             fill
             sizes="80px"
             alt=""
           />
         ) : (
-          <div className={cn("w-full h-full rounded-full border-2", isFirst ? "bg-gray-200 border-yellow-400" : "bg-gray-200 border-gray-300")} />
+          <div
+            className={cn(
+              "w-full h-full rounded-full border-2",
+              isFirst
+                ? "bg-slate-200 border-yellow-400"
+                : "bg-slate-200 border-slate-300"
+            )}
+          />
         )}
       </div>
-      <p className="text-xs font-semibold text-gray-900 text-center">{data.user.name}</p>
-      <p className="text-xs font-bold text-primary">{data.score.toLocaleString()}점</p>
+      <p className="app-caption font-semibold text-slate-900 text-center">{data.user.name}</p>
+      <p className="app-caption font-bold text-primary">{data.score.toLocaleString()}점</p>
     </Link>
   );
 };
 
 /** 빈 상태 */
 const EmptyState = ({ title, description }: { title: string; description: string }) => (
-  <div className="flex flex-col items-center justify-center py-20 text-gray-400">
-    <p className="text-lg font-medium">{title}</p>
-    <p className="text-sm mt-1">{description}</p>
+  <div className="flex flex-col items-center justify-center py-20 text-slate-400 app-reveal-fade">
+    <p className="app-title-md text-slate-500">{title}</p>
+    <p className="app-body-sm mt-1">{description}</p>
   </div>
 );
 
