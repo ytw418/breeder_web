@@ -1,6 +1,5 @@
 import { NextApiRequest, NextApiResponse } from "next";
 import client from "@libs/server/client";
-import { withSessionSsr } from "@libs/server/withSession";
 import { withApiSession } from "@libs/server/withSession";
 
 async function handler(req: NextApiRequest, res: NextApiResponse) {
@@ -68,5 +67,4 @@ async function handler(req: NextApiRequest, res: NextApiResponse) {
   return res.status(405).end();
 }
 
-export default withSessionSsr(handler);
 export default withApiSession(handler);
