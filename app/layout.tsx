@@ -16,6 +16,7 @@ export const viewport: Viewport = {
 };
 
 export const metadata: Metadata = {
+  metadataBase: new URL("https://bredy.app"),
   title: {
     default: "Bredy - 외국곤충 전문 마켓",
     template: "%s | Bredy",
@@ -49,7 +50,7 @@ export const metadata: Metadata = {
       "외국곤충, 건조표본, 헤라클레스, 사슴벌레, 극태, 왕사, 장수풍뎅이 등 다양한 곤충을 구매하고 판매할 수 있는 전문 마켓플레이스",
     images: [
       {
-        url: "/og-image.png",
+        url: "https://bredy.app/og-image.png",
         width: 1200,
         height: 630,
         alt: "Bredy",
@@ -61,7 +62,7 @@ export const metadata: Metadata = {
     title: "Bredy - 외국곤충 전문 마켓",
     description:
       "외국곤충, 건조표본, 헤라클레스, 사슴벌레, 극태, 왕사, 장수풍뎅이 등 다양한 곤충을 구매하고 판매할 수 있는 전문 마켓플레이스",
-    images: ["/og-image.png"],
+    images: ["https://bredy.app/og-image.png"],
     site: "@bredy",
     creator: "@bredy",
   },
