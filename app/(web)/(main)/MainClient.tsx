@@ -14,7 +14,6 @@ import { useInfiniteScroll } from "hooks/useInfiniteScroll";
 import { Product } from "@prisma/client";
 
 import SkeletonItem from "@components/atoms/SkeletonItem";
-import ItemWrapper from "@components/features/item/ItemWrapper";
 import { cn, makeImageUrl } from "@libs/client/utils";
 import { CATEGORIES } from "@libs/constants";
 import { AuctionsListResponse } from "pages/api/auctions";
@@ -32,17 +31,6 @@ interface ProductsResponse {
 
 /** 탭 목록: "전체" + 카테고리 목록 */
 const TABS = [{ id: "전체", name: "전체" }, ...CATEGORIES];
-
-const CATEGORY_ACCENT: Record<string, string> = {
-  전체: "bg-slate-500",
-  장수풍뎅이: "bg-emerald-500",
-  사슴벌레: "bg-cyan-500",
-  타란튤라: "bg-violet-500",
-  전갈: "bg-amber-500",
-  "나비/나방": "bg-pink-500",
-  개미: "bg-lime-500",
-  기타곤충: "bg-gray-500",
-};
 
 const getTimeRemaining = (endAt: string | Date) => {
   const end = new Date(endAt).getTime();
@@ -79,7 +67,7 @@ const SectionHeader = ({
     {href ? (
       <Link
         href={href}
-        className="inline-flex h-8 items-center rounded-full border border-slate-200 bg-white px-3 text-xs font-semibold text-slate-600 transition-colors hover:border-slate-300 hover:text-slate-800"
+        className="inline-flex h-7 items-center text-[13px] font-medium text-slate-500 transition-colors hover:text-slate-700"
       >
         {actionLabel}
         <span aria-hidden="true" className="ml-0.5">
@@ -181,31 +169,33 @@ const MainClient = () => {
             브리더 홈
           </h1>
         </div>
-        <div
-          ref={bannerRef}
-          onScroll={handleBannerScroll}
-          className="app-rail flex gap-3.5 pl-5 pr-4"
-        >
-          {banners.map((banner: any) => (
-            <Link
-              key={banner.id}
-              href={banner.href}
-              className={cn(
-                "snap-start shrink-0 w-[84%] app-card app-card-interactive p-5 text-white bg-gradient-to-r relative overflow-hidden border-transparent",
-                banner.bgClass || "from-gray-500 to-gray-600"
-              )}
-            >
-              <span className="app-kicker text-white/75 relative z-10">Breeder</span>
-              <h2 className="mt-2 app-title-lg text-white relative z-10">{banner.title}</h2>
-              <p className="mt-1 app-body-sm text-white/90 line-clamp-2 relative z-10">
-                {banner.description}
-              </p>
-              <span className="mt-4 inline-flex h-7 items-center rounded-full bg-white/20 px-2.5 text-[11px] font-semibold text-white/95 backdrop-blur-sm relative z-10">
-                자세히 보기
-              </span>
-              <div className="pointer-events-none absolute -right-8 -top-10 h-28 w-28 rounded-full bg-white/12" />
-            </Link>
-          ))}
+        <div className="px-5">
+          <div
+            ref={bannerRef}
+            onScroll={handleBannerScroll}
+            className="app-rail flex gap-3.5"
+          >
+            {banners.map((banner: any) => (
+              <Link
+                key={banner.id}
+                href={banner.href}
+                className={cn(
+                  "snap-start shrink-0 w-[84%] app-card app-card-interactive p-5 text-white bg-gradient-to-r relative overflow-hidden border-transparent",
+                  banner.bgClass || "from-gray-500 to-gray-600"
+                )}
+              >
+                <span className="app-kicker text-white/75 relative z-10">Breeder</span>
+                <h2 className="mt-2 app-title-lg text-white relative z-10">{banner.title}</h2>
+                <p className="mt-1 app-body-sm text-white/90 line-clamp-2 relative z-10">
+                  {banner.description}
+                </p>
+                <span className="mt-4 inline-flex h-7 items-center rounded-full bg-white/20 px-2.5 text-[11px] font-semibold text-white/95 backdrop-blur-sm relative z-10">
+                  자세히 보기
+                </span>
+                <div className="pointer-events-none absolute -right-8 -top-10 h-28 w-28 rounded-full bg-white/12" />
+              </Link>
+            ))}
+          </div>
         </div>
         <div className="mt-3 flex items-center justify-center gap-1.5">
           {banners.map((banner: any, index: number) => (
@@ -225,56 +215,58 @@ const MainClient = () => {
       {/* 인기 상품 */}
       <section className="app-section-muted app-reveal app-reveal-1">
         <SectionHeader title="인기 상품" subtitle="좋아요가 많은 상품" />
-        <div className="app-rail mt-3 flex gap-3 pl-5 pr-4">
-          {popularProductsData ? (
-            popularProductsData.products.map((product, index) => (
-              <Link
-                key={product.id}
-                href={`/products/${product.id}`}
-                className="snap-start shrink-0 w-40 app-card app-card-interactive overflow-hidden"
-              >
-                <div className="relative aspect-square bg-gray-100">
-                  <Image
-                    src={makeImageUrl(product.photos?.[0], "product")}
-                    alt={product.name}
-                    className="object-cover"
-                    fill
-                    sizes="160px"
-                    priority={index === 0}
-                  />
-                </div>
-                <div className="p-3">
-                  <h3 className="app-title-md truncate">
-                    {product.name}
-                  </h3>
-                  <p className="mt-1 text-[15px] font-bold tracking-tight text-primary">
-                    {typeof product.price === "number"
-                      ? `${product.price.toLocaleString()}원`
-                      : "가격 문의"}
-                  </p>
-                  <div className="mt-1">
-                    <span className="app-pill-muted bg-rose-50 text-rose-500">
-                      ❤ {product._count.favs}
-                    </span>
+        <div className="mt-3 px-5">
+          <div className="app-rail flex gap-3">
+            {popularProductsData ? (
+              popularProductsData.products.map((product, index) => (
+                <Link
+                  key={product.id}
+                  href={`/products/${product.id}`}
+                  className="snap-start shrink-0 w-40 app-card app-card-interactive overflow-hidden"
+                >
+                  <div className="relative aspect-square bg-gray-100">
+                    <Image
+                      src={makeImageUrl(product.photos?.[0], "product")}
+                      alt={product.name}
+                      className="object-cover"
+                      fill
+                      sizes="160px"
+                      priority={index === 0}
+                    />
+                  </div>
+                  <div className="p-3">
+                    <h3 className="app-title-md truncate">
+                      {product.name}
+                    </h3>
+                    <p className="mt-1 text-[15px] font-bold tracking-tight text-primary">
+                      {typeof product.price === "number"
+                        ? `${product.price.toLocaleString()}원`
+                        : "가격 문의"}
+                    </p>
+                    <div className="mt-1">
+                      <span className="app-pill-muted bg-rose-50 text-rose-500">
+                        ❤ {product._count.favs}
+                      </span>
+                    </div>
+                  </div>
+                </Link>
+              ))
+            ) : (
+              [...Array(4)].map((_, i) => (
+                <div
+                  key={i}
+                  className="snap-start shrink-0 w-40 app-card overflow-hidden animate-pulse"
+                >
+                  <div className="aspect-square bg-gray-200" />
+                  <div className="p-3 space-y-2">
+                    <div className="h-3 bg-gray-200 rounded w-4/5" />
+                    <div className="h-4 bg-gray-200 rounded w-1/2" />
+                    <div className="h-3 bg-gray-200 rounded w-1/3" />
                   </div>
                 </div>
-              </Link>
-            ))
-          ) : (
-            [...Array(4)].map((_, i) => (
-              <div
-                key={i}
-                className="snap-start shrink-0 w-40 app-card overflow-hidden animate-pulse"
-              >
-                <div className="aspect-square bg-gray-200" />
-                <div className="p-3 space-y-2">
-                  <div className="h-3 bg-gray-200 rounded w-4/5" />
-                  <div className="h-4 bg-gray-200 rounded w-1/2" />
-                  <div className="h-3 bg-gray-200 rounded w-1/3" />
-                </div>
-              </div>
-            ))
-          )}
+              ))
+            )}
+          </div>
         </div>
       </section>
 
@@ -339,35 +331,25 @@ const MainClient = () => {
 
       {/* 카테고리 탭 */}
       <div className="app-sticky-rail app-reveal app-reveal-3">
-        <div className="px-4 py-3">
-          <div className="app-card p-2">
-            <div className="app-rail flex gap-2 snap-none">
-              {TABS.map((tab) => {
-                const isActive = selectedCategory === tab.id;
-                return (
-                  <button
-                    key={tab.id}
-                    onClick={() => handleCategoryChange(tab.id)}
-                    className={cn(
-                      "app-chip",
-                      isActive
-                        ? "app-chip-active"
-                        : "app-chip-muted"
-                    )}
-                  >
-                    <span
-                      className={cn(
-                        "w-2 h-2 rounded-full",
-                        isActive
-                          ? "bg-white/90"
-                          : CATEGORY_ACCENT[tab.id] ?? "bg-slate-400"
-                      )}
-                    />
-                    {tab.name}
-                  </button>
-                );
-              })}
-            </div>
+        <div className="px-4 py-2.5">
+          <div className="app-rail flex gap-1.5 snap-none">
+            {TABS.map((tab) => {
+              const isActive = selectedCategory === tab.id;
+              return (
+                <button
+                  key={tab.id}
+                  onClick={() => handleCategoryChange(tab.id)}
+                  className={cn(
+                    "flex-shrink-0 rounded-md px-3 py-1.5 text-sm transition-colors",
+                    isActive
+                      ? "bg-slate-900 font-semibold text-white"
+                      : "bg-slate-100 font-medium text-slate-600 hover:bg-slate-200"
+                  )}
+                >
+                  {tab.name}
+                </button>
+              );
+            })}
           </div>
         </div>
       </div>
@@ -387,28 +369,30 @@ const MainClient = () => {
       </section>
 
       {/* 상품 목록 */}
-      <div className="h-full space-y-2 px-4 pb-4">
+      <div className="h-full border-y border-slate-100 bg-white pb-4">
         {data ? (
           data.map((result) => {
             return result?.products?.map((product) => (
-              <ItemWrapper key={product?.id}>
-                <Item
-                  id={product?.id}
-                  title={product?.name}
-                  price={product?.price}
-                  hearts={product?._count?.favs}
-                  image={product?.photos[0]}
-                  createdAt={product.createdAt}
-                  category={product?.category}
-                  status={product?.status}
-                />
-              </ItemWrapper>
+              <Item
+                key={product?.id}
+                id={product?.id}
+                title={product?.name}
+                price={product?.price}
+                hearts={product?._count?.favs}
+                image={product?.photos[0]}
+                createdAt={product.createdAt}
+                category={product?.category}
+                status={product?.status}
+                minimal
+              />
             ));
           })
         ) : (
-          <div className="space-y-2">
+          <div className="divide-y divide-slate-100">
             {[...Array(5)].map((_, i) => (
-              <SkeletonItem key={i} />
+              <div key={i} className="px-4">
+                <SkeletonItem />
+              </div>
             ))}
           </div>
         )}

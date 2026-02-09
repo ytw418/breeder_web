@@ -124,13 +124,13 @@ const ChatClient = () => {
 
         <section className="mt-2">
           {isLoading ? (
-            <div className="space-y-2 px-3">
+            <div className="border-y border-slate-100 bg-white">
               {[...Array(8)].map((_, index) => (
                 <SkeletonChat key={index} />
               ))}
             </div>
           ) : filteredChatRooms.length > 0 ? (
-            <div className="space-y-2 px-3">
+            <div className="border-y border-slate-100 bg-white">
               {filteredChatRooms.map((chatRoom) => {
                 const otherUser = chatRoom.chatRoomMembers.find(
                   (member) => member.user.id !== user?.id
@@ -144,10 +144,10 @@ const ChatClient = () => {
                     key={chatRoom.id}
                     href={`/chat/${chatRoom.id}`}
                     className={cn(
-                      "block rounded-2xl border bg-white px-3.5 py-3.5 shadow-sm transition-all",
+                      "block border-b border-slate-100 px-4 py-3 transition-colors hover:bg-slate-50",
                       chatRoom.unreadCount > 0
-                        ? "border-emerald-200 hover:border-emerald-300 hover:shadow-md"
-                        : "border-slate-200 hover:border-slate-300 hover:shadow-md"
+                        ? "bg-emerald-50/40"
+                        : ""
                     )}
                   >
                     <div className="flex items-center gap-3">

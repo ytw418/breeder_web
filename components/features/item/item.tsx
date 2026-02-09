@@ -1,7 +1,7 @@
 "use client";
 import Image from "@components/atoms/Image";
 import Link from "next/link";
-import { getTimeAgoString, makeImageUrl } from "@libs/client/utils";
+import { cn, getTimeAgoString, makeImageUrl } from "@libs/client/utils";
 
 interface ItemProps {
   title: string;
@@ -13,6 +13,7 @@ interface ItemProps {
   createdAt: Date;
   category?: string | null;
   status?: string | null;
+  minimal?: boolean;
 }
 
 export default function Item({
@@ -25,14 +26,25 @@ export default function Item({
   createdAt,
   category,
   status,
+  minimal = false,
 }: ItemProps) {
   return (
     <Link
       href={`/products/${id}-${title}`}
-      className="app-card app-card-interactive block overflow-hidden px-4 py-3"
+      className={cn(
+        "block overflow-hidden",
+        minimal
+          ? "border-b border-slate-100 bg-white px-4 py-3 transition-colors hover:bg-slate-50"
+          : "app-card app-card-interactive px-4 py-3"
+      )}
     >
       <div className="flex items-center gap-3">
-        <div className="h-20 w-20 flex-shrink-0 overflow-hidden rounded-xl bg-slate-100">
+        <div
+          className={cn(
+            "h-20 w-20 flex-shrink-0 overflow-hidden bg-slate-100",
+            minimal ? "rounded-md" : "rounded-xl"
+          )}
+        >
           <Image
             src={makeImageUrl(image, "product")}
             className="h-full w-full object-cover"
@@ -44,9 +56,27 @@ export default function Item({
 
         <div className="min-w-0 flex-1">
           <div className="mb-1.5 flex items-center gap-1.5">
-            {category && <span className="app-pill-accent">{category}</span>}
+            {category && (
+              <span
+                className={cn(
+                  minimal
+                    ? "inline-flex items-center text-[11px] font-medium text-slate-500"
+                    : "app-pill-accent"
+                )}
+              >
+                {category}
+              </span>
+            )}
             {status && status !== "판매중" && (
-              <span className="app-pill-muted">{status}</span>
+              <span
+                className={cn(
+                  minimal
+                    ? "inline-flex items-center text-[11px] font-medium text-slate-500"
+                    : "app-pill-muted"
+                )}
+              >
+                {status}
+              </span>
             )}
             <span className="app-caption">{getTimeAgoString(new Date(createdAt))}</span>
           </div>
@@ -57,13 +87,23 @@ export default function Item({
         </div>
 
         <div className="flex flex-col items-end gap-1.5">
-          <span className="app-pill-muted bg-rose-50 text-rose-500">
+          <span
+            className={cn(
+              "inline-flex items-center gap-1 text-xs",
+              minimal ? "text-rose-500" : "app-pill-muted bg-rose-50 text-rose-500"
+            )}
+          >
             <svg className="h-3.5 w-3.5" viewBox="0 0 24 24" fill="currentColor">
               <path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54z" />
             </svg>
             {hearts}
           </span>
-          <span className="app-pill-muted">
+          <span
+            className={cn(
+              "inline-flex items-center gap-1 text-xs text-slate-500",
+              minimal ? "" : "app-pill-muted"
+            )}
+          >
             <svg
               className="h-3.5 w-3.5"
               fill="none"

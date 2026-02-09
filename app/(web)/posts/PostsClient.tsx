@@ -400,14 +400,14 @@ export default function PostsClient() {
         </section>
 
         {/* 게시글 목록 */}
-        <div className="space-y-2 px-4 pb-4">
+        <div className="border-y border-slate-100 bg-white pb-4">
           {data ? (
             data.map((result) =>
               result?.posts?.map((post) => (
                 <Link
                   key={post.id}
                   href={`/posts/${post.id}`}
-                  className="app-card app-card-interactive block w-full overflow-hidden px-3 py-2.5 hover:bg-slate-50 transition-colors"
+                  className="block w-full border-b border-slate-100 px-4 py-3 transition-colors hover:bg-slate-50"
                 >
                   <div className="flex items-start gap-2.5">
                     {/* 텍스트 영역 */}
@@ -505,9 +505,9 @@ export default function PostsClient() {
             )
           ) : (
             // 로딩 스켈레톤
-            <div className="space-y-2">
+            <div className="divide-y divide-slate-100">
               {[...Array(5)].map((_, i) => (
-                <div key={i} className="app-card px-3.5 py-3.5 flex gap-3 animate-pulse">
+                <div key={i} className="px-4 py-3 flex gap-3 animate-pulse">
                   <div className="flex-1 space-y-2">
                     <div className="h-3 bg-gray-200 rounded w-16" />
                     <div className="h-4 bg-gray-200 rounded w-3/4" />
@@ -522,7 +522,7 @@ export default function PostsClient() {
 
           {/* 결과 없을 때 */}
           {data && data.length > 0 && data[0].posts.length === 0 && (
-            <div className="app-card flex flex-col items-center justify-center py-20 text-slate-400">
+            <div className="flex flex-col items-center justify-center py-20 text-slate-400">
               <p className="app-title-md text-slate-500">등록된 게시글이 없습니다</p>
               <p className="app-body-sm mt-1">첫 번째 글을 작성해 보세요!</p>
             </div>
