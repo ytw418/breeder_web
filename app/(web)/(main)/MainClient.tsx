@@ -33,37 +33,6 @@ interface ProductsResponse {
 /** 탭 목록: "전체" + 카테고리 목록 */
 const TABS = [{ id: "전체", name: "전체" }, ...CATEGORIES];
 
-const HERO_BANNERS = [
-  {
-    id: 1,
-    title: "봄 시즌 이벤트",
-    description: "인기 곤충/용품 최대 20% 할인",
-    href: "/search",
-    bgClass: "from-emerald-500 to-teal-500",
-  },
-  {
-    id: 2,
-    title: "경매 신규 기능 오픈",
-    description: "실시간 입찰 알림과 상세 히스토리를 확인해 보세요",
-    href: "/auctions",
-    bgClass: "from-sky-500 to-cyan-500",
-  },
-  {
-    id: 3,
-    title: "브리더 랭킹 업데이트",
-    description: "이번 달 TOP 브리더를 지금 확인하세요",
-    href: "/ranking",
-    bgClass: "from-orange-500 to-amber-500",
-  },
-  {
-    id: 4,
-    title: "안전거래 가이드",
-    description: "거래 전 체크리스트로 더 안전하게 거래하세요",
-    href: "/settings",
-    bgClass: "from-indigo-500 to-blue-500",
-  },
-];
-
 const CATEGORY_ACCENT: Record<string, string> = {
   전체: "bg-slate-500",
   장수풍뎅이: "bg-emerald-500",
@@ -139,6 +108,10 @@ const MainClient = () => {
   const { data: ongoingAuctionsData } = useSWR<AuctionsListResponse>(
     "/api/auctions?status=진행중&page=1"
   );
+  // 배너 데이터 호출
+  const { data: bannerData } = useSWR("/api/admin/banners");
+  const banners = bannerData?.banners && bannerData.banners.length > 0 ? bannerData.banners : [];
+
   const page = useInfiniteScroll();
 
   useEffect(() => {
@@ -199,23 +172,23 @@ const MainClient = () => {
           onScroll={handleBannerScroll}
           className="flex overflow-x-auto scrollbar-hide snap-x snap-mandatory gap-3.5 pl-5 pr-4"
         >
-          {HERO_BANNERS.map((banner) => (
+          {banners.map((banner: any) => (
             <Link
               key={banner.id}
               href={banner.href}
               className={cn(
-                "snap-start shrink-0 w-[84%] rounded-2xl p-5 text-white shadow-sm bg-gradient-to-r",
-                banner.bgClass
+                "snap-start shrink-0 w-[84%] rounded-2xl p-5 text-white shadow-sm bg-gradient-to-r relative overflow-hidden",
+                banner.bgClass || "from-gray-500 to-gray-600"
               )}
             >
-              <p className="text-xs font-semibold text-white/80">Breeder</p>
-              <h2 className="mt-2 text-xl font-bold">{banner.title}</h2>
-              <p className="mt-1 text-sm text-white/90">{banner.description}</p>
+              <p className="text-xs font-semibold text-white/80 relative z-10">Breeder</p>
+              <h2 className="mt-2 text-xl font-bold relative z-10">{banner.title}</h2>
+              <p className="mt-1 text-sm text-white/90 relative z-10">{banner.description}</p>
             </Link>
           ))}
         </div>
         <div className="mt-3 flex items-center justify-center gap-1.5">
-          {HERO_BANNERS.map((banner, index) => (
+          {banners.map((banner: any, index: number) => (
             <button
               key={banner.id}
               onClick={() => scrollToBanner(index)}
