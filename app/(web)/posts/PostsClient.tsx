@@ -13,6 +13,7 @@ import { useInfiniteScroll } from "hooks/useInfiniteScroll";
 import { cn, getTimeAgoString, makeImageUrl } from "@libs/client/utils";
 import { POST_CATEGORIES } from "@libs/constants";
 import { PostsListResponse } from "pages/api/posts";
+import { NoticePostsResponse } from "pages/api/posts/notices";
 import { RankingResponse } from "pages/api/ranking";
 
 /** 카테고리 탭 목록 */
@@ -78,6 +79,7 @@ export default function PostsClient() {
   const { data: breederData } = useSWR<RankingResponse>(
     "/api/ranking?tab=breeder"
   );
+  const { data: noticeData } = useSWR<NoticePostsResponse>("/api/posts/notices");
   const page = useInfiniteScroll();
 
   useEffect(() => {
@@ -96,7 +98,21 @@ export default function PostsClient() {
   const hotPosts = hotRankingData?.postRanking?.slice(0, 5) ?? [];
   const guinnessRecords = guinnessData?.records?.slice(0, 3) ?? [];
   const breederRanking = breederData?.breederRanking?.slice(0, 5) ?? [];
-  const noticeLinkedPosts = data?.[0]?.posts ?? [];
+  const noticePosts = noticeData?.posts ?? [];
+  const displayNotices =
+    noticePosts.length > 0
+      ? noticePosts.slice(0, 2).map((post) => ({
+          id: `notice-${post.id}`,
+          label: "공지",
+          title: post.title,
+          href: `/posts/${post.id}`,
+        }))
+      : NOTICE_BANNERS.map((notice) => ({
+          id: notice.id,
+          label: notice.label,
+          title: notice.title,
+          href: notice.fallbackHref,
+        }));
 
   return (
     <Layout icon hasTabBar seoTitle="곤충생활" showSearch>
@@ -108,28 +124,22 @@ export default function PostsClient() {
 
         {/* 공지/고정 게시글 */}
         <section className="px-4 py-3 space-y-2">
-          {NOTICE_BANNERS.map((notice, index) => {
-            const linkedPost = noticeLinkedPosts[index];
-            const href = linkedPost ? `/posts/${linkedPost.id}` : notice.fallbackHref;
-            const title = linkedPost ? linkedPost.title : notice.title;
-
-            return (
-              <Link
-                key={notice.id}
-                href={href}
-                className="block rounded-xl border border-amber-200 bg-gradient-to-r from-amber-50 to-orange-50 px-3 py-2.5"
-              >
-                <div className="flex items-center gap-2">
-                  <span className="inline-flex px-2 py-0.5 text-[11px] font-semibold rounded-full bg-amber-500 text-white">
-                    {notice.label}
-                  </span>
-                  <p className="text-sm font-medium text-amber-900 line-clamp-1">
-                    {title}
-                  </p>
-                </div>
-              </Link>
-            );
-          })}
+          {displayNotices.map((notice) => (
+            <Link
+              key={notice.id}
+              href={notice.href}
+              className="block rounded-xl border border-amber-200 bg-gradient-to-r from-amber-50 to-orange-50 px-3 py-2.5"
+            >
+              <div className="flex items-center gap-2">
+                <span className="inline-flex px-2 py-0.5 text-[11px] font-semibold rounded-full bg-amber-500 text-white">
+                  {notice.label}
+                </span>
+                <p className="text-sm font-medium text-amber-900 line-clamp-1">
+                  {notice.title}
+                </p>
+              </div>
+            </Link>
+          ))}
         </section>
 
         {/* HOT 게시글 */}

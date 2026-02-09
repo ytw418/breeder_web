@@ -1,14 +1,19 @@
 import { NextApiRequest, NextApiResponse } from "next";
+import withHandler, { ResponseType } from "@libs/server/withHandler";
+import { withApiSession } from "@libs/server/withSession";
 import client from "@libs/server/client";
-import { withSessionRoute } from "@libs/server/withSession";
+import { hasAdminAccess } from "./_utils";
 
-async function handler(req: NextApiRequest, res: NextApiResponse) {
-  const { user } = req.session;
+async function handler(req: NextApiRequest, res: NextApiResponse<ResponseType>) {
+  const {
+    session: { user },
+  } = req;
 
-  // 어드민 권한 체크
-  const dbUser = await client.user.findUnique({ where: { id: user?.id } });
-  if (!dbUser || dbUser.role !== "ADMIN") {
-    return res.status(403).json({ success: false, error: "접근 권한이 없습니다." });
+  const isAdmin = await hasAdminAccess(user?.id);
+  if (!isAdmin) {
+    return res
+      .status(403)
+      .json({ success: false, error: "접근 권한이 없습니다." });
   }
 
   if (req.method === "GET") {
@@ -49,12 +54,19 @@ async function handler(req: NextApiRequest, res: NextApiResponse) {
       client.product.count({ where }),
     ]);
 
-    return res.json({ success: true, products, totalCount, totalPages: Math.ceil(totalCount / Number(limit)) });
+    return res.json({
+      success: true,
+      products,
+      totalCount,
+      totalPages: Math.ceil(totalCount / Number(limit)),
+    });
   }
 
   if (req.method === "DELETE") {
     const { id } = req.query;
-    if (!id) return res.status(400).json({ success: false, error: "ID가 필요합니다." });
+    if (!id) {
+      return res.status(400).json({ success: false, error: "ID가 필요합니다." });
+    }
 
     await client.product.delete({
       where: { id: Number(id) },
@@ -62,8 +74,13 @@ async function handler(req: NextApiRequest, res: NextApiResponse) {
 
     return res.json({ success: true });
   }
-
-  return res.status(405).end();
 }
 
-export default withSessionRoute(handler);
+export default withApiSession(
+  withHandler({
+    methods: ["GET", "DELETE"],
+    isPrivate: false,
+    handler,
+  })
+);
+

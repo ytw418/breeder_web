@@ -30,8 +30,14 @@ const handler = async (
       query: { page = 1, category },
     } = req;
 
-    // 카테고리 필터링 조건
-    const where = category && category !== "전체" ? { category: String(category) } : {};
+    // 기본 피드에서는 공지 카테고리 제외
+    const where: any = { NOT: { category: "공지" } };
+    if (category && category !== "전체") {
+      where.category = String(category);
+      if (String(category) === "공지") {
+        delete where.NOT;
+      }
+    }
 
     const [posts, postCount] = await Promise.all([
       client.post.findMany({
@@ -70,6 +76,21 @@ const handler = async (
       body: { description, title, image, category },
       session: { user },
     } = req;
+
+    if (String(category) === "공지") {
+      const dbUser = user?.id
+        ? await client.user.findUnique({
+            where: { id: user.id },
+            select: { role: true },
+          })
+        : null;
+
+      if (!dbUser || !["ADMIN", "SUPER_USER"].includes(dbUser.role)) {
+        return res
+          .status(403)
+          .json({ success: false, error: "공지 작성 권한이 없습니다." });
+      }
+    }
 
     const post = await client.post.create({
       data: {
