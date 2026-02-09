@@ -181,13 +181,6 @@ async function handler(
           .json({ success: false, error: "수정할 값이 없습니다." });
       }
 
-      const target = all.find((item) => item.id === id);
-      if (!target) {
-        return res
-          .status(404)
-          .json({ success: false, error: "대상을 찾을 수 없습니다." });
-      }
-
       if (hasNameInput) {
         if (!isValidSpeciesName(nextName)) {
           return res.status(400).json({
