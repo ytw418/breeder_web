@@ -8,6 +8,7 @@ import { cn } from "@libs/client/utils";
 
 const ADMIN_MENUS = [
   { name: "대시보드", href: "/admin" },
+  { name: "경매 관리", href: "/admin/auctions" },
   { name: "배너 관리", href: "/admin/banners" },
   { name: "랜딩 페이지", href: "/admin/landing-pages" },
   { name: "기네스북 심사", href: "/admin/guinness" },

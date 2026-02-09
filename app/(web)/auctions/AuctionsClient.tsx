@@ -71,7 +71,15 @@ export default function AuctionsClient() {
       <div className="flex flex-col h-full">
         {/* 헤더 */}
         <div className="px-4 pt-3 pb-1">
-          <h1 className="text-xl font-bold text-gray-900">경매</h1>
+          <div className="flex items-center justify-between gap-3">
+            <h1 className="text-xl font-bold text-gray-900">경매</h1>
+            <Link
+              href="/auctions/rules"
+              className="inline-flex h-8 items-center rounded-full border border-slate-200 bg-white px-3 text-xs font-semibold text-slate-600 hover:bg-slate-50"
+            >
+              룰 안내
+            </Link>
+          </div>
           <p className="text-sm text-gray-500 mt-0.5">희귀한 곤충을 입찰하세요</p>
         </div>
 
