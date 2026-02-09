@@ -30,5 +30,17 @@ export default function ClientComp() {
     return () => touchableButton();
   }, []);
 
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    if (!("serviceWorker" in navigator)) return;
+
+    const enableInDev = process.env.NEXT_PUBLIC_PWA_IN_DEV === "true";
+    if (process.env.NODE_ENV !== "production" && !enableInDev) return;
+
+    navigator.serviceWorker
+      .register("/sw.js")
+      .catch((error) => console.error("Service Worker registration failed:", error));
+  }, []);
+
   return <div className=""></div>;
 }

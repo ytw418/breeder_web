@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import type { Viewport } from "next";
 import { Inter } from "next/font/google";
 import "./globals.css";
 import { ToastContainer } from "react-toastify";
@@ -6,6 +7,13 @@ import { VariousProvider } from "@libs/client/VariousProvider";
 import ClientComp from "./ClientComp";
 import { Analytics } from "@vercel/analytics/next";
 const inter = Inter({ subsets: ["latin"] });
+
+export const viewport: Viewport = {
+  width: "device-width",
+  initialScale: 1,
+  maximumScale: 1,
+  themeColor: "#0f172a",
+};
 
 export const metadata: Metadata = {
   title: {
@@ -78,6 +86,20 @@ export const metadata: Metadata = {
   alternates: {
     canonical: "https://breeder-web.vercel.app",
   },
+  manifest: "/manifest.webmanifest",
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: "black-translucent",
+    title: "Bredy",
+  },
+  icons: {
+    icon: [
+      { url: "/images/pwa/icon-192.png", sizes: "192x192", type: "image/png" },
+      { url: "/images/pwa/icon-512.png", sizes: "512x512", type: "image/png" },
+    ],
+    apple: [{ url: "/images/pwa/icon-192.png", sizes: "192x192", type: "image/png" }],
+    shortcut: ["/images/pwa/icon-192.png"],
+  },
 };
 
 export default function RootLayout({
@@ -100,6 +122,7 @@ export default function RootLayout({
           name="google-adsense-account"
           content="ca-pub-8957945516038764"
         ></meta>
+        <meta name="mobile-web-app-capable" content="yes" />
       </head>
       <body className={inter.className}>
         {/* <ThemeProvider
