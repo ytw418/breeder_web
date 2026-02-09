@@ -64,6 +64,17 @@ const HERO_BANNERS = [
   },
 ];
 
+const CATEGORY_ACCENT: Record<string, string> = {
+  전체: "bg-slate-500",
+  장수풍뎅이: "bg-emerald-500",
+  사슴벌레: "bg-cyan-500",
+  타란튤라: "bg-violet-500",
+  전갈: "bg-amber-500",
+  "나비/나방": "bg-pink-500",
+  개미: "bg-lime-500",
+  기타곤충: "bg-gray-500",
+};
+
 const getTimeRemaining = (endAt: string | Date) => {
   const end = new Date(endAt).getTime();
   const now = Date.now();
@@ -83,15 +94,25 @@ const getTimeRemaining = (endAt: string | Date) => {
 const SectionHeader = ({
   title,
   href,
+  actionLabel = "더보기",
 }: {
   title: string;
-  href: string;
+  href?: string;
+  actionLabel?: string;
 }) => (
-  <div className="px-4 flex items-center justify-between">
-    <h2 className="text-base font-bold text-gray-900">{title}</h2>
-    <Link href={href} className="text-sm text-gray-500 hover:text-gray-700">
-      더보기 &gt;
-    </Link>
+  <div className="px-5 flex items-center justify-between">
+    <h2 className="text-[17px] font-bold tracking-tight text-slate-900">{title}</h2>
+    {href ? (
+      <Link
+        href={href}
+        className="inline-flex items-center gap-1 text-[13px] font-semibold text-slate-500 hover:text-slate-800 transition-colors"
+      >
+        {actionLabel}
+        <span aria-hidden="true">›</span>
+      </Link>
+    ) : (
+      <div />
+    )}
   </div>
 );
 
@@ -176,7 +197,7 @@ const MainClient = () => {
         <div
           ref={bannerRef}
           onScroll={handleBannerScroll}
-          className="flex overflow-x-auto scrollbar-hide snap-x snap-mandatory gap-3 px-4"
+          className="flex overflow-x-auto scrollbar-hide snap-x snap-mandatory gap-3.5 pl-5 pr-4"
         >
           {HERO_BANNERS.map((banner) => (
             <Link
@@ -210,8 +231,8 @@ const MainClient = () => {
 
       {/* 인기 상품 */}
       <section className="py-6 bg-gray-50">
-        <SectionHeader title="인기 상품" href="#all-products" />
-        <div className="mt-3 flex overflow-x-auto scrollbar-hide snap-x snap-mandatory gap-3 px-4">
+        <SectionHeader title="인기 상품" />
+        <div className="mt-3 flex overflow-x-auto scrollbar-hide snap-x snap-mandatory gap-3 pl-5 pr-4">
           {popularProductsData ? (
             popularProductsData.products.map((product) => (
               <Link
@@ -264,7 +285,7 @@ const MainClient = () => {
       {/* 진행중 경매 */}
       <section className="py-6">
         <SectionHeader title="진행중인 경매" href="/auctions" />
-        <div className="mt-3 flex overflow-x-auto scrollbar-hide snap-x snap-mandatory gap-3 px-4">
+        <div className="mt-3 flex overflow-x-auto scrollbar-hide snap-x snap-mandatory gap-3 pl-5 pr-4">
           {ongoingAuctionsData ? (
             ongoingAuctionsData.auctions.slice(0, 5).map((auction) => (
               <Link
@@ -317,21 +338,36 @@ const MainClient = () => {
 
       {/* 카테고리 탭 */}
       <div className="sticky top-14 z-10 bg-white/80 backdrop-blur-sm border-b border-gray-100">
-        <div className="flex overflow-x-auto scrollbar-hide px-4 py-3 gap-2">
-          {TABS.map((tab) => (
-            <button
-              key={tab.id}
-              onClick={() => handleCategoryChange(tab.id)}
-              className={cn(
-                "flex-shrink-0 px-4 py-2 rounded-full text-sm font-medium transition-colors whitespace-nowrap",
-                selectedCategory === tab.id
-                  ? "bg-gray-900 text-white"
-                  : "bg-gray-100 text-gray-600 hover:bg-gray-200"
-              )}
-            >
-              {tab.name}
-            </button>
-          ))}
+        <div className="px-4 py-3">
+          <div className="rounded-2xl border border-gray-100 bg-white p-2 shadow-sm">
+            <div className="flex overflow-x-auto scrollbar-hide gap-2">
+              {TABS.map((tab) => {
+                const isActive = selectedCategory === tab.id;
+                return (
+                  <button
+                    key={tab.id}
+                    onClick={() => handleCategoryChange(tab.id)}
+                    className={cn(
+                      "flex-shrink-0 inline-flex items-center gap-2 px-3.5 py-2 rounded-xl text-sm font-semibold whitespace-nowrap transition-all",
+                      isActive
+                        ? "bg-slate-900 text-white shadow-sm"
+                        : "bg-slate-50 text-slate-600 border border-slate-200 hover:bg-white hover:text-slate-800"
+                    )}
+                  >
+                    <span
+                      className={cn(
+                        "w-2 h-2 rounded-full",
+                        isActive
+                          ? "bg-white/90"
+                          : CATEGORY_ACCENT[tab.id] ?? "bg-slate-400"
+                      )}
+                    />
+                    {tab.name}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
         </div>
       </div>
 
