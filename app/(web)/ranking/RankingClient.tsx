@@ -207,8 +207,14 @@ const RankingClient = () => {
 };
 
 /** 기네스북 콘텐츠 */
-const GuinnessContent = ({ records }: { records: RankingResponse["records"] }) => {
-  const sizeRecords = records.filter((record) => record.recordType === "size");
+const GuinnessContent = ({
+  records,
+}: {
+  records: RankingResponse["records"] | undefined;
+}) => {
+  const sizeRecords = (records || []).filter(
+    (record) => record.recordType === "size"
+  );
 
   if (!sizeRecords.length) {
     return (

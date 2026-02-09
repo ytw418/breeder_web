@@ -64,7 +64,7 @@ const REVIEW_REASON_DEFAULT_MEMO: Record<string, string> = {
   other: "추가 확인이 필요하여 반려되었습니다. 심사 메모를 확인해주세요.",
 };
 
-const getSlaText = (dueAt: string) => {
+const getSlaText = (dueAt: string | Date) => {
   const due = new Date(dueAt).getTime();
   const now = Date.now();
   const diff = due - now;

@@ -155,13 +155,14 @@ ${species} ${grade} 등급 ${size} 사이즈 ${gender}입니다.
 
   const existingSpeciesCount = await client.guinnessSpecies.count();
   if (existingSpeciesCount === 0) {
-    const speciesSeed = await readJsonArray<{
+    type SpeciesSeed = {
       name: string;
       aliases?: string[];
       isActive?: boolean;
       isOfficial?: boolean;
-    }>("guinness-species.json");
-    const speciesSource = speciesSeed.length
+    };
+    const speciesSeed = await readJsonArray<SpeciesSeed>("guinness-species.json");
+    const speciesSource: SpeciesSeed[] = speciesSeed.length
       ? speciesSeed
       : defaultSpecies.map((name) => ({ name }));
     await client.guinnessSpecies.createMany({

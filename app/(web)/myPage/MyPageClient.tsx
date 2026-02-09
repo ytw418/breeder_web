@@ -141,7 +141,10 @@ const MyPageClient = () => {
     () =>
       [...(guinnessData?.submissions || [])]
         .filter((submission) => submission.recordType === "size")
-        .sort((a, b) => b.submittedAt.localeCompare(a.submittedAt)),
+        .sort(
+          (a, b) =>
+            new Date(b.submittedAt).getTime() - new Date(a.submittedAt).getTime()
+        ),
     [guinnessData?.submissions]
   );
 
