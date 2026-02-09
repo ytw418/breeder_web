@@ -1,6 +1,5 @@
 "use client";
 
-import { useState } from "react";
 import useSWR from "swr";
 
 import Layout from "@components/features/MainLayout";
@@ -87,10 +86,9 @@ const PostClient = ({ post: initialPost }: PostDetailResponse) => {
       canGoBack
     >
       <div className="pb-20">
-        {/* 게시글 본문 */}
-        <div className="px-4">
-          {/* 작성자 정보 */}
-          <div className="flex items-center gap-3 py-4 border-b border-gray-100">
+        {/* 작성자 정보 */}
+        <div className="px-4 py-4 border-b border-slate-100">
+          <div className="flex items-center gap-3">
             <Link href={`/profiles/${post.user?.id}`}>
               {post.user?.avatar ? (
                 <Image
@@ -122,74 +120,78 @@ const PostClient = ({ post: initialPost }: PostDetailResponse) => {
               </div>
             </div>
           </div>
+        </div>
 
-          {/* 제목 + 본문 */}
-          <div className="py-4 space-y-3">
-            <h1 className="text-lg font-bold text-gray-900 leading-snug">
-              {post.title}
-            </h1>
-            <p className="text-[15px] text-gray-700 whitespace-pre-line leading-relaxed">
-              {post.description}
-            </p>
+        {/* 제목 + 본문 */}
+        <div className="px-4 py-4 space-y-3">
+          <h1 className="text-lg font-bold text-gray-900 leading-snug">
+            {post.title}
+          </h1>
+          <p className="text-[15px] text-gray-700 whitespace-pre-line leading-relaxed">
+            {post.description}
+          </p>
+        </div>
+
+        {/* 이미지 */}
+        {post.image && (
+          <div className="relative aspect-[4/3] w-full overflow-hidden bg-slate-100 border-y border-slate-100">
+            <Image
+              src={makeImageUrl(post.image, "public")}
+              className="object-cover"
+              alt="게시글 이미지"
+              fill
+              sizes="100vw"
+              priority
+            />
           </div>
+        )}
 
-          {/* 이미지 */}
-          {post.image && (
-            <div className="relative rounded-xl overflow-hidden bg-gray-100 mb-4">
-              <Image
-                src={makeImageUrl(post.image, "public")}
-                className="w-full object-cover"
-                alt="게시글 이미지"
-                width={600}
-                height={400}
-              />
-            </div>
-          )}
-
-          {/* 좋아요 / 댓글 수 + 좋아요 버튼 */}
-          <div className="flex items-center justify-between py-3 border-t border-b border-gray-100">
-            <div className="flex items-center gap-4 text-sm text-gray-500">
-              <span>좋아요 {post._count?.Likes || 0}</span>
-              <span>댓글 {post._count?.comments || 0}</span>
-            </div>
-            <button
-              onClick={handleLike}
-              className={cn(
-                "flex items-center gap-1.5 px-3 py-1.5 rounded-full text-sm font-medium transition-colors",
-                isLiked
-                  ? "text-red-500 bg-red-50"
-                  : "text-gray-500 hover:bg-gray-50"
-              )}
-            >
-              {isLiked ? (
-                <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
-                  <path
-                    fillRule="evenodd"
-                    d="M3.172 5.172a4 4 0 015.656 0L10 6.343l1.172-1.171a4 4 0 115.656 5.656L10 17.657l-6.828-6.829a4 4 0 010-5.656z"
-                    clipRule="evenodd"
-                  />
-                </svg>
-              ) : (
-                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth="2"
-                    d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z"
-                  />
-                </svg>
-              )}
-              좋아요
-            </button>
+        {/* 좋아요 / 댓글 수 + 좋아요 버튼 */}
+        <div className="flex items-center justify-between border-b border-slate-100 px-4 py-3">
+          <div className="flex items-center gap-4 text-sm text-gray-500">
+            <span>좋아요 {post._count?.Likes || 0}</span>
+            <span>댓글 {post._count?.comments || 0}</span>
           </div>
+          <button
+            onClick={handleLike}
+            className={cn(
+              "inline-flex items-center gap-1.5 text-sm font-medium transition-colors",
+              isLiked ? "text-rose-500" : "text-slate-500 hover:text-slate-700"
+            )}
+          >
+            {isLiked ? (
+              <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
+                <path
+                  fillRule="evenodd"
+                  d="M3.172 5.172a4 4 0 015.656 0L10 6.343l1.172-1.171a4 4 0 115.656 5.656L10 17.657l-6.828-6.829a4 4 0 010-5.656z"
+                  clipRule="evenodd"
+                />
+              </svg>
+            ) : (
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth="2"
+                  d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z"
+                />
+              </svg>
+            )}
+            좋아요
+          </button>
         </div>
 
         {/* 댓글 목록 */}
-        <div className="px-4 mt-2">
+        <div className="px-4 py-3">
+          <h2 className="text-sm font-semibold text-slate-700">
+            댓글 {post._count?.comments || 0}
+          </h2>
+        </div>
+        <div className="px-4">
           {post.comments && post.comments.length > 0 ? (
-            <div className="space-y-0 divide-y divide-gray-50">
+            <div>
               {post.comments.map((comment) => (
-                <div key={comment.id} className="py-3">
+                <div key={comment.id} className="border-b border-slate-100 py-3">
                   <div className="flex gap-2.5">
                     <Link href={`/profiles/${comment.user?.id}`} className="flex-shrink-0">
                       {comment.user?.avatar ? (
@@ -233,41 +235,39 @@ const PostClient = ({ post: initialPost }: PostDetailResponse) => {
       </div>
 
       {/* 댓글 입력 (하단 고정) */}
-      <div className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 z-10">
-        <div className="max-w-xl mx-auto">
-          <form
-            onSubmit={handleSubmit(onCommentValid)}
-            className="flex items-center gap-2 px-4 py-3"
+      <div className="fixed bottom-0 left-0 right-0 bg-white border-t border-slate-200 z-10">
+        <form
+          onSubmit={handleSubmit(onCommentValid)}
+          className="flex items-center gap-2 px-4 py-3"
+        >
+          <input
+            {...register("comment", { required: true })}
+            type="text"
+            placeholder="댓글을 입력해주세요"
+            className="h-10 flex-1 rounded-md border border-slate-200 px-3 text-sm outline-none transition-colors focus:border-slate-400"
+          />
+          <button
+            type="submit"
+            disabled={commentLoading}
+            className={cn(
+              "flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-md border border-slate-200 transition-colors",
+              "text-slate-700 hover:bg-slate-50 disabled:opacity-50"
+            )}
           >
-            <input
-              {...register("comment", { required: true })}
-              type="text"
-              placeholder="댓글을 입력해주세요"
-              className="flex-1 bg-gray-100 rounded-full px-4 py-2.5 text-sm outline-none focus:ring-2 focus:ring-primary/20 focus:bg-white transition-colors"
-            />
-            <button
-              type="submit"
-              disabled={commentLoading}
-              className={cn(
-                "flex-shrink-0 p-2.5 rounded-full transition-colors",
-                "text-primary hover:bg-primary/10 disabled:opacity-50"
-              )}
-            >
-              {commentLoading ? (
-                <div className="w-5 h-5 animate-spin rounded-full border-2 border-primary border-t-transparent" />
-              ) : (
-                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth="2"
-                    d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8"
-                  />
-                </svg>
-              )}
-            </button>
-          </form>
-        </div>
+            {commentLoading ? (
+              <div className="w-5 h-5 animate-spin rounded-full border-2 border-slate-500 border-t-transparent" />
+            ) : (
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth="2"
+                  d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8"
+                />
+              </svg>
+            )}
+          </button>
+        </form>
       </div>
     </Layout>
   );

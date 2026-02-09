@@ -60,7 +60,7 @@ export default function Item({
               <span
                 className={cn(
                   minimal
-                    ? "inline-flex items-center text-[11px] font-medium text-slate-500"
+                    ? "inline-flex shrink-0 items-center whitespace-nowrap text-[11px] font-medium leading-none text-slate-500"
                     : "app-pill-accent"
                 )}
               >
@@ -71,7 +71,7 @@ export default function Item({
               <span
                 className={cn(
                   minimal
-                    ? "inline-flex items-center text-[11px] font-medium text-slate-500"
+                    ? "inline-flex shrink-0 items-center whitespace-nowrap text-[11px] font-medium leading-none text-slate-500"
                     : "app-pill-muted"
                 )}
               >

@@ -104,100 +104,105 @@ export default function AuctionsClient() {
         </div>
 
         {/* 경매 목록 */}
-        <div className="px-4 py-4 space-y-4">
+        <div className="px-4 py-4">
           {data ? (
-            data.map((result) =>
-              result?.auctions?.map((auction) => (
-                <Link
-                  key={auction.id}
-                  href={`/auctions/${auction.id}`}
-                  className="block bg-white rounded-2xl shadow-sm hover:shadow-md transition-shadow overflow-hidden border border-gray-100"
-                >
-                  {/* 이미지 */}
-                  <div className="relative aspect-[16/9]">
-                    {auction.photos?.[0] ? (
-                      <Image
-                        src={makeImageUrl(auction.photos[0], "public")}
-                        className="w-full h-full object-cover"
-                        alt={auction.title}
-                        fill
-                        sizes="600px"
-                      />
-                    ) : (
-                      <div className="w-full h-full bg-gray-100" />
-                    )}
-                    {/* 상태 뱃지 */}
-                    <div className="absolute top-3 left-3">
-                      <span
-                        className={cn(
-                          "px-2.5 py-1 rounded-full text-xs font-bold",
-                          auction.status === "진행중"
-                            ? "bg-green-500 text-white"
-                            : auction.status === "종료"
-                            ? "bg-gray-700 text-white"
-                            : "bg-yellow-500 text-white"
-                        )}
-                      >
-                        {auction.status}
-                      </span>
-                    </div>
-                    {/* 남은 시간 */}
-                    {auction.status === "진행중" && (
-                      <div className="absolute bottom-3 right-3 bg-black/70 text-white text-xs px-2.5 py-1 rounded-full font-medium">
-                        {getTimeRemaining(auction.endAt)}
-                      </div>
-                    )}
-                  </div>
-
-                  {/* 정보 */}
-                  <div className="p-4">
-                    <div className="flex items-center gap-2 mb-1">
-                      {auction.category && (
-                        <span className="text-xs font-medium text-primary bg-primary/10 px-2 py-0.5 rounded">
-                          {auction.category}
-                        </span>
+            <div className="grid grid-cols-2 gap-3">
+              {data.map((result) =>
+                result?.auctions?.map((auction) => (
+                  <Link
+                    key={auction.id}
+                    href={`/auctions/${auction.id}`}
+                    className="block overflow-hidden rounded-xl border border-slate-100 bg-white"
+                  >
+                    {/* 이미지 */}
+                    <div className="relative aspect-[4/3]">
+                      {auction.photos?.[0] ? (
+                        <Image
+                          src={makeImageUrl(auction.photos[0], "public")}
+                          className="w-full h-full object-cover"
+                          alt={auction.title}
+                          fill
+                          sizes="(max-width: 640px) 50vw, 280px"
+                        />
+                      ) : (
+                        <div className="w-full h-full bg-gray-100" />
                       )}
-                    </div>
-                    <h3 className="text-base font-semibold text-gray-900 line-clamp-1">
-                      {auction.title}
-                    </h3>
-                    <div className="flex items-center justify-between mt-3">
-                      <div>
-                        <p className="text-xs text-gray-400">현재가</p>
-                        <p className="text-lg font-bold text-primary">
-                          {auction.currentPrice.toLocaleString()}원
-                        </p>
-                      </div>
-                      <div className="text-right">
-                        <p className="text-xs text-gray-400">입찰 {auction._count.bids}회</p>
-                        <div className="flex items-center gap-1.5 mt-1">
-                          {auction.user?.avatar ? (
-                            <Image
-                              src={makeImageUrl(auction.user.avatar, "avatar")}
-                              className="w-5 h-5 rounded-full object-cover"
-                              width={20}
-                              height={20}
-                              alt=""
-                            />
-                          ) : (
-                            <div className="w-5 h-5 rounded-full bg-gray-200" />
+                      {/* 상태 뱃지 */}
+                      <div className="absolute top-2 left-2">
+                        <span
+                          className={cn(
+                            "inline-flex h-5 shrink-0 items-center whitespace-nowrap rounded-full px-2 text-[10px] font-semibold leading-none",
+                            auction.status === "진행중"
+                              ? "bg-emerald-500 text-white"
+                              : auction.status === "종료"
+                              ? "bg-slate-700 text-white"
+                              : "bg-amber-500 text-white"
                           )}
-                          <span className="text-xs text-gray-500">{auction.user?.name}</span>
+                        >
+                          {auction.status}
+                        </span>
+                      </div>
+                    </div>
+
+                    {/* 정보 */}
+                    <div className="p-2.5">
+                      <div className="flex items-center gap-1.5 mb-1">
+                        {auction.category && (
+                          <span className="inline-flex h-5 items-center rounded-md bg-primary/10 px-1.5 text-[10px] font-medium text-primary">
+                            {auction.category}
+                          </span>
+                        )}
+                        {auction.status === "진행중" && (
+                          <span className="line-clamp-1 text-[10px] font-medium text-emerald-600">
+                            {getTimeRemaining(auction.endAt)}
+                          </span>
+                        )}
+                      </div>
+                      <h3 className="text-sm font-semibold text-gray-900 line-clamp-1">
+                        {auction.title}
+                      </h3>
+                      <div className="mt-2 flex items-end justify-between gap-2">
+                        <div className="min-w-0">
+                          <p className="text-[10px] text-gray-400">현재가</p>
+                          <p className="text-sm font-bold text-primary line-clamp-1">
+                            {auction.currentPrice.toLocaleString()}원
+                          </p>
+                        </div>
+                        <div className="text-right">
+                          <p className="text-[10px] text-gray-400">
+                            입찰 {auction._count.bids}회
+                          </p>
+                          <div className="flex items-center justify-end gap-1 mt-1">
+                            {auction.user?.avatar ? (
+                              <Image
+                                src={makeImageUrl(auction.user.avatar, "avatar")}
+                                className="w-4 h-4 rounded-full object-cover"
+                                width={16}
+                                height={16}
+                                alt=""
+                              />
+                            ) : (
+                              <div className="w-4 h-4 rounded-full bg-gray-200" />
+                            )}
+                            <span className="max-w-[56px] truncate text-[10px] text-gray-500">
+                              {auction.user?.name}
+                            </span>
+                          </div>
                         </div>
                       </div>
                     </div>
-                  </div>
-                </Link>
-              ))
-            )
+                  </Link>
+                ))
+              )}
+            </div>
           ) : (
-            <div className="space-y-4">
-              {[...Array(3)].map((_, i) => (
-                <div key={i} className="bg-white rounded-2xl border border-gray-100 overflow-hidden animate-pulse">
-                  <div className="aspect-[16/9] bg-gray-200" />
-                  <div className="p-4 space-y-2">
-                    <div className="h-4 bg-gray-200 rounded w-3/4" />
-                    <div className="h-6 bg-gray-200 rounded w-1/3" />
+            <div className="grid grid-cols-2 gap-3">
+              {[...Array(4)].map((_, i) => (
+                <div key={i} className="overflow-hidden rounded-xl border border-slate-100 bg-white animate-pulse">
+                  <div className="aspect-[4/3] bg-gray-200" />
+                  <div className="p-2.5 space-y-2">
+                    <div className="h-3 bg-gray-200 rounded w-3/4" />
+                    <div className="h-4 bg-gray-200 rounded w-1/2" />
                   </div>
                 </div>
               ))}

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Controller, useForm } from "react-hook-form";
 import { Button } from "@components/ui/button";
@@ -24,16 +24,23 @@ interface UploadProductForm {
 interface UploadProductMutation {
   success: boolean;
   product: Product;
+  error?: string;
+  message?: string;
 }
 
-const LoadingSpinner = () => (
+type SubmitStep = "idle" | "images" | "submit";
+const MAX_IMAGE_COUNT = 5;
+const MAX_IMAGE_SIZE = 10 * 1024 * 1024;
+const ALLOWED_IMAGE_TYPES = ["image/jpeg", "image/png", "image/webp", "image/jpg"];
+
+const LoadingSpinner = ({ step }: { step: SubmitStep }) => (
   <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/20 backdrop-blur-sm">
-    <div className="flex flex-col items-center space-y-4 bg-white p-8 rounded-2xl shadow-xl">
-      <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-primary"></div>
-      <p className="text-lg font-medium text-gray-900">
-        상품을 등록하고 있어요
+    <div className="flex min-w-[280px] flex-col items-center space-y-3 rounded-xl bg-white p-6 shadow-xl">
+      <div className="h-10 w-10 animate-spin rounded-full border-2 border-primary border-t-transparent" />
+      <p className="text-base font-semibold text-slate-900">
+        {step === "images" ? "이미지를 업로드하고 있어요" : "상품을 등록하고 있어요"}
       </p>
-      <p className="text-sm text-gray-500">잠시만 기다려주세요</p>
+      <p className="text-sm text-slate-500">화면을 닫지 말고 잠시만 기다려주세요.</p>
     </div>
   </div>
 );
@@ -44,116 +51,186 @@ const UploadClient = () => {
     register,
     handleSubmit,
     control,
+    watch,
     formState: { errors },
   } = useForm<UploadProductForm>({
-    defaultValues: { description: "" },
+    mode: "onChange",
+    defaultValues: { description: "", price: 0 },
   });
-  const [uploadProduct, { loading, data }] =
+  const [uploadProduct, { loading }] =
     useMutation<UploadProductMutation>("/api/products");
   const [imageFiles, setImageFiles] = useState<File[]>([]);
-  const [previews, setPreviews] = useState<string[]>([]);
   const [isUploading, setIsUploading] = useState(false);
+  const [submitStep, setSubmitStep] = useState<SubmitStep>("idle");
   const [selectedCategory, setSelectedCategory] = useState<string>("");
   const [selectedProductType, setSelectedProductType] = useState<string>("");
+  const [categoryError, setCategoryError] = useState<string>("");
+  const [productTypeError, setProductTypeError] = useState<string>("");
+
+  const watchedName = watch("name", "");
+  const watchedDescription = watch("description", "");
+  const watchedPrice = watch("price");
+
+  const previews = useMemo(
+    () => imageFiles.map((file) => ({ file, url: URL.createObjectURL(file) })),
+    [imageFiles]
+  );
 
   const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;
-    if (files && files.length > 0) {
-      const newFiles = Array.from(files);
-      const totalFiles = [...imageFiles, ...newFiles].slice(0, 5);
-      setImageFiles(totalFiles);
-      const newPreviews = totalFiles.map((file) => URL.createObjectURL(file));
-      setPreviews(newPreviews);
+    if (!files || files.length === 0) return;
+
+    const incoming = Array.from(files);
+    const invalidType = incoming.find((file) => !ALLOWED_IMAGE_TYPES.includes(file.type));
+    if (invalidType) {
+      toast.error("JPG, PNG, WEBP 형식만 업로드할 수 있습니다.");
+      e.target.value = "";
+      return;
     }
+
+    const invalidSize = incoming.find((file) => file.size > MAX_IMAGE_SIZE);
+    if (invalidSize) {
+      toast.error("이미지 1장당 최대 10MB까지 업로드할 수 있습니다.");
+      e.target.value = "";
+      return;
+    }
+
+    const merged = [...imageFiles, ...incoming];
+    if (merged.length > MAX_IMAGE_COUNT) {
+      toast.info(`이미지는 최대 ${MAX_IMAGE_COUNT}장까지 등록할 수 있습니다.`);
+    }
+    setImageFiles(merged.slice(0, MAX_IMAGE_COUNT));
+    e.target.value = "";
   };
 
   const removeImage = (index: number) => {
     const newFiles = [...imageFiles];
-    const newPreviews = [...previews];
-    URL.revokeObjectURL(previews[index]);
     newFiles.splice(index, 1);
-    newPreviews.splice(index, 1);
     setImageFiles(newFiles);
-    setPreviews(newPreviews);
   };
 
-  const onSubmit = async (data: UploadProductForm) => {
+  const uploadSingleImage = async (file: File, name: string) => {
+    const fileApiResponse = await fetch("/api/files");
+    const fileApiResult = await fileApiResponse.json();
+    if (!fileApiResponse.ok || !fileApiResult?.uploadURL) {
+      throw new Error("이미지 업로드 URL 발급에 실패했습니다.");
+    }
+
+    const formData = new FormData();
+    formData.append("file", file, name);
+    const uploadResponse = await fetch(fileApiResult.uploadURL, {
+      method: "POST",
+      body: formData,
+    });
+    const uploadResult = await uploadResponse.json();
+    const imageId = uploadResult?.result?.id || fileApiResult?.id;
+    if (!uploadResponse.ok || !imageId) {
+      throw new Error("이미지 업로드에 실패했습니다.");
+    }
+    return imageId as string;
+  };
+
+  const onSubmit = async (formData: UploadProductForm) => {
     if (!selectedCategory) {
+      setCategoryError("카테고리를 선택해주세요.");
       toast.error("카테고리를 선택해주세요.");
       return;
     }
     if (!selectedProductType) {
+      setProductTypeError("상품 타입을 선택해주세요.");
       toast.error("상품 타입을 선택해주세요.");
       return;
     }
 
     try {
       setIsUploading(true);
+      setSubmitStep("images");
       let photoIds: string[] = [];
 
       if (imageFiles.length > 0) {
         photoIds = await Promise.all(
-          imageFiles.map(async (file) => {
-            const { uploadURL } = await (await fetch(`/api/files`)).json();
-            const form = new FormData();
-            form.append("file", file, data.name);
-            const {
-              result: { id },
-            } = await (
-              await fetch(uploadURL, { method: "POST", body: form })
-            ).json();
-            return id;
-          })
+          imageFiles.map((file) => uploadSingleImage(file, formData.name))
         );
       }
 
-      await uploadProduct({
+      setSubmitStep("submit");
+      const result = await uploadProduct({
         data: {
-          name: data.name,
-          price: data.price,
-          description: data.description,
+          name: formData.name.trim(),
+          price: formData.price,
+          description: formData.description.trim(),
           photos: photoIds,
           category: selectedCategory,
           productType: selectedProductType,
         },
-        onCompleted(result) {
-          if (result.success) {
-            router.push(`/products/${result.product.id}`);
-          }
-        },
       });
+
+      if (result.success && result.product?.id) {
+        toast.success("상품이 등록되었습니다.");
+        router.push(`/products/${result.product.id}`);
+        return;
+      }
+
+      toast.error(result.error || result.message || "상품 등록에 실패했습니다.");
     } catch (error) {
       console.error("상품 등록 중 오류가 발생했습니다:", error);
-      toast.error("상품 등록에 실패했습니다. 다시 시도해주세요.");
+      toast.error(
+        error instanceof Error
+          ? error.message
+          : "상품 등록에 실패했습니다. 다시 시도해주세요."
+      );
     } finally {
       setIsUploading(false);
+      setSubmitStep("idle");
     }
   };
 
   useEffect(() => {
+    if (selectedCategory) setCategoryError("");
+  }, [selectedCategory]);
+
+  useEffect(() => {
+    if (selectedProductType) setProductTypeError("");
+  }, [selectedProductType]);
+
+  useEffect(() => {
     return () => {
-      previews.forEach((preview) => URL.revokeObjectURL(preview));
+      previews.forEach((preview) => URL.revokeObjectURL(preview.url));
     };
-  }, []);
+  }, [previews]);
+
+  const isSubmitDisabled =
+    isUploading ||
+    loading ||
+    !watchedName?.trim() ||
+    !watchedDescription?.trim() ||
+    !selectedCategory ||
+    !selectedProductType ||
+    !watchedPrice ||
+    watchedPrice < 100;
 
   return (
-    <Layout canGoBack title="판매">
-      {isUploading && <LoadingSpinner />}
+    <Layout canGoBack title="상품 등록">
+      {isUploading && <LoadingSpinner step={submitStep} />}
       <form
-        onSubmit={handleSubmit(onSubmit)}
-        className="space-y-8 px-4 py-10 max-w-xl mx-auto"
+        onSubmit={handleSubmit(onSubmit, () => {
+          toast.error("입력값을 확인해주세요.");
+        })}
+        className="mx-auto max-w-xl space-y-5 px-4 pb-28 pt-5"
       >
-        {/* 상품 이미지 */}
-        <div className="space-y-2">
-          <div className="font-medium text-gray-800">상품 이미지</div>
-          <div className="flex gap-3 overflow-x-auto pb-4">
+        <section className="rounded-xl border border-slate-200 bg-white p-4">
+          <div className="mb-3 flex items-center justify-between">
+            <p className="text-sm font-semibold text-slate-900">상품 이미지</p>
+            <span className="text-xs text-slate-500">{imageFiles.length}/{MAX_IMAGE_COUNT}</span>
+          </div>
+          <div className="flex gap-3 overflow-x-auto pb-1">
             {previews.map((preview, index) => (
-              <div key={index} className="relative flex-shrink-0">
+              <div key={`${preview.file.name}-${index}`} className="relative flex-shrink-0">
                 <div className="w-24 h-24 rounded-xl overflow-hidden">
                   <Image
                     width={96}
                     height={96}
-                    src={preview}
+                    src={preview.url}
                     alt={`업로드이미지 ${index + 1}`}
                     className="w-full h-full object-cover"
                   />
@@ -179,7 +256,7 @@ const UploadClient = () => {
                 </button>
               </div>
             ))}
-            {previews.length < 5 && (
+            {imageFiles.length < MAX_IMAGE_COUNT && (
               <label className="w-24 h-24 cursor-pointer text-gray-600 hover:border-primary hover:text-primary flex flex-col items-center justify-center rounded-xl border-2 border-dashed border-gray-300 flex-shrink-0 transition-colors">
                 <svg
                   className="h-8 w-8"
@@ -199,93 +276,81 @@ const UploadClient = () => {
                 <input
                   type="file"
                   className="hidden"
-                  accept="image/*"
+                  accept="image/png,image/jpeg,image/jpg,image/webp"
                   multiple
                   onChange={handleImageChange}
                 />
               </label>
             )}
           </div>
-          <p className="text-sm text-gray-500">
-            * 최대 5장까지 업로드 가능합니다.
+          <p className="mt-2 text-xs text-slate-500">
+            JPG, PNG, WEBP 형식 / 최대 10MB / 최대 {MAX_IMAGE_COUNT}장
           </p>
-        </div>
+        </section>
 
-        {/* 카테고리 선택 */}
-        <div className="space-y-2">
-          <Label>카테고리</Label>
-          <div className="flex flex-wrap gap-2">
-            {CATEGORIES.map((cat) => (
-              <button
-                key={cat.id}
-                type="button"
-                onClick={() => setSelectedCategory(cat.id)}
-                className={cn(
-                  "px-4 py-2 rounded-full text-sm font-medium transition-colors border",
-                  selectedCategory === cat.id
-                    ? "bg-primary text-white border-primary"
-                    : "bg-white text-gray-700 border-gray-200 hover:border-primary hover:text-primary"
-                )}
-              >
-                {cat.name}
-              </button>
-            ))}
-          </div>
-        </div>
-
-        {/* 상품 타입 선택 */}
-        <div className="space-y-2">
-          <Label>상품 타입</Label>
-          <div className="flex gap-2">
-            {PRODUCT_TYPES.map((type) => (
-              <button
-                key={type.id}
-                type="button"
-                onClick={() => setSelectedProductType(type.id)}
-                className={cn(
-                  "px-6 py-2 rounded-full text-sm font-medium transition-colors border",
-                  selectedProductType === type.id
-                    ? "bg-primary text-white border-primary"
-                    : "bg-white text-gray-700 border-gray-200 hover:border-primary hover:text-primary"
-                )}
-              >
-                {type.name}
-              </button>
-            ))}
-          </div>
-        </div>
-
-        {/* 상품 정보 */}
-        <div className="space-y-6">
+        <section className="rounded-xl border border-slate-200 bg-white p-4 space-y-4">
           <div className="space-y-2">
-            <Label htmlFor="name">상품명</Label>
+            <Label>카테고리</Label>
+            <div className="flex flex-wrap gap-2">
+              {CATEGORIES.map((cat) => (
+                <button
+                  key={cat.id}
+                  type="button"
+                  onClick={() => setSelectedCategory(cat.id)}
+                  className={cn(
+                    "rounded-md border px-3 py-1.5 text-sm font-medium transition-colors",
+                    selectedCategory === cat.id
+                      ? "border-slate-900 bg-slate-900 text-white"
+                      : "border-slate-200 bg-white text-slate-600 hover:bg-slate-50"
+                  )}
+                >
+                  {cat.name}
+                </button>
+              ))}
+            </div>
+            {categoryError ? <p className="text-xs text-red-500">{categoryError}</p> : null}
+          </div>
+
+          <div className="space-y-2">
+            <Label>상품 타입</Label>
+            <div className="flex gap-2">
+              {PRODUCT_TYPES.map((type) => (
+                <button
+                  key={type.id}
+                  type="button"
+                  onClick={() => setSelectedProductType(type.id)}
+                  className={cn(
+                    "rounded-md border px-4 py-1.5 text-sm font-medium transition-colors",
+                    selectedProductType === type.id
+                      ? "border-slate-900 bg-slate-900 text-white"
+                      : "border-slate-200 bg-white text-slate-600 hover:bg-slate-50"
+                  )}
+                >
+                  {type.name}
+                </button>
+              ))}
+            </div>
+            {productTypeError ? <p className="text-xs text-red-500">{productTypeError}</p> : null}
+          </div>
+        </section>
+
+        <section className="rounded-xl border border-slate-200 bg-white p-4 space-y-5">
+          <div className="space-y-2">
+            <div className="flex items-center justify-between">
+              <Label htmlFor="name">상품명</Label>
+              <span className="text-xs text-slate-400">{watchedName.length}/60</span>
+            </div>
             <Input
               id="name"
-              {...register("name", { required: "상품명을 입력해주세요" })}
-              placeholder="상품명을 입력해주세요"
+              {...register("name", {
+                required: "상품명을 입력해주세요.",
+                minLength: { value: 2, message: "상품명은 2자 이상 입력해주세요." },
+                maxLength: { value: 60, message: "상품명은 60자 이하로 입력해주세요." },
+              })}
+              placeholder="예: 그란디스 사슴벌레 유충"
               className="focus:border-transparent"
             />
-          </div>
-
-          <div className="space-y-2">
-            <Label htmlFor="description">상품 설명</Label>
-            <Controller
-              name="description"
-              control={control}
-              rules={{ required: "상품 설명을 입력해주세요" }}
-              render={({ field }) => (
-                <MarkdownEditor
-                  id="description"
-                  value={field.value || ""}
-                  onChange={field.onChange}
-                  placeholder="상품 설명을 입력해주세요"
-                  rows={8}
-                />
-              )}
-            />
-            {errors.description && (
-              <p className="text-sm text-red-500">{errors.description.message}</p>
-            )}
+            {errors.name ? <p className="text-xs text-red-500">{errors.name.message}</p> : null}
           </div>
 
           <div className="space-y-2">
@@ -293,23 +358,66 @@ const UploadClient = () => {
             <Input
               id="price"
               type="number"
+              inputMode="numeric"
               {...register("price", {
-                required: "가격을 입력해주세요",
+                required: "가격을 입력해주세요.",
                 valueAsNumber: true,
+                validate: {
+                  valid: (value) =>
+                    Number.isFinite(value) || "가격을 숫자로 입력해주세요.",
+                  min: (value) => value >= 100 || "가격은 100원 이상 입력해주세요.",
+                  max: (value) => value <= 1000000000 || "가격이 너무 큽니다.",
+                },
               })}
-              placeholder="가격을 입력해주세요"
+              placeholder="가격을 입력해주세요 (숫자만)"
               className="focus:border-transparent"
             />
+            {errors.price ? <p className="text-xs text-red-500">{errors.price.message}</p> : null}
           </div>
 
-          <Button
-            type="submit"
-            className="w-full focus:border-transparent"
-            disabled={isUploading}
-            loading={isUploading}
-          >
-            {isUploading ? "상품 등록 중..." : "상품 등록하기"}
-          </Button>
+          <div className="space-y-2">
+            <div className="flex items-center justify-between">
+              <Label htmlFor="description">상품 설명</Label>
+              <span className="text-xs text-slate-400">{watchedDescription.length}/3000</span>
+            </div>
+            <Controller
+              name="description"
+              control={control}
+              rules={{
+                required: "상품 설명을 입력해주세요.",
+                minLength: { value: 10, message: "설명을 10자 이상 입력해주세요." },
+                maxLength: { value: 3000, message: "설명은 3000자 이하로 입력해주세요." },
+              }}
+              render={({ field }) => (
+                <MarkdownEditor
+                  id="description"
+                  value={field.value || ""}
+                  onChange={field.onChange}
+                  placeholder="사육 정보, 상태, 거래 방식 등 구매자가 궁금할 내용을 구체적으로 작성해주세요."
+                  rows={9}
+                />
+              )}
+            />
+            {errors.description && (
+              <p className="text-xs text-red-500">{errors.description.message}</p>
+            )}
+          </div>
+        </section>
+
+        <div className="fixed inset-x-0 bottom-0 z-20 border-t border-slate-200/80 bg-white/92 backdrop-blur">
+          <div className="mx-auto max-w-xl px-4 pb-[calc(10px+env(safe-area-inset-bottom))] pt-3">
+            <Button
+              type="submit"
+              className="w-full"
+              disabled={isSubmitDisabled}
+              loading={isUploading}
+            >
+              상품 등록하기
+            </Button>
+            <p className="mt-2 text-center text-[11px] text-slate-400">
+              등록 전 상품명, 가격, 설명, 카테고리를 다시 확인해주세요.
+            </p>
+          </div>
         </div>
       </form>
     </Layout>

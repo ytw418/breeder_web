@@ -263,12 +263,11 @@ const ProductClient = ({ product, relatedProducts }: ItemDetailResponse) => {
       title={product?.name || "상세 정보"}
       canGoBack
     >
-      <div className="max-w-3xl mx-auto px-4">
-        {/* 상품 카드 컨테이너 */}
-        <div className="bg-white rounded-2xl shadow-[0_2px_8px_rgba(0,0,0,0.08)] overflow-hidden">
+      <div className="pb-24">
+        <div className="bg-white">
           {/* 상품 이미지 섹션 */}
           <div
-            className="relative aspect-[4/3]"
+            className="group relative aspect-[4/3] bg-slate-100"
             onTouchStart={handleTouchStart}
             onTouchMove={handleTouchMove}
             onTouchEnd={handleTouchEnd}
@@ -292,7 +291,7 @@ const ProductClient = ({ product, relatedProducts }: ItemDetailResponse) => {
                   <>
                     <button
                       onClick={prevImage}
-                      className="absolute left-2 top-1/2 -translate-y-1/2 bg-black/30 text-white p-2 rounded-full hover:bg-black/50 transition-all opacity-0 group-hover:opacity-100"
+                      className="absolute left-2 top-1/2 -translate-y-1/2 rounded-full bg-black/35 p-2 text-white transition-all hover:bg-black/55 opacity-0 group-hover:opacity-100"
                       aria-label="이전 이미지"
                     >
                       <svg
@@ -311,7 +310,7 @@ const ProductClient = ({ product, relatedProducts }: ItemDetailResponse) => {
                     </button>
                     <button
                       onClick={nextImage}
-                      className="absolute right-2 top-1/2 -translate-y-1/2 bg-black/30 text-white p-2 rounded-full hover:bg-black/50 transition-all opacity-0 group-hover:opacity-100"
+                      className="absolute right-2 top-1/2 -translate-y-1/2 rounded-full bg-black/35 p-2 text-white transition-all hover:bg-black/55 opacity-0 group-hover:opacity-100"
                       aria-label="다음 이미지"
                     >
                       <svg
@@ -353,16 +352,16 @@ const ProductClient = ({ product, relatedProducts }: ItemDetailResponse) => {
           </div>
 
           {/* 상품 정보 섹션 */}
-          <div className="p-6">
+          <div className="px-4 py-4">
             {/* 판매자 정보 */}
             <Link
               href={`/profiles/${product?.user?.id}`}
-              className="flex items-center space-x-3 mb-6 group"
+              className="group mb-4 flex items-center space-x-3 border-b border-slate-100 pb-4"
             >
               {product?.user?.avatar ? (
                 <Image
                   src={makeImageUrl(product.user.avatar, "avatar")}
-                  className="w-10 h-10 rounded-full object-cover ring-2 ring-primary/10 group-hover:ring-primary/20 transition-all"
+                  className="h-10 w-10 rounded-full object-cover ring-1 ring-slate-200 transition-all group-hover:ring-slate-300"
                   width={40}
                   height={40}
                   alt="avatar"
@@ -387,7 +386,7 @@ const ProductClient = ({ product, relatedProducts }: ItemDetailResponse) => {
                   </h1>
                   <span
                     className={cn(
-                      "text-xs px-2 py-0.5 rounded-full font-medium",
+                      "inline-flex h-6 shrink-0 items-center whitespace-nowrap rounded-md px-2 text-xs font-medium leading-none",
                       currentStatus === "판매중"
                         ? "bg-green-100 text-green-700"
                         : currentStatus === "예약중"
@@ -408,7 +407,7 @@ const ProductClient = ({ product, relatedProducts }: ItemDetailResponse) => {
               </div>
 
               {/* 상품 설명 */}
-              <div className="bg-gray-50 rounded-xl p-4">
+              <div className="border-t border-slate-100 pt-4">
                 <MarkdownPreview
                   content={data?.product?.description ?? product?.description ?? ""}
                   emptyText="상품 설명이 없습니다."
@@ -416,7 +415,7 @@ const ProductClient = ({ product, relatedProducts }: ItemDetailResponse) => {
               </div>
 
               {/* 액션 버튼 영역 */}
-              <div className="space-y-3">
+              <div className="space-y-3 border-t border-slate-100 pt-4">
                 {isOwner ? (
                   <>
                     {/* 판매자 전용: 상태 변경 드롭다운 */}
@@ -425,10 +424,10 @@ const ProductClient = ({ product, relatedProducts }: ItemDetailResponse) => {
                         onClick={() => setShowStatusMenu(!showStatusMenu)}
                         disabled={statusLoading}
                         className={cn(
-                          "w-full flex items-center justify-center gap-2 py-3 rounded-lg font-medium transition-colors",
+                          "flex w-full items-center justify-center gap-2 rounded-md border py-3 font-medium transition-colors",
                           currentStatus === "판매완료"
-                            ? "bg-gray-200 text-gray-500 cursor-not-allowed"
-                            : "bg-primary text-white hover:bg-primary/90"
+                            ? "cursor-not-allowed border-slate-200 bg-slate-100 text-slate-400"
+                            : "border-slate-900 bg-slate-900 text-white hover:bg-slate-800"
                         )}
                       >
                         {statusLoading
@@ -456,11 +455,11 @@ const ProductClient = ({ product, relatedProducts }: ItemDetailResponse) => {
                         )}
                       </button>
                       {showStatusMenu && currentStatus !== "판매완료" && (
-                        <div className="absolute top-full left-0 right-0 mt-1 bg-white border border-gray-200 rounded-lg shadow-lg z-10 overflow-hidden">
+                        <div className="absolute left-0 right-0 top-full z-10 mt-1 overflow-hidden rounded-md border border-slate-200 bg-white shadow-sm">
                           {currentStatus !== "판매중" && (
                             <button
                               onClick={() => handleStatusChange("판매중")}
-                              className="w-full px-4 py-3 text-left text-sm hover:bg-gray-50 flex items-center gap-2"
+                              className="flex w-full items-center gap-2 px-4 py-3 text-left text-sm hover:bg-slate-50"
                             >
                               <span className="w-2 h-2 rounded-full bg-green-500" />
                               판매중으로 변경
@@ -469,7 +468,7 @@ const ProductClient = ({ product, relatedProducts }: ItemDetailResponse) => {
                           {currentStatus !== "예약중" && (
                             <button
                               onClick={() => handleStatusChange("예약중")}
-                              className="w-full px-4 py-3 text-left text-sm hover:bg-gray-50 flex items-center gap-2"
+                              className="flex w-full items-center gap-2 px-4 py-3 text-left text-sm hover:bg-slate-50"
                             >
                               <span className="w-2 h-2 rounded-full bg-yellow-500" />
                               예약중으로 변경
@@ -477,7 +476,7 @@ const ProductClient = ({ product, relatedProducts }: ItemDetailResponse) => {
                           )}
                           <button
                             onClick={handleSold}
-                            className="w-full px-4 py-3 text-left text-sm hover:bg-gray-50 flex items-center gap-2 border-t border-gray-100"
+                            className="flex w-full items-center gap-2 border-t border-slate-100 px-4 py-3 text-left text-sm hover:bg-slate-50"
                           >
                             <span className="w-2 h-2 rounded-full bg-gray-400" />
                             판매완료로 변경
@@ -490,14 +489,14 @@ const ProductClient = ({ product, relatedProducts }: ItemDetailResponse) => {
                     <div className="flex space-x-2">
                       <Link
                         href={`/products/${params?.id}/edit`}
-                        className="flex-1 bg-gray-100 text-gray-700 py-3 rounded-lg hover:bg-gray-200 transition-colors text-center text-sm font-medium"
+                        className="flex-1 rounded-md border border-slate-200 bg-white py-3 text-center text-sm font-medium text-slate-700 transition-colors hover:bg-slate-50"
                       >
                         수정하기
                       </Link>
                       <button
                         onClick={handleDelete}
                         disabled={deleteLoading}
-                        className="flex-1 bg-red-50 text-red-600 py-3 rounded-lg hover:bg-red-100 transition-colors disabled:opacity-50 text-sm font-medium"
+                        className="flex-1 rounded-md border border-red-200 bg-white py-3 text-sm font-medium text-red-600 transition-colors hover:bg-red-50 disabled:opacity-50"
                       >
                         {deleteLoading ? "삭제 중..." : "삭제하기"}
                       </button>
@@ -509,14 +508,14 @@ const ProductClient = ({ product, relatedProducts }: ItemDetailResponse) => {
                     <div className="flex items-center space-x-2">
                       <button
                         onClick={onContactClick}
-                        className="flex-1 bg-primary text-white py-3 rounded-lg hover:bg-primary/90 transition-colors font-medium"
+                        className="h-10 flex-1 rounded-md border border-slate-300 bg-white px-3 text-sm font-semibold text-slate-700 transition-colors hover:bg-slate-50"
                       >
                         판매자와 채팅하기
                       </button>
                       <button
                         onClick={onFavClick}
                         className={cn(
-                          "p-3 rounded-lg flex items-center justify-center",
+                          "flex h-10 w-10 items-center justify-center rounded-md border border-slate-200",
                           isLiked
                             ? "text-red-500 hover:bg-red-50"
                             : "text-gray-400 hover:bg-gray-100"
@@ -548,13 +547,13 @@ const ProductClient = ({ product, relatedProducts }: ItemDetailResponse) => {
                       <button
                         onClick={handlePurchase}
                         disabled={statusLoading}
-                        className="w-full py-3 rounded-lg bg-green-600 text-white font-medium hover:bg-green-700 transition-colors disabled:opacity-50"
+                        className="h-10 w-full rounded-md border border-primary/30 bg-primary/10 text-sm font-semibold text-primary transition-colors hover:bg-primary/15 disabled:opacity-50"
                       >
                         {statusLoading ? "처리 중..." : "구매확정"}
                       </button>
                     )}
                     {currentStatus === "판매완료" && hasPurchased && (
-                      <div className="w-full py-3 rounded-lg bg-gray-100 text-gray-500 text-center text-sm font-medium">
+                      <div className="h-10 w-full rounded-md border border-slate-200 bg-slate-50 text-center text-sm font-medium leading-10 text-slate-500">
                         구매확정 완료
                       </div>
                     )}
@@ -567,18 +566,18 @@ const ProductClient = ({ product, relatedProducts }: ItemDetailResponse) => {
 
         {/* 연관 상품 섹션 */}
         {relatedProducts && relatedProducts.length > 0 && (
-          <div className="mt-12">
-            <h2 className="text-lg font-semibold text-gray-900 mb-6">
+          <div className="mt-8 border-t border-slate-100 px-4 pt-6">
+            <h2 className="mb-4 text-lg font-semibold text-gray-900">
               연관 상품
             </h2>
-            <div className="grid grid-cols-4 md:grid-cols-3 gap-6">
+            <div className="grid grid-cols-2 gap-4 sm:grid-cols-3">
               {relatedProducts.map((product) => (
                 <Link
                   key={product.id}
                   href={`/products/${product.id}`}
-                  className="group focus:outline-none rounded-xl"
+                  className="group focus:outline-none"
                 >
-                  <div className="relative aspect-square rounded-xl overflow-hidden shadow-sm hover:shadow-md transition-all">
+                  <div className="relative aspect-square overflow-hidden bg-slate-100">
                     <Image
                       src={makeImageUrl(product.photos?.[0] || "", "product")}
                       alt={product.name}
@@ -587,8 +586,8 @@ const ProductClient = ({ product, relatedProducts }: ItemDetailResponse) => {
                       className="object-cover group-hover:scale-105 transition-transform duration-300"
                     />
                   </div>
-                  <div className="mt-3">
-                    <h3 className="text-sm font-medium text-gray-900 truncate group-hover:text-primary transition-colors">
+                  <div className="mt-2">
+                    <h3 className="truncate text-sm font-medium text-gray-900 group-hover:text-primary transition-colors">
                       {product.name}
                     </h3>
                     <p className="text-primary font-medium text-sm">
