@@ -5,6 +5,28 @@ import { cn } from "@libs/client/utils";
 import useUser from "hooks/useUser";
 import useLogout from "hooks/useLogout";
 import Link from "next/link";
+import useSWR from "swr";
+import { useMemo, useState } from "react";
+
+interface PushSubscriptionStatusResponse {
+  success: boolean;
+  error?: string;
+  configured: boolean;
+  subscribed: boolean;
+  vapidPublicKey: string;
+}
+
+interface PushSubscriptionUpsertBody {
+  action: "subscribe" | "unsubscribe";
+  subscription?: {
+    endpoint: string;
+    keys: {
+      p256dh: string;
+      auth: string;
+    };
+  };
+  endpoint?: string;
+}
 
 interface SettingItem {
   label: string;
@@ -39,6 +61,176 @@ const ChevronRight = () => (
 const SettingsClient = () => {
   const { user } = useUser();
   const handleLogout = useLogout();
+  const [pushLoading, setPushLoading] = useState(false);
+  const [pushErrorMessage, setPushErrorMessage] = useState("");
+  const [showPermissionGuide, setShowPermissionGuide] = useState(false);
+  const {
+    data: pushStatus,
+    mutate: mutatePushStatus,
+  } = useSWR<PushSubscriptionStatusResponse>("/api/push/subscription");
+
+  const pushStatusLabel = useMemo(() => {
+    if (!pushStatus) return "설정 확인 중";
+    if (!pushStatus.configured) return "서버 설정 필요";
+    return pushStatus.subscribed ? "켜짐" : "꺼짐";
+  }, [pushStatus]);
+
+  // 현재 단말 기준으로 알림 권한 복구 경로를 가볍게 안내한다.
+  const permissionGuide = useMemo(() => {
+    const userAgent =
+      typeof navigator === "undefined" ? "" : navigator.userAgent.toLowerCase();
+    const isIOS = /iphone|ipad|ipod/.test(userAgent);
+    const isAndroid = /android/.test(userAgent);
+
+    if (isIOS) {
+      return {
+        title: "iPhone/iPad 알림 다시 켜기",
+        steps: [
+          "설정 앱 > Safari > 알림으로 이동",
+          "Bredy 사이트 알림을 '허용'으로 변경",
+          "설정 화면으로 돌아와 '알림 켜기'를 다시 눌러주세요.",
+        ],
+      };
+    }
+
+    if (isAndroid) {
+      return {
+        title: "Android 알림 다시 켜기",
+        steps: [
+          "브라우저 주소창 왼쪽 자물쇠(또는 사이트 정보)를 누르세요.",
+          "권한 > 알림을 '허용'으로 변경하세요.",
+          "설정 화면으로 돌아와 '알림 켜기'를 다시 눌러주세요.",
+        ],
+      };
+    }
+
+    return {
+      title: "브라우저 알림 다시 켜기",
+      steps: [
+        "브라우저 설정 > 개인정보/권한 > 알림으로 이동",
+        "Bredy 사이트 알림을 '허용'으로 변경",
+        "설정 화면으로 돌아와 '알림 켜기'를 다시 눌러주세요.",
+      ],
+    };
+  }, []);
+
+  // VAPID 공개키(base64url)를 브라우저 Push API가 받는 Uint8Array로 변환한다.
+  const urlBase64ToUint8Array = (base64String: string) => {
+    const padding = "=".repeat((4 - (base64String.length % 4)) % 4);
+    const normalized = (base64String + padding).replace(/-/g, "+").replace(/_/g, "/");
+    const rawData = window.atob(normalized);
+    const outputArray = new Uint8Array(rawData.length);
+    for (let i = 0; i < rawData.length; ++i) {
+      outputArray[i] = rawData.charCodeAt(i);
+    }
+    return outputArray;
+  };
+
+  // SW가 아직 등록되지 않은 환경(개발/최초 진입)에서도 푸시 설정이 멈추지 않도록 보장한다.
+  const ensureServiceWorkerReady = async () => {
+    if (!("serviceWorker" in navigator)) {
+      throw new Error("현재 브라우저는 서비스워커를 지원하지 않습니다.");
+    }
+
+    let registration = await navigator.serviceWorker.getRegistration();
+    if (!registration) {
+      registration = await navigator.serviceWorker.register("/sw.js");
+    }
+
+    // active 상태가 될 때까지 기다렸다가 반환한다.
+    return navigator.serviceWorker.ready;
+  };
+
+  // 푸시 구독 API 응답을 공통 처리한다. HTTP 오류/업무 오류를 모두 에러로 승격한다.
+  const requestPushApi = async (body: PushSubscriptionUpsertBody) => {
+    const res = await fetch("/api/push/subscription", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body),
+    });
+    const result = (await res.json().catch(() => null)) as
+      | PushSubscriptionStatusResponse
+      | null;
+
+    if (!res.ok || !result?.success) {
+      throw new Error(result?.error || "푸시 알림 설정 요청에 실패했습니다.");
+    }
+
+    return result;
+  };
+
+  const handleTogglePush = async () => {
+    if (pushLoading) return;
+    setPushLoading(true);
+    setPushErrorMessage("");
+    setShowPermissionGuide(false);
+
+    try {
+      if (!("serviceWorker" in navigator) || !("PushManager" in window)) {
+        throw new Error("현재 브라우저는 푸시 알림을 지원하지 않습니다.");
+      }
+
+      if (!pushStatus?.configured || !pushStatus?.vapidPublicKey) {
+        throw new Error("푸시 알림 서버 설정이 완료되지 않았습니다.");
+      }
+
+      // 브라우저에서 이미 '차단(denied)' 상태면 안내 UI를 우선 노출한다.
+      if (Notification.permission === "denied") {
+        setShowPermissionGuide(true);
+        throw new Error("알림 권한이 차단되어 있습니다. 아래 안내대로 권한을 허용해 주세요.");
+      }
+
+      const registration = await ensureServiceWorkerReady();
+      const existingSubscription = await registration.pushManager.getSubscription();
+
+      if (existingSubscription) {
+        const endpoint = existingSubscription.endpoint;
+        await existingSubscription.unsubscribe();
+        await requestPushApi({ action: "unsubscribe", endpoint });
+
+        await mutatePushStatus();
+        return;
+      }
+
+      const permission = await Notification.requestPermission();
+      if (permission !== "granted") {
+        if (permission === "denied") {
+          setShowPermissionGuide(true);
+        }
+        throw new Error("알림 권한이 거부되어 설정할 수 없습니다.");
+      }
+
+      const nextSubscription = await registration.pushManager.subscribe({
+        userVisibleOnly: true,
+        applicationServerKey: urlBase64ToUint8Array(pushStatus.vapidPublicKey),
+      });
+      const subscriptionJson = nextSubscription.toJSON();
+      const endpoint = subscriptionJson.endpoint;
+      const keys = subscriptionJson.keys;
+
+      // 일부 브라우저/환경에서는 키가 비어 돌아올 수 있어 서버 저장 전에 검증한다.
+      if (!endpoint || !keys?.p256dh || !keys?.auth) {
+        throw new Error("푸시 구독 키를 확인할 수 없습니다. 다시 시도해 주세요.");
+      }
+
+      await requestPushApi({
+        action: "subscribe",
+        subscription: {
+          endpoint,
+          keys: {
+            p256dh: keys.p256dh,
+            auth: keys.auth,
+          },
+        },
+      });
+
+      await mutatePushStatus();
+    } catch (error: any) {
+      setPushErrorMessage(error?.message || "푸시 알림 설정에 실패했습니다.");
+    } finally {
+      setPushLoading(false);
+    }
+  };
 
   const sections: SettingSection[] = [
     {
@@ -154,6 +346,62 @@ const SettingsClient = () => {
   return (
     <Layout canGoBack title="설정" seoTitle="설정">
       <div className="pb-10">
+        <div className="px-4 pt-4">
+          <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
+            <div className="flex items-start justify-between gap-3">
+              <div>
+                <p className="text-sm font-semibold text-slate-900">푸시 알림</p>
+                <p className="mt-1 text-xs text-slate-500">
+                  채팅과 주요 이벤트를 브라우저 알림으로 받을 수 있습니다.
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={handleTogglePush}
+                disabled={pushLoading}
+                className={cn(
+                  "h-9 rounded-full px-3 text-xs font-semibold transition-colors",
+                  pushStatus?.subscribed
+                    ? "bg-emerald-600 text-white hover:bg-emerald-700"
+                    : "bg-slate-900 text-white hover:bg-slate-800",
+                  pushLoading && "cursor-not-allowed opacity-60"
+                )}
+              >
+                {pushLoading
+                  ? "처리 중..."
+                  : pushStatus?.subscribed
+                    ? "알림 끄기"
+                    : "알림 켜기"}
+              </button>
+            </div>
+            <div className="mt-2 flex items-center gap-2 text-xs">
+              <span className="rounded-full bg-slate-100 px-2 py-1 text-slate-600">
+                상태: {pushStatusLabel}
+              </span>
+              {!pushStatus?.configured && (
+                <span className="text-amber-600">
+                  VAPID 키 환경변수가 필요합니다.
+                </span>
+              )}
+            </div>
+            {pushErrorMessage && (
+              <p className="mt-2 text-xs text-rose-500">{pushErrorMessage}</p>
+            )}
+            {showPermissionGuide && (
+              <div className="mt-3 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2.5">
+                <p className="text-xs font-semibold text-amber-900">
+                  {permissionGuide.title}
+                </p>
+                <ol className="mt-1.5 list-decimal space-y-1 pl-4 text-[11px] text-amber-800">
+                  {permissionGuide.steps.map((step) => (
+                    <li key={step}>{step}</li>
+                  ))}
+                </ol>
+              </div>
+            )}
+          </div>
+        </div>
+
         {sections.map((section, sectionIdx) => (
           <div key={sectionIdx}>
             {section.title && (

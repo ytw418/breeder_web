@@ -9,6 +9,7 @@ const PRECACHE_URLS = [
   "/images/pwa/icon-512.png",
 ];
 
+// 앱 쉘/오프라인 기본 자산을 선캐시한다.
 self.addEventListener("install", (event) => {
   event.waitUntil(
     caches
@@ -33,6 +34,7 @@ self.addEventListener("activate", (event) => {
   );
 });
 
+// API 요청은 항상 네트워크 우선으로 두고, 정적 리소스만 캐시 전략을 적용한다.
 self.addEventListener("fetch", (event) => {
   const { request } = event;
   if (request.method !== "GET") return;
@@ -94,8 +96,83 @@ self.addEventListener("fetch", (event) => {
   }
 });
 
+// 클라이언트에서 SW 즉시 교체를 요청할 때 사용한다.
 self.addEventListener("message", (event) => {
   if (event.data && event.data.type === "SKIP_WAITING") {
     self.skipWaiting();
   }
+});
+
+// 서버에서 전달한 payload를 읽어 브라우저 알림으로 표시한다.
+self.addEventListener("push", (event) => {
+  if (!event.data) return;
+
+  let payload = {
+    title: "Bredy 알림",
+    body: "새 알림이 도착했습니다.",
+    url: "/",
+    tag: "default",
+  };
+
+  try {
+    const parsed = event.data.json();
+    payload = {
+      title: parsed.title || payload.title,
+      body: parsed.body || payload.body,
+      url: parsed.url || payload.url,
+      tag: parsed.tag || payload.tag,
+    };
+  } catch (error) {
+    console.error("Push payload parse failed:", error);
+  }
+
+  event.waitUntil(
+    self.registration.showNotification(payload.title, {
+      body: payload.body,
+      icon: "/images/pwa/icon-192.png",
+      badge: "/images/pwa/icon-192.png",
+      tag: payload.tag,
+      data: { url: payload.url },
+    })
+  );
+});
+
+self.addEventListener("notificationclick", (event) => {
+  event.notification.close();
+  const rawTargetUrl = event.notification.data?.url || "/";
+  const targetUrl = new URL(rawTargetUrl, self.location.origin).toString();
+
+  // 1) 이미 해당 페이지가 열려 있으면 포커스
+  // 2) 같은 오리진 탭이 있으면 그 탭을 해당 URL로 이동
+  // 3) 없으면 새 창으로 열기
+  event.waitUntil((async () => {
+    const clients = await self.clients.matchAll({
+      type: "window",
+      includeUncontrolled: true,
+    });
+
+    const exactClient = clients.find((client) => client.url === targetUrl);
+    if (exactClient) {
+      await exactClient.focus();
+      return;
+    }
+
+    const sameOriginClient = clients.find((client) => {
+      try {
+        return new URL(client.url).origin === self.location.origin;
+      } catch {
+        return false;
+      }
+    });
+
+    if (sameOriginClient) {
+      await sameOriginClient.focus();
+      if ("navigate" in sameOriginClient) {
+        await sameOriginClient.navigate(targetUrl);
+      }
+      return;
+    }
+
+    await self.clients.openWindow(targetUrl);
+  })());
 });

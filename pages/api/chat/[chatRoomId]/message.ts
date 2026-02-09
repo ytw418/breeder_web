@@ -3,6 +3,7 @@ import { withApiSession } from "@libs/server/withSession";
 import withHandler from "@libs/server/withHandler";
 import client from "@libs/server/client";
 import { MessageType } from "@prisma/client";
+import { sendPushToUsers } from "@libs/server/push";
 
 interface MessageRequest {
   type?: MessageType;
@@ -99,6 +100,29 @@ async function handler(
         data: { updatedAt: new Date() },
       }),
     ]);
+
+    const otherMembers = await client.chatRoomMember.findMany({
+      where: {
+        chatRoomId: +chatRoomId!,
+        userId: { not: user.id },
+      },
+      select: { userId: true },
+    });
+
+    // 발신자를 제외한 채팅방 멤버에게만 알림을 보낸다.
+    const pushRecipientIds = otherMembers.map((member) => member.userId);
+    const pushBody =
+      newMessage.type === "IMAGE"
+        ? `${newMessage.user.name}님이 사진을 보냈습니다.`
+        : `${newMessage.user.name}: ${newMessage.message}`;
+
+    // 푸시 전송은 부가 기능이므로 응답 지연을 막기 위해 비동기로 분리한다.
+    sendPushToUsers(pushRecipientIds, {
+      title: "새 채팅 메시지",
+      body: pushBody,
+      url: `/chat/${chatRoomId}`,
+      tag: `chat-${chatRoomId}`,
+    }).catch((error) => console.error("Failed to send chat push:", error));
 
     return res.json({
       success: true,
