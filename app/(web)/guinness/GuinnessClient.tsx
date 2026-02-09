@@ -1,0 +1,198 @@
+"use client";
+
+import Link from "next/link";
+import useSWR from "swr";
+import Layout from "@components/features/MainLayout";
+import Image from "@components/atoms/Image";
+import { cn, makeImageUrl } from "@libs/client/utils";
+import { RankingResponse } from "pages/api/ranking";
+import { GuinnessSpeciesListResponse } from "pages/api/guinness/species";
+import { useMemo, useState } from "react";
+
+const PERIOD_TABS = [
+  { id: "all", name: "역대" },
+  { id: "monthly", name: "이번 달" },
+] as const;
+
+const getMedalClass = (rank: number) => {
+  if (rank === 1) return "bg-yellow-400 text-white";
+  if (rank === 2) return "bg-gray-400 text-white";
+  if (rank === 3) return "bg-amber-700 text-white";
+  return "bg-gray-100 text-gray-600";
+};
+
+export default function GuinnessClient() {
+  const [period, setPeriod] = useState<(typeof PERIOD_TABS)[number]["id"]>("all");
+  const [species, setSpecies] = useState("전체");
+
+  const apiUrl = useMemo(() => {
+    const query = new URLSearchParams({ tab: "guinness", period });
+    if (species !== "전체") {
+      query.set("species", species);
+    }
+    return `/api/ranking?${query.toString()}`;
+  }, [period, species]);
+
+  const { data } = useSWR<RankingResponse>(apiUrl);
+  const { data: speciesData } =
+    useSWR<GuinnessSpeciesListResponse>("/api/guinness/species?limit=100");
+
+  const records = data?.records || [];
+  const speciesOptions = useMemo(() => {
+    const names = (speciesData?.species || []).map((item) => item.name);
+    return ["전체", ...names];
+  }, [speciesData?.species]);
+
+  return (
+    <Layout canGoBack title="기네스북" seoTitle="기네스북">
+      <div className="min-h-screen bg-gradient-to-b from-amber-50/70 via-white to-white pb-20">
+        <section className="px-4 pt-5">
+          <div className="rounded-2xl bg-gradient-to-r from-amber-500 to-orange-500 p-5 text-white shadow-sm">
+            <p className="text-xs font-semibold text-white/80">Guinness of Breeder</p>
+            <h1 className="mt-1 text-2xl font-bold">기네스북 상세</h1>
+            <p className="mt-2 text-sm leading-relaxed text-white/95">
+              본 페이지의 기록은 우리 서비스 심사 절차를 통과한 데이터만 노출되며,
+              공식적으로 인정된 기록입니다.
+            </p>
+            <Link
+              href="/guinness/apply"
+              className="mt-4 inline-flex h-10 items-center rounded-lg bg-white px-4 text-sm font-semibold text-amber-700"
+            >
+              기네스북 등록하기
+            </Link>
+          </div>
+        </section>
+
+        <section className="px-4 pt-5 space-y-3">
+          <div className="flex gap-2">
+            {PERIOD_TABS.map((tab) => (
+              <button
+                key={tab.id}
+                type="button"
+                onClick={() => setPeriod(tab.id)}
+                className={cn(
+                  "rounded-full px-3 py-1.5 text-xs font-medium transition-colors",
+                  period === tab.id
+                    ? "bg-gray-900 text-white"
+                    : "border border-gray-200 bg-white text-gray-600"
+                )}
+              >
+                {tab.name}
+              </button>
+            ))}
+          </div>
+
+          <div className="flex gap-2 overflow-x-auto scrollbar-hide pb-1">
+            {speciesOptions.map((item) => (
+              <button
+                key={item}
+                type="button"
+                onClick={() => setSpecies(item)}
+                className={cn(
+                  "shrink-0 rounded-full px-3 py-1.5 text-xs font-medium transition-colors",
+                  species === item
+                    ? "bg-primary text-white"
+                    : "border border-gray-200 bg-white text-gray-600"
+                )}
+              >
+                {item}
+              </button>
+            ))}
+          </div>
+        </section>
+
+        <section className="px-4 pt-4">
+          {data ? (
+            records.length > 0 ? (
+              <div className="space-y-2">
+                {records.map((record, index) => (
+                  <div
+                    key={record.id}
+                    className="rounded-xl border border-gray-100 bg-white p-3 shadow-sm"
+                  >
+                    <div className="flex items-center gap-3">
+                      <span
+                        className={`w-7 h-7 rounded-full text-xs font-bold flex items-center justify-center ${getMedalClass(
+                          index + 1
+                        )}`}
+                      >
+                        {index + 1}
+                      </span>
+                      <div className="h-12 w-12 overflow-hidden rounded-lg bg-gray-100">
+                        <Image
+                          src={makeImageUrl(record.photo, "avatar")}
+                          className="h-full w-full object-cover"
+                          width={48}
+                          height={48}
+                          alt=""
+                        />
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        <p className="truncate text-sm font-semibold text-gray-900">{record.species}</p>
+                        <p className="text-xs text-gray-500">{record.user.name}</p>
+                      </div>
+                      <div className="text-right">
+                        <p className="text-lg font-bold text-primary leading-none">
+                          {record.value}
+                          <span className="ml-1 text-xs font-normal text-gray-400">
+                            {record.recordType === "size" ? "mm" : "g"}
+                          </span>
+                        </p>
+                        <p className="mt-1 text-xs text-gray-400">
+                          {record.recordType === "size" ? "크기" : "무게"}
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div className="rounded-xl border border-dashed border-gray-200 bg-white px-4 py-12 text-center">
+                <p className="text-sm font-medium text-gray-600">
+                  조건에 맞는 공식 기록이 아직 없습니다.
+                </p>
+                <Link
+                  href="/guinness/apply"
+                  className="mt-3 inline-flex h-9 items-center rounded-md bg-primary px-3 text-xs font-semibold text-white"
+                >
+                  첫 기록 등록하기
+                </Link>
+              </div>
+            )
+          ) : (
+            <div className="space-y-2">
+              {[...Array(6)].map((_, index) => (
+                <div
+                  key={index}
+                  className="rounded-xl border border-gray-100 bg-white p-3 shadow-sm animate-pulse"
+                >
+                  <div className="flex items-center gap-3">
+                    <div className="h-7 w-7 rounded-full bg-gray-200" />
+                    <div className="h-12 w-12 rounded-lg bg-gray-200" />
+                    <div className="flex-1 space-y-1.5">
+                      <div className="h-3 w-24 rounded bg-gray-200" />
+                      <div className="h-3 w-16 rounded bg-gray-200" />
+                    </div>
+                    <div className="space-y-1.5 text-right">
+                      <div className="h-4 w-12 rounded bg-gray-200" />
+                      <div className="h-3 w-8 rounded bg-gray-200" />
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </section>
+
+        <div className="fixed bottom-[88px] left-1/2 z-20 w-full max-w-screen-sm -translate-x-1/2 px-4">
+          <Link
+            href="/guinness/apply"
+            className="flex h-12 w-full items-center justify-center rounded-xl bg-gray-900 text-sm font-semibold text-white shadow-lg"
+          >
+            기네스북 등록하기
+          </Link>
+        </div>
+      </div>
+    </Layout>
+  );
+}

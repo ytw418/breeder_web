@@ -44,7 +44,9 @@ const getNotificationLink = (
     case "auction":
       return `/auctions/${targetId}`;
     case "record":
-      return `/ranking`;
+      return `/guinness`;
+    case "guinness_submission":
+      return `/guinness/apply`;
     default:
       return "#";
   }

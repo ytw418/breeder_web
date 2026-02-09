@@ -1,0 +1,902 @@
+[
+  {
+    "id": 1,
+    "name": "사슴벌레",
+    "aliases": [],
+    "isActive": true,
+    "isOfficial": true,
+    "createdAt": "2026-02-09T04:59:23.669Z",
+    "updatedAt": "2026-02-09T04:59:23.669Z"
+  },
+  {
+    "id": 2,
+    "name": "왕사슴벌레",
+    "aliases": [],
+    "isActive": true,
+    "isOfficial": true,
+    "createdAt": "2026-02-09T04:59:23.669Z",
+    "updatedAt": "2026-02-09T04:59:23.669Z"
+  },
+  {
+    "id": 3,
+    "name": "넓적사슴벌레",
+    "aliases": [],
+    "isActive": true,
+    "isOfficial": true,
+    "createdAt": "2026-02-09T04:59:23.669Z",
+    "updatedAt": "2026-02-09T04:59:23.669Z"
+  },
+  {
+    "id": 4,
+    "name": "애사슴벌레",
+    "aliases": [],
+    "isActive": true,
+    "isOfficial": true,
+    "createdAt": "2026-02-09T04:59:23.669Z",
+    "updatedAt": "2026-02-09T04:59:23.669Z"
+  },
+  {
+    "id": 5,
+    "name": "톱사슴벌레",
+    "aliases": [],
+    "isActive": true,
+    "isOfficial": true,
+    "createdAt": "2026-02-09T04:59:23.669Z",
+    "updatedAt": "2026-02-09T04:59:23.669Z"
+  },
+  {
+    "id": 6,
+    "name": "기라파톱사슴벌레",
+    "aliases": [],
+    "isActive": true,
+    "isOfficial": true,
+    "createdAt": "2026-02-09T04:59:23.669Z",
+    "updatedAt": "2026-02-09T04:59:23.669Z"
+  },
+  {
+    "id": 7,
+    "name": "다이오우히라타사슴벌레",
+    "aliases": [],
+    "isActive": true,
+    "isOfficial": true,
+    "createdAt": "2026-02-09T04:59:23.669Z",
+    "updatedAt": "2026-02-09T04:59:23.669Z"
+  },
+  {
+    "id": 8,
+    "name": "팔라완왕넓적사슴벌레",
+    "aliases": [],
+    "isActive": true,
+    "isOfficial": true,
+    "createdAt": "2026-02-09T04:59:23.669Z",
+    "updatedAt": "2026-02-09T04:59:23.669Z"
+  },
+  {
+    "id": 9,
+    "name": "수마트라왕넓적사슴벌레",
+    "aliases": [],
+    "isActive": true,
+    "isOfficial": true,
+    "createdAt": "2026-02-09T04:59:23.669Z",
+    "updatedAt": "2026-02-09T04:59:23.669Z"
+  },
+  {
+    "id": 10,
+    "name": "술라웨시왕넓적사슴벌레",
+    "aliases": [],
+    "isActive": true,
+    "isOfficial": true,
+    "createdAt": "2026-02-09T04:59:23.669Z",
+    "updatedAt": "2026-02-09T04:59:23.669Z"
+  },
+  {
+    "id": 11,
+    "name": "세람왕넓적사슴벌레",
+    "aliases": [],
+    "isActive": true,
+    "isOfficial": true,
+    "createdAt": "2026-02-09T04:59:23.669Z",
+    "updatedAt": "2026-02-09T04:59:23.669Z"
+  },
+  {
+    "id": 12,
+    "name": "보르네오왕넓적사슴벌레",
+    "aliases": [],
+    "isActive": true,
+    "isOfficial": true,
+    "createdAt": "2026-02-09T04:59:23.669Z",
+    "updatedAt": "2026-02-09T04:59:23.669Z"
+  },
+  {
+    "id": 13,
+    "name": "타이완왕사슴벌레",
+    "aliases": [],
+    "isActive": true,
+    "isOfficial": true,
+    "createdAt": "2026-02-09T04:59:23.669Z",
+    "updatedAt": "2026-02-09T04:59:23.669Z"
+  },
+  {
+    "id": 14,
+    "name": "호페이왕사슴벌레",
+    "aliases": [],
+    "isActive": true,
+    "isOfficial": true,
+    "createdAt": "2026-02-09T04:59:23.669Z",
+    "updatedAt": "2026-02-09T04:59:23.669Z"
+  },
+  {
+    "id": 15,
+    "name": "안테우스왕사슴벌레",
+    "aliases": [],
+    "isActive": true,
+    "isOfficial": true,
+    "createdAt": "2026-02-09T04:59:23.669Z",
+    "updatedAt": "2026-02-09T04:59:23.669Z"
+  },
+  {
+    "id": 16,
+    "name": "네파렌시스왕사슴벌레",
+    "aliases": [],
+    "isActive": true,
+    "isOfficial": true,
+    "createdAt": "2026-02-09T04:59:23.669Z",
+    "updatedAt": "2026-02-09T04:59:23.669Z"
+  },
+  {
+    "id": 17,
+    "name": "그란디스왕사슴벌레",
+    "aliases": [],
+    "isActive": true,
+    "isOfficial": true,
+    "createdAt": "2026-02-09T04:59:23.669Z",
+    "updatedAt": "2026-02-09T04:59:23.669Z"
+  },
+  {
+    "id": 18,
+    "name": "엘라푸스왕사슴벌레",
+    "aliases": [],
+    "isActive": true,
+    "isOfficial": true,
+    "createdAt": "2026-02-09T04:59:23.669Z",
+    "updatedAt": "2026-02-09T04:59:23.669Z"
+  },
+  {
+    "id": 19,
+    "name": "만디블라리스왕사슴벌레",
+    "aliases": [],
+    "isActive": true,
+    "isOfficial": true,
+    "createdAt": "2026-02-09T04:59:23.669Z",
+    "updatedAt": "2026-02-09T04:59:23.669Z"
+  },
+  {
+    "id": 20,
+    "name": "세아라투스왕사슴벌레",
+    "aliases": [],
+    "isActive": true,
+    "isOfficial": true,
+    "createdAt": "2026-02-09T04:59:23.669Z",
+    "updatedAt": "2026-02-09T04:59:23.669Z"
+  },
+  {
+    "id": 21,
+    "name": "쿠베라왕사슴벌레",
+    "aliases": [],
+    "isActive": true,
+    "isOfficial": true,
+    "createdAt": "2026-02-09T04:59:23.669Z",
+    "updatedAt": "2026-02-09T04:59:23.669Z"
+  },
+  {
+    "id": 22,
+    "name": "미야마사슴벌레",
+    "aliases": [],
+    "isActive": true,
+    "isOfficial": true,
+    "createdAt": "2026-02-09T04:59:23.669Z",
+    "updatedAt": "2026-02-09T04:59:23.669Z"
+  },
+  {
+    "id": 23,
+    "name": "일본미야마사슴벌레",
+    "aliases": [],
+    "isActive": true,
+    "isOfficial": true,
+    "createdAt": "2026-02-09T04:59:23.669Z",
+    "updatedAt": "2026-02-09T04:59:23.669Z"
+  },
+  {
+    "id": 24,
+    "name": "만주미야마사슴벌레",
+    "aliases": [],
+    "isActive": true,
+    "isOfficial": true,
+    "createdAt": "2026-02-09T04:59:23.669Z",
+    "updatedAt": "2026-02-09T04:59:23.669Z"
+  },
+  {
+    "id": 25,
+    "name": "히라타사슴벌레",
+    "aliases": [],
+    "isActive": true,
+    "isOfficial": true,
+    "createdAt": "2026-02-09T04:59:23.669Z",
+    "updatedAt": "2026-02-09T04:59:23.669Z"
+  },
+  {
+    "id": 26,
+    "name": "오키나와히라타사슴벌레",
+    "aliases": [],
+    "isActive": true,
+    "isOfficial": true,
+    "createdAt": "2026-02-09T04:59:23.669Z",
+    "updatedAt": "2026-02-09T04:59:23.669Z"
+  },
+  {
+    "id": 27,
+    "name": "아마미히라타사슴벌레",
+    "aliases": [],
+    "isActive": true,
+    "isOfficial": true,
+    "createdAt": "2026-02-09T04:59:23.669Z",
+    "updatedAt": "2026-02-09T04:59:23.669Z"
+  },
+  {
+    "id": 28,
+    "name": "도쿠노시마히라타사슴벌레",
+    "aliases": [],
+    "isActive": true,
+    "isOfficial": true,
+    "createdAt": "2026-02-09T04:59:23.669Z",
+    "updatedAt": "2026-02-09T04:59:23.669Z"
+  },
+  {
+    "id": 29,
+    "name": "오가사와라히라타사슴벌레",
+    "aliases": [],
+    "isActive": true,
+    "isOfficial": true,
+    "createdAt": "2026-02-09T04:59:23.669Z",
+    "updatedAt": "2026-02-09T04:59:23.669Z"
+  },
+  {
+    "id": 30,
+    "name": "타란두스광사슴벌레",
+    "aliases": [],
+    "isActive": true,
+    "isOfficial": true,
+    "createdAt": "2026-02-09T04:59:23.669Z",
+    "updatedAt": "2026-02-09T04:59:23.669Z"
+  },
+  {
+    "id": 31,
+    "name": "메탈리퍼광사슴벌레",
+    "aliases": [],
+    "isActive": true,
+    "isOfficial": true,
+    "createdAt": "2026-02-09T04:59:23.669Z",
+    "updatedAt": "2026-02-09T04:59:23.669Z"
+  },
+  {
+    "id": 32,
+    "name": "코코보소광사슴벌레",
+    "aliases": [],
+    "isActive": true,
+    "isOfficial": true,
+    "createdAt": "2026-02-09T04:59:23.669Z",
+    "updatedAt": "2026-02-09T04:59:23.669Z"
+  },
+  {
+    "id": 33,
+    "name": "잠베지광사슴벌레",
+    "aliases": [],
+    "isActive": true,
+    "isOfficial": true,
+    "createdAt": "2026-02-09T04:59:23.669Z",
+    "updatedAt": "2026-02-09T04:59:23.669Z"
+  },
+  {
+    "id": 34,
+    "name": "스페키오수스광사슴벌레",
+    "aliases": [],
+    "isActive": true,
+    "isOfficial": true,
+    "createdAt": "2026-02-09T04:59:23.669Z",
+    "updatedAt": "2026-02-09T04:59:23.669Z"
+  },
+  {
+    "id": 35,
+    "name": "옥시덴탈리스광사슴벌레",
+    "aliases": [],
+    "isActive": true,
+    "isOfficial": true,
+    "createdAt": "2026-02-09T04:59:23.669Z",
+    "updatedAt": "2026-02-09T04:59:23.669Z"
+  },
+  {
+    "id": 36,
+    "name": "니지이로사슴벌레",
+    "aliases": [],
+    "isActive": true,
+    "isOfficial": true,
+    "createdAt": "2026-02-09T04:59:23.669Z",
+    "updatedAt": "2026-02-09T04:59:23.669Z"
+  },
+  {
+    "id": 37,
+    "name": "퀸즐랜드니지이로사슴벌레",
+    "aliases": [],
+    "isActive": true,
+    "isOfficial": true,
+    "createdAt": "2026-02-09T04:59:23.669Z",
+    "updatedAt": "2026-02-09T04:59:23.669Z"
+  },
+  {
+    "id": 38,
+    "name": "파푸아니지이로사슴벌레",
+    "aliases": [],
+    "isActive": true,
+    "isOfficial": true,
+    "createdAt": "2026-02-09T04:59:23.669Z",
+    "updatedAt": "2026-02-09T04:59:23.669Z"
+  },
+  {
+    "id": 39,
+    "name": "아스타코이데스사슴벌레",
+    "aliases": [],
+    "isActive": true,
+    "isOfficial": true,
+    "createdAt": "2026-02-09T04:59:23.669Z",
+    "updatedAt": "2026-02-09T04:59:23.669Z"
+  },
+  {
+    "id": 40,
+    "name": "모엘렌캄피사슴벌레",
+    "aliases": [],
+    "isActive": true,
+    "isOfficial": true,
+    "createdAt": "2026-02-09T04:59:23.669Z",
+    "updatedAt": "2026-02-09T04:59:23.669Z"
+  },
+  {
+    "id": 41,
+    "name": "라코르다이르사슴벌레",
+    "aliases": [],
+    "isActive": true,
+    "isOfficial": true,
+    "createdAt": "2026-02-09T04:59:23.669Z",
+    "updatedAt": "2026-02-09T04:59:23.669Z"
+  },
+  {
+    "id": 42,
+    "name": "그라키리스사슴벌레",
+    "aliases": [],
+    "isActive": true,
+    "isOfficial": true,
+    "createdAt": "2026-02-09T04:59:23.669Z",
+    "updatedAt": "2026-02-09T04:59:23.669Z"
+  },
+  {
+    "id": 43,
+    "name": "브루크스사슴벌레",
+    "aliases": [],
+    "isActive": true,
+    "isOfficial": true,
+    "createdAt": "2026-02-09T04:59:23.669Z",
+    "updatedAt": "2026-02-09T04:59:23.669Z"
+  },
+  {
+    "id": 44,
+    "name": "푸르마이스터사슴벌레",
+    "aliases": [],
+    "isActive": true,
+    "isOfficial": true,
+    "createdAt": "2026-02-09T04:59:23.669Z",
+    "updatedAt": "2026-02-09T04:59:23.669Z"
+  },
+  {
+    "id": 45,
+    "name": "파리사슴벌레",
+    "aliases": [],
+    "isActive": true,
+    "isOfficial": true,
+    "createdAt": "2026-02-09T04:59:23.669Z",
+    "updatedAt": "2026-02-09T04:59:23.669Z"
+  },
+  {
+    "id": 46,
+    "name": "노벨리스사슴벌레",
+    "aliases": [],
+    "isActive": true,
+    "isOfficial": true,
+    "createdAt": "2026-02-09T04:59:23.669Z",
+    "updatedAt": "2026-02-09T04:59:23.669Z"
+  },
+  {
+    "id": 47,
+    "name": "티타누스넓적사슴벌레",
+    "aliases": [],
+    "isActive": true,
+    "isOfficial": true,
+    "createdAt": "2026-02-09T04:59:23.669Z",
+    "updatedAt": "2026-02-09T04:59:23.669Z"
+  },
+  {
+    "id": 48,
+    "name": "플라티오돈넓적사슴벌레",
+    "aliases": [],
+    "isActive": true,
+    "isOfficial": true,
+    "createdAt": "2026-02-09T04:59:23.669Z",
+    "updatedAt": "2026-02-09T04:59:23.669Z"
+  },
+  {
+    "id": 49,
+    "name": "야누스사슴벌레",
+    "aliases": [],
+    "isActive": true,
+    "isOfficial": true,
+    "createdAt": "2026-02-09T04:59:23.669Z",
+    "updatedAt": "2026-02-09T04:59:23.669Z"
+  },
+  {
+    "id": 50,
+    "name": "포르테리사슴벌레",
+    "aliases": [],
+    "isActive": true,
+    "isOfficial": true,
+    "createdAt": "2026-02-09T04:59:23.669Z",
+    "updatedAt": "2026-02-09T04:59:23.669Z"
+  },
+  {
+    "id": 51,
+    "name": "장수풍뎅이",
+    "aliases": [],
+    "isActive": true,
+    "isOfficial": true,
+    "createdAt": "2026-02-09T04:59:23.669Z",
+    "updatedAt": "2026-02-09T04:59:23.669Z"
+  },
+  {
+    "id": 52,
+    "name": "코카서스장수풍뎅이",
+    "aliases": [],
+    "isActive": true,
+    "isOfficial": true,
+    "createdAt": "2026-02-09T04:59:23.669Z",
+    "updatedAt": "2026-02-09T04:59:23.669Z"
+  },
+  {
+    "id": 53,
+    "name": "헤라클레스장수풍뎅이",
+    "aliases": [],
+    "isActive": true,
+    "isOfficial": true,
+    "createdAt": "2026-02-09T04:59:23.669Z",
+    "updatedAt": "2026-02-09T04:59:23.669Z"
+  },
+  {
+    "id": 54,
+    "name": "넵튠장수풍뎅이",
+    "aliases": [],
+    "isActive": true,
+    "isOfficial": true,
+    "createdAt": "2026-02-09T04:59:23.669Z",
+    "updatedAt": "2026-02-09T04:59:23.669Z"
+  },
+  {
+    "id": 55,
+    "name": "아틀라스장수풍뎅이",
+    "aliases": [],
+    "isActive": true,
+    "isOfficial": true,
+    "createdAt": "2026-02-09T04:59:23.669Z",
+    "updatedAt": "2026-02-09T04:59:23.669Z"
+  },
+  {
+    "id": 56,
+    "name": "카브토장수풍뎅이",
+    "aliases": [],
+    "isActive": true,
+    "isOfficial": true,
+    "createdAt": "2026-02-09T04:59:23.669Z",
+    "updatedAt": "2026-02-09T04:59:23.669Z"
+  },
+  {
+    "id": 57,
+    "name": "그랜트장수풍뎅이",
+    "aliases": [],
+    "isActive": true,
+    "isOfficial": true,
+    "createdAt": "2026-02-09T04:59:23.669Z",
+    "updatedAt": "2026-02-09T04:59:23.669Z"
+  },
+  {
+    "id": 58,
+    "name": "티티우스장수풍뎅이",
+    "aliases": [],
+    "isActive": true,
+    "isOfficial": true,
+    "createdAt": "2026-02-09T04:59:23.669Z",
+    "updatedAt": "2026-02-09T04:59:23.669Z"
+  },
+  {
+    "id": 59,
+    "name": "사탄장수풍뎅이",
+    "aliases": [],
+    "isActive": true,
+    "isOfficial": true,
+    "createdAt": "2026-02-09T04:59:23.669Z",
+    "updatedAt": "2026-02-09T04:59:23.669Z"
+  },
+  {
+    "id": 60,
+    "name": "리키니장수풍뎅이",
+    "aliases": [],
+    "isActive": true,
+    "isOfficial": true,
+    "createdAt": "2026-02-09T04:59:23.669Z",
+    "updatedAt": "2026-02-09T04:59:23.669Z"
+  },
+  {
+    "id": 61,
+    "name": "히라투스장수풍뎅이",
+    "aliases": [],
+    "isActive": true,
+    "isOfficial": true,
+    "createdAt": "2026-02-09T04:59:23.669Z",
+    "updatedAt": "2026-02-09T04:59:23.669Z"
+  },
+  {
+    "id": 62,
+    "name": "옥시덴탈리스장수풍뎅이",
+    "aliases": [],
+    "isActive": true,
+    "isOfficial": true,
+    "createdAt": "2026-02-09T04:59:23.669Z",
+    "updatedAt": "2026-02-09T04:59:23.669Z"
+  },
+  {
+    "id": 63,
+    "name": "마야장수풍뎅이",
+    "aliases": [],
+    "isActive": true,
+    "isOfficial": true,
+    "createdAt": "2026-02-09T04:59:23.669Z",
+    "updatedAt": "2026-02-09T04:59:23.669Z"
+  },
+  {
+    "id": 64,
+    "name": "트리니다덴시스장수풍뎅이",
+    "aliases": [],
+    "isActive": true,
+    "isOfficial": true,
+    "createdAt": "2026-02-09T04:59:23.669Z",
+    "updatedAt": "2026-02-09T04:59:23.669Z"
+  },
+  {
+    "id": 65,
+    "name": "알키데스장수풍뎅이",
+    "aliases": [],
+    "isActive": true,
+    "isOfficial": true,
+    "createdAt": "2026-02-09T04:59:23.669Z",
+    "updatedAt": "2026-02-09T04:59:23.669Z"
+  },
+  {
+    "id": 66,
+    "name": "모리장수풍뎅이",
+    "aliases": [],
+    "isActive": true,
+    "isOfficial": true,
+    "createdAt": "2026-02-09T04:59:23.669Z",
+    "updatedAt": "2026-02-09T04:59:23.669Z"
+  },
+  {
+    "id": 67,
+    "name": "그란티장수풍뎅이",
+    "aliases": [],
+    "isActive": true,
+    "isOfficial": true,
+    "createdAt": "2026-02-09T04:59:23.669Z",
+    "updatedAt": "2026-02-09T04:59:23.669Z"
+  },
+  {
+    "id": 68,
+    "name": "라이히장수풍뎅이",
+    "aliases": [],
+    "isActive": true,
+    "isOfficial": true,
+    "createdAt": "2026-02-09T04:59:23.669Z",
+    "updatedAt": "2026-02-09T04:59:23.669Z"
+  },
+  {
+    "id": 69,
+    "name": "셉텐트리오날리스장수풍뎅이",
+    "aliases": [],
+    "isActive": true,
+    "isOfficial": true,
+    "createdAt": "2026-02-09T04:59:23.669Z",
+    "updatedAt": "2026-02-09T04:59:23.669Z"
+  },
+  {
+    "id": 70,
+    "name": "블랑샤르디장수풍뎅이",
+    "aliases": [],
+    "isActive": true,
+    "isOfficial": true,
+    "createdAt": "2026-02-09T04:59:23.669Z",
+    "updatedAt": "2026-02-09T04:59:23.669Z"
+  },
+  {
+    "id": 71,
+    "name": "칸타르장수풍뎅이",
+    "aliases": [],
+    "isActive": true,
+    "isOfficial": true,
+    "createdAt": "2026-02-09T04:59:23.669Z",
+    "updatedAt": "2026-02-09T04:59:23.669Z"
+  },
+  {
+    "id": 72,
+    "name": "키론장수풍뎅이",
+    "aliases": [],
+    "isActive": true,
+    "isOfficial": true,
+    "createdAt": "2026-02-09T04:59:23.669Z",
+    "updatedAt": "2026-02-09T04:59:23.669Z"
+  },
+  {
+    "id": 73,
+    "name": "모엘렌캄피장수풍뎅이",
+    "aliases": [],
+    "isActive": true,
+    "isOfficial": true,
+    "createdAt": "2026-02-09T04:59:23.669Z",
+    "updatedAt": "2026-02-09T04:59:23.669Z"
+  },
+  {
+    "id": 74,
+    "name": "시암장수풍뎅이",
+    "aliases": [],
+    "isActive": true,
+    "isOfficial": true,
+    "createdAt": "2026-02-09T04:59:23.669Z",
+    "updatedAt": "2026-02-09T04:59:23.669Z"
+  },
+  {
+    "id": 75,
+    "name": "비르마니쿠스장수풍뎅이",
+    "aliases": [],
+    "isActive": true,
+    "isOfficial": true,
+    "createdAt": "2026-02-09T04:59:23.669Z",
+    "updatedAt": "2026-02-09T04:59:23.669Z"
+  },
+  {
+    "id": 76,
+    "name": "그라키리코르니스장수풍뎅이",
+    "aliases": [],
+    "isActive": true,
+    "isOfficial": true,
+    "createdAt": "2026-02-09T04:59:23.669Z",
+    "updatedAt": "2026-02-09T04:59:23.669Z"
+  },
+  {
+    "id": 77,
+    "name": "엘레파스장수풍뎅이",
+    "aliases": [],
+    "isActive": true,
+    "isOfficial": true,
+    "createdAt": "2026-02-09T04:59:23.669Z",
+    "updatedAt": "2026-02-09T04:59:23.669Z"
+  },
+  {
+    "id": 78,
+    "name": "악타이온장수풍뎅이",
+    "aliases": [],
+    "isActive": true,
+    "isOfficial": true,
+    "createdAt": "2026-02-09T04:59:23.669Z",
+    "updatedAt": "2026-02-09T04:59:23.669Z"
+  },
+  {
+    "id": 79,
+    "name": "야누스장수풍뎅이",
+    "aliases": [],
+    "isActive": true,
+    "isOfficial": true,
+    "createdAt": "2026-02-09T04:59:23.669Z",
+    "updatedAt": "2026-02-09T04:59:23.669Z"
+  },
+  {
+    "id": 80,
+    "name": "마르스장수풍뎅이",
+    "aliases": [],
+    "isActive": true,
+    "isOfficial": true,
+    "createdAt": "2026-02-09T04:59:23.669Z",
+    "updatedAt": "2026-02-09T04:59:23.669Z"
+  },
+  {
+    "id": 81,
+    "name": "기아스장수풍뎅이",
+    "aliases": [],
+    "isActive": true,
+    "isOfficial": true,
+    "createdAt": "2026-02-09T04:59:23.669Z",
+    "updatedAt": "2026-02-09T04:59:23.669Z"
+  },
+  {
+    "id": 82,
+    "name": "나시코르니스장수풍뎅이",
+    "aliases": [],
+    "isActive": true,
+    "isOfficial": true,
+    "createdAt": "2026-02-09T04:59:23.669Z",
+    "updatedAt": "2026-02-09T04:59:23.669Z"
+  },
+  {
+    "id": 83,
+    "name": "디코토무스장수풍뎅이",
+    "aliases": [],
+    "isActive": true,
+    "isOfficial": true,
+    "createdAt": "2026-02-09T04:59:23.669Z",
+    "updatedAt": "2026-02-09T04:59:23.669Z"
+  },
+  {
+    "id": 84,
+    "name": "기데온장수풍뎅이",
+    "aliases": [],
+    "isActive": true,
+    "isOfficial": true,
+    "createdAt": "2026-02-09T04:59:23.669Z",
+    "updatedAt": "2026-02-09T04:59:23.669Z"
+  },
+  {
+    "id": 85,
+    "name": "아우고소마장수풍뎅이",
+    "aliases": [],
+    "isActive": true,
+    "isOfficial": true,
+    "createdAt": "2026-02-09T04:59:23.669Z",
+    "updatedAt": "2026-02-09T04:59:23.669Z"
+  },
+  {
+    "id": 86,
+    "name": "칼코소마장수풍뎅이",
+    "aliases": [],
+    "isActive": true,
+    "isOfficial": true,
+    "createdAt": "2026-02-09T04:59:23.669Z",
+    "updatedAt": "2026-02-09T04:59:23.669Z"
+  },
+  {
+    "id": 87,
+    "name": "디나스테스장수풍뎅이",
+    "aliases": [],
+    "isActive": true,
+    "isOfficial": true,
+    "createdAt": "2026-02-09T04:59:23.669Z",
+    "updatedAt": "2026-02-09T04:59:23.669Z"
+  },
+  {
+    "id": 88,
+    "name": "메가소마장수풍뎅이",
+    "aliases": [],
+    "isActive": true,
+    "isOfficial": true,
+    "createdAt": "2026-02-09T04:59:23.669Z",
+    "updatedAt": "2026-02-09T04:59:23.669Z"
+  },
+  {
+    "id": 89,
+    "name": "유프로토루스장수풍뎅이",
+    "aliases": [],
+    "isActive": true,
+    "isOfficial": true,
+    "createdAt": "2026-02-09T04:59:23.669Z",
+    "updatedAt": "2026-02-09T04:59:23.669Z"
+  },
+  {
+    "id": 90,
+    "name": "오릭테스장수풍뎅이",
+    "aliases": [],
+    "isActive": true,
+    "isOfficial": true,
+    "createdAt": "2026-02-09T04:59:23.669Z",
+    "updatedAt": "2026-02-09T04:59:23.669Z"
+  },
+  {
+    "id": 91,
+    "name": "크실로트루페스장수풍뎅이",
+    "aliases": [],
+    "isActive": true,
+    "isOfficial": true,
+    "createdAt": "2026-02-09T04:59:23.669Z",
+    "updatedAt": "2026-02-09T04:59:23.669Z"
+  },
+  {
+    "id": 92,
+    "name": "헤라클레스리키장수풍뎅이",
+    "aliases": [],
+    "isActive": true,
+    "isOfficial": true,
+    "createdAt": "2026-02-09T04:59:23.669Z",
+    "updatedAt": "2026-02-09T04:59:23.669Z"
+  },
+  {
+    "id": 93,
+    "name": "헤라클레스히루스장수풍뎅이",
+    "aliases": [],
+    "isActive": true,
+    "isOfficial": true,
+    "createdAt": "2026-02-09T04:59:23.669Z",
+    "updatedAt": "2026-02-09T04:59:23.669Z"
+  },
+  {
+    "id": 94,
+    "name": "헤라클레스세프스장수풍뎅이",
+    "aliases": [],
+    "isActive": true,
+    "isOfficial": true,
+    "createdAt": "2026-02-09T04:59:23.669Z",
+    "updatedAt": "2026-02-09T04:59:23.669Z"
+  },
+  {
+    "id": 95,
+    "name": "헤라클레스모리시마이장수풍뎅이",
+    "aliases": [],
+    "isActive": true,
+    "isOfficial": true,
+    "createdAt": "2026-02-09T04:59:23.669Z",
+    "updatedAt": "2026-02-09T04:59:23.669Z"
+  },
+  {
+    "id": 96,
+    "name": "헤라클레스바우디리장수풍뎅이",
+    "aliases": [],
+    "isActive": true,
+    "isOfficial": true,
+    "createdAt": "2026-02-09T04:59:23.669Z",
+    "updatedAt": "2026-02-09T04:59:23.669Z"
+  },
+  {
+    "id": 97,
+    "name": "헤라클레스오쿠스장수풍뎅이",
+    "aliases": [],
+    "isActive": true,
+    "isOfficial": true,
+    "createdAt": "2026-02-09T04:59:23.669Z",
+    "updatedAt": "2026-02-09T04:59:23.669Z"
+  },
+  {
+    "id": 98,
+    "name": "헤라클레스리디장수풍뎅이",
+    "aliases": [],
+    "isActive": true,
+    "isOfficial": true,
+    "createdAt": "2026-02-09T04:59:23.669Z",
+    "updatedAt": "2026-02-09T04:59:23.669Z"
+  },
+  {
+    "id": 99,
+    "name": "헤라클레스파시팔루스장수풍뎅이",
+    "aliases": [],
+    "isActive": true,
+    "isOfficial": true,
+    "createdAt": "2026-02-09T04:59:23.669Z",
+    "updatedAt": "2026-02-09T04:59:23.669Z"
+  },
+  {
+    "id": 100,
+    "name": "헤라클레스투지장수풍뎅이",
+    "aliases": [],
+    "isActive": true,
+    "isOfficial": true,
+    "createdAt": "2026-02-09T04:59:23.669Z",
+    "updatedAt": "2026-02-09T04:59:23.669Z"
+  }
+]

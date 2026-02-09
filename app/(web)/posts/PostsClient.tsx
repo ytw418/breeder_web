@@ -199,14 +199,14 @@ export default function PostsClient() {
 
         {/* 기네스북 미리보기 */}
         <section className="py-6">
-          <SectionHeader title="기네스북" href="/ranking" />
+          <SectionHeader title="기네스북" href="/guinness" />
           <div className="mt-3 flex overflow-x-auto scrollbar-hide snap-x snap-mandatory gap-3 px-4">
             {guinnessData ? (
               guinnessRecords.length > 0 ? (
                 guinnessRecords.map((record, index) => (
                   <Link
                     key={record.id}
-                    href="/ranking"
+                    href="/guinness"
                     className="snap-start shrink-0 w-56 rounded-xl bg-white shadow-sm border border-gray-100 p-4"
                   >
                     <div className="flex items-start justify-between">

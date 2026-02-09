@@ -14,6 +14,11 @@ const DASHBOARD_MENUS = [
     href: "/admin/landing-pages",
   },
   {
+    title: "기네스북 심사",
+    description: "기네스북 신청 건을 검토하고 승인/반려합니다.",
+    href: "/admin/guinness",
+  },
+  {
     title: "유저 관리",
     description: "유저 목록 확인, 권한 변경, 삭제를 수행합니다.",
     href: "/admin/users",
