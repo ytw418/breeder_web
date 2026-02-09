@@ -55,7 +55,7 @@ async function handler(
         if (a.status === "pending") return -1;
         if (b.status === "pending") return 1;
       }
-      return b.submittedAt.localeCompare(a.submittedAt);
+      return new Date(b.submittedAt).getTime() - new Date(a.submittedAt).getTime();
     });
 
     const uniqueKeys = Array.from(

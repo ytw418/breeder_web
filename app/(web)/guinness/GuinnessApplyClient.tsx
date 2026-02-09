@@ -68,7 +68,7 @@ interface SubmissionDraft {
   consentToContact: boolean;
 }
 
-const getSlaText = (dueAt: string) => {
+const getSlaText = (dueAt: string | Date) => {
   const due = new Date(dueAt).getTime();
   const diff = due - Date.now();
   if (Number.isNaN(due)) return "SLA 정보 없음";
