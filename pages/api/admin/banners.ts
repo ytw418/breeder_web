@@ -41,13 +41,20 @@ const SAMPLE_BANNERS: AdminBanner[] = [
   },
 ];
 
-async function handler(req: NextApiRequest, res: NextApiResponse<ResponseType>) {
+async function handler(
+  req: NextApiRequest,
+  res: NextApiResponse<ResponseType>
+) {
   if (req.method === "GET") {
     const banners = await client.adminBanner.findMany({
       orderBy: { order: "asc" },
     });
     if (!banners.length) {
-      return res.json({ success: true, banners: SAMPLE_BANNERS, isSample: true });
+      return res.json({
+        success: true,
+        banners: SAMPLE_BANNERS,
+        isSample: true,
+      });
     }
     return res.json({
       success: true,
@@ -72,14 +79,18 @@ async function handler(req: NextApiRequest, res: NextApiResponse<ResponseType>) 
     if (!title || !description || !href) {
       return res
         .status(400)
-        .json({ success: false, error: "필수값(title, description, href)이 필요합니다." });
+        .json({
+          success: false,
+          error: "필수값(title, description, href)이 필요합니다.",
+        });
     }
 
     const banners = await client.adminBanner.findMany({
       orderBy: { order: "asc" },
     });
     const nextOrder =
-      Number(order) || (banners.length ? banners[banners.length - 1].order + 1 : 1);
+      Number(order) ||
+      (banners.length ? banners[banners.length - 1].order + 1 : 1);
     const nextBanner = {
       title: String(title),
       description: String(description),
@@ -95,7 +106,9 @@ async function handler(req: NextApiRequest, res: NextApiResponse<ResponseType>) 
   if (req.method === "DELETE") {
     const { id } = req.query;
     if (!id) {
-      return res.status(400).json({ success: false, error: "ID가 필요합니다." });
+      return res
+        .status(400)
+        .json({ success: false, error: "ID가 필요합니다." });
     }
 
     const banners = await client.adminBanner.findMany();
@@ -103,13 +116,16 @@ async function handler(req: NextApiRequest, res: NextApiResponse<ResponseType>) 
       return res
         .status(400)
         .json({ success: false, error: "샘플 데이터는 삭제할 수 없습니다." });
+      //test
     }
 
     const target = await client.adminBanner.findUnique({
       where: { id: Number(id) },
     });
     if (!target) {
-      return res.status(404).json({ success: false, error: "대상을 찾을 수 없습니다." });
+      return res
+        .status(404)
+        .json({ success: false, error: "대상을 찾을 수 없습니다." });
     }
 
     await client.adminBanner.delete({ where: { id: Number(id) } });
