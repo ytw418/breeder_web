@@ -106,20 +106,20 @@ export default function MainLayout({
   };
 
   return (
-    <div>
+    <div className="relative min-h-screen bg-gradient-to-b from-slate-50 via-white to-slate-50/70">
       <Head>
         <title>브리더 | {seoTitle}</title>
       </Head>
-      <div className="sticky top-0 z-10 w-full bg-white/80 backdrop-blur-sm border-b border-gray-100 h-14 flex items-center justify-center text-base font-medium text-gray-800">
+      <div className="sticky top-0 z-30 h-14 w-full border-b border-slate-200/80 bg-white/90 text-base font-medium text-slate-800 backdrop-blur-xl shadow-[0_1px_0_rgba(15,23,42,0.04)] flex items-center justify-center">
         {canGoBack ? (
           <>
             <button
               onClick={onClick}
-              className="absolute left-4 p-2 rounded-full hover:bg-gray-50 transition-colors"
+              className="absolute left-4 rounded-full p-2 transition-colors hover:bg-slate-100"
               aria-label="뒤로가기"
             >
               <svg
-                className="w-6 h-6 text-gray-600"
+                className="w-6 h-6 text-slate-600"
                 fill="none"
                 stroke="currentColor"
                 viewBox="0 0 24 24"
@@ -136,11 +136,11 @@ export default function MainLayout({
             {/* 햄버거 메뉴 버튼 */}
             <button
               onClick={() => setMenuOpen(true)}
-              className="absolute right-4 p-2 rounded-full hover:bg-gray-50 transition-colors"
+              className="absolute right-4 rounded-full p-2 transition-colors hover:bg-slate-100"
               aria-label="메뉴"
             >
               <svg
-                className="w-6 h-6 text-gray-600"
+                className="w-6 h-6 text-slate-600"
                 fill="none"
                 stroke="currentColor"
                 viewBox="0 0 24 24"
@@ -158,13 +158,13 @@ export default function MainLayout({
         ) : null}
         {icon && (
           <>
-            <Link href={"/"} className="absolute left-4">
+            <Link href={"/"} className="absolute left-4 rounded-xl">
               <Image
                 src={logo}
                 alt="로고"
                 width={32}
                 height={32}
-                className="rounded-lg"
+                className="rounded-lg ring-1 ring-slate-200"
               />
             </Link>
             <div className="absolute right-4 flex items-center gap-1">
@@ -172,11 +172,11 @@ export default function MainLayout({
               {showSearch && (
                 <Link
                   href="/search"
-                  className="p-2 rounded-full hover:bg-gray-50 transition-colors"
+                  className="rounded-full p-2 transition-colors hover:bg-slate-100"
                   aria-label="검색"
                 >
                   <svg
-                    className="w-6 h-6 text-gray-600"
+                    className="w-6 h-6 text-slate-600"
                     fill="none"
                     stroke="currentColor"
                     viewBox="0 0 24 24"
@@ -194,11 +194,11 @@ export default function MainLayout({
               {/* 햄버거 메뉴 버튼 */}
               <button
                 onClick={() => setMenuOpen(true)}
-                className="p-2 rounded-full hover:bg-gray-50 transition-colors"
+                className="rounded-full p-2 transition-colors hover:bg-slate-100"
                 aria-label="메뉴"
               >
                 <svg
-                  className="w-6 h-6 text-gray-600"
+                  className="w-6 h-6 text-slate-600"
                   fill="none"
                   stroke="currentColor"
                   viewBox="0 0 24 24"
@@ -218,7 +218,7 @@ export default function MainLayout({
         {title ? (
           <h1
             className={clsx(
-              "text-lg font-semibold tracking-tight",
+              "app-title-md",
               canGoBack ? "mx-auto" : ""
             )}
           >
@@ -230,7 +230,7 @@ export default function MainLayout({
       {/* 사이드 메뉴 오버레이 */}
       {menuOpen && (
         <div
-          className="fixed inset-0 z-50 bg-black/40 transition-opacity"
+          className="fixed inset-0 z-50 bg-black/45 transition-opacity"
           onClick={() => setMenuOpen(false)}
         />
       )}
@@ -238,19 +238,19 @@ export default function MainLayout({
       {/* 사이드 메뉴 패널 */}
       <div
         className={cn(
-          "fixed top-0 right-0 z-50 h-full w-72 bg-white shadow-xl transform transition-transform duration-300 ease-in-out",
+          "fixed top-0 right-0 z-50 h-full w-72 border-l border-slate-200 bg-white shadow-2xl transform transition-transform duration-300 ease-in-out",
           menuOpen ? "translate-x-0" : "translate-x-full"
         )}
       >
         {/* 메뉴 헤더 */}
-        <div className="flex items-center justify-between px-5 h-14 border-b border-gray-100">
-          <span className="text-lg font-semibold text-gray-900">메뉴</span>
+        <div className="flex h-14 items-center justify-between border-b border-slate-100 px-5">
+          <span className="app-title-md">메뉴</span>
           <button
             onClick={() => setMenuOpen(false)}
-            className="p-2 rounded-full hover:bg-gray-50 transition-colors"
+            className="rounded-full p-2 transition-colors hover:bg-slate-100"
           >
             <svg
-              className="w-5 h-5 text-gray-500"
+              className="w-5 h-5 text-slate-500"
               fill="none"
               stroke="currentColor"
               viewBox="0 0 24 24"
@@ -276,7 +276,7 @@ export default function MainLayout({
                 "flex items-center gap-3 px-5 py-3.5 text-sm font-medium transition-colors",
                 pathname === item.href
                   ? "text-primary bg-primary/5"
-                  : "text-gray-700 hover:bg-gray-50"
+                  : "text-slate-700 hover:bg-slate-50"
               )}
             >
               <svg
@@ -294,11 +294,16 @@ export default function MainLayout({
         </nav>
       </div>
 
-      <div className={clsx("max-w-xl mx-auto", hasTabBar ? "pb-[81px]" : "")}>
+      <div
+        className={clsx(
+          "max-w-xl mx-auto",
+          hasTabBar ? "pb-[86px]" : "pb-6"
+        )}
+      >
         {children}
       </div>
       {hasTabBar ? (
-        <nav className="fixed bottom-0 left-0 right-0 bg-white/80 backdrop-blur-sm border-t border-gray-100">
+        <nav className="fixed bottom-0 left-0 right-0 border-t border-slate-200/80 bg-white/92 backdrop-blur-xl">
           <div className="max-w-xl mx-auto px-4 pb-safe">
             <div className="flex justify-between items-center py-3">
               <Link
@@ -307,7 +312,7 @@ export default function MainLayout({
                   "flex flex-col items-center space-y-1.5 w-full",
                   pathname === "/"
                     ? "text-primary"
-                    : "text-gray-600 hover:text-gray-900 transition-colors"
+                    : "text-slate-500 hover:text-slate-900 transition-colors"
                 )}
               >
                 <svg
@@ -332,7 +337,7 @@ export default function MainLayout({
                   "flex flex-col items-center space-y-1.5 w-full",
                   pathname === "/posts"
                     ? "text-primary"
-                    : "text-gray-600 hover:text-gray-900 transition-colors"
+                    : "text-slate-500 hover:text-slate-900 transition-colors"
                 )}
               >
                 <svg
@@ -357,7 +362,7 @@ export default function MainLayout({
                   "flex flex-col items-center space-y-1.5 w-full",
                   pathname?.startsWith("/auctions")
                     ? "text-primary"
-                    : "text-gray-600 hover:text-gray-900 transition-colors"
+                    : "text-slate-500 hover:text-slate-900 transition-colors"
                 )}
               >
                 <svg
@@ -382,7 +387,7 @@ export default function MainLayout({
                   "flex flex-col items-center space-y-1.5 w-full relative",
                   pathname === "/chat"
                     ? "text-primary"
-                    : "text-gray-600 hover:text-gray-900 transition-colors"
+                    : "text-slate-500 hover:text-slate-900 transition-colors"
                 )}
               >
                 {unreadData?.success && unreadData.unreadCount > 0 && (
@@ -412,7 +417,7 @@ export default function MainLayout({
                   "flex flex-col items-center space-y-1.5 w-full",
                   pathname === "/myPage"
                     ? "text-primary"
-                    : "text-gray-600 hover:text-gray-900 transition-colors"
+                    : "text-slate-500 hover:text-slate-900 transition-colors"
                 )}
               >
                 <svg

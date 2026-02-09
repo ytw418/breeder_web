@@ -10,7 +10,7 @@ export default function FloatingButton({ children, href }: FloatingButton) {
   return (
     <Link
       href={href}
-      className="fixed hover:bg-orange-500 border-0 aspect-square border-transparent transition-colors cursor-pointer  bottom-24 right-5 shadow-xl bg-orange-400 rounded-full w-14 flex items-center justify-center text-white"
+      className="app-fab fixed z-50 bottom-24 right-5 flex aspect-square w-14 items-center justify-center rounded-2xl border border-slate-700/20 bg-slate-900 text-white shadow-[0_12px_28px_rgba(15,23,42,0.28)] transition-all hover:bg-slate-800"
     >
       {children}
     </Link>

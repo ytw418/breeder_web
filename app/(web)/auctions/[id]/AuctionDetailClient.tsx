@@ -11,6 +11,9 @@ import useUser from "hooks/useUser";
 import { useParams, useRouter } from "next/navigation";
 import { toast } from "react-toastify";
 import { AuctionDetailResponse } from "pages/api/auctions/[id]";
+import { BidResponse } from "pages/api/auctions/[id]/bid";
+import { getBidIncrement } from "@libs/auctionRules";
+import { getAuctionErrorMessage } from "@libs/client/auctionErrorMessage";
 
 /** 카운트다운 문자열 */
 const getCountdown = (endAt: string | Date) => {
@@ -38,6 +41,8 @@ const AuctionDetailClient = () => {
   const [bidAmount, setBidAmount] = useState("");
   const [countdown, setCountdown] = useState({ text: "", isEnded: false });
   const [imageIndex, setImageIndex] = useState(0);
+  const [agreedBidRule, setAgreedBidRule] = useState(false);
+  const [agreedDisputePolicy, setAgreedDisputePolicy] = useState(false);
 
   // 경매 데이터 (5초 간격 새로고침)
   const { data, mutate: boundMutate } = useSWR<AuctionDetailResponse>(
@@ -46,7 +51,7 @@ const AuctionDetailClient = () => {
   );
 
   // 입찰 API
-  const [submitBid, { loading: bidLoading }] = useMutation(
+  const [submitBid, { loading: bidLoading }] = useMutation<BidResponse>(
     params?.id ? `/api/auctions/${params.id}/bid` : ""
   );
 
@@ -61,12 +66,17 @@ const AuctionDetailClient = () => {
   }, [data?.auction?.endAt]);
 
   const auction = data?.auction;
-  const minimumBid = auction ? auction.currentPrice + auction.minBidIncrement : 0;
+  const minimumBid = auction ? auction.currentPrice + getBidIncrement(auction.currentPrice) : 0;
+  const secondQuickBid = minimumBid + (auction ? getBidIncrement(minimumBid) : 0);
 
   /** 입찰 핸들러 */
   const handleBid = () => {
     if (!user) return router.push("/auth/login");
     if (bidLoading) return;
+    if (!agreedBidRule || !agreedDisputePolicy) {
+      toast.error("입찰 전 주의사항 및 분쟁 정책 동의가 필요합니다.");
+      return;
+    }
 
     const amount = Number(bidAmount);
     if (isNaN(amount) || amount < minimumBid) {
@@ -79,10 +89,13 @@ const AuctionDetailClient = () => {
       onCompleted(result) {
         if (result.success) {
           toast.success("입찰이 완료되었습니다!");
+          if (result.extended) {
+            toast.info("마감 임박 입찰로 경매 시간이 3분 연장되었습니다.");
+          }
           setBidAmount("");
           boundMutate();
         } else {
-          toast.error(result.error || "입찰에 실패했습니다.");
+          toast.error(getAuctionErrorMessage(result.errorCode, result.error || "입찰에 실패했습니다."));
         }
       },
       onError() {
@@ -91,9 +104,9 @@ const AuctionDetailClient = () => {
     });
   };
 
-  /** 빠른 입찰 (최소 입찰가로 자동 설정) */
-  const handleQuickBid = () => {
-    setBidAmount(String(minimumBid));
+  /** 빠른 입찰 */
+  const handleQuickBid = (amount: number) => {
+    setBidAmount(String(amount));
   };
 
   if (!auction) {
@@ -206,6 +219,22 @@ const AuctionDetailClient = () => {
             <p className="text-sm text-gray-600 whitespace-pre-line leading-relaxed">
               {auction.description}
             </p>
+            {data?.isOwner ? (
+              <div className="pt-1">
+                {data?.canEdit ? (
+                  <Link
+                    href={`/auctions/${auction.id}/edit`}
+                    className="inline-flex items-center rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs font-semibold text-slate-700 hover:bg-slate-50"
+                  >
+                    경매 수정하기
+                  </Link>
+                ) : (
+                  <p className="text-xs text-slate-500">
+                    경매 등록 후 1시간 이내, 입찰이 없을 때만 수정할 수 있습니다.
+                  </p>
+                )}
+              </div>
+            ) : null}
           </div>
 
           {/* 입찰 현황 */}
@@ -220,6 +249,38 @@ const AuctionDetailClient = () => {
                 <p className="text-2xl font-bold text-primary">
                   {auction.currentPrice.toLocaleString()}원
                 </p>
+              </div>
+            </div>
+
+            <div className="rounded-xl border border-slate-200 bg-slate-50 px-3.5 py-3">
+              <div className="flex items-center justify-between gap-3">
+                <p className="text-sm font-semibold text-slate-800">경매 규칙</p>
+                <Link
+                  href="/auctions/rules"
+                  className="text-xs font-semibold text-slate-600 underline underline-offset-2"
+                >
+                  전체 보기
+                </Link>
+              </div>
+              <ul className="mt-2 space-y-1 text-xs text-slate-600">
+                <li>• 현재가 기준 입찰 단위: {getBidIncrement(auction.currentPrice).toLocaleString()}원</li>
+                <li>• 마감 3분 이내 입찰 시 종료 시간이 3분 연장됩니다.</li>
+                <li>• 입찰은 취소할 수 없으며, 본인 경매 입찰은 불가합니다.</li>
+                <li>• 현재 최고 입찰자는 재입찰할 수 없습니다.</li>
+                <li>• 가입 후 24시간이 지나야 입찰할 수 있습니다.</li>
+              </ul>
+              <div className="mt-3 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2.5 text-xs text-amber-900">
+                <p className="font-semibold">분쟁/신고 안내</p>
+                <p className="mt-1 leading-relaxed">
+                  본 서비스는 거래 당사자 간 분쟁에 대해 법적 책임을 지지 않습니다.
+                  다만 문제가 발생하면 신고를 접수하여 운영정책에 따라 검토 및 제재를 진행합니다.
+                </p>
+                <a
+                  href="mailto:support@bredy.app?subject=[경매%20신고]%20분쟁%20접수"
+                  className="mt-1.5 inline-flex items-center font-semibold underline underline-offset-2"
+                >
+                  신고 접수: support@bredy.app
+                </a>
               </div>
             </div>
 
@@ -280,23 +341,50 @@ const AuctionDetailClient = () => {
       {auction.status === "진행중" && !data?.isOwner && (
         <div className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 z-10">
           <div className="max-w-xl mx-auto px-4 py-3">
+            <div className="mb-2.5 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2">
+              <label className="flex items-start gap-2 text-[11px] text-slate-700 leading-relaxed">
+                <input
+                  type="checkbox"
+                  checked={agreedBidRule}
+                  onChange={(event) => setAgreedBidRule(event.target.checked)}
+                  className="mt-0.5"
+                />
+                <span>입찰 취소 불가, 마감 임박 자동연장 규칙을 확인했습니다.</span>
+              </label>
+              <label className="mt-1 flex items-start gap-2 text-[11px] text-slate-700 leading-relaxed">
+                <input
+                  type="checkbox"
+                  checked={agreedDisputePolicy}
+                  onChange={(event) => setAgreedDisputePolicy(event.target.checked)}
+                  className="mt-0.5"
+                />
+                <span>분쟁 책임 제한 및 신고 접수 정책을 확인했습니다.</span>
+              </label>
+            </div>
             <div className="flex items-center gap-2">
               <button
-                onClick={handleQuickBid}
+                onClick={() => handleQuickBid(minimumBid)}
                 className="flex-shrink-0 px-3 py-2.5 bg-gray-100 rounded-lg text-xs font-medium text-gray-600 hover:bg-gray-200 transition-colors"
               >
-                최소 {minimumBid.toLocaleString()}원
+                +1틱
+              </button>
+              <button
+                onClick={() => handleQuickBid(secondQuickBid)}
+                className="flex-shrink-0 px-3 py-2.5 bg-gray-100 rounded-lg text-xs font-medium text-gray-600 hover:bg-gray-200 transition-colors"
+              >
+                +2틱
               </button>
               <input
                 type="number"
                 value={bidAmount}
                 onChange={(e) => setBidAmount(e.target.value)}
                 placeholder={`${minimumBid.toLocaleString()}원 이상`}
+                step={getBidIncrement(auction.currentPrice)}
                 className="flex-1 bg-gray-100 rounded-lg px-4 py-2.5 text-sm outline-none focus:ring-2 focus:ring-primary/20"
               />
               <button
                 onClick={handleBid}
-                disabled={bidLoading}
+                disabled={bidLoading || !agreedBidRule || !agreedDisputePolicy}
                 className="flex-shrink-0 px-5 py-2.5 bg-primary text-white rounded-lg font-medium text-sm hover:bg-primary/90 transition-colors disabled:opacity-50"
               >
                 {bidLoading ? "..." : "입찰"}

@@ -4,6 +4,11 @@ import Link from "next/link";
 
 const DASHBOARD_MENUS = [
   {
+    title: "경매 관리",
+    description: "경매 상태 제어 및 내부 룰/제약조건을 점검합니다.",
+    href: "/admin/auctions",
+  },
+  {
     title: "배너 관리",
     description: "메인 상단 배너를 생성/삭제합니다.",
     href: "/admin/banners",

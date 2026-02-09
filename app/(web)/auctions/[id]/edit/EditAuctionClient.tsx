@@ -1,30 +1,35 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useForm } from "react-hook-form";
-import { useRouter } from "next/navigation";
-import Link from "next/link";
-import Image from "@components/atoms/Image";
+import { useParams, useRouter } from "next/navigation";
+import useSWR from "swr";
 import Layout from "@components/features/MainLayout";
+import Image from "@components/atoms/Image";
 import { Button } from "@components/ui/button";
 import { Input } from "@components/ui/input";
 import { Textarea } from "@components/ui/textarea";
 import useMutation from "hooks/useMutation";
 import { cn, makeImageUrl } from "@libs/client/utils";
 import { toast } from "react-toastify";
+import { AuctionDetailResponse } from "pages/api/auctions/[id]";
 import { AUCTION_MIN_START_PRICE, getBidIncrement } from "@libs/auctionRules";
 import { getAuctionErrorMessage } from "@libs/client/auctionErrorMessage";
-import { CreateAuctionResponse } from "pages/api/auctions";
 
-interface AuctionForm {
+interface AuctionEditForm {
   title: string;
   description: string;
-  category: string;
   startPrice: number;
   endAt: string;
 }
 
-/** 종 카테고리 목록 */
+interface AuctionUpdateResponse {
+  success: boolean;
+  error?: string;
+  errorCode?: string;
+  auction?: { id: number };
+}
+
 const SPECIES_CATEGORIES = [
   "장수풍뎅이",
   "사슴벌레",
@@ -35,29 +40,63 @@ const SPECIES_CATEGORIES = [
   "기타",
 ];
 
-/** 경매 기간 프리셋 */
 const DURATION_PRESETS = [
   { label: "24시간", hours: 24 },
   { label: "48시간", hours: 48 },
   { label: "72시간", hours: 72 },
 ];
 
-const CreateAuctionClient = () => {
+const toDateTimeLocalValue = (value: string | Date) => {
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "";
+  const local = new Date(date.getTime() - date.getTimezoneOffset() * 60_000);
+  return local.toISOString().slice(0, 16);
+};
+
+const EditAuctionClient = () => {
+  const params = useParams();
   const router = useRouter();
   const [photos, setPhotos] = useState<string[]>([]);
   const [uploading, setUploading] = useState(false);
   const [selectedCategory, setSelectedCategory] = useState("");
   const [selectedDuration, setSelectedDuration] = useState<number | null>(null);
-  const [agreedAuctionNotice, setAgreedAuctionNotice] = useState(false);
-  const [agreedDisputePolicy, setAgreedDisputePolicy] = useState(false);
 
-  const { register, handleSubmit, setValue, watch, formState: { errors } } = useForm<AuctionForm>();
+  const { data } = useSWR<AuctionDetailResponse>(
+    params?.id ? `/api/auctions/${params.id}` : null
+  );
 
-  const [createAuction, { loading }] = useMutation<CreateAuctionResponse>("/api/auctions");
+  const {
+    register,
+    handleSubmit,
+    reset,
+    setValue,
+    watch,
+    formState: { errors, isSubmitting },
+  } = useForm<AuctionEditForm>();
+
+  const [updateAuction, { loading }] = useMutation<AuctionUpdateResponse>(
+    params?.id ? `/api/auctions/${params.id}` : ""
+  );
+
+  useEffect(() => {
+    if (!data?.auction) return;
+    reset({
+      title: data.auction.title,
+      description: data.auction.description,
+      startPrice: data.auction.startPrice,
+      endAt: toDateTimeLocalValue(data.auction.endAt),
+    });
+    setSelectedCategory(data.auction.category || "");
+    setPhotos(data.auction.photos || []);
+  }, [data?.auction, reset]);
+
   const watchedStartPrice = Number(watch("startPrice") || 0);
   const currentBidIncrement = getBidIncrement(watchedStartPrice);
+  const editAvailableUntilText = useMemo(() => {
+    if (!data?.editAvailableUntil) return "-";
+    return new Date(data.editAvailableUntil).toLocaleString();
+  }, [data?.editAvailableUntil]);
 
-  /** 이미지 업로드 */
   const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;
     if (!files || files.length === 0) return;
@@ -69,7 +108,6 @@ const CreateAuctionClient = () => {
     setUploading(true);
     try {
       for (const file of Array.from(files)) {
-        // Cloudflare Image upload
         const urlRes = await fetch("/api/files");
         const urlData = await urlRes.json();
 
@@ -81,7 +119,6 @@ const CreateAuctionClient = () => {
           body: form,
         });
         const uploadData = await uploadRes.json();
-
         if (uploadData.success) {
           setPhotos((prev) => [...prev, uploadData.result.id]);
         }
@@ -93,22 +130,17 @@ const CreateAuctionClient = () => {
     }
   };
 
-  /** 이미지 제거 */
   const handleRemoveImage = (index: number) => {
     setPhotos((prev) => prev.filter((_, i) => i !== index));
   };
 
-  /** 기간 프리셋 선택 */
   const handleDurationPreset = (hours: number) => {
     setSelectedDuration(hours);
     const endDate = new Date(Date.now() + hours * 60 * 60 * 1000);
-    const localDate = new Date(endDate.getTime() - endDate.getTimezoneOffset() * 60000);
-    setValue("endAt", localDate.toISOString().slice(0, 16));
+    setValue("endAt", toDateTimeLocalValue(endDate));
   };
 
-  /** 제출 */
-  const onSubmit = (data: AuctionForm) => {
-    if (loading) return;
+  const onSubmit = (form: AuctionEditForm) => {
     if (!selectedCategory) {
       toast.error("종 카테고리를 선택해주세요.");
       return;
@@ -117,25 +149,23 @@ const CreateAuctionClient = () => {
       toast.error("최소 1장의 사진을 등록해주세요.");
       return;
     }
-    if (!agreedAuctionNotice || !agreedDisputePolicy) {
-      toast.error("경매 주의사항 및 분쟁 정책 동의가 필요합니다.");
-      return;
-    }
 
-    createAuction({
+    updateAuction({
       data: {
-        ...data,
+        action: "update",
+        ...form,
         category: selectedCategory,
         photos,
-        startPrice: Number(data.startPrice),
+        startPrice: Number(form.startPrice),
       },
       onCompleted(result) {
-        if (result.success && result.auction?.id) {
-          toast.success("경매가 등록되었습니다!");
-          router.push(`/auctions/${result.auction.id}`);
-        } else {
-          toast.error(getAuctionErrorMessage(result.errorCode, result.error || "등록에 실패했습니다."));
+        if (!result.success) {
+          return toast.error(
+            getAuctionErrorMessage(result.errorCode, result.error || "수정에 실패했습니다.")
+          );
         }
+        toast.success("경매가 수정되었습니다.");
+        router.push(`/auctions/${params?.id}`);
       },
       onError() {
         toast.error("오류가 발생했습니다.");
@@ -143,17 +173,66 @@ const CreateAuctionClient = () => {
     });
   };
 
+  if (!data?.auction) {
+    return (
+      <Layout canGoBack title="경매 수정" seoTitle="경매 수정">
+        <div className="flex items-center justify-center h-[60vh]">
+          <div className="animate-spin w-8 h-8 border-2 border-primary border-t-transparent rounded-full" />
+        </div>
+      </Layout>
+    );
+  }
+
+  if (!data.isOwner) {
+    return (
+      <Layout canGoBack title="경매 수정" seoTitle="경매 수정">
+        <div className="px-4 py-10 text-center">
+          <p className="text-sm text-slate-600">본인 경매만 수정할 수 있습니다.</p>
+        </div>
+      </Layout>
+    );
+  }
+
+  if (!data.canEdit) {
+    return (
+      <Layout canGoBack title="경매 수정" seoTitle="경매 수정">
+        <div className="px-4 py-8">
+          <div className="rounded-xl border border-slate-200 bg-white p-4 space-y-2">
+            <p className="text-sm font-semibold text-slate-900">수정 가능 시간이 지났습니다</p>
+            <p className="text-sm text-slate-600">
+              경매 등록 후 1시간 이내, 입찰이 없는 경우에만 수정할 수 있습니다.
+            </p>
+            <p className="text-xs text-slate-400">수정 가능 마감: {editAvailableUntilText}</p>
+            <Button
+              type="button"
+              className="mt-2"
+              onClick={() => router.push(`/auctions/${params?.id}`)}
+            >
+              상세로 돌아가기
+            </Button>
+          </div>
+        </div>
+      </Layout>
+    );
+  }
+
   return (
-    <Layout canGoBack title="경매 등록" seoTitle="경매 등록">
+    <Layout canGoBack title="경매 수정" seoTitle="경매 수정">
       <form onSubmit={handleSubmit(onSubmit)} className="px-4 py-4 space-y-6 pb-28">
-        {/* 이미지 업로드 */}
+        <div className="rounded-xl border border-slate-200 bg-slate-50 px-3.5 py-3">
+          <p className="text-sm font-semibold text-slate-800">수정 가능 조건</p>
+          <p className="mt-1 text-xs text-slate-600">
+            등록 후 1시간 이내 + 입찰 없음 상태에서만 수정할 수 있습니다.
+          </p>
+          <p className="mt-1 text-xs text-slate-500">수정 가능 마감: {editAvailableUntilText}</p>
+        </div>
+
         <div>
           <label className="block text-sm font-semibold text-gray-900 mb-2">
             사진 등록 <span className="text-red-500">*</span>
             <span className="text-xs font-normal text-gray-400 ml-1">({photos.length}/5)</span>
           </label>
           <div className="flex gap-2 overflow-x-auto pb-2">
-            {/* 추가 버튼 */}
             {photos.length < 5 && (
               <label className="flex-shrink-0 w-20 h-20 rounded-lg border-2 border-dashed border-gray-300 flex items-center justify-center cursor-pointer hover:border-primary transition-colors">
                 <input
@@ -172,7 +251,6 @@ const CreateAuctionClient = () => {
                 )}
               </label>
             )}
-            {/* 미리보기 */}
             {photos.map((photo, i) => (
               <div key={photo} className="relative flex-shrink-0 w-20 h-20 rounded-lg overflow-hidden">
                 <Image
@@ -196,7 +274,6 @@ const CreateAuctionClient = () => {
           </div>
         </div>
 
-        {/* 종 카테고리 */}
         <div>
           <label className="block text-sm font-semibold text-gray-900 mb-2">
             종 카테고리 <span className="text-red-500">*</span>
@@ -220,7 +297,6 @@ const CreateAuctionClient = () => {
           </div>
         </div>
 
-        {/* 제목 */}
         <div>
           <label className="block text-sm font-semibold text-gray-900 mb-2">
             제목 <span className="text-red-500">*</span>
@@ -234,7 +310,6 @@ const CreateAuctionClient = () => {
           )}
         </div>
 
-        {/* 설명 */}
         <div>
           <label className="block text-sm font-semibold text-gray-900 mb-2">
             상세 설명 <span className="text-red-500">*</span>
@@ -249,7 +324,6 @@ const CreateAuctionClient = () => {
           )}
         </div>
 
-        {/* 시작가 */}
         <div>
           <label className="block text-sm font-semibold text-gray-900 mb-2">
             시작가 <span className="text-red-500">*</span>
@@ -277,60 +351,6 @@ const CreateAuctionClient = () => {
           </p>
         </div>
 
-        <div className="rounded-xl border border-slate-200 bg-slate-50 px-3.5 py-3">
-          <div className="flex items-center justify-between gap-3">
-            <p className="text-sm font-semibold text-slate-800">경매 규칙 안내</p>
-            <Link
-              href="/auctions/rules"
-              className="text-xs font-semibold text-slate-600 underline underline-offset-2"
-            >
-              전체 보기
-            </Link>
-          </div>
-          <ul className="mt-2 space-y-1 text-xs text-slate-600">
-            <li>• 입찰 단위는 현재가에 따라 자동 계산됩니다.</li>
-            <li>• 마감 3분 이내 입찰 시 경매 시간이 3분 연장됩니다.</li>
-            <li>• 본인 경매에는 입찰할 수 없습니다.</li>
-            <li>• 등록 후 1시간 이내, 입찰이 없을 때만 수정할 수 있습니다.</li>
-            <li>• 동시 진행 경매는 계정당 최대 3개까지 등록 가능합니다.</li>
-            <li>• 시작가 50만원 이상 경매는 연락처 등록 계정만 등록 가능합니다.</li>
-          </ul>
-          <div className="mt-3 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2.5 text-xs text-amber-900">
-            <p className="font-semibold">거래/분쟁 안내</p>
-            <p className="mt-1 leading-relaxed">
-              본 서비스는 경매 중개 플랫폼이며, 거래 당사자 간 분쟁(허위 매물, 미발송, 환불 등)에 대해 법적 책임을 지지 않습니다.
-              다만 문제 발생 시 신고를 접수하여 운영정책에 따라 계정/콘텐츠 조치를 진행합니다.
-            </p>
-            <a
-              href="mailto:support@bredy.app?subject=[경매%20신고]%20문제%20접수"
-              className="mt-1.5 inline-flex items-center font-semibold underline underline-offset-2"
-            >
-              신고 접수: support@bredy.app
-            </a>
-          </div>
-          <div className="mt-3 space-y-2">
-            <label className="flex items-start gap-2 text-xs text-slate-700">
-              <input
-                type="checkbox"
-                checked={agreedAuctionNotice}
-                onChange={(event) => setAgreedAuctionNotice(event.target.checked)}
-                className="mt-0.5"
-              />
-              <span>경매 규칙(입찰 단위, 연장, 수정 가능 조건)을 확인했습니다.</span>
-            </label>
-            <label className="flex items-start gap-2 text-xs text-slate-700">
-              <input
-                type="checkbox"
-                checked={agreedDisputePolicy}
-                onChange={(event) => setAgreedDisputePolicy(event.target.checked)}
-                className="mt-0.5"
-              />
-              <span>분쟁 책임 제한 및 신고 접수 정책을 확인했습니다.</span>
-            </label>
-          </div>
-        </div>
-
-        {/* 경매 기간 */}
         <div>
           <label className="block text-sm font-semibold text-gray-900 mb-2">
             경매 기간 <span className="text-red-500">*</span>
@@ -348,7 +368,7 @@ const CreateAuctionClient = () => {
                     : "bg-gray-100 text-gray-600 hover:bg-gray-200"
                 )}
               >
-                {preset.label}
+                +{preset.label}
               </button>
             ))}
           </div>
@@ -361,15 +381,14 @@ const CreateAuctionClient = () => {
           )}
         </div>
 
-        {/* 등록 버튼 */}
         <div className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-100 p-4 z-10">
           <div className="max-w-xl mx-auto">
             <Button
               type="submit"
-              disabled={loading || uploading}
+              disabled={loading || uploading || isSubmitting}
               className="w-full h-12 text-base font-semibold rounded-xl"
             >
-              {loading ? "등록 중..." : "경매 등록하기"}
+              {loading ? "수정 중..." : "경매 수정 완료"}
             </Button>
           </div>
         </div>
@@ -378,4 +397,4 @@ const CreateAuctionClient = () => {
   );
 };
 
-export default CreateAuctionClient;
+export default EditAuctionClient;
