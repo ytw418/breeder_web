@@ -6,7 +6,8 @@ import useUser from "hooks/useUser";
 import useLogout from "hooks/useLogout";
 import Link from "next/link";
 import useSWR from "swr";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
+import { useTheme } from "next-themes";
 
 interface PushSubscriptionStatusResponse {
   success: boolean;
@@ -42,9 +43,15 @@ interface SettingSection {
   items: SettingItem[];
 }
 
+const THEME_OPTIONS = [
+  { value: "light", label: "라이트" },
+  { value: "dark", label: "다크" },
+  { value: "system", label: "시스템" },
+] as const;
+
 const ChevronRight = () => (
   <svg
-    className="w-4 h-4 text-gray-400"
+    className="h-4 w-4 text-gray-400 dark:text-slate-500"
     fill="none"
     stroke="currentColor"
     viewBox="0 0 24 24"
@@ -61,6 +68,8 @@ const ChevronRight = () => (
 const SettingsClient = () => {
   const { user } = useUser();
   const handleLogout = useLogout();
+  const { theme, resolvedTheme, setTheme } = useTheme();
+  const [themeMounted, setThemeMounted] = useState(false);
   const [pushLoading, setPushLoading] = useState(false);
   const [pushErrorMessage, setPushErrorMessage] = useState("");
   const [showPermissionGuide, setShowPermissionGuide] = useState(false);
@@ -68,6 +77,18 @@ const SettingsClient = () => {
     data: pushStatus,
     mutate: mutatePushStatus,
   } = useSWR<PushSubscriptionStatusResponse>("/api/push/subscription");
+
+  useEffect(() => {
+    setThemeMounted(true);
+  }, []);
+
+  const currentThemeLabel = useMemo(() => {
+    if (!themeMounted || !theme) return "확인 중";
+    if (theme === "system") {
+      return `시스템 (${resolvedTheme === "dark" ? "다크" : "라이트"})`;
+    }
+    return theme === "dark" ? "다크" : "라이트";
+  }, [themeMounted, theme, resolvedTheme]);
 
   const pushStatusLabel = useMemo(() => {
     if (!pushStatus) return "설정 확인 중";
@@ -347,11 +368,51 @@ const SettingsClient = () => {
     <Layout canGoBack title="설정" seoTitle="설정">
       <div className="pb-10">
         <div className="px-4 pt-4">
-          <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
+          <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-700 dark:bg-slate-900">
+            <div>
+              <p className="text-sm font-semibold text-slate-900 dark:text-slate-100">
+                화면 테마
+              </p>
+              <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
+                라이트, 다크, 시스템 모드를 선택할 수 있습니다.
+              </p>
+            </div>
+            <div className="mt-3 grid grid-cols-3 gap-2 rounded-xl bg-slate-100 p-1 dark:bg-slate-800/80">
+              {THEME_OPTIONS.map((option) => {
+                const isActive = themeMounted && theme === option.value;
+
+                return (
+                  <button
+                    key={option.value}
+                    type="button"
+                    aria-pressed={isActive}
+                    onClick={() => setTheme(option.value)}
+                    className={cn(
+                      "h-9 rounded-lg text-xs font-semibold transition-colors",
+                      isActive
+                        ? "bg-white text-slate-900 shadow-sm dark:bg-slate-50 dark:text-slate-900"
+                        : "text-slate-600 hover:text-slate-900 dark:text-slate-300 dark:hover:text-slate-100"
+                    )}
+                  >
+                    {option.label}
+                  </button>
+                );
+              })}
+            </div>
+            <p className="mt-2 text-xs text-slate-500 dark:text-slate-400">
+              현재 모드: {currentThemeLabel}
+            </p>
+          </div>
+        </div>
+
+        <div className="px-4 pt-3">
+          <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-700 dark:bg-slate-900">
             <div className="flex items-start justify-between gap-3">
               <div>
-                <p className="text-sm font-semibold text-slate-900">푸시 알림</p>
-                <p className="mt-1 text-xs text-slate-500">
+                <p className="text-sm font-semibold text-slate-900 dark:text-slate-100">
+                  푸시 알림
+                </p>
+                <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
                   채팅과 주요 이벤트를 브라우저 알림으로 받을 수 있습니다.
                 </p>
               </div>
@@ -363,7 +424,7 @@ const SettingsClient = () => {
                   "h-9 rounded-full px-3 text-xs font-semibold transition-colors",
                   pushStatus?.subscribed
                     ? "bg-emerald-600 text-white hover:bg-emerald-700"
-                    : "bg-slate-900 text-white hover:bg-slate-800",
+                    : "bg-slate-900 text-white hover:bg-slate-800 dark:bg-slate-100 dark:text-slate-900 dark:hover:bg-slate-200",
                   pushLoading && "cursor-not-allowed opacity-60"
                 )}
               >
@@ -375,11 +436,11 @@ const SettingsClient = () => {
               </button>
             </div>
             <div className="mt-2 flex items-center gap-2 text-xs">
-              <span className="rounded-full bg-slate-100 px-2 py-1 text-slate-600">
+              <span className="rounded-full bg-slate-100 px-2 py-1 text-slate-600 dark:bg-slate-800 dark:text-slate-300">
                 상태: {pushStatusLabel}
               </span>
               {!pushStatus?.configured && (
-                <span className="text-amber-600">
+                <span className="text-amber-600 dark:text-amber-400">
                   VAPID 키 환경변수가 필요합니다.
                 </span>
               )}
@@ -388,11 +449,11 @@ const SettingsClient = () => {
               <p className="mt-2 text-xs text-rose-500">{pushErrorMessage}</p>
             )}
             {showPermissionGuide && (
-              <div className="mt-3 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2.5">
-                <p className="text-xs font-semibold text-amber-900">
+              <div className="mt-3 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2.5 dark:border-amber-700/40 dark:bg-amber-950/30">
+                <p className="text-xs font-semibold text-amber-900 dark:text-amber-200">
                   {permissionGuide.title}
                 </p>
-                <ol className="mt-1.5 list-decimal space-y-1 pl-4 text-[11px] text-amber-800">
+                <ol className="mt-1.5 list-decimal space-y-1 pl-4 text-[11px] text-amber-800 dark:text-amber-300">
                   {permissionGuide.steps.map((step) => (
                     <li key={step}>{step}</li>
                   ))}
@@ -406,7 +467,7 @@ const SettingsClient = () => {
           <div key={sectionIdx}>
             {section.title && (
               <div className="px-4 pt-6 pb-2">
-                <h3 className="text-xs font-semibold text-gray-400 uppercase tracking-wider">
+                <h3 className="text-xs font-semibold uppercase tracking-wider text-gray-400 dark:text-slate-500">
                   {section.title}
                 </h3>
               </div>
@@ -416,20 +477,20 @@ const SettingsClient = () => {
                 const content = (
                   <div
                     className={cn(
-                      "flex items-center gap-3 px-4 py-3.5 transition-colors hover:bg-gray-50",
-                      item.danger && "hover:bg-red-50"
+                      "flex items-center gap-3 px-4 py-3.5 transition-colors hover:bg-gray-50 dark:hover:bg-slate-800/60",
+                      item.danger && "hover:bg-red-50 dark:hover:bg-rose-950/20"
                     )}
                   >
                     <div
                       className={cn(
-                        "w-9 h-9 rounded-full flex items-center justify-center flex-shrink-0",
+                        "h-9 w-9 flex-shrink-0 rounded-full flex items-center justify-center",
                         item.danger
-                          ? "bg-red-50 text-red-500"
-                          : "bg-gray-100 text-gray-500"
+                          ? "bg-red-50 text-red-500 dark:bg-rose-950/35 dark:text-rose-300"
+                          : "bg-gray-100 text-gray-500 dark:bg-slate-800 dark:text-slate-300"
                       )}
                     >
                       <svg
-                        className="w-5 h-5"
+                        className="h-5 w-5"
                         fill="none"
                         stroke="currentColor"
                         viewBox="0 0 24 24"
@@ -437,17 +498,17 @@ const SettingsClient = () => {
                         {item.icon}
                       </svg>
                     </div>
-                    <div className="flex-1 min-w-0">
+                    <div className="min-w-0 flex-1">
                       <p
                         className={cn(
                           "text-sm font-medium",
-                          item.danger ? "text-red-500" : "text-gray-900"
+                          item.danger ? "text-red-500 dark:text-rose-300" : "text-gray-900 dark:text-slate-100"
                         )}
                       >
                         {item.label}
                       </p>
                       {item.description && (
-                        <p className="text-xs text-gray-400 mt-0.5">
+                        <p className="mt-0.5 text-xs text-gray-400 dark:text-slate-500">
                           {item.description}
                         </p>
                       )}
@@ -482,7 +543,7 @@ const SettingsClient = () => {
               })}
             </div>
             {sectionIdx < sections.length - 1 && (
-              <div className="h-2 bg-gray-50 mt-1" />
+              <div className="mt-1 h-2 bg-gray-50 dark:bg-slate-900/70" />
             )}
           </div>
         ))}

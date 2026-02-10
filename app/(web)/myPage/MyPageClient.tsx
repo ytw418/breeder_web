@@ -94,7 +94,7 @@ const GuinnessSubmissionList = ({
             </span>
           </div>
           {submission.reviewMemo && (
-            <p className="app-body-sm mt-2 rounded-lg bg-slate-50 px-2.5 py-2 text-slate-600">
+            <p className="app-body-sm mt-2 rounded-lg bg-slate-50 dark:bg-slate-800/70 px-2.5 py-2 text-slate-600">
               심사 메모: {submission.reviewMemo}
             </p>
           )}
@@ -168,10 +168,10 @@ const MyPageClient = () => {
                 alt={user?.name || "프로필"}
                 width={80}
                 height={80}
-                className="w-20 h-20 rounded-full bg-gray-200 object-cover"
+                className="w-20 h-20 rounded-full bg-gray-200 dark:bg-slate-700 object-cover"
               />
             ) : (
-              <div className="w-20 h-20 rounded-full bg-gray-200 flex items-center justify-center">
+              <div className="w-20 h-20 rounded-full bg-gray-200 dark:bg-slate-700 flex items-center justify-center">
                 <svg
                   className="w-10 h-10 text-gray-400"
                   fill="none"
@@ -218,7 +218,7 @@ const MyPageClient = () => {
             {user?.name || ""}
           </h2>
           {user?.email && (
-            <p className="text-sm text-gray-500 mt-0.5">{user.email}</p>
+            <p className="text-sm text-gray-500 dark:text-slate-400 mt-0.5">{user.email}</p>
           )}
         </div>
 

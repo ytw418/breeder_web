@@ -144,7 +144,7 @@ const AuctionDetailClient = () => {
                   onClick={() => setImageIndex(i)}
                   className={cn(
                     "w-2 h-2 rounded-full transition-all",
-                    imageIndex === i ? "bg-white" : "bg-white/50"
+                    imageIndex === i ? "bg-white dark:bg-white" : "bg-white/50 dark:bg-white/50"
                   )}
                 />
               ))}
@@ -216,7 +216,7 @@ const AuctionDetailClient = () => {
               </span>
             </div>
             <h1 className="text-lg font-bold text-gray-900">{auction.title}</h1>
-            <p className="text-sm text-gray-600 whitespace-pre-line leading-relaxed">
+            <p className="text-sm text-gray-600 dark:text-slate-300 whitespace-pre-line leading-relaxed">
               {auction.description}
             </p>
             {data?.isOwner ? (
@@ -224,7 +224,7 @@ const AuctionDetailClient = () => {
                 {data?.canEdit ? (
                   <Link
                     href={`/auctions/${auction.id}/edit`}
-                    className="inline-flex items-center rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs font-semibold text-slate-700 hover:bg-slate-50"
+                    className="inline-flex items-center rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 px-3 py-1.5 text-xs font-semibold text-slate-700 dark:text-slate-300 hover:bg-slate-50"
                   >
                     경매 수정하기
                   </Link>
@@ -252,12 +252,12 @@ const AuctionDetailClient = () => {
               </div>
             </div>
 
-            <div className="rounded-xl border border-slate-200 bg-slate-50 px-3.5 py-3">
+            <div className="rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/70 px-3.5 py-3">
               <div className="flex items-center justify-between gap-3">
                 <p className="text-sm font-semibold text-slate-800">경매 규칙</p>
                 <Link
                   href="/auctions/rules"
-                  className="text-xs font-semibold text-slate-600 underline underline-offset-2"
+                  className="text-xs font-semibold text-slate-600 dark:text-slate-300 underline underline-offset-2"
                 >
                   전체 보기
                 </Link>
@@ -286,7 +286,7 @@ const AuctionDetailClient = () => {
 
             {/* 입찰 내역 */}
             <div>
-              <h3 className="text-sm font-semibold text-gray-900 mb-2">
+              <h3 className="text-sm font-semibold text-gray-900 dark:text-slate-100 mb-2">
                 입찰 내역 ({auction._count.bids}건)
               </h3>
               {auction.bids.length > 0 ? (
@@ -328,7 +328,7 @@ const AuctionDetailClient = () => {
                   ))}
                 </div>
               ) : (
-                <p className="text-sm text-gray-400 text-center py-4">
+                <p className="text-sm text-gray-400 dark:text-slate-500 text-center py-4">
                   아직 입찰 내역이 없습니다
                 </p>
               )}
@@ -339,10 +339,10 @@ const AuctionDetailClient = () => {
 
       {/* 하단 입찰 영역 (진행중일 때만, 본인 경매 아닐 때) */}
       {auction.status === "진행중" && !data?.isOwner && (
-        <div className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 z-10">
+        <div className="fixed bottom-0 left-0 right-0 bg-white dark:bg-slate-900 border-t border-gray-200 dark:border-slate-700 z-10">
           <div className="max-w-xl mx-auto px-4 py-3">
-            <div className="mb-2.5 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2">
-              <label className="flex items-start gap-2 text-[11px] text-slate-700 leading-relaxed">
+            <div className="mb-2.5 rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/70 px-3 py-2">
+              <label className="flex items-start gap-2 text-[11px] text-slate-700 dark:text-slate-300 leading-relaxed">
                 <input
                   type="checkbox"
                   checked={agreedBidRule}
@@ -351,7 +351,7 @@ const AuctionDetailClient = () => {
                 />
                 <span>입찰 취소 불가, 마감 임박 자동연장 규칙을 확인했습니다.</span>
               </label>
-              <label className="mt-1 flex items-start gap-2 text-[11px] text-slate-700 leading-relaxed">
+              <label className="mt-1 flex items-start gap-2 text-[11px] text-slate-700 dark:text-slate-300 leading-relaxed">
                 <input
                   type="checkbox"
                   checked={agreedDisputePolicy}
@@ -364,13 +364,13 @@ const AuctionDetailClient = () => {
             <div className="flex items-center gap-2">
               <button
                 onClick={() => handleQuickBid(minimumBid)}
-                className="flex-shrink-0 px-3 py-2.5 bg-gray-100 rounded-lg text-xs font-medium text-gray-600 hover:bg-gray-200 transition-colors"
+                className="flex-shrink-0 px-3 py-2.5 bg-gray-100 dark:bg-slate-800 rounded-lg text-xs font-medium text-gray-600 dark:text-slate-300 hover:bg-gray-200 dark:hover:bg-slate-700 transition-colors"
               >
                 +1틱
               </button>
               <button
                 onClick={() => handleQuickBid(secondQuickBid)}
-                className="flex-shrink-0 px-3 py-2.5 bg-gray-100 rounded-lg text-xs font-medium text-gray-600 hover:bg-gray-200 transition-colors"
+                className="flex-shrink-0 px-3 py-2.5 bg-gray-100 dark:bg-slate-800 rounded-lg text-xs font-medium text-gray-600 dark:text-slate-300 hover:bg-gray-200 dark:hover:bg-slate-700 transition-colors"
               >
                 +2틱
               </button>
@@ -380,7 +380,7 @@ const AuctionDetailClient = () => {
                 onChange={(e) => setBidAmount(e.target.value)}
                 placeholder={`${minimumBid.toLocaleString()}원 이상`}
                 step={getBidIncrement(auction.currentPrice)}
-                className="flex-1 bg-gray-100 rounded-lg px-4 py-2.5 text-sm outline-none focus:ring-2 focus:ring-primary/20"
+                className="flex-1 bg-gray-100 dark:bg-slate-800 rounded-lg px-4 py-2.5 text-sm outline-none focus:ring-2 focus:ring-primary/20"
               />
               <button
                 onClick={handleBid}

@@ -118,20 +118,20 @@ export default function MainLayout({
   };
 
   return (
-    <div className="relative min-h-screen bg-gradient-to-b from-slate-50 via-white to-slate-50/70">
+    <div className="relative min-h-screen bg-gradient-to-b from-slate-50 via-white to-slate-50/70 dark:from-slate-950 dark:via-slate-950 dark:to-slate-900/80">
       <Head>
         <title>브리디 | {seoTitle}</title>
       </Head>
-      <div className="sticky top-0 z-30 h-14 w-full border-b border-slate-200/80 bg-white/90 text-base font-medium text-slate-800 backdrop-blur-xl shadow-[0_1px_0_rgba(15,23,42,0.04)] flex items-center justify-center">
+      <div className="sticky top-0 z-30 flex h-14 w-full items-center justify-center border-b border-slate-200/80 bg-white/90 text-base font-medium text-slate-800 shadow-[0_1px_0_rgba(15,23,42,0.04)] backdrop-blur-xl dark:border-slate-800/80 dark:bg-slate-950/90 dark:text-slate-100 dark:shadow-[0_1px_0_rgba(2,6,23,0.45)]">
         {canGoBack ? (
           <>
             <button
               onClick={onClick}
-              className="absolute left-4 rounded-full p-2 transition-colors hover:bg-slate-100"
+              className="absolute left-4 rounded-full p-2 transition-colors hover:bg-slate-100 dark:hover:bg-slate-800"
               aria-label="뒤로가기"
             >
               <svg
-                className="w-6 h-6 text-slate-600"
+                className="h-6 w-6 text-slate-600 dark:text-slate-300"
                 fill="none"
                 stroke="currentColor"
                 viewBox="0 0 24 24"
@@ -148,11 +148,11 @@ export default function MainLayout({
             {showHome ? (
               <Link
                 href="/"
-                className="absolute left-14 rounded-full p-2 transition-colors hover:bg-slate-100"
+                className="absolute left-14 rounded-full p-2 transition-colors hover:bg-slate-100 dark:hover:bg-slate-800"
                 aria-label="홈으로 가기"
               >
                 <svg
-                  className="w-6 h-6 text-slate-600"
+                  className="h-6 w-6 text-slate-600 dark:text-slate-300"
                   fill="none"
                   stroke="currentColor"
                   viewBox="0 0 24 24"
@@ -170,11 +170,11 @@ export default function MainLayout({
             {/* 햄버거 메뉴 버튼 */}
             <button
               onClick={() => setMenuOpen(true)}
-              className="absolute right-4 rounded-full p-2 transition-colors hover:bg-slate-100"
+              className="absolute right-4 rounded-full p-2 transition-colors hover:bg-slate-100 dark:hover:bg-slate-800"
               aria-label="메뉴"
             >
               <svg
-                className="w-6 h-6 text-slate-600"
+                className="h-6 w-6 text-slate-600 dark:text-slate-300"
                 fill="none"
                 stroke="currentColor"
                 viewBox="0 0 24 24"
@@ -198,7 +198,7 @@ export default function MainLayout({
                 alt="로고"
                 width={32}
                 height={32}
-                className="rounded-lg ring-1 ring-slate-200"
+                className="rounded-lg ring-1 ring-slate-200 dark:ring-slate-700"
               />
             </Link>
             <div className="absolute right-4 flex items-center gap-1">
@@ -206,11 +206,11 @@ export default function MainLayout({
               {showSearch && (
                 <Link
                   href="/search"
-                  className="rounded-full p-2 transition-colors hover:bg-slate-100"
+                  className="rounded-full p-2 transition-colors hover:bg-slate-100 dark:hover:bg-slate-800"
                   aria-label="검색"
                 >
                   <svg
-                    className="w-6 h-6 text-slate-600"
+                    className="h-6 w-6 text-slate-600 dark:text-slate-300"
                     fill="none"
                     stroke="currentColor"
                     viewBox="0 0 24 24"
@@ -228,11 +228,11 @@ export default function MainLayout({
               {/* 햄버거 메뉴 버튼 */}
               <button
                 onClick={() => setMenuOpen(true)}
-                className="rounded-full p-2 transition-colors hover:bg-slate-100"
+                className="rounded-full p-2 transition-colors hover:bg-slate-100 dark:hover:bg-slate-800"
                 aria-label="메뉴"
               >
                 <svg
-                  className="w-6 h-6 text-slate-600"
+                  className="h-6 w-6 text-slate-600 dark:text-slate-300"
                   fill="none"
                   stroke="currentColor"
                   viewBox="0 0 24 24"
@@ -272,19 +272,19 @@ export default function MainLayout({
       {/* 사이드 메뉴 패널 */}
       <div
         className={cn(
-          "fixed top-0 right-0 z-50 h-full w-72 border-l border-slate-200 bg-white shadow-2xl transform transition-transform duration-300 ease-in-out",
+          "fixed top-0 right-0 z-50 h-full w-72 transform border-l border-slate-200 bg-white shadow-2xl transition-transform duration-300 ease-in-out dark:border-slate-800 dark:bg-slate-950",
           menuOpen ? "translate-x-0" : "translate-x-full"
         )}
       >
         {/* 메뉴 헤더 */}
-        <div className="flex h-14 items-center justify-between border-b border-slate-100 px-5">
+        <div className="flex h-14 items-center justify-between border-b border-slate-100 px-5 dark:border-slate-800">
           <span className="app-title-md">메뉴</span>
           <button
             onClick={() => setMenuOpen(false)}
-            className="rounded-full p-2 transition-colors hover:bg-slate-100"
+            className="rounded-full p-2 transition-colors hover:bg-slate-100 dark:hover:bg-slate-800"
           >
             <svg
-              className="w-5 h-5 text-slate-500"
+              className="h-5 w-5 text-slate-500 dark:text-slate-400"
               fill="none"
               stroke="currentColor"
               viewBox="0 0 24 24"
@@ -310,7 +310,7 @@ export default function MainLayout({
                 "flex items-center gap-3 px-5 py-3.5 text-sm font-medium transition-colors",
                 pathname === item.href
                   ? "text-primary bg-primary/5"
-                  : "text-slate-700 hover:bg-slate-50"
+                  : "text-slate-700 hover:bg-slate-50 dark:text-slate-300 dark:hover:bg-slate-800/70"
               )}
             >
               <svg
@@ -337,7 +337,7 @@ export default function MainLayout({
         {children}
       </div>
       {hasTabBar ? (
-        <nav className="fixed bottom-0 left-0 right-0 border-t border-slate-200/80 bg-white/92 backdrop-blur-xl">
+        <nav className="fixed bottom-0 left-0 right-0 border-t border-slate-200/80 bg-white/92 backdrop-blur-xl dark:border-slate-800/80 dark:bg-slate-950/92">
           <div className="max-w-xl mx-auto px-4 pb-safe">
             <div className="flex justify-between items-center py-3">
               <Link
@@ -346,7 +346,7 @@ export default function MainLayout({
                   "flex flex-col items-center space-y-1.5 w-full",
                   pathname === "/"
                     ? "text-primary"
-                    : "text-slate-500 hover:text-slate-900 transition-colors"
+                    : "text-slate-500 transition-colors hover:text-slate-900 dark:text-slate-400 dark:hover:text-slate-100"
                 )}
               >
                 <svg
@@ -371,7 +371,7 @@ export default function MainLayout({
                   "flex flex-col items-center space-y-1.5 w-full",
                   pathname === "/posts"
                     ? "text-primary"
-                    : "text-slate-500 hover:text-slate-900 transition-colors"
+                    : "text-slate-500 transition-colors hover:text-slate-900 dark:text-slate-400 dark:hover:text-slate-100"
                 )}
               >
                 <svg
@@ -396,7 +396,7 @@ export default function MainLayout({
                   "flex flex-col items-center space-y-1.5 w-full",
                   pathname?.startsWith("/auctions")
                     ? "text-primary"
-                    : "text-slate-500 hover:text-slate-900 transition-colors"
+                    : "text-slate-500 transition-colors hover:text-slate-900 dark:text-slate-400 dark:hover:text-slate-100"
                 )}
               >
                 <svg
@@ -421,7 +421,7 @@ export default function MainLayout({
                   "flex flex-col items-center space-y-1.5 w-full relative",
                   pathname === "/chat"
                     ? "text-primary"
-                    : "text-slate-500 hover:text-slate-900 transition-colors"
+                    : "text-slate-500 transition-colors hover:text-slate-900 dark:text-slate-400 dark:hover:text-slate-100"
                 )}
               >
                 {unreadData?.success && unreadData.unreadCount > 0 && (
@@ -451,7 +451,7 @@ export default function MainLayout({
                   "flex flex-col items-center space-y-1.5 w-full",
                   pathname === "/myPage"
                     ? "text-primary"
-                    : "text-slate-500 hover:text-slate-900 transition-colors"
+                    : "text-slate-500 transition-colors hover:text-slate-900 dark:text-slate-400 dark:hover:text-slate-100"
                 )}
               >
                 <svg

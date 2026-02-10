@@ -115,7 +115,7 @@ const SearchClient = () => {
             value={keyword}
             onChange={(e) => setKeyword(e.target.value)}
             placeholder="상품, 게시글, 유저를 검색해보세요"
-            className="w-full px-4 py-3 pl-10 rounded-xl bg-gray-100 focus:outline-none focus:ring-2 focus:ring-primary focus:bg-white transition-all"
+            className="w-full px-4 py-3 pl-10 rounded-xl bg-gray-100 dark:bg-slate-800 focus:outline-none focus:ring-2 focus:ring-primary focus:bg-white dark:focus:bg-slate-900 transition-all"
             autoFocus
           />
           <svg
@@ -170,7 +170,7 @@ const SearchClient = () => {
                 "px-4 py-1.5 rounded-full text-sm font-medium transition-colors",
                 activeTab === tab.id
                   ? "bg-gray-900 text-white"
-                  : "bg-gray-100 text-gray-600 hover:bg-gray-200"
+                  : "bg-gray-100 text-gray-600 dark:text-slate-300 hover:bg-gray-200 dark:hover:bg-slate-700"
               )}
             >
               {tab.name}
@@ -199,7 +199,7 @@ const SearchClient = () => {
         <div className="pb-20">
           {/* 인기 검색어 */}
           <div className="px-4 pt-4 pb-2">
-            <h3 className="text-sm font-semibold text-gray-900 mb-3">
+            <h3 className="text-sm font-semibold text-gray-900 dark:text-slate-100 mb-3">
               인기 검색어
             </h3>
             <div className="flex flex-wrap gap-2">
@@ -207,7 +207,7 @@ const SearchClient = () => {
                 <button
                   key={kw}
                   onClick={() => handleKeywordClick(kw)}
-                  className="px-3 py-1.5 rounded-full text-sm font-medium bg-gray-100 text-gray-700 hover:bg-gray-200 transition-colors"
+                  className="px-3 py-1.5 rounded-full text-sm font-medium bg-gray-100 dark:bg-slate-800 text-gray-700 dark:text-slate-300 hover:bg-gray-200 dark:hover:bg-slate-700 transition-colors"
                 >
                   {kw}
                 </button>
@@ -217,7 +217,7 @@ const SearchClient = () => {
 
           {/* 카테고리 바로가기 */}
           <div className="px-4 pt-5 pb-2">
-            <h3 className="text-sm font-semibold text-gray-900 mb-3">
+            <h3 className="text-sm font-semibold text-gray-900 dark:text-slate-100 mb-3">
               카테고리
             </h3>
             <div className="flex overflow-x-auto scrollbar-hide gap-3 pb-1">
@@ -242,7 +242,7 @@ const SearchClient = () => {
                       />
                     </svg>
                   </div>
-                  <span className="text-xs text-gray-600 font-medium whitespace-nowrap">
+                  <span className="text-xs text-gray-600 dark:text-slate-300 font-medium whitespace-nowrap">
                     {cat.name}
                   </span>
                 </button>
@@ -260,7 +260,7 @@ const SearchClient = () => {
                   </h3>
                   <Link
                     href="/"
-                    className="text-xs text-gray-400 hover:text-gray-600"
+                    className="text-xs text-gray-400 dark:text-slate-500 hover:text-gray-600"
                   >
                     전체보기
                   </Link>
@@ -293,10 +293,10 @@ const SearchClient = () => {
                         )}
                       </div>
                       <div className="mt-2">
-                        <p className="text-sm text-gray-900 font-medium line-clamp-1">
+                        <p className="text-sm text-gray-900 dark:text-slate-100 font-medium line-clamp-1">
                           {product.name}
                         </p>
-                        <p className="text-sm font-bold text-gray-900 mt-0.5">
+                        <p className="text-sm font-bold text-gray-900 dark:text-slate-100 mt-0.5">
                           {product.price
                             ? `${product.price.toLocaleString()}원`
                             : "가격 미정"}
@@ -322,23 +322,23 @@ const SearchClient = () => {
                 </h3>
                 <Link
                   href="/posts"
-                  className="text-xs text-gray-400 hover:text-gray-600"
+                  className="text-xs text-gray-400 dark:text-slate-500 hover:text-gray-600"
                 >
                   전체보기
                 </Link>
               </div>
-              <div className="divide-y divide-gray-50">
+              <div className="divide-y divide-gray-50 dark:divide-slate-800">
                 {recommendPosts.posts.slice(0, 5).map((post) => (
                   <Link
                     key={post.id}
                     href={`/posts/${post.id}`}
-                    className="flex items-center gap-4 px-4 py-3 hover:bg-gray-50 transition-colors"
+                    className="flex items-center gap-4 px-4 py-3 hover:bg-gray-50 dark:hover:bg-slate-800/70 transition-colors"
                   >
                     <div className="flex-1 min-w-0">
-                      <p className="text-sm font-medium text-gray-900 truncate">
+                      <p className="text-sm font-medium text-gray-900 dark:text-slate-100 truncate">
                         {post.title}
                       </p>
-                      <p className="text-xs text-gray-500 truncate mt-1">
+                      <p className="text-xs text-gray-500 dark:text-slate-400 truncate mt-1">
                         {post.description}
                       </p>
                       <div className="flex items-center gap-3 mt-1.5 text-xs text-gray-400">
@@ -377,7 +377,7 @@ const SearchClient = () => {
                         alt={post.title}
                         width={56}
                         height={56}
-                        className="w-14 h-14 rounded-lg object-cover bg-gray-200 flex-shrink-0"
+                        className="w-14 h-14 rounded-lg object-cover bg-gray-200 dark:bg-slate-700 flex-shrink-0"
                       />
                     )}
                   </Link>
@@ -393,8 +393,8 @@ const SearchClient = () => {
                 <div key={i} className="animate-pulse flex gap-4">
                   <div className="w-16 h-16 rounded-lg bg-gray-200" />
                   <div className="flex-1 space-y-2 py-1">
-                    <div className="h-4 bg-gray-200 rounded w-3/4" />
-                    <div className="h-3 bg-gray-200 rounded w-1/2" />
+                    <div className="h-4 bg-gray-200 dark:bg-slate-700 rounded w-3/4" />
+                    <div className="h-3 bg-gray-200 dark:bg-slate-700 rounded w-1/2" />
                   </div>
                 </div>
               ))}
@@ -421,12 +421,12 @@ const SearchClient = () => {
                     </button>
                   </div>
                 )}
-                <div className="divide-y divide-gray-50">
+                <div className="divide-y divide-gray-50 dark:divide-slate-800">
                   {data.products.map((product) => (
                     <Link
                       key={product.id}
                       href={`/products/${product.id}`}
-                      className="flex items-center gap-4 px-4 py-3 hover:bg-gray-50 transition-colors"
+                      className="flex items-center gap-4 px-4 py-3 hover:bg-gray-50 dark:hover:bg-slate-800/70 transition-colors"
                     >
                       {product.photos[0] ? (
                         <Image
@@ -440,7 +440,7 @@ const SearchClient = () => {
                         <div className="w-16 h-16 rounded-lg bg-gray-200" />
                       )}
                       <div className="flex-1 min-w-0">
-                        <p className="text-sm font-medium text-gray-900 truncate">
+                        <p className="text-sm font-medium text-gray-900 dark:text-slate-100 truncate">
                           {product.name}
                         </p>
                         <div className="flex items-center gap-2 mt-1">
@@ -480,18 +480,18 @@ const SearchClient = () => {
                     </button>
                   </div>
                 )}
-                <div className="divide-y divide-gray-50">
+                <div className="divide-y divide-gray-50 dark:divide-slate-800">
                   {data.posts.map((post) => (
                     <Link
                       key={post.id}
                       href={`/posts/${post.id}`}
-                      className="flex items-center gap-4 px-4 py-3 hover:bg-gray-50 transition-colors"
+                      className="flex items-center gap-4 px-4 py-3 hover:bg-gray-50 dark:hover:bg-slate-800/70 transition-colors"
                     >
                       <div className="flex-1 min-w-0">
-                        <p className="text-sm font-medium text-gray-900 truncate">
+                        <p className="text-sm font-medium text-gray-900 dark:text-slate-100 truncate">
                           {post.title}
                         </p>
-                        <p className="text-xs text-gray-500 truncate mt-1">
+                        <p className="text-xs text-gray-500 dark:text-slate-400 truncate mt-1">
                           {post.description}
                         </p>
                         <div className="flex items-center gap-3 mt-1 text-xs text-gray-400">
@@ -530,12 +530,12 @@ const SearchClient = () => {
                     </button>
                   </div>
                 )}
-                <div className="divide-y divide-gray-50">
+                <div className="divide-y divide-gray-50 dark:divide-slate-800">
                   {data.users.map((user) => (
                     <Link
                       key={user.id}
                       href={`/profiles/${user.id}`}
-                      className="flex items-center gap-3 px-4 py-3 hover:bg-gray-50 transition-colors"
+                      className="flex items-center gap-3 px-4 py-3 hover:bg-gray-50 dark:hover:bg-slate-800/70 transition-colors"
                     >
                       {user.avatar ? (
                         <Image

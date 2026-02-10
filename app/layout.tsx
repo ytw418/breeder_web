@@ -2,17 +2,21 @@ import type { Metadata } from "next";
 import type { Viewport } from "next";
 import { Inter } from "next/font/google";
 import "./globals.css";
-import { ToastContainer } from "react-toastify";
 import { VariousProvider } from "@libs/client/VariousProvider";
 import ClientComp from "./ClientComp";
 import { Analytics } from "@vercel/analytics/next";
+import { ThemeProvider } from "@components/features/theme-provider";
+import AppToastContainer from "@components/features/AppToastContainer";
 const inter = Inter({ subsets: ["latin"] });
 
 export const viewport: Viewport = {
   width: "device-width",
   initialScale: 1,
   maximumScale: 1,
-  themeColor: "#0f172a",
+  themeColor: [
+    { media: "(prefers-color-scheme: light)", color: "#ffffff" },
+    { media: "(prefers-color-scheme: dark)", color: "#020617" },
+  ],
 };
 
 export const metadata: Metadata = {
@@ -109,7 +113,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="ko">
+    <html lang="ko" suppressHydrationWarning>
       <head>
         <meta
           name="naver-site-verification"
@@ -126,34 +130,19 @@ export default function RootLayout({
         <meta name="mobile-web-app-capable" content="yes" />
       </head>
       <body className={inter.className}>
-        {/* <ThemeProvider
+        <ThemeProvider
           attribute="class"
           defaultTheme="system"
           enableSystem
           disableTransitionOnChange
-        > */}
-        <VariousProvider>
-          <ClientComp />
-          <Analytics />
-          {children}
-        </VariousProvider>
-        <ToastContainer
-          position="bottom-center"
-          autoClose={2200}
-          hideProgressBar
-          newestOnTop
-          closeOnClick
-          rtl={false}
-          pauseOnFocusLoss
-          draggable
-          pauseOnHover
-          closeButton={false}
-          limit={3}
-          theme="light"
-          className="app-toast-container"
-          toastClassName="app-toast"
-        />
-        {/* </ThemeProvider> */}
+        >
+          <VariousProvider>
+            <ClientComp />
+            <Analytics />
+            {children}
+          </VariousProvider>
+          <AppToastContainer />
+        </ThemeProvider>
       </body>
     </html>
   );

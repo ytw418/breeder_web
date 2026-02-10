@@ -252,7 +252,7 @@ textarea {
   }
 
   .app-page {
-    @apply min-h-screen bg-gradient-to-b from-slate-50 via-white to-slate-50/70;
+    @apply min-h-screen bg-gradient-to-b from-slate-50 via-white to-slate-50/70 dark:from-slate-950 dark:via-slate-950 dark:to-slate-900/80;
   }
 
   .app-section {
@@ -260,11 +260,11 @@ textarea {
   }
 
   .app-section-muted {
-    @apply py-6 border-y border-slate-100 bg-slate-50/80;
+    @apply py-6 border-y border-slate-100 bg-slate-50/80 dark:border-slate-800 dark:bg-slate-900/70;
   }
 
   .app-card {
-    @apply rounded-xl border border-slate-200/80 bg-white;
+    @apply rounded-xl border border-slate-200/80 bg-white dark:border-slate-800/90 dark:bg-slate-900;
     box-shadow:
       0 1px 2px rgba(15, 23, 42, 0.05),
       0 4px 10px rgba(15, 23, 42, 0.04);
@@ -303,47 +303,47 @@ textarea {
   }
 
   .app-sticky-rail {
-    @apply sticky top-14 z-20 border-b border-slate-100 bg-white/90 backdrop-blur-xl;
+    @apply sticky top-14 z-20 border-b border-slate-100 bg-white/90 backdrop-blur-xl dark:border-slate-800 dark:bg-slate-950/90;
   }
 
   .app-section-title {
-    @apply text-[18px] leading-tight font-bold tracking-[-0.02em] text-slate-900;
+    @apply text-[18px] leading-tight font-bold tracking-[-0.02em] text-slate-900 dark:text-slate-100;
   }
 
   .app-section-link {
-    @apply inline-flex items-center gap-1 text-[13px] font-semibold text-slate-500 transition-colors hover:text-slate-800;
+    @apply inline-flex items-center gap-1 text-[13px] font-semibold text-slate-500 transition-colors hover:text-slate-800 dark:text-slate-400 dark:hover:text-slate-100;
   }
 
   .app-title-xl {
-    @apply text-[26px] leading-[1.2] font-extrabold tracking-[-0.03em] text-slate-950;
+    @apply text-[26px] leading-[1.2] font-extrabold tracking-[-0.03em] text-slate-950 dark:text-slate-50;
   }
 
   .app-title-lg {
-    @apply text-[21px] leading-tight font-bold tracking-[-0.02em] text-slate-900;
+    @apply text-[21px] leading-tight font-bold tracking-[-0.02em] text-slate-900 dark:text-slate-100;
   }
 
   .app-title-md {
-    @apply text-[16px] leading-tight font-semibold tracking-[-0.02em] text-slate-900;
+    @apply text-[16px] leading-tight font-semibold tracking-[-0.02em] text-slate-900 dark:text-slate-100;
   }
 
   .app-body-md {
-    @apply text-[14px] leading-[1.55] font-medium text-slate-600;
+    @apply text-[14px] leading-[1.55] font-medium text-slate-600 dark:text-slate-300;
   }
 
   .app-body-sm {
-    @apply text-[13px] leading-[1.5] font-medium text-slate-500;
+    @apply text-[13px] leading-[1.5] font-medium text-slate-500 dark:text-slate-400;
   }
 
   .app-caption {
-    @apply text-[12px] leading-[1.35] font-medium text-slate-400;
+    @apply text-[12px] leading-[1.35] font-medium text-slate-400 dark:text-slate-500;
   }
 
   .app-kicker {
-    @apply text-[11px] leading-none font-semibold uppercase tracking-[0.06em] text-slate-400;
+    @apply text-[11px] leading-none font-semibold uppercase tracking-[0.06em] text-slate-400 dark:text-slate-500;
   }
 
   .app-pill-muted {
-    @apply inline-flex shrink-0 items-center gap-1 whitespace-nowrap rounded-full bg-slate-100 px-2 py-1 text-[11px] font-semibold leading-none text-slate-600;
+    @apply inline-flex shrink-0 items-center gap-1 whitespace-nowrap rounded-full bg-slate-100 px-2 py-1 text-[11px] font-semibold leading-none text-slate-600 dark:bg-slate-800 dark:text-slate-300;
   }
 
   .app-pill-accent {
@@ -351,7 +351,7 @@ textarea {
   }
 
   .app-count-chip {
-    @apply inline-flex shrink-0 items-center whitespace-nowrap rounded-full border border-slate-200 bg-white px-2.5 py-1 text-[11px] font-semibold leading-none text-slate-500;
+    @apply inline-flex shrink-0 items-center whitespace-nowrap rounded-full border border-slate-200 bg-white px-2.5 py-1 text-[11px] font-semibold leading-none text-slate-500 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300;
   }
 
   .app-chip {
@@ -359,14 +359,14 @@ textarea {
   }
 
   .app-chip-active {
-    @apply border-slate-900 bg-slate-900 text-white;
+    @apply border-slate-900 bg-slate-900 text-white dark:border-slate-100 dark:bg-slate-100 dark:text-slate-900;
     box-shadow:
       0 1px 2px rgba(15, 23, 42, 0.12),
       inset 0 1px 0 rgba(255, 255, 255, 0.08);
   }
 
   .app-chip-muted {
-    @apply border-slate-200 bg-white text-slate-600;
+    @apply border-slate-200 bg-white text-slate-600 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300;
   }
 }
 
@@ -397,6 +397,20 @@ textarea {
   .app-fab:hover {
     transform: translateY(-2px);
   }
+}
+
+.dark .app-card-interactive:hover {
+  border-color: rgba(100, 116, 139, 0.7);
+  box-shadow:
+    0 1px 2px rgba(2, 6, 23, 0.35),
+    0 8px 20px rgba(2, 6, 23, 0.35);
+}
+
+.dark .app-chip-muted:hover {
+  border-color: rgba(100, 116, 139, 0.75);
+  background-color: rgba(30, 41, 59, 0.8);
+  color: rgb(226, 232, 240);
+  box-shadow: 0 1px 2px rgba(2, 6, 23, 0.2);
 }
 
 .app-card-interactive:active,
@@ -462,4 +476,115 @@ textarea {
   width: 16px;
   margin-inline-end: 8px;
   color: #475569;
+}
+
+.dark .app-toast {
+  border-color: #334155;
+  background: #0f172a;
+  color: #f8fafc;
+  box-shadow: 0 10px 24px rgba(2, 6, 23, 0.45);
+}
+
+.dark .app-toast .Toastify__toast-icon {
+  color: #cbd5e1;
+}
+
+/* Legacy utility fallback for dark mode */
+.dark .bg-white {
+  background-color: rgb(15 23 42 / 1);
+}
+
+.dark .bg-gray-50,
+.dark .bg-slate-50 {
+  background-color: rgb(30 41 59 / 0.7);
+}
+
+.dark .bg-gray-100,
+.dark .bg-slate-100 {
+  background-color: rgb(30 41 59 / 1);
+}
+
+.dark .bg-gray-200 {
+  background-color: rgb(51 65 85 / 1);
+}
+
+.dark .text-gray-900,
+.dark .text-slate-900 {
+  color: rgb(241 245 249 / 1);
+}
+
+.dark .text-gray-700,
+.dark .text-gray-600,
+.dark .text-slate-700,
+.dark .text-slate-600 {
+  color: rgb(203 213 225 / 1);
+}
+
+.dark .text-gray-500,
+.dark .text-slate-500 {
+  color: rgb(148 163 184 / 1);
+}
+
+.dark .text-gray-400,
+.dark .text-slate-400 {
+  color: rgb(100 116 139 / 1);
+}
+
+.dark .border-gray-100,
+.dark .border-slate-100 {
+  border-color: rgb(51 65 85 / 0.75);
+}
+
+.dark .border-gray-200,
+.dark .border-slate-200 {
+  border-color: rgb(51 65 85 / 1);
+}
+
+.dark .border-gray-300,
+.dark .border-slate-300 {
+  border-color: rgb(71 85 105 / 1);
+}
+
+.dark .divide-gray-50 > :not([hidden]) ~ :not([hidden]) {
+  border-color: rgb(51 65 85 / 0.75);
+}
+
+.dark .hover\:bg-gray-50:hover {
+  background-color: rgb(30 41 59 / 0.7);
+}
+
+.dark .hover\:bg-gray-100:hover {
+  background-color: rgb(30 41 59 / 1);
+}
+
+.dark .hover\:bg-gray-200:hover {
+  background-color: rgb(51 65 85 / 1);
+}
+
+.dark .hover\:bg-slate-50:hover {
+  background-color: rgb(30 41 59 / 0.7);
+}
+
+.dark .hover\:bg-slate-100:hover {
+  background-color: rgb(30 41 59 / 1);
+}
+
+.dark .focus\:bg-white:focus {
+  background-color: rgb(15 23 42 / 1);
+}
+
+.dark .bg-white\/92 {
+  background-color: rgb(2 6 23 / 0.92);
+}
+
+.dark .bg-white\/90 {
+  background-color: rgb(2 6 23 / 0.9);
+}
+
+.dark .bg-white\/80 {
+  background-color: rgb(15 23 42 / 0.8);
+}
+
+.dark .border-slate-200\/80 {
+  border-color: rgb(51 65 85 / 0.8);
 }

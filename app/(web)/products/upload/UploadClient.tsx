@@ -35,7 +35,7 @@ const ALLOWED_IMAGE_TYPES = ["image/jpeg", "image/png", "image/webp", "image/jpg
 
 const LoadingSpinner = ({ step }: { step: SubmitStep }) => (
   <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/20 backdrop-blur-sm">
-    <div className="flex min-w-[280px] flex-col items-center space-y-3 rounded-xl bg-white p-6 shadow-xl">
+    <div className="flex min-w-[280px] flex-col items-center space-y-3 rounded-xl bg-white dark:bg-slate-900 p-6 shadow-xl">
       <div className="h-10 w-10 animate-spin rounded-full border-2 border-primary border-t-transparent" />
       <p className="text-base font-semibold text-slate-900">
         {step === "images" ? "이미지를 업로드하고 있어요" : "상품을 등록하고 있어요"}
@@ -218,7 +218,7 @@ const UploadClient = () => {
         })}
         className="mx-auto max-w-xl space-y-5 px-4 pb-28 pt-5"
       >
-        <section className="rounded-xl border border-slate-200 bg-white p-4">
+        <section className="rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 p-4">
           <div className="mb-3 flex items-center justify-between">
             <p className="text-sm font-semibold text-slate-900">상품 이미지</p>
             <span className="text-xs text-slate-500">{imageFiles.length}/{MAX_IMAGE_COUNT}</span>
@@ -238,7 +238,7 @@ const UploadClient = () => {
                 <button
                   type="button"
                   onClick={() => removeImage(index)}
-                  className="absolute -top-1 -right-1 bg-white rounded-full p-1 shadow-md hover:bg-gray-100"
+                  className="absolute -top-1 -right-1 bg-white dark:bg-slate-900 rounded-full p-1 shadow-md hover:bg-gray-100 dark:hover:bg-slate-800"
                 >
                   <svg
                     className="w-4 h-4 text-gray-500"
@@ -257,7 +257,7 @@ const UploadClient = () => {
               </div>
             ))}
             {imageFiles.length < MAX_IMAGE_COUNT && (
-              <label className="w-24 h-24 cursor-pointer text-gray-600 hover:border-primary hover:text-primary flex flex-col items-center justify-center rounded-xl border-2 border-dashed border-gray-300 flex-shrink-0 transition-colors">
+              <label className="w-24 h-24 cursor-pointer text-gray-600 dark:text-slate-300 hover:border-primary hover:text-primary flex flex-col items-center justify-center rounded-xl border-2 border-dashed border-gray-300 dark:border-slate-600 flex-shrink-0 transition-colors">
                 <svg
                   className="h-8 w-8"
                   stroke="currentColor"
@@ -288,7 +288,7 @@ const UploadClient = () => {
           </p>
         </section>
 
-        <section className="rounded-xl border border-slate-200 bg-white p-4 space-y-4">
+        <section className="rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 p-4 space-y-4">
           <div className="space-y-2">
             <Label>카테고리</Label>
             <div className="flex flex-wrap gap-2">
@@ -301,7 +301,7 @@ const UploadClient = () => {
                     "rounded-md border px-3 py-1.5 text-sm font-medium transition-colors",
                     selectedCategory === cat.id
                       ? "border-slate-900 bg-slate-900 text-white"
-                      : "border-slate-200 bg-white text-slate-600 hover:bg-slate-50"
+                      : "border-slate-200 bg-white dark:bg-slate-900 text-slate-600 dark:text-slate-300 hover:bg-slate-50"
                   )}
                 >
                   {cat.name}
@@ -323,7 +323,7 @@ const UploadClient = () => {
                     "rounded-md border px-4 py-1.5 text-sm font-medium transition-colors",
                     selectedProductType === type.id
                       ? "border-slate-900 bg-slate-900 text-white"
-                      : "border-slate-200 bg-white text-slate-600 hover:bg-slate-50"
+                      : "border-slate-200 bg-white dark:bg-slate-900 text-slate-600 dark:text-slate-300 hover:bg-slate-50"
                   )}
                 >
                   {type.name}
@@ -334,7 +334,7 @@ const UploadClient = () => {
           </div>
         </section>
 
-        <section className="rounded-xl border border-slate-200 bg-white p-4 space-y-5">
+        <section className="rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 p-4 space-y-5">
           <div className="space-y-2">
             <div className="flex items-center justify-between">
               <Label htmlFor="name">상품명</Label>

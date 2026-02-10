@@ -336,8 +336,8 @@ const ProductClient = ({ product, relatedProducts }: ItemDetailResponse) => {
                           className={cn(
                             "w-2 h-2 rounded-full transition-all",
                             currentImageIndex === index
-                              ? "bg-white"
-                              : "bg-white/50"
+                              ? "bg-white dark:bg-white"
+                              : "bg-white/50 dark:bg-white/50"
                           )}
                           aria-label={`${index + 1}번 이미지로 이동`}
                         />
@@ -356,7 +356,7 @@ const ProductClient = ({ product, relatedProducts }: ItemDetailResponse) => {
             {/* 판매자 정보 */}
             <Link
               href={`/profiles/${product?.user?.id}`}
-              className="group mb-4 flex items-center space-x-3 border-b border-slate-100 pb-4"
+              className="group mb-4 flex items-center space-x-3 border-b border-slate-100 dark:border-slate-800 pb-4"
             >
               {product?.user?.avatar ? (
                 <Image
@@ -370,7 +370,7 @@ const ProductClient = ({ product, relatedProducts }: ItemDetailResponse) => {
                 <div className="w-10 h-10 rounded-full bg-gray-200" />
               )}
               <div>
-                <p className="font-medium text-gray-900 group-hover:text-primary transition-colors">
+                <p className="font-medium text-gray-900 dark:text-slate-100 group-hover:text-primary transition-colors">
                   {product?.user?.name}
                 </p>
                 <p className="text-xs text-gray-500">프로필 보기</p>
@@ -381,7 +381,7 @@ const ProductClient = ({ product, relatedProducts }: ItemDetailResponse) => {
             <div className="space-y-4">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2">
-                  <h1 className="text-xl font-semibold text-gray-900 tracking-tight">
+                  <h1 className="text-xl font-semibold text-gray-900 dark:text-slate-100 tracking-tight">
                     {product?.name}
                   </h1>
                   <span
@@ -407,7 +407,7 @@ const ProductClient = ({ product, relatedProducts }: ItemDetailResponse) => {
               </div>
 
               {/* 상품 설명 */}
-              <div className="border-t border-slate-100 pt-4">
+              <div className="border-t border-slate-100 dark:border-slate-800 pt-4">
                 <MarkdownPreview
                   content={data?.product?.description ?? product?.description ?? ""}
                   emptyText="상품 설명이 없습니다."
@@ -415,7 +415,7 @@ const ProductClient = ({ product, relatedProducts }: ItemDetailResponse) => {
               </div>
 
               {/* 액션 버튼 영역 */}
-              <div className="space-y-3 border-t border-slate-100 pt-4">
+              <div className="space-y-3 border-t border-slate-100 dark:border-slate-800 pt-4">
                 {isOwner ? (
                   <>
                     {/* 판매자 전용: 상태 변경 드롭다운 */}
@@ -426,7 +426,7 @@ const ProductClient = ({ product, relatedProducts }: ItemDetailResponse) => {
                         className={cn(
                           "flex w-full items-center justify-center gap-2 rounded-md border py-3 font-medium transition-colors",
                           currentStatus === "판매완료"
-                            ? "cursor-not-allowed border-slate-200 bg-slate-100 text-slate-400"
+                            ? "cursor-not-allowed border-slate-200 dark:border-slate-700 bg-slate-100 dark:bg-slate-800 text-slate-400"
                             : "border-slate-900 bg-slate-900 text-white hover:bg-slate-800"
                         )}
                       >
@@ -455,7 +455,7 @@ const ProductClient = ({ product, relatedProducts }: ItemDetailResponse) => {
                         )}
                       </button>
                       {showStatusMenu && currentStatus !== "판매완료" && (
-                        <div className="absolute left-0 right-0 top-full z-10 mt-1 overflow-hidden rounded-md border border-slate-200 bg-white shadow-sm">
+                        <div className="absolute left-0 right-0 top-full z-10 mt-1 overflow-hidden rounded-md border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 shadow-sm">
                           {currentStatus !== "판매중" && (
                             <button
                               onClick={() => handleStatusChange("판매중")}
@@ -476,7 +476,7 @@ const ProductClient = ({ product, relatedProducts }: ItemDetailResponse) => {
                           )}
                           <button
                             onClick={handleSold}
-                            className="flex w-full items-center gap-2 border-t border-slate-100 px-4 py-3 text-left text-sm hover:bg-slate-50"
+                            className="flex w-full items-center gap-2 border-t border-slate-100 dark:border-slate-800 px-4 py-3 text-left text-sm hover:bg-slate-50"
                           >
                             <span className="w-2 h-2 rounded-full bg-gray-400" />
                             판매완료로 변경
@@ -489,14 +489,14 @@ const ProductClient = ({ product, relatedProducts }: ItemDetailResponse) => {
                     <div className="flex space-x-2">
                       <Link
                         href={`/products/${params?.id}/edit`}
-                        className="flex-1 rounded-md border border-slate-200 bg-white py-3 text-center text-sm font-medium text-slate-700 transition-colors hover:bg-slate-50"
+                        className="flex-1 rounded-md border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 py-3 text-center text-sm font-medium text-slate-700 dark:text-slate-300 transition-colors hover:bg-slate-50"
                       >
                         수정하기
                       </Link>
                       <button
                         onClick={handleDelete}
                         disabled={deleteLoading}
-                        className="flex-1 rounded-md border border-red-200 bg-white py-3 text-sm font-medium text-red-600 transition-colors hover:bg-red-50 disabled:opacity-50"
+                        className="flex-1 rounded-md border border-red-200 bg-white dark:bg-slate-900 py-3 text-sm font-medium text-red-600 transition-colors hover:bg-red-50 disabled:opacity-50"
                       >
                         {deleteLoading ? "삭제 중..." : "삭제하기"}
                       </button>
@@ -508,7 +508,7 @@ const ProductClient = ({ product, relatedProducts }: ItemDetailResponse) => {
                     <div className="flex items-center space-x-2">
                       <button
                         onClick={onContactClick}
-                        className="h-10 flex-1 rounded-md border border-slate-300 bg-white px-3 text-sm font-semibold text-slate-700 transition-colors hover:bg-slate-50"
+                        className="h-10 flex-1 rounded-md border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-900 px-3 text-sm font-semibold text-slate-700 dark:text-slate-300 transition-colors hover:bg-slate-50"
                       >
                         판매자와 채팅하기
                       </button>
@@ -518,7 +518,7 @@ const ProductClient = ({ product, relatedProducts }: ItemDetailResponse) => {
                           "flex h-10 w-10 items-center justify-center rounded-md border border-slate-200",
                           isLiked
                             ? "text-red-500 hover:bg-red-50"
-                            : "text-gray-400 hover:bg-gray-100"
+                            : "text-gray-400 hover:bg-gray-100 dark:hover:bg-slate-800"
                         )}
                       >
                         {isLiked ? (
@@ -553,7 +553,7 @@ const ProductClient = ({ product, relatedProducts }: ItemDetailResponse) => {
                       </button>
                     )}
                     {currentStatus === "판매완료" && hasPurchased && (
-                      <div className="h-10 w-full rounded-md border border-slate-200 bg-slate-50 text-center text-sm font-medium leading-10 text-slate-500">
+                      <div className="h-10 w-full rounded-md border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/70 text-center text-sm font-medium leading-10 text-slate-500">
                         구매확정 완료
                       </div>
                     )}
@@ -566,7 +566,7 @@ const ProductClient = ({ product, relatedProducts }: ItemDetailResponse) => {
 
         {/* 연관 상품 섹션 */}
         {relatedProducts && relatedProducts.length > 0 && (
-          <div className="mt-8 border-t border-slate-100 px-4 pt-6">
+          <div className="mt-8 border-t border-slate-100 dark:border-slate-800 px-4 pt-6">
             <h2 className="mb-4 text-lg font-semibold text-gray-900">
               연관 상품
             </h2>
@@ -587,7 +587,7 @@ const ProductClient = ({ product, relatedProducts }: ItemDetailResponse) => {
                     />
                   </div>
                   <div className="mt-2">
-                    <h3 className="truncate text-sm font-medium text-gray-900 group-hover:text-primary transition-colors">
+                    <h3 className="truncate text-sm font-medium text-gray-900 dark:text-slate-100 group-hover:text-primary transition-colors">
                       {product.name}
                     </h3>
                     <p className="text-primary font-medium text-sm">
