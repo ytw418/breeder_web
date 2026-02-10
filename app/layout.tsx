@@ -22,26 +22,19 @@ export const viewport: Viewport = {
 export const metadata: Metadata = {
   metadataBase: new URL("https://bredy.app"),
   title: {
-    default: "Bredy - 외국곤충 전문 마켓",
+    default: "Bredy - 곤충 커뮤니티",
     template: "%s | Bredy",
   },
   description:
-    "외국곤충, 건조표본, 헤라클레스, 사슴벌레, 극태, 왕사, 장수풍뎅이 등 다양한 곤충을 구매하고 판매할 수 있는 전문 마켓플레이스",
+    "장수풍뎅이, 사슴벌레 등 다양한 곤충 정보와 기록, 커뮤니티 활동을 한 곳에서 확인할 수 있습니다.",
   keywords: [
-    "외곤",
-    "외국곤충",
-    "건조표본",
-    "헤라클레스",
-    "사슴벌레",
-    "극태",
-    "왕사",
-    "장수풍뎅이",
     "곤충",
-    "곤충표본",
-    "곤충수집",
-    "곤충쇼핑",
-    "곤충판매",
-    "곤충구매",
+    "사슴벌레",
+    "장수풍뎅이",
+    "곤충기록",
+    "곤충커뮤니티",
+    "브리디",
+    "Bredy",
   ],
   authors: [{ name: "Bredy Team" }],
   openGraph: {
@@ -49,9 +42,9 @@ export const metadata: Metadata = {
     locale: "ko_KR",
     url: "https://bredy.app",
     siteName: "Bredy",
-    title: "Bredy - 외국곤충 전문 마켓",
+    title: "Bredy - 곤충 커뮤니티",
     description:
-      "외국곤충, 건조표본, 헤라클레스, 사슴벌레, 극태, 왕사, 장수풍뎅이 등 다양한 곤충을 구매하고 판매할 수 있는 전문 마켓플레이스",
+      "장수풍뎅이, 사슴벌레 등 다양한 곤충 정보와 기록, 커뮤니티 활동을 한 곳에서 확인할 수 있습니다.",
     images: [
       {
         url: "https://bredy.app/og-image.png",
@@ -63,9 +56,9 @@ export const metadata: Metadata = {
   },
   twitter: {
     card: "summary_large_image",
-    title: "Bredy - 외국곤충 전문 마켓",
+    title: "Bredy - 곤충 커뮤니티",
     description:
-      "외국곤충, 건조표본, 헤라클레스, 사슴벌레, 극태, 왕사, 장수풍뎅이 등 다양한 곤충을 구매하고 판매할 수 있는 전문 마켓플레이스",
+      "장수풍뎅이, 사슴벌레 등 다양한 곤충 정보와 기록, 커뮤니티 활동을 한 곳에서 확인할 수 있습니다.",
     images: ["https://bredy.app/og-image.png"],
     site: "@bredy",
     creator: "@bredy",

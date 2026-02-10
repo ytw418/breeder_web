@@ -67,14 +67,10 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
     description: `${description}...`,
     keywords: [
       product.name,
-      "외곤",
-      "외국곤충",
-      "건조표본",
-      "헤라클레스",
       "사슴벌레",
-      "극태",
-      "왕사",
       "장수풍뎅이",
+      "곤충",
+      "브리디",
     ],
     openGraph: {
       title: product.name,
