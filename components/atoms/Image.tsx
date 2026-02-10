@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import NextImage, { ImageProps as NextImageProps } from "next/image";
 import defaultImage from "@images/defaultImage.png";
 
@@ -24,6 +24,12 @@ const Image = ({
 }: CustomImageProps) => {
   const [imgSrc, setImgSrc] = useState(src);
   const [imgError, setImgError] = useState(false);
+
+  // 부모에서 src가 바뀌면 내부 상태도 동기화한다.
+  useEffect(() => {
+    setImgSrc(src);
+    setImgError(false);
+  }, [src]);
 
   // 이미지 로드 실패 시 호출되는 핸들러
   const handleError = (e: React.SyntheticEvent<HTMLImageElement, Event>) => {

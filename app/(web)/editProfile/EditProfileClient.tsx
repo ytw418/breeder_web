@@ -1,117 +1,188 @@
 "use client";
-import { useEffect, useState } from "react";
+import { ChangeEvent, FormEvent, useEffect, useState } from "react";
 
-import { useForm } from "react-hook-form";
 import useMutation from "hooks/useMutation";
 import useUser from "hooks/useUser";
 import Image from "@components/atoms/Image";
 import { useRouter } from "next/navigation";
 
-import { makeImageUrl } from "@libs/client/utils";
 import { Input } from "@components/ui/input";
 import { Button } from "@components/ui/button";
-
-interface EditProfileForm {
-  name?: string;
-  avatar?: FileList;
-}
+import { toast } from "react-toastify";
+import { useSWRConfig } from "swr";
+import { UserResponse } from "pages/api/users/[id]";
 
 interface EditProfileResponse {
   success: boolean;
   error?: string;
+  message?: string;
 }
+
+const resolveAvatarUrl = (avatar?: string | null) => {
+  if (!avatar) return "";
+  if (avatar.startsWith("http")) return avatar;
+  return `https://imagedelivery.net/OvWZrAz6J6K7n9LKUH5pKw/${avatar}/avatar`;
+};
 
 const EditProfileClient = () => {
   const [isLoading, setIsLoading] = useState(false);
   const router = useRouter();
+  const { mutate: globalMutate } = useSWRConfig();
   const { user, mutate } = useUser();
-  const {
-    register,
-    setValue,
-    handleSubmit,
-    setError,
-    formState: { errors },
-    watch,
-  } = useForm<EditProfileForm>();
+  const [name, setName] = useState("");
+  const [nameError, setNameError] = useState("");
+  const [avatarFile, setAvatarFile] = useState<File | null>(null);
+  const [localAvatarUrl, setLocalAvatarUrl] = useState("");
+  const [hasInitialized, setHasInitialized] = useState(false);
 
   useEffect(() => {
-    if (user?.name) setValue("name", user.name);
-    if (user?.avatar) setAvatarPreview(makeImageUrl(user?.avatar, "avatar"));
-  }, [user, setValue]);
-  const [editProfile, { loading: editProfileLoading }] =
-    useMutation<EditProfileResponse>(`/api/users/me`);
+    if (!user || hasInitialized) return;
+    setName(user.name ?? "");
+    setHasInitialized(true);
+  }, [hasInitialized, user?.id, user?.name]);
 
-  const onValid = async ({ name, avatar }: EditProfileForm) => {
+  useEffect(() => {
+    return () => {
+      if (localAvatarUrl) URL.revokeObjectURL(localAvatarUrl);
+    };
+  }, [localAvatarUrl]);
+
+  const [editProfile] = useMutation<EditProfileResponse>(`/api/users/me`);
+
+  const onNameChange = (nextName: string) => {
+    setName(nextName);
+    if (nextName.length > 10) {
+      setNameError("최대 10글자까지 입력가능합니다.");
+      return;
+    }
+    setNameError("");
+  };
+
+  const onAvatarChange = (event: ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0] ?? null;
+    setLocalAvatarUrl(file ? URL.createObjectURL(file) : "");
+    setAvatarFile(file);
+  };
+
+  const onSubmit = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
     if (isLoading) return;
+    if (name.length > 10) {
+      toast.error("닉네임은 최대 10글자까지 입력할 수 있습니다.");
+      return;
+    }
+
+    const nextName = name.trim();
+    const hasNameChange = !!nextName && nextName !== user?.name;
+    const hasAvatarChange = !!avatarFile;
+
+    if (!hasNameChange && !hasAvatarChange) {
+      toast.info("변경된 내용이 없습니다.");
+      return;
+    }
 
     setIsLoading(true);
 
     const editProfileBody = {
-      name: name === user?.name ? null : name,
-      avatarId: null,
+      name: hasNameChange ? nextName : null,
+      avatarId: null as string | null,
     };
 
     try {
-      if (avatar && avatar.length > 0 && user) {
-        const { uploadURL } = await (await fetch(`/api/files`)).json();
-        const form = new FormData();
-        form.append("file", avatar[0], user?.id + "");
+      if (avatarFile && user) {
+        const fileApiRes = await fetch(`/api/files`);
+        if (!fileApiRes.ok) {
+          throw new Error("이미지 업로드 URL을 가져오지 못했습니다.");
+        }
+        const { uploadURL } = await fileApiRes.json();
+        if (!uploadURL) {
+          throw new Error("이미지 업로드 URL이 유효하지 않습니다.");
+        }
 
-        const {
-          result: { id },
-        } = await (
-          await fetch(uploadURL, {
-            method: "POST",
-            body: form,
-          }).then()
-        ).json();
+        const form = new FormData();
+        form.append("file", avatarFile, user?.id + "");
+
+        const uploadRes = await fetch(uploadURL, {
+          method: "POST",
+          body: form,
+        });
+        if (!uploadRes.ok) {
+          throw new Error("이미지 업로드에 실패했습니다.");
+        }
+        const uploadData = await uploadRes.json();
+        const id = uploadData?.result?.id;
+        if (!id) {
+          throw new Error("업로드 이미지 ID를 확인할 수 없습니다.");
+        }
 
         editProfileBody.avatarId = id;
       }
 
-      editProfile({
+      const result = await editProfile({
         data: editProfileBody,
-        onCompleted(result) {
-          if (result.success) {
-            mutate();
-            router.push("/myPage");
-          } else {
-            alert(result.error);
-            setIsLoading(false);
-          }
-        },
-        onError(error) {
-          setIsLoading(false);
-          alert(error);
-        },
       });
+
+      if (!result.success) {
+        toast.error(result.error || result.message || "프로필 저장에 실패했습니다.");
+        return;
+      }
+
+      if (user?.id) {
+        const nextProfile = {
+          ...user,
+          name: hasNameChange ? nextName : user.name,
+          avatar: editProfileBody.avatarId ?? user.avatar,
+        };
+
+        // 저장 직후 UI에서 바로 반영되도록 SWR 캐시를 먼저 갱신한다.
+        await Promise.all([
+          mutate((prev: any) => {
+            if (!prev) return prev;
+            return { ...prev, profile: { ...prev.profile, ...nextProfile } };
+          }, false),
+          globalMutate("/api/users/me", (prev: any) => {
+            if (!prev) return prev;
+            return { ...prev, profile: { ...prev.profile, ...nextProfile } };
+          }, false),
+          globalMutate(`/api/users/${user.id}`, (prev: UserResponse | undefined) => {
+            if (!prev?.user) return prev;
+            return { ...prev, user: { ...prev.user, ...nextProfile } };
+          }, false),
+        ]);
+
+        // 낙관적 반영 뒤 백그라운드 재검증으로 서버 상태와 동기화한다.
+        void mutate();
+        void globalMutate("/api/users/me");
+        void globalMutate(`/api/users/${user.id}`);
+      }
+
+      toast.success("프로필이 저장되었습니다.");
+      router.replace("/myPage");
     } catch (error) {
-      alert(`프로필 편집 에러:${JSON.stringify(error)}`);
+      const errorMessage =
+        error instanceof Error
+          ? error.message
+          : "프로필 저장 중 오류가 발생했습니다.";
+      toast.error(errorMessage);
+    } finally {
       setIsLoading(false);
     }
   };
+  const hasNameChange = !!name.trim() && name.trim() !== user?.name;
+  const canSubmit =
+    (hasNameChange || !!avatarFile) && !isLoading && !nameError;
+  const remoteAvatarUrl = resolveAvatarUrl(user?.avatar);
+  const previewSrc = localAvatarUrl || remoteAvatarUrl;
 
-  const [avatarPreview, setAvatarPreview] = useState("");
-  const avatar = watch("avatar");
-
-  useEffect(() => {
-    if (avatar && avatar.length > 0) {
-      const file = avatar[0];
-      setAvatarPreview(URL.createObjectURL(file));
-    }
-  }, [avatar]);
   return (
-    <form
-      onSubmit={handleSubmit(onValid)}
-      className="max-w-2xl mx-auto p-6 space-y-8"
-    >
+    <form onSubmit={onSubmit} className="max-w-2xl mx-auto p-6 space-y-8">
       <div className="bg-white rounded-2xl shadow-[0_2px_8px_rgba(0,0,0,0.08)] p-6">
         <div className="flex flex-col items-center space-y-6">
           <div className="relative group">
-            {avatarPreview ? (
+            {previewSrc ? (
               <Image
                 alt="프로필 이미지"
-                src={avatarPreview}
+                src={previewSrc}
                 height={96}
                 width={96}
                 className="w-24 h-24 rounded-full object-cover ring-2 ring-primary/10 group-hover:ring-primary/20 transition-all"
@@ -143,32 +214,26 @@ const EditProfileClient = () => {
                 />
               </svg>
               <input
-                {...register("avatar")}
                 id="picture"
                 type="file"
                 className="hidden"
                 accept="image/*"
+                disabled={isLoading}
+                onChange={onAvatarChange}
               />
             </label>
           </div>
 
           <div className="w-full">
             <Input
-              {...register("name", {
-                maxLength: {
-                  value: 10,
-                  message: "최대 10글자까지 입력가능합니다.",
-                },
-              })}
-              required={false}
-              name="name"
               type="text"
               placeholder="닉네임을 입력해주세요"
               className="w-full"
+              value={name}
+              onChange={(event) => onNameChange(event.target.value)}
+              disabled={isLoading}
             />
-            {errors.name && (
-              <p className="mt-2 text-sm text-red-500">{errors.name.message}</p>
-            )}
+            {nameError && <p className="mt-2 text-sm text-red-500">{nameError}</p>}
           </div>
         </div>
       </div>
@@ -178,16 +243,13 @@ const EditProfileClient = () => {
         variant="default"
         size="sm"
         fullWidth
-        disabled={
-          watch("name") === user?.name && !watch("avatar")?.[0]
-            ? true
-            : isLoading
-            ? true
-            : false
-        }
+        disabled={!canSubmit}
       >
         {isLoading ? (
-          <div className="h-5 w-5 animate-spin rounded-full border-2 border-current border-t-transparent" />
+          <div className="flex items-center gap-2">
+            <div className="h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent" />
+            <span>저장 중...</span>
+          </div>
         ) : (
           "프로필 저장"
         )}
