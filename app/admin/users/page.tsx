@@ -67,8 +67,9 @@ export default function AdminUsersPage() {
       <div className="space-y-6">
         <h2 className="text-2xl font-bold text-gray-900">유저 관리</h2>
 
-        <div className="bg-white rounded-lg border border-gray-200 overflow-hidden">
-          <table className="min-w-full divide-y divide-gray-200">
+        <div className="overflow-hidden rounded-lg border border-gray-200 bg-white">
+          <div className="overflow-x-auto">
+            <table className="min-w-[820px] divide-y divide-gray-200">
             <thead className="bg-gray-50">
               <tr>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
@@ -129,7 +130,8 @@ export default function AdminUsersPage() {
                 </tr>
               )}
             </tbody>
-          </table>
+            </table>
+          </div>
         </div>
       </div>
       {confirmDialog}

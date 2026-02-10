@@ -275,7 +275,7 @@ export default function AdminGuinnessPage() {
   return (
     <>
       <div className="space-y-6">
-      <div className="flex items-end justify-between">
+      <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
         <div>
           <h2 className="text-2xl font-bold text-gray-900">기네스북 심사</h2>
           <p className="mt-1 text-sm text-gray-500">
@@ -307,7 +307,7 @@ export default function AdminGuinnessPage() {
       </div>
 
       <section className="rounded-xl border border-gray-200 bg-white p-4 space-y-4">
-        <div className="flex items-start justify-between gap-4">
+        <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
           <div>
             <h3 className="text-base font-semibold text-gray-900">종 마스터 관리</h3>
             <p className="mt-1 text-xs text-gray-500 leading-relaxed">
@@ -354,7 +354,7 @@ export default function AdminGuinnessPage() {
               key={item.id}
               className="rounded-lg border border-gray-200 bg-gray-50 px-3 py-2.5"
             >
-              <div className="flex items-center justify-between gap-2">
+              <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
                 <div className="min-w-0">
                   <p className="text-sm font-semibold text-gray-900 truncate">{item.name}</p>
                   <p className="mt-0.5 text-xs text-gray-500">
@@ -383,7 +383,7 @@ export default function AdminGuinnessPage() {
                 </div>
               </div>
 
-              <div className="mt-2 flex justify-end gap-2">
+              <div className="mt-2 flex flex-wrap justify-end gap-2">
                 {!item.isOfficial && (
                   <Button
                     type="button"
@@ -462,7 +462,7 @@ export default function AdminGuinnessPage() {
               key={submission.id}
               className="rounded-xl border border-gray-200 bg-white p-4"
             >
-              <div className="flex items-start justify-between gap-3">
+              <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
                 <div className="min-w-0">
                   <p className="text-sm font-semibold text-gray-900">
                     {submission.species} ·{" "}
@@ -566,7 +566,7 @@ export default function AdminGuinnessPage() {
                 className="mt-3 w-full rounded-md border border-gray-200 px-3 py-2 text-sm min-h-[84px] disabled:bg-gray-50"
               />
 
-              <div className="mt-3 flex items-center justify-end gap-2">
+              <div className="mt-3 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-end">
                 {isPending ? (
                   <>
                     <select
@@ -585,7 +585,7 @@ export default function AdminGuinnessPage() {
                           };
                         });
                       }}
-                      className="h-9 rounded-md border border-gray-200 px-2 text-xs text-gray-700"
+                      className="h-9 w-full rounded-md border border-gray-200 px-2 text-xs text-gray-700 sm:w-auto"
                     >
                       <option value="">반려 사유 템플릿 선택</option>
                       {REVIEW_REASON_OPTIONS.map((item) => (
@@ -596,12 +596,14 @@ export default function AdminGuinnessPage() {
                     </select>
                     <Button
                       variant="outline"
+                      className="w-full sm:w-auto"
                       disabled={processingId === submission.id}
                       onClick={() => reviewSubmission(submission, "rejected")}
                     >
                       반려
                     </Button>
                     <Button
+                      className="w-full sm:w-auto"
                       disabled={processingId === submission.id}
                       onClick={() => reviewSubmission(submission, "approved")}
                     >

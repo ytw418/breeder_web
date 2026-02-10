@@ -174,7 +174,7 @@ export default function AdminLandingPagesPage() {
           onChange={(event) => setTitle(event.target.value)}
         />
 
-        <div className="flex gap-2">
+        <div className="flex flex-col gap-2 sm:flex-row">
           <Input
             placeholder="slug (예: spring-event)"
             value={slug}
@@ -214,8 +214,9 @@ export default function AdminLandingPagesPage() {
         </Button>
         </form>
 
-        <div className="bg-white rounded-lg border border-gray-200 overflow-hidden">
-          <table className="min-w-full divide-y divide-gray-200">
+        <div className="overflow-hidden rounded-lg border border-gray-200 bg-white">
+          <div className="overflow-x-auto">
+            <table className="min-w-[860px] divide-y divide-gray-200">
             <thead className="bg-gray-50">
               <tr>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
@@ -285,7 +286,8 @@ export default function AdminLandingPagesPage() {
                 </tr>
               )}
             </tbody>
-          </table>
+            </table>
+          </div>
         </div>
       </div>
       {confirmDialog}

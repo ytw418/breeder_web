@@ -145,7 +145,7 @@ export default function AdminBannersPage() {
   return (
     <>
       <div className="space-y-6">
-        <div className="flex items-center justify-between">
+        <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
           <h2 className="text-2xl font-bold text-gray-900">배너 관리</h2>
           {data?.isSample && (
             <span className="text-xs font-semibold px-2 py-1 rounded-full bg-amber-100 text-amber-700">
@@ -243,7 +243,7 @@ export default function AdminBannersPage() {
               ))}
           </div>
         ) : null}
-        <div className="grid grid-cols-2 gap-2">
+        <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
           <Input
             placeholder="bgClass (예: from-sky-500 to-cyan-500)"
             value={form.bgClass}
@@ -264,7 +264,7 @@ export default function AdminBannersPage() {
         <div className="space-y-3">
           {(data?.banners || []).map((banner) => (
             <div key={banner.id} className="bg-white rounded-lg border border-gray-200 p-4">
-              <div className="flex items-start justify-between gap-4">
+              <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                 <div className="min-w-0">
                   <p className="text-sm font-semibold text-gray-900">{banner.title}</p>
                   <p className="text-sm text-gray-500 mt-1">{banner.description}</p>
@@ -275,6 +275,7 @@ export default function AdminBannersPage() {
                 <Button
                   variant="destructive"
                   size="sm"
+                  className="w-full sm:w-auto"
                   disabled={Boolean(data?.isSample)}
                   onClick={() => handleDelete(banner.id)}
                 >

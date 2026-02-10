@@ -112,7 +112,7 @@ export default function AdminPostsPage() {
           </Button>
         </form>
 
-        <form onSubmit={handleSearch} className="flex gap-2 max-w-md">
+        <form onSubmit={handleSearch} className="flex max-w-md flex-col gap-2 sm:flex-row">
           <Input
             placeholder="제목, 내용, 작성자 검색"
             value={keyword}
@@ -121,8 +121,9 @@ export default function AdminPostsPage() {
           <Button type="submit">검색</Button>
         </form>
 
-        <div className="bg-white rounded-lg border border-gray-200 overflow-hidden">
-          <table className="min-w-full divide-y divide-gray-200">
+        <div className="overflow-hidden rounded-lg border border-gray-200 bg-white">
+          <div className="overflow-x-auto">
+            <table className="min-w-[900px] divide-y divide-gray-200">
             <thead className="bg-gray-50">
               <tr>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
@@ -193,10 +194,11 @@ export default function AdminPostsPage() {
                 </tr>
               )}
             </tbody>
-          </table>
+            </table>
+          </div>
         </div>
 
-        <div className="flex justify-center gap-2">
+        <div className="flex flex-wrap items-center justify-center gap-2">
           <Button
             variant="outline"
             disabled={page === 1}
