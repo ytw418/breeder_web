@@ -91,6 +91,8 @@ export default function OpenGraphImage() {
             <div
               style={{
                 marginTop: 18,
+                display: "flex",
+                flexDirection: "column",
                 fontSize: 30,
                 lineHeight: 1.35,
                 color: "#d8e7ff",
