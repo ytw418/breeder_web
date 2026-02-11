@@ -5,7 +5,7 @@ export default function manifest(): MetadataRoute.Manifest {
     name: "Bredy",
     short_name: "Bredy",
     description:
-      "곤충 거래와 커뮤니티를 위한 Bredy 앱",
+      "애완동물 서비스 브리디",
     start_url: "/",
     scope: "/",
     display: "standalone",

@@ -6,6 +6,17 @@ import client from "@libs/server/client";
 import Script from "next/script";
 import Image from "@components/atoms/Image";
 
+const CLOUDFLARE_IMAGE_BASE = "https://imagedelivery.net/OvWZrAz6J6K7n9LKUH5pKw";
+const DEFAULT_OG_IMAGE = "/opengraph-image";
+
+const toPublicImageUrl = (imageId: string | null | undefined) => {
+  if (!imageId) return DEFAULT_OG_IMAGE;
+  if (imageId.startsWith("http://") || imageId.startsWith("https://")) {
+    return imageId;
+  }
+  return `${CLOUDFLARE_IMAGE_BASE}/${imageId}/public`;
+};
+
 interface Props {
   params: {
     id: string;
@@ -60,27 +71,34 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   }
 
   const { product } = data;
-  const description = product.description.slice(0, 160);
+  const description =
+    product.description.length > 160
+      ? `${product.description.slice(0, 160)}...`
+      : product.description;
+  const normalizedImages =
+    product.photos?.length > 0
+      ? product.photos.map((photo) => toPublicImageUrl(photo)).slice(0, 4)
+      : [DEFAULT_OG_IMAGE];
+  const twitterImage = normalizedImages[0] || DEFAULT_OG_IMAGE;
+  const keywordSet = new Set<string>([
+    "브리디",
+    "애완동물 서비스",
+    "중고 거래",
+    "분양",
+    product.name,
+  ]);
+  if (product.category) keywordSet.add(product.category);
+  if (product.productType) keywordSet.add(product.productType);
 
   return {
     title: `${String(product.name) || "상품 이름 없음"}`,
-    description: `${description}...`,
-    keywords: [
-      product.name,
-      "외곤",
-      "외국곤충",
-      "건조표본",
-      "헤라클레스",
-      "사슴벌레",
-      "극태",
-      "왕사",
-      "장수풍뎅이",
-    ],
+    description,
+    keywords: Array.from(keywordSet),
     openGraph: {
       title: product.name,
-      description: description,
-      images: product.photos.map((photo) => ({
-        url: photo,
+      description,
+      images: normalizedImages.map((imageUrl) => ({
+        url: imageUrl,
         width: 800,
         height: 600,
         alt: product.name,
@@ -88,12 +106,13 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
       type: "website",
       siteName: "Bredy",
       locale: "ko_KR",
+      url: `https://bredy.app/products/${params.id}`,
     },
     twitter: {
       card: "summary_large_image",
       title: product.name,
-      description: description,
-      images: product.photos[0],
+      description,
+      images: [twitterImage],
     },
     alternates: {
       // alternates 옵션은 페이지의 대체 버전을 지정하는 메타데이터입니다.
@@ -101,7 +120,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
       // languages: 다국어 지원을 위한 대체 언어 버전의 URL을 지정할 수 있습니다.
       // media: 다양한 미디어 타입(예: print, screen)에 대한 대체 버전을 지정할 수 있습니다.
       // types: 다양한 문서 타입에 대한 대체 버전을 지정할 수 있습니다.
-      canonical: `https://bredy.app/products/${params.id}-${product.name}`,
+      canonical: `https://bredy.app/products/${params.id}`,
     },
     robots: {
       index: true,
