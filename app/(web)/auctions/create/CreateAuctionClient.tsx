@@ -64,6 +64,8 @@ const CreateAuctionClient = () => {
   const [selectedDuration, setSelectedDuration] = useState<number | null>(null);
   const [agreedAuctionNotice, setAgreedAuctionNotice] = useState(false);
   const [agreedDisputePolicy, setAgreedDisputePolicy] = useState(false);
+  const [shareModalOpen, setShareModalOpen] = useState(false);
+  const [createdAuctionId, setCreatedAuctionId] = useState<number | null>(null);
 
   const { register, handleSubmit, setValue, watch, formState: { errors } } = useForm<AuctionForm>();
 
@@ -230,8 +232,9 @@ const CreateAuctionClient = () => {
       },
       onCompleted(result) {
         if (result.success && result.auction?.id) {
-          toast.success("경매가 등록되었습니다!");
-          router.push(`/auctions/${result.auction.id}`);
+          setCreatedAuctionId(result.auction.id);
+          setShareModalOpen(true);
+          toast.success("경매가 등록되었습니다. SNS에 공유해보세요!");
         } else {
           toast.error(getAuctionErrorMessage(result.errorCode, result.error || "등록에 실패했습니다."));
         }
@@ -240,6 +243,79 @@ const CreateAuctionClient = () => {
         toast.error("오류가 발생했습니다.");
       },
     });
+  };
+
+  const getCreatedAuctionPath = () =>
+    createdAuctionId ? `/auctions/${createdAuctionId}` : "";
+
+  const getCreatedAuctionUrl = () => {
+    const path = getCreatedAuctionPath();
+    if (!path) return "";
+    if (typeof window === "undefined") return path;
+    return new URL(path, window.location.origin).toString();
+  };
+
+  const copyToClipboard = async (value: string) => {
+    if (!value) return;
+    if (navigator.clipboard?.writeText) {
+      await navigator.clipboard.writeText(value);
+      return;
+    }
+    const textarea = document.createElement("textarea");
+    textarea.value = value;
+    textarea.style.position = "fixed";
+    textarea.style.left = "-9999px";
+    document.body.appendChild(textarea);
+    textarea.focus();
+    textarea.select();
+    document.execCommand("copy");
+    document.body.removeChild(textarea);
+  };
+
+  const handleCopyAuctionLink = async () => {
+    try {
+      const url = getCreatedAuctionUrl();
+      if (!url) {
+        toast.error("공유 링크를 생성하지 못했습니다.");
+        return;
+      }
+      await copyToClipboard(url);
+      toast.success("경매 링크가 복사되었습니다.");
+    } catch {
+      toast.error("링크 복사에 실패했습니다.");
+    }
+  };
+
+  const handleShareAuction = async () => {
+    const url = getCreatedAuctionUrl();
+    const path = getCreatedAuctionPath();
+    if (!url || !path) {
+      toast.error("공유 링크를 생성하지 못했습니다.");
+      return;
+    }
+    try {
+      if (navigator.share) {
+        await navigator.share({
+          title: "브리디 경매",
+          text: "30초면 만드는 경매 도구, 지금 바로 참여해보세요.",
+          url,
+        });
+        toast.success("공유를 완료했습니다.");
+        return;
+      }
+      await copyToClipboard(url);
+      toast.info("이 기기에서는 바로 공유를 지원하지 않아 링크를 복사했습니다.");
+    } catch (error) {
+      if (error instanceof Error && error.name === "AbortError") return;
+      toast.error("공유에 실패했습니다.");
+    }
+  };
+
+  const handleMoveToAuction = () => {
+    const path = getCreatedAuctionPath();
+    if (!path) return;
+    setShareModalOpen(false);
+    router.push(path);
   };
 
   return (
@@ -546,6 +622,46 @@ const CreateAuctionClient = () => {
           </div>
         </div>
       </form>
+
+      {shareModalOpen ? (
+        <div className="fixed inset-0 z-[90] flex items-end justify-center p-4 sm:items-center">
+          <button
+            type="button"
+            className="absolute inset-0 bg-black/45"
+            onClick={() => setShareModalOpen(false)}
+            aria-label="공유 팝업 닫기"
+          />
+          <div className="relative w-full max-w-sm rounded-2xl border border-slate-200 bg-white p-5 shadow-2xl">
+            <h2 className="text-lg font-bold text-slate-900">생성한 경매를 SNS에 공유해보세요!</h2>
+            <p className="mt-2 text-sm leading-relaxed text-slate-600">
+              지금 공유하면 더 빠르게 입찰자를 모을 수 있어요.
+            </p>
+            <div className="mt-4 grid gap-2">
+              <button
+                type="button"
+                onClick={handleCopyAuctionLink}
+                className="h-11 rounded-xl border border-slate-200 bg-white text-sm font-semibold text-slate-700 transition-colors hover:bg-slate-50"
+              >
+                링크 복사하기
+              </button>
+              <button
+                type="button"
+                onClick={handleShareAuction}
+                className="h-11 rounded-xl bg-slate-900 text-sm font-semibold text-white transition-colors hover:bg-slate-800"
+              >
+                바로 공유하기
+              </button>
+              <button
+                type="button"
+                onClick={handleMoveToAuction}
+                className="h-11 rounded-xl bg-[#fee500] text-sm font-bold text-[#191919] transition-colors hover:brightness-95"
+              >
+                경매 상세로 이동
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
     </Layout>
   );
 };

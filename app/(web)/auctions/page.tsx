@@ -13,7 +13,7 @@ export const metadata: Metadata = {
     type: "website",
     images: [
       {
-        url: "/auction-tool/opengraph-image",
+        url: "/auctions/opengraph-image",
         width: 1200,
         height: 630,
         alt: "브리디 진행중 경매 공유 이미지",
@@ -25,7 +25,7 @@ export const metadata: Metadata = {
     title: "진행중 경매 | 브리디 경매도구",
     description:
       "30초면 만드는 경매 도구를 활용해보세요. 진행 중인 경매를 확인하고 즉시 참여할 수 있습니다.",
-    images: ["/auction-tool/twitter-image"],
+    images: ["/auctions/twitter-image"],
   },
 };
 
