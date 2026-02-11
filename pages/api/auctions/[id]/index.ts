@@ -11,6 +11,7 @@ import {
   isAuctionDurationValid,
   getBidIncrement,
 } from "@libs/auctionRules";
+import { settleExpiredAuctions } from "@libs/server/auctionSettlement";
 
 /** 경매 상세 응답 타입 */
 export interface AuctionDetailResponse {
@@ -26,6 +27,22 @@ export interface AuctionDetailResponse {
   canEdit?: boolean;
   editAvailableUntil?: string;
 }
+
+const normalizeOptionalText = (value: unknown, max = 120) => {
+  if (typeof value !== "string") return null;
+  const trimmed = value.trim();
+  if (!trimmed) return null;
+  return trimmed.slice(0, max);
+};
+
+const normalizeOptionalUrl = (value: unknown) => {
+  const normalized = normalizeOptionalText(value, 300);
+  if (!normalized) return null;
+  if (normalized.startsWith("http://") || normalized.startsWith("https://")) {
+    return normalized;
+  }
+  return `https://${normalized}`;
+};
 
 async function handler(
   req: NextApiRequest,
@@ -46,22 +63,8 @@ async function handler(
   }
 
   if (req.method === "GET") {
-    // 종료 시간이 지났으면 자동 종료 처리
-    const rawAuction = await client.auction.findUnique({ where: { id: auctionId } });
-    if (rawAuction && rawAuction.status === "진행중" && new Date(rawAuction.endAt) <= new Date()) {
-      // 최고 입찰자를 낙찰자로 설정
-      const topBid = await client.bid.findFirst({
-        where: { auctionId },
-        orderBy: { amount: "desc" },
-      });
-      await client.auction.update({
-        where: { id: auctionId },
-        data: {
-          status: topBid ? "종료" : "유찰",
-          winnerId: topBid?.userId || null,
-        },
-      });
-    }
+    // 종료 시간이 지났으면 공통 정산 로직으로 처리
+    await settleExpiredAuctions(auctionId);
 
     const auction = await client.auction.findUnique({
       where: { id: auctionId },
@@ -120,6 +123,13 @@ async function handler(
       category,
       startPrice,
       endAt,
+      sellerPhone,
+      sellerEmail,
+      sellerBlogUrl,
+      sellerCafeNick,
+      sellerBandNick,
+      sellerProofImage,
+      sellerTrustNote,
     } = req.body;
 
     if (action !== "update") {
@@ -215,11 +225,13 @@ async function handler(
       if (
         normalizedStartPrice >= AUCTION_HIGH_PRICE_REQUIRE_CONTACT &&
         !owner.phone &&
-        !owner.email
+        !owner.email &&
+        !normalizeOptionalText(sellerPhone, 40) &&
+        !normalizeOptionalText(sellerEmail, 120)
       ) {
         return res.status(400).json({
           success: false,
-          error: `시작가 ${AUCTION_HIGH_PRICE_REQUIRE_CONTACT.toLocaleString()}원 이상 경매는 연락처(전화/이메일) 등록 계정만 가능합니다.`,
+          error: `시작가 ${AUCTION_HIGH_PRICE_REQUIRE_CONTACT.toLocaleString()}원 이상 경매는 연락처(전화/이메일) 정보가 필요합니다.`,
           errorCode: "AUCTION_CONTACT_REQUIRED_HIGH_PRICE",
         });
       }
@@ -231,6 +243,13 @@ async function handler(
           description,
           photos: normalizedPhotos,
           category: category || null,
+          sellerPhone: normalizeOptionalText(sellerPhone, 40),
+          sellerEmail: normalizeOptionalText(sellerEmail, 120),
+          sellerBlogUrl: normalizeOptionalUrl(sellerBlogUrl),
+          sellerCafeNick: normalizeOptionalText(sellerCafeNick, 60),
+          sellerBandNick: normalizeOptionalText(sellerBandNick, 60),
+          sellerProofImage: normalizeOptionalText(sellerProofImage, 120),
+          sellerTrustNote: normalizeOptionalText(sellerTrustNote, 300),
           startPrice: normalizedStartPrice,
           currentPrice: normalizedStartPrice,
           minBidIncrement: getBidIncrement(normalizedStartPrice),

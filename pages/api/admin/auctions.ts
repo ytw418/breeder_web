@@ -4,6 +4,7 @@ import { withApiSession } from "@libs/server/withSession";
 import client from "@libs/server/client";
 import { hasAdminAccess } from "./_utils";
 import { Auction, Bid, User } from "@prisma/client";
+import { createNotification } from "@libs/server/notification";
 
 export interface AdminAuctionItem extends Auction {
   user: Pick<User, "id" | "name" | "email">;
@@ -123,6 +124,45 @@ async function handler(req: NextApiRequest, res: NextApiResponse<ResponseType>) 
         winnerId,
       },
     });
+
+    if (nextStatus === "종료" && topBid) {
+      await Promise.all([
+        createNotification({
+          type: "AUCTION_WON",
+          userId: topBid.userId,
+          senderId: auction.userId,
+          message: `"${auction.title}" 경매에 낙찰되었습니다. 낙찰가 ${topBid.amount.toLocaleString()}원입니다.`,
+          targetId: auctionId,
+          targetType: "auction",
+          dedupe: true,
+        }),
+        createNotification({
+          type: "AUCTION_END",
+          userId: auction.userId,
+          senderId: topBid.userId,
+          message: `"${auction.title}" 경매가 종료되었습니다. 낙찰자 ID ${topBid.userId}, 낙찰가 ${topBid.amount.toLocaleString()}원입니다.`,
+          targetId: auctionId,
+          targetType: "auction",
+          dedupe: true,
+        }),
+      ]);
+    }
+
+    if (nextStatus === "유찰" || nextStatus === "취소") {
+      await createNotification({
+        type: "AUCTION_END",
+        userId: auction.userId,
+        senderId: auction.userId,
+        message:
+          nextStatus === "유찰"
+            ? `"${auction.title}" 경매가 유찰로 종료되었습니다.`
+            : `"${auction.title}" 경매가 관리자에 의해 취소되었습니다.`,
+        targetId: auctionId,
+        targetType: "auction",
+        allowSelf: true,
+        dedupe: true,
+      });
+    }
 
     return res.json({ success: true });
   }

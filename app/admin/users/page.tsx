@@ -6,6 +6,13 @@ import { Button } from "@components/ui/button";
 import useConfirmDialog from "hooks/useConfirmDialog";
 
 const ROLE_OPTIONS = ["USER", "ADMIN", "SUPER_USER"] as const;
+const STATUS_OPTIONS = [
+  "ACTIVE",
+  "BANNED",
+  "SUSPENDED_7D",
+  "SUSPENDED_30D",
+  "DELETED",
+] as const;
 
 export default function AdminUsersPage() {
   const { data, mutate } = useSWR("/api/admin/users");
@@ -62,6 +69,32 @@ export default function AdminUsersPage() {
     }
   };
 
+  const handleStatusChange = async (userId: number, status: string) => {
+    const confirmed = await confirm({
+      title: "계정 상태를 변경할까요?",
+      description: "상태 변경은 즉시 반영됩니다.",
+      confirmText: "변경",
+      tone: status === "BANNED" ? "danger" : "default",
+    });
+    if (!confirmed) return;
+
+    try {
+      const res = await fetch("/api/admin/users", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ userId, action: "update_status", status }),
+      });
+      const result = await res.json();
+      if (!result.success) {
+        return toast.error(result.error || "상태 변경 실패");
+      }
+      toast.success("계정 상태가 변경되었습니다.");
+      mutate();
+    } catch {
+      toast.error("오류가 발생했습니다.");
+    }
+  };
+
   return (
     <>
       <div className="space-y-6">
@@ -80,6 +113,9 @@ export default function AdminUsersPage() {
                 </th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
                   권한
+                </th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+                  상태
                 </th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
                   가입일
@@ -107,6 +143,21 @@ export default function AdminUsersPage() {
                       ))}
                     </select>
                   </td>
+                  <td className="px-6 py-4 text-sm">
+                    <select
+                      value={user.status}
+                      onChange={(event) =>
+                        handleStatusChange(user.id, event.target.value)
+                      }
+                      className="rounded-md border border-gray-300 px-2 py-1 text-sm"
+                    >
+                      {STATUS_OPTIONS.map((status) => (
+                        <option key={status} value={status}>
+                          {status}
+                        </option>
+                      ))}
+                    </select>
+                  </td>
                   <td className="px-6 py-4 text-sm text-gray-500">
                     {new Date(user.createdAt).toLocaleDateString()}
                   </td>
@@ -124,7 +175,7 @@ export default function AdminUsersPage() {
 
               {data?.users?.length === 0 && (
                 <tr>
-                  <td colSpan={5} className="px-6 py-10 text-center text-gray-500">
+                  <td colSpan={6} className="px-6 py-10 text-center text-gray-500">
                     유저가 없습니다.
                   </td>
                 </tr>

@@ -2,10 +2,17 @@ import { NextApiRequest, NextApiResponse } from "next";
 import withHandler, { ResponseType } from "@libs/server/withHandler";
 import { withApiSession } from "@libs/server/withSession";
 import client from "@libs/server/client";
-import { role as UserRole } from "@prisma/client";
+import { role as UserRole, UserStatus } from "@prisma/client";
 import { hasAdminAccess } from "./_utils";
 
 const ROLE_OPTIONS: UserRole[] = ["USER", "ADMIN", "SUPER_USER"];
+const STATUS_OPTIONS: UserStatus[] = [
+  "ACTIVE",
+  "BANNED",
+  "SUSPENDED_7D",
+  "SUSPENDED_30D",
+  "DELETED",
+];
 
 async function handler(req: NextApiRequest, res: NextApiResponse<ResponseType>) {
   const {
@@ -47,6 +54,28 @@ async function handler(req: NextApiRequest, res: NextApiResponse<ResponseType>) 
       await client.user.update({
         where: { id: Number(userId) },
         data: { role },
+      });
+
+      return res.json({ success: true });
+    }
+
+    if (action === "update_status") {
+      const { status } = req.body;
+      if (!status || !STATUS_OPTIONS.includes(status)) {
+        return res
+          .status(400)
+          .json({ success: false, error: "유효하지 않은 상태 값입니다." });
+      }
+
+      if (Number(userId) === user?.id && status !== "ACTIVE") {
+        return res
+          .status(400)
+          .json({ success: false, error: "현재 로그인한 계정은 비활성화할 수 없습니다." });
+      }
+
+      await client.user.update({
+        where: { id: Number(userId) },
+        data: { status },
       });
 
       return res.json({ success: true });

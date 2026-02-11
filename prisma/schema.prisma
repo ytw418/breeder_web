@@ -350,6 +350,13 @@ model Auction {
   description     String
   photos          String[]
   category        String?   // 종 카테고리 (장수풍뎅이, 사슴벌레 등)
+  sellerPhone     String?
+  sellerEmail     String?
+  sellerBlogUrl   String?
+  sellerCafeNick  String?
+  sellerBandNick  String?
+  sellerProofImage String?
+  sellerTrustNote String?
   startPrice      Int       // 시작가
   currentPrice    Int       // 현재 최고 입찰가
   minBidIncrement Int       @default(1000) // 최소 입찰 단위 (원)

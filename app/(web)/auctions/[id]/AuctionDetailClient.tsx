@@ -12,8 +12,26 @@ import { useParams, useRouter } from "next/navigation";
 import { toast } from "react-toastify";
 import { AuctionDetailResponse } from "pages/api/auctions/[id]";
 import { BidResponse } from "pages/api/auctions/[id]/bid";
-import { getBidIncrement } from "@libs/auctionRules";
+import {
+  AUCTION_EXTENSION_MS,
+  AUCTION_EXTENSION_WINDOW_MS,
+  getBidIncrement,
+} from "@libs/auctionRules";
 import { getAuctionErrorMessage } from "@libs/client/auctionErrorMessage";
+
+interface AuctionReportResponse {
+  success: boolean;
+  error?: string;
+  errorCode?: string;
+}
+
+const REPORT_REASONS = [
+  "허위 매물 의심",
+  "입찰 방해/분쟁 유도",
+  "비정상 가격 유도",
+  "욕설/부적절 내용",
+  "기타",
+] as const;
 
 /** 카운트다운 문자열 */
 const getCountdown = (endAt: string | Date) => {
@@ -43,6 +61,9 @@ const AuctionDetailClient = () => {
   const [imageIndex, setImageIndex] = useState(0);
   const [agreedBidRule, setAgreedBidRule] = useState(false);
   const [agreedDisputePolicy, setAgreedDisputePolicy] = useState(false);
+  const [reportReason, setReportReason] =
+    useState<(typeof REPORT_REASONS)[number]>("허위 매물 의심");
+  const [reportDetail, setReportDetail] = useState("");
 
   // 경매 데이터 (5초 간격 새로고침)
   const { data, mutate: boundMutate } = useSWR<AuctionDetailResponse>(
@@ -54,6 +75,10 @@ const AuctionDetailClient = () => {
   const [submitBid, { loading: bidLoading }] = useMutation<BidResponse>(
     params?.id ? `/api/auctions/${params.id}/bid` : ""
   );
+  const [submitReport, { loading: reportLoading }] =
+    useMutation<AuctionReportResponse>(
+      params?.id ? `/api/auctions/${params.id}/report` : ""
+    );
 
   // 1초마다 카운트다운 갱신
   useEffect(() => {
@@ -66,6 +91,14 @@ const AuctionDetailClient = () => {
   }, [data?.auction?.endAt]);
 
   const auction = data?.auction;
+  const extensionMinutes = Math.floor(AUCTION_EXTENSION_MS / (60 * 1000));
+  const extensionWindowMinutes = Math.floor(
+    AUCTION_EXTENSION_WINDOW_MS / (60 * 1000)
+  );
+  const winnerBid = auction?.winnerId
+    ? auction.bids.find((bid) => bid.userId === auction.winnerId) || auction.bids[0]
+    : null;
+  const isWinner = Boolean(auction?.winnerId && user?.id === auction.winnerId);
   const minimumBid = auction ? auction.currentPrice + getBidIncrement(auction.currentPrice) : 0;
   const secondQuickBid = minimumBid + (auction ? getBidIncrement(minimumBid) : 0);
 
@@ -90,7 +123,7 @@ const AuctionDetailClient = () => {
         if (result.success) {
           toast.success("입찰이 완료되었습니다!");
           if (result.extended) {
-            toast.info("마감 임박 입찰로 경매 시간이 3분 연장되었습니다.");
+            toast.info(`마감 임박 입찰로 경매 시간이 ${extensionMinutes}분 연장되었습니다.`);
           }
           setBidAmount("");
           boundMutate();
@@ -107,6 +140,35 @@ const AuctionDetailClient = () => {
   /** 빠른 입찰 */
   const handleQuickBid = (amount: number) => {
     setBidAmount(String(amount));
+  };
+
+  const handleReport = () => {
+    if (!user) {
+      router.push("/auth/login");
+      return;
+    }
+    if (reportDetail.trim().length < 5) {
+      toast.error("신고 내용은 5자 이상 입력해주세요.");
+      return;
+    }
+
+    submitReport({
+      data: {
+        reason: reportReason,
+        detail: reportDetail.trim(),
+      },
+      onCompleted(result) {
+        if (!result.success) {
+          toast.error(getAuctionErrorMessage(result.errorCode, result.error || "신고 접수에 실패했습니다."));
+          return;
+        }
+        toast.success("신고가 접수되었습니다. 운영자가 검토 후 조치합니다.");
+        setReportDetail("");
+      },
+      onError() {
+        toast.error("신고 접수 중 오류가 발생했습니다.");
+      },
+    });
   };
 
   if (!auction) {
@@ -169,10 +231,63 @@ const AuctionDetailClient = () => {
               </div>
             ) : (
               <span className="text-base">
-                {auction.status === "종료" ? "경매가 종료되었습니다" : "유찰되었습니다"}
+                {auction.status === "종료"
+                  ? "경매가 종료되었습니다"
+                  : auction.status === "취소"
+                    ? "운영 처리로 경매가 중단(취소)되었습니다"
+                    : "유찰되었습니다"}
               </span>
             )}
           </div>
+
+          {auction.status === "취소" && (
+            <div className="mt-3 rounded-xl border border-rose-200 bg-rose-50 px-3.5 py-3">
+              <p className="text-sm font-bold text-rose-800">신고/운영 처리로 경매 중단</p>
+              <p className="mt-1 text-xs leading-relaxed text-rose-900">
+                이 경매는 운영 정책에 따라 취소되었습니다. 추가 이의가 있으면 신고 접수 채널로 문의해 주세요.
+              </p>
+            </div>
+          )}
+
+          {auction.status === "종료" && winnerBid && (
+            <div
+              className={cn(
+                "mt-3 rounded-xl border px-3.5 py-3",
+                isWinner
+                  ? "border-emerald-200 bg-emerald-50"
+                  : "border-blue-200 bg-blue-50"
+              )}
+            >
+              <p
+                className={cn(
+                  "text-sm font-bold",
+                  isWinner ? "text-emerald-800" : "text-blue-800"
+                )}
+              >
+                {isWinner ? "낙찰 완료: 축하합니다!" : "낙찰 결과"}
+              </p>
+              <div className="mt-1.5 space-y-1 text-xs text-slate-700">
+                <p>낙찰자: {winnerBid.user?.name}</p>
+                <p>낙찰가: {winnerBid.amount.toLocaleString()}원</p>
+                <p>종료시각: {new Date(auction.endAt).toLocaleString()}</p>
+              </div>
+              <div className="mt-2 rounded-lg border border-white/80 bg-white/80 px-2.5 py-2 text-[11px] text-slate-700">
+                {isWinner ? (
+                  <p>
+                    판매자 신뢰 정보(전화/이메일/블로그)를 확인해 거래를 진행하세요. 분쟁 발생 시 신고 기능을 사용하세요.
+                  </p>
+                ) : data?.isOwner ? (
+                  <p>
+                    낙찰자와 거래를 진행하세요. 거래 조건 분쟁이 있으면 신고 접수로 운영 검토를 요청할 수 있습니다.
+                  </p>
+                ) : (
+                  <p>
+                    경매가 낙찰로 종료되었습니다. 참여 내역은 알림에서 확인할 수 있습니다.
+                  </p>
+                )}
+              </div>
+            </div>
+          )}
 
           {/* 판매자 정보 */}
           <Link
@@ -195,6 +310,47 @@ const AuctionDetailClient = () => {
               <p className="text-xs text-gray-400">경매 등록자</p>
             </div>
           </Link>
+
+          {(auction.sellerPhone ||
+            auction.sellerEmail ||
+            auction.sellerBlogUrl ||
+            auction.sellerCafeNick ||
+            auction.sellerBandNick ||
+            auction.sellerTrustNote ||
+            auction.sellerProofImage) && (
+            <div className="py-3 border-b border-gray-100">
+              <p className="text-xs font-semibold text-slate-700">판매자 신뢰 정보</p>
+              <div className="mt-2 space-y-1 text-xs text-slate-600">
+                {auction.sellerPhone ? <p>연락처: {auction.sellerPhone}</p> : null}
+                {auction.sellerEmail ? <p>이메일: {auction.sellerEmail}</p> : null}
+                {auction.sellerBlogUrl ? (
+                  <a
+                    href={auction.sellerBlogUrl}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="inline-flex underline underline-offset-2"
+                  >
+                    블로그/프로필 링크 확인
+                  </a>
+                ) : null}
+                {auction.sellerCafeNick ? <p>카페 닉네임: {auction.sellerCafeNick}</p> : null}
+                {auction.sellerBandNick ? <p>밴드 닉네임: {auction.sellerBandNick}</p> : null}
+                {auction.sellerTrustNote ? (
+                  <p className="whitespace-pre-line">추가 안내: {auction.sellerTrustNote}</p>
+                ) : null}
+              </div>
+              {auction.sellerProofImage ? (
+                <div className="relative mt-2 h-28 w-40 overflow-hidden rounded-md border border-slate-200">
+                  <Image
+                    src={makeImageUrl(auction.sellerProofImage, "public")}
+                    className="object-cover"
+                    fill
+                    alt="판매자 신뢰 자료"
+                  />
+                </div>
+              ) : null}
+            </div>
+          )}
 
           {/* 상품 정보 */}
           <div className="py-4 space-y-3 border-b border-gray-100">
@@ -264,10 +420,9 @@ const AuctionDetailClient = () => {
               </div>
               <ul className="mt-2 space-y-1 text-xs text-slate-600">
                 <li>• 현재가 기준 입찰 단위: {getBidIncrement(auction.currentPrice).toLocaleString()}원</li>
-                <li>• 마감 3분 이내 입찰 시 종료 시간이 3분 연장됩니다.</li>
+                <li>• 마감 {extensionWindowMinutes}분 이내 입찰 시 종료 시간이 {extensionMinutes}분 연장됩니다.</li>
                 <li>• 입찰은 취소할 수 없으며, 본인 경매 입찰은 불가합니다.</li>
                 <li>• 현재 최고 입찰자는 재입찰할 수 없습니다.</li>
-                <li>• 가입 후 24시간이 지나야 입찰할 수 있습니다.</li>
               </ul>
               <div className="mt-3 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2.5 text-xs text-amber-900">
                 <p className="font-semibold">분쟁/신고 안내</p>
@@ -275,12 +430,50 @@ const AuctionDetailClient = () => {
                   본 서비스는 거래 당사자 간 분쟁에 대해 법적 책임을 지지 않습니다.
                   다만 문제가 발생하면 신고를 접수하여 운영정책에 따라 검토 및 제재를 진행합니다.
                 </p>
+                <p className="mt-1 leading-relaxed font-semibold">
+                  카카오 로그인 기반 계정은 위반 시 영구 참여 제한됩니다.
+                </p>
                 <a
                   href="mailto:support@bredy.app?subject=[경매%20신고]%20분쟁%20접수"
                   className="mt-1.5 inline-flex items-center font-semibold underline underline-offset-2"
                 >
                   신고 접수: support@bredy.app
                 </a>
+                {!data?.isOwner && (
+                  <div className="mt-3 rounded-lg border border-amber-300 bg-white/70 p-2.5">
+                    <p className="text-[11px] font-semibold text-amber-900">빠른 신고 접수</p>
+                    <div className="mt-1.5 space-y-1.5">
+                      <select
+                        value={reportReason}
+                        onChange={(event) =>
+                          setReportReason(event.target.value as (typeof REPORT_REASONS)[number])
+                        }
+                        className="w-full rounded-md border border-amber-200 bg-white px-2 py-1.5 text-[11px]"
+                      >
+                        {REPORT_REASONS.map((reason) => (
+                          <option key={reason} value={reason}>
+                            {reason}
+                          </option>
+                        ))}
+                      </select>
+                      <textarea
+                        value={reportDetail}
+                        onChange={(event) => setReportDetail(event.target.value)}
+                        placeholder="신고 내용을 5자 이상 입력해주세요."
+                        rows={2}
+                        className="w-full rounded-md border border-amber-200 bg-white px-2 py-1.5 text-[11px]"
+                      />
+                      <button
+                        type="button"
+                        onClick={handleReport}
+                        disabled={reportLoading}
+                        className="inline-flex items-center rounded-md bg-amber-600 px-2.5 py-1 text-[11px] font-semibold text-white disabled:opacity-60"
+                      >
+                        {reportLoading ? "접수 중..." : "신고 접수"}
+                      </button>
+                    </div>
+                  </div>
+                )}
               </div>
             </div>
 
@@ -301,7 +494,11 @@ const AuctionDetailClient = () => {
                     >
                       <div className="flex items-center gap-2">
                         {i === 0 && (
-                          <span className="text-xs font-bold text-primary">1위</span>
+                          <span className="text-xs font-bold text-primary">
+                            {auction.status === "종료" && auction.winnerId === bid.userId
+                              ? "낙찰"
+                              : "1위"}
+                          </span>
                         )}
                         {bid.user?.avatar ? (
                           <Image

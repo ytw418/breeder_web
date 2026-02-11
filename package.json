@@ -12,7 +12,8 @@
     "test:watch": "jest --watch",
     "test:coverage": "jest --coverage",
     "seed:dummy": "ts-node --transpile-only --compiler-options '{\"module\":\"CommonJS\"}' prisma/seed-dummy.ts",
-    "seed:dummy:reset": "ts-node --transpile-only --compiler-options '{\"module\":\"CommonJS\"}' prisma/seed-dummy.ts --reset"
+    "seed:dummy:reset": "ts-node --transpile-only --compiler-options '{\"module\":\"CommonJS\"}' prisma/seed-dummy.ts --reset",
+    "seed:auction-flow": "ts-node --transpile-only --compiler-options '{\"module\":\"CommonJS\"}' prisma/seed-auction-flow.ts"
   },
   "dependencies": {
     "@heroicons/react": "^2.0.18",
