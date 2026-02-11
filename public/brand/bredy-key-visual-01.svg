@@ -1,0 +1,66 @@
+<svg width="1200" height="630" viewBox="0 0 1200 630" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="bg" x1="80" y1="40" x2="1120" y2="630" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#0A1230"/>
+      <stop offset="0.55" stop-color="#162B66"/>
+      <stop offset="1" stop-color="#1F5BFF"/>
+    </linearGradient>
+    <radialGradient id="glow1" cx="0" cy="0" r="1" gradientUnits="userSpaceOnUse" gradientTransform="translate(1020 90) rotate(132.7) scale(360 360)">
+      <stop stop-color="#7DE5FF" stop-opacity="0.42"/>
+      <stop offset="1" stop-color="#7DE5FF" stop-opacity="0"/>
+    </radialGradient>
+    <radialGradient id="glow2" cx="0" cy="0" r="1" gradientUnits="userSpaceOnUse" gradientTransform="translate(930 520) rotate(180) scale(280 220)">
+      <stop stop-color="#FDE047" stop-opacity="0.34"/>
+      <stop offset="1" stop-color="#FDE047" stop-opacity="0"/>
+    </radialGradient>
+    <linearGradient id="card" x1="760" y1="150" x2="1060" y2="460" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#F8FAFF" stop-opacity="0.26"/>
+      <stop offset="1" stop-color="#FFFFFF" stop-opacity="0.08"/>
+    </linearGradient>
+  </defs>
+
+  <rect width="1200" height="630" rx="36" fill="url(#bg)"/>
+  <circle cx="1020" cy="90" r="360" fill="url(#glow1)"/>
+  <ellipse cx="930" cy="520" rx="280" ry="220" fill="url(#glow2)"/>
+
+  <g opacity="0.16">
+    <path d="M-40 480C120 420 290 470 450 420C610 370 730 240 910 260C1060 276 1130 382 1240 410" stroke="white" stroke-width="2"/>
+    <path d="M-40 530C130 480 260 530 430 500C610 470 730 330 920 350C1060 365 1140 442 1240 470" stroke="white" stroke-width="2"/>
+  </g>
+
+  <g>
+    <rect x="76" y="78" width="230" height="40" rx="20" fill="white" fill-opacity="0.14"/>
+    <text x="104" y="105" fill="#DDF2FF" font-family="Pretendard, Inter, sans-serif" font-size="17" font-weight="700">BREDY</text>
+    <text x="178" y="105" fill="#A5C6FF" font-family="Pretendard, Inter, sans-serif" font-size="17" font-weight="500">AUCTION</text>
+  </g>
+
+  <text x="76" y="214" fill="white" font-family="Pretendard, Inter, sans-serif" font-size="72" font-weight="800" letter-spacing="-1.2">링크 하나로</text>
+  <text x="76" y="304" fill="white" font-family="Pretendard, Inter, sans-serif" font-size="72" font-weight="800" letter-spacing="-1.2">공정한 경매 운영</text>
+
+  <text x="78" y="356" fill="#D6E6FF" font-family="Pretendard, Inter, sans-serif" font-size="26" font-weight="500">카페 · 밴드 · 오픈채팅 위에서 바로 쓰는 공유형 경매 도구</text>
+
+  <g>
+    <rect x="76" y="414" width="260" height="74" rx="18" fill="#FEE500"/>
+    <text x="126" y="462" fill="#171717" font-family="Pretendard, Inter, sans-serif" font-size="30" font-weight="800">카카오로 시작</text>
+  </g>
+
+  <g>
+    <rect x="354" y="414" width="230" height="74" rx="18" fill="white" fill-opacity="0.14" stroke="white" stroke-opacity="0.28"/>
+    <text x="404" y="462" fill="white" font-family="Pretendard, Inter, sans-serif" font-size="30" font-weight="700">경매 보기</text>
+  </g>
+
+  <g>
+    <rect x="714" y="116" width="420" height="398" rx="30" fill="url(#card)" stroke="white" stroke-opacity="0.18"/>
+    <circle cx="924" cy="254" r="96" fill="white" fill-opacity="0.18"/>
+    <ellipse cx="924" cy="266" rx="62" ry="72" fill="white" fill-opacity="0.82"/>
+    <circle cx="898" cy="242" r="8" fill="#1C2C63"/>
+    <circle cx="950" cy="242" r="8" fill="#1C2C63"/>
+    <rect x="902" y="276" width="44" height="12" rx="6" fill="#1C2C63"/>
+    <path d="M870 212L838 176" stroke="#A3C5FF" stroke-width="10" stroke-linecap="round"/>
+    <path d="M978 212L1010 176" stroke="#A3C5FF" stroke-width="10" stroke-linecap="round"/>
+
+    <rect x="772" y="366" width="304" height="108" rx="20" fill="white" fill-opacity="0.9"/>
+    <text x="810" y="420" fill="#19306F" font-family="Pretendard, Inter, sans-serif" font-size="34" font-weight="800">입찰 검증</text>
+    <text x="810" y="456" fill="#4B5C90" font-family="Pretendard, Inter, sans-serif" font-size="24" font-weight="600">자동 연장 · 신고 처리</text>
+  </g>
+</svg>

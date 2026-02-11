@@ -82,7 +82,7 @@ const PostClient = ({ post: initialPost }: PostDetailResponse) => {
   return (
     <Layout
       seoTitle={post?.title || "게시글"}
-      title="곤충생활"
+      title="애완동물 서비스"
       canGoBack
     >
       <div className="pb-20">

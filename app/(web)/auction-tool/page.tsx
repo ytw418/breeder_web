@@ -5,6 +5,27 @@ export const metadata: Metadata = {
   title: "링크형 경매도구",
   description:
     "카페/밴드/오픈채팅에서 링크 하나로 바로 참여하는 경매도구. 카카오 로그인, 자동 연장, 신고/제재 처리, 판매자 신뢰 정보 공개를 한 번에 제공합니다.",
+  openGraph: {
+    title: "브리디 경매도구 | 30초면 만드는 경매 도구",
+    description:
+      "30초면 만드는 경매 도구를 활용해보세요. 카카오 로그인 기반 참여, 자동 연장, 신고/제재 처리까지.",
+    type: "website",
+    images: [
+      {
+        url: "/auction-tool/opengraph-image",
+        width: 1200,
+        height: 630,
+        alt: "브리디 경매도구 공유 이미지",
+      },
+    ],
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "브리디 경매도구 | 30초면 만드는 경매 도구",
+    description:
+      "30초면 만드는 경매 도구를 활용해보세요. 카카오 로그인 기반 참여, 자동 연장, 신고/제재 처리까지.",
+    images: ["/auction-tool/twitter-image"],
+  },
 };
 
 const quickWins = [

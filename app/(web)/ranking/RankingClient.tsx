@@ -287,7 +287,7 @@ const PostRankingContent = ({ posts }: { posts: RankingResponse["postRanking"] }
     return (
       <EmptyState
         title="아직 등록된 게시글이 없습니다"
-        description="곤충생활에서 사진/변이 카테고리로 게시글을 올려보세요!"
+        description="애완동물 서비스에서 사진/변이 카테고리로 게시글을 올려보세요!"
       />
     );
   }
