@@ -142,6 +142,69 @@ const AuctionDetailClient = () => {
     setBidAmount(String(amount));
   };
 
+  const getAuctionUrl = () => {
+    if (typeof window === "undefined") return "";
+    return window.location.href;
+  };
+
+  const copyToClipboard = async (value: string) => {
+    if (!value) return;
+    if (navigator.clipboard?.writeText) {
+      await navigator.clipboard.writeText(value);
+      return;
+    }
+
+    const textarea = document.createElement("textarea");
+    textarea.value = value;
+    textarea.style.position = "fixed";
+    textarea.style.left = "-9999px";
+    document.body.appendChild(textarea);
+    textarea.focus();
+    textarea.select();
+    document.execCommand("copy");
+    document.body.removeChild(textarea);
+  };
+
+  const handleCopyAuctionLink = async () => {
+    try {
+      const url = getAuctionUrl();
+      if (!url) {
+        toast.error("공유 링크를 생성하지 못했습니다.");
+        return;
+      }
+      await copyToClipboard(url);
+      toast.success("경매 링크가 복사되었습니다.");
+    } catch {
+      toast.error("링크 복사에 실패했습니다.");
+    }
+  };
+
+  const handleShareAuction = async () => {
+    try {
+      const url = getAuctionUrl();
+      if (!url) {
+        toast.error("공유 링크를 생성하지 못했습니다.");
+        return;
+      }
+
+      if (navigator.share) {
+        await navigator.share({
+          title: auction?.title || "브리디 경매",
+          text: "브리디 경매를 확인해보세요.",
+          url,
+        });
+        toast.success("공유를 완료했습니다.");
+        return;
+      }
+
+      await copyToClipboard(url);
+      toast.info("이 기기에서는 바로 공유를 지원하지 않아 링크를 복사했습니다.");
+    } catch (error) {
+      if (error instanceof Error && error.name === "AbortError") return;
+      toast.error("공유에 실패했습니다.");
+    }
+  };
+
   const handleReport = () => {
     if (!user) {
       router.push("/auth/login");
@@ -182,7 +245,7 @@ const AuctionDetailClient = () => {
   }
 
   return (
-    <Layout canGoBack title="경매 상세" seoTitle={auction.title}>
+    <Layout canGoBack title={auction.title} seoTitle={auction.title}>
       <div className="pb-24">
         {/* 이미지 슬라이더 */}
         <div className="relative aspect-[4/3] bg-gray-100">
@@ -311,47 +374,6 @@ const AuctionDetailClient = () => {
             </div>
           </Link>
 
-          {(auction.sellerPhone ||
-            auction.sellerEmail ||
-            auction.sellerBlogUrl ||
-            auction.sellerCafeNick ||
-            auction.sellerBandNick ||
-            auction.sellerTrustNote ||
-            auction.sellerProofImage) && (
-            <div className="py-3 border-b border-gray-100">
-              <p className="text-xs font-semibold text-slate-700">판매자 신뢰 정보</p>
-              <div className="mt-2 space-y-1 text-xs text-slate-600">
-                {auction.sellerPhone ? <p>연락처: {auction.sellerPhone}</p> : null}
-                {auction.sellerEmail ? <p>이메일: {auction.sellerEmail}</p> : null}
-                {auction.sellerBlogUrl ? (
-                  <a
-                    href={auction.sellerBlogUrl}
-                    target="_blank"
-                    rel="noreferrer"
-                    className="inline-flex underline underline-offset-2"
-                  >
-                    블로그/프로필 링크 확인
-                  </a>
-                ) : null}
-                {auction.sellerCafeNick ? <p>카페 닉네임: {auction.sellerCafeNick}</p> : null}
-                {auction.sellerBandNick ? <p>밴드 닉네임: {auction.sellerBandNick}</p> : null}
-                {auction.sellerTrustNote ? (
-                  <p className="whitespace-pre-line">추가 안내: {auction.sellerTrustNote}</p>
-                ) : null}
-              </div>
-              {auction.sellerProofImage ? (
-                <div className="relative mt-2 h-28 w-40 overflow-hidden rounded-md border border-slate-200">
-                  <Image
-                    src={makeImageUrl(auction.sellerProofImage, "public")}
-                    className="object-cover"
-                    fill
-                    alt="판매자 신뢰 자료"
-                  />
-                </div>
-              ) : null}
-            </div>
-          )}
-
           {/* 상품 정보 */}
           <div className="py-4 space-y-3 border-b border-gray-100">
             <div className="flex items-center gap-2">
@@ -375,22 +397,75 @@ const AuctionDetailClient = () => {
             <p className="text-sm text-gray-600 dark:text-slate-300 whitespace-pre-line leading-relaxed">
               {auction.description}
             </p>
-            {data?.isOwner ? (
-              <div className="pt-1">
-                {data?.canEdit ? (
-                  <Link
-                    href={`/auctions/${auction.id}/edit`}
-                    className="inline-flex items-center rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 px-3 py-1.5 text-xs font-semibold text-slate-700 dark:text-slate-300 hover:bg-slate-50"
-                  >
-                    경매 수정하기
-                  </Link>
-                ) : (
-                  <p className="text-xs text-slate-500">
-                    경매 등록 후 1시간 이내, 입찰이 없을 때만 수정할 수 있습니다.
-                  </p>
-                )}
-              </div>
+            <div className="flex flex-wrap items-center gap-2">
+              {data?.isOwner && data?.canEdit ? (
+                <Link
+                  href={`/auctions/${auction.id}/edit`}
+                  className="inline-flex h-10 items-center rounded-xl bg-emerald-600 px-4 text-sm font-semibold text-white transition-colors hover:bg-emerald-700"
+                >
+                  경매 수정하기
+                </Link>
+              ) : null}
+              <button
+                type="button"
+                onClick={handleCopyAuctionLink}
+                className="inline-flex h-10 items-center rounded-xl bg-amber-500 px-4 text-sm font-semibold text-white transition-colors hover:bg-amber-600"
+              >
+                링크 복사
+              </button>
+              <button
+                type="button"
+                onClick={handleShareAuction}
+                className="inline-flex h-10 items-center rounded-xl bg-sky-600 px-4 text-sm font-semibold text-white transition-colors hover:bg-sky-700"
+              >
+                공유하기
+              </button>
+            </div>
+            {data?.isOwner && !data?.canEdit ? (
+              <p className="text-xs text-slate-500">
+                진행중 상태에서 등록 후 10분 이내, 입찰이 없을 때만 수정할 수 있습니다.
+              </p>
             ) : null}
+            {(auction.sellerPhone ||
+              auction.sellerEmail ||
+              auction.sellerBlogUrl ||
+              auction.sellerCafeNick ||
+              auction.sellerBandNick ||
+              auction.sellerTrustNote ||
+              auction.sellerProofImage) && (
+              <div className="rounded-lg border border-slate-200 bg-slate-50 px-3.5 py-3">
+                <p className="text-xs font-semibold text-slate-700">판매자 신뢰 정보</p>
+                <div className="mt-2 space-y-1 text-xs text-slate-600">
+                  {auction.sellerPhone ? <p>연락처: {auction.sellerPhone}</p> : null}
+                  {auction.sellerEmail ? <p>이메일: {auction.sellerEmail}</p> : null}
+                  {auction.sellerBlogUrl ? (
+                    <a
+                      href={auction.sellerBlogUrl}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="inline-flex underline underline-offset-2"
+                    >
+                      블로그/프로필 링크 확인
+                    </a>
+                  ) : null}
+                  {auction.sellerCafeNick ? <p>카페 닉네임: {auction.sellerCafeNick}</p> : null}
+                  {auction.sellerBandNick ? <p>밴드 닉네임: {auction.sellerBandNick}</p> : null}
+                  {auction.sellerTrustNote ? (
+                    <p className="whitespace-pre-line">추가 안내: {auction.sellerTrustNote}</p>
+                  ) : null}
+                </div>
+                {auction.sellerProofImage ? (
+                  <div className="relative mt-2 h-28 w-40 overflow-hidden rounded-md border border-slate-200">
+                    <Image
+                      src={makeImageUrl(auction.sellerProofImage, "public")}
+                      className="object-cover"
+                      fill
+                      alt="판매자 신뢰 자료"
+                    />
+                  </div>
+                ) : null}
+              </div>
+            )}
           </div>
 
           {/* 입찰 현황 */}

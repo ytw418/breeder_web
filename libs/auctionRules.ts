@@ -1,8 +1,8 @@
-export const AUCTION_EDIT_WINDOW_MS = 60 * 60 * 1000; // 1시간
+export const AUCTION_EDIT_WINDOW_MS = 10 * 60 * 1000; // 10분
 export const AUCTION_EXTENSION_WINDOW_MS = 3 * 60 * 1000; // 종료 3분 이내
 export const AUCTION_EXTENSION_MS = 5 * 60 * 1000; // +5분
 export const AUCTION_MIN_START_PRICE = 1000;
-export const AUCTION_MIN_DURATION_MS = 24 * 60 * 60 * 1000; // 24시간
+export const AUCTION_MIN_DURATION_MS = 1 * 60 * 60 * 1000; // 1시간
 export const AUCTION_MAX_DURATION_MS = 72 * 60 * 60 * 1000; // 72시간
 export const AUCTION_MAX_ACTIVE_PER_USER = 3;
 export const AUCTION_HIGH_PRICE_REQUIRE_CONTACT = 500_000;

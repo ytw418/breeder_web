@@ -46,6 +46,8 @@ const AUCTION_CATEGORIES = [
 ];
 
 const DURATION_PRESETS = [
+  { label: "1시간", hours: 1 },
+  { label: "3시간", hours: 3 },
   { label: "24시간", hours: 24 },
   { label: "48시간", hours: 48 },
   { label: "72시간", hours: 72 },
@@ -244,7 +246,7 @@ const EditAuctionClient = () => {
           <div className="rounded-xl border border-slate-200 bg-white p-4 space-y-2">
             <p className="text-sm font-semibold text-slate-900">수정 가능 시간이 지났습니다</p>
             <p className="text-sm text-slate-600">
-              경매 등록 후 1시간 이내, 입찰이 없는 경우에만 수정할 수 있습니다.
+              진행중 상태에서 등록 후 10분 이내, 입찰이 없는 경우에만 수정할 수 있습니다.
             </p>
             <p className="text-xs text-slate-400">수정 가능 마감: {editAvailableUntilText}</p>
             <Button
@@ -266,7 +268,7 @@ const EditAuctionClient = () => {
         <div className="rounded-xl border border-slate-200 bg-slate-50 px-3.5 py-3">
           <p className="text-sm font-semibold text-slate-800">수정 가능 조건</p>
           <p className="mt-1 text-xs text-slate-600">
-            등록 후 1시간 이내 + 입찰 없음 상태에서만 수정할 수 있습니다.
+            진행중 + 등록 후 10분 이내 + 입찰 없음 상태에서만 수정할 수 있습니다.
           </p>
           <p className="mt-1 text-xs text-slate-500">수정 가능 마감: {editAvailableUntilText}</p>
         </div>

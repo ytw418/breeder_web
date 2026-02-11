@@ -43,7 +43,7 @@ export default function AuctionRulesClient() {
           <ul className="mt-3 space-y-2 text-sm text-slate-700 leading-relaxed">
             <li>• 동시 진행 경매는 계정당 최대 {AUCTION_MAX_ACTIVE_PER_USER}개까지 등록할 수 있습니다.</li>
             <li>• 시작가 {AUCTION_HIGH_PRICE_REQUIRE_CONTACT.toLocaleString()}원 이상 경매는 연락처(전화/이메일) 정보가 필요합니다.</li>
-            <li>• 경매 수정은 등록 후 {hourText(AUCTION_EDIT_WINDOW_MS)} 이내, 입찰이 없을 때만 허용됩니다.</li>
+            <li>• 경매 수정은 진행중 상태에서 등록 후 {minuteText(AUCTION_EDIT_WINDOW_MS)} 이내, 입찰이 없을 때만 허용됩니다.</li>
             <li>• 판매자는 블로그 URL, 카페/밴드 닉네임, 프로필 캡처를 선택적으로 등록할 수 있습니다.</li>
           </ul>
         </section>

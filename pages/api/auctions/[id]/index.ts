@@ -175,7 +175,7 @@ async function handler(
       if (!editable) {
         return res.status(400).json({
           success: false,
-          error: "경매 등록 후 1시간 이내이면서 입찰이 없는 경우에만 수정할 수 있습니다.",
+          error: "진행중 상태에서 등록 후 10분 이내, 입찰이 없는 경우에만 수정할 수 있습니다.",
           errorCode: "AUCTION_EDIT_NOT_ALLOWED",
         });
       }
@@ -208,7 +208,7 @@ async function handler(
       if (!isAuctionDurationValid(endDate)) {
         return res.status(400).json({
           success: false,
-          error: "경매 기간은 수정 시점 기준 24시간~72시간 사이여야 합니다.",
+          error: "경매 기간은 수정 시점 기준 1시간~72시간 사이여야 합니다.",
           errorCode: "AUCTION_DURATION_OUT_OF_RANGE_UPDATE",
         });
       }

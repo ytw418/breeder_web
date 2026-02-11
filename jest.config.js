@@ -69,4 +69,8 @@ module.exports = {
   transformIgnorePatterns: [
     "/node_modules/(?!(@babel|@testing-library|@emotion|@mui|@prisma|@svgr)/)",
   ],
+
+  // 로컬 worktree 복제본은 테스트 스캔에서 제외
+  modulePathIgnorePatterns: ["<rootDir>/.worktrees/"],
+  testPathIgnorePatterns: ["<rootDir>/.worktrees/"],
 };

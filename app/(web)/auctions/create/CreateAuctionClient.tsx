@@ -36,6 +36,20 @@ interface AuctionForm {
   sellerTrustNote: string;
 }
 
+interface AuctionCreatePayload extends AuctionForm {
+  title: string;
+  description: string;
+  category: string;
+  photos: string[];
+  sellerProofImage: string | null;
+  startPrice: number;
+}
+
+interface PendingCreateSubmission {
+  requestData: AuctionCreatePayload;
+  signature: string;
+}
+
 /** 경매 카테고리 목록 */
 const AUCTION_CATEGORIES = [
   "곤충",
@@ -48,10 +62,60 @@ const AUCTION_CATEGORIES = [
 
 /** 경매 기간 프리셋 */
 const DURATION_PRESETS = [
+  { label: "1시간", hours: 1 },
+  { label: "3시간", hours: 3 },
   { label: "24시간", hours: 24 },
   { label: "48시간", hours: 48 },
   { label: "72시간", hours: 72 },
 ];
+
+const normalizeSignatureText = (value: unknown) =>
+  typeof value === "string" ? value.trim() : "";
+
+const toDateTimeLocalInputValue = (date: Date) => {
+  const localDate = new Date(date.getTime() - date.getTimezoneOffset() * 60000);
+  return localDate.toISOString().slice(0, 16);
+};
+
+const getPresetEndAtValue = (hours: number) => {
+  const base = new Date();
+  // datetime-local은 분 단위로 저장되므로 올림 처리해 1시간 프리셋 경계 오류를 방지한다.
+  if (base.getSeconds() > 0 || base.getMilliseconds() > 0) {
+    base.setMinutes(base.getMinutes() + 1);
+  }
+  base.setSeconds(0, 0);
+  const endDate = new Date(base.getTime() + hours * 60 * 60 * 1000);
+  return toDateTimeLocalInputValue(endDate);
+};
+
+const formatConfirmDateTime = (value: string) => {
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return value;
+  return date.toLocaleString("ko-KR", {
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+};
+
+const buildSubmissionSignature = (requestData: AuctionCreatePayload) =>
+  JSON.stringify({
+    title: normalizeSignatureText(requestData.title),
+    description: normalizeSignatureText(requestData.description),
+    category: normalizeSignatureText(requestData.category),
+    startPrice: Number(requestData.startPrice),
+    endAt: normalizeSignatureText(requestData.endAt),
+    photos: requestData.photos.map((photo) => normalizeSignatureText(photo)),
+    sellerPhone: normalizeSignatureText(requestData.sellerPhone),
+    sellerEmail: normalizeSignatureText(requestData.sellerEmail),
+    sellerBlogUrl: normalizeSignatureText(requestData.sellerBlogUrl),
+    sellerCafeNick: normalizeSignatureText(requestData.sellerCafeNick),
+    sellerBandNick: normalizeSignatureText(requestData.sellerBandNick),
+    sellerTrustNote: normalizeSignatureText(requestData.sellerTrustNote),
+    sellerProofImage: normalizeSignatureText(requestData.sellerProofImage),
+  });
 
 const CreateAuctionClient = () => {
   const router = useRouter();
@@ -66,11 +130,16 @@ const CreateAuctionClient = () => {
   const [agreedDisputePolicy, setAgreedDisputePolicy] = useState(false);
   const [shareModalOpen, setShareModalOpen] = useState(false);
   const [createdAuctionId, setCreatedAuctionId] = useState<number | null>(null);
+  const [lastCreatedSignature, setLastCreatedSignature] = useState<string | null>(null);
+  const [confirmModalOpen, setConfirmModalOpen] = useState(false);
+  const [pendingSubmission, setPendingSubmission] =
+    useState<PendingCreateSubmission | null>(null);
 
   const { register, handleSubmit, setValue, watch, formState: { errors } } = useForm<AuctionForm>();
 
   const [createAuction, { loading }] = useMutation<CreateAuctionResponse>("/api/auctions");
   const watchedStartPrice = Number(watch("startPrice") || 0);
+  const watchedEndAt = watch("endAt");
   const currentBidIncrement = getBidIncrement(watchedStartPrice);
   const extensionMinutes = Math.floor(AUCTION_EXTENSION_MS / (60 * 1000));
   const extensionWindowMinutes = Math.floor(
@@ -79,7 +148,7 @@ const CreateAuctionClient = () => {
 
   if (isUserLoading) {
     return (
-      <Layout canGoBack title="경매 등록" seoTitle="경매 등록">
+      <Layout canGoBack title="경매 생성하기" seoTitle="경매 생성하기">
         <div className="flex min-h-[60vh] items-center justify-center">
           <div className="h-8 w-8 animate-spin rounded-full border-2 border-slate-300 border-t-slate-700" />
         </div>
@@ -89,7 +158,7 @@ const CreateAuctionClient = () => {
 
   if (!user) {
     return (
-      <Layout canGoBack title="경매 등록" seoTitle="경매 등록">
+      <Layout canGoBack title="경매 생성하기" seoTitle="경매 생성하기">
         <div className="relative min-h-[68vh] px-4 pt-6">
           <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
             <p className="text-sm font-semibold text-slate-900">경매 등록 안내</p>
@@ -201,14 +270,12 @@ const CreateAuctionClient = () => {
   /** 기간 프리셋 선택 */
   const handleDurationPreset = (hours: number) => {
     setSelectedDuration(hours);
-    const endDate = new Date(Date.now() + hours * 60 * 60 * 1000);
-    const localDate = new Date(endDate.getTime() - endDate.getTimezoneOffset() * 60000);
-    setValue("endAt", localDate.toISOString().slice(0, 16));
+    setValue("endAt", getPresetEndAtValue(hours), { shouldValidate: true });
   };
 
   /** 제출 */
   const onSubmit = (data: AuctionForm) => {
-    if (loading) return;
+    if (loading || confirmModalOpen) return;
     if (!selectedCategory) {
       toast.error("카테고리를 선택해주세요.");
       return;
@@ -221,18 +288,65 @@ const CreateAuctionClient = () => {
       toast.error("경매 주의사항 및 분쟁 정책 동의가 필요합니다.");
       return;
     }
+    if (selectedDuration === null) {
+      toast.error("경매 기간 프리셋(1시간/3시간 등)을 선택해주세요.");
+      return;
+    }
+
+    const normalizedEndAt = getPresetEndAtValue(selectedDuration);
+
+    const requestData = {
+      ...data,
+      title: normalizeSignatureText(data.title),
+      description: normalizeSignatureText(data.description),
+      endAt: normalizedEndAt,
+      category: selectedCategory,
+      photos,
+      sellerProofImage,
+      startPrice: Number(data.startPrice),
+    };
+
+    const signature = buildSubmissionSignature(requestData);
+
+    if (lastCreatedSignature === signature) {
+      toast.error("동일한 내용의 경매는 다시 등록할 수 없습니다. 기존 경매를 공유하거나 수정해주세요.");
+      if (createdAuctionId) {
+        setShareModalOpen(true);
+      }
+      return;
+    }
+
+    setPendingSubmission({
+      requestData,
+      signature,
+    });
+    setConfirmModalOpen(true);
+  };
+
+  const handleConfirmCreate = () => {
+    if (!pendingSubmission || loading) return;
+
+    const refreshedRequestData = selectedDuration
+      ? {
+          ...pendingSubmission.requestData,
+          endAt: getPresetEndAtValue(selectedDuration),
+        }
+      : pendingSubmission.requestData;
+    const refreshedSignature = buildSubmissionSignature(refreshedRequestData);
+
+    if (lastCreatedSignature === refreshedSignature) {
+      toast.error("동일한 내용의 경매는 다시 등록할 수 없습니다. 기존 경매를 공유하거나 수정해주세요.");
+      return;
+    }
 
     createAuction({
-      data: {
-        ...data,
-        category: selectedCategory,
-        photos,
-        sellerProofImage,
-        startPrice: Number(data.startPrice),
-      },
+      data: refreshedRequestData,
       onCompleted(result) {
         if (result.success && result.auction?.id) {
+          setLastCreatedSignature(refreshedSignature);
           setCreatedAuctionId(result.auction.id);
+          setConfirmModalOpen(false);
+          setPendingSubmission(null);
           setShareModalOpen(true);
           toast.success("경매가 등록되었습니다. SNS에 공유해보세요!");
         } else {
@@ -243,6 +357,11 @@ const CreateAuctionClient = () => {
         toast.error("오류가 발생했습니다.");
       },
     });
+  };
+
+  const handleCancelConfirm = () => {
+    if (loading) return;
+    setConfirmModalOpen(false);
   };
 
   const getCreatedAuctionPath = () =>
@@ -319,7 +438,7 @@ const CreateAuctionClient = () => {
   };
 
   return (
-    <Layout canGoBack title="경매 등록" seoTitle="경매 등록">
+    <Layout canGoBack title="경매 생성하기" seoTitle="경매 생성하기">
       <form onSubmit={handleSubmit(onSubmit)} className="px-4 py-4 space-y-6 pb-28">
         {/* 이미지 업로드 */}
         <div>
@@ -426,9 +545,16 @@ const CreateAuctionClient = () => {
 
         {/* 시작가 */}
         <div>
-          <label className="block text-sm font-semibold text-gray-900 mb-2">
-            시작가 <span className="text-red-500">*</span>
-          </label>
+          <div className="mb-2 flex items-center justify-between gap-2">
+            <label className="block text-sm font-semibold text-gray-900">
+              시작가 <span className="text-red-500">*</span>
+            </label>
+            {watchedStartPrice > 0 ? (
+              <span className="rounded-md bg-slate-100 px-2 py-1 text-xs font-semibold text-slate-700">
+                {watchedStartPrice.toLocaleString()}원
+              </span>
+            ) : null}
+          </div>
           <div className="relative">
             <Input
               type="number"
@@ -466,7 +592,7 @@ const CreateAuctionClient = () => {
             <li>• 입찰 단위는 현재가에 따라 자동 계산됩니다.</li>
             <li>• 마감 {extensionWindowMinutes}분 이내 입찰 시 경매 시간이 {extensionMinutes}분 연장됩니다.</li>
             <li>• 본인 경매에는 입찰할 수 없습니다.</li>
-            <li>• 등록 후 1시간 이내, 입찰이 없을 때만 수정할 수 있습니다.</li>
+            <li>• 진행중 상태에서 등록 후 10분 이내, 입찰이 없을 때만 수정할 수 있습니다.</li>
             <li>• 동시 진행 경매는 계정당 최대 3개까지 등록 가능합니다.</li>
             <li>• 시작가 50만원 이상 경매는 연락처(전화/이메일) 정보가 필요합니다.</li>
           </ul>
@@ -601,12 +727,22 @@ const CreateAuctionClient = () => {
             ))}
           </div>
           <Input
-            type="datetime-local"
+            type="hidden"
             {...register("endAt", { required: "종료 시간을 선택해주세요." })}
+          />
+          <Input
+            type="text"
+            value={watchedEndAt ? formatConfirmDateTime(watchedEndAt) : ""}
+            placeholder="상단 시간 프리셋을 선택해주세요."
+            readOnly
+            className="bg-slate-100 text-slate-600"
           />
           {errors.endAt && (
             <p className="text-xs text-red-500 mt-1">{errors.endAt.message}</p>
           )}
+          <p className="mt-1 text-[11px] text-slate-500">
+            경매 종료 시간은 프리셋 버튼으로만 설정할 수 있습니다.
+          </p>
         </div>
 
         {/* 등록 버튼 */}
@@ -623,11 +759,62 @@ const CreateAuctionClient = () => {
         </div>
       </form>
 
-      {shareModalOpen ? (
-        <div className="fixed inset-0 z-[90] flex items-end justify-center p-4 sm:items-center">
+      {confirmModalOpen && pendingSubmission ? (
+        <div className="fixed inset-0 z-[95] flex items-center justify-center p-4">
           <button
             type="button"
-            className="absolute inset-0 bg-black/45"
+            className="absolute inset-0 bg-black/60"
+            onClick={handleCancelConfirm}
+            aria-label="등록 확인 팝업 닫기"
+          />
+          <div className="relative w-full max-w-sm rounded-2xl border border-slate-200 bg-white p-5 shadow-2xl">
+            <h2 className="text-lg font-bold text-slate-900">정말 이 내용으로 등록하시겠습니까?</h2>
+            <p className="mt-2 text-sm leading-relaxed text-slate-600">
+              등록 후에는 동일 내용 재등록이 제한될 수 있습니다. 가격과 시간을 다시 확인해주세요.
+            </p>
+
+            <div className="mt-4 space-y-2 rounded-xl border border-slate-200 bg-slate-50 p-3">
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-medium text-slate-500">시작가</span>
+                <span className="text-base font-bold text-slate-900">
+                  {Number(pendingSubmission.requestData.startPrice).toLocaleString()}원
+                </span>
+              </div>
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-medium text-slate-500">종료 시간</span>
+                <span className="text-sm font-semibold text-slate-800">
+                  {formatConfirmDateTime(pendingSubmission.requestData.endAt)}
+                </span>
+              </div>
+            </div>
+
+            <div className="mt-4 grid grid-cols-2 gap-2">
+              <button
+                type="button"
+                onClick={handleCancelConfirm}
+                disabled={loading}
+                className="h-11 rounded-xl border border-slate-200 bg-white text-sm font-semibold text-slate-700 transition-colors hover:bg-slate-50 disabled:opacity-60"
+              >
+                다시 확인
+              </button>
+              <button
+                type="button"
+                onClick={handleConfirmCreate}
+                disabled={loading}
+                className="h-11 rounded-xl bg-slate-900 text-sm font-semibold text-white transition-colors hover:bg-slate-800 disabled:opacity-60"
+              >
+                {loading ? "등록 중..." : "이대로 등록"}
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
+
+      {shareModalOpen ? (
+        <div className="fixed inset-0 z-[90] flex items-center justify-center p-4">
+          <button
+            type="button"
+            className="absolute inset-0 bg-black/60"
             onClick={() => setShareModalOpen(false)}
             aria-label="공유 팝업 닫기"
           />
