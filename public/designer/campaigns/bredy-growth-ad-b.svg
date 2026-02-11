@@ -1,0 +1,46 @@
+<svg width="1080" height="1080" viewBox="0 0 1080 1080" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="bgB" x1="0" y1="0" x2="1080" y2="1080" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#0A1C3B"/>
+      <stop offset="1" stop-color="#0E2C59"/>
+    </linearGradient>
+    <linearGradient id="chartB" x1="602" y1="860" x2="958" y2="522" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#80D4FF"/>
+      <stop offset="1" stop-color="#8BF9D8"/>
+    </linearGradient>
+  </defs>
+
+  <rect width="1080" height="1080" rx="52" fill="url(#bgB)"/>
+
+  <rect x="70" y="74" width="234" height="40" rx="20" fill="#89D8FF" fill-opacity="0.2"/>
+  <text x="100" y="100" fill="#E4F8FF" font-family="Pretendard, Inter, sans-serif" font-size="18" font-weight="700">AUCTION PERFORMANCE</text>
+
+  <text x="72" y="236" fill="white" font-family="Pretendard, Inter, sans-serif" font-size="70" font-weight="800" letter-spacing="-1.1">입찰 신뢰가 올라가면</text>
+  <text x="72" y="318" fill="white" font-family="Pretendard, Inter, sans-serif" font-size="70" font-weight="800" letter-spacing="-1.1">거래 성공도 올라갑니다</text>
+  <text x="74" y="374" fill="#CFD9E8" font-family="Pretendard, Inter, sans-serif" font-size="28" font-weight="500">브리디 경매는 검증, 자동 연장, 운영 가시성에 집중합니다.</text>
+
+  <rect x="72" y="434" width="256" height="82" rx="20" fill="#FB923C"/>
+  <text x="122" y="486" fill="#0B1324" font-family="Pretendard, Inter, sans-serif" font-size="33" font-weight="800">경매 둘러보기</text>
+
+  <g>
+    <rect x="560" y="456" width="448" height="470" rx="30" fill="#0D2144" fill-opacity="0.92" stroke="#8FCFFF" stroke-opacity="0.45"/>
+    <rect x="594" y="498" width="380" height="70" rx="18" fill="#F8FAFC" fill-opacity="0.12"/>
+    <text x="650" y="544" fill="#EAF6FF" font-family="Pretendard, Inter, sans-serif" font-size="31" font-weight="700">신뢰 장치 3단계</text>
+    <g font-family="Pretendard, Inter, sans-serif" fill="#F8FAFC" font-size="27" font-weight="600">
+      <circle cx="620" cy="628" r="13" fill="#FB923C"/>
+      <text x="650" y="636">호가 단위 자동 검증</text>
+      <circle cx="620" cy="700" r="13" fill="#FB923C"/>
+      <text x="650" y="708">마감 임박 자동 연장</text>
+      <circle cx="620" cy="772" r="13" fill="#FB923C"/>
+      <text x="650" y="780">운영 신고/제재 반영</text>
+    </g>
+  </g>
+
+  <polyline points="608,908 682,836 754,854 824,742 896,764 960,642" stroke="url(#chartB)" stroke-width="9" stroke-linecap="round" stroke-linejoin="round"/>
+  <circle cx="608" cy="908" r="9" fill="#7DD3FC"/>
+  <circle cx="682" cy="836" r="9" fill="#7DD3FC"/>
+  <circle cx="754" cy="854" r="9" fill="#7DD3FC"/>
+  <circle cx="824" cy="742" r="9" fill="#7DD3FC"/>
+  <circle cx="896" cy="764" r="9" fill="#7DD3FC"/>
+  <circle cx="960" cy="642" r="9" fill="#7DD3FC"/>
+</svg>

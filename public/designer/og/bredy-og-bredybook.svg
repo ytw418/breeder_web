@@ -1,0 +1,30 @@
+<svg width="1200" height="630" viewBox="0 0 1200 630" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="ogBookBg" x1="0" y1="0" x2="1200" y2="630" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#122012"/>
+      <stop offset="1" stop-color="#274B1F"/>
+    </linearGradient>
+  </defs>
+  <rect width="1200" height="630" rx="36" fill="url(#ogBookBg)"/>
+
+  <rect x="74" y="74" width="222" height="38" rx="19" fill="#BEF264" fill-opacity="0.2"/>
+  <text x="102" y="99" fill="#ECFCCB" font-family="Pretendard, Inter, sans-serif" font-size="18" font-weight="700">BREDYBOOK</text>
+
+  <text x="72" y="214" fill="white" font-family="Pretendard, Inter, sans-serif" font-size="66" font-weight="800" letter-spacing="-1.2">브리딩 실력은</text>
+  <text x="72" y="292" fill="white" font-family="Pretendard, Inter, sans-serif" font-size="66" font-weight="800" letter-spacing="-1.2">기록으로 증명됩니다</text>
+  <text x="74" y="346" fill="#D9E9CE" font-family="Pretendard, Inter, sans-serif" font-size="24" font-weight="500">측정 기준 · 종별 랭킹 · 공식 인증</text>
+
+  <rect x="72" y="408" width="272" height="76" rx="18" fill="#A3E635"/>
+  <text x="126" y="458" fill="#122012" font-family="Pretendard, Inter, sans-serif" font-size="31" font-weight="800">기록 등록하기</text>
+
+  <rect x="704" y="86" width="420" height="458" rx="34" fill="#1B3019" fill-opacity="0.92" stroke="#C2F08A" stroke-opacity="0.45"/>
+  <text x="768" y="154" fill="#F1F9DF" font-family="Pretendard, Inter, sans-serif" font-size="34" font-weight="700">브리디북 포인트</text>
+  <g font-family="Pretendard, Inter, sans-serif" fill="#F7FEE7" font-size="25" font-weight="600">
+    <circle cx="778" cy="242" r="14" fill="#A3E635"/>
+    <text x="810" y="250">측정 기준 기반 등록</text>
+    <circle cx="778" cy="316" r="14" fill="#A3E635"/>
+    <text x="810" y="324">종별 랭킹 자동 반영</text>
+    <circle cx="778" cy="390" r="14" fill="#A3E635"/>
+    <text x="810" y="398">브리더 신뢰도 강화</text>
+  </g>
+</svg>

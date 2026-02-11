@@ -1,0 +1,40 @@
+<svg width="1080" height="1080" viewBox="0 0 1080 1080" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="bgC" x1="0" y1="0" x2="1080" y2="1080" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#101826"/>
+      <stop offset="0.58" stop-color="#17243A"/>
+      <stop offset="1" stop-color="#1E2E48"/>
+    </linearGradient>
+    <linearGradient id="cardC" x1="124" y1="572" x2="962" y2="1010" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#0F203E"/>
+      <stop offset="1" stop-color="#16335E"/>
+    </linearGradient>
+  </defs>
+
+  <rect width="1080" height="1080" rx="52" fill="url(#bgC)"/>
+
+  <rect x="70" y="74" width="188" height="40" rx="20" fill="#A3E635" fill-opacity="0.2"/>
+  <text x="100" y="100" fill="#E3FBC1" font-family="Pretendard, Inter, sans-serif" font-size="18" font-weight="700">BREDYBOOK AD</text>
+
+  <text x="72" y="236" fill="white" font-family="Pretendard, Inter, sans-serif" font-size="70" font-weight="800" letter-spacing="-1.1">말이 아닌 기록으로</text>
+  <text x="72" y="318" fill="white" font-family="Pretendard, Inter, sans-serif" font-size="70" font-weight="800" letter-spacing="-1.1">브리딩 실력을 증명하세요</text>
+  <text x="74" y="374" fill="#D2DBE8" font-family="Pretendard, Inter, sans-serif" font-size="29" font-weight="500">브리디북에서 종별 랭킹과 공식 인증을 한 번에.</text>
+
+  <rect x="72" y="436" width="278" height="84" rx="20" fill="#A3E635"/>
+  <text x="122" y="489" fill="#0D1726" font-family="Pretendard, Inter, sans-serif" font-size="34" font-weight="800">기록 등록하기</text>
+
+  <g>
+    <rect x="72" y="568" width="936" height="430" rx="32" fill="url(#cardC)" stroke="#B7F171" stroke-opacity="0.45"/>
+    <rect x="110" y="614" width="860" height="86" rx="20" fill="#F7FEE7" fill-opacity="0.1"/>
+    <text x="198" y="670" fill="#F7FEE7" font-family="Pretendard, Inter, sans-serif" font-size="40" font-weight="700">브리디북 공식 기록 포인트</text>
+
+    <g font-family="Pretendard, Inter, sans-serif" fill="#F7FEE7" font-size="32" font-weight="600">
+      <circle cx="138" cy="760" r="14" fill="#A3E635"/>
+      <text x="170" y="770">측정 기준 기반 등록</text>
+      <circle cx="138" cy="836" r="14" fill="#A3E635"/>
+      <text x="170" y="846">종별 랭킹 자동 반영</text>
+      <circle cx="138" cy="912" r="14" fill="#A3E635"/>
+      <text x="170" y="922">프로필 신뢰도 강화</text>
+    </g>
+  </g>
+</svg>

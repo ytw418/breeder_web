@@ -1,0 +1,38 @@
+<svg width="1024" height="1024" viewBox="0 0 1024 1024" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="iconBg" x1="84" y1="74" x2="942" y2="980" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#0B1B3E"/>
+      <stop offset="0.58" stop-color="#15366B"/>
+      <stop offset="1" stop-color="#1F4D8F"/>
+    </linearGradient>
+    <radialGradient id="iconGlowA" cx="0" cy="0" r="1" gradientUnits="userSpaceOnUse" gradientTransform="translate(778 198) rotate(138) scale(392 286)">
+      <stop stop-color="#6CC4FF" stop-opacity="0.45"/>
+      <stop offset="1" stop-color="#6CC4FF" stop-opacity="0"/>
+    </radialGradient>
+    <radialGradient id="iconGlowB" cx="0" cy="0" r="1" gradientUnits="userSpaceOnUse" gradientTransform="translate(208 872) rotate(-36) scale(462 284)">
+      <stop stop-color="#FF934F" stop-opacity="0.42"/>
+      <stop offset="1" stop-color="#FF934F" stop-opacity="0"/>
+    </radialGradient>
+    <linearGradient id="shield" x1="311" y1="242" x2="712" y2="782" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#F8FBFF" stop-opacity="0.25"/>
+      <stop offset="1" stop-color="#F8FBFF" stop-opacity="0.08"/>
+    </linearGradient>
+  </defs>
+
+  <rect x="36" y="36" width="952" height="952" rx="220" fill="url(#iconBg)"/>
+  <rect x="36" y="36" width="952" height="952" rx="220" fill="url(#iconGlowA)"/>
+  <rect x="36" y="36" width="952" height="952" rx="220" fill="url(#iconGlowB)"/>
+
+  <rect x="252" y="220" width="520" height="584" rx="132" fill="url(#shield)" stroke="#A7D8FF" stroke-opacity="0.38" stroke-width="2"/>
+
+  <path d="M512 332L620 404L578 550H446L404 404L512 332Z" fill="#FB923C"/>
+  <circle cx="512" cy="454" r="76" fill="#0B1B3E"/>
+  <path d="M446 550C446 602 475 644 512 672C549 644 578 602 578 550H446Z" fill="#FB923C"/>
+
+  <rect x="344" y="726" width="336" height="78" rx="39" fill="#F8FAFC" fill-opacity="0.15" stroke="#D2E8FF" stroke-opacity="0.55"/>
+  <text x="398" y="776" fill="#F8FAFC" font-family="Pretendard, Inter, sans-serif" font-size="48" font-weight="800" letter-spacing="-0.7">BREDY</text>
+
+  <circle cx="392" cy="284" r="17" fill="#7ED1FF"/>
+  <circle cx="632" cy="284" r="17" fill="#7ED1FF"/>
+  <circle cx="512" cy="248" r="17" fill="#7ED1FF"/>
+</svg>

@@ -1,0 +1,30 @@
+<svg width="1200" height="630" viewBox="0 0 1200 630" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="ogAuctionBg" x1="0" y1="0" x2="1200" y2="630" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#081A38"/>
+      <stop offset="1" stop-color="#123A70"/>
+    </linearGradient>
+  </defs>
+  <rect width="1200" height="630" rx="36" fill="url(#ogAuctionBg)"/>
+
+  <rect x="74" y="74" width="250" height="38" rx="19" fill="#7FD4FF" fill-opacity="0.2"/>
+  <text x="104" y="98" fill="#E3F7FF" font-family="Pretendard, Inter, sans-serif" font-size="18" font-weight="700">BREDY AUCTIONS</text>
+
+  <text x="72" y="214" fill="white" font-family="Pretendard, Inter, sans-serif" font-size="66" font-weight="800" letter-spacing="-1.2">검증형 경매로</text>
+  <text x="72" y="292" fill="white" font-family="Pretendard, Inter, sans-serif" font-size="66" font-weight="800" letter-spacing="-1.2">브리딩 거래를 더 신뢰 있게</text>
+  <text x="74" y="346" fill="#CED9E7" font-family="Pretendard, Inter, sans-serif" font-size="24" font-weight="500">호가 검증 · 자동 연장 · 운영 가시성</text>
+
+  <rect x="72" y="408" width="270" height="76" rx="18" fill="#FB923C"/>
+  <text x="128" y="458" fill="#0B1223" font-family="Pretendard, Inter, sans-serif" font-size="31" font-weight="800">경매 시작하기</text>
+
+  <rect x="704" y="86" width="420" height="458" rx="34" fill="#0E2244" fill-opacity="0.92" stroke="#91D0FF" stroke-opacity="0.45"/>
+  <text x="756" y="154" fill="#EAF6FF" font-family="Pretendard, Inter, sans-serif" font-size="34" font-weight="700">신뢰 장치 3단계</text>
+  <g font-family="Pretendard, Inter, sans-serif" fill="#F8FAFC" font-size="25" font-weight="600">
+    <circle cx="778" cy="242" r="14" fill="#FB923C"/>
+    <text x="810" y="250">호가 단위 자동 검증</text>
+    <circle cx="778" cy="316" r="14" fill="#FB923C"/>
+    <text x="810" y="324">마감 임박 자동 연장</text>
+    <circle cx="778" cy="390" r="14" fill="#FB923C"/>
+    <text x="810" y="398">신고 처리 상태 반영</text>
+  </g>
+</svg>

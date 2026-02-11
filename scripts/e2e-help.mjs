@@ -14,11 +14,18 @@ const lines = [
   "4) Playwright UI 모드 실행",
   "   npm run test:e2e:ui",
   "",
+  "5) 카카오 수동 로그인 상태 1회 저장 (headed)",
+  "   npm run test:e2e:auth:setup",
+  "",
+  "6) 저장된 로그인 상태로 @auth 테스트 실행",
+  "   npm run test:e2e:auth",
+  "   npm run test:e2e:auth:headed",
+  "",
   "참고",
   "- playwright.config.ts에서 Next dev 서버를 자동 기동합니다.",
+  "- 로그인 상태 파일: playwright/.auth/user.json",
   "- 실패 시 리포트: playwright-report/index.html",
   "",
 ];
 
 console.log(lines.join("\n"));
-

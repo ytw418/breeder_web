@@ -1,0 +1,52 @@
+<svg width="1200" height="630" viewBox="0 0 1200 630" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="ogBg" x1="0" y1="0" x2="1200" y2="630" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#091A37"/>
+      <stop offset="0.55" stop-color="#14315E"/>
+      <stop offset="1" stop-color="#1A3D71"/>
+    </linearGradient>
+    <radialGradient id="ogGlowA" cx="0" cy="0" r="1" gradientUnits="userSpaceOnUse" gradientTransform="translate(948 180) rotate(136) scale(540 320)">
+      <stop stop-color="#72CBFF" stop-opacity="0.44"/>
+      <stop offset="1" stop-color="#72CBFF" stop-opacity="0"/>
+    </radialGradient>
+    <radialGradient id="ogGlowB" cx="0" cy="0" r="1" gradientUnits="userSpaceOnUse" gradientTransform="translate(180 620) rotate(-38) scale(580 280)">
+      <stop stop-color="#FF994D" stop-opacity="0.34"/>
+      <stop offset="1" stop-color="#FF994D" stop-opacity="0"/>
+    </radialGradient>
+  </defs>
+
+  <rect width="1200" height="630" rx="36" fill="url(#ogBg)"/>
+  <rect width="1200" height="630" rx="36" fill="url(#ogGlowA)"/>
+  <rect width="1200" height="630" rx="36" fill="url(#ogGlowB)"/>
+
+  <rect x="74" y="72" width="210" height="38" rx="19" fill="#7ED1FF" fill-opacity="0.2"/>
+  <text x="102" y="97" fill="#DBF3FF" font-family="Pretendard, Inter, sans-serif" font-size="18" font-weight="700">BREDY</text>
+
+  <text x="72" y="208" fill="white" font-family="Pretendard, Inter, sans-serif" font-size="68" font-weight="800" letter-spacing="-1.2">브리딩 커뮤니티와 거래를</text>
+  <text x="72" y="290" fill="white" font-family="Pretendard, Inter, sans-serif" font-size="68" font-weight="800" letter-spacing="-1.2">하나로 연결하다</text>
+
+  <text x="74" y="346" fill="#CFD9E6" font-family="Pretendard, Inter, sans-serif" font-size="24" font-weight="500">중고거래 · 채팅 · 경매 · 브리디북 기록</text>
+
+  <rect x="72" y="408" width="282" height="76" rx="18" fill="#FB923C"/>
+  <text x="128" y="458" fill="#0B1223" font-family="Pretendard, Inter, sans-serif" font-size="31" font-weight="800">브리디 시작</text>
+
+  <g>
+    <rect x="706" y="76" width="418" height="478" rx="34" fill="#0E1F40" fill-opacity="0.92" stroke="#8BCBFF" stroke-opacity="0.42"/>
+    <rect x="742" y="128" width="346" height="76" rx="18" fill="#F8FAFC" fill-opacity="0.12"/>
+    <text x="790" y="176" fill="#EAF6FF" font-family="Pretendard, Inter, sans-serif" font-size="34" font-weight="700">브리딩 신뢰 포인트</text>
+
+    <g font-family="Pretendard, Inter, sans-serif" fill="#F8FAFC" font-size="24" font-weight="600">
+      <circle cx="780" cy="262" r="15" fill="#FB923C"/>
+      <text x="814" y="270">실매물 기반 거래</text>
+
+      <circle cx="780" cy="326" r="15" fill="#FB923C"/>
+      <text x="814" y="334">1:1 채팅 연결</text>
+
+      <circle cx="780" cy="390" r="15" fill="#FB923C"/>
+      <text x="814" y="398">검증형 경매 운영</text>
+
+      <circle cx="780" cy="454" r="15" fill="#FB923C"/>
+      <text x="814" y="462">공식 기록 인증</text>
+    </g>
+  </g>
+</svg>
