@@ -1,5 +1,7 @@
 # 🐞 Bredy
 
+> Worktree check: edited on `codex/auth-email-sync`.
+
 ## [브리디 접속하기](https://bredy.app/)
 
 ## 📚 프로젝트 소개
