@@ -56,7 +56,7 @@ const AuctionDetailClient = () => {
   const params = useParams();
   const router = useRouter();
   const { user } = useUser();
-  const [bidAmount, setBidAmount] = useState("");
+  const [bidAmount, setBidAmount] = useState<number | null>(null);
   const [countdown, setCountdown] = useState({ text: "", isEnded: false });
   const [imageIndex, setImageIndex] = useState(0);
   const [agreedBidRule, setAgreedBidRule] = useState(false);
@@ -99,21 +99,66 @@ const AuctionDetailClient = () => {
     ? auction.bids.find((bid) => bid.userId === auction.winnerId) || auction.bids[0]
     : null;
   const isWinner = Boolean(auction?.winnerId && user?.id === auction.winnerId);
-  const minimumBid = auction ? auction.currentPrice + getBidIncrement(auction.currentPrice) : 0;
-  const secondQuickBid = minimumBid + (auction ? getBidIncrement(minimumBid) : 0);
+  const bidIncrement = auction ? getBidIncrement(auction.currentPrice) : 0;
+  const minimumBid = auction ? auction.currentPrice + bidIncrement : 0;
+  const isTopBidder = Boolean(
+    auction?.status === "진행중" && user?.id && auction?.bids?.[0]?.userId === user.id
+  );
+  const selectedBidAmount = bidAmount ?? minimumBid;
+
+  const normalizeBidAmount = (targetAmount: number) => {
+    if (!auction) return 0;
+
+    const basePrice = auction.currentPrice;
+    const increment = getBidIncrement(basePrice);
+    const minAmount = basePrice + increment;
+
+    if (!Number.isFinite(targetAmount) || targetAmount <= minAmount) return minAmount;
+
+    const steps = Math.ceil((targetAmount - basePrice) / increment);
+    return basePrice + steps * increment;
+  };
+
+  const increaseBidAmount = (delta: number) => {
+    if (!auction) return;
+    setBidAmount((prev) => {
+      const baseAmount = prev ?? auction.currentPrice;
+      return normalizeBidAmount(baseAmount + delta);
+    });
+  };
+
+  useEffect(() => {
+    if (!auction) return;
+    setBidAmount((prev) => {
+      if (prev === null) return null;
+      if (prev < minimumBid) return minimumBid;
+      return normalizeBidAmount(prev);
+    });
+  }, [auction, minimumBid]);
 
   /** 입찰 핸들러 */
   const handleBid = () => {
     if (!user) return router.push("/auth/login");
     if (bidLoading) return;
+    if (isTopBidder) {
+      toast.error("현재 최고 입찰자는 다시 입찰할 수 없습니다.");
+      return;
+    }
     if (!agreedBidRule || !agreedDisputePolicy) {
       toast.error("입찰 전 주의사항 및 분쟁 정책 동의가 필요합니다.");
       return;
     }
 
-    const amount = Number(bidAmount);
-    if (isNaN(amount) || amount < minimumBid) {
+    const amount = selectedBidAmount;
+    if (!Number.isInteger(amount) || amount < minimumBid) {
       toast.error(`최소 ${minimumBid.toLocaleString()}원 이상 입찰해야 합니다.`);
+      return;
+    }
+
+    const confirmed = window.confirm(
+      `정말 ${amount.toLocaleString()}원으로 입찰하시겠습니까?\n입찰 취소가 불가능합니다.`
+    );
+    if (!confirmed) {
       return;
     }
 
@@ -125,7 +170,7 @@ const AuctionDetailClient = () => {
           if (result.extended) {
             toast.info(`마감 임박 입찰로 경매 시간이 ${extensionMinutes}분 연장되었습니다.`);
           }
-          setBidAmount("");
+          setBidAmount(null);
           boundMutate();
         } else {
           toast.error(getAuctionErrorMessage(result.errorCode, result.error || "입찰에 실패했습니다."));
@@ -135,11 +180,6 @@ const AuctionDetailClient = () => {
         toast.error("오류가 발생했습니다.");
       },
     });
-  };
-
-  /** 빠른 입찰 */
-  const handleQuickBid = (amount: number) => {
-    setBidAmount(String(amount));
   };
 
   const getAuctionUrl = () => {
@@ -633,35 +673,74 @@ const AuctionDetailClient = () => {
                 <span>분쟁 책임 제한 및 신고 접수 정책을 확인했습니다.</span>
               </label>
             </div>
-            <div className="flex items-center gap-2">
-              <button
-                onClick={() => handleQuickBid(minimumBid)}
-                className="flex-shrink-0 px-3 py-2.5 bg-gray-100 dark:bg-slate-800 rounded-lg text-xs font-medium text-gray-600 dark:text-slate-300 hover:bg-gray-200 dark:hover:bg-slate-700 transition-colors"
-              >
-                +1틱
-              </button>
-              <button
-                onClick={() => handleQuickBid(secondQuickBid)}
-                className="flex-shrink-0 px-3 py-2.5 bg-gray-100 dark:bg-slate-800 rounded-lg text-xs font-medium text-gray-600 dark:text-slate-300 hover:bg-gray-200 dark:hover:bg-slate-700 transition-colors"
-              >
-                +2틱
-              </button>
-              <input
-                type="number"
-                value={bidAmount}
-                onChange={(e) => setBidAmount(e.target.value)}
-                placeholder={`${minimumBid.toLocaleString()}원 이상`}
-                step={getBidIncrement(auction.currentPrice)}
-                className="flex-1 bg-gray-100 dark:bg-slate-800 rounded-lg px-4 py-2.5 text-sm outline-none focus:ring-2 focus:ring-primary/20"
-              />
-              <button
-                onClick={handleBid}
-                disabled={bidLoading || !agreedBidRule || !agreedDisputePolicy}
-                className="flex-shrink-0 px-5 py-2.5 bg-primary text-white rounded-lg font-medium text-sm hover:bg-primary/90 transition-colors disabled:opacity-50"
-              >
-                {bidLoading ? "..." : "입찰"}
-              </button>
+            <div className="space-y-2">
+              <div className="grid grid-cols-3 gap-1.5">
+                <button
+                  onClick={() => increaseBidAmount(bidIncrement)}
+                  disabled={isTopBidder}
+                  className="rounded-lg bg-gray-100 px-2 py-2 text-[11px] font-semibold text-gray-700 transition-colors hover:bg-gray-200 disabled:cursor-not-allowed disabled:opacity-50"
+                >
+                  +1틱
+                </button>
+                <button
+                  onClick={() => increaseBidAmount(bidIncrement * 2)}
+                  disabled={isTopBidder}
+                  className="rounded-lg bg-gray-100 px-2 py-2 text-[11px] font-semibold text-gray-700 transition-colors hover:bg-gray-200 disabled:cursor-not-allowed disabled:opacity-50"
+                >
+                  +2틱
+                </button>
+                <button
+                  onClick={() => increaseBidAmount(10_000)}
+                  disabled={isTopBidder}
+                  className="rounded-lg bg-gray-100 px-2 py-2 text-[11px] font-semibold text-gray-700 transition-colors hover:bg-gray-200 disabled:cursor-not-allowed disabled:opacity-50"
+                >
+                  +10,000원
+                </button>
+                <button
+                  onClick={() => increaseBidAmount(50_000)}
+                  disabled={isTopBidder}
+                  className="rounded-lg bg-gray-100 px-2 py-2 text-[11px] font-semibold text-gray-700 transition-colors hover:bg-gray-200 disabled:cursor-not-allowed disabled:opacity-50"
+                >
+                  +50,000원
+                </button>
+                <button
+                  onClick={() => increaseBidAmount(100_000)}
+                  disabled={isTopBidder}
+                  className="rounded-lg bg-gray-100 px-2 py-2 text-[11px] font-semibold text-gray-700 transition-colors hover:bg-gray-200 disabled:cursor-not-allowed disabled:opacity-50"
+                >
+                  +100,000원
+                </button>
+                <button
+                  onClick={() => setBidAmount(minimumBid)}
+                  disabled={isTopBidder}
+                  className="rounded-lg bg-gray-100 px-2 py-2 text-[11px] font-semibold text-gray-700 transition-colors hover:bg-gray-200 disabled:cursor-not-allowed disabled:opacity-50"
+                >
+                  최소가
+                </button>
+              </div>
+              <div className="flex items-center gap-2">
+                <div className="flex-1 rounded-lg bg-gray-100 px-3 py-2 text-right">
+                  <p className="text-[10px] font-medium text-gray-500">선택 입찰가</p>
+                  <p className="text-sm font-bold text-gray-900">
+                    {selectedBidAmount.toLocaleString()}원
+                  </p>
+                </div>
+                <button
+                  onClick={handleBid}
+                  disabled={
+                    bidLoading || !agreedBidRule || !agreedDisputePolicy || isTopBidder
+                  }
+                  className="flex-shrink-0 px-5 py-2.5 bg-primary text-white rounded-lg font-medium text-sm hover:bg-primary/90 transition-colors disabled:opacity-50"
+                >
+                  {bidLoading ? "..." : "입찰"}
+                </button>
+              </div>
             </div>
+            {isTopBidder ? (
+              <p className="mt-2 text-[11px] text-amber-700">
+                현재 최고 입찰자는 다시 입찰할 수 없습니다. 다른 참여자의 입찰을 기다려주세요.
+              </p>
+            ) : null}
           </div>
         </div>
       )}

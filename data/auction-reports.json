@@ -13,5 +13,20 @@
     "resolvedAt": "2026-02-11T02:57:09.101Z",
     "createdAt": "2026-02-11T02:51:35.451Z",
     "updatedAt": "2026-02-11T02:57:09.126Z"
+  },
+  {
+    "id": 2,
+    "auctionId": 58,
+    "reporterId": 57,
+    "reportedUserId": 51,
+    "reason": "허위 매물 의심",
+    "detail": "ㄴㄴㅁㄴㄹㄴㅁㄹ2",
+    "status": "OPEN",
+    "resolutionAction": "NONE",
+    "resolutionNote": null,
+    "resolvedBy": null,
+    "resolvedAt": null,
+    "createdAt": "2026-02-11T16:36:34.304Z",
+    "updatedAt": "2026-02-11T16:36:34.304Z"
   }
 ]

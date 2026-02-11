@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { useForm } from "react-hook-form";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
@@ -49,6 +49,9 @@ interface PendingCreateSubmission {
   requestData: AuctionCreatePayload;
   signature: string;
 }
+
+type CustomFieldErrorKey = "photos" | "category" | "agreement" | "duration";
+type CustomFieldErrors = Partial<Record<CustomFieldErrorKey, string>>;
 
 /** 경매 카테고리 목록 */
 const AUCTION_CATEGORIES = [
@@ -134,6 +137,12 @@ const CreateAuctionClient = () => {
   const [confirmModalOpen, setConfirmModalOpen] = useState(false);
   const [pendingSubmission, setPendingSubmission] =
     useState<PendingCreateSubmission | null>(null);
+  const [customFieldErrors, setCustomFieldErrors] = useState<CustomFieldErrors>({});
+
+  const photosSectionRef = useRef<HTMLDivElement | null>(null);
+  const categorySectionRef = useRef<HTMLDivElement | null>(null);
+  const agreementSectionRef = useRef<HTMLDivElement | null>(null);
+  const durationSectionRef = useRef<HTMLDivElement | null>(null);
 
   const { register, handleSubmit, setValue, watch, formState: { errors } } = useForm<AuctionForm>();
 
@@ -145,6 +154,12 @@ const CreateAuctionClient = () => {
   const extensionWindowMinutes = Math.floor(
     AUCTION_EXTENSION_WINDOW_MS / (60 * 1000)
   );
+  const customErrorMessages = [
+    customFieldErrors.photos,
+    customFieldErrors.category,
+    customFieldErrors.agreement,
+    customFieldErrors.duration,
+  ].filter((message): message is string => Boolean(message));
 
   if (isUserLoading) {
     return (
@@ -223,6 +238,7 @@ const CreateAuctionClient = () => {
         const uploadData = await uploadRes.json();
 
         if (uploadData.success) {
+          setCustomFieldErrors((prev) => ({ ...prev, photos: undefined }));
           setPhotos((prev) => [...prev, uploadData.result.id]);
         }
       }
@@ -269,27 +285,71 @@ const CreateAuctionClient = () => {
 
   /** 기간 프리셋 선택 */
   const handleDurationPreset = (hours: number) => {
+    setCustomFieldErrors((prev) => ({ ...prev, duration: undefined }));
     setSelectedDuration(hours);
     setValue("endAt", getPresetEndAtValue(hours), { shouldValidate: true });
   };
 
   /** 제출 */
-  const onSubmit = (data: AuctionForm) => {
-    if (loading || confirmModalOpen) return;
-    if (!selectedCategory) {
-      toast.error("카테고리를 선택해주세요.");
+  const scrollToFirstCustomError = (errors: CustomFieldErrors) => {
+    if (errors.photos) {
+      photosSectionRef.current?.scrollIntoView({ behavior: "smooth", block: "center" });
       return;
     }
-    if (photos.length === 0) {
-      toast.error("최소 1장의 사진을 등록해주세요.");
+    if (errors.category) {
+      categorySectionRef.current?.scrollIntoView({ behavior: "smooth", block: "center" });
       return;
+    }
+    if (errors.agreement) {
+      agreementSectionRef.current?.scrollIntoView({ behavior: "smooth", block: "center" });
+      return;
+    }
+    if (errors.duration) {
+      durationSectionRef.current?.scrollIntoView({ behavior: "smooth", block: "center" });
+    }
+  };
+
+  const validateCustomRequiredFields = ({ showToast }: { showToast: boolean }) => {
+    const nextErrors: CustomFieldErrors = {};
+
+    if (photos.length === 0) {
+      nextErrors.photos = "최소 1장의 사진을 등록해주세요.";
+    }
+    if (!selectedCategory) {
+      nextErrors.category = "카테고리를 선택해주세요.";
     }
     if (!agreedAuctionNotice || !agreedDisputePolicy) {
-      toast.error("경매 주의사항 및 분쟁 정책 동의가 필요합니다.");
+      nextErrors.agreement = "경매 주의사항 및 분쟁 정책 동의가 필요합니다.";
+    }
+    if (selectedDuration === null) {
+      nextErrors.duration = "경매 기간 프리셋(1시간/3시간 등)을 선택해주세요.";
+    }
+
+    setCustomFieldErrors(nextErrors);
+
+    const firstErrorMessage =
+      nextErrors.photos ||
+      nextErrors.category ||
+      nextErrors.agreement ||
+      nextErrors.duration;
+
+    if (firstErrorMessage) {
+      if (showToast) {
+        toast.error(firstErrorMessage);
+      }
+      scrollToFirstCustomError(nextErrors);
+      return false;
+    }
+
+    return true;
+  };
+
+  const onSubmit = (data: AuctionForm) => {
+    if (loading || confirmModalOpen) return;
+    if (!validateCustomRequiredFields({ showToast: true })) {
       return;
     }
     if (selectedDuration === null) {
-      toast.error("경매 기간 프리셋(1시간/3시간 등)을 선택해주세요.");
       return;
     }
 
@@ -321,6 +381,10 @@ const CreateAuctionClient = () => {
       signature,
     });
     setConfirmModalOpen(true);
+  };
+
+  const onInvalid = () => {
+    validateCustomRequiredFields({ showToast: true });
   };
 
   const handleConfirmCreate = () => {
@@ -439,9 +503,9 @@ const CreateAuctionClient = () => {
 
   return (
     <Layout canGoBack title="경매 생성하기" seoTitle="경매 생성하기">
-      <form onSubmit={handleSubmit(onSubmit)} className="px-4 py-4 space-y-6 pb-28">
+      <form onSubmit={handleSubmit(onSubmit, onInvalid)} className="px-4 py-4 space-y-6 pb-28">
         {/* 이미지 업로드 */}
-        <div>
+        <div ref={photosSectionRef}>
           <label className="block text-sm font-semibold text-gray-900 mb-2">
             사진 등록 <span className="text-red-500">*</span>
             <span className="text-xs font-normal text-gray-400 ml-1">({photos.length}/5)</span>
@@ -488,10 +552,13 @@ const CreateAuctionClient = () => {
               </div>
             ))}
           </div>
+          {customFieldErrors.photos ? (
+            <p className="mt-1 text-xs text-red-500">{customFieldErrors.photos}</p>
+          ) : null}
         </div>
 
         {/* 카테고리 */}
-        <div>
+        <div ref={categorySectionRef}>
           <label className="block text-sm font-semibold text-gray-900 mb-2">
             카테고리 <span className="text-red-500">*</span>
           </label>
@@ -500,7 +567,10 @@ const CreateAuctionClient = () => {
               <button
                 key={cat}
                 type="button"
-                onClick={() => setSelectedCategory(cat)}
+                onClick={() => {
+                  setSelectedCategory(cat);
+                  setCustomFieldErrors((prev) => ({ ...prev, category: undefined }));
+                }}
                 className={cn(
                   "px-3 py-1.5 rounded-full text-sm font-medium transition-colors",
                   selectedCategory === cat
@@ -512,6 +582,9 @@ const CreateAuctionClient = () => {
               </button>
             ))}
           </div>
+          {customFieldErrors.category ? (
+            <p className="mt-1 text-xs text-red-500">{customFieldErrors.category}</p>
+          ) : null}
         </div>
 
         {/* 제목 */}
@@ -578,7 +651,10 @@ const CreateAuctionClient = () => {
           </p>
         </div>
 
-        <div className="rounded-xl border border-slate-200 bg-slate-50 px-3.5 py-3">
+        <div
+          ref={agreementSectionRef}
+          className="rounded-xl border border-slate-200 bg-slate-50 px-3.5 py-3"
+        >
           <div className="flex items-center justify-between gap-3">
             <p className="text-sm font-semibold text-slate-800">경매 규칙 안내</p>
             <Link
@@ -617,7 +693,13 @@ const CreateAuctionClient = () => {
               <input
                 type="checkbox"
                 checked={agreedAuctionNotice}
-                onChange={(event) => setAgreedAuctionNotice(event.target.checked)}
+                onChange={(event) => {
+                  const checked = event.target.checked;
+                  setAgreedAuctionNotice(checked);
+                  if (checked && agreedDisputePolicy) {
+                    setCustomFieldErrors((prev) => ({ ...prev, agreement: undefined }));
+                  }
+                }}
                 className="mt-0.5"
               />
               <span>경매 규칙(입찰 단위, 연장, 수정 가능 조건)을 확인했습니다.</span>
@@ -626,12 +708,21 @@ const CreateAuctionClient = () => {
               <input
                 type="checkbox"
                 checked={agreedDisputePolicy}
-                onChange={(event) => setAgreedDisputePolicy(event.target.checked)}
+                onChange={(event) => {
+                  const checked = event.target.checked;
+                  setAgreedDisputePolicy(checked);
+                  if (agreedAuctionNotice && checked) {
+                    setCustomFieldErrors((prev) => ({ ...prev, agreement: undefined }));
+                  }
+                }}
                 className="mt-0.5"
               />
               <span>분쟁 책임 제한 및 신고 접수 정책을 확인했습니다.</span>
             </label>
           </div>
+          {customFieldErrors.agreement ? (
+            <p className="mt-2 text-xs text-red-500">{customFieldErrors.agreement}</p>
+          ) : null}
         </div>
 
         <div className="rounded-xl border border-slate-200 bg-white p-3.5">
@@ -705,7 +796,7 @@ const CreateAuctionClient = () => {
         </div>
 
         {/* 경매 기간 */}
-        <div>
+        <div ref={durationSectionRef}>
           <label className="block text-sm font-semibold text-gray-900 mb-2">
             경매 기간 <span className="text-red-500">*</span>
           </label>
@@ -743,11 +834,19 @@ const CreateAuctionClient = () => {
           <p className="mt-1 text-[11px] text-slate-500">
             경매 종료 시간은 프리셋 버튼으로만 설정할 수 있습니다.
           </p>
+          {customFieldErrors.duration ? (
+            <p className="mt-1 text-xs text-red-500">{customFieldErrors.duration}</p>
+          ) : null}
         </div>
 
         {/* 등록 버튼 */}
         <div className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-100 p-4 z-10">
           <div className="max-w-xl mx-auto">
+            {customErrorMessages.length > 0 ? (
+              <div className="mb-2 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-xs text-red-700">
+                필수 항목을 확인해주세요: {customErrorMessages.join(" / ")}
+              </div>
+            ) : null}
             <Button
               type="submit"
               disabled={loading || uploading || proofUploading}
