@@ -34,8 +34,13 @@ async function handler(
   res: NextApiResponse<ResponseType>
 ) {
   const { snsId, email, provider, name, avatar } = req.body;
-  console.log("body :>> ", req.body);
-  // return res.end("end");
+  const validProviders = ["kakao", "google", "apple"] as const;
+  const normalizedEmail =
+    typeof email === "string" && email.trim().length > 0
+      ? email.trim().toLowerCase()
+      : null;
+  const normalizedAvatar =
+    typeof avatar === "string" && avatar.trim().length > 0 ? avatar : null;
 
   if (!snsId)
     return res
@@ -45,7 +50,10 @@ async function handler(
     return res
       .status(400)
       .json({ success: false, message: "name is required for login." });
-  if ((provider && "kakao") | (provider && "google") | (provider && "apple"))
+  if (
+    typeof provider !== "string" ||
+    !validProviders.includes(provider as (typeof validProviders)[number])
+  )
     return res
       .status(400)
       .json({ success: false, message: "provider is required for login." });
@@ -62,14 +70,38 @@ async function handler(
       user = await client.user.create({
         data: {
           snsId,
-          email,
+          email: normalizedEmail,
           name: uniqueName,
           provider,
-          avatar,
+          avatar: normalizedAvatar,
         },
       });
+    } else {
+      const updateData: {
+        email?: string | null;
+        avatar?: string | null;
+        provider?: string;
+      } = {};
+
+      // Keep social profile data fresh on subsequent logins.
+      if (normalizedEmail && user.email !== normalizedEmail) {
+        updateData.email = normalizedEmail;
+      }
+      if (normalizedAvatar && user.avatar !== normalizedAvatar) {
+        updateData.avatar = normalizedAvatar;
+      }
+      if (user.provider !== provider) {
+        updateData.provider = provider;
+      }
+
+      if (Object.keys(updateData).length > 0) {
+        user = await client.user.update({
+          where: { id: user.id },
+          data: updateData,
+        });
+      }
     }
-    console.log("user :>> ", user);
+
     req.session.user = user;
     await req.session.save();
     res.status(200).json({ success: true, user });
