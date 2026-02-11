@@ -2,9 +2,13 @@
 import React, { useEffect } from "react";
 
 import KakaoRound from "@images/KakaoRound.svg";
+import GoogleRound from "@images/GoogleRound.svg";
 
 import Link from "next/link";
-import { useSearchParams } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
+import useMutation from "hooks/useMutation";
+import { LoginReqBody, LoginResponseType } from "pages/api/auth/login";
+import { USER_INFO } from "@libs/constants";
 
 const getSafeNextPath = (rawPath: string | null) => {
   if (!rawPath) return "/";
@@ -23,14 +27,24 @@ const getSafeNextPath = (rawPath: string | null) => {
   return normalized;
 };
 
+const getKakaoRedirectUri = () => {
+  if (typeof window !== "undefined" && window.location?.origin) {
+    return `${window.location.origin}/login-loading`;
+  }
+  return `${process.env.NEXT_PUBLIC_DOMAIN_URL || ""}/login-loading`;
+};
+
 const LoginClient = () => {
+  const router = useRouter();
   const searchParams = useSearchParams();
+  const [login] = useMutation<LoginResponseType>("/api/auth/login");
+  const isDevServer = process.env.NODE_ENV !== "production";
 
   /**카카오로그인 */
   const loginWithKakao = () => {
     const nextPath = getSafeNextPath(searchParams?.get("next") ?? null);
     window.Kakao.Auth.authorize({
-      redirectUri: process.env.NEXT_PUBLIC_DOMAIN_URL + `/login-loading`,
+      redirectUri: getKakaoRedirectUri(),
       prompt: "select_account",
       throughTalk: false,
       state: encodeURIComponent(nextPath),
@@ -89,6 +103,49 @@ const LoginClient = () => {
     );
   }, []);
 
+  const loginWithGoogle = async () => {
+    try {
+      const nextPath = getSafeNextPath(searchParams?.get("next") ?? null);
+      const [{ getAuth, GoogleAuthProvider, signInWithPopup }, { app }] =
+        await Promise.all([import("firebase/auth"), import("@/firebase")]);
+
+      const auth = getAuth(app);
+      const provider = new GoogleAuthProvider();
+      provider.setCustomParameters({ prompt: "select_account" });
+
+      const { user } = await signInWithPopup(auth, provider);
+
+      if (!user?.uid) {
+        throw new Error("google-user-not-found");
+      }
+
+      const body: LoginReqBody = {
+        snsId: user.uid,
+        name: user.displayName || user.email?.split("@")[0] || "Google User",
+        provider: USER_INFO.provider.GOOGLE,
+        email: user.email,
+        avatar: user.photoURL || undefined,
+      };
+
+      login({
+        data: body,
+        onCompleted(result) {
+          if (result.success) {
+            router.replace(nextPath);
+            return;
+          }
+          alert(`로그인에 실패했습니다:${result.error}`);
+        },
+        onError(error) {
+          alert(error);
+        },
+      });
+    } catch (error) {
+      console.error(error);
+      alert("구글 로그인에 실패했습니다. 잠시 후 다시 시도해주세요.");
+    }
+  };
+
   return (
     <div className="flex h-screen w-full items-center justify-center p-5 flex-col">
       <div className="flex flex-col items-center mb-[80px]">
@@ -107,9 +164,19 @@ const LoginClient = () => {
           {/* <KakaoLogin className="absolute left-7" width={26} height={26} /> */}
           <span className="title-3">{"카카오로 계속하기"}</span>
         </button>
-        <p className="mt-1 text-[11px] text-Gray-500">
-          현재 경매 참여 계정은 카카오 로그인만 지원합니다.
-        </p>
+        {isDevServer ? (
+          <button
+            onClick={() => loginWithGoogle()}
+            className="button relative flex h-[54px] w-full items-center justify-center rounded-lg border border-Gray-300 bg-white px-7 py-[14px]"
+          >
+            <GoogleRound className="absolute left-7" width={26} height={26} />
+            <span className="title-3">{"구글로 계속하기 (개발용)"}</span>
+          </button>
+        ) : (
+          <p className="mt-1 text-[11px] text-Gray-500">
+            현재 경매 참여 계정은 카카오 로그인만 지원합니다.
+          </p>
+        )}
         <Link
           href={"/"}
           className="button relative flex h-[54px] w-full items-center justify-center rounded-lg border border-Gray-300 px-7 py-[14px]"
