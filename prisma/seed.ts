@@ -1,147 +1,79 @@
 import { faker } from "@faker-js/faker";
 import { PrismaClient } from "@prisma/client";
-import { promises as fs } from "fs";
-import path from "path";
+type SeedUser = {
+  id: number;
+  name: string;
+};
 
 const client = new PrismaClient();
 
-// 곤충 카테고리와 종류 정의
-const categories = {
-  헤라클레스: [
-    "헤라클레스 오키나와",
-    "헤라클레스 리히테니",
-    "헤라클레스 엘리펀트",
-    "헤라클레스 블루",
-    "헤라클레스 레인보우",
-  ],
-  사슴벌레: [
-    "도롱뇽사슴벌레",
-    "왕사슴벌레",
-    "장수사슴벌레",
-    "비단사슴벌레",
-    "금빛사슴벌레",
-  ],
-  장수풍뎅이: [
-    "장수풍뎅이",
-    "왕장수풍뎅이",
-    "비단장수풍뎅이",
-    "금빛장수풍뎅이",
-    "은빛장수풍뎅이",
-  ],
-  왕사: ["왕사", "금빛왕사", "은빛왕사", "비단왕사", "레인보우왕사"],
-  극태: ["극태", "금빛극태", "은빛극태", "비단극태", "레인보우극태"],
-};
+const seedProvider = "seed";
+const seedUserCount = 50;
+const seedProductCount = 50;
+const seedAuctionCount = 50;
+const seedPostCount = 50;
+const seedRecordCount = 50;
 
-// 고정 곤충 이미지 URL 배열
-const insectImageUrls = [
-  "https://auc-pctr.c.yimg.jp/i/auctions.c.yimg.jp/images.auctions.yahoo.co.jp/image/dr000/auc0104/user/b9e32c0322dc2a6bce50b67be6b2c7ea8c912c7c0185447b54c12999a848de4f/i-img1200x900-17458857429089u6nzuv35.jpg?pri=l&w=300&h=300&up=0&nf_src=sy&nf_path=images/auc/pc/top/image/1.0.3/na_170x170.png&nf_st=200",
-  "https://auc-pctr.c.yimg.jp/i/auctions.c.yimg.jp/images.auctions.yahoo.co.jp/image/dr000/auc0105/user/1abc7c36ace59d9c37b5a03715c12c35db0a57c5f328264ba494d12a47b909fa/i-img686x386-1746161643528778kf8zzm22.jpg?pri=l&w=300&h=300&up=0&nf_src=sy&nf_path=images/auc/pc/top/image/1.0.3/na_170x170.png&nf_st=200",
-  "https://auc-pctr.c.yimg.jp/i/auctions.c.yimg.jp/images.auctions.yahoo.co.jp/image/dr000/auc0105/user/46695d2fa991748d9e157a6d2dc04d240ae503def762de6b763efae64fe801f6/i-img1200x900-17461068849664xumrsw15376.jpg?pri=l&w=300&h=300&up=0&nf_src=sy&nf_path=images/auc/pc/top/image/1.0.3/na_170x170.png&nf_st=200",
-  "https://auc-pctr.c.yimg.jp/i/auctions.c.yimg.jp/images.auctions.yahoo.co.jp/image/dr000/auc0104/user/8c141b468069c2c2bf7d8b547e71adb493c397b3916151d694b9f0189bdc1e9b/i-img899x1200-17457369172202z4dzlu36526.jpg?pri=l&w=300&h=300&up=0&nf_src=sy&nf_path=images/auc/pc/top/image/1.0.3/na_170x170.png&nf_st=200",
-  "https://auc-pctr.c.yimg.jp/i/auctions.c.yimg.jp/images.auctions.yahoo.co.jp/image/dr000/auc0104/user/0ea6b363f3d6397aa4a216bbc41aa83153a261c4aae12d6fda02e3a4633fa743/i-img1200x900-17458823742382avlsue36.jpg?pri=l&w=300&h=300&up=0&nf_src=sy&nf_path=images/auc/pc/top/image/1.0.3/na_170x170.png&nf_st=200",
-  "https://auc-pctr.c.yimg.jp/i/auctions.c.yimg.jp/images.auctions.yahoo.co.jp/image/dr000/auc0104/user/21d50af00a5092aa9bff5cede6f518a7030cf997a86cbdb8a675b67778451351/i-img900x1200-17458568061497jlhmx3332.jpg?pri=l&w=300&h=300&up=0&nf_src=sy&nf_path=images/auc/pc/top/image/1.0.3/na_170x170.png&nf_st=200",
-  "https://auc-pctr.c.yimg.jp/i/auctions.c.yimg.jp/images.auctions.yahoo.co.jp/image/dr000/auc0105/user/f7768300c0145fe14746f13c9e4b491bbb0adab4962353f416b906445c08c033/i-img900x1200-17460583487615e82mnp152823.jpg?pri=l&w=300&h=300&up=0&nf_src=sy&nf_path=images/auc/pc/top/image/1.0.3/na_170x170.png&nf_st=200",
+const speciesCatalog = [
+  { species: "장수풍뎅이", category: "장수풍뎅이" },
+  { species: "왕장수풍뎅이", category: "장수풍뎅이" },
+  { species: "흑장수풍뎅이", category: "장수풍뎅이" },
+  { species: "사슴벌레", category: "사슴벌레" },
+  { species: "왕사슴벌레", category: "사슴벌레" },
+  { species: "넓적사슴벌레", category: "사슴벌레" },
+  { species: "톱사슴벌레", category: "사슴벌레" },
+  { species: "미야마사슴벌레", category: "사슴벌레" },
 ];
 
-// 더 안정적인 랜덤 이미지 생성 함수
-const getRandomInsectImage = () => {
-  // 고정 이미지 URL에 랜덤 쿼리 파라미터 추가로 다양한 이미지 생성
-  const baseUrl = faker.helpers.arrayElement(insectImageUrls);
-  const randomParam = faker.number.int(10000);
-  return `${baseUrl}?lock=${randomParam}`;
-};
-
-// 상품 상태 정의
-const statuses = ["SALE", "RESERVED", "SOLD"];
-
-// 상품 등급 정의
-const grades = ["A+", "A", "B+", "B", "C"];
-
-// 상품 크기 정의
-const sizes = ["L", "XL", "XXL", "XXXL"];
-
-// 상품 성별 정의
+const sizeLabels = ["중", "대", "특대", "극대"];
 const genders = ["수컷", "암컷", "미확인"];
+const conditions = ["새상품", "최상", "상", "중"];
+const deliveryTypes = ["직거래", "택배", "직거래/택배"];
+const locations = ["서울", "부산", "대구", "인천", "대전", "광주", "울산", "경기"];
+const postCategories = ["자유", "질문", "정보", "자랑", "후기"];
+const postTopics = [
+  "사육장 온습도 관리 팁 공유",
+  "먹이 추천과 급여 주기 정리",
+  "탈피 후 관리 체크리스트",
+  "브리딩 라인 정리 방식",
+  "이번 시즌 목표 체장 기록",
+];
 
-// 상품 원산지 정의
-const origins = ["일본", "대만", "태국", "인도네시아", "말레이시아", "필리핀"];
+const makeSeedUserName = (index: number) => `브리디러${String(index).padStart(2, "0")}`;
+const makeSeedEmail = (index: number) => `seed${String(index).padStart(2, "0")}@bredy.app`;
+const makeSeedPhone = (index: number) =>
+  `010-${String(1000 + index).padStart(4, "0")}-${String(2000 + index).padStart(4, "0")}`;
 
 async function main() {
-  // 기존 상품 데이터 전체 삭제
-  console.log("상품 데이터 삭제 중...");
-  await client.product.deleteMany({});
-  console.log("상품 데이터 삭제 완료");
+  const seedUsers = await client.user.findMany({
+    where: { provider: seedProvider },
+    select: { id: true },
+  });
+  if (seedUsers.length > 0) {
+    const seedUserIds = seedUsers.map((user) => user.id);
+    await client.bid.deleteMany({ where: { userId: { in: seedUserIds } } });
+    await client.auction.deleteMany({ where: { userId: { in: seedUserIds } } });
+    await client.insectRecord.deleteMany({ where: { userId: { in: seedUserIds } } });
+    await client.post.deleteMany({ where: { userId: { in: seedUserIds } } });
+    await client.product.deleteMany({ where: { userId: { in: seedUserIds } } });
+    await client.user.deleteMany({ where: { id: { in: seedUserIds } } });
+  }
 
-  // Create 10 users
-  for (let i = 0; i < 10; i++) {
-    await client.user.create({
+  const createdUsers: SeedUser[] = [];
+  for (let i = 1; i <= seedUserCount; i += 1) {
+    const created = await client.user.create({
       data: {
-        email: faker.internet.email(),
-        avatar: faker.image.avatar(),
-        name: faker.person.fullName(),
+        email: makeSeedEmail(i),
+        avatar: null,
+        name: makeSeedUserName(i),
         role: "USER",
-        snsId: faker.string.uuid(),
-        provider: "local",
+        snsId: `seed-${String(i).padStart(2, "0")}`,
+        provider: seedProvider,
+        phone: makeSeedPhone(i),
       },
     });
+    createdUsers.push(created);
   }
-
-  // 사용자 가져오기
-  const user = await client.user.findFirst();
-  if (!user) return;
-
-  // 상품 생성
-  for (let i = 0; i < 50; i++) {
-    // 카테고리와 종류 랜덤 선택
-    const category = faker.helpers.arrayElement(Object.keys(categories));
-    const species = faker.helpers.arrayElement(
-      categories[category as keyof typeof categories]
-    );
-
-    // 상품명 생성
-    const grade = faker.helpers.arrayElement(grades);
-    const size = faker.helpers.arrayElement(sizes);
-    const gender = faker.helpers.arrayElement(genders);
-    const origin = faker.helpers.arrayElement(origins);
-    const number = faker.number.int({ min: 1, max: 100 });
-
-    const name = `${species} ${grade} ${size} ${gender} ${origin} ${number}호`;
-
-    // 상품 설명 생성
-    const description = `
-${species} ${grade} 등급 ${size} 사이즈 ${gender}입니다.
-원산지: ${origin}
-크기: ${faker.number.int({ min: 50, max: 150 })}mm
-나이: ${faker.number.int({ min: 1, max: 12 })}개월
-특이사항: ${faker.lorem.sentence()}
-보관상태: ${faker.helpers.arrayElement(["최상", "상", "중", "하"])}
-`;
-
-    await client.product.create({
-      data: {
-        name,
-        price: faker.number.int({ min: 50000, max: 5000000 }),
-        description,
-        photos: Array.from(
-          { length: faker.number.int({ min: 1, max: 5 }) },
-          () => getRandomInsectImage()
-        ),
-        status: faker.helpers.arrayElement(statuses),
-        userId: user.id,
-      },
-    });
-  }
-
-  const dataDir = path.join(process.cwd(), "data");
-  const readJsonArray = async <T>(fileName: string): Promise<T[]> => {
-    try {
-      const text = await fs.readFile(path.join(dataDir, fileName), "utf-8");
-      const parsed = JSON.parse(text);
-      return Array.isArray(parsed) ? (parsed as T[]) : [];
-    } catch {
-      return [];
-    }
-  };
 
   const defaultSpecies = [
     "장수풍뎅이",
@@ -161,10 +93,7 @@ ${species} ${grade} 등급 ${size} 사이즈 ${gender}입니다.
       isActive?: boolean;
       isOfficial?: boolean;
     };
-    const speciesSeed = await readJsonArray<SpeciesSeed>("guinness-species.json");
-    const speciesSource: SpeciesSeed[] = speciesSeed.length
-      ? speciesSeed
-      : defaultSpecies.map((name) => ({ name }));
+    const speciesSource: SpeciesSeed[] = defaultSpecies.map((name) => ({ name }));
     await client.guinnessSpecies.createMany({
       data: speciesSource.map((item) => ({
         name: item.name,
@@ -176,84 +105,117 @@ ${species} ${grade} 등급 ${size} 사이즈 ${gender}입니다.
     });
   }
 
-  const existingBannerCount = await client.adminBanner.count();
-  if (existingBannerCount === 0) {
-    const bannerSeed = await readJsonArray<{
-      title: string;
-      description: string;
-      href: string;
-      bgClass: string;
-      order: number;
-      image?: string;
-    }>("admin-banners.json");
-    if (bannerSeed.length > 0) {
-      await client.adminBanner.createMany({
-        data: bannerSeed.map((item, index) => ({
-          title: item.title,
-          description: item.description,
-          href: item.href,
-          bgClass: item.bgClass || "from-slate-500 to-slate-600",
-          order: item.order ?? index + 1,
-          image: item.image,
-        })),
-      });
-    }
-  }
+  const products = Array.from({ length: seedProductCount }).map((_, index) => {
+    const owner = faker.helpers.arrayElement(createdUsers);
+    const { species, category } = faker.helpers.arrayElement(speciesCatalog);
+    const sizeLabel = faker.helpers.arrayElement(sizeLabels);
+    const gender = faker.helpers.arrayElement(genders);
+    const condition = faker.helpers.arrayElement(conditions);
+    const origin = faker.helpers.arrayElement(["국내", "일본", "대만", "태국"]);
+    const ageMonths = faker.number.int({ min: 2, max: 18 });
+    const sizeMm = faker.number.int({ min: 55, max: 110 });
+    const price = faker.number.int({ min: 15000, max: 350000 });
 
-  const existingLandingCount = await client.landingPage.count();
-  if (existingLandingCount === 0) {
-    const landingSeed = await readJsonArray<{
-      slug: string;
-      title: string;
-      content: string;
-      isPublished?: boolean;
-    }>("admin-landing-pages.json");
-    if (landingSeed.length > 0) {
-      await client.landingPage.createMany({
-        data: landingSeed.map((item) => ({
-          slug: item.slug,
-          title: item.title,
-          content: item.content,
-          isPublished: item.isPublished ?? true,
-        })),
-        skipDuplicates: true,
-      });
-    }
-  }
+    return {
+      userId: owner.id,
+      name: `${species} ${sizeLabel}급 ${gender}`,
+      description: [
+        `${species} ${sizeLabel}급 ${gender} 개체입니다.`,
+        `사육 환경: 온도 ${faker.number.int({ min: 22, max: 27 })}℃ / 습도 ${faker.number.int({ min: 60, max: 80 })}%`,
+        `크기: 약 ${sizeMm}mm, 나이: ${ageMonths}개월`,
+        `원산지: ${origin}`,
+        `컨디션: ${condition}`,
+        "거래 전 개체 상태 확인 가능합니다.",
+      ].join("\n"),
+      photos: [""],
+      tags: [species, gender, sizeLabel, condition],
+      category,
+      price,
+      status: faker.helpers.arrayElement(["판매중", "예약중", "판매완료"]),
+      condition,
+      location: faker.helpers.arrayElement(locations),
+      deliveryType: faker.helpers.arrayElement(deliveryTypes),
+      productType: "생물",
+    };
+  });
 
-  const existingSubmissionCount = await client.guinnessSubmission.count();
-  if (existingSubmissionCount === 0) {
-    const firstUser = await client.user.findFirst();
-    const speciesList = await client.guinnessSpecies.findMany({
-      select: { id: true, name: true },
-      orderBy: { id: "asc" },
-      take: 2,
-    });
-    if (firstUser && speciesList.length > 0) {
-      const now = new Date();
-      const submissions = speciesList.map((item, index) => ({
-        userId: firstUser.id,
-        userName: firstUser.name,
-        species: item.name,
-        speciesId: item.id,
-        speciesRawText: null,
-        recordType: "size" as const,
-        value: 70 + index * 5,
-        measurementDate: null,
-        description: "브리디북 더미 기록",
-        proofPhotos: ["seed-photo-placeholder"],
-        contactPhone: "01000000000",
-        contactEmail: "seed@example.com",
-        consentToContact: true,
-        submittedAt: now,
-        slaDueAt: new Date(now.getTime() + 72 * 60 * 60 * 1000),
-        resubmitCount: 0,
-        status: "pending" as const,
-      }));
+  await client.product.createMany({ data: products });
 
-      await client.guinnessSubmission.createMany({ data: submissions });
-    }
-  }
+  const auctions = Array.from({ length: seedAuctionCount }).map(() => {
+    const owner = faker.helpers.arrayElement(createdUsers);
+    const { species, category } = faker.helpers.arrayElement(speciesCatalog);
+    const sizeLabel = faker.helpers.arrayElement(sizeLabels);
+    const gender = faker.helpers.arrayElement(genders);
+    const startPrice = faker.number.int({ min: 20000, max: 300000 });
+    const isOngoing = faker.datatype.boolean();
+    const endAt = isOngoing
+      ? faker.date.soon({ days: 7 })
+      : faker.date.recent({ days: 10 });
+
+    return {
+      userId: owner.id,
+      title: `${species} ${sizeLabel}급 ${gender} 경매`,
+      description: [
+        `${species} ${sizeLabel}급 ${gender} 개체입니다.`,
+        "사육 이력/먹이 기록 정리되어 있습니다.",
+        "직거래 우선, 택배 가능.",
+      ].join("\n"),
+      photos: [""],
+      category,
+      startPrice,
+      currentPrice: startPrice,
+      endAt,
+      status: isOngoing ? "진행중" : "종료",
+    };
+  });
+
+  await client.auction.createMany({ data: auctions });
+
+  const posts = Array.from({ length: seedPostCount }).map(() => {
+    const owner = faker.helpers.arrayElement(createdUsers);
+    const { species } = faker.helpers.arrayElement(speciesCatalog);
+    const category = faker.helpers.arrayElement(postCategories);
+    const topic = faker.helpers.arrayElement(postTopics);
+    return {
+      userId: owner.id,
+      title: `${species} ${topic}`,
+      description: [
+        `${species} 관련해서 공유하고 싶은 내용이 있습니다.`,
+        "사육 환경과 급여 주기 기준을 정리해봤어요.",
+        "다른 분들의 경험도 듣고 싶습니다.",
+      ].join("\n"),
+      category,
+      type: "general",
+      image: "",
+    };
+  });
+
+  await client.post.createMany({ data: posts });
+
+  const recordSpecies = await client.guinnessSpecies.findMany({
+    select: { name: true },
+    orderBy: { id: "asc" },
+  });
+  const recordSpeciesList = recordSpecies.length
+    ? recordSpecies.map((item) => item.name)
+    : speciesCatalog.map((item) => item.species);
+
+  const records = Array.from({ length: seedRecordCount }).map(() => {
+    const owner = faker.helpers.arrayElement(createdUsers);
+    const species = faker.helpers.arrayElement(recordSpeciesList);
+    const value = faker.number.int({ min: 60, max: 120 }) + faker.number.float({ min: 0, max: 0.9 });
+    return {
+      userId: owner.id,
+      species,
+      recordType: "size",
+      value,
+      photo: "",
+      description: `${species} 체장 기록입니다.`,
+      isVerified: faker.datatype.boolean(),
+    };
+  });
+
+  await client.insectRecord.createMany({ data: records });
 
   console.log("Seed data created successfully");
 }
@@ -261,7 +223,6 @@ ${species} ${grade} 등급 ${size} 사이즈 ${gender}입니다.
 main()
   .catch((e) => {
     console.error(e);
-    process.exit(1);
   })
   .finally(async () => {
     await client.$disconnect();
