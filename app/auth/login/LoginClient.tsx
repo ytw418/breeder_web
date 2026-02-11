@@ -1,5 +1,5 @@
 "use client";
-import React, { useEffect } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 
 import KakaoRound from "@images/KakaoRound.svg";
 import GoogleRound from "@images/GoogleRound.svg";
@@ -38,7 +38,17 @@ const LoginClient = () => {
   const router = useRouter();
   const searchParams = useSearchParams();
   const [login] = useMutation<LoginResponseType>("/api/auth/login");
-  const isDevServer = process.env.NODE_ENV !== "production";
+  const [isPreviewDevDomain, setIsPreviewDevDomain] = useState(false);
+  const [isBredyDomain, setIsBredyDomain] = useState(false);
+
+  // Vercel Preview 배포도 NODE_ENV는 production이므로 별도 판별이 필요하다.
+  const isDevServer = useMemo(() => {
+    const isLocal = process.env.NODE_ENV !== "production";
+    const isVercelPreview = process.env.NEXT_PUBLIC_VERCEL_ENV === "preview";
+    const isDevBranch = process.env.NEXT_PUBLIC_VERCEL_GIT_COMMIT_REF === "dev";
+    return isLocal || isVercelPreview || isDevBranch || isPreviewDevDomain;
+  }, [isPreviewDevDomain]);
+  const shouldShowGoogleLogin = isDevServer && !isBredyDomain;
 
   /**카카오로그인 */
   const loginWithKakao = () => {
@@ -103,6 +113,18 @@ const LoginClient = () => {
     );
   }, []);
 
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const host = window.location.hostname.toLowerCase();
+    const isVercelDevPreviewHost =
+      host.endsWith(".vercel.app") &&
+      (host.includes("-git-dev-") || host.includes("breeder-web-git-dev-"));
+    const isProductionBredyHost =
+      host === "bredy.app" || host.endsWith(".bredy.app");
+    setIsPreviewDevDomain(isVercelDevPreviewHost);
+    setIsBredyDomain(isProductionBredyHost);
+  }, []);
+
   const loginWithGoogle = async () => {
     try {
       const nextPath = getSafeNextPath(searchParams?.get("next") ?? null);
@@ -164,7 +186,7 @@ const LoginClient = () => {
           {/* <KakaoLogin className="absolute left-7" width={26} height={26} /> */}
           <span className="title-3">{"카카오로 계속하기"}</span>
         </button>
-        {isDevServer ? (
+        {shouldShowGoogleLogin ? (
           <button
             onClick={() => loginWithGoogle()}
             className="button relative flex h-[54px] w-full items-center justify-center rounded-lg border border-Gray-300 bg-white px-7 py-[14px]"
