@@ -3,6 +3,7 @@
 import Link from "next/link";
 import Layout from "@components/features/MainLayout";
 import {
+  AUCTION_BID_INCREMENT_RULES,
   AUCTION_EDIT_WINDOW_MS,
   AUCTION_EXTENSION_MS,
   AUCTION_EXTENSION_WINDOW_MS,
@@ -16,6 +17,12 @@ const hourText = (ms: number) => `${Math.floor(ms / (1000 * 60 * 60))}시간`;
 const minuteText = (ms: number) => `${Math.floor(ms / (1000 * 60))}분`;
 
 export default function AuctionRulesClient() {
+  const incrementRuleItems = AUCTION_BID_INCREMENT_RULES.map((rule) => (
+    <li key={rule.label}>
+      • {rule.label}: {rule.increment.toLocaleString()}원 단위
+    </li>
+  ));
+
   return (
     <Layout canGoBack title="경매 룰 안내" seoTitle="경매 룰 안내">
       <div className="px-4 py-4 space-y-4 pb-10">
@@ -24,9 +31,7 @@ export default function AuctionRulesClient() {
           <ul className="mt-3 space-y-2 text-sm text-slate-700 leading-relaxed">
             <li>• 경매 기간은 {hourText(AUCTION_MIN_DURATION_MS)} ~ {hourText(AUCTION_MAX_DURATION_MS)} 사이로 설정됩니다.</li>
             <li>• 입찰 단위는 현재가 기준으로 자동 계산됩니다.</li>
-            <li>• 10만원 미만: 1,000원 단위</li>
-            <li>• 10만원 이상 ~ 100만원 미만: 10,000원 단위</li>
-            <li>• 100만원 이상: 100,000원 단위</li>
+            {incrementRuleItems}
             <li>• 마감 {minuteText(AUCTION_EXTENSION_WINDOW_MS)} 이내 입찰이 들어오면 경매 시간이 {minuteText(AUCTION_EXTENSION_MS)} 자동 연장됩니다.</li>
             <li>• 입찰은 취소할 수 없으며, 본인 경매 입찰은 불가능합니다.</li>
             <li>• 카카오 로그인 기반 계정은 정책 위반 시 영구 참여 제한될 수 있습니다.</li>

@@ -142,10 +142,10 @@ export default function PostsClient() {
               className="app-card-interactive block rounded-xl border border-amber-200 bg-gradient-to-r from-amber-50 to-orange-50 px-3 py-2.5"
             >
               <div className="flex items-center gap-2">
-                <span className="inline-flex px-2 py-0.5 text-[11px] font-semibold rounded-full bg-amber-500 text-white">
+                <span className="inline-flex shrink-0 min-w-[42px] justify-center px-2 py-0.5 text-[11px] font-semibold rounded-full bg-amber-500 text-white">
                   {notice.label}
                 </span>
-                <p className="app-body-md text-amber-900 line-clamp-1">
+                <p className="app-body-md min-w-0 flex-1 text-amber-900 line-clamp-1">
                   {notice.title}
                 </p>
               </div>

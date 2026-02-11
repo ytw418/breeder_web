@@ -337,7 +337,7 @@ export default function MainLayout({
         {children}
       </div>
       {hasTabBar ? (
-        <nav className="fixed bottom-0 left-0 right-0 border-t border-slate-200/80 bg-white/92 backdrop-blur-xl dark:border-slate-800/80 dark:bg-slate-950/92">
+        <nav className="fixed bottom-0 left-0 right-0 z-40 border-t border-slate-200/80 bg-white/92 backdrop-blur-xl dark:border-slate-800/80 dark:bg-slate-950/92">
           <div className="max-w-xl mx-auto px-4 pb-safe">
             <div className="flex justify-between items-center py-3">
               <Link
@@ -388,7 +388,7 @@ export default function MainLayout({
                     d="M19 20H5a2 2 0 01-2-2V6a2 2 0 012-2h10a2 2 0 012 2v1m2 13a2 2 0 01-2-2V7m2 13a2 2 0 002-2V9a2 2 0 00-2-2h-2m-4-3H9M7 16h6M7 8h6v4H7V8z"
                   ></path>
                 </svg>
-                <span className="text-xs font-medium">애완동물 서비스</span>
+                <span className="text-xs font-medium">애완생활</span>
               </Link>
               <Link
                 href="/auctions"

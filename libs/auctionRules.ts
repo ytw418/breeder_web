@@ -7,12 +7,22 @@ export const AUCTION_MAX_DURATION_MS = 72 * 60 * 60 * 1000; // 72시간
 export const AUCTION_MAX_ACTIVE_PER_USER = 3;
 export const AUCTION_HIGH_PRICE_REQUIRE_CONTACT = 500_000;
 
+export const AUCTION_BID_INCREMENT_RULES = [
+  { label: "1만원 미만", maxExclusive: 10_000, increment: 1_000 },
+  { label: "10만원 미만", maxExclusive: 100_000, increment: 10_000 },
+  { label: "100만원 미만", maxExclusive: 1_000_000, increment: 50_000 },
+  { label: "100만원 이상", maxExclusive: null, increment: 100_000 },
+] as const;
+
 export const getBidIncrement = (price: number) => {
   const normalizedPrice = Math.max(0, Math.floor(Number(price) || 0));
 
-  if (normalizedPrice < 100_000) return 1_000;
-  if (normalizedPrice < 1_000_000) return 10_000;
-  return 100_000;
+  const matchedRule = AUCTION_BID_INCREMENT_RULES.find((rule) => {
+    if (rule.maxExclusive === null) return true;
+    return normalizedPrice < rule.maxExclusive;
+  });
+
+  return matchedRule?.increment ?? 1_000;
 };
 
 export const getMinimumBid = (currentPrice: number) => {
