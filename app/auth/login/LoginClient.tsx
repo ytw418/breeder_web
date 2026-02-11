@@ -93,7 +93,7 @@ const LoginClient = () => {
     <div className="flex h-screen w-full items-center justify-center p-5 flex-col">
       <div className="flex flex-col items-center mb-[80px]">
         <h1 className="title-10 text-Primary">브리디</h1>
-        <span className="body-3">곤충생활은 브리디에서</span>
+        <span className="body-3">애완동물 서비스는 브리디에서</span>
         <span className="body-3">
           생물인들과 소통하고 브리디에서 안전거래하세요
         </span>
