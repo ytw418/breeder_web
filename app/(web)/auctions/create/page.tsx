@@ -2,6 +2,8 @@ import React from "react";
 import type { Metadata } from "next";
 import CreateAuctionClient from "./CreateAuctionClient";
 
+const AUCTION_OG_IMAGE = "/designer/og/bredy-og-auction.png";
+
 export const metadata: Metadata = {
   title: "경매 등록",
   description:
@@ -13,7 +15,7 @@ export const metadata: Metadata = {
     type: "website",
     images: [
       {
-        url: "/auction-tool/opengraph-image",
+        url: AUCTION_OG_IMAGE,
         width: 1200,
         height: 630,
         alt: "브리디 경매 등록 공유 이미지",
@@ -25,7 +27,7 @@ export const metadata: Metadata = {
     title: "경매 등록 | 브리디 경매도구",
     description:
       "30초면 만드는 경매 도구를 활용해보세요. 상품 등록 후 링크 공유만으로 경매를 시작할 수 있습니다.",
-    images: ["/auction-tool/twitter-image"],
+    images: [AUCTION_OG_IMAGE],
   },
 };
 

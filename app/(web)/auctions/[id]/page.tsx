@@ -10,7 +10,7 @@ interface Props {
 }
 
 const CLOUDFLARE_IMAGE_BASE = "https://imagedelivery.net/OvWZrAz6J6K7n9LKUH5pKw";
-const DEFAULT_AUCTION_IMAGE = "/auction-tool/opengraph-image";
+const DEFAULT_AUCTION_IMAGE = "/designer/og/bredy-og-auction.png";
 
 const toPublicImageUrl = (imageId: string | null | undefined) => {
   if (!imageId) return DEFAULT_AUCTION_IMAGE;
@@ -51,7 +51,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
         title: "브리디 경매 | 30초면 만드는 경매 도구",
         description:
           "30초면 만드는 경매 도구를 활용해보세요. 카카오 로그인 기반 참여, 자동 연장, 신고/제재 처리까지 지원합니다.",
-        images: ["/auction-tool/twitter-image"],
+        images: [DEFAULT_AUCTION_IMAGE],
       },
     };
   }
