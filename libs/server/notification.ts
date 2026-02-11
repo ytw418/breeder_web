@@ -1,5 +1,6 @@
 import client from "@libs/server/client";
 import { NotificationType } from "@prisma/client";
+import { sendPushToUsers } from "@libs/server/push";
 
 interface CreateNotificationParams {
   type: NotificationType;
@@ -8,7 +9,40 @@ interface CreateNotificationParams {
   message: string;
   targetId?: number; // 대상 ID
   targetType?: string; // 대상 타입 (post, product, chatRoom)
+  allowSelf?: boolean;
+  dedupe?: boolean;
+  sendPush?: boolean;
 }
+
+const getNotificationUrl = (targetType?: string, targetId?: number) => {
+  if (!targetType || !targetId) return "/";
+
+  switch (targetType) {
+    case "post":
+      return `/posts/${targetId}`;
+    case "product":
+      return `/products/${targetId}`;
+    case "chatRoom":
+      return `/chat/${targetId}`;
+    case "user":
+      return `/profiles/${targetId}`;
+    case "auction":
+      return `/auctions/${targetId}`;
+    case "record":
+      return "/guinness";
+    case "guinness_submission":
+      return "/guinness/apply";
+    default:
+      return "/";
+  }
+};
+
+const getPushTitle = (type: NotificationType) => {
+  if (type === "BID" || type === "OUTBID" || type === "AUCTION_END" || type === "AUCTION_WON") {
+    return "브리디 경매 알림";
+  }
+  return "브리디 알림";
+};
 
 /**
  * 알림을 생성하는 유틸 함수
@@ -21,11 +55,27 @@ export const createNotification = async ({
   message,
   targetId,
   targetType,
+  allowSelf = false,
+  dedupe = false,
+  sendPush = true,
 }: CreateNotificationParams) => {
   // 자기 자신에게는 알림을 보내지 않음
-  if (userId === senderId) return;
+  if (!allowSelf && userId === senderId) return;
 
   try {
+    if (dedupe) {
+      const existed = await client.notification.findFirst({
+        where: {
+          type,
+          userId,
+          senderId,
+          targetId: targetId ?? null,
+          targetType: targetType ?? null,
+        },
+      });
+      if (existed) return;
+    }
+
     await client.notification.create({
       data: {
         type,
@@ -36,6 +86,15 @@ export const createNotification = async ({
         targetType,
       },
     });
+
+    if (sendPush) {
+      await sendPushToUsers([userId], {
+        title: getPushTitle(type),
+        body: message,
+        url: getNotificationUrl(targetType, targetId),
+        tag: `${type}-${targetType || "default"}-${targetId || 0}`,
+      });
+    }
   } catch (error) {
     console.error("Failed to create notification:", error);
   }

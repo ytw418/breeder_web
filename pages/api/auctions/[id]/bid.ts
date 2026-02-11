@@ -6,10 +6,10 @@ import { createNotification } from "@libs/server/notification";
 import {
   AUCTION_EXTENSION_MS,
   AUCTION_EXTENSION_WINDOW_MS,
-  AUCTION_MIN_ACCOUNT_AGE_MS,
   isBidAmountValid,
   getBidIncrement,
 } from "@libs/auctionRules";
+import { settleExpiredAuctions } from "@libs/server/auctionSettlement";
 
 /** 입찰 응답 타입 */
 export interface BidResponse {
@@ -50,6 +50,8 @@ async function handler(
   }
 
   try {
+    await settleExpiredAuctions(auctionId);
+
     const bidderAccount = await client.user.findUnique({
       where: { id: user.id },
       select: { createdAt: true, status: true },
@@ -59,14 +61,6 @@ async function handler(
         success: false,
         error: "현재 계정 상태에서는 입찰이 제한됩니다.",
         errorCode: "BID_ACCOUNT_RESTRICTED",
-      });
-    }
-
-    if (Date.now() - new Date(bidderAccount.createdAt).getTime() < AUCTION_MIN_ACCOUNT_AGE_MS) {
-      return res.status(400).json({
-        success: false,
-        error: "가입 후 24시간이 지나야 입찰할 수 있습니다.",
-        errorCode: "BID_ACCOUNT_TOO_NEW",
       });
     }
 
@@ -165,7 +159,7 @@ async function handler(
 
     // 경매 등록자에게 알림
     if (bidder) {
-      createNotification({
+      await createNotification({
         type: "BID",
         userId: auction.userId,
         senderId: user.id,
@@ -177,7 +171,7 @@ async function handler(
 
     // 이전 최고 입찰자에게 알림 (본인이 아닌 경우)
     if (previousTopBidder && previousTopBidder.userId !== user.id && bidder) {
-      createNotification({
+      await createNotification({
         type: "OUTBID",
         userId: previousTopBidder.userId,
         senderId: user.id,

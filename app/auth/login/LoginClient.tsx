@@ -1,89 +1,40 @@
 "use client";
-import { getAuth, GoogleAuthProvider, signInWithPopup } from "firebase/auth";
 import React, { useEffect } from "react";
 
-import AppleSquare from "@images/AppleSquare.svg";
-import GoogleSquare from "@images/GoogleSquare.svg";
 import KakaoRound from "@images/KakaoRound.svg";
 
 import Link from "next/link";
-import { LoginReqBody, LoginResponseType } from "pages/api/auth/login";
-import useMutation from "hooks/useMutation";
-import { USER_INFO } from "@libs/constants";
-import { useRouter } from "next/navigation";
+import { useSearchParams } from "next/navigation";
+
+const getSafeNextPath = (rawPath: string | null) => {
+  if (!rawPath) return "/";
+  let normalized = rawPath.trim();
+
+  try {
+    normalized = decodeURIComponent(normalized);
+  } catch {
+    // noop
+  }
+
+  if (!normalized.startsWith("/") || normalized.startsWith("//")) {
+    return "/";
+  }
+
+  return normalized;
+};
 
 const LoginClient = () => {
-  const [login] = useMutation<LoginResponseType>("/api/auth/login");
-  const router = useRouter();
-
-  // 배포 환경에서 APPLE 설정이 없거나 JSON 형식이 깨져도
-  // 로그인 페이지가 런타임 에러로 죽지 않도록 방어한다.
-  const getAppleAuthConfig = () => {
-    const rawConfig = process.env.NEXT_PUBLIC_APPLE_AUTH_CONFIG;
-    if (!rawConfig) return null;
-    try {
-      return JSON.parse(rawConfig.replace(/:RTN_URL/gi, window.location.host));
-    } catch (error) {
-      console.error("Invalid NEXT_PUBLIC_APPLE_AUTH_CONFIG:", error);
-      return null;
-    }
-  };
+  const searchParams = useSearchParams();
 
   /**카카오로그인 */
   const loginWithKakao = () => {
+    const nextPath = getSafeNextPath(searchParams?.get("next") ?? null);
     window.Kakao.Auth.authorize({
       redirectUri: process.env.NEXT_PUBLIC_DOMAIN_URL + `/login-loading`,
       prompt: "select_account",
       throughTalk: false,
+      state: encodeURIComponent(nextPath),
     });
-  };
-  /**애플로그인 */
-  const loginWithApple = async () => {
-    const data = await window.AppleID.auth.signIn();
-    console.log("window.AppleID.auth.signIn(); :>> ", data);
-  };
-  /**구글로그인 */
-  const loginWithGoogle = async () => {
-    const provider = new GoogleAuthProvider();
-    provider.addScope("profile");
-    provider.addScope("email");
-    provider.setCustomParameters({
-      prompt: "select_account",
-    });
-    const googleUser = await signInWithPopup(getAuth(), provider).catch(
-      (error) => {
-        console.log("error :>> ", error);
-      }
-    );
-
-    console.log("googleUser :>> ", googleUser);
-
-    if (googleUser) {
-      const body: LoginReqBody = {
-        snsId: googleUser.user.uid,
-        name: googleUser.user.displayName ?? "구글로그인 닉네임 없음",
-        provider: USER_INFO.provider.GOOGLE,
-        email: googleUser.user.email,
-        avatar: googleUser.user.photoURL ?? "",
-      };
-      login({
-        data: body,
-        onCompleted(result) {
-          console.log("result :>> ", result);
-          if (result.success) {
-            router.push("/");
-            router.refresh();
-          } else {
-            router.push("/auth/login");
-            alert(`로그인에 실패했습니다:${result.error}`);
-          }
-        },
-        onError(error) {
-          router.replace("/auth/login");
-          alert(error);
-        },
-      });
-    }
   };
 
   const loadScript = (url: string, platform: string) => {
@@ -93,16 +44,6 @@ const LoginClient = () => {
           // Fast Refresh 시 중복 init 경고를 막기 위해 최초 1회만 초기화한다.
           if (window.Kakao && !window.Kakao.isInitialized?.()) {
             window.Kakao.init(process.env.NEXT_PUBLIC_KAKAO_JAVASCRIPT_KEY);
-          }
-        } else if (platform === "apple") {
-          const appleConfig = getAppleAuthConfig();
-          if (!appleConfig) {
-            // 애플 설정이 없으면 기능만 비활성화하고 페이지는 계속 동작시킨다.
-            console.warn("Apple login config is missing. Skipping Apple SDK init.");
-            return;
-          }
-          if (window.AppleID?.auth) {
-            window.AppleID.auth.init(appleConfig);
           }
         } else {
           console.log("error: unknown sdk platform");
@@ -136,12 +77,6 @@ const LoginClient = () => {
         if (platform === "kakao" && window.Kakao && !window.Kakao.isInitialized?.()) {
           window.Kakao.init(process.env.NEXT_PUBLIC_KAKAO_JAVASCRIPT_KEY);
         }
-        if (platform === "apple" && window.AppleID?.auth) {
-          const appleConfig = getAppleAuthConfig();
-          if (appleConfig) {
-            window.AppleID.auth.init(appleConfig);
-          }
-        }
         return null;
       }
     } else return null;
@@ -151,10 +86,6 @@ const LoginClient = () => {
     loadScript(
       "https://t1.kakaocdn.net/kakao_js_sdk/2.7.2/kakao.min.js",
       "kakao"
-    );
-    loadScript(
-      "https://appleid.cdn-apple.com/appleauth/static/jsapi/appleid/1/en_US/appleid.auth.js",
-      "apple"
     );
   }, []);
 
@@ -176,13 +107,9 @@ const LoginClient = () => {
           {/* <KakaoLogin className="absolute left-7" width={26} height={26} /> */}
           <span className="title-3">{"카카오로 계속하기"}</span>
         </button>
-        <div
-          onClick={() => loginWithGoogle()}
-          className="relative flex h-[54px] w-full cursor-pointer items-center justify-center rounded-lg border border-Gray-300 px-7 py-[14px]"
-        >
-          <GoogleSquare className="absolute left-7" width={26} height={26} />
-          <span className="title-3">{"구글로 회원가입"}</span>
-        </div>
+        <p className="mt-1 text-[11px] text-Gray-500">
+          현재 경매 참여 계정은 카카오 로그인만 지원합니다.
+        </p>
         <Link
           href={"/"}
           className="button relative flex h-[54px] w-full items-center justify-center rounded-lg border border-Gray-300 px-7 py-[14px]"

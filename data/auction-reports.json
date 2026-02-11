@@ -1,0 +1,17 @@
+[
+  {
+    "id": 1,
+    "auctionId": 55,
+    "reporterId": 56,
+    "reportedUserId": 52,
+    "reason": "허위 매물 의심",
+    "detail": "[FLOW] 경매 설명과 실제 상태가 다르다는 신고 시나리오",
+    "status": "RESOLVED",
+    "resolutionAction": "BAN_USER",
+    "resolutionNote": "운영자 판단으로 영구정지 처리",
+    "resolvedBy": 51,
+    "resolvedAt": "2026-02-11T02:57:09.101Z",
+    "createdAt": "2026-02-11T02:51:35.451Z",
+    "updatedAt": "2026-02-11T02:57:09.126Z"
+  }
+]

@@ -21,6 +21,12 @@ interface AuctionEditForm {
   description: string;
   startPrice: number;
   endAt: string;
+  sellerPhone: string;
+  sellerEmail: string;
+  sellerBlogUrl: string;
+  sellerCafeNick: string;
+  sellerBandNick: string;
+  sellerTrustNote: string;
 }
 
 interface AuctionUpdateResponse {
@@ -30,13 +36,12 @@ interface AuctionUpdateResponse {
   auction?: { id: number };
 }
 
-const SPECIES_CATEGORIES = [
-  "장수풍뎅이",
-  "사슴벌레",
-  "왕사슴벌레",
-  "넓적사슴벌레",
-  "코카서스장수풍뎅이",
-  "헤라클레스장수풍뎅이",
+const AUCTION_CATEGORIES = [
+  "곤충",
+  "파충류",
+  "어류",
+  "조류",
+  "포유류",
   "기타",
 ];
 
@@ -57,7 +62,9 @@ const EditAuctionClient = () => {
   const params = useParams();
   const router = useRouter();
   const [photos, setPhotos] = useState<string[]>([]);
+  const [sellerProofImage, setSellerProofImage] = useState<string | null>(null);
   const [uploading, setUploading] = useState(false);
+  const [proofUploading, setProofUploading] = useState(false);
   const [selectedCategory, setSelectedCategory] = useState("");
   const [selectedDuration, setSelectedDuration] = useState<number | null>(null);
 
@@ -85,9 +92,16 @@ const EditAuctionClient = () => {
       description: data.auction.description,
       startPrice: data.auction.startPrice,
       endAt: toDateTimeLocalValue(data.auction.endAt),
+      sellerPhone: data.auction.sellerPhone || "",
+      sellerEmail: data.auction.sellerEmail || "",
+      sellerBlogUrl: data.auction.sellerBlogUrl || "",
+      sellerCafeNick: data.auction.sellerCafeNick || "",
+      sellerBandNick: data.auction.sellerBandNick || "",
+      sellerTrustNote: data.auction.sellerTrustNote || "",
     });
     setSelectedCategory(data.auction.category || "");
     setPhotos(data.auction.photos || []);
+    setSellerProofImage(data.auction.sellerProofImage || null);
   }, [data?.auction, reset]);
 
   const watchedStartPrice = Number(watch("startPrice") || 0);
@@ -134,6 +148,35 @@ const EditAuctionClient = () => {
     setPhotos((prev) => prev.filter((_, i) => i !== index));
   };
 
+  const handleTrustProofUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    setProofUploading(true);
+    try {
+      const urlRes = await fetch("/api/files");
+      const urlData = await urlRes.json();
+
+      const form = new FormData();
+      form.append("file", file);
+
+      const uploadRes = await fetch(urlData.uploadURL, {
+        method: "POST",
+        body: form,
+      });
+      const uploadData = await uploadRes.json();
+      if (uploadData.success) {
+        setSellerProofImage(uploadData.result.id);
+      } else {
+        toast.error("프로필 인증 이미지 업로드에 실패했습니다.");
+      }
+    } catch {
+      toast.error("프로필 인증 이미지 업로드에 실패했습니다.");
+    } finally {
+      setProofUploading(false);
+    }
+  };
+
   const handleDurationPreset = (hours: number) => {
     setSelectedDuration(hours);
     const endDate = new Date(Date.now() + hours * 60 * 60 * 1000);
@@ -142,7 +185,7 @@ const EditAuctionClient = () => {
 
   const onSubmit = (form: AuctionEditForm) => {
     if (!selectedCategory) {
-      toast.error("종 카테고리를 선택해주세요.");
+      toast.error("카테고리를 선택해주세요.");
       return;
     }
     if (photos.length === 0) {
@@ -156,6 +199,7 @@ const EditAuctionClient = () => {
         ...form,
         category: selectedCategory,
         photos,
+        sellerProofImage,
         startPrice: Number(form.startPrice),
       },
       onCompleted(result) {
@@ -276,10 +320,10 @@ const EditAuctionClient = () => {
 
         <div>
           <label className="block text-sm font-semibold text-gray-900 mb-2">
-            종 카테고리 <span className="text-red-500">*</span>
+            카테고리 <span className="text-red-500">*</span>
           </label>
           <div className="flex flex-wrap gap-2">
-            {SPECIES_CATEGORIES.map((cat) => (
+            {AUCTION_CATEGORIES.map((cat) => (
               <button
                 key={cat}
                 type="button"
@@ -351,6 +395,56 @@ const EditAuctionClient = () => {
           </p>
         </div>
 
+        <div className="rounded-xl border border-slate-200 bg-white p-3.5">
+          <h3 className="text-sm font-semibold text-slate-900">판매자 신뢰 정보 (선택)</h3>
+          <div className="mt-3 grid grid-cols-1 gap-2.5">
+            <Input {...register("sellerPhone")} placeholder="연락처(전화번호)" />
+            <Input {...register("sellerEmail")} placeholder="연락 이메일" />
+            <Input {...register("sellerBlogUrl")} placeholder="블로그/프로필 URL" />
+            <Input {...register("sellerCafeNick")} placeholder="카페 닉네임" />
+            <Input {...register("sellerBandNick")} placeholder="밴드 닉네임" />
+            <Textarea
+              {...register("sellerTrustNote")}
+              rows={3}
+              placeholder="예: OO카페 활동 4년, 최근 3개월 거래 20건 무분쟁"
+            />
+
+            <div className="rounded-lg border border-slate-200 p-2.5">
+              <p className="text-xs font-medium text-slate-700">커뮤니티 프로필 캡처 (선택)</p>
+              <div className="mt-2 flex items-center gap-2">
+                <label className="inline-flex cursor-pointer items-center rounded-md border border-slate-300 px-2.5 py-1.5 text-xs font-medium text-slate-700">
+                  <input
+                    type="file"
+                    accept="image/*"
+                    onChange={handleTrustProofUpload}
+                    className="hidden"
+                  />
+                  {proofUploading ? "업로드 중..." : "이미지 업로드"}
+                </label>
+                {sellerProofImage ? (
+                  <button
+                    type="button"
+                    onClick={() => setSellerProofImage(null)}
+                    className="text-xs text-rose-600 underline underline-offset-2"
+                  >
+                    삭제
+                  </button>
+                ) : null}
+              </div>
+              {sellerProofImage ? (
+                <div className="relative mt-2 h-28 w-40 overflow-hidden rounded-md border border-slate-200">
+                  <Image
+                    src={makeImageUrl(sellerProofImage, "public")}
+                    className="object-cover"
+                    fill
+                    alt="커뮤니티 프로필 캡처"
+                  />
+                </div>
+              ) : null}
+            </div>
+          </div>
+        </div>
+
         <div>
           <label className="block text-sm font-semibold text-gray-900 mb-2">
             경매 기간 <span className="text-red-500">*</span>
@@ -385,7 +479,7 @@ const EditAuctionClient = () => {
           <div className="max-w-xl mx-auto">
             <Button
               type="submit"
-              disabled={loading || uploading || isSubmitting}
+              disabled={loading || uploading || proofUploading || isSubmitting}
               className="w-full h-12 text-base font-semibold rounded-xl"
             >
               {loading ? "수정 중..." : "경매 수정 완료"}

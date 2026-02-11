@@ -9,6 +9,8 @@ type ConfirmOptions = {
   confirmText?: string;
   cancelText?: string;
   tone?: "default" | "danger";
+  confirmKeyword?: string;
+  confirmKeywordLabel?: string;
 };
 
 type DialogState = ConfirmOptions & {
@@ -20,6 +22,8 @@ const DEFAULT_OPTIONS: Omit<ConfirmOptions, "title"> = {
   confirmText: "확인",
   cancelText: "취소",
   tone: "default",
+  confirmKeyword: "",
+  confirmKeywordLabel: "확인 키워드",
 };
 
 export default function useConfirmDialog() {
@@ -65,6 +69,8 @@ export default function useConfirmDialog() {
         confirmText={state.confirmText}
         cancelText={state.cancelText}
         tone={state.tone}
+        confirmKeyword={state.confirmKeyword}
+        confirmKeywordLabel={state.confirmKeywordLabel}
         onCancel={() => close(false)}
         onConfirm={() => close(true)}
       />

@@ -8,6 +8,23 @@ import { LoginReqBody, LoginResponseType } from "pages/api/auth/login";
 import { USER_INFO } from "@libs/constants";
 import { Spinner } from "@components/atoms/Spinner";
 
+const getSafeRedirectPath = (rawPath: string | null) => {
+  if (!rawPath) return "/";
+  let normalized = rawPath.trim();
+
+  try {
+    normalized = decodeURIComponent(normalized);
+  } catch {
+    // noop
+  }
+
+  if (!normalized.startsWith("/") || normalized.startsWith("//")) {
+    return "/";
+  }
+
+  return normalized;
+};
+
 export const KakaoLogin = () => {
   const searchParams = useSearchParams()!;
   const router = useRouter();
@@ -92,7 +109,10 @@ export const KakaoLogin = () => {
         onCompleted(result) {
           console.log("result :>> ", result);
           if (result.success) {
-            router.replace("/");
+            const redirectPath = getSafeRedirectPath(
+              searchParams.get("state") || searchParams.get("next")
+            );
+            router.replace(redirectPath);
           } else {
             router.replace("/auth/login");
             alert(`로그인에 실패했습니다:${result.error}`);
