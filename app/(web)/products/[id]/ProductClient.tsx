@@ -514,6 +514,8 @@ const ProductClient = ({ product, relatedProducts }: ItemDetailResponse) => {
                       </button>
                       <button
                         onClick={onFavClick}
+                        data-testid="favorite-toggle"
+                        aria-label={isLiked ? "찜 취소" : "찜 추가"}
                         className={cn(
                           "flex h-10 w-10 items-center justify-center rounded-md border border-slate-200",
                           isLiked
