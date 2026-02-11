@@ -99,6 +99,45 @@ export default function AdminAuctionsPage() {
     }
   };
 
+  const handleDeleteAuction = async (auctionId: number, auctionTitle: string) => {
+    const confirmed = await confirm({
+      title: "이 경매를 완전히 삭제할까요?",
+      description: [
+        `대상: #${auctionId} ${auctionTitle}`,
+        "삭제 후에는 복구할 수 없습니다.",
+        "연결된 입찰 데이터도 함께 삭제됩니다.",
+      ].join("\n"),
+      confirmText: "삭제",
+      tone: "danger",
+      confirmKeyword: "DELETE",
+      confirmKeywordLabel: "삭제 실행 키워드",
+    });
+    if (!confirmed) return;
+
+    try {
+      setUpdatingId(auctionId);
+      const res = await fetch("/api/admin/auctions", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          action: "delete",
+          id: auctionId,
+        }),
+      });
+      const result = await res.json();
+      if (!result.success) {
+        return toast.error(result.error || "경매 삭제에 실패했습니다.");
+      }
+      toast.success("경매가 삭제되었습니다.");
+      mutate();
+      mutateReports();
+    } catch {
+      toast.error("오류가 발생했습니다.");
+    } finally {
+      setUpdatingId(null);
+    }
+  };
+
   const handleReportDecision = async (
     report: AdminAuctionReportItem,
     decision: "RESOLVED" | "REJECTED",
@@ -509,6 +548,14 @@ export default function AdminAuctionsPage() {
                         진행중 복귀
                       </Button>
                     )}
+                    <Button
+                      size="sm"
+                      variant="destructive"
+                      disabled={updatingId === auction.id}
+                      onClick={() => handleDeleteAuction(auction.id, auction.title)}
+                    >
+                      삭제
+                    </Button>
                   </td>
                 </tr>
               ))}

@@ -35,7 +35,26 @@ export default function ClientComp() {
     if (!("serviceWorker" in navigator)) return;
 
     const enableInDev = process.env.NEXT_PUBLIC_PWA_IN_DEV === "true";
-    if (process.env.NODE_ENV !== "production" && !enableInDev) return;
+    const isLocalhost =
+      window.location.hostname === "localhost" ||
+      window.location.hostname === "127.0.0.1";
+
+    if (process.env.NODE_ENV !== "production" || isLocalhost) {
+      if (enableInDev && !isLocalhost) return;
+
+      // 개발/로컬 환경에서는 오래된 캐시로 _next 정적 파일이 꼬이는 문제를 방지한다.
+      navigator.serviceWorker.getRegistrations().then((registrations) => {
+        registrations.forEach((registration) => {
+          registration.unregister();
+        });
+      });
+      if ("caches" in window) {
+        caches.keys().then((keys) => {
+          keys.forEach((key) => caches.delete(key));
+        });
+      }
+      return;
+    }
 
     navigator.serviceWorker
       .register("/sw.js")

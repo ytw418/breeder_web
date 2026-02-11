@@ -25,6 +25,7 @@ export default function AdminLayout({
   const { user, isLoading } = useUser();
   const router = useRouter();
   const pathname = usePathname();
+  const isAdminLoginPage = pathname === "/admin/login";
   const normalizedEmail = user?.email?.trim().toLowerCase();
   const isWhitelistedEmail = normalizedEmail === "ytw418@naver.com";
   const hasAccess = Boolean(
@@ -35,10 +36,19 @@ export default function AdminLayout({
   );
 
   useEffect(() => {
-    if (!isLoading && !hasAccess) {
-      router.replace("/");
+    if (isAdminLoginPage) {
+      return;
     }
-  }, [hasAccess, isLoading, router]);
+
+    if (!isLoading && !hasAccess) {
+      const nextPath = pathname || "/admin";
+      router.replace(`/admin/login?next=${encodeURIComponent(nextPath)}`);
+    }
+  }, [hasAccess, isAdminLoginPage, isLoading, pathname, router]);
+
+  if (isAdminLoginPage) {
+    return <>{children}</>;
+  }
 
   if (isLoading) return <div className="p-10">Loading Admin...</div>;
   if (!hasAccess) return <div className="p-10 text-gray-500">권한 확인 중...</div>;
