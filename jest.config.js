@@ -30,8 +30,10 @@ module.exports = {
     "^.+\\.(ts|tsx)$": [
       "ts-jest",
       {
-        tsconfig: "tsconfig.json",
-        babelConfig: true,
+        tsconfig: {
+          jsx: "react-jsx",
+          module: "commonjs",
+        },
       },
     ],
     "^.+\\.(js|jsx)$": [

@@ -28,6 +28,10 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
       title: "브리디 경매 | 30초면 만드는 경매 도구",
       description:
         "30초면 만드는 경매 도구를 활용해보세요. 카카오 로그인 기반 참여, 자동 연장, 신고/제재 처리까지 지원합니다.",
+      robots: {
+        index: false,
+        follow: false,
+      },
       openGraph: {
         title: "브리디 경매 | 30초면 만드는 경매 도구",
         description:

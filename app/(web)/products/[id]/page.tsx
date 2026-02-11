@@ -80,6 +80,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
       ? product.photos.map((photo) => toPublicImageUrl(photo)).slice(0, 4)
       : [DEFAULT_OG_IMAGE];
   const twitterImage = normalizedImages[0] || DEFAULT_OG_IMAGE;
+  const canonicalUrl = `https://bredy.app/products/${product.id}`;
   const keywordSet = new Set<string>([
     "브리디",
     "애완동물 서비스",
@@ -106,7 +107,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
       type: "website",
       siteName: "Bredy",
       locale: "ko_KR",
-      url: `https://bredy.app/products/${params.id}`,
+      url: canonicalUrl,
     },
     twitter: {
       card: "summary_large_image",
@@ -120,7 +121,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
       // languages: 다국어 지원을 위한 대체 언어 버전의 URL을 지정할 수 있습니다.
       // media: 다양한 미디어 타입(예: print, screen)에 대한 대체 버전을 지정할 수 있습니다.
       // types: 다양한 문서 타입에 대한 대체 버전을 지정할 수 있습니다.
-      canonical: `https://bredy.app/products/${params.id}`,
+      canonical: canonicalUrl,
     },
     robots: {
       index: true,
@@ -142,13 +143,13 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
  * - 가격, 판매자, 이미지 등 상세 정보 포함
  * - 검색 결과에서 리치 스니펫 표시 가능성 증가
  */
-function generateJsonLd(product: any) {
+function generateJsonLd(product: any, imageUrls: string[]) {
   return {
     "@context": "https://schema.org",
     "@type": "Product",
     name: product.name,
     description: product.description,
-    image: product.photos,
+    image: imageUrls,
     offers: {
       "@type": "Offer",
       price: product.price,
@@ -169,6 +170,7 @@ function generateJsonLd(product: any) {
  * - 검색 결과에서 사이트 구조 표시 가능
  */
 function generateBreadcrumbJsonLd(product: any) {
+  const canonicalUrl = `https://bredy.app/products/${product.id}`;
   return {
     "@context": "https://schema.org",
     "@type": "BreadcrumbList",
@@ -183,7 +185,7 @@ function generateBreadcrumbJsonLd(product: any) {
         "@type": "ListItem",
         position: 2,
         name: product.name,
-        item: `https://bredy.app/products/${product.id}-${product.name}`,
+        item: canonicalUrl,
       },
     ],
   };
@@ -204,7 +206,11 @@ export default async function ProductPage({ params }: Props) {
     notFound();
   }
 
-  const jsonLd = generateJsonLd(data.product);
+  const structuredImageUrls =
+    data.product.photos?.length > 0
+      ? data.product.photos.map((photo: string) => toPublicImageUrl(photo))
+      : [DEFAULT_OG_IMAGE];
+  const jsonLd = generateJsonLd(data.product, structuredImageUrls);
   const breadcrumbJsonLd = generateBreadcrumbJsonLd(data.product);
 
   return (
