@@ -1,5 +1,5 @@
 {
-  "updatedAt": "2026-02-12T07:04:24.507Z",
+  "updatedAt": "2026-02-12T07:15:47.773Z",
   "entries": [
     {
       "source": "yahoo_auctions",
@@ -91,6 +91,34 @@
       "status": "failed",
       "reason": "접근 실패(로그인/동적 페이지 응답 제한)로 본문 패턴 수집 불가",
       "checkedAt": "2026-02-12T07:04:24.507Z"
+    },
+    {
+      "source": "yahoo_auctions",
+      "url": "https://auctions.yahoo.co.jp/jp/auction/s1184232500",
+      "status": "success",
+      "reason": "제목/가격/설명 패턴 재확인 후 시드 문구 갱신",
+      "checkedAt": "2026-02-12T07:15:47.773Z"
+    },
+    {
+      "source": "yahoo_auctions",
+      "url": "https://auctions.yahoo.co.jp/jp/auction/h1190956212",
+      "status": "success",
+      "reason": "관상어 유정란 거래 패턴 재확인",
+      "checkedAt": "2026-02-12T07:15:47.773Z"
+    },
+    {
+      "source": "yahoo_auctions",
+      "url": "https://auctions.yahoo.co.jp/jp/auction/k1200303085",
+      "status": "success",
+      "reason": "케이지/파충류 용품 거래 패턴 재확인",
+      "checkedAt": "2026-02-12T07:15:47.773Z"
+    },
+    {
+      "source": "naver_cafe_section",
+      "url": "https://section.cafe.naver.com/ca-fe/home/search/articles?q=%ED%81%AC%EB%A0%88&t=1770879479942",
+      "status": "failed",
+      "reason": "접근 실패(로그인/동적 로딩 제한)로 패턴 수집 스킵",
+      "checkedAt": "2026-02-12T07:15:47.773Z"
     }
   ]
 }

@@ -74,7 +74,7 @@ export default function AdminDashboardPage() {
 
   const handleBootstrapServiceData = async () => {
     const shouldProceed = window.confirm(
-      "실서비스 초기 데이터를 생성합니다. 기존 데이터는 유지되고, 동일 키 데이터는 업데이트됩니다. 계속하시겠습니까?"
+      "실서비스 초기 데이터를 생성합니다. 기존 데이터는 유지되며, 클릭할 때마다 신규 데이터가 추가됩니다. 계속하시겠습니까?"
     );
     if (!shouldProceed) return;
 
@@ -91,7 +91,7 @@ export default function AdminDashboardPage() {
         throw new Error(data.error || "초기 데이터 생성에 실패했습니다.");
       }
       setBootstrapSummary(data.summary || null);
-      setBootstrapMessage(data.message || "초기 데이터 생성이 완료되었습니다.");
+      setBootstrapMessage(data.message || "초기 데이터 신규 추가가 완료되었습니다.");
     } catch (error) {
       setBootstrapSummary(null);
       setBootstrapError(error instanceof Error ? error.message : "요청 중 오류가 발생했습니다.");

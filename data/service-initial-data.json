@@ -155,14 +155,14 @@
       "seedKey": "prod_real_01",
       "owner": "han_keeper",
       "name": "DH 헤라클레스 오오카부토 암컷 단품",
-      "description": "Yahoo Auctions 패턴 반영 데이터입니다. 원본: https://auctions.yahoo.co.jp/jp/auction/s1184232500. 카테고리: 虫類 カブトムシ 成虫 外国産. 커뮤니티 거래 규칙에 맞춰 가격·상태·수령 방식을 함께 표기했습니다.",
-      "price": 47000,
+      "description": "Yahoo Auctions 실거래 패턴 반영. 원본: https://auctions.yahoo.co.jp/jp/auction/s1184232500. 등록 시 체장(정수 mm), 건강상태, 수령 방식을 본문 상단에 고지한 형태로 정리했습니다.",
+      "price": 48000,
       "category": "장수풍뎅이",
       "tags": [
         "곤충",
-        "실매물패턴",
         "카부토",
-        "해외혈통"
+        "해외혈통",
+        "실거래패턴"
       ],
       "photos": [
         "/designer/og/bredy-og-auction.png"
@@ -179,14 +179,14 @@
       "seedKey": "prod_real_02",
       "owner": "park_nest",
       "name": "마리아주 키싱 와이드핀 메다카 유정란 50+20",
-      "description": "Yahoo Auctions 패턴 반영 데이터입니다. 원본: https://auctions.yahoo.co.jp/jp/auction/h1190956212. 카테고리: 魚類 水生生物 めだか. 커뮤니티 거래 규칙에 맞춰 가격·상태·수령 방식을 함께 표기했습니다.",
-      "price": 343,
+      "description": "Yahoo Auctions 실거래 패턴 반영. 원본: https://auctions.yahoo.co.jp/jp/auction/h1190956212. 수량/부화율 기대치/포장 방식을 명시해 문의 반복을 줄인 구성입니다.",
+      "price": 1500,
       "category": "어류",
       "tags": [
         "관상어",
         "메다카",
         "유정란",
-        "실매물패턴"
+        "실거래패턴"
       ],
       "photos": [
         "/designer/og/bredy-og-bredybook.png"
@@ -203,14 +203,14 @@
       "seedKey": "prod_real_03",
       "owner": "kim_lab",
       "name": "하이비스커스 메다카 유정란 20+알파",
-      "description": "Yahoo Auctions 패턴 반영 데이터입니다. 원본: https://auctions.yahoo.co.jp/jp/auction/e1185580858. 카테고리: 魚類 水生生物 めだか. 커뮤니티 거래 규칙에 맞춰 가격·상태·수령 방식을 함께 표기했습니다.",
-      "price": 1200,
+      "description": "Yahoo Auctions 실거래 패턴 반영. 원본: https://auctions.yahoo.co.jp/jp/auction/e1185580858. 수온/배송일정/도착 후 관리 팁을 함께 안내하는 판매글 톤을 반영했습니다.",
+      "price": 3900,
       "category": "어류",
       "tags": [
         "관상어",
         "메다카",
         "유정란",
-        "실매물패턴"
+        "하이비스커스"
       ],
       "photos": [
         "/designer/og/bredy-og-image.png"
@@ -227,14 +227,14 @@
       "seedKey": "prod_real_04",
       "owner": "jung_store",
       "name": "아가베 티타노타 귀조 자구 1주",
-      "description": "Yahoo Auctions 패턴 반영 데이터입니다. 원본: https://auctions.yahoo.co.jp/jp/auction/t1168045998. 카테고리: 花 園芸 観葉植物 アガベ. 커뮤니티 거래 규칙에 맞춰 가격·상태·수령 방식을 함께 표기했습니다.",
-      "price": 7000,
+      "description": "Yahoo Auctions 실거래 패턴 반영. 원본: https://auctions.yahoo.co.jp/jp/auction/t1168045998. 자구 크기, 분갈이 시점, 수령 후 관리 팁을 포함한 실거래형 본문입니다.",
+      "price": 7900,
       "category": "관엽식물",
       "tags": [
         "식물",
         "아가베",
         "자구",
-        "실매물패턴"
+        "실거래패턴"
       ],
       "photos": [
         "/designer/campaigns/bredy-growth-ad-a.png"
@@ -251,14 +251,14 @@
       "seedKey": "prod_real_05",
       "owner": "choi_hobby",
       "name": "비카크시다 P.Mt.lewis 자구",
-      "description": "Yahoo Auctions 패턴 반영 데이터입니다. 원본: https://auctions.yahoo.co.jp/jp/auction/o1192730259. 카테고리: 観葉植物 ビカクシダ. 커뮤니티 거래 규칙에 맞춰 가격·상태·수령 방식을 함께 표기했습니다.",
-      "price": 7850,
+      "description": "Yahoo Auctions 실거래 패턴 반영. 원본: https://auctions.yahoo.co.jp/jp/auction/o1192730259. 판재 유무, 활착 상태, 포장 사진 제공 여부를 명시한 거래 템플릿을 반영했습니다.",
+      "price": 9400,
       "category": "관엽식물",
       "tags": [
         "식물",
         "비카크시다",
         "코우모리란",
-        "실매물패턴"
+        "실거래패턴"
       ],
       "photos": [
         "/designer/campaigns/bredy-growth-ad-b.png"
@@ -275,47 +275,47 @@
       "seedKey": "prod_real_06",
       "owner": "yoon_collect",
       "name": "벨파이어 차량검사 포함 매물",
-      "description": "Yahoo Auctions 패턴 반영 데이터입니다. 원본: https://auctions.yahoo.co.jp/jp/auction/d1198620271. 현재가 102000 / 즉결가 420000. 커뮤니티 거래 규칙에 맞춰 가격·상태·수령 방식을 함께 표기했습니다.",
-      "price": 420000,
+      "description": "Yahoo Auctions 실거래 패턴 반영. 원본: https://auctions.yahoo.co.jp/jp/auction/d1198620271. 차량글 패턴을 참고해 점검 이력, 이전 유무, 인수 가능일을 함께 표기했습니다.",
+      "price": 430000,
       "category": "자동차",
       "tags": [
         "자동차",
-        "실매물패턴",
-        "차검포함",
-        "직거래우선"
+        "점검이력",
+        "실거래패턴",
+        "중고차"
       ],
       "photos": [
         "/designer/campaigns/bredy-growth-ad-c.png"
       ],
       "location": "광주 북구",
       "status": "판매중",
-      "condition": "중고",
+      "condition": "사용감 있음",
       "deliveryType": "직거래",
-      "productType": "차량",
-      "isFeatured": true,
+      "productType": "용품",
+      "isFeatured": false,
       "daysAgo": 5
     },
     {
       "seedKey": "prod_real_07",
       "owner": "seo_newbie",
       "name": "프리우스 30 S 2015년식 매물",
-      "description": "Yahoo Auctions 패턴 반영 데이터입니다. 원본: https://auctions.yahoo.co.jp/jp/auction/k1152952978. 현재가 508000 / 즉결가 700000. 커뮤니티 거래 규칙에 맞춰 가격·상태·수령 방식을 함께 표기했습니다.",
-      "price": 700000,
+      "description": "Yahoo Auctions 실거래 패턴 반영. 원본: https://auctions.yahoo.co.jp/jp/auction/k1152952978. 실주행거리/하체 점검/명의 이전 준비사항을 먼저 고지하는 구조를 적용했습니다.",
+      "price": 720000,
       "category": "자동차",
       "tags": [
         "자동차",
         "프리우스",
-        "실매물패턴",
-        "차검포함"
+        "실거래패턴",
+        "중고차"
       ],
       "photos": [
         "/designer/og/bredy-og-auction.jpeg"
       ],
-      "location": "대구 수성구",
+      "location": "서울 강서구",
       "status": "판매중",
-      "condition": "중고",
+      "condition": "사용감 있음",
       "deliveryType": "직거래",
-      "productType": "차량",
+      "productType": "용품",
       "isFeatured": false,
       "daysAgo": 6
     },
@@ -323,70 +323,70 @@
       "seedKey": "prod_real_08",
       "owner": "hwang_trade",
       "name": "알토라팡 H26 차량검사 2년 포함",
-      "description": "Yahoo Auctions 패턴 반영 데이터입니다. 원본: https://auctions.yahoo.co.jp/jp/auction/q1201409936. 즉결가 155000. 커뮤니티 거래 규칙에 맞춰 가격·상태·수령 방식을 함께 표기했습니다.",
-      "price": 155000,
+      "description": "Yahoo Auctions 실거래 패턴 반영. 원본: https://auctions.yahoo.co.jp/jp/auction/q1201409936. 정비 내역 공개, 거래 시 동행 점검 가능 여부를 표시한 본문으로 갱신했습니다.",
+      "price": 169000,
       "category": "자동차",
       "tags": [
         "자동차",
         "경차",
-        "실매물패턴",
-        "즉결가"
+        "점검완료",
+        "실거래패턴"
       ],
       "photos": [
         "/designer/og/bredy-og-bredybook.jpeg"
       ],
-      "location": "울산 남구",
-      "status": "판매완료",
-      "condition": "중고",
+      "location": "경남 창원시",
+      "status": "판매중",
+      "condition": "사용감 있음",
       "deliveryType": "직거래",
-      "productType": "차량",
+      "productType": "용품",
       "isFeatured": false,
       "daysAgo": 7
     },
     {
       "seedKey": "prod_real_09",
       "owner": "lee_helper",
-      "name": "레오파 유정란 (히ョ우몬토카게모도키) 세트",
-      "description": "Yahoo Auctions 패턴 반영 데이터입니다. 원본: https://auctions.yahoo.co.jp/jp/auction/u1199192130. 시작가 1엔, 파충류 용품 카테고리. 커뮤니티 거래 규칙에 맞춰 가격·상태·수령 방식을 함께 표기했습니다.",
-      "price": 1000,
+      "name": "레오파드게코 유정란 2세트",
+      "description": "Yahoo Auctions 실거래 패턴 반영. 원본: https://auctions.yahoo.co.jp/jp/auction/u1199192130. 인큐베이션 시작일, 예상 부화 창, 동봉 안내문 제공 여부를 명시했습니다.",
+      "price": 12000,
       "category": "파충류",
       "tags": [
         "파충류",
-        "도마뱀",
+        "레오파드게코",
         "유정란",
-        "실매물패턴"
+        "실거래패턴"
       ],
       "photos": [
         "/designer/og/bredy-og-image.jpeg"
       ],
-      "location": "전북 전주시",
+      "location": "대구 수성구",
       "status": "판매중",
       "condition": "미사용",
-      "deliveryType": "안전택배",
+      "deliveryType": "택배",
       "productType": "생물",
-      "isFeatured": true,
+      "isFeatured": false,
       "daysAgo": 8
     },
     {
       "seedKey": "prod_real_10",
       "owner": "han_keeper",
       "name": "헤비/카메/토카게 공용 유리 케이지 90x45x45",
-      "description": "Yahoo Auctions 패턴 반영 데이터입니다. 원본: https://auctions.yahoo.co.jp/jp/auction/k1200303085. 즉결가 24000. 커뮤니티 거래 규칙에 맞춰 가격·상태·수령 방식을 함께 표기했습니다.",
-      "price": 24000,
+      "description": "Yahoo Auctions 실거래 패턴 반영. 원본: https://auctions.yahoo.co.jp/jp/auction/k1200303085. 실측 규격, 파손 유무, 인수 위치를 먼저 표기하는 케이지 거래글 구조를 반영했습니다.",
+      "price": 28000,
       "category": "파충류용품",
       "tags": [
         "파충류",
-        "뱀",
-        "거북이",
-        "도마뱀"
+        "케이지",
+        "유리장",
+        "실거래패턴"
       ],
       "photos": [
         "/designer/campaigns/bredy-growth-ad-a.jpeg"
       ],
-      "location": "서울 송파구",
+      "location": "울산 남구",
       "status": "판매중",
-      "condition": "새상품",
-      "deliveryType": "직거래/안전택배",
+      "condition": "사용감 있음",
+      "deliveryType": "직거래",
       "productType": "용품",
       "isFeatured": false,
       "daysAgo": 9
@@ -395,21 +395,21 @@
       "seedKey": "prod_real_11",
       "owner": "park_nest",
       "name": "리쿠가메 대응 RepBox 대형 목재 케이지",
-      "description": "Yahoo Auctions 패턴 반영 데이터입니다. 원본: https://auctions.yahoo.co.jp/jp/auction/o1084563162. 현재가 8000. 커뮤니티 거래 규칙에 맞춰 가격·상태·수령 방식을 함께 표기했습니다.",
-      "price": 8000,
+      "description": "Yahoo Auctions 실거래 패턴 반영. 원본: https://auctions.yahoo.co.jp/jp/auction/o1084563162. 사용 기간, 보수 이력, 이동 가능 시간대까지 함께 기재한 형태입니다.",
+      "price": 14000,
       "category": "파충류용품",
       "tags": [
-        "파충류",
-        "거북이",
-        "도마뱀",
-        "케이지"
+        "거북",
+        "케이지",
+        "목재장",
+        "실거래패턴"
       ],
       "photos": [
         "/designer/campaigns/bredy-growth-ad-b.jpeg"
       ],
-      "location": "경기 성남시",
+      "location": "경기 고양시",
       "status": "판매중",
-      "condition": "미사용",
+      "condition": "사용감 있음",
       "deliveryType": "직거래",
       "productType": "용품",
       "isFeatured": false,
@@ -419,21 +419,21 @@
       "seedKey": "prod_real_12",
       "owner": "kim_lab",
       "name": "토카게/헤비/카메 소형 유리 케이지 20x20x30",
-      "description": "Yahoo Auctions 패턴 반영 데이터입니다. 원본: https://auctions.yahoo.co.jp/jp/auction/t1193034824. 즉결가 4270. 커뮤니티 거래 규칙에 맞춰 가격·상태·수령 방식을 함께 표기했습니다.",
-      "price": 4270,
+      "description": "Yahoo Auctions 실거래 패턴 반영. 원본: https://auctions.yahoo.co.jp/jp/auction/t1193034824. 작은 개체 임시 격리용으로 많이 거래되는 스펙 중심 문구로 보정했습니다.",
+      "price": 6900,
       "category": "파충류용품",
       "tags": [
         "파충류",
-        "뱀",
-        "거북이",
-        "도마뱀"
+        "소형케이지",
+        "격리장",
+        "실거래패턴"
       ],
       "photos": [
         "/designer/campaigns/bredy-growth-ad-c.jpeg"
       ],
-      "location": "인천 연수구",
+      "location": "서울 노원구",
       "status": "판매중",
-      "condition": "새상품",
+      "condition": "생활흔적",
       "deliveryType": "직거래/안전택배",
       "productType": "용품",
       "isFeatured": false,
@@ -444,8 +444,8 @@
     {
       "seedKey": "post_real_01",
       "author": "kim_lab",
-      "title": "실거래 등록글 최소 항목 4줄 고정 제안",
-      "description": "제목에는 종명, 본문 첫 줄에는 가격·지역·수령방식·상태를 고정하면 문의 품질이 올라갑니다. 거래글 중복보다 정보 밀도가 중요했습니다.",
+      "title": "실거래 글 첫 줄에 가격·지역·수령방식 고정해봤어요",
+      "description": "문의가 30% 줄었습니다. 거래 유도 문구보다 기본 정보 4줄을 먼저 노출하면 커뮤니티 톤도 해치지 않고 분쟁 가능성이 낮아졌습니다.",
       "category": "정보",
       "type": "community",
       "image": "/designer/og/bredy-og-auction.png",
@@ -454,8 +454,8 @@
     {
       "seedKey": "post_real_02",
       "author": "jung_store",
-      "title": "곤충 거래는 체장 표기 방식을 통일합시다",
-      "description": "체장 표기는 정수 mm로 통일하면 분쟁 대응이 쉬워집니다. 실측 사진, 측정 위치, 측정 시점을 함께 남기는 방식이 가장 깔끔했습니다.",
+      "title": "곤충 거래글은 체장(mm)과 우화일을 같이 적는게 좋습니다",
+      "description": "체장은 정수 mm로만, 우화일은 YYYY-MM-DD로 쓰면 입문자도 비교가 쉽습니다. 댓글 분쟁도 줄었습니다.",
       "category": "정보",
       "type": "community",
       "image": "/designer/og/bredy-og-bredybook.png",
@@ -464,8 +464,8 @@
     {
       "seedKey": "post_real_03",
       "author": "choi_hobby",
-      "title": "메다카 유정란 배송 고지 문구 공유 부탁드립니다",
-      "description": "채란일·발송일·보정 수량·포장 방식을 먼저 공개하면 반복 문의가 줄었습니다. 다른 판매자 문구도 참고하고 싶습니다.",
+      "title": "메다카 유정란 거래 시 포장/도착시간 고지 템플릿 공유",
+      "description": "산란일, 발송일, 아이스팩 여부, 지연 시 대응까지 고정 문장으로 넣으니 반품 이슈가 줄었습니다.",
       "category": "질문",
       "type": "community",
       "image": "/designer/og/bredy-og-image.png",
@@ -474,8 +474,8 @@
     {
       "seedKey": "post_real_04",
       "author": "yoon_collect",
-      "title": "관상어 거래에서 영상 확인 절차 효과 있었습니다",
-      "description": "출고 전 활어 상태 영상을 남기고 보내니 수령 문의가 줄었습니다. 거래 전 확인 루틴을 커뮤니티 공용으로 맞추면 좋겠습니다.",
+      "title": "관상어 거래에서 영상 인증을 사전 고지하니 신뢰가 올라가요",
+      "description": "정면/측면 10초 영상 요청 기준을 본문에 명시했더니 불필요한 채팅이 줄고 거래 성사율이 높아졌습니다.",
       "category": "후기",
       "type": "community",
       "image": "/designer/campaigns/bredy-growth-ad-a.png",
@@ -484,8 +484,8 @@
     {
       "seedKey": "post_real_05",
       "author": "seo_newbie",
-      "title": "식물 자구 거래는 뿌리 상태 고지가 핵심입니다",
-      "description": "아가베/비카크시다는 뿌리 활착 상태, 배송 시 온도, 포장법을 먼저 써두면 분쟁 가능성이 크게 줄었습니다.",
+      "title": "식물 자구 거래는 뿌리/신엽 상태를 먼저 찍어주세요",
+      "description": "사진 우선순위를 본문에 고지하면 판매자/구매자 모두 대화가 짧아집니다. 상태 오해도 크게 줄었습니다.",
       "category": "정보",
       "type": "community",
       "image": "/designer/campaigns/bredy-growth-ad-b.png",
@@ -494,71 +494,71 @@
     {
       "seedKey": "post_real_06",
       "author": "hwang_trade",
-      "title": "중고차 거래글도 커뮤니티 템플릿 필요합니다",
-      "description": "차량은 연식·주행거리·차검 잔여기간·수리 이력을 첫 화면에서 보이게 하면 신뢰도가 올라갑니다. 거래 톤을 통일해봅시다.",
+      "title": "중고차 카테고리도 커뮤니티식 체크리스트가 필요합니다",
+      "description": "정비 이력, 사고 유무, 실주행거리, 인수 가능일 4개를 고정하면 과장 홍보 문구 없이도 반응이 괜찮습니다.",
       "category": "자유",
       "type": "community",
-      "image": "/designer/campaigns/bredy-growth-ad-c.png",
+      "image": "/designer/og/bredy-og-main.png",
       "daysAgo": 5
     },
     {
       "seedKey": "post_real_07",
       "author": "lee_helper",
-      "title": "파충류 케이지 거래 시 규격 표기 체크리스트",
-      "description": "길이×폭×높이, 재질, 통풍 구조, 배송 방식까지 쓰면 문의가 빨라집니다. 파충류 용품은 규격 표기가 가장 중요했습니다.",
+      "title": "파충류 케이지 거래글 규격 표기 통일해봅시다",
+      "description": "가로x세로x높이(cm), 파손 여부, 직거래 우선 여부만 통일해도 댓글 질문이 크게 줄었습니다.",
       "category": "정보",
       "type": "community",
-      "image": "/designer/og/bredy-og-auction.jpeg",
+      "image": "/designer/og/bredy-og-auctions.png",
       "daysAgo": 6
     },
     {
       "seedKey": "post_real_08",
       "author": "han_keeper",
-      "title": "경매글 마감 규칙 재안내 (입찰 단위/자동 연장)",
-      "description": "마감 직전 분쟁을 막기 위해 입찰 단위와 자동 연장 조건을 본문 상단에 고정 안내해주세요. 거래 종료 후 상태 변경도 반드시 부탁드립니다.",
-      "category": "공지",
+      "title": "경매글은 자동연장 조건을 제목 아래에 바로 고지해 주세요",
+      "description": "마감 3분 내 입찰 시 연장 같은 핵심 규칙을 본문 하단이 아니라 상단에 배치하면 분쟁을 많이 줄일 수 있습니다.",
+      "category": "정보",
       "type": "community",
-      "image": "/designer/og/bredy-og-bredybook.jpeg",
+      "image": "/designer/og/bredy-og-auction-tool.png",
       "daysAgo": 7
     },
     {
       "seedKey": "post_real_09",
       "author": "park_nest",
-      "title": "도마뱀 유정란 거래는 어떤 확인 절차를 쓰시나요?",
-      "description": "부모 개체 정보와 부화 환경 고지를 어떻게 쓰는지 궁금합니다. 거래 전에 확인받는 항목을 정리해 공유 부탁드립니다.",
+      "title": "도마뱀 유정란 거래는 인큐베이션 시작일 고지가 필수일까요?",
+      "description": "거래 전에 꼭 공개해야 할 항목(보관 온도, 시작일, 예상 부화 창) 기준을 정하고 싶습니다.",
       "category": "질문",
       "type": "community",
-      "image": "/designer/og/bredy-og-image.jpeg",
+      "image": "/designer/og/bredy-og-auth.png",
       "daysAgo": 8
     },
     {
       "seedKey": "post_real_10",
       "author": "kim_lab",
-      "title": "거북/뱀/도마뱀 케이지 거래 문의 패턴 공유",
-      "description": "같은 규격이라도 적용 종이 다르면 질문이 달라졌습니다. 제목에 적용 종(거북/뱀/도마뱀)을 먼저 쓰는 방식이 효과적이었습니다.",
+      "title": "거북/뱀/도마뱀 용품 거래에서 파손면책 문구 어디까지 쓰나요?",
+      "description": "과한 면책 문구는 신뢰를 떨어뜨려서, 포장 방식과 인수 시점 기준만 명시하는 방식으로 조정 중입니다.",
       "category": "후기",
       "type": "community",
-      "image": "/designer/campaigns/bredy-growth-ad-a.jpeg",
+      "image": "/designer/og/bredy-og-login.png",
       "daysAgo": 9
     },
     {
       "seedKey": "post_real_11",
       "author": "jung_store",
-      "title": "판매완료 처리 누락 줄이는 운영 루틴",
-      "description": "거래 완료 즉시 제목 태그 변경, 첫 댓글에 종료 시각 기록, 본문 상태 업데이트까지 3단계로 맞추면 운영 품질이 안정됩니다.",
+      "title": "판매완료 처리 누락 줄이려면 체크 타이밍을 고정해야 합니다",
+      "description": "입금 확인 후 30분 이내 상태 변경, 미변경 시 자동 알림 규칙을 돌리면 구매자 문의가 크게 줄었습니다.",
       "category": "정보",
       "type": "community",
-      "image": "/designer/campaigns/bredy-growth-ad-b.jpeg",
+      "image": "/designer/og/bredy-og-mypage.png",
       "daysAgo": 10
     },
     {
       "seedKey": "post_real_12",
       "author": "choi_hobby",
-      "title": "이번 주 실거래형 데이터 업데이트 공유",
-      "description": "곤충·관상어·식물·자동차·파충류 용품까지 실매물 패턴으로 정리했습니다. 다음 주에는 댓글 반응 기준으로 문구를 더 다듬겠습니다.",
+      "title": "이번 주 실데이터형 시드 업데이트 공유 (거래 톤 중심)",
+      "description": "홍보 문구를 줄이고 거래 핵심 정보 위주로 문장을 보정했습니다. 더미 링크 제거 상태도 함께 점검했습니다.",
       "category": "자유",
       "type": "community",
-      "image": "/designer/campaigns/bredy-growth-ad-c.jpeg",
+      "image": "/designer/og/bredy-og-posts.png",
       "daysAgo": 11
     }
   ],
@@ -825,44 +825,44 @@
       "seedKey": "auction_real_01",
       "seller": "han_keeper",
       "title": "DH 헤라클레스 오오카부토 암컷 단품 경매",
-      "description": "Yahoo Auctions 패턴 반영 데이터입니다. 원본: https://auctions.yahoo.co.jp/jp/auction/s1184232500. 카테고리: 虫類 カブトムシ 成虫 外国産. 입찰 단위, 자동 연장, 상태 고지를 커뮤니티 규칙에 맞춰 구성했습니다.",
+      "description": "Yahoo Auctions 패턴 반영. 원본: https://auctions.yahoo.co.jp/jp/auction/s1184232500. 자동연장(3분 내 입찰 시 5분), 취소 불가, 낙찰 후 연락 기준을 명시했습니다.",
       "photos": [
         "/designer/og/bredy-og-auction.png"
       ],
       "category": "곤충",
-      "startPrice": 47000,
+      "startPrice": 48000,
       "minBidIncrement": 1000,
       "status": "진행중",
-      "endInHours": 8,
+      "endInHours": 10,
       "sellerPhone": "010-3124-8011",
       "sellerEmail": "han.keeper@bredy.kr",
       "sellerBlogUrl": "https://auctions.yahoo.co.jp/jp/auction/s1184232500",
       "sellerCafeNick": "한지민브리더",
       "sellerBandNick": "한지민브리더거래방",
-      "sellerTrustNote": "가격·상태·수령 방식·영상 확인 절차를 공개하고 커뮤니티 분쟁 규칙을 준수합니다.",
+      "sellerTrustNote": "체장·상태·수령 방식 공개, 거래 로그 보관 원칙 준수",
       "bids": [
         {
           "bidder": "kim_lab",
-          "amount": 48000,
+          "amount": 49000,
           "hoursAgo": 6
         },
         {
           "bidder": "choi_hobby",
-          "amount": 49000,
-          "hoursAgo": 3
+          "amount": 50000,
+          "hoursAgo": 2
         }
       ]
     },
     {
       "seedKey": "auction_real_02",
       "seller": "park_nest",
-      "title": "마리아주 키싱 와이드핀 유정란 70알 경매",
-      "description": "Yahoo Auctions 패턴 반영 데이터입니다. 원본: https://auctions.yahoo.co.jp/jp/auction/h1190956212. 카테고리: 魚類 水生生物 めだか. 입찰 단위, 자동 연장, 상태 고지를 커뮤니티 규칙에 맞춰 구성했습니다.",
+      "title": "마리아주 키싱 와이드핀 유정란 50+20 경매",
+      "description": "Yahoo Auctions 패턴 반영. 원본: https://auctions.yahoo.co.jp/jp/auction/h1190956212. 발송일정/파손 대응 기준을 경매 본문 상단에 배치했습니다.",
       "photos": [
         "/designer/og/bredy-og-bredybook.png"
       ],
       "category": "어류",
-      "startPrice": 343,
+      "startPrice": 1500,
       "minBidIncrement": 1000,
       "status": "진행중",
       "endInHours": 14,
@@ -871,17 +871,17 @@
       "sellerBlogUrl": "https://auctions.yahoo.co.jp/jp/auction/h1190956212",
       "sellerCafeNick": "박수빈사육장",
       "sellerBandNick": "박수빈사육장거래방",
-      "sellerTrustNote": "가격·상태·수령 방식·영상 확인 절차를 공개하고 커뮤니티 분쟁 규칙을 준수합니다.",
+      "sellerTrustNote": "수량·포장·수령 책임 범위를 사전 고지",
       "bids": [
         {
           "bidder": "jung_store",
-          "amount": 1343,
+          "amount": 2500,
           "hoursAgo": 5
         },
         {
           "bidder": "yoon_collect",
-          "amount": 2343,
-          "hoursAgo": 2
+          "amount": 3500,
+          "hoursAgo": 1
         }
       ]
     },
@@ -889,31 +889,31 @@
       "seedKey": "auction_real_03",
       "seller": "kim_lab",
       "title": "하이비스커스 메다카 유정란 20+알파 경매",
-      "description": "Yahoo Auctions 패턴 반영 데이터입니다. 원본: https://auctions.yahoo.co.jp/jp/auction/e1185580858. 카테고리: 魚類 水生生物 めだか. 입찰 단위, 자동 연장, 상태 고지를 커뮤니티 규칙에 맞춰 구성했습니다.",
+      "description": "Yahoo Auctions 패턴 반영. 원본: https://auctions.yahoo.co.jp/jp/auction/e1185580858. 커뮤니티 거래 템플릿에 맞춰 수량/상태/발송 조건을 정리했습니다.",
       "photos": [
         "/designer/og/bredy-og-image.png"
       ],
       "category": "어류",
-      "startPrice": 1200,
+      "startPrice": 3900,
       "minBidIncrement": 1000,
       "status": "진행중",
-      "endInHours": 20,
+      "endInHours": 18,
       "sellerPhone": "010-5662-1193",
       "sellerEmail": "kim.lab@bredy.kr",
       "sellerBlogUrl": "https://auctions.yahoo.co.jp/jp/auction/e1185580858",
       "sellerCafeNick": "김태호인섹트",
       "sellerBandNick": "김태호인섹트거래방",
-      "sellerTrustNote": "가격·상태·수령 방식·영상 확인 절차를 공개하고 커뮤니티 분쟁 규칙을 준수합니다.",
+      "sellerTrustNote": "입찰 전 문의 항목 고정, 거래 분쟁 기준 사전 고지",
       "bids": [
         {
           "bidder": "lee_helper",
-          "amount": 2200,
-          "hoursAgo": 5
+          "amount": 4900,
+          "hoursAgo": 7
         },
         {
           "bidder": "han_keeper",
-          "amount": 3200,
-          "hoursAgo": 1
+          "amount": 5900,
+          "hoursAgo": 2
         }
       ]
     },
@@ -921,31 +921,31 @@
       "seedKey": "auction_real_04",
       "seller": "jung_store",
       "title": "아가베 티타노타 귀조 자구 경매",
-      "description": "Yahoo Auctions 패턴 반영 데이터입니다. 원본: https://auctions.yahoo.co.jp/jp/auction/t1168045998. 카테고리: 花 園芸 観葉植物 アガベ. 입찰 단위, 자동 연장, 상태 고지를 커뮤니티 규칙에 맞춰 구성했습니다.",
+      "description": "Yahoo Auctions 패턴 반영. 원본: https://auctions.yahoo.co.jp/jp/auction/t1168045998. 자구 크기, 활착 상태, 배송 리스크를 고지한 경매형 문구를 적용했습니다.",
       "photos": [
         "/designer/campaigns/bredy-growth-ad-a.png"
       ],
-      "category": "기타",
-      "startPrice": 7000,
+      "category": "식물",
+      "startPrice": 7900,
       "minBidIncrement": 1000,
       "status": "진행중",
-      "endInHours": 24,
+      "endInHours": 22,
       "sellerPhone": "010-7741-2208",
       "sellerEmail": "jung.store@bredy.kr",
       "sellerBlogUrl": "https://auctions.yahoo.co.jp/jp/auction/t1168045998",
       "sellerCafeNick": "정하늘곤충샵",
       "sellerBandNick": "정하늘곤충샵거래방",
-      "sellerTrustNote": "가격·상태·수령 방식·영상 확인 절차를 공개하고 커뮤니티 분쟁 규칙을 준수합니다.",
+      "sellerTrustNote": "실측 사진과 포장 전 점검 사진 제공 원칙",
       "bids": [
         {
           "bidder": "park_nest",
-          "amount": 8000,
-          "hoursAgo": 8
+          "amount": 8900,
+          "hoursAgo": 5
         },
         {
           "bidder": "hwang_trade",
-          "amount": 9000,
-          "hoursAgo": 3
+          "amount": 9900,
+          "hoursAgo": 1
         }
       ]
     },
@@ -953,31 +953,31 @@
       "seedKey": "auction_real_05",
       "seller": "choi_hobby",
       "title": "비카크시다 P.Mt.lewis 자구 경매",
-      "description": "Yahoo Auctions 패턴 반영 데이터입니다. 원본: https://auctions.yahoo.co.jp/jp/auction/o1192730259. 카테고리: 観葉植物 ビカクシダ. 입찰 단위, 자동 연장, 상태 고지를 커뮤니티 규칙에 맞춰 구성했습니다.",
+      "description": "Yahoo Auctions 패턴 반영. 원본: https://auctions.yahoo.co.jp/jp/auction/o1192730259. 실거래 기록 샘플 기반으로 상태·수령 조건을 간결하게 정리했습니다.",
       "photos": [
         "/designer/campaigns/bredy-growth-ad-b.png"
       ],
-      "category": "기타",
-      "startPrice": 7850,
+      "category": "식물",
+      "startPrice": 9400,
       "minBidIncrement": 1000,
       "status": "종료",
-      "endInHours": -3,
+      "endInHours": -2,
       "sellerPhone": "010-6645-9381",
       "sellerEmail": "choi.hobby@bredy.kr",
       "sellerBlogUrl": "https://auctions.yahoo.co.jp/jp/auction/o1192730259",
       "sellerCafeNick": "최유라키퍼",
       "sellerBandNick": "최유라키퍼거래방",
-      "sellerTrustNote": "가격·상태·수령 방식·영상 확인 절차를 공개하고 커뮤니티 분쟁 규칙을 준수합니다.",
+      "sellerTrustNote": "완료 경매: 낙찰 후 24시간 이내 인수 원칙",
       "bids": [
         {
           "bidder": "seo_newbie",
-          "amount": 8850,
-          "hoursAgo": 30
+          "amount": 10400,
+          "hoursAgo": 25
         },
         {
           "bidder": "lee_helper",
-          "amount": 9850,
-          "hoursAgo": 25
+          "amount": 11400,
+          "hoursAgo": 20
         }
       ]
     },
@@ -985,13 +985,13 @@
       "seedKey": "auction_real_06",
       "seller": "yoon_collect",
       "title": "벨파이어 차량검사 포함 매물 경매",
-      "description": "Yahoo Auctions 패턴 반영 데이터입니다. 원본: https://auctions.yahoo.co.jp/jp/auction/d1198620271. 현재가 102000 / 즉결가 420000. 입찰 단위, 자동 연장, 상태 고지를 커뮤니티 규칙에 맞춰 구성했습니다.",
+      "description": "Yahoo Auctions 패턴 반영. 원본: https://auctions.yahoo.co.jp/jp/auction/d1198620271. 점검 이력과 이전 절차를 먼저 공개하는 차량 경매 글 톤을 반영했습니다.",
       "photos": [
         "/designer/campaigns/bredy-growth-ad-c.png"
       ],
-      "category": "기타",
-      "startPrice": 420000,
-      "minBidIncrement": 10000,
+      "category": "자동차",
+      "startPrice": 430000,
+      "minBidIncrement": 5000,
       "status": "진행중",
       "endInHours": 30,
       "sellerPhone": "010-2187-4405",
@@ -999,17 +999,17 @@
       "sellerBlogUrl": "https://auctions.yahoo.co.jp/jp/auction/d1198620271",
       "sellerCafeNick": "윤동호콜렉터",
       "sellerBandNick": "윤동호콜렉터거래방",
-      "sellerTrustNote": "가격·상태·수령 방식·영상 확인 절차를 공개하고 커뮤니티 분쟁 규칙을 준수합니다.",
+      "sellerTrustNote": "실매물 확인 영상 제공, 거래 단계별 체크리스트 운영",
       "bids": [
         {
           "bidder": "seo_newbie",
-          "amount": 430000,
-          "hoursAgo": 9
+          "amount": 435000,
+          "hoursAgo": 8
         },
         {
           "bidder": "hwang_trade",
           "amount": 440000,
-          "hoursAgo": 4
+          "hoursAgo": 2
         }
       ]
     },
@@ -1017,13 +1017,13 @@
       "seedKey": "auction_real_07",
       "seller": "seo_newbie",
       "title": "프리우스 30 S 2015년식 경매",
-      "description": "Yahoo Auctions 패턴 반영 데이터입니다. 원본: https://auctions.yahoo.co.jp/jp/auction/k1152952978. 현재가 508000 / 즉결가 700000. 입찰 단위, 자동 연장, 상태 고지를 커뮤니티 규칙에 맞춰 구성했습니다.",
+      "description": "Yahoo Auctions 패턴 반영. 원본: https://auctions.yahoo.co.jp/jp/auction/k1152952978. 차량 상태 고지 항목을 경매형으로 정리해 문의 편차를 줄였습니다.",
       "photos": [
         "/designer/og/bredy-og-auction.jpeg"
       ],
-      "category": "기타",
-      "startPrice": 700000,
-      "minBidIncrement": 10000,
+      "category": "자동차",
+      "startPrice": 720000,
+      "minBidIncrement": 5000,
       "status": "진행중",
       "endInHours": 36,
       "sellerPhone": "010-8291-6002",
@@ -1031,17 +1031,17 @@
       "sellerBlogUrl": "https://auctions.yahoo.co.jp/jp/auction/k1152952978",
       "sellerCafeNick": "서민지사육기록",
       "sellerBandNick": "서민지사육기록거래방",
-      "sellerTrustNote": "가격·상태·수령 방식·영상 확인 절차를 공개하고 커뮤니티 분쟁 규칙을 준수합니다.",
+      "sellerTrustNote": "실주행·점검 이력·인수 가능일 사전 공유",
       "bids": [
         {
           "bidder": "han_keeper",
-          "amount": 520000,
-          "hoursAgo": 8
+          "amount": 725000,
+          "hoursAgo": 9
         },
         {
           "bidder": "kim_lab",
-          "amount": 540000,
-          "hoursAgo": 2
+          "amount": 730000,
+          "hoursAgo": 3
         }
       ]
     },
@@ -1049,57 +1049,57 @@
       "seedKey": "auction_real_08",
       "seller": "hwang_trade",
       "title": "알토라팡 H26 차량검사 2년 포함 경매",
-      "description": "Yahoo Auctions 패턴 반영 데이터입니다. 원본: https://auctions.yahoo.co.jp/jp/auction/q1201409936. 즉결가 155000. 입찰 단위, 자동 연장, 상태 고지를 커뮤니티 규칙에 맞춰 구성했습니다.",
+      "description": "Yahoo Auctions 패턴 반영. 원본: https://auctions.yahoo.co.jp/jp/auction/q1201409936. 완료 경매 사례로 상태/검사 기간 고지 형식을 유지했습니다.",
       "photos": [
         "/designer/og/bredy-og-bredybook.jpeg"
       ],
-      "category": "기타",
-      "startPrice": 155000,
-      "minBidIncrement": 5000,
+      "category": "자동차",
+      "startPrice": 169000,
+      "minBidIncrement": 2000,
       "status": "종료",
-      "endInHours": -2,
+      "endInHours": -1,
       "sellerPhone": "010-9916-7734",
       "sellerEmail": "hwang.trade@bredy.kr",
       "sellerBlogUrl": "https://auctions.yahoo.co.jp/jp/auction/q1201409936",
       "sellerCafeNick": "황도윤브리딩룸",
       "sellerBandNick": "황도윤브리딩룸거래방",
-      "sellerTrustNote": "가격·상태·수령 방식·영상 확인 절차를 공개하고 커뮤니티 분쟁 규칙을 준수합니다.",
+      "sellerTrustNote": "완료 경매: 양도 절차 기록 보관",
       "bids": [
         {
           "bidder": "lee_helper",
-          "amount": 160000,
-          "hoursAgo": 20
+          "amount": 171000,
+          "hoursAgo": 18
         }
       ]
     },
     {
       "seedKey": "auction_real_09",
       "seller": "lee_helper",
-      "title": "레오파 유정란 세트 경매",
-      "description": "Yahoo Auctions 패턴 반영 데이터입니다. 원본: https://auctions.yahoo.co.jp/jp/auction/u1199192130. 시작가 1엔, 파충류 용품 카테고리. 입찰 단위, 자동 연장, 상태 고지를 커뮤니티 규칙에 맞춰 구성했습니다.",
+      "title": "레오파드게코 유정란 2세트 경매",
+      "description": "Yahoo Auctions 패턴 반영. 원본: https://auctions.yahoo.co.jp/jp/auction/u1199192130. 인큐베이션 기준과 발송 리스크를 고지한 파충류 경매 템플릿입니다.",
       "photos": [
         "/designer/og/bredy-og-image.jpeg"
       ],
       "category": "파충류",
-      "startPrice": 1000,
+      "startPrice": 12000,
       "minBidIncrement": 1000,
       "status": "진행중",
-      "endInHours": 10,
+      "endInHours": 11,
       "sellerPhone": "010-3814-5026",
       "sellerEmail": "lee.helper@bredy.kr",
       "sellerBlogUrl": "https://auctions.yahoo.co.jp/jp/auction/u1199192130",
       "sellerCafeNick": "이가은커뮤니티",
       "sellerBandNick": "이가은커뮤니티거래방",
-      "sellerTrustNote": "가격·상태·수령 방식·영상 확인 절차를 공개하고 커뮤니티 분쟁 규칙을 준수합니다.",
+      "sellerTrustNote": "부화 관련 안내문 동봉, 수령 후 대응 원칙 명시",
       "bids": [
         {
           "bidder": "choi_hobby",
-          "amount": 2000,
+          "amount": 13000,
           "hoursAgo": 6
         },
         {
           "bidder": "park_nest",
-          "amount": 3000,
+          "amount": 14000,
           "hoursAgo": 2
         }
       ]
@@ -1108,31 +1108,31 @@
       "seedKey": "auction_real_10",
       "seller": "han_keeper",
       "title": "헤비/카메/토카게 공용 케이지 90x45x45 경매",
-      "description": "Yahoo Auctions 패턴 반영 데이터입니다. 원본: https://auctions.yahoo.co.jp/jp/auction/k1200303085. 즉결가 24000. 입찰 단위, 자동 연장, 상태 고지를 커뮤니티 규칙에 맞춰 구성했습니다.",
+      "description": "Yahoo Auctions 패턴 반영. 원본: https://auctions.yahoo.co.jp/jp/auction/k1200303085. 규격/파손 여부/인수 조건을 구조화한 경매 본문입니다.",
       "photos": [
         "/designer/campaigns/bredy-growth-ad-a.jpeg"
       ],
-      "category": "파충류",
-      "startPrice": 24000,
+      "category": "파충류용품",
+      "startPrice": 28000,
       "minBidIncrement": 1000,
       "status": "진행중",
-      "endInHours": 18,
+      "endInHours": 20,
       "sellerPhone": "010-3124-8011",
       "sellerEmail": "han.keeper@bredy.kr",
       "sellerBlogUrl": "https://auctions.yahoo.co.jp/jp/auction/k1200303085",
       "sellerCafeNick": "한지민브리더",
       "sellerBandNick": "한지민브리더거래방",
-      "sellerTrustNote": "가격·상태·수령 방식·영상 확인 절차를 공개하고 커뮤니티 분쟁 규칙을 준수합니다.",
+      "sellerTrustNote": "실측·사진·인수 위치 사전 공개",
       "bids": [
         {
           "bidder": "jung_store",
-          "amount": 25000,
+          "amount": 29000,
           "hoursAgo": 7
         },
         {
           "bidder": "yoon_collect",
-          "amount": 26000,
-          "hoursAgo": 1
+          "amount": 30000,
+          "hoursAgo": 2
         }
       ]
     },
@@ -1140,12 +1140,12 @@
       "seedKey": "auction_real_11",
       "seller": "park_nest",
       "title": "리쿠가메 대응 RepBox 대형 케이지 경매",
-      "description": "Yahoo Auctions 패턴 반영 데이터입니다. 원본: https://auctions.yahoo.co.jp/jp/auction/o1084563162. 현재가 8000. 입찰 단위, 자동 연장, 상태 고지를 커뮤니티 규칙에 맞춰 구성했습니다.",
+      "description": "Yahoo Auctions 패턴 반영. 원본: https://auctions.yahoo.co.jp/jp/auction/o1084563162. 사용 기간과 보수 이력을 먼저 고지하는 실거래형 구성입니다.",
       "photos": [
         "/designer/campaigns/bredy-growth-ad-b.jpeg"
       ],
-      "category": "파충류",
-      "startPrice": 8000,
+      "category": "파충류용품",
+      "startPrice": 14000,
       "minBidIncrement": 1000,
       "status": "진행중",
       "endInHours": 16,
@@ -1154,17 +1154,17 @@
       "sellerBlogUrl": "https://auctions.yahoo.co.jp/jp/auction/o1084563162",
       "sellerCafeNick": "박수빈사육장",
       "sellerBandNick": "박수빈사육장거래방",
-      "sellerTrustNote": "가격·상태·수령 방식·영상 확인 절차를 공개하고 커뮤니티 분쟁 규칙을 준수합니다.",
+      "sellerTrustNote": "거래 전 상태 점검 사진 제공 원칙",
       "bids": [
         {
           "bidder": "seo_newbie",
-          "amount": 9000,
+          "amount": 15000,
           "hoursAgo": 5
         },
         {
           "bidder": "hwang_trade",
-          "amount": 10000,
-          "hoursAgo": 2
+          "amount": 16000,
+          "hoursAgo": 1
         }
       ]
     },
@@ -1172,12 +1172,12 @@
       "seedKey": "auction_real_12",
       "seller": "kim_lab",
       "title": "토카게/헤비/카메 소형 케이지 20x20x30 경매",
-      "description": "Yahoo Auctions 패턴 반영 데이터입니다. 원본: https://auctions.yahoo.co.jp/jp/auction/t1193034824. 즉결가 4270. 입찰 단위, 자동 연장, 상태 고지를 커뮤니티 규칙에 맞춰 구성했습니다.",
+      "description": "Yahoo Auctions 패턴 반영. 원본: https://auctions.yahoo.co.jp/jp/auction/t1193034824. 소형 격리장 거래에서 자주 묻는 항목 중심으로 설명을 정리했습니다.",
       "photos": [
         "/designer/campaigns/bredy-growth-ad-c.jpeg"
       ],
-      "category": "파충류",
-      "startPrice": 4270,
+      "category": "파충류용품",
+      "startPrice": 6900,
       "minBidIncrement": 1000,
       "status": "진행중",
       "endInHours": 12,
@@ -1186,16 +1186,16 @@
       "sellerBlogUrl": "https://auctions.yahoo.co.jp/jp/auction/t1193034824",
       "sellerCafeNick": "김태호인섹트",
       "sellerBandNick": "김태호인섹트거래방",
-      "sellerTrustNote": "가격·상태·수령 방식·영상 확인 절차를 공개하고 커뮤니티 분쟁 규칙을 준수합니다.",
+      "sellerTrustNote": "파손 방지 포장·수령 확인 절차 준수",
       "bids": [
         {
           "bidder": "choi_hobby",
-          "amount": 5270,
+          "amount": 7900,
           "hoursAgo": 4
         },
         {
           "bidder": "lee_helper",
-          "amount": 6270,
+          "amount": 8900,
           "hoursAgo": 1
         }
       ]

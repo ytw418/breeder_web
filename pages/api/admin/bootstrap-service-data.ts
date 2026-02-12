@@ -280,11 +280,6 @@ async function handler(req: NextApiRequest, res: NextApiResponse<ResponseType>) 
       }
 
       const photos = Array.isArray(product.photos) && product.photos.length > 0 ? product.photos : [];
-      const existingProduct = await tx.product.findFirst({
-        where: { userId: owner.id, name: product.name },
-        select: { id: true },
-      });
-
       const productData = {
         name: product.name,
         description: product.description,
@@ -305,27 +300,17 @@ async function handler(req: NextApiRequest, res: NextApiResponse<ResponseType>) 
         contactCount: Math.max(0, Number(product.contactCount) || 0),
       };
 
-      if (existingProduct) {
-        const updatedProduct = await tx.product.update({
-          where: { id: existingProduct.id },
-          data: productData,
-          select: { id: true },
-        });
-        productMap.set(product.seedKey, updatedProduct);
-        result.products.updated += 1;
-      } else {
-        const daysAgo = Math.max(0, Number(product.daysAgo) || 0);
-        const createdProduct = await tx.product.create({
-          data: {
-            ...productData,
-            createdAt: toDateFromDaysAgo(daysAgo),
-            wishCount: 0,
-          },
-          select: { id: true },
-        });
-        productMap.set(product.seedKey, createdProduct);
-        result.products.created += 1;
-      }
+      const daysAgo = Math.max(0, Number(product.daysAgo) || 0);
+      const createdProduct = await tx.product.create({
+        data: {
+          ...productData,
+          createdAt: toDateFromDaysAgo(daysAgo),
+          wishCount: 0,
+        },
+        select: { id: true },
+      });
+      productMap.set(product.seedKey, createdProduct);
+      result.products.created += 1;
     }
 
     for (const post of seedData.posts) {
@@ -334,11 +319,6 @@ async function handler(req: NextApiRequest, res: NextApiResponse<ResponseType>) 
         result.posts.skipped += 1;
         continue;
       }
-
-      const existingPost = await tx.post.findFirst({
-        where: { userId: author.id, title: post.title },
-        select: { id: true },
-      });
 
       const postData = {
         userId: author.id,
@@ -349,25 +329,15 @@ async function handler(req: NextApiRequest, res: NextApiResponse<ResponseType>) 
         image: post.image,
       };
 
-      if (existingPost) {
-        const updatedPost = await tx.post.update({
-          where: { id: existingPost.id },
-          data: postData,
-          select: { id: true },
-        });
-        postMap.set(post.seedKey, updatedPost);
-        result.posts.updated += 1;
-      } else {
-        const createdPost = await tx.post.create({
-          data: {
-            ...postData,
-            createdAt: toDateFromDaysAgo(post.daysAgo),
-          },
-          select: { id: true },
-        });
-        postMap.set(post.seedKey, createdPost);
-        result.posts.created += 1;
-      }
+      const createdPost = await tx.post.create({
+        data: {
+          ...postData,
+          createdAt: toDateFromDaysAgo(post.daysAgo),
+        },
+        select: { id: true },
+      });
+      postMap.set(post.seedKey, createdPost);
+      result.posts.created += 1;
     }
 
     for (const like of seedData.likes) {
@@ -474,11 +444,6 @@ async function handler(req: NextApiRequest, res: NextApiResponse<ResponseType>) 
         Number(auction.minBidIncrement) || getBidIncrement(auction.startPrice)
       );
 
-      const existingAuction = await tx.auction.findFirst({
-        where: { userId: seller.id, title: auction.title },
-        select: { id: true },
-      });
-
       const auctionData = {
         title: auction.title,
         description: auction.description,
@@ -498,22 +463,14 @@ async function handler(req: NextApiRequest, res: NextApiResponse<ResponseType>) 
         userId: seller.id,
       };
 
-      const savedAuction = existingAuction
-        ? await tx.auction.update({
-            where: { id: existingAuction.id },
-            data: auctionData,
-            select: { id: true },
-          })
-        : await tx.auction.create({
-            data: {
-              ...auctionData,
-              createdAt: toDateFromHoursAgo(Math.max(2, Math.abs(auction.endInHours) + 24)),
-            },
-            select: { id: true },
-          });
-
-      if (existingAuction) result.auctions.updated += 1;
-      else result.auctions.created += 1;
+      const savedAuction = await tx.auction.create({
+        data: {
+          ...auctionData,
+          createdAt: toDateFromHoursAgo(Math.max(2, Math.abs(auction.endInHours) + 24)),
+        },
+        select: { id: true },
+      });
+      result.auctions.created += 1;
 
       const auctionBids = Array.isArray(auction.bids) ? auction.bids : [];
       for (const bid of auctionBids) {
@@ -573,7 +530,7 @@ async function handler(req: NextApiRequest, res: NextApiResponse<ResponseType>) 
 
   return res.json({
     success: true,
-    message: "실서비스 초기 데이터 생성이 완료되었습니다.",
+    message: "실서비스 초기 데이터 신규 추가가 완료되었습니다.",
     summary,
   });
 }
