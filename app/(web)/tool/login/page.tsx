@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import LoginClient from "../../../auth/login/LoginClient";
+import ToolLoginClient from "./ToolLoginClient";
 
 export const metadata: Metadata = {
   title: "로그인 | 경매 폼 생성기",
@@ -11,6 +11,5 @@ export const metadata: Metadata = {
 };
 
 export default function ToolLoginPage() {
-  return <LoginClient />;
+  return <ToolLoginClient />;
 }
-

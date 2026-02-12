@@ -1,11 +1,42 @@
 import { NextFetchEvent, NextRequest, NextResponse } from "next/server";
 
+const TOOL_MODE_COOKIE = "bredy_tool_mode";
+
 export function middleware(req: NextRequest, ev: NextFetchEvent) {
   const { pathname, search } = req.nextUrl;
+  const isToolPath = pathname === "/tool" || pathname.startsWith("/tool/");
+  const isToolLoginLoadingPath = pathname === "/login-loading";
+  const hasToolMode = req.cookies.get(TOOL_MODE_COOKIE)?.value === "1";
+  let response: NextResponse | null = null;
+
+  if (hasToolMode && !isToolPath && !isToolLoginLoadingPath) {
+    if (pathname === "/auth/login") {
+      const toolLoginUrl = new URL("/tool/login", req.url);
+      const next = req.nextUrl.searchParams.get("next");
+      if (next) {
+        toolLoginUrl.searchParams.set("next", next);
+      }
+      return NextResponse.redirect(toolLoginUrl);
+    }
+
+    return NextResponse.redirect(new URL("/tool", req.url));
+  }
+
+  if (isToolPath && !hasToolMode) {
+    response = NextResponse.next();
+    response.cookies.set({
+      name: TOOL_MODE_COOKIE,
+      value: "1",
+      path: "/",
+      sameSite: "lax",
+      secure: req.nextUrl.protocol === "https:",
+      maxAge: 60 * 60 * 24 * 7,
+    });
+  }
 
   if (pathname.startsWith("/admin")) {
     if (pathname === "/admin/login") {
-      return NextResponse.next();
+      return response ?? NextResponse.next();
     }
 
     const found = req.cookies.get("kakaoDev");
@@ -23,16 +54,10 @@ export function middleware(req: NextRequest, ev: NextFetchEvent) {
     }
   }
 
-  // 루트경로
-  // if (req.nextUrl.pathname === "/") {
-  //   return NextResponse.redirect(new URL("/", req.url));
-  // }
+  return response ?? NextResponse.next();
 }
 export const config = {
   matcher: [
-    // "/",
-    "/admin/:path*",
-    "/myPage",
-    // "/((?!api|_next/static|_next/image|favicon.ico).*)",
+    "/((?!api|_next/static|_next/image|favicon.ico|.*\\..*).*)",
   ],
 };

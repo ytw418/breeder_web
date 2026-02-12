@@ -108,6 +108,7 @@ const AuctionDetailClient = () => {
   const selectedBidAmount = bidAmount ?? minimumBid;
 
   const isToolRoute = pathname?.startsWith("/tool");
+  const loginPath = isToolRoute ? "/tool/login" : "/auth/login";
 
   const normalizeBidAmount = (targetAmount: number) => {
     if (!auction) return 0;
@@ -141,7 +142,7 @@ const AuctionDetailClient = () => {
 
   /** 입찰 핸들러 */
   const handleBid = () => {
-    if (!user) return router.push(`/auth/login?next=${encodeURIComponent(pathname || "/")}`);
+    if (!user) return router.push(`${loginPath}?next=${encodeURIComponent(pathname || "/")}`);
     if (bidLoading) return;
     if (isTopBidder) {
       toast.error("현재 최고 입찰자는 다시 입찰할 수 없습니다.");
@@ -232,8 +233,8 @@ const AuctionDetailClient = () => {
 
       if (navigator.share) {
         await navigator.share({
-          title: auction?.title || "브리디 경매",
-          text: "브리디 경매를 확인해보세요.",
+          title: auction?.title || "경매 상세",
+          text: "경매 상세 내용을 확인해보세요.",
           url,
         });
         toast.success("공유를 완료했습니다.");
@@ -250,7 +251,7 @@ const AuctionDetailClient = () => {
 
   const handleReport = () => {
     if (!user) {
-      router.push(`/auth/login?next=${encodeURIComponent(pathname || "/")}`);
+      router.push(`${loginPath}?next=${encodeURIComponent(pathname || "/")}`);
       return;
     }
     if (reportDetail.trim().length < 5) {
@@ -396,26 +397,46 @@ const AuctionDetailClient = () => {
           )}
 
           {/* 판매자 정보 */}
-          <Link
-            href={`/profiles/${auction.user?.id}`}
-            className="flex items-center gap-3 py-4 border-b border-gray-100"
-          >
-            {auction.user?.avatar ? (
-              <Image
-                src={makeImageUrl(auction.user.avatar, "avatar")}
-                className="w-10 h-10 rounded-full object-cover"
-                width={40}
-                height={40}
-                alt=""
-              />
-            ) : (
-              <div className="w-10 h-10 rounded-full bg-gray-200" />
-            )}
-            <div>
-              <p className="text-sm font-semibold text-gray-900">{auction.user?.name}</p>
-              <p className="text-xs text-gray-400">경매 등록자</p>
+          {isToolRoute ? (
+            <div className="flex items-center gap-3 py-4 border-b border-gray-100">
+              {auction.user?.avatar ? (
+                <Image
+                  src={makeImageUrl(auction.user.avatar, "avatar")}
+                  className="w-10 h-10 rounded-full object-cover"
+                  width={40}
+                  height={40}
+                  alt=""
+                />
+              ) : (
+                <div className="w-10 h-10 rounded-full bg-gray-200" />
+              )}
+              <div>
+                <p className="text-sm font-semibold text-gray-900">{auction.user?.name}</p>
+                <p className="text-xs text-gray-400">경매 등록자</p>
+              </div>
             </div>
-          </Link>
+          ) : (
+            <Link
+              href={`/profiles/${auction.user?.id}`}
+              className="flex items-center gap-3 py-4 border-b border-gray-100"
+            >
+              {auction.user?.avatar ? (
+                <Image
+                  src={makeImageUrl(auction.user.avatar, "avatar")}
+                  className="w-10 h-10 rounded-full object-cover"
+                  width={40}
+                  height={40}
+                  alt=""
+                />
+              ) : (
+                <div className="w-10 h-10 rounded-full bg-gray-200" />
+              )}
+              <div>
+                <p className="text-sm font-semibold text-gray-900">{auction.user?.name}</p>
+                <p className="text-xs text-gray-400">경매 등록자</p>
+              </div>
+            </Link>
+          )}
 
           {/* 상품 정보 */}
           <div className="py-4 space-y-3 border-b border-gray-100">
@@ -529,12 +550,14 @@ const AuctionDetailClient = () => {
             <div className="rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/70 px-3.5 py-3">
               <div className="flex items-center justify-between gap-3">
                 <p className="text-sm font-semibold text-slate-800">경매 규칙</p>
-                <Link
-                  href="/auctions/rules"
-                  className="text-xs font-semibold text-slate-600 dark:text-slate-300 underline underline-offset-2"
-                >
-                  전체 보기
-                </Link>
+                {!isToolRoute ? (
+                  <Link
+                    href="/auctions/rules"
+                    className="text-xs font-semibold text-slate-600 dark:text-slate-300 underline underline-offset-2"
+                  >
+                    전체 보기
+                  </Link>
+                ) : null}
               </div>
               <ul className="mt-2 space-y-1 text-xs text-slate-600">
                 <li>• 현재가 기준 입찰 단위: {getBidIncrement(auction.currentPrice).toLocaleString()}원</li>
@@ -551,12 +574,14 @@ const AuctionDetailClient = () => {
                 <p className="mt-1 leading-relaxed font-semibold">
                   카카오 로그인 기반 계정은 위반 시 영구 참여 제한됩니다.
                 </p>
-                <a
-                  href="mailto:support@bredy.app?subject=[경매%20신고]%20분쟁%20접수"
-                  className="mt-1.5 inline-flex items-center font-semibold underline underline-offset-2"
-                >
-                  신고 접수: support@bredy.app
-                </a>
+                {!isToolRoute ? (
+                  <a
+                    href="mailto:support@bredy.app?subject=[경매%20신고]%20분쟁%20접수"
+                    className="mt-1.5 inline-flex items-center font-semibold underline underline-offset-2"
+                  >
+                    신고 접수: support@bredy.app
+                  </a>
+                ) : null}
                 {!data?.isOwner && (
                   <div className="mt-3 rounded-lg border border-amber-300 bg-white/70 p-2.5">
                     <p className="text-[11px] font-semibold text-amber-900">빠른 신고 접수</p>

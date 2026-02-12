@@ -4,9 +4,29 @@ import type { Metadata } from "next";
 export const metadata: Metadata = {
   title: "경매 폼 생성기",
   description:
-    "로그인 후 경매를 등록하고 공유 링크로 바로 참여를 받는 경매 폼 생성기입니다.",
+    "로그인 후 경매를 등록하고 공유 링크로 참여를 받는 간단한 경매 폼 생성기입니다.",
   alternates: {
     canonical: "https://bredy.app/tool",
+  },
+  openGraph: {
+    title: "단순 경매 폼 생성기",
+    description: "로그인 후 경매를 등록하고 링크로 공유하는 간단한 경매 폼 생성기",
+    type: "website",
+    url: "https://bredy.app/tool",
+    images: [
+      {
+        url: "/tool/opengraph-image",
+        width: 1200,
+        height: 630,
+        alt: "단순 경매 폼 생성기",
+      },
+    ],
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "단순 경매 폼 생성기",
+    description: "로그인 후 경매를 등록하고 링크로 공유하는 간단한 경매 폼 생성기",
+    images: ["/tool/opengraph-image"],
   },
 };
 
@@ -20,7 +40,7 @@ export default function ToolLandingPage() {
         1분 만에 경매 생성하기
       </h1>
       <p className="mt-3 text-sm leading-relaxed text-slate-600">
-        복잡한 메뉴 없이 경매 등록, 상세 확인, 알림 확인만 빠르게 사용할 수 있는 전용 경로입니다.
+        복잡한 요소 없이 경매 등록, 상세 확인, 알림 확인만 빠르게 사용할 수 있습니다.
       </p>
 
       <div className="mt-6 grid gap-2.5">
@@ -46,4 +66,3 @@ export default function ToolLandingPage() {
     </main>
   );
 }
-

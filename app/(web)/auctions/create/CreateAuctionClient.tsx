@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useForm } from "react-hook-form";
 import { usePathname, useRouter } from "next/navigation";
 import Link from "next/link";
@@ -71,6 +71,7 @@ const DURATION_PRESETS = [
   { label: "48시간", hours: 48 },
   { label: "72시간", hours: 72 },
 ];
+const TOOL_FIXED_CATEGORY = "기타";
 
 const normalizeSignatureText = (value: unknown) =>
   typeof value === "string" ? value.trim() : "";
@@ -165,9 +166,18 @@ const CreateAuctionClient = () => {
   const isToolRoute = pathname?.startsWith("/tool");
   const withBasePath = (path: string) =>
     isToolRoute ? `/tool${path}` : path;
-  const loginHref = `/auth/login?next=${encodeURIComponent(
+  const categoryForSubmit = isToolRoute ? TOOL_FIXED_CATEGORY : selectedCategory;
+  const loginPath = isToolRoute ? "/tool/login" : "/auth/login";
+  const loginHref = `${loginPath}?next=${encodeURIComponent(
     withBasePath("/auctions/create")
   )}`;
+
+  useEffect(() => {
+    if (!isToolRoute) return;
+    if (selectedCategory === TOOL_FIXED_CATEGORY) return;
+    setSelectedCategory(TOOL_FIXED_CATEGORY);
+    setCustomFieldErrors((prev) => ({ ...prev, category: undefined }));
+  }, [isToolRoute, selectedCategory]);
 
   if (isUserLoading) {
     return (
@@ -208,10 +218,10 @@ const CreateAuctionClient = () => {
               </Link>
               <button
                 type="button"
-                onClick={() => router.push(withBasePath("/auctions"))}
+                onClick={() => router.push(isToolRoute ? "/tool" : withBasePath("/auctions"))}
                 className="h-11 rounded-xl border border-slate-200 bg-white text-sm font-semibold text-slate-700"
               >
-                경매 목록으로 가기
+                {isToolRoute ? "도구 홈으로 가기" : "경매 목록으로 가기"}
               </button>
             </div>
           </div>
@@ -323,7 +333,7 @@ const CreateAuctionClient = () => {
     if (photos.length === 0) {
       nextErrors.photos = "최소 1장의 사진을 등록해주세요.";
     }
-    if (!selectedCategory) {
+    if (!categoryForSubmit) {
       nextErrors.category = "카테고리를 선택해주세요.";
     }
     if (!agreedAuctionNotice || !agreedDisputePolicy) {
@@ -363,16 +373,16 @@ const CreateAuctionClient = () => {
 
     const normalizedEndAt = getPresetEndAtValue(selectedDuration);
 
-    const requestData = {
-      ...data,
-      title: normalizeSignatureText(data.title),
-      description: normalizeSignatureText(data.description),
-      endAt: normalizedEndAt,
-      category: selectedCategory,
-      photos,
-      sellerProofImage,
-      startPrice: Number(data.startPrice),
-    };
+      const requestData = {
+        ...data,
+        title: normalizeSignatureText(data.title),
+        description: normalizeSignatureText(data.description),
+        endAt: normalizedEndAt,
+        category: categoryForSubmit,
+        photos,
+        sellerProofImage,
+        startPrice: Number(data.startPrice),
+      };
 
     const signature = buildSubmissionSignature(requestData);
 
@@ -570,26 +580,32 @@ const CreateAuctionClient = () => {
           <label className="block text-sm font-semibold text-gray-900 mb-2">
             카테고리 <span className="text-red-500">*</span>
           </label>
-          <div className="flex flex-wrap gap-2">
-            {AUCTION_CATEGORIES.map((cat) => (
-              <button
-                key={cat}
-                type="button"
-                onClick={() => {
-                  setSelectedCategory(cat);
-                  setCustomFieldErrors((prev) => ({ ...prev, category: undefined }));
-                }}
-                className={cn(
-                  "px-3 py-1.5 rounded-full text-sm font-medium transition-colors",
-                  selectedCategory === cat
-                    ? "bg-gray-900 text-white"
-                    : "bg-gray-100 text-gray-600 hover:bg-gray-200"
-                )}
-              >
-                {cat}
-              </button>
-            ))}
-          </div>
+          {isToolRoute ? (
+            <div className="inline-flex rounded-full bg-gray-900 px-3 py-1.5 text-sm font-medium text-white">
+              {TOOL_FIXED_CATEGORY}
+            </div>
+          ) : (
+            <div className="flex flex-wrap gap-2">
+              {AUCTION_CATEGORIES.map((cat) => (
+                <button
+                  key={cat}
+                  type="button"
+                  onClick={() => {
+                    setSelectedCategory(cat);
+                    setCustomFieldErrors((prev) => ({ ...prev, category: undefined }));
+                  }}
+                  className={cn(
+                    "px-3 py-1.5 rounded-full text-sm font-medium transition-colors",
+                    selectedCategory === cat
+                      ? "bg-gray-900 text-white"
+                      : "bg-gray-100 text-gray-600 hover:bg-gray-200"
+                  )}
+                >
+                  {cat}
+                </button>
+              ))}
+            </div>
+          )}
           {customFieldErrors.category ? (
             <p className="mt-1 text-xs text-red-500">{customFieldErrors.category}</p>
           ) : null}
@@ -665,12 +681,14 @@ const CreateAuctionClient = () => {
         >
           <div className="flex items-center justify-between gap-3">
             <p className="text-sm font-semibold text-slate-800">경매 규칙 안내</p>
-            <Link
-              href="/auctions/rules"
-              className="text-xs font-semibold text-slate-600 underline underline-offset-2"
-            >
-              전체 보기
-            </Link>
+            {!isToolRoute ? (
+              <Link
+                href="/auctions/rules"
+                className="text-xs font-semibold text-slate-600 underline underline-offset-2"
+              >
+                전체 보기
+              </Link>
+            ) : null}
           </div>
           <ul className="mt-2 space-y-1 text-xs text-slate-600">
             <li>• 입찰 단위는 현재가에 따라 자동 계산됩니다.</li>
@@ -689,12 +707,14 @@ const CreateAuctionClient = () => {
             <p className="mt-1 leading-relaxed font-semibold">
               카카오 로그인 기반 계정은 위반 시 영구 참여 제한됩니다.
             </p>
-            <a
-              href="mailto:support@bredy.app?subject=[경매%20신고]%20문제%20접수"
-              className="mt-1.5 inline-flex items-center font-semibold underline underline-offset-2"
-            >
-              신고 접수: support@bredy.app
-            </a>
+            {!isToolRoute ? (
+              <a
+                href="mailto:support@bredy.app?subject=[경매%20신고]%20문제%20접수"
+                className="mt-1.5 inline-flex items-center font-semibold underline underline-offset-2"
+              >
+                신고 접수: support@bredy.app
+              </a>
+            ) : null}
           </div>
           <div className="mt-3 space-y-2">
             <label className="flex items-start gap-2 text-xs text-slate-700">

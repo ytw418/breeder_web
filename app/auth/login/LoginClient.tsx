@@ -1,5 +1,5 @@
 "use client";
-import React, { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 
 import KakaoRound from "@images/KakaoRound.svg";
 import GoogleRound from "@images/GoogleRound.svg";
@@ -233,7 +233,7 @@ const LoginClient = () => {
             target="_blank"
             className="text-Primary"
             href={
-              "https://bredy.notion.site/8a2ca657b9a047498c95ab42ce3d2b75"
+              "https://breeder.notion.site/8a2ca657b9a047498c95ab42ce3d2b75?pvs=74"
             }
           >
             이용약관
@@ -243,7 +243,7 @@ const LoginClient = () => {
             target="_blank"
             className="text-Primary"
             href={
-              "https://bredy.notion.site/be44680c8d5b43848d0aff25c7c2edba"
+              "https://breeder.notion.site/be44680c8d5b43848d0aff25c7c2edba?pvs=74"
             }
           >
             개인정보처리동의서

@@ -49,6 +49,8 @@ const normalizeOptionalUrl = (value: unknown) => {
 };
 
 const AUCTION_DUPLICATE_GUARD_WINDOW_MS = 10 * 60 * 1000; // 10분
+const TOOL_MODE_COOKIE = "bredy_tool_mode";
+const TOOL_FIXED_CATEGORY = "기타";
 
 async function handler(
   req: NextApiRequest,
@@ -124,10 +126,14 @@ async function handler(
       sellerProofImage,
       sellerTrustNote,
     } = req.body;
+    const isToolMode = req.cookies?.[TOOL_MODE_COOKIE] === "1";
 
     const normalizedTitle = String(title || "").trim();
     const normalizedDescription = String(description || "").trim();
-    const normalizedCategory = normalizeOptionalText(category, 40);
+    const normalizedCategory = normalizeOptionalText(
+      isToolMode ? TOOL_FIXED_CATEGORY : category,
+      40
+    );
     const normalizedSellerPhone = normalizeOptionalText(sellerPhone, 40);
     const normalizedSellerEmail = normalizeOptionalText(sellerEmail, 120);
     const normalizedSellerBlogUrl = normalizeOptionalUrl(sellerBlogUrl);

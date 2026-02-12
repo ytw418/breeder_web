@@ -10,6 +10,7 @@ import { useEffect, useRef } from "react";
 import { useSWRConfig } from "swr";
 import { NotificationsResponse } from "pages/api/notifications";
 import { NotificationType } from "@prisma/client";
+import { usePathname } from "next/navigation";
 
 /** 알림 타입별 색상 */
 const NOTIFICATION_COLORS: Record<NotificationType, string> = {
@@ -55,6 +56,8 @@ const getNotificationLink = (
 };
 
 const NotificationsClient = () => {
+  const pathname = usePathname();
+  const isToolRoute = pathname?.startsWith("/tool");
   const { mutate: globalMutate } = useSWRConfig();
   const { data, mutate } = useSWR<NotificationsResponse>(
     "/api/notifications"
@@ -97,6 +100,17 @@ const NotificationsClient = () => {
     handleMarkAllRead(true);
   }, [data]);
 
+  const getLink = (targetType: string | null, targetId: number | null) => {
+    if (!isToolRoute) return getNotificationLink(targetType, targetId);
+    if (!targetType || !targetId) return "/tool";
+
+    if (targetType === "auction") {
+      return `/tool/auctions/${targetId}`;
+    }
+
+    return "/tool";
+  };
+
   return (
     <Layout canGoBack title="알림" seoTitle="알림">
       {/* 헤더: 모두 읽음 처리 */}
@@ -118,10 +132,7 @@ const NotificationsClient = () => {
         {data?.notifications?.map((notification) => (
           <Link
             key={notification.id}
-            href={getNotificationLink(
-              notification.targetType,
-              notification.targetId
-            )}
+            href={getLink(notification.targetType, notification.targetId)}
             className={cn(
               "flex items-start gap-3 px-4 py-3 hover:bg-gray-50 transition-colors",
               !notification.isRead && "bg-primary/5"

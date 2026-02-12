@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import AuctionsClient from "../../auctions/AuctionsClient";
+import { redirect } from "next/navigation";
 
 export const metadata: Metadata = {
   title: "진행중 경매 | 경매 폼 생성기",
@@ -14,5 +14,5 @@ export const metadata: Metadata = {
 };
 
 export default function ToolAuctionsPage() {
-  return <AuctionsClient />;
+  redirect("/tool/auctions/create");
 }
