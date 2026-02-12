@@ -1,8 +1,8 @@
 import Link from "next/link";
 import type { Metadata } from "next";
 
-const TOOL_OG_IMAGE = "/tool/opengraph-image";
-const TOOL_TWITTER_IMAGE = "/tool/twitter-image";
+const TOOL_OG_IMAGE = "/designer/og/tool-og-static.png";
+const TOOL_TWITTER_IMAGE = "/designer/og/tool-og-static.png";
 
 export const metadata: Metadata = {
   title: "경매 폼 생성기",

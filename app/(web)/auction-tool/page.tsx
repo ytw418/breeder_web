@@ -1,7 +1,8 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 
-const AUCTION_TOOL_OG_IMAGE = "/designer/og/bredy-og-auction.png";
+const AUCTION_TOOL_OG_IMAGE = "/auction-tool/opengraph-image";
+const AUCTION_TOOL_TWITTER_IMAGE = "/auction-tool/twitter-image";
 
 export const metadata: Metadata = {
   title: "링크형 경매도구",
@@ -26,7 +27,7 @@ export const metadata: Metadata = {
     title: "브리디 경매도구 | 30초면 만드는 경매 도구",
     description:
       "30초면 만드는 경매 도구를 활용해보세요. 카카오 로그인 기반 참여, 자동 연장, 신고/제재 처리까지.",
-    images: [AUCTION_TOOL_OG_IMAGE],
+    images: [AUCTION_TOOL_TWITTER_IMAGE],
   },
 };
 
