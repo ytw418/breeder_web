@@ -23,11 +23,6 @@ const handler = async (
 ) => {
   const posts = await client.post.findMany({
     where: {
-      user: {
-        role: {
-          in: ["ADMIN", "SUPER_USER"],
-        },
-      },
       OR: [{ category: "공지" }, { title: { startsWith: "[공지]" } }],
     },
     include: {
@@ -62,4 +57,3 @@ export default withApiSession(
     handler,
   })
 );
-

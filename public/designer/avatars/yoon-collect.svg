@@ -1,0 +1,11 @@
+<svg width="400" height="400" viewBox="0 0 400 400" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="400" y2="400" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#0A2350"/>
+      <stop offset="1" stop-color="#1E4C98"/>
+    </linearGradient>
+  </defs>
+  <rect width="400" height="400" rx="72" fill="url(#bg)"/>
+  <circle cx="200" cy="200" r="126" fill="#F56E8E"/>
+  <text x="200" y="224" fill="#0A224B" font-family="Pretendard, Apple SD Gothic Neo, Noto Sans KR, sans-serif" font-size="112" font-weight="800" text-anchor="middle">YC</text>
+</svg>
