@@ -26,11 +26,21 @@ const toAbsoluteUrl = (value: string) => {
 const resolveBaseUrl = () => {
   const envDomainRaw = String(process.env.NEXT_PUBLIC_DOMAIN_URL || "").trim();
   const envDomain = toAbsoluteUrl(envDomainRaw);
+  const vercelEnv = String(process.env.VERCEL_ENV || "").trim();
 
   // 개발 환경에서는 실제 실행 포트로 자기 자신을 바라보도록 고정한다.
   if (process.env.NODE_ENV !== "production") {
     const port = String(process.env.PORT || "3000");
     return `http://127.0.0.1:${port}`;
+  }
+
+  // Vercel preview 배포는 반드시 현재 preview 도메인을 바라보게 한다.
+  if (vercelEnv === "preview") {
+    const branchUrl = toAbsoluteUrl(String(process.env.VERCEL_BRANCH_URL || "").trim());
+    if (branchUrl && !isLocalHost(branchUrl)) return branchUrl;
+
+    const previewUrl = toAbsoluteUrl(String(process.env.VERCEL_URL || "").trim());
+    if (previewUrl && !isLocalHost(previewUrl)) return previewUrl;
   }
 
   // production 에서는 localhost 계열 URL을 절대 사용하지 않는다.
