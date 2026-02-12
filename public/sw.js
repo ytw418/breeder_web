@@ -116,11 +116,21 @@ self.addEventListener("push", (event) => {
 
   try {
     const parsed = event.data.json();
+    const notification =
+      parsed && typeof parsed === "object" && parsed.notification
+        ? parsed.notification
+        : {};
+    const data =
+      parsed && typeof parsed === "object" && parsed.data ? parsed.data : {};
     payload = {
-      title: parsed.title || payload.title,
-      body: parsed.body || payload.body,
-      url: parsed.url || payload.url,
-      tag: parsed.tag || payload.tag,
+      title: data.title || notification.title || parsed.title || payload.title,
+      body: data.body || notification.body || parsed.body || payload.body,
+      url:
+        data.url ||
+        notification.click_action ||
+        parsed.url ||
+        payload.url,
+      tag: data.tag || notification.tag || parsed.tag || payload.tag,
     };
   } catch (error) {
     console.error("Push payload parse failed:", error);

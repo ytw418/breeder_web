@@ -17,16 +17,17 @@ interface PushSubscriptionStatusResponse {
   vapidPublicKey: string;
 }
 
+interface PushTestResponse {
+  success: boolean;
+  error?: string;
+  configured: boolean;
+  subscriptionCount: number;
+}
+
 interface PushSubscriptionUpsertBody {
   action: "subscribe" | "unsubscribe";
-  subscription?: {
-    endpoint: string;
-    keys: {
-      p256dh: string;
-      auth: string;
-    };
-  };
-  endpoint?: string;
+  token?: string;
+  userAgent?: string;
 }
 
 interface SettingItem {
@@ -71,8 +72,10 @@ const SettingsClient = () => {
   const { theme, resolvedTheme, setTheme } = useTheme();
   const [themeMounted, setThemeMounted] = useState(false);
   const [pushLoading, setPushLoading] = useState(false);
+  const [pushTestLoading, setPushTestLoading] = useState(false);
   const [pushErrorMessage, setPushErrorMessage] = useState("");
   const [showPermissionGuide, setShowPermissionGuide] = useState(false);
+  const [currentPushToken, setCurrentPushToken] = useState("");
   const {
     data: pushStatus,
     mutate: mutatePushStatus,
@@ -135,18 +138,6 @@ const SettingsClient = () => {
     };
   }, []);
 
-  // VAPID 공개키(base64url)를 브라우저 Push API가 받는 Uint8Array로 변환한다.
-  const urlBase64ToUint8Array = (base64String: string) => {
-    const padding = "=".repeat((4 - (base64String.length % 4)) % 4);
-    const normalized = (base64String + padding).replace(/-/g, "+").replace(/_/g, "/");
-    const rawData = window.atob(normalized);
-    const outputArray = new Uint8Array(rawData.length);
-    for (let i = 0; i < rawData.length; ++i) {
-      outputArray[i] = rawData.charCodeAt(i);
-    }
-    return outputArray;
-  };
-
   // SW가 아직 등록되지 않은 환경(개발/최초 진입)에서도 푸시 설정이 멈추지 않도록 보장한다.
   const ensureServiceWorkerReady = async () => {
     if (!("serviceWorker" in navigator)) {
@@ -180,6 +171,20 @@ const SettingsClient = () => {
     return result;
   };
 
+  // Firebase 메시징 SDK는 브라우저 환경에서만 로드한다.
+  const getMessagingTools = async () => {
+    const [{ app }, messagingModule] = await Promise.all([
+      import("@/firebase"),
+      import("firebase/messaging"),
+    ]);
+
+    return {
+      messaging: messagingModule.getMessaging(app),
+      getToken: messagingModule.getToken,
+      deleteToken: messagingModule.deleteToken,
+    };
+  };
+
   const handleTogglePush = async () => {
     if (pushLoading) return;
     setPushLoading(true);
@@ -187,30 +192,41 @@ const SettingsClient = () => {
     setShowPermissionGuide(false);
 
     try {
-      if (!("serviceWorker" in navigator) || !("PushManager" in window)) {
-        throw new Error("현재 브라우저는 푸시 알림을 지원하지 않습니다.");
+      if (!("serviceWorker" in navigator) || !("Notification" in window)) {
+        throw new Error("현재 브라우저는 알림 기능을 지원하지 않습니다.");
       }
 
       if (!pushStatus?.configured || !pushStatus?.vapidPublicKey) {
-        throw new Error("푸시 알림 서버 설정이 완료되지 않았습니다.");
+        throw new Error("FCM 푸시 서버 설정이 완료되지 않았습니다.");
+      }
+
+      const registration = await ensureServiceWorkerReady();
+      const { messaging, getToken, deleteToken } = await getMessagingTools();
+
+      if (pushStatus.subscribed) {
+        const token =
+          currentPushToken ||
+          (await getToken(messaging, {
+            vapidKey: pushStatus.vapidPublicKey,
+            serviceWorkerRegistration: registration,
+          }).catch(() => ""));
+
+        if (token) {
+          await deleteToken(messaging).catch(() => undefined);
+          await requestPushApi({ action: "unsubscribe", token });
+        } else {
+          await requestPushApi({ action: "unsubscribe" });
+        }
+
+        setCurrentPushToken("");
+        await mutatePushStatus();
+        return;
       }
 
       // 브라우저에서 이미 '차단(denied)' 상태면 안내 UI를 우선 노출한다.
       if (Notification.permission === "denied") {
         setShowPermissionGuide(true);
         throw new Error("알림 권한이 차단되어 있습니다. 아래 안내대로 권한을 허용해 주세요.");
-      }
-
-      const registration = await ensureServiceWorkerReady();
-      const existingSubscription = await registration.pushManager.getSubscription();
-
-      if (existingSubscription) {
-        const endpoint = existingSubscription.endpoint;
-        await existingSubscription.unsubscribe();
-        await requestPushApi({ action: "unsubscribe", endpoint });
-
-        await mutatePushStatus();
-        return;
       }
 
       const permission = await Notification.requestPermission();
@@ -221,35 +237,44 @@ const SettingsClient = () => {
         throw new Error("알림 권한이 거부되어 설정할 수 없습니다.");
       }
 
-      const nextSubscription = await registration.pushManager.subscribe({
-        userVisibleOnly: true,
-        applicationServerKey: urlBase64ToUint8Array(pushStatus.vapidPublicKey),
+      const token = await getToken(messaging, {
+        vapidKey: pushStatus.vapidPublicKey,
+        serviceWorkerRegistration: registration,
       });
-      const subscriptionJson = nextSubscription.toJSON();
-      const endpoint = subscriptionJson.endpoint;
-      const keys = subscriptionJson.keys;
-
-      // 일부 브라우저/환경에서는 키가 비어 돌아올 수 있어 서버 저장 전에 검증한다.
-      if (!endpoint || !keys?.p256dh || !keys?.auth) {
-        throw new Error("푸시 구독 키를 확인할 수 없습니다. 다시 시도해 주세요.");
+      if (!token) {
+        throw new Error("FCM 토큰 발급에 실패했습니다. 잠시 후 다시 시도해 주세요.");
       }
 
       await requestPushApi({
         action: "subscribe",
-        subscription: {
-          endpoint,
-          keys: {
-            p256dh: keys.p256dh,
-            auth: keys.auth,
-          },
-        },
+        token,
+        userAgent: navigator.userAgent,
       });
 
+      setCurrentPushToken(token);
       await mutatePushStatus();
     } catch (error: any) {
       setPushErrorMessage(error?.message || "푸시 알림 설정에 실패했습니다.");
     } finally {
       setPushLoading(false);
+    }
+  };
+
+  const handleSendPushTest = async () => {
+    if (pushTestLoading) return;
+    setPushTestLoading(true);
+    setPushErrorMessage("");
+
+    try {
+      const res = await fetch("/api/push/test", { method: "POST" });
+      const result = (await res.json().catch(() => null)) as PushTestResponse | null;
+      if (!res.ok || !result?.success) {
+        throw new Error(result?.error || "테스트 알림 전송에 실패했습니다.");
+      }
+    } catch (error: any) {
+      setPushErrorMessage(error?.message || "테스트 알림 전송에 실패했습니다.");
+    } finally {
+      setPushTestLoading(false);
     }
   };
 
@@ -441,9 +466,23 @@ const SettingsClient = () => {
               </span>
               {!pushStatus?.configured && (
                 <span className="text-amber-600 dark:text-amber-400">
-                  VAPID 키 환경변수가 필요합니다.
+                  FCM 서버키/웹 푸시 키 환경변수가 필요합니다.
                 </span>
               )}
+            </div>
+            <div className="mt-2">
+              <button
+                type="button"
+                onClick={handleSendPushTest}
+                disabled={pushTestLoading || !pushStatus?.subscribed}
+                className={cn(
+                  "h-8 rounded-md border px-2.5 text-xs font-semibold transition-colors",
+                  "border-slate-200 bg-white text-slate-700 hover:bg-slate-50",
+                  "disabled:cursor-not-allowed disabled:opacity-60 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200 dark:hover:bg-slate-800"
+                )}
+              >
+                {pushTestLoading ? "전송 중..." : "테스트 알림 보내기"}
+              </button>
             </div>
             {pushErrorMessage && (
               <p className="mt-2 text-xs text-rose-500">{pushErrorMessage}</p>

@@ -1,11 +1,8 @@
 import {
   StoredPushSubscription,
   getPushSubscriptionsByUserIds,
-  removePushSubscriptionByEndpoint,
+  removePushSubscriptionByToken,
 } from "@libs/server/pushStore";
-
-// web-push는 CJS 패키지이므로 require를 사용해 타입/번들 충돌을 줄인다.
-const webpush = require("web-push");
 
 export interface PushMessagePayload {
   title: string;
@@ -14,53 +11,157 @@ export interface PushMessagePayload {
   tag?: string;
 }
 
-// .env 값을 모아 웹푸시 구성 상태를 계산한다.
+const getAbsoluteClickUrl = (url?: string) => {
+  const normalized = typeof url === "string" && url.trim().length > 0 ? url.trim() : "/";
+  if (normalized.startsWith("http://") || normalized.startsWith("https://")) {
+    return normalized;
+  }
+  const base = process.env.NEXT_PUBLIC_DOMAIN_URL || "https://bredy.app";
+  return new URL(normalized, base).toString();
+};
+
+const getVapidPublicKeyFromEnv = () =>
+  process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY || process.env.VAPID_PUBLIC_KEY || "";
+
+const toMultilinePrivateKey = (value: string) => value.replace(/\\n/g, "\n");
+
+const getServiceAccountFromEnv = () => {
+  const rawServiceAccount = process.env.FIREBASE_SERVICE_ACCOUNT_JSON?.trim();
+  if (rawServiceAccount) {
+    try {
+      const parsed = JSON.parse(rawServiceAccount);
+      if (
+        typeof parsed?.project_id === "string" &&
+        typeof parsed?.client_email === "string" &&
+        typeof parsed?.private_key === "string"
+      ) {
+        return {
+          projectId: parsed.project_id,
+          clientEmail: parsed.client_email,
+          privateKey: toMultilinePrivateKey(parsed.private_key),
+        };
+      }
+    } catch (error) {
+      console.error("Invalid FIREBASE_SERVICE_ACCOUNT_JSON:", error);
+    }
+  }
+
+  const projectId = process.env.FIREBASE_PROJECT_ID;
+  const clientEmail = process.env.FIREBASE_CLIENT_EMAIL;
+  const privateKey = process.env.FIREBASE_PRIVATE_KEY;
+  if (projectId && clientEmail && privateKey) {
+    return {
+      projectId,
+      clientEmail,
+      privateKey: toMultilinePrivateKey(privateKey),
+    };
+  }
+
+  return null;
+};
+
+let messagingClient: any | null = null;
+let messagingInitAttempted = false;
+let messagingInitErrorLogged = false;
+
+const getFirebaseMessaging = () => {
+  if (messagingClient) return messagingClient;
+  if (messagingInitAttempted) return null;
+  messagingInitAttempted = true;
+
+  try {
+    // firebase-admin은 서버 런타임에서만 필요하므로 런타임 로드한다.
+    const adminApp = require("firebase-admin/app");
+    const adminMessaging = require("firebase-admin/messaging");
+
+    const { getApps, initializeApp, cert, applicationDefault } = adminApp;
+    const { getMessaging } = adminMessaging;
+
+    if (!getApps().length) {
+      const serviceAccount = getServiceAccountFromEnv();
+      if (serviceAccount) {
+        initializeApp({
+          credential: cert(serviceAccount),
+        });
+      } else if (process.env.GOOGLE_APPLICATION_CREDENTIALS) {
+        initializeApp({
+          credential: applicationDefault(),
+        });
+      } else {
+        return null;
+      }
+    }
+
+    messagingClient = getMessaging();
+    return messagingClient;
+  } catch (error) {
+    if (!messagingInitErrorLogged) {
+      console.error("Failed to initialize Firebase Admin Messaging:", error);
+      messagingInitErrorLogged = true;
+    }
+    return null;
+  }
+};
+
+const hasFirebaseAdminMessaging = () => Boolean(getFirebaseMessaging());
+
 const getPushConfig = () => {
   const publicKey =
     process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY || process.env.VAPID_PUBLIC_KEY;
-  const privateKey = process.env.VAPID_PRIVATE_KEY;
-  const subject = process.env.VAPID_SUBJECT;
+  const adminConfigured = hasFirebaseAdminMessaging();
 
   return {
     publicKey: publicKey || "",
-    privateKey: privateKey || "",
-    subject: subject || "",
-    configured: Boolean(publicKey && privateKey && subject),
+    configured: Boolean(publicKey && adminConfigured),
   };
 };
 
-let configuredOnce = false;
-// setVapidDetails는 프로세스 기준 1회만 호출하면 충분하다.
-const ensureWebPushConfigured = () => {
-  if (configuredOnce) return;
-  const config = getPushConfig();
-  if (!config.configured) return;
-  webpush.setVapidDetails(config.subject, config.publicKey, config.privateKey);
-  configuredOnce = true;
-};
-
-export const getVapidPublicKey = () => getPushConfig().publicKey;
+export const getVapidPublicKey = () => getVapidPublicKeyFromEnv();
 export const isWebPushConfigured = () => getPushConfig().configured;
+export const isFcmPushConfigured = isWebPushConfigured;
+export const isFirebaseAdminConfigured = hasFirebaseAdminMessaging;
+
+const isInvalidTokenError = (error: any) => {
+  const code = error?.code;
+  return (
+    code === "messaging/registration-token-not-registered" ||
+    code === "messaging/invalid-registration-token"
+  );
+};
 
 const sendToSingleSubscription = async (
   subscription: StoredPushSubscription,
   payload: PushMessagePayload
 ) => {
-  ensureWebPushConfigured();
-  const message = JSON.stringify(payload);
+  const messaging = getFirebaseMessaging();
+  if (!messaging) {
+    throw new Error("Firebase Admin SDK is not configured.");
+  }
+
+  const clickUrl = getAbsoluteClickUrl(payload.url);
 
   try {
-    await webpush.sendNotification(
-      {
-        endpoint: subscription.endpoint,
-        keys: subscription.keys,
+    await messaging.send({
+      token: subscription.token,
+      data: {
+        title: payload.title,
+        body: payload.body,
+        url: clickUrl,
+        tag: payload.tag || "default",
       },
-      message
-    );
+      webpush: {
+        fcmOptions: {
+          link: clickUrl,
+        },
+        headers: {
+          Urgency: "high",
+        },
+      },
+    });
   } catch (error: any) {
-    // 만료된 구독은 저장소에서 정리한다.
-    if (error?.statusCode === 404 || error?.statusCode === 410) {
-      await removePushSubscriptionByEndpoint(subscription.endpoint);
+    // 더 이상 유효하지 않은 토큰은 저장소에서 즉시 정리한다.
+    if (isInvalidTokenError(error)) {
+      await removePushSubscriptionByToken(subscription.token);
       return;
     }
     throw error;
@@ -83,7 +184,7 @@ export const sendPushToUsers = async (
   await Promise.all(
     subscriptions.map((subscription) =>
       sendToSingleSubscription(subscription, payload).catch((error) => {
-        console.error("Failed to send web push:", error);
+        console.error("Failed to send FCM push:", error);
       })
     )
   );

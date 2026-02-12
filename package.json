@@ -47,6 +47,7 @@
     "eslint": "8.45.0",
     "eslint-config-next": "13.4.10",
     "firebase": "^9.15.0",
+    "firebase-admin": "^13.0.0",
     "immer": "^10.0.3",
     "iron-session": "^6.3.1",
     "jwt-decode": "^3.1.2",

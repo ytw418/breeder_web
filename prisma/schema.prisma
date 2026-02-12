@@ -81,6 +81,7 @@ model User {
   chatRoomMember    ChatRoomMember[]
   notifications     Notification[]  @relation(name: "notifications")
   sentNotifications Notification[]  @relation(name: "sentNotifications")
+  fcmTokens         FcmToken[]
   auctions        Auction[]
   bids            Bid[]
   insectRecords   InsectRecord[]
@@ -338,6 +339,19 @@ model Notification {
   @@index([userId])
   @@index([senderId])
   @@index([userId, isRead])
+}
+
+model FcmToken {
+  id        Int      @id @default(autoincrement())
+  token     String   @unique
+  userAgent String?
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId    Int
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([userId])
+  @@index([userId, updatedAt])
 }
 
 // ============================================================
