@@ -24,25 +24,29 @@ const toPublicImageUrl = (imageId: string | null | undefined) => {
 };
 
 const getAuctionForSeo = async (auctionId: number) => {
-  return client.auction.findUnique({
-    where: { id: auctionId },
-    select: {
-      id: true,
-      title: true,
-      description: true,
-      currentPrice: true,
-      category: true,
-      status: true,
-      photos: true,
-      endAt: true,
-      createdAt: true,
-      user: {
-        select: {
-          name: true,
+  try {
+    return await client.auction.findUnique({
+      where: { id: auctionId },
+      select: {
+        id: true,
+        title: true,
+        description: true,
+        currentPrice: true,
+        category: true,
+        status: true,
+        photos: true,
+        endAt: true,
+        createdAt: true,
+        user: {
+          select: {
+            name: true,
+          },
         },
       },
-    },
-  });
+    });
+  } catch {
+    return null;
+  }
 };
 
 const getAuctionCanonicalUrl = (auctionId: number) =>
