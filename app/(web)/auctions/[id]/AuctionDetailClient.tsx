@@ -109,6 +109,7 @@ const AuctionDetailClient = () => {
 
   const isToolRoute = pathname?.startsWith("/tool");
   const loginPath = isToolRoute ? "/tool/login" : "/auth/login";
+  const hasBottomBidLayer = auction?.status === "진행중" && !data?.isOwner;
 
   const normalizeBidAmount = (targetAmount: number) => {
     if (!auction) return 0;
@@ -290,7 +291,12 @@ const AuctionDetailClient = () => {
 
   return (
     <Layout canGoBack title={auction.title} seoTitle={auction.title}>
-      <div className="pb-24">
+      <div
+        className={cn(
+          "pb-24",
+          hasBottomBidLayer && "pb-[calc(20rem+env(safe-area-inset-bottom))]"
+        )}
+      >
         {/* 이미지 슬라이더 */}
         <div className="relative aspect-[4/3] bg-gray-100">
           {auction.photos?.[imageIndex] ? (
@@ -678,7 +684,7 @@ const AuctionDetailClient = () => {
       </div>
 
       {/* 하단 입찰 영역 (진행중일 때만, 본인 경매 아닐 때) */}
-      {auction.status === "진행중" && !data?.isOwner && (
+      {hasBottomBidLayer && (
         <div className="fixed bottom-0 left-0 right-0 bg-white dark:bg-slate-900 border-t border-gray-200 dark:border-slate-700 z-10">
           <div className="max-w-xl mx-auto px-4 py-3">
             <div className="mb-2.5 rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/70 px-3 py-2">
