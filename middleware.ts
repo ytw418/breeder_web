@@ -4,6 +4,17 @@ const TOOL_MODE_COOKIE = "bredy_tool_mode";
 
 export function middleware(req: NextRequest, ev: NextFetchEvent) {
   const { pathname, search } = req.nextUrl;
+  if (pathname.startsWith("/products/")) {
+    console.info("[middleware][products]", {
+      pathname,
+      search,
+      method: req.method,
+      rsc: req.headers.get("rsc"),
+      purpose: req.headers.get("purpose"),
+      nextRouterPrefetch: req.headers.get("next-router-prefetch"),
+      vercelId: req.headers.get("x-vercel-id"),
+    });
+  }
   const isToolPath = pathname === "/tool" || pathname.startsWith("/tool/");
   const isToolLoginLoadingPath = pathname === "/login-loading";
   const hasToolMode = req.cookies.get(TOOL_MODE_COOKIE)?.value === "1";

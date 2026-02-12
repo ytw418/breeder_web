@@ -66,8 +66,17 @@ const parseErrorMessage = async (res: Response) => {
 };
 
 export async function getProduct(id: string) {
+  const baseUrl = resolveBaseUrl();
+  const startedAt = Date.now();
   try {
-    const baseUrl = resolveBaseUrl();
+    console.info("[getProduct][start]", {
+      id,
+      baseUrl,
+      nodeEnv: process.env.NODE_ENV,
+      vercelEnv: process.env.VERCEL_ENV,
+      vercelUrl: process.env.VERCEL_URL || null,
+    });
+
     const res = await fetch(`${baseUrl}/api/products/${id}`, {
       cache: "no-store",
       // next: {
@@ -75,15 +84,36 @@ export async function getProduct(id: string) {
       // },
     });
 
+    console.info("[getProduct][response]", {
+      id,
+      status: res.status,
+      ok: res.ok,
+      cacheControl: res.headers.get("cache-control"),
+      xVercelCache: res.headers.get("x-vercel-cache"),
+      elapsedMs: Date.now() - startedAt,
+    });
+
     if (!res.ok) {
+      const message = await parseErrorMessage(res);
+      console.warn("[getProduct][non-ok]", {
+        id,
+        status: res.status,
+        message,
+      });
       return {
         success: false,
-        error: await parseErrorMessage(res),
+        error: message,
       } as ItemDetailResponse;
     }
 
     return res.json() as Promise<ItemDetailResponse>;
   } catch (error) {
+    console.error("[getProduct][error]", {
+      id,
+      baseUrl,
+      message: error instanceof Error ? error.message : String(error),
+      elapsedMs: Date.now() - startedAt,
+    });
     return {
       success: false,
       error: error instanceof Error ? error.message : "상품 조회 중 오류가 발생했습니다.",
