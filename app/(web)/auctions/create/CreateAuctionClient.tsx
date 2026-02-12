@@ -618,7 +618,7 @@ const CreateAuctionClient = () => {
           </label>
           <Input
             {...register("title", { required: "제목을 입력해주세요." })}
-            placeholder="예: 헤라클레스 DHH 150mm 수컷"
+            placeholder="예: BMW520d 100만원 시작가 경매합니다."
           />
           {errors.title && (
             <p className="text-xs text-red-500 mt-1">{errors.title.message}</p>
