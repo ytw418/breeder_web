@@ -8,6 +8,13 @@ export const metadata: Metadata = {
   title: "경매 등록",
   description:
     "브리디 경매도구에서 상품 정보 입력 후 링크를 발급해 경매를 바로 시작해보세요.",
+  alternates: {
+    canonical: "https://bredy.app/auctions/create",
+  },
+  robots: {
+    index: false,
+    follow: false,
+  },
   openGraph: {
     title: "경매 등록 | 브리디 경매도구",
     description:

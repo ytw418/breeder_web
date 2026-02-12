@@ -1,6 +1,5 @@
 "use client";
 
-import Head from "next/head";
 import Link from "next/link";
 import React, { useState } from "react";
 import clsx from "clsx";
@@ -96,13 +95,14 @@ export default function MainLayout({
   canGoBack,
   hasTabBar,
   children,
-  seoTitle,
+  seoTitle: _seoTitle,
   icon,
   showSearch,
   showHome,
 }: LayoutProps) {
   const router = useRouter();
   const pathname = usePathname();
+  const isToolPath = pathname?.startsWith("/tool");
   const [menuOpen, setMenuOpen] = useState(false);
   const [shouldFetchChatUnread, setShouldFetchChatUnread] = useState(true);
   const [shouldFetchNotificationUnread, setShouldFetchNotificationUnread] =
@@ -142,12 +142,10 @@ export default function MainLayout({
   const hasNotificationUnread = notificationUnreadCount > 0;
   const notificationBadgeLabel =
     notificationUnreadCount > 99 ? "99+" : String(notificationUnreadCount);
+  void _seoTitle;
 
   return (
     <div className="relative min-h-screen bg-gradient-to-b from-slate-50 via-white to-slate-50/70 dark:from-slate-950 dark:via-slate-950 dark:to-slate-900/80">
-      <Head>
-        <title>브리디 | {seoTitle}</title>
-      </Head>
       <div className="sticky top-0 z-30 flex h-14 w-full items-center justify-center border-b border-slate-200/80 bg-white/90 text-base font-medium text-slate-800 shadow-[0_1px_0_rgba(15,23,42,0.04)] backdrop-blur-xl dark:border-slate-800/80 dark:bg-slate-950/90 dark:text-slate-100 dark:shadow-[0_1px_0_rgba(2,6,23,0.45)]">
         {canGoBack ? (
           <>
@@ -171,7 +169,7 @@ export default function MainLayout({
                 ></path>
               </svg>
             </button>
-            {showHome ? (
+            {showHome && !isToolPath ? (
               <Link
                 href="/"
                 className="absolute left-14 rounded-full p-2 transition-colors hover:bg-slate-100 dark:hover:bg-slate-800"
@@ -193,7 +191,8 @@ export default function MainLayout({
                 </svg>
               </Link>
             ) : null}
-            <div className="absolute right-3 flex items-center gap-1">
+            {!isToolPath ? (
+              <div className="absolute right-3 flex items-center gap-1">
               <Link
                 href="/notifications"
                 className={cn(
@@ -245,10 +244,11 @@ export default function MainLayout({
                   ></path>
                 </svg>
               </button>
-            </div>
+              </div>
+            ) : null}
           </>
         ) : null}
-        {icon && (
+        {icon && !isToolPath && (
           <>
             <Link href={"/"} className="absolute left-4 rounded-xl">
               <Image
@@ -419,12 +419,12 @@ export default function MainLayout({
       <div
         className={clsx(
           "max-w-xl mx-auto",
-          hasTabBar ? "pb-[86px]" : "pb-6"
+          hasTabBar && !isToolPath ? "pb-[86px]" : "pb-6"
         )}
       >
         {children}
       </div>
-      {hasTabBar ? (
+      {hasTabBar && !isToolPath ? (
         <nav className="fixed bottom-0 left-0 right-0 z-40 border-t border-slate-200/80 bg-white/92 backdrop-blur-xl dark:border-slate-800/80 dark:bg-slate-950/92">
           <div className="max-w-xl mx-auto px-4 pb-safe">
             <div className="flex justify-between items-center py-3">

@@ -8,7 +8,7 @@ import Layout from "@components/features/MainLayout";
 import { cn, makeImageUrl, getTimeAgoString } from "@libs/client/utils";
 import useMutation from "hooks/useMutation";
 import useUser from "hooks/useUser";
-import { useParams, useRouter } from "next/navigation";
+import { useParams, usePathname, useRouter } from "next/navigation";
 import { toast } from "react-toastify";
 import { AuctionDetailResponse } from "pages/api/auctions/[id]";
 import { BidResponse } from "pages/api/auctions/[id]/bid";
@@ -55,6 +55,7 @@ const getCountdown = (endAt: string | Date) => {
 const AuctionDetailClient = () => {
   const params = useParams();
   const router = useRouter();
+  const pathname = usePathname();
   const { user } = useUser();
   const [bidAmount, setBidAmount] = useState<number | null>(null);
   const [countdown, setCountdown] = useState({ text: "", isEnded: false });
@@ -106,6 +107,8 @@ const AuctionDetailClient = () => {
   );
   const selectedBidAmount = bidAmount ?? minimumBid;
 
+  const isToolRoute = pathname?.startsWith("/tool");
+
   const normalizeBidAmount = (targetAmount: number) => {
     if (!auction) return 0;
 
@@ -138,7 +141,7 @@ const AuctionDetailClient = () => {
 
   /** 입찰 핸들러 */
   const handleBid = () => {
-    if (!user) return router.push("/auth/login");
+    if (!user) return router.push(`/auth/login?next=${encodeURIComponent(pathname || "/")}`);
     if (bidLoading) return;
     if (isTopBidder) {
       toast.error("현재 최고 입찰자는 다시 입찰할 수 없습니다.");
@@ -247,7 +250,7 @@ const AuctionDetailClient = () => {
 
   const handleReport = () => {
     if (!user) {
-      router.push("/auth/login");
+      router.push(`/auth/login?next=${encodeURIComponent(pathname || "/")}`);
       return;
     }
     if (reportDetail.trim().length < 5) {
@@ -438,7 +441,7 @@ const AuctionDetailClient = () => {
               {auction.description}
             </p>
             <div className="flex flex-wrap items-center gap-2">
-              {data?.isOwner && data?.canEdit ? (
+              {data?.isOwner && data?.canEdit && !isToolRoute ? (
                 <Link
                   href={`/auctions/${auction.id}/edit`}
                   className="inline-flex h-10 items-center rounded-xl bg-emerald-600 px-4 text-sm font-semibold text-white transition-colors hover:bg-emerald-700"

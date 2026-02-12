@@ -2,7 +2,7 @@
 
 import { useRef, useState } from "react";
 import { useForm } from "react-hook-form";
-import { useRouter } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import Link from "next/link";
 import Image from "@components/atoms/Image";
 import Layout from "@components/features/MainLayout";
@@ -122,6 +122,7 @@ const buildSubmissionSignature = (requestData: AuctionCreatePayload) =>
 
 const CreateAuctionClient = () => {
   const router = useRouter();
+  const pathname = usePathname();
   const { user, isLoading: isUserLoading } = useUser();
   const [photos, setPhotos] = useState<string[]>([]);
   const [sellerProofImage, setSellerProofImage] = useState<string | null>(null);
@@ -161,6 +162,13 @@ const CreateAuctionClient = () => {
     customFieldErrors.duration,
   ].filter((message): message is string => Boolean(message));
 
+  const isToolRoute = pathname?.startsWith("/tool");
+  const withBasePath = (path: string) =>
+    isToolRoute ? `/tool${path}` : path;
+  const loginHref = `/auth/login?next=${encodeURIComponent(
+    withBasePath("/auctions/create")
+  )}`;
+
   if (isUserLoading) {
     return (
       <Layout canGoBack title="경매 생성하기" seoTitle="경매 생성하기">
@@ -193,14 +201,14 @@ const CreateAuctionClient = () => {
             </p>
             <div className="mt-4 grid gap-2">
               <Link
-                href="/auth/login?next=%2Fauctions%2Fcreate"
+                href={loginHref}
                 className="inline-flex h-11 items-center justify-center rounded-xl bg-[#fee500] text-sm font-bold text-[#191919]"
               >
                 카카오 로그인하기
               </Link>
               <button
                 type="button"
-                onClick={() => router.push("/auctions")}
+                onClick={() => router.push(withBasePath("/auctions"))}
                 className="h-11 rounded-xl border border-slate-200 bg-white text-sm font-semibold text-slate-700"
               >
                 경매 목록으로 가기
@@ -429,7 +437,7 @@ const CreateAuctionClient = () => {
   };
 
   const getCreatedAuctionPath = () =>
-    createdAuctionId ? `/auctions/${createdAuctionId}` : "";
+    createdAuctionId ? withBasePath(`/auctions/${createdAuctionId}`) : "";
 
   const getCreatedAuctionUrl = () => {
     const path = getCreatedAuctionPath();
