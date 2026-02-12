@@ -632,7 +632,7 @@ const CreateAuctionClient = () => {
           </label>
           <Textarea
             {...register("description", { required: "설명을 입력해주세요." })}
-            placeholder="개체 정보, 사육 환경, 특이사항 등을 자세히 적어주세요."
+            placeholder="경매 내용을 상세하게 적어주세요. 물품 정보, 거래 내역, 상태 등을 자세히 적어주세요."
             rows={5}
           />
           {errors.description && (
