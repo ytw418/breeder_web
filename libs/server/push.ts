@@ -55,6 +55,7 @@ const getVapidPublicKeyFromEnv = () => {
 const toMultilinePrivateKey = (value: string) => value.replace(/\\n/g, "\n");
 
 const getServiceAccountFromEnv = () => {
+  // 1순위: JSON 통짜 env (Vercel에 가장 설정이 쉬운 방식)
   const rawServiceAccount = process.env.FIREBASE_SERVICE_ACCOUNT_JSON?.trim();
   if (rawServiceAccount) {
     try {
@@ -78,6 +79,7 @@ const getServiceAccountFromEnv = () => {
   const projectId = process.env.FIREBASE_PROJECT_ID;
   const clientEmail = process.env.FIREBASE_CLIENT_EMAIL;
   const privateKey = process.env.FIREBASE_PRIVATE_KEY;
+  // 2순위: 분리된 3개 env
   if (projectId && clientEmail && privateKey) {
     return {
       projectId,
@@ -113,6 +115,7 @@ const getFirebaseMessaging = () => {
           credential: cert(serviceAccount),
         });
       } else if (process.env.GOOGLE_APPLICATION_CREDENTIALS) {
+        // 3순위: ADC 경로 기반 인증(주로 GCP/서버 파일 환경)
         initializeApp({
           credential: applicationDefault(),
         });
@@ -140,6 +143,7 @@ const getPushConfig = () => {
 
   return {
     publicKey: publicKey || "",
+    // "구독 가능" 상태는 VAPID 공개키 + Admin SDK 초기화 성공을 동시에 요구한다.
     configured: Boolean(publicKey && adminConfigured),
   };
 };
@@ -169,6 +173,7 @@ const sendToSingleSubscription = async (
   const clickUrl = getAbsoluteClickUrl(payload.url);
 
   try {
+    // notification 필드 대신 data 중심으로 보내고, SW에서 통일 파싱한다.
     await messaging.send({
       token: subscription.token,
       data: {

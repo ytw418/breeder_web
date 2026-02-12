@@ -42,7 +42,7 @@ async function handler(
     const vapidPublicKey = getVapidPublicKey();
 
     if (req.method === "GET") {
-      // 설정 화면에서 토글 상태를 즉시 렌더링할 수 있도록 현재 구독 여부를 반환한다.
+      // 설정 화면 최초 렌더 시 필요한 상태(configured/subscribed/vapidPublicKey)를 반환한다.
       const subscribed = await isUserPushSubscribed(userId);
       return res.json({
         success: true,
@@ -56,7 +56,7 @@ async function handler(
       const body = req.body as PushSubscriptionUpsertBody;
 
       if (body.action === "subscribe") {
-        // 서버 키 미설정 상태에서 구독을 허용하면 사용자에게 성공처럼 보여 혼란을 준다.
+        // 서버 설정 미완료 상태에서는 구독 저장 자체를 막아 UX 혼선을 방지한다.
         if (!configured || !vapidPublicKey) {
           return res.status(400).json({
             success: false,
@@ -92,7 +92,7 @@ async function handler(
       }
 
       if (body.action === "unsubscribe") {
-        // token이 없으면 해당 사용자의 모든 구독을 정리한다(브라우저 초기화 등 예외 케이스 대응).
+        // token 미전달 시 유저의 전체 토큰을 정리해 브라우저 초기화 케이스를 흡수한다.
         await removePushSubscription(
           userId,
           typeof body.token === "string" ? body.token.trim() : undefined

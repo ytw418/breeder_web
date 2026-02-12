@@ -3,6 +3,7 @@
 import { UIEvent, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import useSWR from "swr";
+import { useRouter } from "next/navigation";
 
 import FloatingButton from "@components/atoms/floating-button";
 import Image from "@components/atoms/Image";
@@ -18,6 +19,7 @@ import { cn, makeImageUrl } from "@libs/client/utils";
 import { CATEGORIES } from "@libs/constants";
 import { AuctionsListResponse } from "pages/api/auctions";
 import { PopularProductsResponse } from "pages/api/products/popular";
+import useUser from "hooks/useUser";
 
 export interface ProductWithCount extends Product {
   _count: { favs: number };
@@ -27,6 +29,11 @@ interface ProductsResponse {
   success: boolean;
   products: ProductWithCount[];
   pages: number;
+}
+
+interface BeforeInstallPromptEvent extends Event {
+  prompt: () => Promise<void>;
+  userChoice: Promise<{ outcome: "accepted" | "dismissed"; platform: string }>;
 }
 
 /** 탭 목록: "전체" + 카테고리 목록 */
@@ -79,8 +86,14 @@ const SectionHeader = ({
 );
 
 const MainClient = () => {
+  const router = useRouter();
+  const { user, isLoading: isUserLoading } = useUser();
   const [selectedCategory, setSelectedCategory] = useState("전체");
   const [activeBannerIndex, setActiveBannerIndex] = useState(0);
+  const [showPostLoginGuide, setShowPostLoginGuide] = useState(false);
+  const [deferredInstallPrompt, setDeferredInstallPrompt] =
+    useState<BeforeInstallPromptEvent | null>(null);
+  const [installLoading, setInstallLoading] = useState(false);
   const bannerRef = useRef<HTMLDivElement>(null);
   const [, setTick] = useState(0);
 
@@ -126,6 +139,53 @@ const MainClient = () => {
     const timer = setInterval(() => setTick((prev) => prev + 1), 60000);
     return () => clearInterval(timer);
   }, []);
+
+  useEffect(() => {
+    const onBeforeInstallPrompt = (event: Event) => {
+      event.preventDefault();
+      setDeferredInstallPrompt(event as BeforeInstallPromptEvent);
+    };
+
+    window.addEventListener("beforeinstallprompt", onBeforeInstallPrompt);
+    return () => {
+      window.removeEventListener("beforeinstallprompt", onBeforeInstallPrompt);
+    };
+  }, []);
+
+  useEffect(() => {
+    if (isUserLoading || !user) return;
+    try {
+      const shouldShow = localStorage.getItem("bredy:show-post-login-guide");
+      if (shouldShow === "1") {
+        setShowPostLoginGuide(true);
+        localStorage.removeItem("bredy:show-post-login-guide");
+      }
+    } catch {
+      // noop
+    }
+  }, [isUserLoading, user]);
+
+  const handleInstallClick = async () => {
+    if (!deferredInstallPrompt) {
+      alert("현재 브라우저에서는 자동 설치 프롬프트를 사용할 수 없습니다.");
+      return;
+    }
+
+    try {
+      setInstallLoading(true);
+      await deferredInstallPrompt.prompt();
+      await deferredInstallPrompt.userChoice;
+      setDeferredInstallPrompt(null);
+      setShowPostLoginGuide(false);
+    } finally {
+      setInstallLoading(false);
+    }
+  };
+
+  const handleGoPushSettings = () => {
+    setShowPostLoginGuide(false);
+    router.push("/settings");
+  };
 
   const handleBannerScroll = (event: UIEvent<HTMLDivElement>) => {
     const container = event.currentTarget;
@@ -454,6 +514,46 @@ const MainClient = () => {
           />
         </svg>
       </FloatingButton>
+
+      {showPostLoginGuide && (
+        <div className="fixed inset-0 z-50 bg-black/50 px-4 py-8">
+          <div className="mx-auto mt-16 w-full max-w-sm rounded-2xl border border-slate-200 bg-white p-5 shadow-2xl">
+            <h3 className="text-base font-semibold text-slate-900">시작 설정</h3>
+            <p className="mt-1 text-sm text-slate-600">
+              홈 화면 설치와 푸시 알림을 설정하면 새 소식을 빠르게 확인할 수 있습니다.
+            </p>
+            <div className="mt-4 flex flex-col gap-2.5">
+              <button
+                type="button"
+                onClick={handleInstallClick}
+                className={cn(
+                  "h-11 rounded-xl text-sm font-semibold transition-colors",
+                  deferredInstallPrompt
+                    ? "bg-slate-900 text-white hover:bg-slate-800"
+                    : "bg-slate-100 text-slate-500"
+                )}
+                disabled={!deferredInstallPrompt || installLoading}
+              >
+                {installLoading ? "설치 준비 중..." : "홈 화면에 설치하기"}
+              </button>
+              <button
+                type="button"
+                onClick={handleGoPushSettings}
+                className="h-11 rounded-xl bg-emerald-600 text-sm font-semibold text-white transition-colors hover:bg-emerald-700"
+              >
+                푸시 알림 설정하기
+              </button>
+              <button
+                type="button"
+                onClick={() => setShowPostLoginGuide(false)}
+                className="h-10 rounded-xl border border-slate-200 text-sm font-medium text-slate-600 transition-colors hover:bg-slate-50"
+              >
+                나중에 하기
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

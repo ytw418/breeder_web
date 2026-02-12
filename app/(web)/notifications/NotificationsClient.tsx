@@ -6,6 +6,8 @@ import { cn, makeImageUrl, getTimeAgoString } from "@libs/client/utils";
 import Link from "next/link";
 import useSWR from "swr";
 import useMutation from "hooks/useMutation";
+import { useEffect, useRef } from "react";
+import { useSWRConfig } from "swr";
 import { NotificationsResponse } from "pages/api/notifications";
 import { NotificationType } from "@prisma/client";
 
@@ -53,15 +55,47 @@ const getNotificationLink = (
 };
 
 const NotificationsClient = () => {
+  const { mutate: globalMutate } = useSWRConfig();
   const { data, mutate } = useSWR<NotificationsResponse>(
     "/api/notifications"
   );
   const [markAllRead] = useMutation("/api/notifications");
+  const didAutoMarkReadRef = useRef(false);
 
-  const handleMarkAllRead = async () => {
-    await markAllRead({ data: {} });
-    mutate();
+  const handleMarkAllRead = async (silent = false) => {
+    const result = await markAllRead({ data: {} });
+    if ((result as any)?.success === false && !silent) {
+      alert((result as any)?.error || "읽음 처리에 실패했습니다.");
+      return;
+    }
+
+    // 목록 화면과 헤더 뱃지 수치를 즉시 동기화한다.
+    mutate(
+      (prev) =>
+        prev
+          ? {
+              ...prev,
+              unreadCount: 0,
+              notifications: prev.notifications.map((item) => ({
+                ...item,
+                isRead: true,
+              })),
+            }
+          : prev,
+      false
+    );
+    globalMutate(
+      "/api/notifications/unread-count",
+      (prev: any) => (prev ? { ...prev, unreadCount: 0 } : prev),
+      false
+    );
   };
+
+  useEffect(() => {
+    if (!data || data.unreadCount <= 0 || didAutoMarkReadRef.current) return;
+    didAutoMarkReadRef.current = true;
+    handleMarkAllRead(true);
+  }, [data]);
 
   return (
     <Layout canGoBack title="알림" seoTitle="알림">
@@ -69,7 +103,9 @@ const NotificationsClient = () => {
       {data?.unreadCount && data.unreadCount > 0 ? (
         <div className="px-4 py-2 flex justify-end">
           <button
-            onClick={handleMarkAllRead}
+            onClick={() => {
+              void handleMarkAllRead();
+            }}
             className="text-sm text-primary hover:underline"
           >
             모두 읽음 처리

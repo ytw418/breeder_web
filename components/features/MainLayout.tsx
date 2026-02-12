@@ -26,6 +26,11 @@ interface UnreadCountResponse {
   unreadCount: number;
 }
 
+interface NotificationUnreadCountResponse {
+  success: boolean;
+  unreadCount: number;
+}
+
 /** 사이드 메뉴 아이템 */
 const MENU_ITEMS = [
   {
@@ -99,14 +104,27 @@ export default function MainLayout({
   const router = useRouter();
   const pathname = usePathname();
   const [menuOpen, setMenuOpen] = useState(false);
-  const [shouldFetchUnread, setShouldFetchUnread] = useState(true);
+  const [shouldFetchChatUnread, setShouldFetchChatUnread] = useState(true);
+  const [shouldFetchNotificationUnread, setShouldFetchNotificationUnread] =
+    useState(true);
   const { data: unreadData } = useSWR<UnreadCountResponse>(
-    shouldFetchUnread ? "/api/chat/unread-count" : null,
+    shouldFetchChatUnread ? "/api/chat/unread-count" : null,
     {
       onError: (swrError: Error & { status?: number }) => {
         // 비로그인 상태에서는 동일 401 요청을 반복하지 않는다.
         if (swrError?.status === 401 || swrError?.status === 403) {
-          setShouldFetchUnread(false);
+          setShouldFetchChatUnread(false);
+        }
+      },
+      revalidateOnFocus: false,
+    }
+  );
+  const { data: notificationUnreadData } = useSWR<NotificationUnreadCountResponse>(
+    shouldFetchNotificationUnread ? "/api/notifications/unread-count" : null,
+    {
+      onError: (swrError: Error & { status?: number }) => {
+        if (swrError?.status === 401 || swrError?.status === 403) {
+          setShouldFetchNotificationUnread(false);
         }
       },
       revalidateOnFocus: false,
@@ -116,6 +134,14 @@ export default function MainLayout({
   const onClick = () => {
     router.back();
   };
+
+  const notificationUnreadCount =
+    notificationUnreadData?.success && notificationUnreadData.unreadCount > 0
+      ? notificationUnreadData.unreadCount
+      : 0;
+  const hasNotificationUnread = notificationUnreadCount > 0;
+  const notificationBadgeLabel =
+    notificationUnreadCount > 99 ? "99+" : String(notificationUnreadCount);
 
   return (
     <div className="relative min-h-screen bg-gradient-to-b from-slate-50 via-white to-slate-50/70 dark:from-slate-950 dark:via-slate-950 dark:to-slate-900/80">
@@ -167,27 +193,59 @@ export default function MainLayout({
                 </svg>
               </Link>
             ) : null}
-            {/* 햄버거 메뉴 버튼 */}
-            <button
-              onClick={() => setMenuOpen(true)}
-              className="absolute right-4 rounded-full p-2 transition-colors hover:bg-slate-100 dark:hover:bg-slate-800"
-              aria-label="메뉴"
-            >
-              <svg
-                className="h-6 w-6 text-slate-600 dark:text-slate-300"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-                xmlns="http://www.w3.org/2000/svg"
+            <div className="absolute right-3 flex items-center gap-1">
+              <Link
+                href="/notifications"
+                className={cn(
+                  "relative rounded-full p-2 transition-colors",
+                  hasNotificationUnread
+                    ? "bg-rose-50 text-rose-600 ring-1 ring-rose-200 hover:bg-rose-100 dark:bg-rose-900/30 dark:text-rose-300 dark:ring-rose-800"
+                    : "hover:bg-slate-100 dark:hover:bg-slate-800"
+                )}
+                aria-label="알림"
               >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth="2"
-                  d="M4 6h16M4 12h16M4 18h16"
-                ></path>
-              </svg>
-            </button>
+                {hasNotificationUnread && (
+                  <span className="absolute -right-1 -top-1 flex h-5 min-w-5 items-center justify-center rounded-full bg-rose-500 px-1 text-[10px] font-bold text-white">
+                    {notificationBadgeLabel}
+                  </span>
+                )}
+                <svg
+                  className="h-6 w-6 text-current"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                  xmlns="http://www.w3.org/2000/svg"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth="2"
+                    d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"
+                  />
+                </svg>
+              </Link>
+              {/* 햄버거 메뉴 버튼 */}
+              <button
+                onClick={() => setMenuOpen(true)}
+                className="rounded-full p-2 transition-colors hover:bg-slate-100 dark:hover:bg-slate-800"
+                aria-label="메뉴"
+              >
+                <svg
+                  className="h-6 w-6 text-slate-600 dark:text-slate-300"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                  xmlns="http://www.w3.org/2000/svg"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth="2"
+                    d="M4 6h16M4 12h16M4 18h16"
+                  ></path>
+                </svg>
+              </button>
+            </div>
           </>
         ) : null}
         {icon && (
@@ -225,6 +283,36 @@ export default function MainLayout({
                   </svg>
                 </Link>
               )}
+              <Link
+                href="/notifications"
+                className={cn(
+                  "relative rounded-full p-2 transition-colors",
+                  hasNotificationUnread
+                    ? "bg-rose-50 text-rose-600 ring-1 ring-rose-200 hover:bg-rose-100 dark:bg-rose-900/30 dark:text-rose-300 dark:ring-rose-800"
+                    : "hover:bg-slate-100 dark:hover:bg-slate-800"
+                )}
+                aria-label="알림"
+              >
+                {hasNotificationUnread && (
+                  <span className="absolute -right-1 -top-1 flex h-5 min-w-5 items-center justify-center rounded-full bg-rose-500 px-1 text-[10px] font-bold text-white">
+                    {notificationBadgeLabel}
+                  </span>
+                )}
+                <svg
+                  className="h-6 w-6 text-current"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                  xmlns="http://www.w3.org/2000/svg"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth="2"
+                    d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"
+                  />
+                </svg>
+              </Link>
               {/* 햄버거 메뉴 버튼 */}
               <button
                 onClick={() => setMenuOpen(true)}

@@ -196,6 +196,7 @@ const SettingsClient = () => {
       .replace(/^['"]|['"]$/g, "")
       .replace(/\s+/g, "");
 
+    // 잘못된 값(예: FCM 토큰 AAA...:APA...)을 조기 차단해 atob 오류를 예방한다.
     if (!normalized || !/^[A-Za-z0-9\-_]+$/.test(normalized) || normalized.length < 80) {
       throw new Error(
         "VAPID 공개키 형식이 올바르지 않습니다. Firebase 웹 푸시 인증서 키를 다시 확인해 주세요."
@@ -225,6 +226,7 @@ const SettingsClient = () => {
       const { messaging, getToken, deleteToken } = await getMessagingTools();
 
       if (pushStatus.subscribed) {
+        // 해제 시 브라우저 토큰 삭제 + 서버 토큰 삭제를 모두 수행한다.
         const token =
           currentPushToken ||
           (await getToken(messaging, {
@@ -467,7 +469,7 @@ const SettingsClient = () => {
                 onClick={handleTogglePush}
                 disabled={pushLoading || isPushStatusLoading}
                 className={cn(
-                  "h-9 rounded-full px-3 text-xs font-semibold transition-colors",
+                  "h-9 min-w-[88px] shrink-0 whitespace-nowrap rounded-full px-3 text-xs font-semibold leading-9 transition-colors",
                   pushStatus?.subscribed
                     ? "bg-emerald-600 text-white hover:bg-emerald-700"
                     : "bg-slate-900 text-white hover:bg-slate-800 dark:bg-slate-100 dark:text-slate-900 dark:hover:bg-slate-200",

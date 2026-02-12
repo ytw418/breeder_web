@@ -34,6 +34,15 @@ const getKakaoRedirectUri = () => {
   return `${process.env.NEXT_PUBLIC_DOMAIN_URL || ""}/login-loading`;
 };
 
+const markPostLoginGuide = () => {
+  if (typeof window === "undefined") return;
+  try {
+    localStorage.setItem("bredy:show-post-login-guide", "1");
+  } catch {
+    // noop
+  }
+};
+
 const LoginClient = () => {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -153,6 +162,7 @@ const LoginClient = () => {
         data: body,
         onCompleted(result) {
           if (result.success) {
+            markPostLoginGuide();
             router.replace(nextPath);
             return;
           }
