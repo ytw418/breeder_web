@@ -79,6 +79,8 @@ const SettingsClient = () => {
   const {
     data: pushStatus,
     mutate: mutatePushStatus,
+    error: pushStatusError,
+    isLoading: isPushStatusLoading,
   } = useSWR<PushSubscriptionStatusResponse>("/api/push/subscription");
 
   useEffect(() => {
@@ -94,10 +96,12 @@ const SettingsClient = () => {
   }, [themeMounted, theme, resolvedTheme]);
 
   const pushStatusLabel = useMemo(() => {
+    if (isPushStatusLoading) return "설정 확인 중";
+    if (pushStatusError) return "설정 확인 실패";
     if (!pushStatus) return "설정 확인 중";
     if (!pushStatus.configured) return "서버 설정 필요";
     return pushStatus.subscribed ? "켜짐" : "꺼짐";
-  }, [pushStatus]);
+  }, [isPushStatusLoading, pushStatusError, pushStatus]);
 
   // 현재 단말 기준으로 알림 권한 복구 경로를 가볍게 안내한다.
   const permissionGuide = useMemo(() => {
@@ -185,6 +189,22 @@ const SettingsClient = () => {
     };
   };
 
+  const getValidatedVapidKey = () => {
+    const raw = pushStatus?.vapidPublicKey || "";
+    const normalized = raw
+      .trim()
+      .replace(/^['"]|['"]$/g, "")
+      .replace(/\s+/g, "");
+
+    if (!normalized || !/^[A-Za-z0-9\-_]+$/.test(normalized) || normalized.length < 80) {
+      throw new Error(
+        "VAPID 공개키 형식이 올바르지 않습니다. Firebase 웹 푸시 인증서 키를 다시 확인해 주세요."
+      );
+    }
+
+    return normalized;
+  };
+
   const handleTogglePush = async () => {
     if (pushLoading) return;
     setPushLoading(true);
@@ -199,6 +219,7 @@ const SettingsClient = () => {
       if (!pushStatus?.configured || !pushStatus?.vapidPublicKey) {
         throw new Error("FCM 푸시 서버 설정이 완료되지 않았습니다.");
       }
+      const vapidKey = getValidatedVapidKey();
 
       const registration = await ensureServiceWorkerReady();
       const { messaging, getToken, deleteToken } = await getMessagingTools();
@@ -207,7 +228,7 @@ const SettingsClient = () => {
         const token =
           currentPushToken ||
           (await getToken(messaging, {
-            vapidKey: pushStatus.vapidPublicKey,
+            vapidKey,
             serviceWorkerRegistration: registration,
           }).catch(() => ""));
 
@@ -238,7 +259,7 @@ const SettingsClient = () => {
       }
 
       const token = await getToken(messaging, {
-        vapidKey: pushStatus.vapidPublicKey,
+        vapidKey,
         serviceWorkerRegistration: registration,
       });
       if (!token) {
@@ -444,7 +465,7 @@ const SettingsClient = () => {
               <button
                 type="button"
                 onClick={handleTogglePush}
-                disabled={pushLoading}
+                disabled={pushLoading || isPushStatusLoading}
                 className={cn(
                   "h-9 rounded-full px-3 text-xs font-semibold transition-colors",
                   pushStatus?.subscribed
@@ -464,9 +485,9 @@ const SettingsClient = () => {
               <span className="rounded-full bg-slate-100 px-2 py-1 text-slate-600 dark:bg-slate-800 dark:text-slate-300">
                 상태: {pushStatusLabel}
               </span>
-              {!pushStatus?.configured && (
+              {pushStatus && !pushStatus.configured && (
                 <span className="text-amber-600 dark:text-amber-400">
-                  FCM 서버키/웹 푸시 키 환경변수가 필요합니다.
+                  Firebase Admin 서비스계정 + 웹 푸시 키 환경변수가 필요합니다.
                 </span>
               )}
             </div>
@@ -486,6 +507,11 @@ const SettingsClient = () => {
             </div>
             {pushErrorMessage && (
               <p className="mt-2 text-xs text-rose-500">{pushErrorMessage}</p>
+            )}
+            {!pushErrorMessage && pushStatusError && (
+              <p className="mt-2 text-xs text-rose-500">
+                {pushStatusError.message || "푸시 설정 상태를 불러오지 못했습니다."}
+              </p>
             )}
             {showPermissionGuide && (
               <div className="mt-3 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2.5 dark:border-amber-700/40 dark:bg-amber-950/30">

@@ -20,8 +20,37 @@ const getAbsoluteClickUrl = (url?: string) => {
   return new URL(normalized, base).toString();
 };
 
-const getVapidPublicKeyFromEnv = () =>
-  process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY || process.env.VAPID_PUBLIC_KEY || "";
+const normalizeEnvValue = (value: string) => {
+  let normalized = value.trim();
+  if (
+    (normalized.startsWith('"') && normalized.endsWith('"')) ||
+    (normalized.startsWith("'") && normalized.endsWith("'"))
+  ) {
+    normalized = normalized.slice(1, -1).trim();
+  }
+  return normalized.replace(/\s+/g, "");
+};
+
+const isValidVapidPublicKey = (value: string) =>
+  /^[A-Za-z0-9\-_]+$/.test(value) && value.length >= 80;
+
+let vapidKeyWarningLogged = false;
+const getVapidPublicKeyFromEnv = () => {
+  const raw =
+    process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY || process.env.VAPID_PUBLIC_KEY || "";
+  if (!raw) return "";
+  const normalized = normalizeEnvValue(raw);
+  if (!isValidVapidPublicKey(normalized)) {
+    if (!vapidKeyWarningLogged) {
+      console.error(
+        "Invalid VAPID public key format. Check NEXT_PUBLIC_VAPID_PUBLIC_KEY."
+      );
+      vapidKeyWarningLogged = true;
+    }
+    return "";
+  }
+  return normalized;
+};
 
 const toMultilinePrivateKey = (value: string) => value.replace(/\\n/g, "\n");
 
@@ -106,8 +135,7 @@ const getFirebaseMessaging = () => {
 const hasFirebaseAdminMessaging = () => Boolean(getFirebaseMessaging());
 
 const getPushConfig = () => {
-  const publicKey =
-    process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY || process.env.VAPID_PUBLIC_KEY;
+  const publicKey = getVapidPublicKeyFromEnv();
   const adminConfigured = hasFirebaseAdminMessaging();
 
   return {
