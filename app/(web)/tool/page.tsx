@@ -1,6 +1,9 @@
 import Link from "next/link";
 import type { Metadata } from "next";
 
+const TOOL_OG_IMAGE = "/tool/opengraph-image";
+const TOOL_TWITTER_IMAGE = "/tool/twitter-image";
+
 export const metadata: Metadata = {
   title: "경매 폼 생성기",
   description:
@@ -9,24 +12,24 @@ export const metadata: Metadata = {
     canonical: "https://bredy.app/tool",
   },
   openGraph: {
-    title: "단순 경매 폼 생성기",
+    title: "경매 폼 생성기",
     description: "로그인 후 경매를 등록하고 링크로 공유하는 간단한 경매 폼 생성기",
     type: "website",
     url: "https://bredy.app/tool",
     images: [
       {
-        url: "/tool/opengraph-image",
+        url: TOOL_OG_IMAGE,
         width: 1200,
         height: 630,
-        alt: "단순 경매 폼 생성기",
+        alt: "경매 폼 생성기",
       },
     ],
   },
   twitter: {
     card: "summary_large_image",
-    title: "단순 경매 폼 생성기",
+    title: "경매 폼 생성기",
     description: "로그인 후 경매를 등록하고 링크로 공유하는 간단한 경매 폼 생성기",
-    images: ["/tool/opengraph-image"],
+    images: [TOOL_TWITTER_IMAGE],
   },
 };
 
