@@ -1,0 +1,634 @@
+{
+  "users": [
+    {
+      "seedKey": "han_keeper",
+      "snsId": "service-seed-han-keeper",
+      "provider": "kakao",
+      "name": "한지민브리더",
+      "email": "han.keeper@bredy.kr",
+      "phone": "010-3124-8011",
+      "avatar": "https://picsum.photos/seed/bredy-user-han/400/400",
+      "role": "USER",
+      "status": "ACTIVE"
+    },
+    {
+      "seedKey": "park_nest",
+      "snsId": "service-seed-park-nest",
+      "provider": "naver",
+      "name": "박수빈사육장",
+      "email": "park.nest@bredy.kr",
+      "phone": "010-4538-1770",
+      "avatar": "https://picsum.photos/seed/bredy-user-park/400/400",
+      "role": "USER",
+      "status": "ACTIVE"
+    },
+    {
+      "seedKey": "kim_lab",
+      "snsId": "service-seed-kim-lab",
+      "provider": "google",
+      "name": "김태호인섹트",
+      "email": "kim.lab@bredy.kr",
+      "phone": "010-5662-1193",
+      "avatar": "https://picsum.photos/seed/bredy-user-kim/400/400",
+      "role": "USER",
+      "status": "ACTIVE"
+    },
+    {
+      "seedKey": "jung_store",
+      "snsId": "service-seed-jung-store",
+      "provider": "kakao",
+      "name": "정하늘곤충샵",
+      "email": "jung.store@bredy.kr",
+      "phone": "010-7741-2208",
+      "avatar": "https://picsum.photos/seed/bredy-user-jung/400/400",
+      "role": "USER",
+      "status": "ACTIVE"
+    },
+    {
+      "seedKey": "choi_hobby",
+      "snsId": "service-seed-choi-hobby",
+      "provider": "apple",
+      "name": "최유라키퍼",
+      "email": "choi.hobby@bredy.kr",
+      "phone": "010-6645-9381",
+      "avatar": "https://picsum.photos/seed/bredy-user-choi/400/400",
+      "role": "USER",
+      "status": "ACTIVE"
+    },
+    {
+      "seedKey": "yoon_collect",
+      "snsId": "service-seed-yoon-collect",
+      "provider": "kakao",
+      "name": "윤동호콜렉터",
+      "email": "yoon.collect@bredy.kr",
+      "phone": "010-2187-4405",
+      "avatar": "https://picsum.photos/seed/bredy-user-yoon/400/400",
+      "role": "USER",
+      "status": "ACTIVE"
+    },
+    {
+      "seedKey": "seo_newbie",
+      "snsId": "service-seed-seo-newbie",
+      "provider": "naver",
+      "name": "서민지사육기록",
+      "email": "seo.newbie@bredy.kr",
+      "phone": "010-8291-6002",
+      "avatar": "https://picsum.photos/seed/bredy-user-seo/400/400",
+      "role": "USER",
+      "status": "ACTIVE"
+    },
+    {
+      "seedKey": "hwang_trade",
+      "snsId": "service-seed-hwang-trade",
+      "provider": "google",
+      "name": "황도윤브리딩룸",
+      "email": "hwang.trade@bredy.kr",
+      "phone": "010-9916-7734",
+      "avatar": "https://picsum.photos/seed/bredy-user-hwang/400/400",
+      "role": "USER",
+      "status": "ACTIVE"
+    },
+    {
+      "seedKey": "lee_helper",
+      "snsId": "service-seed-lee-helper",
+      "provider": "kakao",
+      "name": "이가은커뮤니티",
+      "email": "lee.helper@bredy.kr",
+      "phone": "010-3814-5026",
+      "avatar": "https://picsum.photos/seed/bredy-user-lee/400/400",
+      "role": "USER",
+      "status": "ACTIVE"
+    }
+  ],
+  "follows": [
+    { "follower": "seo_newbie", "following": "han_keeper" },
+    { "follower": "seo_newbie", "following": "park_nest" },
+    { "follower": "lee_helper", "following": "kim_lab" },
+    { "follower": "lee_helper", "following": "jung_store" },
+    { "follower": "choi_hobby", "following": "han_keeper" },
+    { "follower": "yoon_collect", "following": "hwang_trade" },
+    { "follower": "hwang_trade", "following": "kim_lab" },
+    { "follower": "park_nest", "following": "jung_store" },
+    { "follower": "kim_lab", "following": "han_keeper" },
+    { "follower": "han_keeper", "following": "yoon_collect" }
+  ],
+  "products": [
+    {
+      "seedKey": "prod_dhh_pair_01",
+      "owner": "han_keeper",
+      "name": "D.H.H 성충 페어 71/43 실측",
+      "description": "우화 후 3개월차, 후식 안정적으로 진행된 페어입니다. 혈통카드와 실측 사진 제공하며, 도착 보증 기준 명확히 안내드립니다.",
+      "price": 210000,
+      "category": "사슴벌레",
+      "tags": ["DHH", "혈통보유", "실측인증", "즉시분양"],
+      "photos": [
+        "https://picsum.photos/seed/bredy-prod-dhh-1/1200/900",
+        "https://picsum.photos/seed/bredy-prod-dhh-2/1200/900"
+      ],
+      "location": "서울 송파구",
+      "status": "판매중",
+      "condition": "건강개체",
+      "deliveryType": "직거래/안전택배",
+      "productType": "생물",
+      "isFeatured": true,
+      "viewCount": 186,
+      "contactCount": 14,
+      "daysAgo": 2
+    },
+    {
+      "seedKey": "prod_lucanus_larva_02",
+      "owner": "park_nest",
+      "name": "왕사슴벌레 3령 유충 5마리 세트",
+      "description": "먹이교체 직후 촬영한 개체입니다. 사육 온도 22~23도 유지했고, 개체별 성장 편차 기록표 같이 전달합니다.",
+      "price": 85000,
+      "category": "사슴벌레",
+      "tags": ["왕사슴벌레", "3령", "세트분양"],
+      "photos": [
+        "https://picsum.photos/seed/bredy-prod-lucanus-1/1200/900",
+        "https://picsum.photos/seed/bredy-prod-lucanus-2/1200/900"
+      ],
+      "location": "경기 성남시",
+      "status": "판매중",
+      "condition": "건강개체",
+      "deliveryType": "안전택배",
+      "productType": "생물",
+      "isFeatured": false,
+      "viewCount": 122,
+      "contactCount": 9,
+      "daysAgo": 5
+    },
+    {
+      "seedKey": "prod_dynastes_male_03",
+      "owner": "kim_lab",
+      "name": "헤라클레스 수컷 149mm 단품",
+      "description": "동면 없이 관리한 개체이며, 활동성/다리 상태 모두 정상입니다. 영상 확인 후 예약 가능합니다.",
+      "price": 320000,
+      "category": "장수풍뎅이",
+      "tags": ["헤라클레스", "성충", "대형개체"],
+      "photos": [
+        "https://picsum.photos/seed/bredy-prod-dynastes-1/1200/900",
+        "https://picsum.photos/seed/bredy-prod-dynastes-2/1200/900"
+      ],
+      "location": "인천 연수구",
+      "status": "판매중",
+      "condition": "최상",
+      "deliveryType": "직거래/안전택배",
+      "productType": "생물",
+      "isFeatured": true,
+      "viewCount": 231,
+      "contactCount": 21,
+      "daysAgo": 1
+    },
+    {
+      "seedKey": "prod_feeding_jelly_04",
+      "owner": "jung_store",
+      "name": "고단백 곤충젤리 100개입",
+      "description": "사슴벌레/장수풍뎅이 전용으로 많이 쓰는 젤리입니다. 유통기한 10개월 이상 남은 박스만 발송합니다.",
+      "price": 17000,
+      "category": "기타곤충",
+      "tags": ["사육용품", "먹이", "대용량"],
+      "photos": [
+        "https://picsum.photos/seed/bredy-prod-jelly-1/1200/900"
+      ],
+      "location": "대전 서구",
+      "status": "판매중",
+      "condition": "새상품",
+      "deliveryType": "택배",
+      "productType": "용품",
+      "isFeatured": false,
+      "viewCount": 74,
+      "contactCount": 5,
+      "daysAgo": 7
+    },
+    {
+      "seedKey": "prod_substrate_05",
+      "owner": "jung_store",
+      "name": "발효매트 40L (입자혼합형)",
+      "description": "유충 성장 단계별로 많이 쓰는 혼합 입자 타입입니다. 냄새 강하지 않고 수분 유지력이 좋아 초보자도 관리가 쉽습니다.",
+      "price": 29000,
+      "category": "기타곤충",
+      "tags": ["발효매트", "사육용품", "유충매트"],
+      "photos": [
+        "https://picsum.photos/seed/bredy-prod-substrate-1/1200/900"
+      ],
+      "location": "대전 서구",
+      "status": "판매중",
+      "condition": "새상품",
+      "deliveryType": "택배",
+      "productType": "용품",
+      "isFeatured": false,
+      "viewCount": 96,
+      "contactCount": 7,
+      "daysAgo": 4
+    },
+    {
+      "seedKey": "prod_tarantula_06",
+      "owner": "choi_hobby",
+      "name": "브라질리안 블랙 유체",
+      "description": "탈피 주기 안정화된 유체입니다. 사육장 세팅표와 급이 기록 함께 공유합니다.",
+      "price": 120000,
+      "category": "타란튤라",
+      "tags": ["타란튤라", "유체", "기록제공"],
+      "photos": [
+        "https://picsum.photos/seed/bredy-prod-tarantula-1/1200/900",
+        "https://picsum.photos/seed/bredy-prod-tarantula-2/1200/900"
+      ],
+      "location": "부산 해운대구",
+      "status": "판매중",
+      "condition": "건강개체",
+      "deliveryType": "안전택배",
+      "productType": "생물",
+      "isFeatured": false,
+      "viewCount": 118,
+      "contactCount": 8,
+      "daysAgo": 6
+    },
+    {
+      "seedKey": "prod_scorpion_07",
+      "owner": "yoon_collect",
+      "name": "아시안 포레스트 전갈 페어",
+      "description": "암수 합사 경험 없는 개체로, 개별 컨디션 유지 중입니다. 수령 후 24시간 내 이상 시 교환 기준 안내합니다.",
+      "price": 98000,
+      "category": "전갈",
+      "tags": ["전갈", "페어", "합사미경험"],
+      "photos": [
+        "https://picsum.photos/seed/bredy-prod-scorpion-1/1200/900"
+      ],
+      "location": "광주 북구",
+      "status": "예약중",
+      "condition": "건강개체",
+      "deliveryType": "직거래/안전택배",
+      "productType": "생물",
+      "isFeatured": false,
+      "viewCount": 89,
+      "contactCount": 6,
+      "daysAgo": 3
+    },
+    {
+      "seedKey": "prod_breeding_case_08",
+      "owner": "hwang_trade",
+      "name": "아크릴 브리딩 케이스 10세트",
+      "description": "통풍홀 가공 완료된 아크릴 케이스입니다. 초보 사육자용으로 가장 문의가 많은 규격입니다.",
+      "price": 54000,
+      "category": "기타곤충",
+      "tags": ["사육용품", "케이스", "묶음판매"],
+      "photos": [
+        "https://picsum.photos/seed/bredy-prod-case-1/1200/900"
+      ],
+      "location": "대구 수성구",
+      "status": "판매중",
+      "condition": "새상품",
+      "deliveryType": "택배",
+      "productType": "용품",
+      "isFeatured": true,
+      "viewCount": 173,
+      "contactCount": 12,
+      "daysAgo": 1
+    },
+    {
+      "seedKey": "prod_japan_beetle_09",
+      "owner": "han_keeper",
+      "name": "일본왕사슴벌레 수컷 78mm",
+      "description": "우화일 2025-11-18 개체입니다. 턱 라인 대칭 좋고 활동성 우수합니다.",
+      "price": 145000,
+      "category": "사슴벌레",
+      "tags": ["일본왕사슴벌레", "단품", "혈통라인"],
+      "photos": [
+        "https://picsum.photos/seed/bredy-prod-japanbeetle-1/1200/900"
+      ],
+      "location": "서울 송파구",
+      "status": "판매완료",
+      "condition": "최상",
+      "deliveryType": "직거래",
+      "productType": "생물",
+      "isFeatured": false,
+      "viewCount": 204,
+      "contactCount": 17,
+      "daysAgo": 9
+    },
+    {
+      "seedKey": "prod_larva_cup_10",
+      "owner": "park_nest",
+      "name": "유충컵 500ml 30개",
+      "description": "투명도 높은 재질이며 뚜껑 고정력이 좋아 장거리 이동에도 안정적입니다.",
+      "price": 23000,
+      "category": "기타곤충",
+      "tags": ["사육용품", "유충컵", "소모품"],
+      "photos": [
+        "https://picsum.photos/seed/bredy-prod-cup-1/1200/900"
+      ],
+      "location": "경기 성남시",
+      "status": "판매중",
+      "condition": "새상품",
+      "deliveryType": "택배",
+      "productType": "용품",
+      "isFeatured": false,
+      "viewCount": 67,
+      "contactCount": 4,
+      "daysAgo": 8
+    },
+    {
+      "seedKey": "prod_goliath_larva_11",
+      "owner": "kim_lab",
+      "name": "골리앗 유충 2령 2개체",
+      "description": "합사 없이 개별 라벨링하여 관리한 개체입니다. 급이 기록표와 온도 로그 전달합니다.",
+      "price": 188000,
+      "category": "장수풍뎅이",
+      "tags": ["골리앗", "유충", "기록관리"],
+      "photos": [
+        "https://picsum.photos/seed/bredy-prod-goliath-1/1200/900",
+        "https://picsum.photos/seed/bredy-prod-goliath-2/1200/900"
+      ],
+      "location": "인천 연수구",
+      "status": "판매중",
+      "condition": "건강개체",
+      "deliveryType": "안전택배",
+      "productType": "생물",
+      "isFeatured": false,
+      "viewCount": 139,
+      "contactCount": 11,
+      "daysAgo": 2
+    },
+    {
+      "seedKey": "prod_accessory_set_12",
+      "owner": "lee_helper",
+      "name": "초보 사육 스타터 패키지",
+      "description": "발효매트, 급이젤리, 핀셋, 온습도 스티커 포함 구성입니다. 신규 가입자 문의 대응용으로 인기 높습니다.",
+      "price": 42000,
+      "category": "기타곤충",
+      "tags": ["입문세트", "사육용품", "추천"],
+      "photos": [
+        "https://picsum.photos/seed/bredy-prod-starter-1/1200/900"
+      ],
+      "location": "서울 마포구",
+      "status": "판매중",
+      "condition": "새상품",
+      "deliveryType": "택배",
+      "productType": "용품",
+      "isFeatured": true,
+      "viewCount": 257,
+      "contactCount": 24,
+      "daysAgo": 0
+    }
+  ],
+  "posts": [
+    {
+      "seedKey": "post_temp_guide_01",
+      "author": "lee_helper",
+      "title": "겨울철 유충 온도관리 체크리스트 공유",
+      "description": "최근 신규 유저 문의가 많아서 기본 체크리스트 올려둡니다. 1) 야간 최저온도 20도 이하로 떨어지지 않게, 2) 환기 주기 고정, 3) 급이 교체일 기록. 실수 줄이는 데 효과 좋았습니다.",
+      "category": "정보",
+      "type": "community",
+      "image": "https://picsum.photos/seed/bredy-post-temp/1200/900",
+      "daysAgo": 1
+    },
+    {
+      "seedKey": "post_shipping_review_02",
+      "author": "seo_newbie",
+      "title": "첫 직거래 후기, 체크하면 좋았던 포인트",
+      "description": "오늘 첫 직거래 해봤는데, 도착 전 실측 사진/영상 받아두니까 확실히 안심됐어요. 커뮤니티에서 알려준 체크리스트 도움 많이 됐습니다.",
+      "category": "후기",
+      "type": "community",
+      "image": "https://picsum.photos/seed/bredy-post-review/1200/900",
+      "daysAgo": 0
+    },
+    {
+      "seedKey": "post_feeding_q_03",
+      "author": "choi_hobby",
+      "title": "타란튤라 급이 주기 질문드립니다",
+      "description": "유체 기준으로 주 2회 급이 중인데 너무 빠른지 궁금합니다. 최근 탈피 후 활동량이 늘어서 급이량 조절 고민 중입니다.",
+      "category": "질문",
+      "type": "community",
+      "image": "https://picsum.photos/seed/bredy-post-feeding/1200/900",
+      "daysAgo": 2
+    },
+    {
+      "seedKey": "post_breedinglog_04",
+      "author": "han_keeper",
+      "title": "D.H.H 라인 브리딩 로그 4주차",
+      "description": "페어링 후 산란매트 교체 타이밍을 4주차 기준으로 잡았더니 산란률이 안정적으로 나왔습니다. 이번 주 실측값도 함께 정리합니다.",
+      "category": "자랑",
+      "type": "community",
+      "image": "https://picsum.photos/seed/bredy-post-log/1200/900",
+      "daysAgo": 3
+    },
+    {
+      "seedKey": "post_case_setting_05",
+      "author": "hwang_trade",
+      "title": "브리딩 케이스 통풍홀 간격 이렇게 맞추면 편해요",
+      "description": "신규 유저분들 요청 많아서 도면 형태로 정리해서 올립니다. 사슴벌레 기준으로 2열 배치가 관리 편했습니다.",
+      "category": "정보",
+      "type": "community",
+      "image": "https://picsum.photos/seed/bredy-post-case/1200/900",
+      "daysAgo": 5
+    },
+    {
+      "seedKey": "post_event_notice_06",
+      "author": "lee_helper",
+      "title": "주말 라이브 경매 예고 (커뮤니티 공동 진행)",
+      "description": "이번 주말 라이브 경매는 초보자도 참여 가능한 가격대로 구성했습니다. 사전 질문은 댓글로 받습니다.",
+      "category": "자유",
+      "type": "community",
+      "image": "https://picsum.photos/seed/bredy-post-event/1200/900",
+      "daysAgo": 1
+    },
+    {
+      "seedKey": "post_photo_show_07",
+      "author": "kim_lab",
+      "title": "오늘 우화한 개체 실측 인증샷",
+      "description": "헤라클레스 수컷 149mm 확인했습니다. 측정 영상은 필요하신 분께 DM으로 공유드릴게요.",
+      "category": "사진",
+      "type": "community",
+      "image": "https://picsum.photos/seed/bredy-post-photo/1200/900",
+      "daysAgo": 0
+    },
+    {
+      "seedKey": "post_new_member_08",
+      "author": "seo_newbie",
+      "title": "신규 가입 인사드립니다",
+      "description": "곤충 사육 시작한 지 2개월차입니다. 게시판 글들 보면서 많이 배우고 있어요. 잘 부탁드립니다.",
+      "category": "자유",
+      "type": "community",
+      "image": "https://picsum.photos/seed/bredy-post-new/1200/900",
+      "daysAgo": 4
+    }
+  ],
+  "likes": [
+    { "post": "post_temp_guide_01", "user": "seo_newbie" },
+    { "post": "post_temp_guide_01", "user": "han_keeper" },
+    { "post": "post_shipping_review_02", "user": "lee_helper" },
+    { "post": "post_shipping_review_02", "user": "park_nest" },
+    { "post": "post_feeding_q_03", "user": "kim_lab" },
+    { "post": "post_breedinglog_04", "user": "yoon_collect" },
+    { "post": "post_case_setting_05", "user": "lee_helper" },
+    { "post": "post_event_notice_06", "user": "hwang_trade" },
+    { "post": "post_photo_show_07", "user": "choi_hobby" }
+  ],
+  "comments": [
+    {
+      "post": "post_temp_guide_01",
+      "user": "park_nest",
+      "comment": "체크리스트 깔끔하네요. 초보자 안내글로 고정해도 좋을 듯합니다."
+    },
+    {
+      "post": "post_temp_guide_01",
+      "user": "seo_newbie",
+      "comment": "덕분에 온도 알람 설정 바로 했어요. 감사합니다!"
+    },
+    {
+      "post": "post_shipping_review_02",
+      "user": "han_keeper",
+      "comment": "첫 거래 잘 마치셨네요. 다음에는 실시간 영상통화 확인도 추천드립니다."
+    },
+    {
+      "post": "post_feeding_q_03",
+      "user": "kim_lab",
+      "comment": "탈피 직후면 개체 반응 보고 급이량 조금씩 올리는 방식이 안전합니다."
+    },
+    {
+      "post": "post_breedinglog_04",
+      "user": "lee_helper",
+      "comment": "로그 템플릿 공유해주실 수 있을까요? 커뮤니티 가이드에 반영해보고 싶어요."
+    },
+    {
+      "post": "post_event_notice_06",
+      "user": "hwang_trade",
+      "comment": "참여합니다. 입찰 단위 안내도 같이 올려주시면 좋겠습니다."
+    },
+    {
+      "post": "post_new_member_08",
+      "user": "choi_hobby",
+      "comment": "환영합니다. 질문 글 올리시면 다들 친절하게 답해주실 거예요."
+    }
+  ],
+  "favs": [
+    { "user": "seo_newbie", "product": "prod_dhh_pair_01" },
+    { "user": "lee_helper", "product": "prod_dynastes_male_03" },
+    { "user": "park_nest", "product": "prod_accessory_set_12" },
+    { "user": "choi_hobby", "product": "prod_substrate_05" },
+    { "user": "yoon_collect", "product": "prod_tarantula_06" },
+    { "user": "han_keeper", "product": "prod_breeding_case_08" }
+  ],
+  "auctions": [
+    {
+      "seedKey": "auction_dhh_elite_01",
+      "seller": "han_keeper",
+      "title": "D.H.H 혈통개체 경매 71mm 수컷",
+      "description": "실측 카드와 우화일 기록 포함해서 올립니다. 하자 발생 시 환불 기준 명확히 적용합니다.",
+      "photos": [
+        "https://picsum.photos/seed/bredy-auction-dhh-1/1200/900",
+        "https://picsum.photos/seed/bredy-auction-dhh-2/1200/900"
+      ],
+      "category": "사슴벌레",
+      "startPrice": 120000,
+      "minBidIncrement": 5000,
+      "status": "진행중",
+      "endInHours": 30,
+      "sellerPhone": "010-3124-8011",
+      "sellerEmail": "han.keeper@bredy.kr",
+      "sellerBlogUrl": "https://blog.naver.com/bredy_han",
+      "sellerCafeNick": "한지민브리더",
+      "sellerBandNick": "브리디한팀",
+      "sellerTrustNote": "실측 사진/영상 요청 즉시 제공 가능, 거래 이력 다수.",
+      "bids": [
+        { "bidder": "park_nest", "amount": 125000, "hoursAgo": 10 },
+        { "bidder": "kim_lab", "amount": 130000, "hoursAgo": 8 },
+        { "bidder": "hwang_trade", "amount": 135000, "hoursAgo": 4 }
+      ]
+    },
+    {
+      "seedKey": "auction_goliath_larva_02",
+      "seller": "kim_lab",
+      "title": "골리앗 유충 2령 3개체 묶음 경매",
+      "description": "급이 로그와 체중 기록 포함, 배송 전 영상 확인 가능합니다.",
+      "photos": [
+        "https://picsum.photos/seed/bredy-auction-goliath-1/1200/900"
+      ],
+      "category": "장수풍뎅이",
+      "startPrice": 90000,
+      "minBidIncrement": 3000,
+      "status": "진행중",
+      "endInHours": 18,
+      "sellerPhone": "010-5662-1193",
+      "sellerEmail": "kim.lab@bredy.kr",
+      "sellerBlogUrl": "https://blog.naver.com/kim_insect_lab",
+      "sellerCafeNick": "김태호인섹트",
+      "sellerBandNick": "곤충연구방",
+      "sellerTrustNote": "최근 3개월 무분쟁 거래 유지.",
+      "bids": [
+        { "bidder": "lee_helper", "amount": 93000, "hoursAgo": 12 },
+        { "bidder": "seo_newbie", "amount": 96000, "hoursAgo": 5 }
+      ]
+    },
+    {
+      "seedKey": "auction_starter_bundle_03",
+      "seller": "lee_helper",
+      "title": "입문자 스타터 번들 라이브 경매",
+      "description": "케이스/젤리/매트 구성 세트를 라이브 경매로 진행합니다. 초보자 대상 안내 포함.",
+      "photos": [
+        "https://picsum.photos/seed/bredy-auction-starter-1/1200/900"
+      ],
+      "category": "기타곤충",
+      "startPrice": 25000,
+      "minBidIncrement": 1000,
+      "status": "진행중",
+      "endInHours": 8,
+      "sellerPhone": "010-3814-5026",
+      "sellerEmail": "lee.helper@bredy.kr",
+      "sellerBlogUrl": "https://blog.naver.com/bredy_community",
+      "sellerCafeNick": "이가은커뮤니티",
+      "sellerBandNick": "브리디커뮤니티",
+      "sellerTrustNote": "커뮤니티 이벤트 경매, 공지 기준 동일 적용.",
+      "bids": [
+        { "bidder": "park_nest", "amount": 26000, "hoursAgo": 7 },
+        { "bidder": "yoon_collect", "amount": 27000, "hoursAgo": 3 },
+        { "bidder": "choi_hobby", "amount": 28000, "hoursAgo": 1 }
+      ]
+    },
+    {
+      "seedKey": "auction_ended_04",
+      "seller": "park_nest",
+      "title": "왕사슴벌레 성충 페어 경매 (종료)",
+      "description": "우화 후 2개월차 페어. 종료 이력 확인용 데이터입니다.",
+      "photos": [
+        "https://picsum.photos/seed/bredy-auction-ended-1/1200/900"
+      ],
+      "category": "사슴벌레",
+      "startPrice": 70000,
+      "minBidIncrement": 2000,
+      "status": "종료",
+      "endInHours": -6,
+      "sellerPhone": "010-4538-1770",
+      "sellerEmail": "park.nest@bredy.kr",
+      "sellerBlogUrl": "https://blog.naver.com/park_breeding",
+      "sellerCafeNick": "박수빈사육장",
+      "sellerBandNick": "왕사슴클럽",
+      "sellerTrustNote": "종료 경매 이력 샘플.",
+      "bids": [
+        { "bidder": "han_keeper", "amount": 74000, "hoursAgo": 20 },
+        { "bidder": "hwang_trade", "amount": 78000, "hoursAgo": 9 }
+      ]
+    },
+    {
+      "seedKey": "auction_failed_05",
+      "seller": "hwang_trade",
+      "title": "전갈 페어 테스트 경매 (유찰)",
+      "description": "입찰이 없을 때 상태 전환 확인을 위한 유찰 이력입니다.",
+      "photos": [
+        "https://picsum.photos/seed/bredy-auction-failed-1/1200/900"
+      ],
+      "category": "전갈",
+      "startPrice": 110000,
+      "minBidIncrement": 3000,
+      "status": "유찰",
+      "endInHours": -20,
+      "sellerPhone": "010-9916-7734",
+      "sellerEmail": "hwang.trade@bredy.kr",
+      "sellerBlogUrl": "https://blog.naver.com/hwang_breed",
+      "sellerCafeNick": "황도윤브리딩룸",
+      "sellerBandNick": "사육거래방",
+      "sellerTrustNote": "유찰 처리 로직 확인용 이력 데이터.",
+      "bids": []
+    }
+  ]
+}
