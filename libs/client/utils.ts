@@ -43,11 +43,19 @@ export function makeImageUrl(
   if (!imageId) {
     return defaultImage as any as string;
   }
-  if (imageId.includes("http")) {
-    // 구글이나 카카오 로그인시 프로필 사진의 경우
-    return imageId;
+  const normalized = imageId.trim();
+  if (!normalized) {
+    return defaultImage as any as string;
   }
-  return `https://imagedelivery.net/OvWZrAz6J6K7n9LKUH5pKw/${imageId}/${variant}`;
+  if (normalized.startsWith("/")) {
+    // 내부 정적 경로(public/*)는 그대로 사용
+    return normalized;
+  }
+  if (normalized.includes("http")) {
+    // 구글이나 카카오 로그인시 프로필 사진의 경우
+    return normalized;
+  }
+  return `https://imagedelivery.net/OvWZrAz6J6K7n9LKUH5pKw/${normalized}/${variant}`;
 }
 
 /**

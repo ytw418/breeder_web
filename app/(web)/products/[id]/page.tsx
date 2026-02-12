@@ -11,6 +11,7 @@ const DEFAULT_OG_IMAGE = "/opengraph-image";
 
 const toPublicImageUrl = (imageId: string | null | undefined) => {
   if (!imageId) return DEFAULT_OG_IMAGE;
+  if (imageId.startsWith("/")) return imageId;
   if (imageId.startsWith("http://") || imageId.startsWith("https://")) {
     return imageId;
   }

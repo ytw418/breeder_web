@@ -17,6 +17,7 @@ const SITE_URL = "https://bredy.app";
 
 const toPublicImageUrl = (imageId: string | null | undefined) => {
   if (!imageId) return DEFAULT_AUCTION_IMAGE;
+  if (imageId.startsWith("/")) return imageId;
   if (imageId.startsWith("http://") || imageId.startsWith("https://")) {
     return imageId;
   }
