@@ -2,6 +2,9 @@
 
 import Link from "next/link";
 import { useState } from "react";
+import { Button } from "@components/ui/button";
+import { Input } from "@components/ui/input";
+import { Textarea } from "@components/ui/textarea";
 
 type CountStat = {
   created: number;
@@ -26,6 +29,19 @@ type BootstrapResponse = {
   message?: string;
   error?: string;
   summary?: BootstrapSummary;
+};
+
+type NoticeResponse = {
+  success?: boolean;
+  error?: string;
+};
+
+type GrantAdminResponse = {
+  success?: boolean;
+  error?: string;
+  updatedCount?: number;
+  foundCount?: number;
+  notFoundEmails?: string[];
 };
 
 const DASHBOARD_MENUS = [
@@ -71,6 +87,16 @@ export default function AdminDashboardPage() {
   const [bootstrapMessage, setBootstrapMessage] = useState("");
   const [bootstrapError, setBootstrapError] = useState("");
   const [bootstrapSummary, setBootstrapSummary] = useState<BootstrapSummary | null>(null);
+  const [noticeTitle, setNoticeTitle] = useState("");
+  const [noticeDescription, setNoticeDescription] = useState("");
+  const [creatingNotice, setCreatingNotice] = useState(false);
+  const [noticeMessage, setNoticeMessage] = useState("");
+  const [noticeError, setNoticeError] = useState("");
+  const [adminEmails, setAdminEmails] = useState("");
+  const [grantingAdmin, setGrantingAdmin] = useState(false);
+  const [grantMessage, setGrantMessage] = useState("");
+  const [grantError, setGrantError] = useState("");
+  const [notFoundEmails, setNotFoundEmails] = useState<string[]>([]);
 
   const handleBootstrapServiceData = async () => {
     const shouldProceed = window.confirm(
@@ -100,37 +126,108 @@ export default function AdminDashboardPage() {
     }
   };
 
+  const handleCreateNotice = async (event: React.FormEvent) => {
+    event.preventDefault();
+    setNoticeError("");
+    setNoticeMessage("");
+
+    if (!noticeTitle.trim() || !noticeDescription.trim()) {
+      setNoticeError("공지 제목과 내용을 입력해주세요.");
+      return;
+    }
+
+    try {
+      setCreatingNotice(true);
+      const res = await fetch("/api/admin/posts", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          action: "create_notice",
+          title: noticeTitle.trim(),
+          description: noticeDescription.trim(),
+        }),
+      });
+      const data = (await res.json()) as NoticeResponse;
+      if (!res.ok || !data.success) {
+        throw new Error(data.error || "공지 등록에 실패했습니다.");
+      }
+      setNoticeTitle("");
+      setNoticeDescription("");
+      setNoticeMessage("공지사항 등록 완료");
+    } catch (error) {
+      setNoticeError(error instanceof Error ? error.message : "요청 중 오류가 발생했습니다.");
+    } finally {
+      setCreatingNotice(false);
+    }
+  };
+
+  const handleGrantAdmins = async (event: React.FormEvent) => {
+    event.preventDefault();
+    setGrantError("");
+    setGrantMessage("");
+    setNotFoundEmails([]);
+
+    const emails = Array.from(
+      new Set(
+        adminEmails
+          .split(/[\n,\s]+/)
+          .map((value) => value.trim().toLowerCase())
+          .filter((value) => value.includes("@"))
+      )
+    );
+
+    if (!emails.length) {
+      setGrantError("이메일을 1개 이상 입력해주세요.");
+      return;
+    }
+
+    try {
+      setGrantingAdmin(true);
+      const res = await fetch("/api/admin/users", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          action: "grant_admin_by_email",
+          emails,
+        }),
+      });
+      const data = (await res.json()) as GrantAdminResponse;
+      if (!res.ok || !data.success) {
+        throw new Error(data.error || "관리자 권한 부여에 실패했습니다.");
+      }
+      setGrantMessage(
+        `완료: 대상 ${data.foundCount || 0}명, 신규 관리자 전환 ${data.updatedCount || 0}명`
+      );
+      setNotFoundEmails(data.notFoundEmails || []);
+    } catch (error) {
+      setGrantError(error instanceof Error ? error.message : "요청 중 오류가 발생했습니다.");
+    } finally {
+      setGrantingAdmin(false);
+    }
+  };
+
   return (
     <div className="space-y-6">
-      <h2 className="text-2xl font-bold text-gray-900">어드민 대시보드</h2>
-
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        {DASHBOARD_MENUS.map((menu) => (
-          <Link
-            key={menu.href}
-            href={menu.href}
-            className="block rounded-xl border border-gray-200 bg-white p-5 hover:border-gray-300 hover:shadow-sm transition-all"
-          >
-            <p className="text-lg font-semibold text-gray-900">{menu.title}</p>
-            <p className="mt-2 text-sm text-gray-500">{menu.description}</p>
-            <p className="mt-4 text-sm font-semibold text-primary">바로가기</p>
-          </Link>
-        ))}
-      </div>
+      <header>
+        <h2 className="text-2xl font-bold text-gray-900">어드민 빠른 실행</h2>
+        <p className="mt-1 text-sm text-gray-500">
+          핵심 작업 3개를 이 화면에서 바로 처리합니다.
+        </p>
+      </header>
 
       <section className="rounded-xl border border-gray-200 bg-white p-5">
-        <p className="text-lg font-semibold text-gray-900">실서비스 초기 데이터 생성</p>
+        <p className="text-lg font-semibold text-gray-900">1) 데이터 생성 (중요)</p>
         <p className="mt-2 text-sm text-gray-500">
-          서비스 체감 품질 확인을 위해 유저/상품/게시글/경매/상호작용 샘플 데이터를 생성합니다.
+          버튼을 누를 때마다 신규 데이터가 누적 추가됩니다.
         </p>
-        <button
+        <Button
           type="button"
           onClick={handleBootstrapServiceData}
           disabled={isGenerating}
-          className="mt-4 rounded-lg bg-gray-900 px-4 py-2 text-sm font-semibold text-white transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50"
+          className="mt-4 h-12 w-full text-base font-bold md:w-auto md:px-8"
         >
-          {isGenerating ? "생성 중..." : "초기 데이터 생성하기"}
-        </button>
+          {isGenerating ? "생성 중..." : "데이터 생성하기"}
+        </Button>
 
         {bootstrapMessage ? (
           <p className="mt-3 text-sm font-medium text-emerald-600">{bootstrapMessage}</p>
@@ -151,6 +248,76 @@ export default function AdminDashboardPage() {
             ))}
           </div>
         ) : null}
+      </section>
+
+      <section className="rounded-xl border border-gray-200 bg-white p-5">
+        <p className="text-lg font-semibold text-gray-900">2) 공지사항 생성</p>
+        <form onSubmit={handleCreateNotice} className="mt-3 space-y-3">
+          <Input
+            placeholder="공지 제목"
+            value={noticeTitle}
+            onChange={(event) => setNoticeTitle(event.target.value)}
+          />
+          <Textarea
+            rows={5}
+            placeholder="공지 내용"
+            value={noticeDescription}
+            onChange={(event) => setNoticeDescription(event.target.value)}
+          />
+          <Button type="submit" disabled={creatingNotice} className="w-full md:w-auto">
+            {creatingNotice ? "등록 중..." : "공지 등록하기"}
+          </Button>
+        </form>
+        {noticeMessage ? (
+          <p className="mt-3 text-sm font-medium text-emerald-600">{noticeMessage}</p>
+        ) : null}
+        {noticeError ? (
+          <p className="mt-3 text-sm font-medium text-rose-600">{noticeError}</p>
+        ) : null}
+      </section>
+
+      <section className="rounded-xl border border-gray-200 bg-white p-5">
+        <p className="text-lg font-semibold text-gray-900">3) 관리자 계정 부여</p>
+        <p className="mt-1 text-sm text-gray-500">
+          여친/동생 이메일을 입력하면 즉시 ADMIN 권한을 부여합니다.
+        </p>
+        <form onSubmit={handleGrantAdmins} className="mt-3 space-y-3">
+          <Textarea
+            rows={3}
+            placeholder={"이메일 입력 (쉼표/줄바꿈 가능)\nexample1@email.com, example2@email.com"}
+            value={adminEmails}
+            onChange={(event) => setAdminEmails(event.target.value)}
+          />
+          <Button type="submit" disabled={grantingAdmin} className="w-full md:w-auto">
+            {grantingAdmin ? "처리 중..." : "관리자 권한 부여"}
+          </Button>
+        </form>
+        {grantMessage ? (
+          <p className="mt-3 text-sm font-medium text-emerald-600">{grantMessage}</p>
+        ) : null}
+        {grantError ? (
+          <p className="mt-3 text-sm font-medium text-rose-600">{grantError}</p>
+        ) : null}
+        {notFoundEmails.length ? (
+          <p className="mt-2 text-xs text-amber-700">
+            계정 없음: {notFoundEmails.join(", ")}
+          </p>
+        ) : null}
+      </section>
+
+      <section className="rounded-xl border border-gray-200 bg-white p-5">
+        <p className="text-sm font-semibold text-gray-800">기타 관리자 메뉴</p>
+        <div className="mt-3 grid grid-cols-1 gap-2 md:grid-cols-2">
+          {DASHBOARD_MENUS.map((menu) => (
+            <Link
+              key={menu.href}
+              href={menu.href}
+              className="rounded-lg border border-gray-100 px-3 py-2 text-sm text-gray-700 hover:bg-gray-50"
+            >
+              {menu.title}
+            </Link>
+          ))}
+        </div>
       </section>
     </div>
   );

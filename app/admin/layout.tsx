@@ -22,18 +22,11 @@ export default function AdminLayout({
 }: {
   children: React.ReactNode;
 }) {
-  const { user, isLoading } = useUser();
+  const { user, isLoading, isAdmin } = useUser();
   const router = useRouter();
   const pathname = usePathname();
   const isAdminLoginPage = pathname === "/admin/login";
-  const normalizedEmail = user?.email?.trim().toLowerCase();
-  const isWhitelistedEmail = normalizedEmail === "ytw418@naver.com";
-  const hasAccess = Boolean(
-    user &&
-      (user.role === "ADMIN" ||
-        user.role === "SUPER_USER" ||
-        isWhitelistedEmail)
-  );
+  const hasAccess = Boolean(user && isAdmin);
 
   useEffect(() => {
     if (isAdminLoginPage) {

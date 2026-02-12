@@ -1,124 +1,75 @@
 {
-  "updatedAt": "2026-02-12T07:15:47.773Z",
+  "updatedAt": "2026-02-12T13:18:16.661Z",
   "entries": [
     {
-      "source": "yahoo_auctions",
-      "url": "https://auctions.yahoo.co.jp/jp/auction/s1184232500",
+      "source": "yahoo_auctions_search",
+      "url": "https://auctions.yahoo.co.jp/search/search?user_type=c&auccat=&tab_ex=commerce&ei=utf-8&aq=-1&oq=&sc_i=&p=%E3%82%AF%E3%83%AF%E3%82%AC%E3%82%BF&x=0&y=0",
       "status": "success",
-      "reason": "곤충 패턴(제목/가격/설명) 수집 완료",
-      "checkedAt": "2026-02-12T07:04:24.507Z"
+      "reason": "쿠와가타 검색 패턴(제목/가격/설명 구조) 반영",
+      "checkedAt": "2026-02-12T13:18:16.661Z"
     },
     {
-      "source": "yahoo_auctions",
-      "url": "https://auctions.yahoo.co.jp/jp/auction/h1190956212",
+      "source": "yahoo_auctions_search",
+      "url": "https://auctions.yahoo.co.jp/search/search?user_type=c&auccat=&tab_ex=commerce&ei=utf-8&aq=-1&oq=&sc_i=&p=%E3%82%AB%E3%83%96%E3%83%88%E3%83%A0%E3%82%B7&x=0&y=0",
       "status": "success",
-      "reason": "관상어 패턴(제목/가격/설명) 수집 완료",
-      "checkedAt": "2026-02-12T07:04:24.507Z"
+      "reason": "카부토무시 검색 패턴 반영",
+      "checkedAt": "2026-02-12T13:18:16.661Z"
     },
     {
-      "source": "yahoo_auctions",
-      "url": "https://auctions.yahoo.co.jp/jp/auction/e1185580858",
+      "source": "yahoo_auctions_search",
+      "url": "https://auctions.yahoo.co.jp/search/search?user_type=c&auccat=&tab_ex=commerce&ei=utf-8&aq=-%E3%85%811&oq=&sc_i=&p=%E3%82%AF%E3%83%AF%E3%82%AC%E3%82%BF&x=0&y=0",
       "status": "success",
-      "reason": "관상어 패턴(제목/가격/설명) 수집 완료",
-      "checkedAt": "2026-02-12T07:04:24.507Z"
+      "reason": "대체 검색 쿼리 기준 입찰 패턴 반영",
+      "checkedAt": "2026-02-12T13:18:16.661Z"
     },
     {
-      "source": "yahoo_auctions",
-      "url": "https://auctions.yahoo.co.jp/jp/auction/t1168045998",
+      "source": "yahoo_auctions_home",
+      "url": "https://auctions.yahoo.co.jp",
       "status": "success",
-      "reason": "식물 패턴(제목/가격/설명) 수집 완료",
-      "checkedAt": "2026-02-12T07:04:24.507Z"
+      "reason": "카테고리 분류 및 거래 용어 톤 확인",
+      "checkedAt": "2026-02-12T13:18:16.661Z"
     },
     {
-      "source": "yahoo_auctions",
-      "url": "https://auctions.yahoo.co.jp/jp/auction/o1192730259",
+      "source": "yahoo_closedsearch",
+      "url": "https://auctions.yahoo.co.jp/closedsearch/closedsearch/2084055856/",
       "status": "success",
-      "reason": "식물 패턴(제목/가격/설명) 수집 완료",
-      "checkedAt": "2026-02-12T07:04:24.507Z"
+      "reason": "곤충 카테고리 가격 범위 패턴 반영",
+      "checkedAt": "2026-02-12T13:18:16.661Z"
     },
     {
-      "source": "yahoo_auctions",
-      "url": "https://auctions.yahoo.co.jp/jp/auction/d1198620271",
+      "source": "yahoo_closedsearch",
+      "url": "https://auctions.yahoo.co.jp/closedsearch/closedsearch/2084061390/",
       "status": "success",
-      "reason": "자동차 패턴(제목/가격/설명) 수집 완료",
-      "checkedAt": "2026-02-12T07:04:24.507Z"
+      "reason": "쿠와가타 낙찰가 평균 패턴 반영",
+      "checkedAt": "2026-02-12T13:18:16.661Z"
     },
     {
-      "source": "yahoo_auctions",
-      "url": "https://auctions.yahoo.co.jp/jp/auction/k1152952978",
+      "source": "yahoo_closedsearch",
+      "url": "https://auctions.yahoo.co.jp/closedsearch/closedsearch/%E5%9B%BD%E7%94%A3%E3%82%AB%E3%83%96%E3%83%88%E3%83%A0%E3%82%B7/2084061397/",
       "status": "success",
-      "reason": "자동차 패턴(제목/가격/설명) 수집 완료",
-      "checkedAt": "2026-02-12T07:04:24.507Z"
+      "reason": "카부토무시 저가 다건 패턴 반영",
+      "checkedAt": "2026-02-12T13:18:16.661Z"
     },
     {
-      "source": "yahoo_auctions",
-      "url": "https://auctions.yahoo.co.jp/jp/auction/q1201409936",
+      "source": "yahoo_auctions_item",
+      "url": "https://auctions.yahoo.co.jp/jp/auction/g1193349002",
       "status": "success",
-      "reason": "자동차 패턴(제목/가격/설명) 수집 완료",
-      "checkedAt": "2026-02-12T07:04:24.507Z"
+      "reason": "메다카 유정란 설명 템플릿 패턴 반영",
+      "checkedAt": "2026-02-12T13:18:16.661Z"
     },
     {
-      "source": "yahoo_auctions",
-      "url": "https://auctions.yahoo.co.jp/jp/auction/u1199192130",
+      "source": "yahoo_auctions_item",
+      "url": "https://auctions.yahoo.co.jp/jp/auction/g1190932988",
       "status": "success",
-      "reason": "도마뱀 패턴(제목/가격/설명) 수집 완료",
-      "checkedAt": "2026-02-12T07:04:24.507Z"
-    },
-    {
-      "source": "yahoo_auctions",
-      "url": "https://auctions.yahoo.co.jp/jp/auction/k1200303085",
-      "status": "success",
-      "reason": "뱀/거북/도마뱀 패턴(제목/가격/설명) 수집 완료",
-      "checkedAt": "2026-02-12T07:04:24.507Z"
-    },
-    {
-      "source": "yahoo_auctions",
-      "url": "https://auctions.yahoo.co.jp/jp/auction/o1084563162",
-      "status": "success",
-      "reason": "거북/도마뱀 패턴(제목/가격/설명) 수집 완료",
-      "checkedAt": "2026-02-12T07:04:24.507Z"
-    },
-    {
-      "source": "yahoo_auctions",
-      "url": "https://auctions.yahoo.co.jp/jp/auction/t1193034824",
-      "status": "success",
-      "reason": "뱀/거북/도마뱀 패턴(제목/가격/설명) 수집 완료",
-      "checkedAt": "2026-02-12T07:04:24.507Z"
-    },
-    {
-      "source": "naver_cafe_section",
-      "url": "https://section.cafe.naver.com/ca-fe/home/search/articles?q=%ED%81%AC%EB%A0%88&t=1770879479942",
-      "status": "failed",
-      "reason": "접근 실패(로그인/동적 페이지 응답 제한)로 본문 패턴 수집 불가",
-      "checkedAt": "2026-02-12T07:04:24.507Z"
-    },
-    {
-      "source": "yahoo_auctions",
-      "url": "https://auctions.yahoo.co.jp/jp/auction/s1184232500",
-      "status": "success",
-      "reason": "제목/가격/설명 패턴 재확인 후 시드 문구 갱신",
-      "checkedAt": "2026-02-12T07:15:47.773Z"
-    },
-    {
-      "source": "yahoo_auctions",
-      "url": "https://auctions.yahoo.co.jp/jp/auction/h1190956212",
-      "status": "success",
-      "reason": "관상어 유정란 거래 패턴 재확인",
-      "checkedAt": "2026-02-12T07:15:47.773Z"
-    },
-    {
-      "source": "yahoo_auctions",
-      "url": "https://auctions.yahoo.co.jp/jp/auction/k1200303085",
-      "status": "success",
-      "reason": "케이지/파충류 용품 거래 패턴 재확인",
-      "checkedAt": "2026-02-12T07:15:47.773Z"
+      "reason": "파충류 케이지 규격/즉결가 표기 패턴 반영",
+      "checkedAt": "2026-02-12T13:18:16.661Z"
     },
     {
       "source": "naver_cafe_section",
       "url": "https://section.cafe.naver.com/ca-fe/home/search/articles?q=%ED%81%AC%EB%A0%88&t=1770879479942",
       "status": "failed",
       "reason": "접근 실패(로그인/동적 로딩 제한)로 패턴 수집 스킵",
-      "checkedAt": "2026-02-12T07:15:47.773Z"
+      "checkedAt": "2026-02-12T13:18:16.661Z"
     }
   ]
 }

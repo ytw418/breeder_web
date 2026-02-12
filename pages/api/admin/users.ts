@@ -36,12 +36,72 @@ async function handler(req: NextApiRequest, res: NextApiResponse<ResponseType>) 
   }
 
   if (req.method === "POST") {
-    const { userId, action, role } = req.body;
+    const { userId, action, role, email, emails } = req.body;
 
-    if (!userId || !action) {
+    if (!action) {
       return res
         .status(400)
         .json({ success: false, error: "필수 파라미터가 누락되었습니다." });
+    }
+
+    if (action === "grant_admin_by_email") {
+      const candidates = Array.isArray(emails)
+        ? emails
+        : email
+          ? [email]
+          : [];
+
+      const normalizedEmails = Array.from(
+        new Set(
+          candidates
+            .map((item: unknown) => String(item || "").trim().toLowerCase())
+            .filter((item: string) => item.includes("@"))
+        )
+      );
+
+      if (!normalizedEmails.length) {
+        return res
+          .status(400)
+          .json({ success: false, error: "유효한 이메일을 입력해주세요." });
+      }
+
+      const users = await client.user.findMany({
+        where: {
+          email: { in: normalizedEmails },
+        },
+        select: {
+          id: true,
+          email: true,
+          name: true,
+          role: true,
+        },
+      });
+
+      const foundEmailSet = new Set(users.map((item) => item.email?.toLowerCase()).filter(Boolean));
+      const notFoundEmails = normalizedEmails.filter((item) => !foundEmailSet.has(item));
+
+      let updatedCount = 0;
+      for (const target of users) {
+        if (target.role === "SUPER_USER" || target.role === "ADMIN") continue;
+        await client.user.update({
+          where: { id: target.id },
+          data: { role: "ADMIN" },
+        });
+        updatedCount += 1;
+      }
+
+      return res.json({
+        success: true,
+        updatedCount,
+        foundCount: users.length,
+        notFoundEmails,
+      });
+    }
+
+    if (!userId) {
+      return res
+        .status(400)
+        .json({ success: false, error: "유저 ID가 필요합니다." });
     }
 
     if (action === "update_role") {

@@ -8,13 +8,16 @@ import MySaleHistroyMenu from "@components/features/profile/MySaleHistroyMenu";
 import MyPostList from "@components/features/profile/myPostList";
 import { Button } from "@components/ui/button";
 import { cn } from "@libs/client/utils";
+import { USER_INFO } from "@libs/constants";
 import useUser from "hooks/useUser";
+import useMutation from "hooks/useMutation";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
   GuinnessSubmission,
   GuinnessSubmissionsResponse,
 } from "pages/api/guinness/submissions";
+import { LoginReqBody, LoginResponseType } from "pages/api/auth/login";
 import useSWR from "swr";
 import { UserResponse } from "pages/api/users/[id]";
 import { useMemo, useState } from "react";
@@ -116,10 +119,14 @@ const GuinnessSubmissionList = ({
 };
 
 const MyPageClient = () => {
-  const { user } = useUser();
+  const { user, isAdmin, mutate: mutateUser } = useUser();
   const router = useRouter();
   const handleLogout = useLogout();
   const [activeTab, setActiveTab] = useState<ActivityTab>("posts");
+  const [switchError, setSwitchError] = useState("");
+  const [switchMessage, setSwitchMessage] = useState("");
+  const [loginWithProvider, { loading: switchingGoogle }] =
+    useMutation<LoginResponseType>("/api/auth/login");
 
   // _count 포함된 유저 정보 가져오기
   const { data } = useSWR<UserResponse>(
@@ -153,6 +160,57 @@ const MyPageClient = () => {
     comments: profileUser?._count?.Comments ?? 0,
     guinness: mySubmissions.length,
     products: profileUser?._count?.products ?? 0,
+  };
+
+  const providerLabel =
+    user?.provider === USER_INFO.provider.GOOGLE
+      ? "Google"
+      : user?.provider === USER_INFO.provider.APPLE
+        ? "Apple"
+        : "Kakao";
+
+  const handleSwitchToGoogle = async () => {
+    setSwitchError("");
+    setSwitchMessage("");
+
+    try {
+      const [{ getAuth, GoogleAuthProvider, signInWithPopup }, { app }] =
+        await Promise.all([import("firebase/auth"), import("@/firebase")]);
+      const auth = getAuth(app);
+      const provider = new GoogleAuthProvider();
+      provider.setCustomParameters({ prompt: "select_account" });
+      const { user: googleUser } = await signInWithPopup(auth, provider);
+
+      if (!googleUser?.uid) {
+        throw new Error("구글 계정 정보를 가져오지 못했습니다.");
+      }
+
+      const body: LoginReqBody = {
+        snsId: googleUser.uid,
+        name:
+          googleUser.displayName || googleUser.email?.split("@")[0] || "Google User",
+        provider: USER_INFO.provider.GOOGLE,
+        email: googleUser.email,
+        avatar: googleUser.photoURL || undefined,
+      };
+
+      const result = await loginWithProvider({
+        data: body,
+      });
+      if (!result?.success) {
+        throw new Error(result?.error || "구글 계정 전환에 실패했습니다.");
+      }
+
+      await mutateUser();
+      setSwitchMessage("구글 계정으로 전환되었습니다.");
+      router.refresh();
+    } catch (error) {
+      setSwitchError(
+        error instanceof Error
+          ? error.message
+          : "구글 계정 전환에 실패했습니다."
+      );
+    }
   };
 
   return (
@@ -239,6 +297,51 @@ const MyPageClient = () => {
             로그아웃
           </Button>
         </div>
+        {isAdmin ? (
+          <div className="mt-2 space-y-2">
+            <Link
+              href="/admin"
+              className="inline-flex h-10 w-full items-center justify-center rounded-lg bg-slate-900 text-sm font-semibold text-white"
+            >
+              관리자 페이지로 이동
+            </Link>
+            <div className="rounded-lg border border-slate-200 bg-slate-50 p-3">
+              <p className="text-xs font-semibold text-slate-700">
+                관리자 계정 전환
+              </p>
+              <p className="mt-1 text-xs text-slate-600">
+                현재 로그인: {providerLabel}
+              </p>
+              <div className="mt-2 grid grid-cols-1 gap-2 sm:grid-cols-2">
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="w-full"
+                  onClick={handleSwitchToGoogle}
+                  disabled={switchingGoogle}
+                >
+                  {switchingGoogle ? "전환 중..." : "구글 계정으로 전환"}
+                </Button>
+                <Link
+                  href="/auth/login?next=%2FmyPage"
+                  className="inline-flex h-10 items-center justify-center rounded-md border border-slate-300 bg-white px-3 text-sm font-medium text-slate-700"
+                >
+                  카카오 로그인으로 전환
+                </Link>
+              </div>
+              {switchMessage ? (
+                <p className="mt-2 text-xs font-semibold text-emerald-600">
+                  {switchMessage}
+                </p>
+              ) : null}
+              {switchError ? (
+                <p className="mt-2 text-xs font-semibold text-rose-600">
+                  {switchError}
+                </p>
+              ) : null}
+            </div>
+          </div>
+        ) : null}
       </div>
 
       {/* 구분선 */}

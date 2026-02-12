@@ -25,7 +25,7 @@ const getSafeAdminPath = (rawPath: string | null) => {
 };
 
 export default function AdminLoginPage() {
-  const { user, isLoading } = useUser();
+  const { user, isLoading, isAdmin } = useUser();
   const router = useRouter();
   const searchParams = useSearchParams();
   const logout = useLogout();
@@ -35,13 +35,7 @@ export default function AdminLoginPage() {
     [searchParams]
   );
 
-  const normalizedEmail = user?.email?.trim().toLowerCase();
-  const hasAccess = Boolean(
-    user &&
-      (user.role === "ADMIN" ||
-        user.role === "SUPER_USER" ||
-        normalizedEmail === "ytw418@naver.com")
-  );
+  const hasAccess = Boolean(user && isAdmin);
 
   useEffect(() => {
     if (!isLoading && hasAccess) {
