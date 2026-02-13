@@ -33,12 +33,11 @@ export async function generateStaticParams() {
   const products = await client.product.findMany({
     select: {
       id: true,
-      name: true,
     },
   });
 
   return products.map((product) => ({
-    id: `${product.id}-${product.name}`,
+    id: String(product.id),
   }));
 }
 
@@ -58,19 +57,9 @@ export const revalidate = 60;
  */
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const productId = params.id.split("-")[0];
-  console.info("[products/page][generateMetadata:start]", {
-    rawParam: params.id,
-    productId,
-  });
-  const data = await getProduct(productId);
+  const data = await getProduct(productId, { mode: "isr", revalidateSeconds: 60 });
 
   if (!data.success || !data.product) {
-    console.warn("[products/page][generateMetadata:not-found]", {
-      rawParam: params.id,
-      productId,
-      success: data.success,
-      error: data.error || null,
-    });
     return {
       title: "상품을 찾을 수 없습니다",
       description: "요청한 상품을 찾을 수 없습니다.",
@@ -211,19 +200,9 @@ function generateBreadcrumbJsonLd(product: any) {
  */
 export default async function ProductPage({ params }: Props) {
   const productId = params.id.split("-")[0];
-  console.info("[products/page][render:start]", {
-    rawParam: params.id,
-    productId,
-  });
-  const data = await getProduct(productId);
+  const data = await getProduct(productId, { mode: "isr", revalidateSeconds: 60 });
 
   if (!data.success || !data.product) {
-    console.warn("[products/page][render:notFound]", {
-      rawParam: params.id,
-      productId,
-      success: data.success,
-      error: data.error || null,
-    });
     notFound();
   }
 

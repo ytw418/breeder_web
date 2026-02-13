@@ -19,6 +19,8 @@ import {
 } from "@libs/auctionRules";
 import { getAuctionErrorMessage } from "@libs/client/auctionErrorMessage";
 
+const DETAIL_FALLBACK_IMAGE = "/images/placeholders/detail-fallback-white.svg";
+
 interface AuctionReportResponse {
   success: boolean;
   error?: string;
@@ -110,6 +112,10 @@ const AuctionDetailClient = () => {
   const isToolRoute = pathname?.startsWith("/tool");
   const loginPath = isToolRoute ? "/tool/login" : "/auth/login";
   const hasBottomBidLayer = auction?.status === "진행중" && !data?.isOwner;
+  const mainImageSrc =
+    auction?.photos?.[imageIndex]
+      ? makeImageUrl(auction.photos[imageIndex], "public")
+      : DETAIL_FALLBACK_IMAGE;
 
   const normalizeBidAmount = (targetAmount: number) => {
     if (!auction) return 0;
@@ -299,18 +305,15 @@ const AuctionDetailClient = () => {
       >
         {/* 이미지 슬라이더 */}
         <div className="relative aspect-[4/3] bg-gray-100">
-          {auction.photos?.[imageIndex] ? (
-            <Image
-              src={makeImageUrl(auction.photos[imageIndex], "public")}
-              className="object-cover"
-              alt={auction.title}
-              fill
-              sizes="600px"
-              priority
-            />
-          ) : (
-            <div className="w-full h-full bg-gray-200" />
-          )}
+          <Image
+            src={mainImageSrc}
+            fallbackSrc={DETAIL_FALLBACK_IMAGE}
+            className="object-cover"
+            alt={auction.title}
+            fill
+            sizes="600px"
+            priority
+          />
           {auction.photos.length > 1 && (
             <div className="absolute bottom-3 left-1/2 -translate-x-1/2 flex gap-1.5">
               {auction.photos.map((_, i) => (

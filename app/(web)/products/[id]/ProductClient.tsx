@@ -15,6 +15,8 @@ import { ChatResponseType } from "pages/api/chat";
 import { toast } from "react-toastify";
 import useConfirmDialog from "hooks/useConfirmDialog";
 
+const DETAIL_FALLBACK_IMAGE = "/images/placeholders/detail-fallback-white.svg";
+
 /**
  * 상품 상세 페이지의 클라이언트 컴포넌트
  * @param product - 상품 상세 정보
@@ -256,6 +258,10 @@ const ProductClient = ({ product, relatedProducts }: ItemDetailResponse) => {
   const currentStatus = data?.product?.status || product?.status || "판매중";
   const isOwner = user?.id === product?.user?.id;
   const hasPurchased = data?.hasPurchased || false;
+  const mainImageSrc =
+    product?.photos && product.photos.length > 0
+      ? makeImageUrl(product.photos[currentImageIndex], "public")
+      : DETAIL_FALLBACK_IMAGE;
 
   return (
     <Layout
@@ -272,82 +278,74 @@ const ProductClient = ({ product, relatedProducts }: ItemDetailResponse) => {
             onTouchMove={handleTouchMove}
             onTouchEnd={handleTouchEnd}
           >
-            {product?.photos && product.photos.length > 0 ? (
+            <Image
+              src={mainImageSrc}
+              fallbackSrc={DETAIL_FALLBACK_IMAGE}
+              className="object-cover"
+              alt={`상품 이미지 ${currentImageIndex + 1}`}
+              fill={true}
+              sizes="600px"
+              priority={true}
+              quality={100}
+            />
+            {/* 이미지 네비게이션 버튼 */}
+            {product?.photos && product.photos.length > 1 && (
               <>
-                <Image
-                  src={makeImageUrl(
-                    product.photos[currentImageIndex],
-                    "public"
-                  )}
-                  className="object-cover"
-                  alt={`상품 이미지 ${currentImageIndex + 1}`}
-                  fill={true}
-                  sizes="600px"
-                  priority={true}
-                  quality={100}
-                />
-                {/* 이미지 네비게이션 버튼 */}
-                {product.photos.length > 1 && (
-                  <>
+                <button
+                  onClick={prevImage}
+                  className="absolute left-2 top-1/2 -translate-y-1/2 rounded-full bg-black/35 p-2 text-white transition-all hover:bg-black/55 opacity-0 group-hover:opacity-100"
+                  aria-label="이전 이미지"
+                >
+                  <svg
+                    className="w-5 h-5"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M15 19l-7-7 7-7"
+                    />
+                  </svg>
+                </button>
+                <button
+                  onClick={nextImage}
+                  className="absolute right-2 top-1/2 -translate-y-1/2 rounded-full bg-black/35 p-2 text-white transition-all hover:bg-black/55 opacity-0 group-hover:opacity-100"
+                  aria-label="다음 이미지"
+                >
+                  <svg
+                    className="w-5 h-5"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M9 5l7 7-7 7"
+                    />
+                  </svg>
+                </button>
+                {/* 이미지 인디케이터 */}
+                <div className="absolute bottom-4 left-1/2 -translate-x-1/2 flex gap-2">
+                  {product.photos.map((_, index) => (
                     <button
-                      onClick={prevImage}
-                      className="absolute left-2 top-1/2 -translate-y-1/2 rounded-full bg-black/35 p-2 text-white transition-all hover:bg-black/55 opacity-0 group-hover:opacity-100"
-                      aria-label="이전 이미지"
-                    >
-                      <svg
-                        className="w-5 h-5"
-                        fill="none"
-                        stroke="currentColor"
-                        viewBox="0 0 24 24"
-                      >
-                        <path
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                          strokeWidth={2}
-                          d="M15 19l-7-7 7-7"
-                        />
-                      </svg>
-                    </button>
-                    <button
-                      onClick={nextImage}
-                      className="absolute right-2 top-1/2 -translate-y-1/2 rounded-full bg-black/35 p-2 text-white transition-all hover:bg-black/55 opacity-0 group-hover:opacity-100"
-                      aria-label="다음 이미지"
-                    >
-                      <svg
-                        className="w-5 h-5"
-                        fill="none"
-                        stroke="currentColor"
-                        viewBox="0 0 24 24"
-                      >
-                        <path
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                          strokeWidth={2}
-                          d="M9 5l7 7-7 7"
-                        />
-                      </svg>
-                    </button>
-                    {/* 이미지 인디케이터 */}
-                    <div className="absolute bottom-4 left-1/2 -translate-x-1/2 flex gap-2">
-                      {product.photos.map((_, index) => (
-                        <button
-                          key={index}
-                          onClick={() => setCurrentImageIndex(index)}
-                          className={cn(
-                            "w-2 h-2 rounded-full transition-all",
-                            currentImageIndex === index
-                              ? "bg-white dark:bg-white"
-                              : "bg-white/50 dark:bg-white/50"
-                          )}
-                          aria-label={`${index + 1}번 이미지로 이동`}
-                        />
-                      ))}
-                    </div>
-                  </>
-                )}
+                      key={index}
+                      onClick={() => setCurrentImageIndex(index)}
+                      className={cn(
+                        "w-2 h-2 rounded-full transition-all",
+                        currentImageIndex === index
+                          ? "bg-white dark:bg-white"
+                          : "bg-white/50 dark:bg-white/50"
+                      )}
+                      aria-label={`${index + 1}번 이미지로 이동`}
+                    />
+                  ))}
+                </div>
               </>
-            ) : (
-              <div className="w-full h-full bg-gray-100" />
             )}
           </div>
 
@@ -580,8 +578,14 @@ const ProductClient = ({ product, relatedProducts }: ItemDetailResponse) => {
                   className="group focus:outline-none"
                 >
                   <div className="relative aspect-square overflow-hidden bg-slate-100">
+                    {/** 연관 상품도 이미지 누락/오류 시 동일한 기본 이미지를 사용한다. */}
                     <Image
-                      src={makeImageUrl(product.photos?.[0] || "", "product")}
+                      src={
+                        product.photos?.[0]
+                          ? makeImageUrl(product.photos[0], "product")
+                          : DETAIL_FALLBACK_IMAGE
+                      }
+                      fallbackSrc={DETAIL_FALLBACK_IMAGE}
                       alt={product.name}
                       fill={true}
                       sizes="100%"

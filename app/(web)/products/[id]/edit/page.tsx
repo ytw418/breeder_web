@@ -5,7 +5,7 @@ import { getProduct } from "@libs/server/apis";
 const page = async ({ params: { id } }: { params: { id: string } }) => {
   const productId = id.split("-")[0];
 
-  const data = await getProduct(productId);
+  const data = await getProduct(productId, { mode: "no-store" });
 
   return (
     <div>

@@ -30,7 +30,7 @@ export default function Item({
 }: ItemProps) {
   return (
     <Link
-      href={`/products/${id}-${title}`}
+      href={`/products/${id}`}
       className={cn(
         "block overflow-hidden",
         minimal
