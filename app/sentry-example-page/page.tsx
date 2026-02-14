@@ -1,19 +1,32 @@
 "use client";
 
 import { useState } from "react";
+import { ANALYTICS_EVENTS, trackEvent } from "@libs/client/analytics";
 
 export default function SentryExamplePage() {
   const [loading, setLoading] = useState(false);
 
   const triggerClientError = () => {
+    trackEvent(ANALYTICS_EVENTS.sentryExampleClientErrorClicked, {
+      path: "/sentry-example-page",
+    });
     throw new Error("Sentry test error from /sentry-example-page");
   };
 
   const triggerApiError = async () => {
+    trackEvent(ANALYTICS_EVENTS.sentryExampleApiErrorClicked, {
+      path: "/sentry-example-page",
+    });
     setLoading(true);
     try {
       const res = await fetch("/api/sentry-example-api");
-      if (!res.ok) throw new Error(`API status ${res.status}`);
+      if (!res.ok) {
+        trackEvent(ANALYTICS_EVENTS.sentryExampleApiErrorReceived, {
+          path: "/sentry-example-page",
+          status: res.status,
+        });
+        throw new Error(`API status ${res.status}`);
+      }
     } finally {
       setLoading(false);
     }

@@ -8,12 +8,13 @@ import MarkdownPreview from "@components/features/product/MarkdownPreview";
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import { ItemDetailResponse } from "pages/api/products/[id]";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import useSWR, { useSWRConfig } from "swr";
 
 import { ChatResponseType } from "pages/api/chat";
 import { toast } from "react-toastify";
 import useConfirmDialog from "hooks/useConfirmDialog";
+import { ANALYTICS_EVENTS, trackEvent } from "@libs/client/analytics";
 
 const DETAIL_FALLBACK_IMAGE = "/images/placeholders/detail-fallback-white.svg";
 
@@ -101,6 +102,14 @@ const ProductClient = ({ product, relatedProducts }: ItemDetailResponse) => {
    * 관심 상품 등록/취소 핸들러
    */
   const onFavClick = () => {
+    trackEvent(ANALYTICS_EVENTS.productFavoriteClicked, {
+      product_id: product?.id || null,
+      seller_id: product?.user?.id || null,
+      user_id: user?.id || null,
+      action: isLiked ? "unfavorite" : "favorite",
+      requires_login: !user,
+    });
+
     if (!user) {
       return router.push("/auth/login");
     }
@@ -113,12 +122,22 @@ const ProductClient = ({ product, relatedProducts }: ItemDetailResponse) => {
       data: {},
       onCompleted(result) {
         if (!result.success) {
+          trackEvent(ANALYTICS_EVENTS.productFavoriteFailed, {
+            product_id: product?.id || null,
+            user_id: user?.id || null,
+            error: result.error || "favorite_toggle_failed",
+          });
           // 실패 시 롤백
           boundMutate();
           toast.error("관심목록 처리에 실패했습니다.");
         }
       },
       onError() {
+        trackEvent(ANALYTICS_EVENTS.productFavoriteFailed, {
+          product_id: product?.id || null,
+          user_id: user?.id || null,
+          error: "network_error",
+        });
         // 에러 시 롤백
         boundMutate();
         toast.error("오류가 발생했습니다. 다시 시도해주세요.");
@@ -150,6 +169,13 @@ const ProductClient = ({ product, relatedProducts }: ItemDetailResponse) => {
    * 판매자와 채팅 시작 핸들러
    */
   const onContactClick = () => {
+    trackEvent(ANALYTICS_EVENTS.productChatClicked, {
+      product_id: product?.id || null,
+      seller_id: product?.user?.id || null,
+      user_id: user?.id || null,
+      requires_login: !user,
+    });
+
     if (!user) {
       return router.push("/auth/login");
     }
@@ -162,12 +188,27 @@ const ProductClient = ({ product, relatedProducts }: ItemDetailResponse) => {
       },
       onCompleted: (result) => {
         if (result.success && result.ChatRoomId) {
+          trackEvent(ANALYTICS_EVENTS.productChatRoomCreated, {
+            product_id: product?.id || null,
+            chat_room_id: result.ChatRoomId,
+            user_id: user?.id || null,
+          });
           router.push(`/chat/${result.ChatRoomId}`);
         } else {
+          trackEvent(ANALYTICS_EVENTS.productChatRoomCreateFailed, {
+            product_id: product?.id || null,
+            user_id: user?.id || null,
+            error: result.error || "chat_room_create_failed",
+          });
           toast.error(result.error || "채팅방 생성에 실패했습니다.");
         }
       },
       onError: (error) => {
+        trackEvent(ANALYTICS_EVENTS.productChatRoomCreateFailed, {
+          product_id: product?.id || null,
+          user_id: user?.id || null,
+          error: error instanceof Error ? error.message : "unknown_error",
+        });
         console.error("Error in onContactClick:", error);
         toast.error("오류가 발생했습니다.");
       },
@@ -191,6 +232,10 @@ const ProductClient = ({ product, relatedProducts }: ItemDetailResponse) => {
           action: "delete",
         },
       });
+      trackEvent(ANALYTICS_EVENTS.productDeleted, {
+        product_id: product?.id || null,
+        user_id: user?.id || null,
+      });
       toast.success("상품이 삭제되었습니다.");
       router.push("/");
     } catch (error) {
@@ -211,6 +256,11 @@ const ProductClient = ({ product, relatedProducts }: ItemDetailResponse) => {
     await updateStatus({
       data: { action: "status_change", data: { status: newStatus } },
       onCompleted() {
+        trackEvent(ANALYTICS_EVENTS.productStatusChanged, {
+          product_id: product?.id || null,
+          user_id: user?.id || null,
+          next_status: newStatus,
+        });
         boundMutate();
         toast.success(`상태가 "${newStatus}"으로 변경되었습니다.`);
       },
@@ -230,6 +280,10 @@ const ProductClient = ({ product, relatedProducts }: ItemDetailResponse) => {
     await updateStatus({
       data: { action: "sold" },
       onCompleted() {
+        trackEvent(ANALYTICS_EVENTS.productMarkedSold, {
+          product_id: product?.id || null,
+          user_id: user?.id || null,
+        });
         boundMutate();
         toast.success("판매완료 처리되었습니다.");
       },
@@ -248,6 +302,11 @@ const ProductClient = ({ product, relatedProducts }: ItemDetailResponse) => {
     await updateStatus({
       data: { action: "purchase" },
       onCompleted() {
+        trackEvent(ANALYTICS_EVENTS.productPurchaseConfirmed, {
+          product_id: product?.id || null,
+          user_id: user?.id || null,
+          seller_id: product?.user?.id || null,
+        });
         boundMutate();
         toast.success("구매확정 되었습니다.");
       },
@@ -262,6 +321,28 @@ const ProductClient = ({ product, relatedProducts }: ItemDetailResponse) => {
     product?.photos && product.photos.length > 0
       ? makeImageUrl(product.photos[currentImageIndex], "public")
       : DETAIL_FALLBACK_IMAGE;
+
+  useEffect(() => {
+    if (!product?.id) return;
+
+    trackEvent(ANALYTICS_EVENTS.productDetailViewed, {
+      product_id: product.id,
+      product_name: product.name,
+      product_category: product.category,
+      product_price: product.price,
+      seller_id: product.user?.id || null,
+      user_id: user?.id || null,
+      photo_count: product.photos?.length || 0,
+    });
+  }, [
+    product?.id,
+    product?.name,
+    product?.category,
+    product?.price,
+    product?.user?.id,
+    product?.photos?.length,
+    user?.id,
+  ]);
 
   return (
     <Layout

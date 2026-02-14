@@ -17,6 +17,7 @@ import { Product } from "@prisma/client";
 import SkeletonItem from "@components/atoms/SkeletonItem";
 import { cn, makeImageUrl } from "@libs/client/utils";
 import { CATEGORIES } from "@libs/constants";
+import { ANALYTICS_EVENTS, trackEvent } from "@libs/client/analytics";
 import { AuctionsListResponse } from "pages/api/auctions";
 import { PopularProductsResponse } from "pages/api/products/popular";
 import useUser from "hooks/useUser";
@@ -126,6 +127,11 @@ const MainClient = () => {
 
   // 카테고리 변경 시 목록 초기화
   const handleCategoryChange = (categoryId: string) => {
+    trackEvent(ANALYTICS_EVENTS.homeCategorySelected, {
+      selected_category: categoryId,
+      previous_category: selectedCategory,
+      user_id: user?.id || null,
+    });
     setSelectedCategory(categoryId);
   };
 
@@ -172,9 +178,17 @@ const MainClient = () => {
     }
 
     try {
+      trackEvent(ANALYTICS_EVENTS.homePostLoginInstallClicked, {
+        user_id: user?.id || null,
+      });
       setInstallLoading(true);
       await deferredInstallPrompt.prompt();
-      await deferredInstallPrompt.userChoice;
+      const userChoice = await deferredInstallPrompt.userChoice;
+      trackEvent(ANALYTICS_EVENTS.homePostLoginInstallCompleted, {
+        user_id: user?.id || null,
+        install_outcome: userChoice?.outcome || "unknown",
+        platform: userChoice?.platform || "unknown",
+      });
       setDeferredInstallPrompt(null);
       setShowPostLoginGuide(false);
     } finally {
@@ -183,6 +197,9 @@ const MainClient = () => {
   };
 
   const handleGoPushSettings = () => {
+    trackEvent(ANALYTICS_EVENTS.homePostLoginPushSettingsClicked, {
+      user_id: user?.id || null,
+    });
     setShowPostLoginGuide(false);
     router.push("/settings");
   };
@@ -239,6 +256,14 @@ const MainClient = () => {
               <Link
                 key={banner.id}
                 href={banner.href}
+                onClick={() =>
+                  trackEvent(ANALYTICS_EVENTS.homeBannerClicked, {
+                    banner_id: banner.id,
+                    banner_title: banner.title,
+                    banner_href: banner.href,
+                    user_id: user?.id || null,
+                  })
+                }
                 className={cn(
                   "snap-start shrink-0 w-[84%] app-card app-card-interactive p-5 text-white bg-gradient-to-r relative overflow-hidden border-transparent",
                   banner.bgClass || "from-gray-500 to-gray-600"
@@ -309,6 +334,14 @@ const MainClient = () => {
                 <Link
                   key={product.id}
                   href={`/products/${product.id}`}
+                  onClick={() =>
+                    trackEvent(ANALYTICS_EVENTS.homePopularProductClicked, {
+                      product_id: product.id,
+                      product_name: product.name,
+                      rank_index: index,
+                      user_id: user?.id || null,
+                    })
+                  }
                   className="snap-start shrink-0 w-40 app-card app-card-interactive overflow-hidden"
                 >
                   <div className="relative aspect-square bg-gray-100">
@@ -370,6 +403,15 @@ const MainClient = () => {
               <Link
                 key={auction.id}
                 href={`/auctions/${auction.id}`}
+                onClick={() =>
+                  trackEvent(ANALYTICS_EVENTS.homeOngoingAuctionClicked, {
+                    auction_id: auction.id,
+                    auction_title: auction.title,
+                    rank_index: index,
+                    current_price: auction.currentPrice,
+                    user_id: user?.id || null,
+                  })
+                }
                 className="snap-start shrink-0 w-56 app-card app-card-interactive overflow-hidden"
               >
                 <div className="relative aspect-[4/3] bg-gray-100">
@@ -545,7 +587,12 @@ const MainClient = () => {
               </button>
               <button
                 type="button"
-                onClick={() => setShowPostLoginGuide(false)}
+                onClick={() => {
+                  trackEvent(ANALYTICS_EVENTS.homePostLoginGuideDismissed, {
+                    user_id: user?.id || null,
+                  });
+                  setShowPostLoginGuide(false);
+                }}
                 className="h-10 rounded-xl border border-slate-200 text-sm font-medium text-slate-600 transition-colors hover:bg-slate-50"
               >
                 나중에 하기
