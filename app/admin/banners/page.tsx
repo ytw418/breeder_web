@@ -118,6 +118,7 @@ export default function AdminBannersPage() {
     order: "1",
     linkType: "internal",
   });
+  const [movingId, setMovingId] = useState<number | null>(null);
 
   const copyLink = async (value: string) => {
     try {
@@ -186,6 +187,27 @@ export default function AdminBannersPage() {
       mutate();
     } catch {
       toast.error("오류가 발생했습니다.");
+    }
+  };
+
+  const handleMove = async (id: number, direction: "up" | "down") => {
+    try {
+      setMovingId(id);
+      const res = await fetch("/api/admin/banners", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id, direction }),
+      });
+      const result = await res.json();
+      if (!result.success) {
+        return toast.error(result.error || "순서 변경 실패");
+      }
+      toast.success(direction === "up" ? "위로 이동했습니다." : "아래로 이동했습니다.");
+      mutate();
+    } catch {
+      toast.error("오류가 발생했습니다.");
+    } finally {
+      setMovingId(null);
     }
   };
 
@@ -424,7 +446,7 @@ export default function AdminBannersPage() {
         </form>
 
         <div className="space-y-3">
-          {(data?.banners || []).map((banner) => (
+          {(data?.banners || []).map((banner, index, banners) => (
             <div key={banner.id} className="bg-white rounded-lg border border-gray-200 p-4">
               <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                 <div className="min-w-0">
@@ -434,15 +456,41 @@ export default function AdminBannersPage() {
                   <p className="text-xs text-gray-400">스타일: {banner.bgClass}</p>
                   <p className="text-xs text-gray-400">정렬: {banner.order}</p>
                 </div>
-                <Button
-                  variant="destructive"
-                  size="sm"
-                  className="w-full sm:w-auto"
-                  disabled={Boolean(data?.isSample)}
-                  onClick={() => handleDelete(banner.id)}
-                >
-                  삭제
-                </Button>
+                <div className="flex flex-col gap-2 sm:w-auto w-full">
+                  <div className="flex gap-2">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="w-full sm:w-auto"
+                      disabled={Boolean(data?.isSample) || movingId === banner.id || index === 0}
+                      onClick={() => handleMove(banner.id, "up")}
+                    >
+                      ↑ 위로
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="w-full sm:w-auto"
+                      disabled={
+                        Boolean(data?.isSample) ||
+                        movingId === banner.id ||
+                        index === banners.length - 1
+                      }
+                      onClick={() => handleMove(banner.id, "down")}
+                    >
+                      ↓ 아래로
+                    </Button>
+                  </div>
+                  <Button
+                    variant="destructive"
+                    size="sm"
+                    className="w-full sm:w-auto"
+                    disabled={Boolean(data?.isSample)}
+                    onClick={() => handleDelete(banner.id)}
+                  >
+                    삭제
+                  </Button>
+                </div>
               </div>
             </div>
           ))}

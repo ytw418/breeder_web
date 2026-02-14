@@ -380,6 +380,19 @@ const SettingsClient = () => {
           ),
         },
         {
+          label: "고객의 소리",
+          href: "/support",
+          description: "버그 제보/기능 요청/비즈니스 문의 안내",
+          icon: (
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              strokeWidth="2"
+              d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-4l-3 3-3-3z"
+            />
+          ),
+        },
+        {
           label: "앱 버전",
           description: "1.0.0",
           icon: (

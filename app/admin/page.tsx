@@ -77,6 +77,11 @@ const DASHBOARD_MENUS = [
     href: "/admin/posts",
   },
   {
+    title: "고객의 소리",
+    description: "버그 제보/기능 요청/개발팀 요청 접수 상태를 확인하고 응답합니다.",
+    href: "/admin/voice",
+  },
+  {
     title: "상품 관리",
     description: "상품 검색, 확인, 삭제를 수행합니다.",
     href: "/admin/products",

@@ -13,6 +13,7 @@ const ADMIN_MENUS = [
   { name: "랜딩 페이지", href: "/admin/landing-pages" },
   { name: "기네스북 심사", href: "/admin/guinness" },
   { name: "유저 관리", href: "/admin/users" },
+  { name: "고객의 소리", href: "/admin/voice" },
   { name: "게시물 관리", href: "/admin/posts" }, // 추후 구현
   { name: "상품 관리", href: "/admin/products" },
 ];
