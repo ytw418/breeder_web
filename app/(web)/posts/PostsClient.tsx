@@ -220,7 +220,7 @@ export default function PostsClient() {
                   <Link
                     key={record.id}
                     href="/guinness"
-                    className="snap-start shrink-0 w-56 app-card app-card-interactive p-4"
+                    className="snap-start shrink-0 w-56 app-card app-card-interactive overflow-hidden p-4"
                   >
                     <div className="flex items-start justify-between">
                       <span
@@ -265,7 +265,7 @@ export default function PostsClient() {
               [...Array(3)].map((_, i) => (
                 <div
                   key={i}
-                  className="snap-start shrink-0 w-56 app-card p-4 animate-pulse"
+                  className="snap-start shrink-0 w-56 app-card overflow-hidden p-4 animate-pulse"
                 >
                   <div className="h-7 w-7 rounded-full bg-gray-200" />
                   <div className="mt-3 h-4 bg-gray-200 rounded w-2/5" />
