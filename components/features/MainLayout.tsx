@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import clsx from "clsx";
 import { usePathname, useRouter } from "next/navigation";
 import Image from "@components/atoms/Image";
@@ -28,6 +28,11 @@ interface UnreadCountResponse {
 interface NotificationUnreadCountResponse {
   success: boolean;
   unreadCount: number;
+}
+
+interface BeforeInstallPromptEvent extends Event {
+  prompt: () => Promise<void>;
+  userChoice: Promise<{ outcome: "accepted" | "dismissed"; platform: string }>;
 }
 
 /** 사이드 메뉴 아이템 */
@@ -104,6 +109,9 @@ export default function MainLayout({
   const pathname = usePathname();
   const isToolPath = pathname?.startsWith("/tool");
   const [menuOpen, setMenuOpen] = useState(false);
+  const [deferredInstallPrompt, setDeferredInstallPrompt] =
+    useState<BeforeInstallPromptEvent | null>(null);
+  const [installLoading, setInstallLoading] = useState(false);
   const [shouldFetchChatUnread, setShouldFetchChatUnread] = useState(true);
   const [shouldFetchNotificationUnread, setShouldFetchNotificationUnread] =
     useState(true);
@@ -143,6 +151,35 @@ export default function MainLayout({
   const notificationBadgeLabel =
     notificationUnreadCount > 99 ? "99+" : String(notificationUnreadCount);
   void _seoTitle;
+
+  useEffect(() => {
+    const onBeforeInstallPrompt = (event: Event) => {
+      event.preventDefault();
+      setDeferredInstallPrompt(event as BeforeInstallPromptEvent);
+    };
+
+    window.addEventListener("beforeinstallprompt", onBeforeInstallPrompt);
+    return () => {
+      window.removeEventListener("beforeinstallprompt", onBeforeInstallPrompt);
+    };
+  }, []);
+
+  const handleInstallAppClick = async () => {
+    if (!deferredInstallPrompt) {
+      alert("현재 브라우저에서는 자동 설치 프롬프트를 사용할 수 없습니다.");
+      return;
+    }
+
+    try {
+      setInstallLoading(true);
+      setMenuOpen(false);
+      await deferredInstallPrompt.prompt();
+      await deferredInstallPrompt.userChoice;
+      setDeferredInstallPrompt(null);
+    } finally {
+      setInstallLoading(false);
+    }
+  };
 
   return (
     <div className="relative min-h-screen bg-gradient-to-b from-slate-50 via-white to-slate-50/70 dark:from-slate-950 dark:via-slate-950 dark:to-slate-900/80">
@@ -413,6 +450,27 @@ export default function MainLayout({
               {item.label}
             </Link>
           ))}
+          <button
+            type="button"
+            onClick={handleInstallAppClick}
+            className="flex w-full items-center gap-3 border-t border-slate-100 px-5 py-3.5 text-left text-sm font-medium text-slate-700 transition-colors hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-70 dark:border-slate-800 dark:text-slate-300 dark:hover:bg-slate-800/70"
+            disabled={installLoading}
+          >
+            <svg
+              className="h-5 w-5"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth="2"
+                d="M12 16V4m0 12l-3-3m3 3l3-3M5 20h14"
+              />
+            </svg>
+            {installLoading ? "설치 준비 중..." : "홈에 앱 설치하기"}
+          </button>
         </nav>
       </div>
 
