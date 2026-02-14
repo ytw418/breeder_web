@@ -11,7 +11,7 @@ const page = async ({ params: { id } }: { params: { id: string } }) => {
 
   return (
     <div>
-      <PostClient post={data.post} success={data.success} />
+      <PostClient {...data} />
     </div>
   );
 };
