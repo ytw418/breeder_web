@@ -33,6 +33,7 @@ jobs:
         with:
           script: |
             const marker = "<!-- codex-ai-review -->";
+            const inlineMarkerPrefix = "<!-- codex-ai-inline:";
             const owner = context.repo.owner;
             const repo = context.repo.repo;
             const pull_number = context.payload.pull_request?.number;
@@ -41,6 +42,77 @@ jobs:
               core.info("No pull request context. Skip.");
               return;
             }
+
+            const normalizeSeverity = (raw) => {
+              const sev = String(raw || "medium").toLowerCase().trim();
+              if (sev === "critical" || sev === "high" || sev === "medium" || sev === "low") {
+                return sev;
+              }
+              return "medium";
+            };
+
+            const isBlockingSeverity = (severity) =>
+              severity === "critical" || severity === "high";
+
+            const parseAddedLinesFromPatch = (patch) => {
+              const added = new Set();
+              if (!patch) return added;
+
+              let inHunk = false;
+              let newLine = 0;
+              for (const rawLine of patch.split("\n")) {
+                const hunk = rawLine.match(/^@@ -\d+(?:,\d+)? \+(\d+)(?:,\d+)? @@/);
+                if (hunk) {
+                  inHunk = true;
+                  newLine = Number(hunk[1]);
+                  continue;
+                }
+                if (!inHunk) continue;
+                if (rawLine.startsWith("+") && !rawLine.startsWith("+++")) {
+                  added.add(newLine);
+                  newLine += 1;
+                  continue;
+                }
+                if (rawLine.startsWith("-") && !rawLine.startsWith("---")) {
+                  continue;
+                }
+                if (rawLine.startsWith("\\")) {
+                  continue;
+                }
+                newLine += 1;
+              }
+              return added;
+            };
+
+            const toOptionalLine = (value) => {
+              const n = Number(value);
+              return Number.isInteger(n) && n > 0 ? n : null;
+            };
+
+            const asText = (value, fallback = "") => {
+              const text = typeof value === "string" ? value : String(value ?? fallback);
+              return text.trim();
+            };
+
+            const resolvePath = (rawFile, fileNameSet) => {
+              if (!rawFile) return null;
+              const candidate = asText(rawFile).replace(/^\.\//, "");
+              if (!candidate) return null;
+              if (fileNameSet.has(candidate)) return candidate;
+
+              const lower = candidate.toLowerCase();
+              for (const name of fileNameSet) {
+                if (name.toLowerCase() === lower) return name;
+              }
+
+              const endings = [...fileNameSet].filter(
+                (name) =>
+                  name.endsWith(`/${candidate}`) ||
+                  candidate.endsWith(`/${name}`) ||
+                  name.endsWith(candidate)
+              );
+              return endings.length === 1 ? endings[0] : null;
+            };
 
             async function upsertReviewComment(body) {
               const comments = await github.paginate(github.rest.issues.listComments, {
@@ -88,12 +160,23 @@ jobs:
               return;
             }
 
+            const pull = context.payload.pull_request
+              ? { data: context.payload.pull_request }
+              : await github.rest.pulls.get({ owner, repo, pull_number });
+            const headSha = pull?.data?.head?.sha;
+
             const files = await github.paginate(github.rest.pulls.listFiles, {
               owner,
               repo,
               pull_number,
               per_page: 100,
             });
+            const fileNameSet = new Set(files.map((f) => f.filename));
+            const diffLineMap = new Map(
+              files
+                .filter((f) => f.status !== "removed")
+                .map((f) => [f.filename, parseAddedLinesFromPatch(f.patch)])
+            );
 
             const MAX_DIFF_CHARS = 120000;
             let used = 0;
@@ -122,6 +205,8 @@ jobs:
             아래는 GitHub PR diff 입니다.
             실제 버그 위험, 회귀 가능성, 안정성/보안 이슈를 중심으로만 검토하세요.
             취향/스타일/사소한 의견은 제외하세요.
+            파일 경로는 PR 변경 파일 기준으로 작성하고, line은 가능하면 실제 변경 라인 번호를 넣으세요.
+            severity는 반드시 critical|high|medium|low 중 하나만 사용하세요.
 
             응답은 반드시 JSON만 반환:
             {
@@ -133,8 +218,7 @@ jobs:
                   "file": "path/to/file",
                   "line": 123,
                   "why": "왜 문제인지",
-                  "suggestion": "어떻게 고칠지",
-                  "blocking": true
+                  "suggestion": "어떻게 고칠지"
                 }
               ]
             }
@@ -213,7 +297,16 @@ jobs:
               }
             }
 
-            const findings = Array.isArray(parsed.findings) ? parsed.findings : [];
+            const findings = (Array.isArray(parsed.findings) ? parsed.findings : [])
+              .map((f) => ({
+                title: asText(f?.title, "이슈"),
+                severity: normalizeSeverity(f?.severity),
+                file: asText(f?.file, ""),
+                line: toOptionalLine(f?.line),
+                why: asText(f?.why, ""),
+                suggestion: asText(f?.suggestion, ""),
+              }))
+              .filter((f) => f.title);
             const summary = String(parsed.summary || "리뷰 요약 없음");
 
             const header = [
@@ -222,6 +315,7 @@ jobs:
               `- 모델: \`${process.env.OPENAI_REVIEW_MODEL}\``,
               `- 변경 파일 수: ${files.length}`,
               `- 주요 이슈 수: ${findings.length}`,
+              "- 차단 기준: `CRITICAL`, `HIGH`",
               "",
               `요약: ${summary}`,
               "",
@@ -229,29 +323,103 @@ jobs:
 
             const bodyLines = findings.length
               ? findings.map((f, i) => {
-                  const title = String(f.title || "이슈");
-                  const severity = String(f.severity || "medium");
-                  const file = String(f.file || "-");
-                  const line = Number.isFinite(Number(f.line)) ? Number(f.line) : "-";
-                  const why = String(f.why || "");
-                  const suggestion = String(f.suggestion || "");
-                  const blocking = Boolean(f.blocking);
+                  const blocking = isBlockingSeverity(f.severity);
                   return [
-                    `${i + 1}. [${severity.toUpperCase()}] ${title}`,
-                    `   - 위치: \`${file}:${line}\``,
-                    `   - 영향: ${why}`,
-                    `   - 제안: ${suggestion}`,
+                    `${i + 1}. [${f.severity.toUpperCase()}] ${f.title}`,
+                    `   - 위치: \`${f.file || "-"}:${f.line ?? "-"}\``,
+                    `   - 영향: ${f.why || "-"}`,
+                    `   - 제안: ${f.suggestion || "-"}`,
                     `   - 차단 필요: ${blocking ? "예" : "아니오"}`,
                   ].join("\n");
                 })
               : ["문제로 판단된 주요 이슈를 찾지 못했습니다."];
 
-            const commentBody = [...header, ...bodyLines].join("\n");
+            let inlineCount = 0;
+            let inlineErrorCount = 0;
+            if (headSha) {
+              const existingInlineComments = await github.paginate(
+                github.rest.pulls.listReviewComments,
+                {
+                  owner,
+                  repo,
+                  pull_number,
+                  per_page: 100,
+                }
+              );
+              const existingInlineSigs = new Set(
+                existingInlineComments
+                  .filter(
+                    (c) =>
+                      c.user?.login === "github-actions[bot]" &&
+                      typeof c.body === "string" &&
+                      c.body.includes(inlineMarkerPrefix)
+                  )
+                  .map((c) => {
+                    const m = c.body.match(/<!-- codex-ai-inline:([^>]+) -->/);
+                    return m?.[1] || null;
+                  })
+                  .filter(Boolean)
+              );
+
+              for (const finding of findings) {
+                const path = resolvePath(finding.file, fileNameSet);
+                if (!path) continue;
+                if (!finding.line) continue;
+                const allowedLines = diffLineMap.get(path);
+                if (!allowedLines || !allowedLines.has(finding.line)) continue;
+
+                const signature = `${path}:${finding.line}:${finding.severity}:${finding.title}`.slice(
+                  0,
+                  180
+                );
+                if (existingInlineSigs.has(signature)) continue;
+
+                const inlineBody = [
+                  `[AI Review][${finding.severity.toUpperCase()}] ${finding.title}`,
+                  `영향: ${finding.why || "-"}`,
+                  `제안: ${finding.suggestion || "-"}`,
+                  `차단 여부: ${isBlockingSeverity(finding.severity) ? "예" : "아니오"}`,
+                  `<!-- codex-ai-inline:${signature} -->`,
+                ].join("\n");
+
+                try {
+                  await github.rest.pulls.createReviewComment({
+                    owner,
+                    repo,
+                    pull_number,
+                    commit_id: headSha,
+                    path,
+                    line: finding.line,
+                    side: "RIGHT",
+                    body: inlineBody,
+                  });
+                  existingInlineSigs.add(signature);
+                  inlineCount += 1;
+                } catch (error) {
+                  inlineErrorCount += 1;
+                  core.warning(
+                    `Failed inline comment: ${path}:${finding.line} ${error?.message || error}`
+                  );
+                }
+              }
+            } else {
+              core.warning("head SHA is missing. Inline comments skipped.");
+            }
+
+            const commentBody = [
+              ...header,
+              ...bodyLines,
+              "",
+              `- 인라인 코멘트 생성: ${inlineCount}건`,
+              `- 인라인 코멘트 실패: ${inlineErrorCount}건`,
+            ].join("\n");
 
             await upsertReviewComment(commentBody);
 
-            const blockingCount = findings.filter((f) => Boolean(f.blocking)).length;
+            const blockingCount = findings.filter((f) => isBlockingSeverity(f.severity)).length;
             core.info(`findings=${findings.length}, blocking=${blockingCount}`);
             if (blockingCount > 0) {
-              core.setFailed(`AI review found ${blockingCount} blocking issue(s).`);
+              core.setFailed(
+                `AI review found ${blockingCount} blocking issue(s) (severity: critical/high).`
+              );
             }
