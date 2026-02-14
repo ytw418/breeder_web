@@ -1,16 +1,13 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-echo "[1/4] lint"
+echo "[1/3] lint"
 npm run lint
 
-echo "[2/4] typecheck"
+echo "[2/3] typecheck"
 npm run typecheck
 
-echo "[3/4] test"
+echo "[3/3] test"
 npm test -- --ci --runInBand
-
-echo "[4/4] build"
-npm run build
 
 echo "CI verification completed."

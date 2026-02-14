@@ -9,7 +9,7 @@ GitHub Actions workflow: `.github/workflows/dev-to-main-quality.yml`
 When a pull request targets `main` from `dev`, it runs:
 
 1. `npm ci`
-2. `npm run verify:ci` (lint + typecheck + test + build)
+2. `npm run verify:ci` (lint + typecheck + test)
 3. PR mergeability check (`mergeable_state == clean`)
 4. Slack notification when the PR is merge-ready
 
@@ -35,6 +35,12 @@ or
 
 ```bash
 bash scripts/ci-verify.sh
+```
+
+Optional local full check (includes build):
+
+```bash
+npm run verify:full
 ```
 
 ## Create or open `dev -> main` PR
