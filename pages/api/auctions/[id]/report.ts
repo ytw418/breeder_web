@@ -2,7 +2,6 @@ import { NextApiRequest, NextApiResponse } from "next";
 import withHandler, { ResponseType } from "@libs/server/withHandler";
 import { withApiSession } from "@libs/server/withSession";
 import client from "@libs/server/client";
-import { createAuctionReport, readAuctionReports } from "@libs/server/auctionReportStore";
 
 const REPORT_REASONS = [
   "허위 매물 의심",
@@ -96,12 +95,15 @@ async function handler(
     });
   }
 
-  const reports = await readAuctionReports();
-  const hasOpenReport = reports.some(
-    (report) =>
-      report.auctionId === auctionId &&
-      report.reporterId === userId &&
-      report.status === "OPEN"
+  const hasOpenReport = Boolean(
+    await client.auctionReport.findFirst({
+      where: {
+        auctionId,
+        reporterId: userId,
+        status: "OPEN",
+      },
+      select: { id: true },
+    })
   );
 
   if (hasOpenReport) {
@@ -112,12 +114,19 @@ async function handler(
     });
   }
 
-  const report = await createAuctionReport({
-    auctionId,
-    reporterId: userId,
-    reportedUserId: auction.userId,
-    reason,
-    detail,
+  const report = await client.auctionReport.create({
+    data: {
+      auctionId,
+      reporterId: userId,
+      reportedUserId: auction.userId,
+      reason,
+      detail,
+    },
+    select: {
+      id: true,
+      status: true,
+      createdAt: true,
+    },
   });
 
   return res.json({
@@ -125,7 +134,7 @@ async function handler(
     report: {
       id: report.id,
       status: report.status,
-      createdAt: report.createdAt,
+      createdAt: report.createdAt.toISOString(),
     },
   });
 }
