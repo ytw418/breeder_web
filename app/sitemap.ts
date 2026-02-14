@@ -24,40 +24,48 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     },
   ];
 
-  // 상품 페이지 URL
-  const products = await client.product.findMany({
-    select: {
-      id: true,
-      updatedAt: true,
-    },
-  });
+  if (!process.env.DATABASE_URL) {
+    return staticPages;
+  }
 
-  const productPages: MetadataRoute.Sitemap = products.map((product) => ({
-    url: `https://bredy.app/products/${product.id}`,
-    lastModified: product.updatedAt,
-    changeFrequency: "daily",
-    priority: 0.9,
-  }));
-
-  const auctions = await client.auction.findMany({
-    select: {
-      id: true,
-      updatedAt: true,
-    },
-    where: {
-      status: {
-        in: ["진행중", "종료", "유찰"],
+  try {
+    // 상품 페이지 URL
+    const products = await client.product.findMany({
+      select: {
+        id: true,
+        updatedAt: true,
       },
-    },
-    orderBy: { updatedAt: "desc" },
-  });
+    });
 
-  const auctionPages: MetadataRoute.Sitemap = auctions.map((auction) => ({
-    url: `https://bredy.app/auctions/${auction.id}`,
-    lastModified: auction.updatedAt,
-    changeFrequency: "hourly",
-    priority: 0.85,
-  }));
+    const productPages: MetadataRoute.Sitemap = products.map((product) => ({
+      url: `https://bredy.app/products/${product.id}`,
+      lastModified: product.updatedAt,
+      changeFrequency: "daily",
+      priority: 0.9,
+    }));
 
-  return [...staticPages, ...productPages, ...auctionPages];
+    const auctions = await client.auction.findMany({
+      select: {
+        id: true,
+        updatedAt: true,
+      },
+      where: {
+        status: {
+          in: ["진행중", "종료", "유찰"],
+        },
+      },
+      orderBy: { updatedAt: "desc" },
+    });
+
+    const auctionPages: MetadataRoute.Sitemap = auctions.map((auction) => ({
+      url: `https://bredy.app/auctions/${auction.id}`,
+      lastModified: auction.updatedAt,
+      changeFrequency: "hourly",
+      priority: 0.85,
+    }));
+
+    return [...staticPages, ...productPages, ...auctionPages];
+  } catch {
+    return staticPages;
+  }
 }
