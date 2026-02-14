@@ -87,6 +87,10 @@ model User {
   auctionReportsSubmitted AuctionReport[] @relation("AuctionReportReporter")
   auctionReportsReceived  AuctionReport[] @relation("AuctionReportReportedUser")
   auctionReportsResolved  AuctionReport[] @relation("AuctionReportResolver")
+  createdBloodlineCard      BloodlineCard?         @relation("BloodlineCardCreator")
+  ownedBloodlineCards       BloodlineCard[]        @relation("BloodlineCardOwner")
+  bloodlineCardTransfersFrom BloodlineCardTransfer[] @relation("BloodlineCardTransferFrom")
+  bloodlineCardTransfersTo   BloodlineCardTransfer[] @relation("BloodlineCardTransferTo")
   insectRecords   InsectRecord[]
   guinnessSubmissions GuinnessSubmission[]
 }
@@ -532,6 +536,39 @@ model AdminBanner {
   updatedAt   DateTime @updatedAt
 
   @@index([order])
+}
+
+model BloodlineCard {
+  id             Int      @id @default(autoincrement())
+  creatorId      Int      @unique
+  currentOwnerId Int
+  name           String
+  description    String?
+  image          String?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  creator      User                  @relation("BloodlineCardCreator", fields: [creatorId], references: [id], onDelete: Cascade)
+  currentOwner User                  @relation("BloodlineCardOwner", fields: [currentOwnerId], references: [id], onDelete: Cascade)
+  transfers    BloodlineCardTransfer[]
+
+  @@index([currentOwnerId, createdAt])
+}
+
+model BloodlineCardTransfer {
+  id         Int      @id @default(autoincrement())
+  cardId     Int
+  fromUserId Int?
+  toUserId   Int
+  note       String?
+  createdAt  DateTime @default(now())
+
+  card     BloodlineCard @relation(fields: [cardId], references: [id], onDelete: Cascade)
+  fromUser User?         @relation("BloodlineCardTransferFrom", fields: [fromUserId], references: [id], onDelete: SetNull)
+  toUser   User          @relation("BloodlineCardTransferTo", fields: [toUserId], references: [id], onDelete: Cascade)
+
+  @@index([cardId, createdAt])
+  @@index([toUserId, createdAt])
 }
 
 enum VoiceInquiryType {

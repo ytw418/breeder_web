@@ -20,16 +20,18 @@ import {
 import { LoginReqBody, LoginResponseType } from "pages/api/auth/login";
 import useSWR from "swr";
 import { UserResponse } from "pages/api/users/[id]";
+import type { BloodlineCardsResponse } from "@libs/shared/bloodline-card";
 import { useMemo, useState } from "react";
 import useLogout from "../../../hooks/useLogout";
 
-type ActivityTab = "posts" | "comments" | "guinness" | "products";
+type ActivityTab = "posts" | "comments" | "guinness" | "products" | "bloodline";
 
 const TAB_META: { id: ActivityTab; name: string }[] = [
   { id: "posts", name: "게시물" },
   { id: "comments", name: "댓글" },
   { id: "guinness", name: "브리디북" },
   { id: "products", name: "상품" },
+  { id: "bloodline", name: "보유 혈통 카드" },
 ];
 
 const GUINNESS_STATUS_TEXT: Record<GuinnessSubmission["status"], string> = {
@@ -136,6 +138,11 @@ const MyPageClient = () => {
     useSWR<GuinnessSubmissionsResponse>(
       user?.id ? "/api/guinness/submissions" : null
     );
+  const {
+    data: bloodlineData,
+    isLoading: isBloodlineLoading,
+    error: bloodlineLoadError,
+  } = useSWR<BloodlineCardsResponse>(user?.id ? "/api/bloodline-cards" : null);
 
   const avatarUrl =
     user?.avatar &&
@@ -160,6 +167,7 @@ const MyPageClient = () => {
     comments: profileUser?._count?.Comments ?? 0,
     guinness: mySubmissions.length,
     products: profileUser?._count?.products ?? 0,
+    bloodline: bloodlineData?.ownedCards?.length ?? 0,
   };
 
   const providerLabel =
@@ -389,6 +397,79 @@ const MyPageClient = () => {
             />
           )}
           {activeTab === "products" && <MyPostList userId={user?.id} />}
+          {activeTab === "bloodline" && (
+            <div className="space-y-3">
+              <div className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs leading-relaxed text-amber-900">
+                혈통카드는 이용자 생성 기반 기능이며, 브리디는 혈통/적법성/품질을 보증하지 않습니다.
+              </div>
+              <Link
+                href="/bloodline-cards/create"
+                className="inline-flex h-10 w-full items-center justify-center rounded-lg bg-slate-900 text-sm font-semibold text-white"
+              >
+                혈통카드 만들기 / 전달하기
+              </Link>
+
+              {isBloodlineLoading ? (
+                <div className="flex h-28 items-center justify-center">
+                  <Spinner />
+                </div>
+              ) : null}
+
+              {bloodlineLoadError ? (
+                <p className="rounded-md border border-rose-200 bg-rose-50 px-3 py-2 text-xs font-semibold text-rose-700">
+                  혈통카드 정보를 불러오지 못했습니다. 잠시 후 다시 시도해주세요.
+                </p>
+              ) : null}
+
+              {bloodlineData?.createdCard ? (
+                <div className="rounded-lg border border-slate-200 bg-white p-3">
+                  <p className="text-xs font-semibold text-slate-500">내 대표 카드</p>
+                  <p className="mt-1 text-sm font-bold text-slate-900">
+                    {bloodlineData.createdCard.name}
+                  </p>
+                  {bloodlineData.createdCard.description ? (
+                    <p className="mt-1 text-sm text-slate-600">
+                      {bloodlineData.createdCard.description}
+                    </p>
+                  ) : null}
+                  <p className="mt-2 text-xs text-slate-500">
+                    현재 보유자: {bloodlineData.createdCard.currentOwner.name}
+                  </p>
+                </div>
+              ) : null}
+
+              {(bloodlineData?.ownedCards || []).map((card) => (
+                <div key={card.id} className="rounded-lg border border-slate-200 bg-white p-3">
+                  <p className="text-sm font-bold text-slate-900">{card.name}</p>
+                  {card.description ? (
+                    <p className="mt-1 text-sm text-slate-600">{card.description}</p>
+                  ) : null}
+                  <p className="mt-2 text-xs text-slate-500">
+                    제작자: {card.creator.name} / 현재 보유자: {card.currentOwner.name}
+                  </p>
+                  {card.transfers?.length ? (
+                    <div className="mt-3 space-y-1.5">
+                      <p className="text-xs font-semibold text-slate-700">최근 전달 이력</p>
+                      {card.transfers.map((transfer) => (
+                        <p key={transfer.id} className="text-xs text-slate-500">
+                          {new Date(transfer.createdAt).toLocaleDateString("ko-KR")} ·{" "}
+                          {transfer.fromUser ? transfer.fromUser.name : "시스템"} →{" "}
+                          {transfer.toUser.name}
+                          {transfer.note ? ` · ${transfer.note}` : ""}
+                        </p>
+                      ))}
+                    </div>
+                  ) : null}
+                </div>
+              ))}
+
+              {!isBloodlineLoading && (bloodlineData?.ownedCards?.length || 0) === 0 ? (
+                <div className="rounded-lg border border-dashed border-slate-300 bg-white p-5 text-center text-sm text-slate-500">
+                  아직 보유 중인 혈통카드가 없습니다. 전용 페이지에서 대표 혈통카드를 만들어보세요.
+                </div>
+              ) : null}
+            </div>
+          )}
         </div>
       </div>
     </div>
