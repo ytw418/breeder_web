@@ -1,6 +1,7 @@
 import client from "@libs/server/client";
 import { NotificationType } from "@prisma/client";
 import { sendPushToUsers } from "@libs/server/push";
+import { getProductPath } from "@libs/product-route";
 
 interface CreateNotificationParams {
   type: NotificationType;
@@ -21,7 +22,7 @@ const getNotificationUrl = (targetType?: string, targetId?: number) => {
     case "post":
       return `/posts/${targetId}`;
     case "product":
-      return `/products/${targetId}`;
+      return getProductPath(targetId);
     case "chatRoom":
       return `/chat/${targetId}`;
     case "user":
