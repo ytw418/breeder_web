@@ -564,8 +564,10 @@ const AuctionDetailClient = () => {
                 {auction.status}
               </span>
             </div>
-            <h1 className="text-lg font-bold text-gray-900">{auction.title}</h1>
-            <p className="text-sm text-gray-600 dark:text-slate-300 whitespace-pre-line leading-relaxed">
+            <h1 className="text-lg font-bold text-gray-900 break-words [overflow-wrap:anywhere]">
+              {auction.title}
+            </h1>
+            <p className="text-sm text-gray-600 dark:text-slate-300 whitespace-pre-line leading-relaxed break-words [overflow-wrap:anywhere]">
               {auction.description}
             </p>
             <div className="flex flex-wrap items-center gap-2">
@@ -622,7 +624,9 @@ const AuctionDetailClient = () => {
                   {auction.sellerCafeNick ? <p>카페 닉네임: {auction.sellerCafeNick}</p> : null}
                   {auction.sellerBandNick ? <p>밴드 닉네임: {auction.sellerBandNick}</p> : null}
                   {auction.sellerTrustNote ? (
-                    <p className="whitespace-pre-line">추가 안내: {auction.sellerTrustNote}</p>
+                    <p className="whitespace-pre-line break-words [overflow-wrap:anywhere]">
+                      추가 안내: {auction.sellerTrustNote}
+                    </p>
                   ) : null}
                 </div>
                 {auction.sellerProofImage ? (
