@@ -1,4 +1,4 @@
-const CACHE_VERSION = "bredy-pwa-v1";
+const CACHE_VERSION = "bredy-pwa-v2";
 const STATIC_CACHE = `${CACHE_VERSION}-static`;
 const IMAGE_CACHE = `${CACHE_VERSION}-image`;
 const OFFLINE_URL = "/offline";
@@ -76,22 +76,32 @@ self.addEventListener("fetch", (event) => {
     return;
   }
 
-  if (
-    request.destination === "style" ||
-    request.destination === "script" ||
-    url.pathname.startsWith("/_next/static/")
-  ) {
+  if (url.pathname.startsWith("/_next/static/")) {
     event.respondWith(
-      caches.match(request).then((cached) => {
-        const fetchPromise = fetch(request)
-          .then((response) => {
+      fetch(request)
+        .then((response) => {
+          if (response && response.ok) {
             const copy = response.clone();
             caches.open(STATIC_CACHE).then((cache) => cache.put(request, copy));
-            return response;
-          })
-          .catch(() => cached);
-        return cached || fetchPromise;
-      })
+          }
+          return response;
+        })
+        .catch(() => caches.match(request))
+    );
+    return;
+  }
+
+  if (request.destination === "style" || request.destination === "script") {
+    event.respondWith(
+      fetch(request)
+        .then((response) => {
+          if (response && response.ok) {
+            const copy = response.clone();
+            caches.open(STATIC_CACHE).then((cache) => cache.put(request, copy));
+          }
+          return response;
+        })
+        .catch(() => caches.match(request))
     );
   }
 });

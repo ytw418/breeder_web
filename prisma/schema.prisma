@@ -534,6 +534,36 @@ model AdminBanner {
   @@index([order])
 }
 
+enum VoiceInquiryType {
+  BUG_REPORT
+  FEATURE_REQUEST
+  DEV_TEAM_REQUEST
+}
+
+enum VoiceInquiryStatus {
+  OPEN
+  IN_REVIEW
+  DONE
+  REJECTED
+}
+
+model VoiceInquiry {
+  id           Int                @id @default(autoincrement())
+  type         VoiceInquiryType
+  status       VoiceInquiryStatus @default(OPEN)
+  title        String
+  description  String
+  contactEmail String
+  requesterId  Int?
+  requesterName String?
+  adminNote    String?
+  createdAt    DateTime           @default(now())
+  updatedAt    DateTime           @updatedAt
+
+  @@index([status, createdAt])
+  @@index([type, createdAt])
+}
+
 model LandingPage {
   id          Int      @id @default(autoincrement())
   slug        String   @unique
