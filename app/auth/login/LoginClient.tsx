@@ -5,7 +5,7 @@ import KakaoRound from "@images/KakaoRound.svg";
 import GoogleRound from "@images/GoogleRound.svg";
 
 import Link from "next/link";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useSearchParams } from "next/navigation";
 import useMutation from "hooks/useMutation";
 import { LoginReqBody, LoginResponseType } from "pages/api/auth/login";
 import {
@@ -47,8 +47,32 @@ const markPostLoginGuide = () => {
   }
 };
 
+const wait = (ms: number) =>
+  new Promise<void>((resolve) => {
+    setTimeout(() => resolve(), ms);
+  });
+
+const navigateAfterSessionReady = async (nextPath: string) => {
+  for (let attempt = 0; attempt < 4; attempt += 1) {
+    try {
+      const meRes = await fetch("/api/users/me", {
+        method: "GET",
+        cache: "no-store",
+      });
+      if (meRes.ok) {
+        window.location.assign(nextPath);
+        return;
+      }
+    } catch {
+      // noop
+    }
+    await wait(100);
+  }
+
+  window.location.assign(nextPath);
+};
+
 const LoginClient = () => {
-  const router = useRouter();
   const searchParams = useSearchParams();
   const [login] = useMutation<LoginResponseType>("/api/auth/login");
   // 기본값은 노출(true). 추후 숨길 때 NEXT_PUBLIC_ENABLE_GOOGLE_LOGIN=false로 설정.
@@ -147,7 +171,7 @@ const LoginClient = () => {
         onCompleted(result) {
           if (result.success) {
             markPostLoginGuide();
-            router.replace(nextPath);
+            void navigateAfterSessionReady(nextPath);
             return;
           }
           alert(`로그인에 실패했습니다:${result.error}`);

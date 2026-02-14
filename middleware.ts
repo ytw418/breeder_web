@@ -4,6 +4,10 @@ const TOOL_MODE_COOKIE = "bredy_tool_mode";
 
 export function middleware(req: NextRequest, ev: NextFetchEvent) {
   const { pathname, search } = req.nextUrl;
+  const isPrefetchRequest =
+    req.headers.get("purpose") === "prefetch" ||
+    req.headers.has("next-router-prefetch") ||
+    req.headers.get("x-middleware-prefetch") === "1";
   if (pathname.startsWith("/products/")) {
     console.info("[middleware][products]", {
       pathname,
@@ -63,6 +67,11 @@ export function middleware(req: NextRequest, ev: NextFetchEvent) {
   if (pathname.includes("myPage")) {
     const found = req.cookies.get("kakaoDev");
     if (!found) {
+      // 로그인 전 프리패치에서 생성된 리다이렉트 캐시가
+      // 로그인 후에도 재사용되는 문제를 막기 위해 프리패치는 통과시킨다.
+      if (isPrefetchRequest) {
+        return response ?? NextResponse.next();
+      }
       return NextResponse.redirect(new URL("/auth/login", req.url));
     }
   }
