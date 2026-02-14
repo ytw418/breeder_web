@@ -18,6 +18,7 @@ import {
   getBidIncrement,
 } from "@libs/auctionRules";
 import { getAuctionErrorMessage } from "@libs/client/auctionErrorMessage";
+import { ANALYTICS_EVENTS, trackEvent } from "@libs/client/analytics";
 
 const DETAIL_FALLBACK_IMAGE = "/images/placeholders/detail-fallback-white.svg";
 
@@ -93,6 +94,25 @@ const AuctionDetailClient = () => {
     return () => clearInterval(timer);
   }, [data?.auction?.endAt]);
 
+  useEffect(() => {
+    if (!data?.auction?.id) return;
+    trackEvent(ANALYTICS_EVENTS.auctionDetailViewed, {
+      auction_id: data.auction.id,
+      auction_title: data.auction.title,
+      auction_category: data.auction.category,
+      auction_status: data.auction.status,
+      current_price: data.auction.currentPrice,
+      user_id: user?.id || null,
+    });
+  }, [
+    data?.auction?.id,
+    data?.auction?.title,
+    data?.auction?.category,
+    data?.auction?.status,
+    data?.auction?.currentPrice,
+    user?.id,
+  ]);
+
   const auction = data?.auction;
   const extensionMinutes = Math.floor(AUCTION_EXTENSION_MS / (60 * 1000));
   const extensionWindowMinutes = Math.floor(
@@ -134,7 +154,15 @@ const AuctionDetailClient = () => {
     if (!auction) return;
     setBidAmount((prev) => {
       const baseAmount = prev ?? auction.currentPrice;
-      return normalizeBidAmount(baseAmount + delta);
+      const nextAmount = normalizeBidAmount(baseAmount + delta);
+      trackEvent(ANALYTICS_EVENTS.auctionBidAmountAdjusted, {
+        auction_id: auction.id,
+        user_id: user?.id || null,
+        delta,
+        previous_amount: baseAmount,
+        next_amount: nextAmount,
+      });
+      return nextAmount;
     });
   };
 
@@ -149,6 +177,18 @@ const AuctionDetailClient = () => {
 
   /** 입찰 핸들러 */
   const handleBid = () => {
+    trackEvent(ANALYTICS_EVENTS.auctionBidAttempted, {
+      auction_id: auction?.id || null,
+      user_id: user?.id || null,
+      amount: selectedBidAmount,
+      minimum_bid: minimumBid,
+      current_price: auction?.currentPrice || null,
+      agreed_bid_rule: agreedBidRule,
+      agreed_dispute_policy: agreedDisputePolicy,
+      is_top_bidder: isTopBidder,
+      requires_login: !user,
+    });
+
     if (!user) return router.push(`${loginPath}?next=${encodeURIComponent(pathname || "/")}`);
     if (bidLoading) return;
     if (isTopBidder) {
@@ -177,6 +217,13 @@ const AuctionDetailClient = () => {
       data: { amount },
       onCompleted(result) {
         if (result.success) {
+          trackEvent(ANALYTICS_EVENTS.auctionBidSubmitted, {
+            auction_id: auction?.id || null,
+            user_id: user?.id || null,
+            amount,
+            extended: Boolean(result.extended),
+            extension_minutes: result.extended ? extensionMinutes : 0,
+          });
           toast.success("입찰이 완료되었습니다!");
           if (result.extended) {
             toast.info(`마감 임박 입찰로 경매 시간이 ${extensionMinutes}분 연장되었습니다.`);
@@ -184,10 +231,24 @@ const AuctionDetailClient = () => {
           setBidAmount(null);
           boundMutate();
         } else {
+          trackEvent(ANALYTICS_EVENTS.auctionBidFailed, {
+            auction_id: auction?.id || null,
+            user_id: user?.id || null,
+            amount,
+            error_code: result.errorCode || null,
+            error_message: result.error || "입찰에 실패했습니다.",
+          });
           toast.error(getAuctionErrorMessage(result.errorCode, result.error || "입찰에 실패했습니다."));
         }
       },
       onError() {
+        trackEvent(ANALYTICS_EVENTS.auctionBidFailed, {
+          auction_id: auction?.id || null,
+          user_id: user?.id || null,
+          amount,
+          error_code: "network_error",
+          error_message: "오류가 발생했습니다.",
+        });
         toast.error("오류가 발생했습니다.");
       },
     });
@@ -224,6 +285,11 @@ const AuctionDetailClient = () => {
         return;
       }
       await copyToClipboard(url);
+      trackEvent(ANALYTICS_EVENTS.auctionLinkCopied, {
+        auction_id: auction?.id || null,
+        user_id: user?.id || null,
+        share_url: url,
+      });
       toast.success("경매 링크가 복사되었습니다.");
     } catch {
       toast.error("링크 복사에 실패했습니다.");
@@ -244,11 +310,23 @@ const AuctionDetailClient = () => {
           text: "경매 상세 내용을 확인해보세요.",
           url,
         });
+        trackEvent(ANALYTICS_EVENTS.auctionShared, {
+          auction_id: auction?.id || null,
+          user_id: user?.id || null,
+          channel: "navigator_share",
+          share_url: url,
+        });
         toast.success("공유를 완료했습니다.");
         return;
       }
 
       await copyToClipboard(url);
+      trackEvent(ANALYTICS_EVENTS.auctionShared, {
+        auction_id: auction?.id || null,
+        user_id: user?.id || null,
+        channel: "clipboard_fallback",
+        share_url: url,
+      });
       toast.info("이 기기에서는 바로 공유를 지원하지 않아 링크를 복사했습니다.");
     } catch (error) {
       if (error instanceof Error && error.name === "AbortError") return;
@@ -273,13 +351,33 @@ const AuctionDetailClient = () => {
       },
       onCompleted(result) {
         if (!result.success) {
+          trackEvent(ANALYTICS_EVENTS.auctionReportFailed, {
+            auction_id: auction?.id || null,
+            user_id: user?.id || null,
+            report_reason: reportReason,
+            error_code: result.errorCode || null,
+            error_message: result.error || "신고 접수에 실패했습니다.",
+          });
           toast.error(getAuctionErrorMessage(result.errorCode, result.error || "신고 접수에 실패했습니다."));
           return;
         }
+        trackEvent(ANALYTICS_EVENTS.auctionReportSubmitted, {
+          auction_id: auction?.id || null,
+          user_id: user?.id || null,
+          report_reason: reportReason,
+          detail_length: reportDetail.trim().length,
+        });
         toast.success("신고가 접수되었습니다. 운영자가 검토 후 조치합니다.");
         setReportDetail("");
       },
       onError() {
+        trackEvent(ANALYTICS_EVENTS.auctionReportFailed, {
+          auction_id: auction?.id || null,
+          user_id: user?.id || null,
+          report_reason: reportReason,
+          error_code: "network_error",
+          error_message: "신고 접수 중 오류가 발생했습니다.",
+        });
         toast.error("신고 접수 중 오류가 발생했습니다.");
       },
     });
