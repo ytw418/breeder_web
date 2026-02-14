@@ -47,7 +47,8 @@ jobs:
               "codex",
               "codex[bot]",
             ]);
-            const blockingPattern = /(critical|high|blocking|p0|p1|bug|regression|security|취약점|버그|회귀)/i;
+            const explicitBlockingPattern =
+              /(\[ *(critical|high|p0|p1) *\])|(severity\s*[:=]\s*(critical|high|p0|p1))|(차단\s*필요\s*[:=]\s*예)|(blocking\s*[:=]\s*true)/i;
 
             let pull_number = context.payload.pull_request?.number;
             if (!pull_number && context.payload.issue?.pull_request) {
@@ -129,18 +130,18 @@ jobs:
                 );
               }
               const reviewBody = String(review.body || "");
-              if (reviewBody && blockingPattern.test(reviewBody)) {
+              if (reviewBody && explicitBlockingPattern.test(reviewBody)) {
                 blockingFindings.push(
-                  `[${bot}] 리뷰 본문에서 차단 키워드를 감지했습니다.`
+                  `[${bot}] 리뷰 본문에서 명시적 차단 신호를 감지했습니다.`
                 );
               }
             }
 
             for (const c of botIssueComments.slice(-20)) {
               const body = String(c.body || "");
-              if (blockingPattern.test(body)) {
+              if (explicitBlockingPattern.test(body)) {
                 blockingFindings.push(
-                  `[${c.user.login}] 코멘트에서 차단 키워드를 감지했습니다.`
+                  `[${c.user.login}] 코멘트에서 명시적 차단 신호를 감지했습니다.`
                 );
               }
             }
@@ -167,7 +168,7 @@ jobs:
               marker,
               "## 리뷰 루프 게이트: 통과",
               "- 상태: Codex/Gemini 리뷰에서 차단 신호가 감지되지 않았습니다.",
-              "- 기준: `CHANGES_REQUESTED` 또는 `critical/high/bug/regression/security` 키워드.",
+              "- 기준: `CHANGES_REQUESTED` 또는 `severity/high/critical`, `blocking: true`, `차단 필요: 예` 형식.",
             ].join("\n");
             await upsertGateComment(passBody);
             core.info("No blocking review signal detected.");
