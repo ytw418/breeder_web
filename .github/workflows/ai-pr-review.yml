@@ -1,0 +1,215 @@
+name: AI PR Review
+
+on:
+  pull_request:
+    branches:
+      - main
+    types:
+      - opened
+      - synchronize
+      - reopened
+      - ready_for_review
+  workflow_dispatch:
+
+concurrency:
+  group: ai-pr-review-${{ github.event.pull_request.number || github.run_id }}
+  cancel-in-progress: true
+
+jobs:
+  review:
+    if: github.event_name != 'pull_request' || (github.event.pull_request.draft == false)
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: read
+      pull-requests: write
+      issues: write
+    steps:
+      - name: Analyze PR diff with OpenAI
+        uses: actions/github-script@v7
+        env:
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+          OPENAI_REVIEW_MODEL: ${{ vars.OPENAI_REVIEW_MODEL || 'gpt-4.1-mini' }}
+        with:
+          script: |
+            const marker = "<!-- codex-ai-review -->";
+            const owner = context.repo.owner;
+            const repo = context.repo.repo;
+            const pull_number = context.payload.pull_request?.number;
+
+            if (!pull_number) {
+              core.info("No pull request context. Skip.");
+              return;
+            }
+
+            if (!process.env.OPENAI_API_KEY) {
+              core.setFailed("OPENAI_API_KEY secret is missing.");
+              return;
+            }
+
+            const files = await github.paginate(github.rest.pulls.listFiles, {
+              owner,
+              repo,
+              pull_number,
+              per_page: 100,
+            });
+
+            const MAX_DIFF_CHARS = 120000;
+            let used = 0;
+            const parts = [];
+
+            for (const f of files) {
+              if (!f.patch) continue;
+              const section = [
+                `FILE: ${f.filename}`,
+                `STATUS: ${f.status}`,
+                "PATCH:",
+                f.patch,
+                "",
+              ].join("\n");
+
+              if (used + section.length > MAX_DIFF_CHARS) break;
+              parts.push(section);
+              used += section.length;
+            }
+
+            const diffText = parts.length
+              ? parts.join("\n")
+              : "No patch text available.";
+
+            const prompt = `
+            아래는 GitHub PR diff 입니다.
+            실제 버그 위험, 회귀 가능성, 안정성/보안 이슈를 중심으로만 검토하세요.
+            취향/스타일/사소한 의견은 제외하세요.
+
+            응답은 반드시 JSON만 반환:
+            {
+              "summary": "한줄 요약",
+              "findings": [
+                {
+                  "title": "짧은 제목",
+                  "severity": "critical|high|medium|low",
+                  "file": "path/to/file",
+                  "line": 123,
+                  "why": "왜 문제인지",
+                  "suggestion": "어떻게 고칠지",
+                  "blocking": true
+                }
+              ]
+            }
+
+            PR DIFF:
+            ${diffText}
+            `;
+
+            const response = await fetch("https://api.openai.com/v1/responses", {
+              method: "POST",
+              headers: {
+                "Content-Type": "application/json",
+                "Authorization": `Bearer ${process.env.OPENAI_API_KEY}`,
+              },
+              body: JSON.stringify({
+                model: process.env.OPENAI_REVIEW_MODEL,
+                input: prompt,
+                temperature: 0.1,
+              }),
+            });
+
+            if (!response.ok) {
+              const body = await response.text();
+              core.setFailed(`OpenAI API error: ${response.status} ${body}`);
+              return;
+            }
+
+            const data = await response.json();
+            let text = data.output_text || "";
+
+            if (!text) {
+              core.setFailed("OpenAI response output_text is empty.");
+              return;
+            }
+
+            let parsed;
+            try {
+              parsed = JSON.parse(text);
+            } catch {
+              const start = text.indexOf("{");
+              const end = text.lastIndexOf("}");
+              if (start >= 0 && end > start) {
+                parsed = JSON.parse(text.slice(start, end + 1));
+              } else {
+                core.setFailed("Failed to parse AI review JSON.");
+                return;
+              }
+            }
+
+            const findings = Array.isArray(parsed.findings) ? parsed.findings : [];
+            const summary = String(parsed.summary || "리뷰 요약 없음");
+
+            const header = [
+              marker,
+              "## 자동 코드 리뷰 결과",
+              `- 모델: \`${process.env.OPENAI_REVIEW_MODEL}\``,
+              `- 변경 파일 수: ${files.length}`,
+              `- 주요 이슈 수: ${findings.length}`,
+              "",
+              `요약: ${summary}`,
+              "",
+            ];
+
+            const bodyLines = findings.length
+              ? findings.map((f, i) => {
+                  const title = String(f.title || "이슈");
+                  const severity = String(f.severity || "medium");
+                  const file = String(f.file || "-");
+                  const line = Number.isFinite(Number(f.line)) ? Number(f.line) : "-";
+                  const why = String(f.why || "");
+                  const suggestion = String(f.suggestion || "");
+                  const blocking = Boolean(f.blocking);
+                  return [
+                    `${i + 1}. [${severity.toUpperCase()}] ${title}`,
+                    `   - 위치: \`${file}:${line}\``,
+                    `   - 영향: ${why}`,
+                    `   - 제안: ${suggestion}`,
+                    `   - 차단 필요: ${blocking ? "예" : "아니오"}`,
+                  ].join("\n");
+                })
+              : ["문제로 판단된 주요 이슈를 찾지 못했습니다."];
+
+            const commentBody = [...header, ...bodyLines].join("\n");
+
+            const comments = await github.paginate(github.rest.issues.listComments, {
+              owner,
+              repo,
+              issue_number: pull_number,
+              per_page: 100,
+            });
+
+            const existing = comments.find(
+              (c) =>
+                c.user?.login === "github-actions[bot]" &&
+                typeof c.body === "string" &&
+                c.body.includes(marker)
+            );
+
+            if (existing) {
+              await github.rest.issues.updateComment({
+                owner,
+                repo,
+                comment_id: existing.id,
+                body: commentBody,
+              });
+            } else {
+              await github.rest.issues.createComment({
+                owner,
+                repo,
+                issue_number: pull_number,
+                body: commentBody,
+              });
+            }
+
+            const blockingCount = findings.filter((f) => Boolean(f.blocking)).length;
+            core.info(`findings=${findings.length}, blocking=${blockingCount}`);
+            if (blockingCount > 0) {
+              core.setFailed(`AI review found ${blockingCount} blocking issue(s).`);
+            }
