@@ -11,6 +11,7 @@ import { useSWRConfig } from "swr";
 import { NotificationsResponse } from "pages/api/notifications";
 import { NotificationType } from "@prisma/client";
 import { usePathname } from "next/navigation";
+import { getProductPath } from "@libs/product-route";
 
 /** 알림 타입별 색상 */
 const NOTIFICATION_COLORS: Record<NotificationType, string> = {
@@ -39,7 +40,7 @@ const getNotificationLink = (
     case "post":
       return `/posts/${targetId}`;
     case "product":
-      return `/products/${targetId}`;
+      return getProductPath(targetId);
     case "chatRoom":
       return `/chat/${targetId}`;
     case "user":

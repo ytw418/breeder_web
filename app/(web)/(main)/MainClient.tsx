@@ -18,6 +18,7 @@ import SkeletonItem from "@components/atoms/SkeletonItem";
 import { cn, makeImageUrl } from "@libs/client/utils";
 import { CATEGORIES } from "@libs/constants";
 import { ANALYTICS_EVENTS, trackEvent } from "@libs/client/analytics";
+import { getProductPath } from "@libs/product-route";
 import { AuctionsListResponse } from "pages/api/auctions";
 import { PopularProductsResponse } from "pages/api/products/popular";
 import useUser from "hooks/useUser";
@@ -333,7 +334,7 @@ const MainClient = () => {
               popularProductsData.products.map((product, index) => (
                 <Link
                   key={product.id}
-                  href={`/products/${product.id}`}
+                  href={getProductPath(product.id, product.name)}
                   onClick={() =>
                     trackEvent(ANALYTICS_EVENTS.homePopularProductClicked, {
                       product_id: product.id,
