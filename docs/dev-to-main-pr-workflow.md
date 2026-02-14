@@ -5,6 +5,7 @@ This repository now supports an automated quality gate for the `dev -> main` pul
 ## What runs automatically
 
 GitHub Actions workflow: `.github/workflows/dev-to-main-quality.yml`
+GitHub Actions workflow: `.github/workflows/review-loop-gate.yml`
 
 When a pull request targets `main` from `dev`, it runs:
 
@@ -12,6 +13,7 @@ When a pull request targets `main` from `dev`, it runs:
 2. `npm run verify:ci` (lint + typecheck + test)
 3. Vercel deployment check wait (`Vercel` check must be `success`)
 4. Slack notification only after quality + Vercel checks pass
+5. Review loop gate check (Codex/Gemini 위험 버그 신호 감지 시 실패)
 
 ## Required setup (one-time)
 
@@ -22,6 +24,7 @@ When a pull request targets `main` from `dev`, it runs:
    - `gh auth login`
 3. (Optional) Protect `main` branch and require these checks:
    - `Dev to Main Quality Gate / quality`
+   - `Review Loop Gate / gate`
 
 ## Local pre-check command
 
