@@ -19,7 +19,7 @@ When a pull request targets `main` from `dev`, it runs:
    - Value: your Slack Incoming Webhook URL
 2. Authenticate GitHub CLI once on your machine:
    - `gh auth login`
-3. (Optional) Protect `main` branch and require this check:
+3. (Optional) Protect `main` branch and require these checks:
    - `Dev to Main Quality Gate / quality`
 
 ## Local pre-check command
