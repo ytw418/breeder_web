@@ -1,5 +1,6 @@
 import { MetadataRoute } from "next";
 import client from "@libs/server/client";
+import { getProductPath } from "@libs/product-route";
 
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   // 정적 페이지 URL
@@ -33,12 +34,13 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     const products = await client.product.findMany({
       select: {
         id: true,
+        name: true,
         updatedAt: true,
       },
     });
 
     const productPages: MetadataRoute.Sitemap = products.map((product) => ({
-      url: `https://bredy.app/products/${product.id}`,
+      url: `https://bredy.app${getProductPath(product.id, product.name)}`,
       lastModified: product.updatedAt,
       changeFrequency: "daily",
       priority: 0.9,

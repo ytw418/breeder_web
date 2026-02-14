@@ -6,6 +6,7 @@ import { Controller, useForm } from "react-hook-form";
 import useMutation from "hooks/useMutation";
 import { Product } from "@prisma/client";
 import { toast } from "react-toastify";
+import { getProductPath } from "@libs/product-route";
 
 interface EditForm {
   name: string;
@@ -67,7 +68,7 @@ export default function EditClient({ product }: EditClientProps) {
       onCompleted: (result) => {
         if (result.success) {
           toast.success("상품이 수정되었습니다.");
-          router.push(`/products/${product.id}`);
+          router.push(getProductPath(product.id, data.name));
           router.refresh();
         }
         if (!result.success) {

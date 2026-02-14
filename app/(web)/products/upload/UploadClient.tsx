@@ -14,6 +14,7 @@ import { Label } from "@components/ui/label";
 import { cn } from "@libs/client/utils";
 import { CATEGORIES, PRODUCT_TYPES } from "@libs/constants";
 import MarkdownEditor from "@components/features/product/MarkdownEditor";
+import { getProductPath } from "@libs/product-route";
 
 interface UploadProductForm {
   name: string;
@@ -167,7 +168,7 @@ const UploadClient = () => {
 
       if (result.success && result.product?.id) {
         toast.success("상품이 등록되었습니다.");
-        router.push(`/products/${result.product.id}`);
+        router.push(getProductPath(result.product.id, formData.name));
         return;
       }
 

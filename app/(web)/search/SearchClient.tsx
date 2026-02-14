@@ -8,6 +8,7 @@ import { cn, makeImageUrl, getTimeAgoString } from "@libs/client/utils";
 import Link from "next/link";
 import { SearchResponse } from "pages/api/search";
 import { CATEGORIES } from "@libs/constants";
+import { getProductPath } from "@libs/product-route";
 
 type SearchTab = "all" | "products" | "posts" | "users";
 
@@ -269,7 +270,7 @@ const SearchClient = () => {
                   {recommendProducts.products.slice(0, 10).map((product) => (
                     <Link
                       key={product.id}
-                      href={`/products/${product.id}`}
+                      href={getProductPath(product.id, product.name)}
                       className="flex-shrink-0 w-36"
                     >
                       <div className="relative w-36 h-36 rounded-xl overflow-hidden bg-gray-100">
@@ -425,7 +426,7 @@ const SearchClient = () => {
                   {data.products.map((product) => (
                     <Link
                       key={product.id}
-                      href={`/products/${product.id}`}
+                      href={getProductPath(product.id, product.name)}
                       className="flex items-center gap-4 px-4 py-3 hover:bg-gray-50 dark:hover:bg-slate-800/70 transition-colors"
                     >
                       {product.photos[0] ? (

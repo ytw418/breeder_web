@@ -15,6 +15,7 @@ import { ChatResponseType } from "pages/api/chat";
 import { toast } from "react-toastify";
 import useConfirmDialog from "hooks/useConfirmDialog";
 import { ANALYTICS_EVENTS, trackEvent } from "@libs/client/analytics";
+import { extractProductId, getProductPath } from "@libs/product-route";
 
 const DETAIL_FALLBACK_IMAGE = "/images/placeholders/detail-fallback-white.svg";
 
@@ -37,12 +38,12 @@ const ProductClient = ({ product, relatedProducts }: ItemDetailResponse) => {
 
   // 상품 상세 정보 데이터 페칭
   const { data, mutate: boundMutate } = useSWR<ItemDetailResponse>(
-    query?.id ? `/api/products/${query.id}` : null
+    query?.id ? `/api/products/${extractProductId(query.id as string)}` : null
   );
 
   // 관심 상품 등록/취소 API 호출
   const [toggleFav, { loading: favLoading }] = useMutation(
-    query?.id ? `/api/products/${query?.id}/fav` : ""
+    query?.id ? `/api/products/${extractProductId(query?.id as string)}/fav` : ""
   );
 
   // 터치 이벤트 상태 관리
@@ -51,12 +52,12 @@ const ProductClient = ({ product, relatedProducts }: ItemDetailResponse) => {
 
   // 상품 삭제 API 호출
   const [deleteProduct, { loading: deleteLoading }] = useMutation(
-    `/api/products/${params?.id}`
+    `/api/products/${extractProductId(params?.id as string)}`
   );
 
   // 상태 변경 API
   const [updateStatus, { loading: statusLoading }] = useMutation(
-    `/api/products/${params?.id}`
+    `/api/products/${extractProductId(params?.id as string)}`
   );
 
   // 상태 드롭다운 표시 여부
@@ -567,7 +568,7 @@ const ProductClient = ({ product, relatedProducts }: ItemDetailResponse) => {
                     {/* 판매자 전용: 수정/삭제 */}
                     <div className="flex space-x-2">
                       <Link
-                        href={`/products/${params?.id}/edit`}
+                        href={`/products/${extractProductId(params?.id as string)}/edit`}
                         className="flex-1 rounded-md border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 py-3 text-center text-sm font-medium text-slate-700 dark:text-slate-300 transition-colors hover:bg-slate-50"
                       >
                         수정하기
@@ -655,7 +656,7 @@ const ProductClient = ({ product, relatedProducts }: ItemDetailResponse) => {
               {relatedProducts.map((product) => (
                 <Link
                   key={product.id}
-                  href={`/products/${product.id}`}
+                  href={getProductPath(product.id, product.name)}
                   className="group focus:outline-none"
                 >
                   <div className="relative aspect-square overflow-hidden bg-slate-100">
