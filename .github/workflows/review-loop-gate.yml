@@ -1,0 +1,173 @@
+name: Review Loop Gate
+
+on:
+  pull_request:
+    branches:
+      - main
+    types:
+      - opened
+      - reopened
+      - synchronize
+      - ready_for_review
+  pull_request_review:
+    types:
+      - submitted
+      - edited
+      - dismissed
+  issue_comment:
+    types:
+      - created
+      - edited
+      - deleted
+  workflow_dispatch:
+
+concurrency:
+  group: review-loop-gate-${{ github.event.pull_request.number || github.event.issue.number || github.run_id }}
+  cancel-in-progress: true
+
+jobs:
+  gate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read
+      issues: write
+      pull-requests: write
+    steps:
+      - name: Check Codex/Gemini review results
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const owner = context.repo.owner;
+            const repo = context.repo.repo;
+            const marker = "<!-- review-loop-gate -->";
+            const botUsers = new Set([
+              "gemini-code-assist[bot]",
+              "chatgpt-codex-connector[bot]",
+              "codex",
+              "codex[bot]",
+            ]);
+            const blockingPattern = /(critical|high|blocking|p0|p1|bug|regression|security|취약점|버그|회귀)/i;
+
+            let pull_number = context.payload.pull_request?.number;
+            if (!pull_number && context.payload.issue?.pull_request) {
+              pull_number = context.payload.issue.number;
+            }
+            if (!pull_number) {
+              core.info("No pull request context. Skip.");
+              return;
+            }
+
+            const pr = await github.rest.pulls.get({ owner, repo, pull_number });
+            if (pr.data.base.ref !== "main") {
+              core.info(`Base branch is ${pr.data.base.ref}. Skip.`);
+              return;
+            }
+            if (pr.data.draft) {
+              core.info("Draft PR. Skip.");
+              return;
+            }
+
+            async function upsertGateComment(body) {
+              const comments = await github.paginate(github.rest.issues.listComments, {
+                owner,
+                repo,
+                issue_number: pull_number,
+                per_page: 100,
+              });
+              const existing = comments.find(
+                (c) =>
+                  c.user?.login === "github-actions[bot]" &&
+                  typeof c.body === "string" &&
+                  c.body.includes(marker)
+              );
+              if (existing) {
+                await github.rest.issues.updateComment({
+                  owner,
+                  repo,
+                  comment_id: existing.id,
+                  body,
+                });
+              } else {
+                await github.rest.issues.createComment({
+                  owner,
+                  repo,
+                  issue_number: pull_number,
+                  body,
+                });
+              }
+            }
+
+            const reviews = await github.paginate(github.rest.pulls.listReviews, {
+              owner,
+              repo,
+              pull_number,
+              per_page: 100,
+            });
+            const issueComments = await github.paginate(github.rest.issues.listComments, {
+              owner,
+              repo,
+              issue_number: pull_number,
+              per_page: 100,
+            });
+
+            const botReviews = reviews.filter((r) => botUsers.has(r.user?.login || ""));
+            const botIssueComments = issueComments.filter((c) =>
+              botUsers.has(c.user?.login || "")
+            );
+
+            const latestReviewByBot = new Map();
+            for (const r of botReviews) {
+              latestReviewByBot.set(r.user.login, r);
+            }
+
+            const blockingFindings = [];
+            for (const [bot, review] of latestReviewByBot.entries()) {
+              if (String(review.state || "").toUpperCase() === "CHANGES_REQUESTED") {
+                blockingFindings.push(
+                  `[${bot}] CHANGES_REQUESTED 리뷰가 있어 수정이 필요합니다.`
+                );
+              }
+              const reviewBody = String(review.body || "");
+              if (reviewBody && blockingPattern.test(reviewBody)) {
+                blockingFindings.push(
+                  `[${bot}] 리뷰 본문에서 차단 키워드를 감지했습니다.`
+                );
+              }
+            }
+
+            for (const c of botIssueComments.slice(-20)) {
+              const body = String(c.body || "");
+              if (blockingPattern.test(body)) {
+                blockingFindings.push(
+                  `[${c.user.login}] 코멘트에서 차단 키워드를 감지했습니다.`
+                );
+              }
+            }
+
+            const uniqueBlocking = [...new Set(blockingFindings)];
+            if (uniqueBlocking.length > 0) {
+              const gateBody = [
+                marker,
+                "## 리뷰 루프 게이트: 차단",
+                "- 상태: Codex/Gemini 리뷰에서 차단 신호가 감지되었습니다.",
+                "- 처리: 코드 수정 후 커밋/푸시하면 자동으로 다시 평가됩니다.",
+                "",
+                "### 감지 내용",
+                ...uniqueBlocking.map((f, i) => `${i + 1}. ${f}`),
+              ].join("\n");
+              await upsertGateComment(gateBody);
+              core.setFailed(
+                `Blocking review signals detected: ${uniqueBlocking.length}`
+              );
+              return;
+            }
+
+            const passBody = [
+              marker,
+              "## 리뷰 루프 게이트: 통과",
+              "- 상태: Codex/Gemini 리뷰에서 차단 신호가 감지되지 않았습니다.",
+              "- 기준: `CHANGES_REQUESTED` 또는 `critical/high/bug/regression/security` 키워드.",
+            ].join("\n");
+            await upsertGateComment(passBody);
+            core.info("No blocking review signal detected.");
