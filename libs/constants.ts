@@ -76,6 +76,12 @@ export const APP_STORE_URL = "";
 
 export const GOOGLE_PLAY_URL = "";
 
+/** 서비스 정책 문서 */
+export const TERMS_OF_SERVICE_URL =
+  "https://breeder.notion.site/8a2ca657b9a047498c95ab42ce3d2b75?pvs=74";
+export const PRIVACY_POLICY_URL =
+  "https://breeder.notion.site/be44680c8d5b43848d0aff25c7c2edba?pvs=74";
+
 export const OS = {
   IOS: "ios",
   ANDROID: "android",

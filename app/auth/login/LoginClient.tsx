@@ -8,7 +8,11 @@ import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import useMutation from "hooks/useMutation";
 import { LoginReqBody, LoginResponseType } from "pages/api/auth/login";
-import { USER_INFO } from "@libs/constants";
+import {
+  PRIVACY_POLICY_URL,
+  TERMS_OF_SERVICE_URL,
+  USER_INFO,
+} from "@libs/constants";
 
 const getSafeNextPath = (rawPath: string | null) => {
   if (!rawPath) return "/";
@@ -232,9 +236,7 @@ const LoginClient = () => {
           <Link
             target="_blank"
             className="text-Primary"
-            href={
-              "https://breeder.notion.site/8a2ca657b9a047498c95ab42ce3d2b75?pvs=74"
-            }
+            href={TERMS_OF_SERVICE_URL}
           >
             이용약관
           </Link>{" "}
@@ -242,9 +244,7 @@ const LoginClient = () => {
           <Link
             target="_blank"
             className="text-Primary"
-            href={
-              "https://breeder.notion.site/be44680c8d5b43848d0aff25c7c2edba?pvs=74"
-            }
+            href={PRIVACY_POLICY_URL}
           >
             개인정보처리동의서
           </Link>{" "}
