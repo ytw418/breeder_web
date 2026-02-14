@@ -10,7 +10,8 @@ When a pull request targets `main` from `dev`, it runs:
 
 1. `npm ci`
 2. `npm run verify:ci` (lint + typecheck + test)
-3. Slack notification when quality check passes
+3. Vercel deployment check wait (`Vercel` check must be `success`)
+4. Slack notification only after quality + Vercel checks pass
 
 ## Required setup (one-time)
 

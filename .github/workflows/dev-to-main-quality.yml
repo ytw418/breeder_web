@@ -38,9 +38,71 @@ jobs:
       - name: Run CI verification
         run: npm run verify:ci
 
-  notify_slack:
+  wait_vercel:
     needs: quality
     if: github.event_name == 'pull_request' && needs.quality.result == 'success'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    permissions:
+      checks: read
+      pull-requests: read
+    steps:
+      - name: Wait for Vercel deployment check
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const owner = context.repo.owner;
+            const repo = context.repo.repo;
+            const ref = context.payload.pull_request?.head?.sha;
+            if (!ref) {
+              core.setFailed("No PR head SHA found.");
+              return;
+            }
+
+            const timeoutMs = 15 * 60 * 1000;
+            const intervalMs = 10 * 1000;
+            const startedAt = Date.now();
+
+            while (true) {
+              const { data } = await github.rest.checks.listForRef({
+                owner,
+                repo,
+                ref,
+                per_page: 100,
+              });
+
+              const vercelCheck = data.check_runs.find((c) => c.name === "Vercel");
+
+              if (vercelCheck) {
+                core.info(
+                  `Vercel check status=${vercelCheck.status}, conclusion=${vercelCheck.conclusion || "null"}`
+                );
+
+                if (vercelCheck.status === "completed") {
+                  if (vercelCheck.conclusion === "success") {
+                    core.info("Vercel deployment check passed.");
+                    return;
+                  }
+                  core.setFailed(
+                    `Vercel deployment check failed: ${vercelCheck.conclusion || "unknown"}`
+                  );
+                  return;
+                }
+              } else {
+                core.info("Vercel check not created yet. Waiting...");
+              }
+
+              if (Date.now() - startedAt > timeoutMs) {
+                core.setFailed("Timed out waiting for Vercel deployment check.");
+                return;
+              }
+
+              await new Promise((resolve) => setTimeout(resolve, intervalMs));
+            }
+
+  notify_slack:
+    needs: [quality, wait_vercel]
+    if: github.event_name == 'pull_request' && needs.quality.result == 'success' && needs.wait_vercel.result == 'success'
     runs-on: ubuntu-latest
     steps:
       - name: Send Slack notification
