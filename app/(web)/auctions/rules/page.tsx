@@ -1,6 +1,8 @@
 import type { Metadata } from "next";
 import AuctionRulesClient from "./AuctionRulesClient";
 
+const AUCTION_OG_IMAGE = "/designer/og/bredy-og-auction.png";
+
 export const metadata: Metadata = {
   title: "경매 운영 가이드",
   description:
@@ -12,7 +14,7 @@ export const metadata: Metadata = {
     type: "website",
     images: [
       {
-        url: "/auction-tool/opengraph-image",
+        url: AUCTION_OG_IMAGE,
         width: 1200,
         height: 630,
         alt: "브리디 경매 운영 가이드 공유 이미지",
@@ -24,7 +26,7 @@ export const metadata: Metadata = {
     title: "경매 운영 가이드 | 브리디 경매도구",
     description:
       "브리디 경매 정책, 자동 연장 규칙, 신고 처리 기준을 한 번에 확인하세요.",
-    images: ["/auction-tool/twitter-image"],
+    images: [AUCTION_OG_IMAGE],
   },
 };
 

@@ -8,6 +8,7 @@ import Image from "@components/atoms/Image";
 import { Button } from "@components/ui/button";
 import { Input } from "@components/ui/input";
 import { makeImageUrl } from "@libs/client/utils";
+import { getProductPath } from "@libs/product-route";
 import useConfirmDialog from "hooks/useConfirmDialog";
 
 export default function AdminProductsPage() {
@@ -104,7 +105,7 @@ export default function AdminProductsPage() {
                       <div>
                         <div className="text-sm font-medium text-gray-900 line-clamp-1">
                           <Link
-                            href={`/products/${product.id}`}
+                            href={getProductPath(product.id, product.name)}
                             target="_blank"
                             className="hover:underline"
                           >

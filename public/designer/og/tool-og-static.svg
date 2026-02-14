@@ -1,0 +1,49 @@
+<svg width="1200" height="630" viewBox="0 0 1200 630" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="toolBg" x1="0" y1="0" x2="1200" y2="630" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#0B1327"/>
+      <stop offset="0.58" stop-color="#162446"/>
+      <stop offset="1" stop-color="#1D4ED8"/>
+    </linearGradient>
+    <radialGradient id="toolGlowA" cx="0" cy="0" r="1" gradientUnits="userSpaceOnUse" gradientTransform="translate(944 168) rotate(136) scale(560 334)">
+      <stop stop-color="#7DD3FC" stop-opacity="0.28"/>
+      <stop offset="1" stop-color="#7DD3FC" stop-opacity="0"/>
+    </radialGradient>
+    <radialGradient id="toolGlowB" cx="0" cy="0" r="1" gradientUnits="userSpaceOnUse" gradientTransform="translate(140 636) rotate(-34) scale(500 250)">
+      <stop stop-color="#FACC15" stop-opacity="0.2"/>
+      <stop offset="1" stop-color="#FACC15" stop-opacity="0"/>
+    </radialGradient>
+  </defs>
+
+  <rect width="1200" height="630" rx="36" fill="url(#toolBg)"/>
+  <rect width="1200" height="630" rx="36" fill="url(#toolGlowA)"/>
+  <rect width="1200" height="630" rx="36" fill="url(#toolGlowB)"/>
+
+  <rect x="74" y="74" width="170" height="38" rx="19" fill="#E2E8F0" fill-opacity="0.16"/>
+  <text x="102" y="99" fill="#E2E8F0" font-family="Pretendard, Inter, sans-serif" font-size="18" font-weight="700">BREDY TOOL</text>
+
+  <text x="72" y="212" fill="white" font-family="Pretendard, Inter, sans-serif" font-size="66" font-weight="800" letter-spacing="-1.2">1분 만에 만드는</text>
+  <text x="72" y="292" fill="white" font-family="Pretendard, Inter, sans-serif" font-size="66" font-weight="800" letter-spacing="-1.2">경매 폼 생성기</text>
+
+  <text x="74" y="346" fill="#CBD5E1" font-family="Pretendard, Inter, sans-serif" font-size="24" font-weight="500">로그인 후 경매 등록, 공유 링크 발급, 알림 확인까지</text>
+
+  <rect x="72" y="408" width="268" height="76" rx="18" fill="#FEE500"/>
+  <text x="122" y="458" fill="#171717" font-family="Pretendard, Inter, sans-serif" font-size="31" font-weight="800">경매 등록 시작</text>
+
+  <g>
+    <rect x="704" y="86" width="420" height="458" rx="34" fill="#0F1F3F" fill-opacity="0.92" stroke="#93C5FD" stroke-opacity="0.45"/>
+    <rect x="742" y="128" width="344" height="76" rx="18" fill="#E2E8F0" fill-opacity="0.14"/>
+    <text x="786" y="176" fill="#E2E8F0" font-family="Pretendard, Inter, sans-serif" font-size="34" font-weight="700">TOOL FLOW</text>
+
+    <g font-family="Pretendard, Inter, sans-serif" fill="#F8FAFC" font-size="24" font-weight="600">
+      <circle cx="780" cy="256" r="14" fill="#FEE500"/>
+      <text x="812" y="264">경매 등록</text>
+      <circle cx="780" cy="328" r="14" fill="#FEE500"/>
+      <text x="812" y="336">링크 공유</text>
+      <circle cx="780" cy="400" r="14" fill="#FEE500"/>
+      <text x="812" y="408">실시간 입찰 확인</text>
+      <circle cx="780" cy="472" r="14" fill="#FEE500"/>
+      <text x="812" y="480">알림 확인</text>
+    </g>
+  </g>
+</svg>

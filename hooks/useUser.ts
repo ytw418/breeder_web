@@ -5,6 +5,7 @@ import useSWR from "swr";
 interface ProfileResponse {
   success: boolean;
   profile: User;
+  isAdmin?: boolean;
 }
 
 export default function useUser() {
@@ -23,6 +24,7 @@ export default function useUser() {
   );
   return {
     user: data?.profile,
+    isAdmin: Boolean(data?.isAdmin),
     isLoading: shouldFetchUser && !data && !error,
     mutate,
   };

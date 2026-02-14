@@ -100,7 +100,9 @@ test("상품 목록 -> 상세 -> 찜 토글이 동작한다", async ({ page }) =
   await page.getByTestId("product-link-101").click();
 
   await expect(page).toHaveURL(/\/e2e\/product-flow\/101-/);
-  await expect(page.getByText("테스트 사슴벌레")).toBeVisible();
+  await expect(
+    page.getByRole("heading", { name: "테스트 사슴벌레" }).first()
+  ).toBeVisible();
 
   // 초기 상태는 미찜이어야 한다.
   const favButton = page.getByTestId("favorite-toggle");

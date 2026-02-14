@@ -31,10 +31,21 @@ async function handler(
   const data = req.body?.data;
 
   const productId = id?.toString()?.split("-")[0];
+  const parsedProductId = Number(productId);
+
+  if (req.method === "GET") {
+    console.info("[api/products/:id][start]", {
+      rawId: id,
+      parsedProductId,
+      method: req.method,
+      vercelId: req.headers["x-vercel-id"] || null,
+      userId: user?.id ?? null,
+    });
+  }
 
   const product = await client.product.findUnique({
     where: {
-      id: Number(productId),
+      id: parsedProductId,
     },
     include: {
       user: {
@@ -53,6 +64,18 @@ async function handler(
   });
 
   if (!product) {
+    if (req.method === "GET") {
+      const latest = await client.product.findMany({
+        take: 5,
+        orderBy: { id: "desc" },
+        select: { id: true, name: true, userId: true, createdAt: true },
+      });
+      console.warn("[api/products/:id][not-found]", {
+        rawId: id,
+        parsedProductId,
+        latestProducts: latest,
+      });
+    }
     return res.status(404).json({
       success: false,
       message: "상품을 찾을 수 없습니다.",
@@ -60,6 +83,12 @@ async function handler(
   }
 
   if (req.method === "GET") {
+    console.info("[api/products/:id][found]", {
+      id: product.id,
+      userId: product.userId,
+      name: product.name,
+      status: product.status,
+    });
     const [isLikedResult, hasPurchasedResult] = await Promise.all([
       client.fav.findFirst({
         where: { productId: product.id, userId: user?.id },

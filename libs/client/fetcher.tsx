@@ -1,3 +1,5 @@
+import { capturePosthogError } from "@libs/client/posthog";
+
 export const fetcher = async <ReqBody = any, ResData = any>(
   url: string,
   { arg, init }: { arg?: ReqBody; init?: RequestInit }
@@ -10,18 +12,32 @@ export const fetcher = async <ReqBody = any, ResData = any>(
           method: "POST",
           body: JSON.stringify(arg),
         }
-  ).then(async (res) => {
-    if (!res.ok) {
-      try {
-        // ok 가 false 일때 res.json() 실행
-        const data = await res.json();
-        throw new Error(data.message);
-      } catch (error) {
-        //  응답이 json이 아닐 때 res.text()
-        const data = await res.text();
-        throw new Error(data);
+  )
+    .then(async (res) => {
+      if (!res.ok) {
+        const raw = await res.text().catch(() => "");
+        let message = "요청 처리 중 오류가 발생했습니다.";
+        if (raw) {
+          try {
+            const data = JSON.parse(raw);
+            message = data?.message || data?.error || raw;
+          } catch {
+            message = raw;
+          }
+        }
+
+        const fetchError = new Error(message) as Error & { status?: number };
+        fetchError.status = res.status;
+        throw fetchError;
       }
-    }
-    return res.json();
-  }); // 그 외 에러는 swr 에서 처리
+      return res.json();
+    })
+    .catch((error: unknown) => {
+      capturePosthogError({
+        source: "libs/client/fetcher",
+        error,
+        context: { url },
+      });
+      throw error;
+    }); // 그 외 에러는 swr 에서 처리
 };

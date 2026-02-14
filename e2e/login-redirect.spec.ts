@@ -10,6 +10,10 @@ test("로그인 진입 -> 콜백 -> 안전한 redirect가 동작한다", async (
       Auth: {
         authorize: (options: { state: string }) => {
           (window as any).__kakaoAuthorizeArgs = options;
+          window.sessionStorage.setItem(
+            "__e2e_kakao_authorize_args",
+            JSON.stringify(options)
+          );
           window.location.assign(`/login-loading?code=e2e-code&state=${options.state}`);
         },
       },
@@ -75,7 +79,15 @@ test("로그인 진입 -> 콜백 -> 안전한 redirect가 동작한다", async (
 
   // authorize의 state 값이 안전 경로(%2F)로 정규화되었는지 최종 확인한다.
   const encodedState = await page.evaluate(
-    () => (window as any).__kakaoAuthorizeArgs?.state
+    () => {
+      const raw = window.sessionStorage.getItem("__e2e_kakao_authorize_args");
+      if (!raw) return undefined;
+      try {
+        return JSON.parse(raw)?.state;
+      } catch {
+        return undefined;
+      }
+    }
   );
   expect(encodedState).toBe("%2F");
 });

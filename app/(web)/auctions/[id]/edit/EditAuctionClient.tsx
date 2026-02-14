@@ -46,6 +46,8 @@ const AUCTION_CATEGORIES = [
 ];
 
 const DURATION_PRESETS = [
+  { label: "1시간", hours: 1 },
+  { label: "3시간", hours: 3 },
   { label: "24시간", hours: 24 },
   { label: "48시간", hours: 48 },
   { label: "72시간", hours: 72 },
@@ -244,7 +246,7 @@ const EditAuctionClient = () => {
           <div className="rounded-xl border border-slate-200 bg-white p-4 space-y-2">
             <p className="text-sm font-semibold text-slate-900">수정 가능 시간이 지났습니다</p>
             <p className="text-sm text-slate-600">
-              경매 등록 후 1시간 이내, 입찰이 없는 경우에만 수정할 수 있습니다.
+              진행중 상태에서 등록 후 10분 이내, 입찰이 없는 경우에만 수정할 수 있습니다.
             </p>
             <p className="text-xs text-slate-400">수정 가능 마감: {editAvailableUntilText}</p>
             <Button
@@ -266,7 +268,7 @@ const EditAuctionClient = () => {
         <div className="rounded-xl border border-slate-200 bg-slate-50 px-3.5 py-3">
           <p className="text-sm font-semibold text-slate-800">수정 가능 조건</p>
           <p className="mt-1 text-xs text-slate-600">
-            등록 후 1시간 이내 + 입찰 없음 상태에서만 수정할 수 있습니다.
+            진행중 + 등록 후 10분 이내 + 입찰 없음 상태에서만 수정할 수 있습니다.
           </p>
           <p className="mt-1 text-xs text-slate-500">수정 가능 마감: {editAvailableUntilText}</p>
         </div>
@@ -347,7 +349,7 @@ const EditAuctionClient = () => {
           </label>
           <Input
             {...register("title", { required: "제목을 입력해주세요." })}
-            placeholder="예: 헤라클레스 DHH 150mm 수컷"
+            placeholder="예: 지리산 산삼 500g 출품합니다."
           />
           {errors.title && (
             <p className="text-xs text-red-500 mt-1">{errors.title.message}</p>
@@ -360,7 +362,7 @@ const EditAuctionClient = () => {
           </label>
           <Textarea
             {...register("description", { required: "설명을 입력해주세요." })}
-            placeholder="개체 정보, 사육 환경, 특이사항 등을 자세히 적어주세요."
+            placeholder="경매 내용을 상세하게 적어주세요. 물품 정보, 거래 내역, 상태 등을 자세히 적어주세요."
             rows={5}
           />
           {errors.description && (

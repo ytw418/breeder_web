@@ -1,11 +1,8 @@
 import { PrismaClient } from "@prisma/client";
-import { promises as fs } from "fs";
-import path from "path";
 
 const client = new PrismaClient();
 
 const FLOW_TAG = "[FLOW]";
-const REPORT_STORE_PATH = path.join(process.cwd(), "data", "auction-reports.json");
 
 const getBidIncrement = (price: number) => {
   const normalizedPrice = Math.max(0, Math.floor(Number(price) || 0));
@@ -17,31 +14,6 @@ const getBidIncrement = (price: number) => {
 
 const addHours = (base: Date, hours: number) => new Date(base.getTime() + hours * 60 * 60 * 1000);
 
-async function ensureReportStore() {
-  try {
-    await fs.access(REPORT_STORE_PATH);
-  } catch {
-    await fs.mkdir(path.dirname(REPORT_STORE_PATH), { recursive: true });
-    await fs.writeFile(REPORT_STORE_PATH, "[]", "utf-8");
-  }
-}
-
-async function readReports() {
-  await ensureReportStore();
-  const raw = await fs.readFile(REPORT_STORE_PATH, "utf-8");
-  try {
-    const parsed = JSON.parse(raw);
-    return Array.isArray(parsed) ? parsed : [];
-  } catch {
-    return [];
-  }
-}
-
-async function writeReports(items: any[]) {
-  await ensureReportStore();
-  await fs.writeFile(REPORT_STORE_PATH, JSON.stringify(items, null, 2), "utf-8");
-}
-
 async function resetFlowData() {
   const oldAuctions = await client.auction.findMany({
     where: { title: { startsWith: FLOW_TAG } },
@@ -50,6 +22,11 @@ async function resetFlowData() {
   const oldAuctionIds = oldAuctions.map((auction) => auction.id);
 
   if (oldAuctionIds.length) {
+    await client.auctionReport.deleteMany({
+      where: {
+        auctionId: { in: oldAuctionIds },
+      },
+    });
     await client.bid.deleteMany({ where: { auctionId: { in: oldAuctionIds } } });
     await client.notification.deleteMany({
       where: { targetType: "auction", targetId: { in: oldAuctionIds } },
@@ -57,13 +34,13 @@ async function resetFlowData() {
     await client.auction.deleteMany({ where: { id: { in: oldAuctionIds } } });
   }
 
-  const reports = await readReports();
-  const filteredReports = reports.filter(
-    (report: any) =>
-      !String(report?.detail || "").includes(FLOW_TAG) &&
-      !oldAuctionIds.includes(Number(report?.auctionId))
-  );
-  await writeReports(filteredReports);
+  await client.auctionReport.deleteMany({
+    where: {
+      detail: {
+        contains: FLOW_TAG,
+      },
+    },
+  });
 }
 
 async function upsertFlowUsers() {
@@ -275,26 +252,17 @@ async function seedFlow() {
   await addBid(reportedAuction.id, users.bidderA.id, 56_000);
   await addBid(reportedAuction.id, users.bidderB.id, 58_000);
 
-  const reports = await readReports();
-  const nextId = reports.length ? Math.max(...reports.map((item: any) => Number(item.id) || 0)) + 1 : 1;
-  const reportNow = new Date().toISOString();
-
-  reports.push({
-    id: nextId,
-    auctionId: reportedAuction.id,
-    reporterId: users.reporter.id,
-    reportedUserId: users.seller.id,
-    reason: "허위 매물 의심",
-    detail: `${FLOW_TAG} 경매 설명과 실제 상태가 다르다는 신고 시나리오`,
-    status: "OPEN",
-    resolutionAction: "NONE",
-    resolutionNote: null,
-    resolvedBy: null,
-    resolvedAt: null,
-    createdAt: reportNow,
-    updatedAt: reportNow,
+  await client.auctionReport.create({
+    data: {
+      auctionId: reportedAuction.id,
+      reporterId: users.reporter.id,
+      reportedUserId: users.seller.id,
+      reason: "허위 매물 의심",
+      detail: `${FLOW_TAG} 경매 설명과 실제 상태가 다르다는 신고 시나리오`,
+      status: "OPEN",
+      resolutionAction: "NONE",
+    },
   });
-  await writeReports(reports);
 
   console.log("FLOW 시나리오 데이터 생성 완료");
   console.log(`- 등록만한 경매: ${registeredAuction.id}`);

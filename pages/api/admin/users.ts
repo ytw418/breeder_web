@@ -3,7 +3,7 @@ import withHandler, { ResponseType } from "@libs/server/withHandler";
 import { withApiSession } from "@libs/server/withSession";
 import client from "@libs/server/client";
 import { role as UserRole, UserStatus } from "@prisma/client";
-import { hasAdminAccess } from "./_utils";
+import { canRunSensitiveAdminAction, hasAdminAccess } from "./_utils";
 
 const ROLE_OPTIONS: UserRole[] = ["USER", "ADMIN", "SUPER_USER"];
 const STATUS_OPTIONS: UserStatus[] = [
@@ -36,12 +36,85 @@ async function handler(req: NextApiRequest, res: NextApiResponse<ResponseType>) 
   }
 
   if (req.method === "POST") {
-    const { userId, action, role } = req.body;
+    const { userId, action, role, email, emails } = req.body;
 
-    if (!userId || !action) {
+    if (!action) {
       return res
         .status(400)
         .json({ success: false, error: "필수 파라미터가 누락되었습니다." });
+    }
+
+    if (action === "grant_admin_by_email") {
+      const currentAdmin = await client.user.findUnique({
+        where: { id: user?.id },
+        select: { email: true },
+      });
+
+      if (!canRunSensitiveAdminAction(currentAdmin?.email)) {
+        return res.status(403).json({
+          success: false,
+          error:
+            "관리자 권한 부여는 지정된 운영 계정(ytw418@naver.com, ytw418@gmail.com)에서만 가능합니다.",
+        });
+      }
+
+      const candidates = Array.isArray(emails)
+        ? emails
+        : email
+          ? [email]
+          : [];
+
+      const normalizedEmails = Array.from(
+        new Set(
+          candidates
+            .map((item: unknown) => String(item || "").trim().toLowerCase())
+            .filter((item: string) => item.includes("@"))
+        )
+      );
+
+      if (!normalizedEmails.length) {
+        return res
+          .status(400)
+          .json({ success: false, error: "유효한 이메일을 입력해주세요." });
+      }
+
+      const users = await client.user.findMany({
+        where: {
+          email: { in: normalizedEmails },
+        },
+        select: {
+          id: true,
+          email: true,
+          name: true,
+          role: true,
+        },
+      });
+
+      const foundEmailSet = new Set(users.map((item) => item.email?.toLowerCase()).filter(Boolean));
+      const notFoundEmails = normalizedEmails.filter((item) => !foundEmailSet.has(item));
+
+      let updatedCount = 0;
+      for (const target of users) {
+        if (target.role === "SUPER_USER" || target.role === "ADMIN") continue;
+        await client.user.update({
+          where: { id: target.id },
+          data: { role: "ADMIN" },
+        });
+        updatedCount += 1;
+      }
+
+      return res.json({
+        success: true,
+        updatedCount,
+        foundCount: users.length,
+        notFoundEmails,
+      });
+    }
+
+    if (!userId) {
+      return res
+        .status(400)
+        .json({ success: false, error: "유저 ID가 필요합니다." });
     }
 
     if (action === "update_role") {

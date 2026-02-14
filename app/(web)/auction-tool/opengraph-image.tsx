@@ -16,59 +16,60 @@ export default function OpenGraphImage() {
           height: "100%",
           display: "flex",
           position: "relative",
-          background: "linear-gradient(135deg, #0B1327 0%, #162446 54%, #1E5BFF 100%)",
-          color: "white",
-          fontFamily: "Inter, Pretendard, sans-serif",
           overflow: "hidden",
+          background: "linear-gradient(130deg, #0b1327 0%, #162446 56%, #1d4ed8 100%)",
+          color: "#ffffff",
+          fontFamily: "Inter, Pretendard, sans-serif",
+          padding: "56px 62px",
         }}
       >
         <div
           style={{
             position: "absolute",
+            top: -120,
             right: -120,
-            top: -110,
             width: 420,
             height: 420,
             borderRadius: 9999,
             background: "rgba(125, 229, 255, 0.18)",
-            filter: "blur(36px)",
+            filter: "blur(40px)",
           }}
         />
         <div
           style={{
             position: "absolute",
-            right: 20,
-            bottom: -140,
+            left: -100,
+            bottom: -120,
             width: 360,
-            height: 300,
+            height: 360,
             borderRadius: 9999,
-            background: "rgba(253, 224, 71, 0.15)",
-            filter: "blur(32px)",
+            background: "rgba(250, 204, 21, 0.16)",
+            filter: "blur(34px)",
           }}
         />
 
         <div
           style={{
-            display: "flex",
             width: "100%",
             height: "100%",
-            padding: "64px 70px",
-            gap: 36,
+            display: "flex",
+            justifyContent: "space-between",
+            alignItems: "center",
+            gap: 34,
           }}
         >
-          <div style={{ display: "flex", flexDirection: "column", flex: 1 }}>
+          <div style={{ display: "flex", flexDirection: "column", maxWidth: 760 }}>
             <div
               style={{
                 display: "flex",
                 alignItems: "center",
                 alignSelf: "flex-start",
                 borderRadius: 9999,
-                padding: "8px 18px",
+                border: "1px solid rgba(255,255,255,0.2)",
                 background: "rgba(255,255,255,0.12)",
-                border: "1px solid rgba(255,255,255,0.18)",
-                fontSize: 24,
+                padding: "8px 16px",
+                fontSize: 22,
                 fontWeight: 700,
-                letterSpacing: -0.3,
               }}
             >
               BREDY AUCTION TOOL
@@ -76,13 +77,13 @@ export default function OpenGraphImage() {
 
             <div
               style={{
-                marginTop: 32,
-                fontSize: 72,
-                lineHeight: 1.1,
-                letterSpacing: -1.5,
-                fontWeight: 800,
+                marginTop: 26,
                 display: "flex",
                 flexDirection: "column",
+                fontSize: 62,
+                lineHeight: 1.1,
+                letterSpacing: -1.1,
+                fontWeight: 800,
               }}
             >
               <span>30초면 만드는</span>
@@ -91,70 +92,29 @@ export default function OpenGraphImage() {
 
             <div
               style={{
-                marginTop: 18,
-                fontSize: 30,
-                lineHeight: 1.35,
-                color: "#D8E7FF",
-                letterSpacing: -0.3,
-              }}
-            >
-              카카오 로그인 기반 참여 · 자동 연장 · 신고/제재 처리
-            </div>
-
-            <div style={{ display: "flex", gap: 14, marginTop: 30 }}>
-              <div
-                style={{
-                  height: 68,
-                  minWidth: 260,
-                  borderRadius: 18,
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  padding: "0 28px",
-                  fontSize: 30,
-                  fontWeight: 800,
-                  color: "#171717",
-                  background: "#FEE500",
-                }}
-              >
-                카카오로 시작
-              </div>
-              <div
-                style={{
-                  height: 68,
-                  minWidth: 210,
-                  borderRadius: 18,
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  padding: "0 24px",
-                  fontSize: 28,
-                  fontWeight: 700,
-                  color: "#FFFFFF",
-                  background: "rgba(255,255,255,0.1)",
-                  border: "1px solid rgba(255,255,255,0.26)",
-                }}
-              >
-                경매 보기
-              </div>
-            </div>
-
-            <div
-              style={{
-                marginTop: 26,
+                marginTop: 16,
                 display: "flex",
-                gap: 14,
+                flexDirection: "column",
+                fontSize: 28,
+                lineHeight: 1.35,
+                color: "#d8e7ff",
               }}
             >
-              {["입찰 검증", "자동 연장", "신고 처리"].map((label) => (
+              카카오 로그인 기반 참여 · 자동 연장
+              <br />
+              신고/제재 처리까지 한 번에
+            </div>
+
+            <div style={{ display: "flex", gap: 12, marginTop: 24 }}>
+              {["카카오 로그인", "입찰 검증", "자동 연장"].map((label) => (
                 <div
                   key={label}
                   style={{
-                    padding: "10px 16px",
                     borderRadius: 9999,
+                    border: "1px solid rgba(255,255,255,0.24)",
                     background: "rgba(255,255,255,0.12)",
-                    border: "1px solid rgba(255,255,255,0.2)",
-                    fontSize: 22,
+                    padding: "9px 14px",
+                    fontSize: 20,
                     fontWeight: 700,
                   }}
                 >
@@ -166,15 +126,14 @@ export default function OpenGraphImage() {
 
           <div
             style={{
-              width: 320,
-              height: 470,
-              borderRadius: 28,
-              border: "1px solid rgba(255,255,255,0.2)",
-              background: "linear-gradient(165deg, rgba(255,255,255,0.22), rgba(255,255,255,0.07))",
+              width: 276,
+              height: 356,
+              borderRadius: 26,
+              border: "1px solid rgba(255,255,255,0.24)",
+              background:
+                "linear-gradient(168deg, rgba(255,255,255,0.26), rgba(255,255,255,0.08))",
+              padding: 16,
               display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              padding: 26,
             }}
           >
             <div
@@ -182,34 +141,30 @@ export default function OpenGraphImage() {
                 width: "100%",
                 height: "100%",
                 borderRadius: 20,
-                background: "rgba(255,255,255,0.9)",
+                background: "rgba(255,255,255,0.94)",
                 display: "flex",
                 flexDirection: "column",
                 alignItems: "center",
                 justifyContent: "center",
-                color: "#19306F",
-                gap: 12,
+                color: "#1d4ed8",
+                gap: 9,
               }}
             >
-              <div style={{ fontSize: 32, fontWeight: 800, letterSpacing: -0.6 }}>
-                실시간 경매
+              <div style={{ fontSize: 30, fontWeight: 800 }}>BREDY</div>
+              <div style={{ fontSize: 20, fontWeight: 700, color: "#334155" }}>
+                AUCTION
               </div>
-              <div style={{ fontSize: 24, fontWeight: 700, color: "#425C9A" }}>
-                호가 단위 자동
+              <div style={{ fontSize: 20, fontWeight: 700, color: "#334155" }}>
+                LINK TOOL
               </div>
-              <div style={{ fontSize: 24, fontWeight: 700, color: "#425C9A" }}>
-                마감 임박 연장
-              </div>
-              <div style={{ fontSize: 22, fontWeight: 700, color: "#6B82B9" }}>
-                신고/제재 로그
+              <div style={{ fontSize: 18, fontWeight: 700, color: "#475569" }}>
+                공유형 운영 흐름
               </div>
             </div>
           </div>
         </div>
       </div>
     ),
-    {
-      ...size,
-    }
+    size
   );
 }

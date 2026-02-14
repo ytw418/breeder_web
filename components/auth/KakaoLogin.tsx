@@ -25,6 +25,22 @@ const getSafeRedirectPath = (rawPath: string | null) => {
   return normalized;
 };
 
+const getKakaoRedirectUri = () => {
+  if (typeof window !== "undefined" && window.location?.origin) {
+    return `${window.location.origin}/login-loading`;
+  }
+  return `${process.env.NEXT_PUBLIC_DOMAIN_URL || ""}/login-loading`;
+};
+
+const markPostLoginGuide = () => {
+  if (typeof window === "undefined") return;
+  try {
+    localStorage.setItem("bredy:show-post-login-guide", "1");
+  } catch {
+    // noop
+  }
+};
+
 export const KakaoLogin = () => {
   const searchParams = useSearchParams()!;
   const router = useRouter();
@@ -33,12 +49,12 @@ export const KakaoLogin = () => {
 
   useEffect(() => {
     if (searchParams.get("code")) {
+      const redirectUri = getKakaoRedirectUri();
       kakaoAuth({
         data: encodeURI(
           `grant_type=authorization_code&client_id=${
             process.env.NEXT_PUBLIC_KAKAO_API_KEY
-          }&code=${searchParams.get("code")}&redirect_uri=${process.env
-            .NEXT_PUBLIC_DOMAIN_URL!}/login-loading`
+          }&code=${searchParams.get("code")}&redirect_uri=${redirectUri}`
         ),
         endpoint: "/oauth/token",
         contentType: "application/x-www-form-urlencoded;charset=utf-8",
@@ -109,6 +125,7 @@ export const KakaoLogin = () => {
         onCompleted(result) {
           console.log("result :>> ", result);
           if (result.success) {
+            markPostLoginGuide();
             const redirectPath = getSafeRedirectPath(
               searchParams.get("state") || searchParams.get("next")
             );

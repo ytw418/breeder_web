@@ -1,0 +1,23 @@
+<svg width="1024" height="1024" viewBox="0 0 1024 1024" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <radialGradient id="badgeBg" cx="0" cy="0" r="1" gradientUnits="userSpaceOnUse" gradientTransform="translate(512 512) rotate(90) scale(452)">
+      <stop stop-color="#123362"/>
+      <stop offset="1" stop-color="#0A1732"/>
+    </radialGradient>
+    <linearGradient id="badgeRing" x1="188" y1="188" x2="836" y2="836" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#9AD9FF"/>
+      <stop offset="1" stop-color="#79F6D8"/>
+    </linearGradient>
+  </defs>
+
+  <circle cx="512" cy="512" r="468" fill="url(#badgeBg)"/>
+  <circle cx="512" cy="512" r="408" stroke="url(#badgeRing)" stroke-width="24"/>
+  <circle cx="512" cy="512" r="354" stroke="#FB923C" stroke-opacity="0.8" stroke-width="10" stroke-dasharray="10 18"/>
+
+  <path d="M512 318L612 386L574 520H450L412 386L512 318Z" fill="#FB923C"/>
+  <circle cx="512" cy="430" r="70" fill="#0A1732"/>
+  <path d="M450 520C450 570 476 608 512 634C548 608 574 570 574 520H450Z" fill="#FB923C"/>
+
+  <text x="344" y="738" fill="#E8F4FF" font-family="Pretendard, Inter, sans-serif" font-size="64" font-weight="800">BREDY</text>
+  <text x="280" y="802" fill="#D0E6FF" font-family="Pretendard, Inter, sans-serif" font-size="46" font-weight="700">TRUSTED BREEDER</text>
+</svg>

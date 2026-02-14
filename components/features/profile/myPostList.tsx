@@ -4,6 +4,7 @@ import useSWR from "swr";
 import Image from "@components/atoms/Image";
 import Link from "next/link";
 import { makeImageUrl } from "@libs/client/utils";
+import { getProductPath } from "@libs/product-route";
 import { Spinner } from "@components/atoms/Spinner";
 
 const MyPostList = ({ userId }: { userId?: number }) => {
@@ -30,7 +31,7 @@ const MyPostList = ({ userId }: { userId?: number }) => {
   return (
     <div className="grid grid-cols-3 gap-4">
       {data.products.map((product) => (
-        <Link key={product.id} href={`/products/${product.id}`}>
+        <Link key={product.id} href={getProductPath(product.id, product.name)}>
           <div className="flex flex-col space-y-2 cursor-pointer">
             <div className="relative aspect-square rounded-lg overflow-hidden">
               <Image

@@ -14,6 +14,8 @@ export interface AdminBanner {
   image?: string;
 }
 
+type BannerMoveDirection = "up" | "down";
+
 const SAMPLE_BANNERS: AdminBanner[] = [
   {
     id: 10001,
@@ -131,11 +133,78 @@ async function handler(
     await client.adminBanner.delete({ where: { id: Number(id) } });
     return res.json({ success: true });
   }
+
+  if (req.method === "PATCH") {
+    const { id, direction } = req.body as {
+      id?: number;
+      direction?: BannerMoveDirection;
+    };
+
+    const bannerId = Number(id);
+    if (!bannerId || Number.isNaN(bannerId)) {
+      return res.status(400).json({
+        success: false,
+        error: "유효한 배너 ID가 필요합니다.",
+      });
+    }
+
+    if (direction !== "up" && direction !== "down") {
+      return res.status(400).json({
+        success: false,
+        error: "이동 방향(direction)은 up 또는 down 이어야 합니다.",
+      });
+    }
+
+    const banners = await client.adminBanner.findMany({
+      orderBy: [{ order: "asc" }, { id: "asc" }],
+    });
+
+    if (!banners.length) {
+      return res.status(400).json({
+        success: false,
+        error: "샘플 데이터 상태에서는 순서를 변경할 수 없습니다.",
+      });
+    }
+
+    const currentIndex = banners.findIndex((banner) => banner.id === bannerId);
+    if (currentIndex < 0) {
+      return res.status(404).json({
+        success: false,
+        error: "대상을 찾을 수 없습니다.",
+      });
+    }
+
+    const targetIndex = direction === "up" ? currentIndex - 1 : currentIndex + 1;
+    if (targetIndex < 0 || targetIndex >= banners.length) {
+      return res.status(400).json({
+        success: false,
+        error:
+          direction === "up"
+            ? "이미 가장 위에 있는 배너입니다."
+            : "이미 가장 아래에 있는 배너입니다.",
+      });
+    }
+
+    const reordered = [...banners];
+    const [moved] = reordered.splice(currentIndex, 1);
+    reordered.splice(targetIndex, 0, moved);
+
+    await client.$transaction(
+      reordered.map((banner, index) =>
+        client.adminBanner.update({
+          where: { id: banner.id },
+          data: { order: index + 1 },
+        })
+      )
+    );
+
+    return res.json({ success: true });
+  }
 }
 
 export default withApiSession(
   withHandler({
-    methods: ["GET", "POST", "DELETE"],
+    methods: ["GET", "POST", "DELETE", "PATCH"],
     isPrivate: false,
     handler,
   })

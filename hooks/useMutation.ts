@@ -1,5 +1,6 @@
 import { useCallback, useState } from "react";
 import { ApiResponseBase } from "@libs/client/apiResponse";
+import { capturePosthogError } from "@libs/client/posthog";
 
 interface useMutationState<T> {
   loading: boolean;
@@ -94,6 +95,15 @@ export default function useMutation<T = any>(
           error instanceof Error
             ? error
             : new Error("네트워크 오류가 발생했습니다.");
+
+        capturePosthogError({
+          source: "useMutation",
+          error: normalizedError,
+          context: {
+            url,
+            endpoint,
+          },
+        });
 
         setState((prev) => ({ ...prev, error: normalizedError, loading: false }));
         onError?.(normalizedError);

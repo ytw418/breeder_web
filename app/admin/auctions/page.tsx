@@ -258,7 +258,7 @@ export default function AdminAuctionsPage() {
             <li>• 고가 경매({AUCTION_HIGH_PRICE_REQUIRE_CONTACT.toLocaleString()}원 이상): 연락처(전화/이메일) 정보 필요</li>
             <li>• 입찰 가능 계정: ACTIVE 계정만 허용</li>
             <li>• 마감 임박 연장: 종료 {minuteText(AUCTION_EXTENSION_WINDOW_MS)} 이내 입찰 시 +{minuteText(AUCTION_EXTENSION_MS)}</li>
-            <li>• 경매 수정 허용: 등록 후 {hourText(AUCTION_EDIT_WINDOW_MS)} 이내 + 입찰 0건 + 진행중</li>
+            <li>• 경매 수정 허용: 진행중 상태 + 등록 후 {minuteText(AUCTION_EDIT_WINDOW_MS)} 이내 + 입찰 0건</li>
             <li>• 최고 입찰자 재입찰 금지 / 입찰 금액은 단위 배수만 허용</li>
           </ul>
         </section>

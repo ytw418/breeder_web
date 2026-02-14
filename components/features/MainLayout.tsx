@@ -1,8 +1,7 @@
 "use client";
 
-import Head from "next/head";
 import Link from "next/link";
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import clsx from "clsx";
 import { usePathname, useRouter } from "next/navigation";
 import Image from "@components/atoms/Image";
@@ -24,6 +23,16 @@ interface LayoutProps {
 interface UnreadCountResponse {
   success: boolean;
   unreadCount: number;
+}
+
+interface NotificationUnreadCountResponse {
+  success: boolean;
+  unreadCount: number;
+}
+
+interface BeforeInstallPromptEvent extends Event {
+  prompt: () => Promise<void>;
+  userChoice: Promise<{ outcome: "accepted" | "dismissed"; platform: string }>;
 }
 
 /** 사이드 메뉴 아이템 */
@@ -91,22 +100,39 @@ export default function MainLayout({
   canGoBack,
   hasTabBar,
   children,
-  seoTitle,
+  seoTitle: _seoTitle,
   icon,
   showSearch,
   showHome,
 }: LayoutProps) {
   const router = useRouter();
   const pathname = usePathname();
+  const isToolPath = pathname?.startsWith("/tool");
   const [menuOpen, setMenuOpen] = useState(false);
-  const [shouldFetchUnread, setShouldFetchUnread] = useState(true);
+  const [deferredInstallPrompt, setDeferredInstallPrompt] =
+    useState<BeforeInstallPromptEvent | null>(null);
+  const [installLoading, setInstallLoading] = useState(false);
+  const [shouldFetchChatUnread, setShouldFetchChatUnread] = useState(true);
+  const [shouldFetchNotificationUnread, setShouldFetchNotificationUnread] =
+    useState(true);
   const { data: unreadData } = useSWR<UnreadCountResponse>(
-    shouldFetchUnread ? "/api/chat/unread-count" : null,
+    shouldFetchChatUnread ? "/api/chat/unread-count" : null,
     {
       onError: (swrError: Error & { status?: number }) => {
         // 비로그인 상태에서는 동일 401 요청을 반복하지 않는다.
         if (swrError?.status === 401 || swrError?.status === 403) {
-          setShouldFetchUnread(false);
+          setShouldFetchChatUnread(false);
+        }
+      },
+      revalidateOnFocus: false,
+    }
+  );
+  const { data: notificationUnreadData } = useSWR<NotificationUnreadCountResponse>(
+    shouldFetchNotificationUnread ? "/api/notifications/unread-count" : null,
+    {
+      onError: (swrError: Error & { status?: number }) => {
+        if (swrError?.status === 401 || swrError?.status === 403) {
+          setShouldFetchNotificationUnread(false);
         }
       },
       revalidateOnFocus: false,
@@ -117,11 +143,46 @@ export default function MainLayout({
     router.back();
   };
 
+  const notificationUnreadCount =
+    notificationUnreadData?.success && notificationUnreadData.unreadCount > 0
+      ? notificationUnreadData.unreadCount
+      : 0;
+  const hasNotificationUnread = notificationUnreadCount > 0;
+  const notificationBadgeLabel =
+    notificationUnreadCount > 99 ? "99+" : String(notificationUnreadCount);
+  void _seoTitle;
+
+  useEffect(() => {
+    const onBeforeInstallPrompt = (event: Event) => {
+      event.preventDefault();
+      setDeferredInstallPrompt(event as BeforeInstallPromptEvent);
+    };
+
+    window.addEventListener("beforeinstallprompt", onBeforeInstallPrompt);
+    return () => {
+      window.removeEventListener("beforeinstallprompt", onBeforeInstallPrompt);
+    };
+  }, []);
+
+  const handleInstallAppClick = async () => {
+    if (!deferredInstallPrompt) {
+      alert("현재 브라우저에서는 자동 설치 프롬프트를 사용할 수 없습니다.");
+      return;
+    }
+
+    try {
+      setInstallLoading(true);
+      setMenuOpen(false);
+      await deferredInstallPrompt.prompt();
+      await deferredInstallPrompt.userChoice;
+      setDeferredInstallPrompt(null);
+    } finally {
+      setInstallLoading(false);
+    }
+  };
+
   return (
     <div className="relative min-h-screen bg-gradient-to-b from-slate-50 via-white to-slate-50/70 dark:from-slate-950 dark:via-slate-950 dark:to-slate-900/80">
-      <Head>
-        <title>브리디 | {seoTitle}</title>
-      </Head>
       <div className="sticky top-0 z-30 flex h-14 w-full items-center justify-center border-b border-slate-200/80 bg-white/90 text-base font-medium text-slate-800 shadow-[0_1px_0_rgba(15,23,42,0.04)] backdrop-blur-xl dark:border-slate-800/80 dark:bg-slate-950/90 dark:text-slate-100 dark:shadow-[0_1px_0_rgba(2,6,23,0.45)]">
         {canGoBack ? (
           <>
@@ -145,7 +206,7 @@ export default function MainLayout({
                 ></path>
               </svg>
             </button>
-            {showHome ? (
+            {showHome && !isToolPath ? (
               <Link
                 href="/"
                 className="absolute left-14 rounded-full p-2 transition-colors hover:bg-slate-100 dark:hover:bg-slate-800"
@@ -167,30 +228,64 @@ export default function MainLayout({
                 </svg>
               </Link>
             ) : null}
-            {/* 햄버거 메뉴 버튼 */}
-            <button
-              onClick={() => setMenuOpen(true)}
-              className="absolute right-4 rounded-full p-2 transition-colors hover:bg-slate-100 dark:hover:bg-slate-800"
-              aria-label="메뉴"
-            >
-              <svg
-                className="h-6 w-6 text-slate-600 dark:text-slate-300"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-                xmlns="http://www.w3.org/2000/svg"
+            {!isToolPath ? (
+              <div className="absolute right-3 flex items-center gap-1">
+              <Link
+                href="/notifications"
+                className={cn(
+                  "relative rounded-full p-2 transition-colors",
+                  hasNotificationUnread
+                    ? "bg-rose-50 text-rose-600 ring-1 ring-rose-200 hover:bg-rose-100 dark:bg-rose-900/30 dark:text-rose-300 dark:ring-rose-800"
+                    : "hover:bg-slate-100 dark:hover:bg-slate-800"
+                )}
+                aria-label="알림"
               >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth="2"
-                  d="M4 6h16M4 12h16M4 18h16"
-                ></path>
-              </svg>
-            </button>
+                {hasNotificationUnread && (
+                  <span className="absolute -right-1 -top-1 flex h-5 min-w-5 items-center justify-center rounded-full bg-rose-500 px-1 text-[10px] font-bold text-white">
+                    {notificationBadgeLabel}
+                  </span>
+                )}
+                <svg
+                  className="h-6 w-6 text-current"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                  xmlns="http://www.w3.org/2000/svg"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth="2"
+                    d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"
+                  />
+                </svg>
+              </Link>
+              {/* 햄버거 메뉴 버튼 */}
+              <button
+                onClick={() => setMenuOpen(true)}
+                className="rounded-full p-2 transition-colors hover:bg-slate-100 dark:hover:bg-slate-800"
+                aria-label="메뉴"
+              >
+                <svg
+                  className="h-6 w-6 text-slate-600 dark:text-slate-300"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                  xmlns="http://www.w3.org/2000/svg"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth="2"
+                    d="M4 6h16M4 12h16M4 18h16"
+                  ></path>
+                </svg>
+              </button>
+              </div>
+            ) : null}
           </>
         ) : null}
-        {icon && (
+        {icon && !isToolPath && (
           <>
             <Link href={"/"} className="absolute left-4 rounded-xl">
               <Image
@@ -225,6 +320,36 @@ export default function MainLayout({
                   </svg>
                 </Link>
               )}
+              <Link
+                href="/notifications"
+                className={cn(
+                  "relative rounded-full p-2 transition-colors",
+                  hasNotificationUnread
+                    ? "bg-rose-50 text-rose-600 ring-1 ring-rose-200 hover:bg-rose-100 dark:bg-rose-900/30 dark:text-rose-300 dark:ring-rose-800"
+                    : "hover:bg-slate-100 dark:hover:bg-slate-800"
+                )}
+                aria-label="알림"
+              >
+                {hasNotificationUnread && (
+                  <span className="absolute -right-1 -top-1 flex h-5 min-w-5 items-center justify-center rounded-full bg-rose-500 px-1 text-[10px] font-bold text-white">
+                    {notificationBadgeLabel}
+                  </span>
+                )}
+                <svg
+                  className="h-6 w-6 text-current"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                  xmlns="http://www.w3.org/2000/svg"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth="2"
+                    d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"
+                  />
+                </svg>
+              </Link>
               {/* 햄버거 메뉴 버튼 */}
               <button
                 onClick={() => setMenuOpen(true)}
@@ -325,18 +450,39 @@ export default function MainLayout({
               {item.label}
             </Link>
           ))}
+          <button
+            type="button"
+            onClick={handleInstallAppClick}
+            className="flex w-full items-center gap-3 border-t border-slate-100 px-5 py-3.5 text-left text-sm font-medium text-slate-700 transition-colors hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-70 dark:border-slate-800 dark:text-slate-300 dark:hover:bg-slate-800/70"
+            disabled={installLoading}
+          >
+            <svg
+              className="h-5 w-5"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth="2"
+                d="M12 16V4m0 12l-3-3m3 3l3-3M5 20h14"
+              />
+            </svg>
+            {installLoading ? "설치 준비 중..." : "홈에 앱 설치하기"}
+          </button>
         </nav>
       </div>
 
       <div
         className={clsx(
           "max-w-xl mx-auto",
-          hasTabBar ? "pb-[86px]" : "pb-6"
+          hasTabBar && !isToolPath ? "pb-[86px]" : "pb-6"
         )}
       >
         {children}
       </div>
-      {hasTabBar ? (
+      {hasTabBar && !isToolPath ? (
         <nav className="fixed bottom-0 left-0 right-0 z-40 border-t border-slate-200/80 bg-white/92 backdrop-blur-xl dark:border-slate-800/80 dark:bg-slate-950/92">
           <div className="max-w-xl mx-auto px-4 pb-safe">
             <div className="flex justify-between items-center py-3">
@@ -388,7 +534,7 @@ export default function MainLayout({
                     d="M19 20H5a2 2 0 01-2-2V6a2 2 0 012-2h10a2 2 0 012 2v1m2 13a2 2 0 01-2-2V7m2 13a2 2 0 002-2V9a2 2 0 00-2-2h-2m-4-3H9M7 16h6M7 8h6v4H7V8z"
                   ></path>
                 </svg>
-                <span className="text-xs font-medium">애완생활</span>
+                <span className="text-xs font-medium">반려생활</span>
               </Link>
               <Link
                 href="/auctions"

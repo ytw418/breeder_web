@@ -19,7 +19,11 @@ interface CommentForm {
   comment: string;
 }
 
-const PostClient = ({ post: initialPost }: PostDetailResponse) => {
+const PostClient = ({
+  post: initialPost,
+  prevNotice: initialPrevNotice,
+  nextNotice: initialNextNotice,
+}: PostDetailResponse) => {
   const query = useParams();
   const router = useRouter();
   const { user } = useUser();
@@ -43,7 +47,11 @@ const PostClient = ({ post: initialPost }: PostDetailResponse) => {
 
   // 현재 표시할 데이터 (SWR 데이터 우선, 없으면 서버 전달 데이터)
   const post = data?.post || initialPost;
+  const prevNotice = data?.prevNotice ?? initialPrevNotice;
+  const nextNotice = data?.nextNotice ?? initialNextNotice;
   const isLiked = data?.isLiked ?? false;
+  const isNoticePost =
+    post?.category === "공지" || String(post?.title || "").startsWith("[공지]");
 
   /** 좋아요 토글 */
   const handleLike = () => {
@@ -89,26 +97,36 @@ const PostClient = ({ post: initialPost }: PostDetailResponse) => {
         {/* 작성자 정보 */}
         <div className="px-4 py-4 border-b border-slate-100">
           <div className="flex items-center gap-3">
-            <Link href={`/profiles/${post.user?.id}`}>
-              {post.user?.avatar ? (
-                <Image
-                  src={makeImageUrl(post.user.avatar, "avatar")}
-                  className="w-10 h-10 rounded-full object-cover"
-                  width={40}
-                  height={40}
-                  alt="avatar"
-                />
-              ) : (
-                <div className="w-10 h-10 rounded-full bg-gray-200" />
-              )}
-            </Link>
-            <div className="flex-1">
-              <Link
-                href={`/profiles/${post.user?.id}`}
-                className="text-sm font-semibold text-gray-900 hover:text-primary transition-colors"
-              >
-                {post.user?.name}
+            {isNoticePost ? (
+              <div className="flex h-10 w-10 items-center justify-center rounded-full bg-slate-100 text-sm font-bold text-slate-600">
+                공지
+              </div>
+            ) : (
+              <Link href={`/profiles/${post.user?.id}`}>
+                {post.user?.avatar ? (
+                  <Image
+                    src={makeImageUrl(post.user.avatar, "avatar")}
+                    className="w-10 h-10 rounded-full object-cover"
+                    width={40}
+                    height={40}
+                    alt="avatar"
+                  />
+                ) : (
+                  <div className="w-10 h-10 rounded-full bg-gray-200" />
+                )}
               </Link>
+            )}
+            <div className="flex-1">
+              {isNoticePost ? (
+                <p className="text-sm font-semibold text-gray-900">운영팀</p>
+              ) : (
+                <Link
+                  href={`/profiles/${post.user?.id}`}
+                  className="text-sm font-semibold text-gray-900 hover:text-primary transition-colors"
+                >
+                  {post.user?.name}
+                </Link>
+              )}
               <div className="flex items-center gap-1.5 text-xs text-gray-400 mt-0.5">
                 {post.category && (
                   <>
@@ -180,6 +198,56 @@ const PostClient = ({ post: initialPost }: PostDetailResponse) => {
             좋아요
           </button>
         </div>
+
+        {/* 공지 이전/다음 이동 */}
+        {isNoticePost && (prevNotice || nextNotice) && (
+          <section className="border-b border-slate-100 bg-slate-50 px-4 py-3">
+            <h2 className="text-sm font-semibold text-slate-700">다른 공지 보기</h2>
+            <div className="mt-2 overflow-hidden rounded-lg border border-slate-200 bg-white">
+              {prevNotice ? (
+                <Link
+                  href={`/posts/${prevNotice.id}`}
+                  className="flex items-center gap-2 border-b border-slate-100 px-3 py-2.5 hover:bg-slate-50"
+                >
+                  <span className="shrink-0 text-xs font-semibold text-slate-500">
+                    이전 공지
+                  </span>
+                  <p className="min-w-0 flex-1 truncate text-sm text-slate-700">
+                    {prevNotice.title}
+                  </p>
+                </Link>
+              ) : (
+                <div className="flex items-center gap-2 border-b border-slate-100 px-3 py-2.5">
+                  <span className="shrink-0 text-xs font-semibold text-slate-500">
+                    이전 공지
+                  </span>
+                  <p className="text-sm text-slate-400">없습니다.</p>
+                </div>
+              )}
+
+              {nextNotice ? (
+                <Link
+                  href={`/posts/${nextNotice.id}`}
+                  className="flex items-center gap-2 px-3 py-2.5 hover:bg-slate-50"
+                >
+                  <span className="shrink-0 text-xs font-semibold text-slate-500">
+                    다음 공지
+                  </span>
+                  <p className="min-w-0 flex-1 truncate text-sm text-slate-700">
+                    {nextNotice.title}
+                  </p>
+                </Link>
+              ) : (
+                <div className="flex items-center gap-2 px-3 py-2.5">
+                  <span className="shrink-0 text-xs font-semibold text-slate-500">
+                    다음 공지
+                  </span>
+                  <p className="text-sm text-slate-400">없습니다.</p>
+                </div>
+              )}
+            </div>
+          </section>
+        )}
 
         {/* 댓글 목록 */}
         <div className="px-4 py-3">

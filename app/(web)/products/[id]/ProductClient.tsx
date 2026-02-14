@@ -8,12 +8,16 @@ import MarkdownPreview from "@components/features/product/MarkdownPreview";
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import { ItemDetailResponse } from "pages/api/products/[id]";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import useSWR, { useSWRConfig } from "swr";
 
 import { ChatResponseType } from "pages/api/chat";
 import { toast } from "react-toastify";
 import useConfirmDialog from "hooks/useConfirmDialog";
+import { ANALYTICS_EVENTS, trackEvent } from "@libs/client/analytics";
+import { extractProductId, getProductPath } from "@libs/product-route";
+
+const DETAIL_FALLBACK_IMAGE = "/images/placeholders/minimal-gray-blur.svg";
 
 /**
  * 상품 상세 페이지의 클라이언트 컴포넌트
@@ -34,12 +38,12 @@ const ProductClient = ({ product, relatedProducts }: ItemDetailResponse) => {
 
   // 상품 상세 정보 데이터 페칭
   const { data, mutate: boundMutate } = useSWR<ItemDetailResponse>(
-    query?.id ? `/api/products/${query.id}` : null
+    query?.id ? `/api/products/${extractProductId(query.id as string)}` : null
   );
 
   // 관심 상품 등록/취소 API 호출
   const [toggleFav, { loading: favLoading }] = useMutation(
-    query?.id ? `/api/products/${query?.id}/fav` : ""
+    query?.id ? `/api/products/${extractProductId(query?.id as string)}/fav` : ""
   );
 
   // 터치 이벤트 상태 관리
@@ -48,12 +52,12 @@ const ProductClient = ({ product, relatedProducts }: ItemDetailResponse) => {
 
   // 상품 삭제 API 호출
   const [deleteProduct, { loading: deleteLoading }] = useMutation(
-    `/api/products/${params?.id}`
+    `/api/products/${extractProductId(params?.id as string)}`
   );
 
   // 상태 변경 API
   const [updateStatus, { loading: statusLoading }] = useMutation(
-    `/api/products/${params?.id}`
+    `/api/products/${extractProductId(params?.id as string)}`
   );
 
   // 상태 드롭다운 표시 여부
@@ -99,6 +103,14 @@ const ProductClient = ({ product, relatedProducts }: ItemDetailResponse) => {
    * 관심 상품 등록/취소 핸들러
    */
   const onFavClick = () => {
+    trackEvent(ANALYTICS_EVENTS.productFavoriteClicked, {
+      product_id: product?.id || null,
+      seller_id: product?.user?.id || null,
+      user_id: user?.id || null,
+      action: isLiked ? "unfavorite" : "favorite",
+      requires_login: !user,
+    });
+
     if (!user) {
       return router.push("/auth/login");
     }
@@ -111,12 +123,22 @@ const ProductClient = ({ product, relatedProducts }: ItemDetailResponse) => {
       data: {},
       onCompleted(result) {
         if (!result.success) {
+          trackEvent(ANALYTICS_EVENTS.productFavoriteFailed, {
+            product_id: product?.id || null,
+            user_id: user?.id || null,
+            error: result.error || "favorite_toggle_failed",
+          });
           // 실패 시 롤백
           boundMutate();
           toast.error("관심목록 처리에 실패했습니다.");
         }
       },
       onError() {
+        trackEvent(ANALYTICS_EVENTS.productFavoriteFailed, {
+          product_id: product?.id || null,
+          user_id: user?.id || null,
+          error: "network_error",
+        });
         // 에러 시 롤백
         boundMutate();
         toast.error("오류가 발생했습니다. 다시 시도해주세요.");
@@ -148,6 +170,13 @@ const ProductClient = ({ product, relatedProducts }: ItemDetailResponse) => {
    * 판매자와 채팅 시작 핸들러
    */
   const onContactClick = () => {
+    trackEvent(ANALYTICS_EVENTS.productChatClicked, {
+      product_id: product?.id || null,
+      seller_id: product?.user?.id || null,
+      user_id: user?.id || null,
+      requires_login: !user,
+    });
+
     if (!user) {
       return router.push("/auth/login");
     }
@@ -160,12 +189,27 @@ const ProductClient = ({ product, relatedProducts }: ItemDetailResponse) => {
       },
       onCompleted: (result) => {
         if (result.success && result.ChatRoomId) {
+          trackEvent(ANALYTICS_EVENTS.productChatRoomCreated, {
+            product_id: product?.id || null,
+            chat_room_id: result.ChatRoomId,
+            user_id: user?.id || null,
+          });
           router.push(`/chat/${result.ChatRoomId}`);
         } else {
+          trackEvent(ANALYTICS_EVENTS.productChatRoomCreateFailed, {
+            product_id: product?.id || null,
+            user_id: user?.id || null,
+            error: result.error || "chat_room_create_failed",
+          });
           toast.error(result.error || "채팅방 생성에 실패했습니다.");
         }
       },
       onError: (error) => {
+        trackEvent(ANALYTICS_EVENTS.productChatRoomCreateFailed, {
+          product_id: product?.id || null,
+          user_id: user?.id || null,
+          error: error instanceof Error ? error.message : "unknown_error",
+        });
         console.error("Error in onContactClick:", error);
         toast.error("오류가 발생했습니다.");
       },
@@ -189,6 +233,10 @@ const ProductClient = ({ product, relatedProducts }: ItemDetailResponse) => {
           action: "delete",
         },
       });
+      trackEvent(ANALYTICS_EVENTS.productDeleted, {
+        product_id: product?.id || null,
+        user_id: user?.id || null,
+      });
       toast.success("상품이 삭제되었습니다.");
       router.push("/");
     } catch (error) {
@@ -209,6 +257,11 @@ const ProductClient = ({ product, relatedProducts }: ItemDetailResponse) => {
     await updateStatus({
       data: { action: "status_change", data: { status: newStatus } },
       onCompleted() {
+        trackEvent(ANALYTICS_EVENTS.productStatusChanged, {
+          product_id: product?.id || null,
+          user_id: user?.id || null,
+          next_status: newStatus,
+        });
         boundMutate();
         toast.success(`상태가 "${newStatus}"으로 변경되었습니다.`);
       },
@@ -228,6 +281,10 @@ const ProductClient = ({ product, relatedProducts }: ItemDetailResponse) => {
     await updateStatus({
       data: { action: "sold" },
       onCompleted() {
+        trackEvent(ANALYTICS_EVENTS.productMarkedSold, {
+          product_id: product?.id || null,
+          user_id: user?.id || null,
+        });
         boundMutate();
         toast.success("판매완료 처리되었습니다.");
       },
@@ -246,6 +303,11 @@ const ProductClient = ({ product, relatedProducts }: ItemDetailResponse) => {
     await updateStatus({
       data: { action: "purchase" },
       onCompleted() {
+        trackEvent(ANALYTICS_EVENTS.productPurchaseConfirmed, {
+          product_id: product?.id || null,
+          user_id: user?.id || null,
+          seller_id: product?.user?.id || null,
+        });
         boundMutate();
         toast.success("구매확정 되었습니다.");
       },
@@ -256,6 +318,32 @@ const ProductClient = ({ product, relatedProducts }: ItemDetailResponse) => {
   const currentStatus = data?.product?.status || product?.status || "판매중";
   const isOwner = user?.id === product?.user?.id;
   const hasPurchased = data?.hasPurchased || false;
+  const mainImageSrc =
+    product?.photos && product.photos.length > 0
+      ? makeImageUrl(product.photos[currentImageIndex], "public")
+      : DETAIL_FALLBACK_IMAGE;
+
+  useEffect(() => {
+    if (!product?.id) return;
+
+    trackEvent(ANALYTICS_EVENTS.productDetailViewed, {
+      product_id: product.id,
+      product_name: product.name,
+      product_category: product.category,
+      product_price: product.price,
+      seller_id: product.user?.id || null,
+      user_id: user?.id || null,
+      photo_count: product.photos?.length || 0,
+    });
+  }, [
+    product?.id,
+    product?.name,
+    product?.category,
+    product?.price,
+    product?.user?.id,
+    product?.photos?.length,
+    user?.id,
+  ]);
 
   return (
     <Layout
@@ -272,82 +360,74 @@ const ProductClient = ({ product, relatedProducts }: ItemDetailResponse) => {
             onTouchMove={handleTouchMove}
             onTouchEnd={handleTouchEnd}
           >
-            {product?.photos && product.photos.length > 0 ? (
+            <Image
+              src={mainImageSrc}
+              fallbackSrc={DETAIL_FALLBACK_IMAGE}
+              className="object-cover"
+              alt={`상품 이미지 ${currentImageIndex + 1}`}
+              fill={true}
+              sizes="600px"
+              priority={true}
+              quality={100}
+            />
+            {/* 이미지 네비게이션 버튼 */}
+            {product?.photos && product.photos.length > 1 && (
               <>
-                <Image
-                  src={makeImageUrl(
-                    product.photos[currentImageIndex],
-                    "public"
-                  )}
-                  className="object-cover"
-                  alt={`상품 이미지 ${currentImageIndex + 1}`}
-                  fill={true}
-                  sizes="600px"
-                  priority={true}
-                  quality={100}
-                />
-                {/* 이미지 네비게이션 버튼 */}
-                {product.photos.length > 1 && (
-                  <>
+                <button
+                  onClick={prevImage}
+                  className="absolute left-2 top-1/2 -translate-y-1/2 rounded-full bg-black/35 p-2 text-white transition-all hover:bg-black/55 opacity-0 group-hover:opacity-100"
+                  aria-label="이전 이미지"
+                >
+                  <svg
+                    className="w-5 h-5"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M15 19l-7-7 7-7"
+                    />
+                  </svg>
+                </button>
+                <button
+                  onClick={nextImage}
+                  className="absolute right-2 top-1/2 -translate-y-1/2 rounded-full bg-black/35 p-2 text-white transition-all hover:bg-black/55 opacity-0 group-hover:opacity-100"
+                  aria-label="다음 이미지"
+                >
+                  <svg
+                    className="w-5 h-5"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M9 5l7 7-7 7"
+                    />
+                  </svg>
+                </button>
+                {/* 이미지 인디케이터 */}
+                <div className="absolute bottom-4 left-1/2 -translate-x-1/2 flex gap-2">
+                  {product.photos.map((_, index) => (
                     <button
-                      onClick={prevImage}
-                      className="absolute left-2 top-1/2 -translate-y-1/2 rounded-full bg-black/35 p-2 text-white transition-all hover:bg-black/55 opacity-0 group-hover:opacity-100"
-                      aria-label="이전 이미지"
-                    >
-                      <svg
-                        className="w-5 h-5"
-                        fill="none"
-                        stroke="currentColor"
-                        viewBox="0 0 24 24"
-                      >
-                        <path
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                          strokeWidth={2}
-                          d="M15 19l-7-7 7-7"
-                        />
-                      </svg>
-                    </button>
-                    <button
-                      onClick={nextImage}
-                      className="absolute right-2 top-1/2 -translate-y-1/2 rounded-full bg-black/35 p-2 text-white transition-all hover:bg-black/55 opacity-0 group-hover:opacity-100"
-                      aria-label="다음 이미지"
-                    >
-                      <svg
-                        className="w-5 h-5"
-                        fill="none"
-                        stroke="currentColor"
-                        viewBox="0 0 24 24"
-                      >
-                        <path
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                          strokeWidth={2}
-                          d="M9 5l7 7-7 7"
-                        />
-                      </svg>
-                    </button>
-                    {/* 이미지 인디케이터 */}
-                    <div className="absolute bottom-4 left-1/2 -translate-x-1/2 flex gap-2">
-                      {product.photos.map((_, index) => (
-                        <button
-                          key={index}
-                          onClick={() => setCurrentImageIndex(index)}
-                          className={cn(
-                            "w-2 h-2 rounded-full transition-all",
-                            currentImageIndex === index
-                              ? "bg-white dark:bg-white"
-                              : "bg-white/50 dark:bg-white/50"
-                          )}
-                          aria-label={`${index + 1}번 이미지로 이동`}
-                        />
-                      ))}
-                    </div>
-                  </>
-                )}
+                      key={index}
+                      onClick={() => setCurrentImageIndex(index)}
+                      className={cn(
+                        "w-2 h-2 rounded-full transition-all",
+                        currentImageIndex === index
+                          ? "bg-white dark:bg-white"
+                          : "bg-white/50 dark:bg-white/50"
+                      )}
+                      aria-label={`${index + 1}번 이미지로 이동`}
+                    />
+                  ))}
+                </div>
               </>
-            ) : (
-              <div className="w-full h-full bg-gray-100" />
             )}
           </div>
 
@@ -488,7 +568,7 @@ const ProductClient = ({ product, relatedProducts }: ItemDetailResponse) => {
                     {/* 판매자 전용: 수정/삭제 */}
                     <div className="flex space-x-2">
                       <Link
-                        href={`/products/${params?.id}/edit`}
+                        href={`/products/${extractProductId(params?.id as string)}/edit`}
                         className="flex-1 rounded-md border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 py-3 text-center text-sm font-medium text-slate-700 dark:text-slate-300 transition-colors hover:bg-slate-50"
                       >
                         수정하기
@@ -576,12 +656,18 @@ const ProductClient = ({ product, relatedProducts }: ItemDetailResponse) => {
               {relatedProducts.map((product) => (
                 <Link
                   key={product.id}
-                  href={`/products/${product.id}`}
+                  href={getProductPath(product.id, product.name)}
                   className="group focus:outline-none"
                 >
                   <div className="relative aspect-square overflow-hidden bg-slate-100">
+                    {/** 연관 상품도 이미지 누락/오류 시 동일한 기본 이미지를 사용한다. */}
                     <Image
-                      src={makeImageUrl(product.photos?.[0] || "", "product")}
+                      src={
+                        product.photos?.[0]
+                          ? makeImageUrl(product.photos[0], "product")
+                          : DETAIL_FALLBACK_IMAGE
+                      }
+                      fallbackSrc={DETAIL_FALLBACK_IMAGE}
                       alt={product.name}
                       fill={true}
                       sizes="100%"

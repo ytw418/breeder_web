@@ -23,15 +23,18 @@ const makeSlug = (value: string) =>
     .replace(/\s+/g, "-")
     .replace(/-+/g, "-");
 
+const buildLandingPath = (slug: string) => `/content/${slug}`;
+
 export default function AdminLandingPagesPage() {
   const { data, mutate } = useSWR<LandingPagesResponse>("/api/admin/landing-pages");
   const { confirm, confirmDialog } = useConfirmDialog();
   const [editingId, setEditingId] = useState<number | null>(null);
   const [title, setTitle] = useState("");
-  const [slug, setSlug] = useState("");
+  const [pagePath, setPagePath] = useState("");
   const [content, setContent] = useState("");
   const [isPublished, setIsPublished] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [latestCreatedLink, setLatestCreatedLink] = useState("");
 
   const editingPage = useMemo(
     () => data?.pages?.find((page) => page.id === editingId),
@@ -41,15 +44,24 @@ export default function AdminLandingPagesPage() {
   const resetForm = () => {
     setEditingId(null);
     setTitle("");
-    setSlug("");
+    setPagePath("");
     setContent("");
     setIsPublished(true);
+  };
+
+  const copyLandingLink = async (link: string) => {
+    try {
+      await navigator.clipboard.writeText(link);
+      toast.success("링크를 복사했습니다.");
+    } catch {
+      toast.error("링크 복사에 실패했습니다.");
+    }
   };
 
   const handleEdit = (page: LandingPageRecord) => {
     setEditingId(page.id);
     setTitle(page.title);
-    setSlug(page.slug);
+    setPagePath(page.slug);
     setContent(page.content);
     setIsPublished(page.isPublished);
   };
@@ -57,8 +69,8 @@ export default function AdminLandingPagesPage() {
   const handleSave = async (event: React.FormEvent) => {
     event.preventDefault();
 
-    if (!title.trim() || !slug.trim() || !content.trim()) {
-      toast.error("제목, 슬러그, 내용을 입력해주세요.");
+    if (!title.trim() || !pagePath.trim() || !content.trim()) {
+      toast.error("제목, 페이지 주소, 내용을 입력해주세요.");
       return;
     }
 
@@ -69,14 +81,14 @@ export default function AdminLandingPagesPage() {
             action: "update",
             id: editingId,
             title: title.trim(),
-            slug: slug.trim(),
+            slug: pagePath.trim(),
             content,
             isPublished,
           }
         : {
             action: "create",
             title: title.trim(),
-            slug: slug.trim(),
+            slug: pagePath.trim(),
             content,
             isPublished,
           };
@@ -92,6 +104,9 @@ export default function AdminLandingPagesPage() {
         return toast.error(result.error || "저장에 실패했습니다.");
       }
 
+      if (result.page?.slug) {
+        setLatestCreatedLink(buildLandingPath(result.page.slug));
+      }
       toast.success(editingId ? "페이지가 수정되었습니다." : "페이지가 생성되었습니다.");
       resetForm();
       mutate();
@@ -138,20 +153,35 @@ export default function AdminLandingPagesPage() {
             배너를 눌렀을 때 열리는 안내 페이지입니다. 이벤트 안내, 공지, 프로모션 내용을 쉽게 보여줄 수 있습니다.
           </p>
           <p className="text-sm text-emerald-800">
-            작성 후 <span className="font-semibold">공개 상태로 저장</span>하면 주소가
-            {" "}
-            <span className="font-mono">/content/슬러그</span>
-            로 생성됩니다.
+            작성 후 <span className="font-semibold">공개 상태로 저장</span>하면 배너 연결용 링크가 자동 생성됩니다.
           </p>
           <p className="text-sm text-emerald-800">
-            만든 주소는
+            생성된 링크는 아래 목록에서 바로 복사해서
             {" "}
             <Link href="/admin/banners" className="font-semibold underline underline-offset-2">
               배너 관리
             </Link>
-            의 링크 칸에 넣어 연결하세요.
+            에 붙여넣으면 됩니다.
           </p>
         </div>
+
+        {latestCreatedLink ? (
+          <div className="rounded-xl border border-blue-100 bg-blue-50 p-4">
+            <p className="text-sm font-semibold text-blue-900">방금 저장한 링크</p>
+            <div className="mt-2 flex flex-col gap-2 sm:flex-row sm:items-center">
+              <div className="rounded-md bg-white px-3 py-2 text-sm font-mono text-gray-800">
+                {latestCreatedLink}
+              </div>
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => copyLandingLink(latestCreatedLink)}
+              >
+                링크 복사
+              </Button>
+            </div>
+          </div>
+        ) : null}
 
         <form
           onSubmit={handleSave}
@@ -176,21 +206,17 @@ export default function AdminLandingPagesPage() {
 
         <div className="flex flex-col gap-2 sm:flex-row">
           <Input
-            placeholder="slug (예: spring-event)"
-            value={slug}
-            onChange={(event) => setSlug(event.target.value)}
+            placeholder="페이지 주소 (예: spring-event)"
+            value={pagePath}
+            onChange={(event) => setPagePath(event.target.value)}
           />
           <Button
             type="button"
             variant="outline"
-            onClick={() => setSlug(makeSlug(title))}
+            onClick={() => setPagePath(makeSlug(title))}
           >
-            slug 자동생성
+            제목으로 주소 만들기
           </Button>
-        </div>
-
-        <div className="rounded-lg border border-gray-100 bg-gray-50 px-3 py-2 text-sm text-gray-600">
-          공개 링크: <span className="font-mono text-gray-900">/content/{slug || "your-slug"}</span>
         </div>
 
         <MarkdownEditor
@@ -238,9 +264,16 @@ export default function AdminLandingPagesPage() {
                 <tr key={page.id}>
                   <td className="px-6 py-4">
                     <p className="text-sm font-medium text-gray-900">{page.title}</p>
-                    <p className="text-xs text-gray-500 mt-1 font-mono">
-                      /content/{page.slug}
-                    </p>
+                    <div className="mt-1 flex flex-wrap items-center gap-2">
+                      <p className="text-xs text-gray-500 font-mono">{buildLandingPath(page.slug)}</p>
+                      <button
+                        type="button"
+                        onClick={() => copyLandingLink(buildLandingPath(page.slug))}
+                        className="rounded-md border border-gray-200 px-2 py-0.5 text-[11px] font-semibold text-gray-600 hover:bg-gray-100"
+                      >
+                        링크 복사
+                      </button>
+                    </div>
                   </td>
                   <td className="px-6 py-4">
                     <span

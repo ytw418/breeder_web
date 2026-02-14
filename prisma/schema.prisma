@@ -81,8 +81,12 @@ model User {
   chatRoomMember    ChatRoomMember[]
   notifications     Notification[]  @relation(name: "notifications")
   sentNotifications Notification[]  @relation(name: "sentNotifications")
+  fcmTokens         FcmToken[]
   auctions        Auction[]
   bids            Bid[]
+  auctionReportsSubmitted AuctionReport[] @relation("AuctionReportReporter")
+  auctionReportsReceived  AuctionReport[] @relation("AuctionReportReportedUser")
+  auctionReportsResolved  AuctionReport[] @relation("AuctionReportResolver")
   insectRecords   InsectRecord[]
   guinnessSubmissions GuinnessSubmission[]
 }
@@ -340,6 +344,19 @@ model Notification {
   @@index([userId, isRead])
 }
 
+model FcmToken {
+  id        Int      @id @default(autoincrement())
+  token     String   @unique
+  userAgent String?
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId    Int
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([userId])
+  @@index([userId, updatedAt])
+}
+
 // ============================================================
 // 경매 시스템
 // ============================================================
@@ -366,6 +383,7 @@ model Auction {
   user            User      @relation(fields: [userId], references: [id], onDelete: Cascade)
   userId          Int
   bids            Bid[]
+  reports         AuctionReport[]
   winnerId        Int?      // 낙찰자 ID
 
   createdAt       DateTime  @default(now())
@@ -388,6 +406,46 @@ model Bid {
 
   @@index([auctionId])
   @@index([userId])
+}
+
+enum AuctionReportStatus {
+  OPEN
+  RESOLVED
+  REJECTED
+}
+
+enum AuctionReportAction {
+  NONE
+  STOP_AUCTION
+  BAN_USER
+  STOP_AUCTION_AND_BAN
+}
+
+model AuctionReport {
+  id               Int                 @id @default(autoincrement())
+  auctionId        Int
+  reporterId       Int
+  reportedUserId   Int
+  reason           String
+  detail           String
+  status           AuctionReportStatus @default(OPEN)
+  resolutionAction AuctionReportAction @default(NONE)
+  resolutionNote   String?
+  resolvedBy       Int?
+  resolvedAt       DateTime?
+  createdAt        DateTime            @default(now())
+  updatedAt        DateTime            @updatedAt
+
+  auction      Auction @relation(fields: [auctionId], references: [id], onDelete: Cascade)
+  reporter     User    @relation("AuctionReportReporter", fields: [reporterId], references: [id], onDelete: Cascade)
+  reportedUser User    @relation("AuctionReportReportedUser", fields: [reportedUserId], references: [id], onDelete: Cascade)
+  resolver     User?   @relation("AuctionReportResolver", fields: [resolvedBy], references: [id], onDelete: SetNull)
+
+  @@index([auctionId])
+  @@index([reporterId])
+  @@index([reportedUserId])
+  @@index([status])
+  @@index([createdAt])
 }
 
 // ============================================================
@@ -474,6 +532,36 @@ model AdminBanner {
   updatedAt   DateTime @updatedAt
 
   @@index([order])
+}
+
+enum VoiceInquiryType {
+  BUG_REPORT
+  FEATURE_REQUEST
+  DEV_TEAM_REQUEST
+}
+
+enum VoiceInquiryStatus {
+  OPEN
+  IN_REVIEW
+  DONE
+  REJECTED
+}
+
+model VoiceInquiry {
+  id           Int                @id @default(autoincrement())
+  type         VoiceInquiryType
+  status       VoiceInquiryStatus @default(OPEN)
+  title        String
+  description  String
+  contactEmail String
+  requesterId  Int?
+  requesterName String?
+  adminNote    String?
+  createdAt    DateTime           @default(now())
+  updatedAt    DateTime           @updatedAt
+
+  @@index([status, createdAt])
+  @@index([type, createdAt])
 }
 
 model LandingPage {

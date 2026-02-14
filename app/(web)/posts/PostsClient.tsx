@@ -32,13 +32,13 @@ const NOTICE_BANNERS = [
     id: "notice-1",
     label: "공지",
     title: "게시글 작성 전 커뮤니티 운영 가이드를 확인해 주세요.",
-    fallbackHref: "/posts",
+    fallbackHref: "/posts/notices",
   },
   {
     id: "notice-2",
     label: "필독",
     title: "거래 유도/홍보성 글은 사전 안내 없이 삭제될 수 있습니다.",
-    fallbackHref: "/posts",
+    fallbackHref: "/posts/notices",
   },
 ];
 
@@ -165,15 +165,17 @@ export default function PostsClient() {
   }, [flattenedPosts, selectedCategory]);
 
   return (
-    <Layout icon hasTabBar seoTitle="애완동물 서비스" showSearch>
+    <Layout icon hasTabBar seoTitle="반려생활" showSearch>
       <div className="app-page flex flex-col h-full">
-        {/* 헤더 타이틀 */}
-        <div className="px-4 pt-3 pb-1">
-          <h1 className="app-title-lg">애완동물 서비스</h1>
-        </div>
-
         {/* 공지/고정 게시글 */}
         <section className="px-4 py-3 space-y-2 app-reveal">
+          <div className="flex items-center justify-between pb-1">
+            <h2 className="app-section-title">공지사항</h2>
+            <Link href="/posts/notices" className="app-section-link">
+              공지사항 더보기
+              <span aria-hidden="true">›</span>
+            </Link>
+          </div>
           {displayNotices.map((notice) => (
             <Link
               key={notice.id}

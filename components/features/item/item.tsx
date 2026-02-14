@@ -2,6 +2,7 @@
 import Image from "@components/atoms/Image";
 import Link from "next/link";
 import { cn, getTimeAgoString, makeImageUrl } from "@libs/client/utils";
+import { getProductPath } from "@libs/product-route";
 
 interface ItemProps {
   title: string;
@@ -30,7 +31,7 @@ export default function Item({
 }: ItemProps) {
   return (
     <Link
-      href={`/products/${id}-${title}`}
+      href={getProductPath(id, title)}
       className={cn(
         "block overflow-hidden",
         minimal

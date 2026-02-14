@@ -1,6 +1,7 @@
 import { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { getProduct } from "@libs/server/apis";
+import { extractProductId, getProductPath } from "@libs/product-route";
 import ProductClient from "./ProductClient";
 import client from "@libs/server/client";
 import Script from "next/script";
@@ -11,6 +12,7 @@ const DEFAULT_OG_IMAGE = "/opengraph-image";
 
 const toPublicImageUrl = (imageId: string | null | undefined) => {
   if (!imageId) return DEFAULT_OG_IMAGE;
+  if (imageId.startsWith("/")) return imageId;
   if (imageId.startsWith("http://") || imageId.startsWith("https://")) {
     return imageId;
   }
@@ -29,16 +31,24 @@ interface Props {
  * - SEO에 유리하며 페이지 로딩 속도 향상
  */
 export async function generateStaticParams() {
-  const products = await client.product.findMany({
-    select: {
-      id: true,
-      name: true,
-    },
-  });
+  if (!process.env.DATABASE_URL) {
+    return [];
+  }
 
-  return products.map((product) => ({
-    id: `${product.id}-${product.name}`,
-  }));
+  try {
+    const products = await client.product.findMany({
+      select: {
+        id: true,
+        name: true,
+      },
+    });
+
+    return products.map((product) => ({
+      id: `${product.id}_${product.name}`,
+    }));
+  } catch {
+    return [];
+  }
 }
 
 /**
@@ -56,8 +66,8 @@ export const revalidate = 60;
  * - robots 메타 태그로 검색 엔진 크롤링 제어
  */
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
-  const productId = params.id.split("-")[0];
-  const data = await getProduct(productId);
+  const productId = extractProductId(params.id);
+  const data = await getProduct(productId, { mode: "isr", revalidateSeconds: 60 });
 
   if (!data.success || !data.product) {
     return {
@@ -80,7 +90,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
       ? product.photos.map((photo) => toPublicImageUrl(photo)).slice(0, 4)
       : [DEFAULT_OG_IMAGE];
   const twitterImage = normalizedImages[0] || DEFAULT_OG_IMAGE;
-  const canonicalUrl = `https://bredy.app/products/${product.id}`;
+  const canonicalUrl = `https://bredy.app${getProductPath(product.id, product.name)}`;
   const keywordSet = new Set<string>([
     "브리디",
     "애완동물 서비스",
@@ -170,7 +180,7 @@ function generateJsonLd(product: any, imageUrls: string[]) {
  * - 검색 결과에서 사이트 구조 표시 가능
  */
 function generateBreadcrumbJsonLd(product: any) {
-  const canonicalUrl = `https://bredy.app/products/${product.id}`;
+  const canonicalUrl = `https://bredy.app${getProductPath(product.id, product.name)}`;
   return {
     "@context": "https://schema.org",
     "@type": "BreadcrumbList",
@@ -199,8 +209,8 @@ function generateBreadcrumbJsonLd(product: any) {
  * - 브레드크럼 네비게이션 제공
  */
 export default async function ProductPage({ params }: Props) {
-  const productId = params.id.split("-")[0];
-  const data = await getProduct(productId);
+  const productId = extractProductId(params.id);
+  const data = await getProduct(productId, { mode: "isr", revalidateSeconds: 60 });
 
   if (!data.success || !data.product) {
     notFound();

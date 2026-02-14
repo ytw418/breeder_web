@@ -2,6 +2,7 @@
 
 import Layout from "@components/features/MainLayout";
 import { cn } from "@libs/client/utils";
+import { PRIVACY_POLICY_URL, TERMS_OF_SERVICE_URL } from "@libs/constants";
 import useUser from "hooks/useUser";
 import useLogout from "hooks/useLogout";
 import Link from "next/link";
@@ -17,16 +18,17 @@ interface PushSubscriptionStatusResponse {
   vapidPublicKey: string;
 }
 
+interface PushTestResponse {
+  success: boolean;
+  error?: string;
+  configured: boolean;
+  subscriptionCount: number;
+}
+
 interface PushSubscriptionUpsertBody {
   action: "subscribe" | "unsubscribe";
-  subscription?: {
-    endpoint: string;
-    keys: {
-      p256dh: string;
-      auth: string;
-    };
-  };
-  endpoint?: string;
+  token?: string;
+  userAgent?: string;
 }
 
 interface SettingItem {
@@ -71,11 +73,15 @@ const SettingsClient = () => {
   const { theme, resolvedTheme, setTheme } = useTheme();
   const [themeMounted, setThemeMounted] = useState(false);
   const [pushLoading, setPushLoading] = useState(false);
+  const [pushTestLoading, setPushTestLoading] = useState(false);
   const [pushErrorMessage, setPushErrorMessage] = useState("");
   const [showPermissionGuide, setShowPermissionGuide] = useState(false);
+  const [currentPushToken, setCurrentPushToken] = useState("");
   const {
     data: pushStatus,
     mutate: mutatePushStatus,
+    error: pushStatusError,
+    isLoading: isPushStatusLoading,
   } = useSWR<PushSubscriptionStatusResponse>("/api/push/subscription");
 
   useEffect(() => {
@@ -91,10 +97,12 @@ const SettingsClient = () => {
   }, [themeMounted, theme, resolvedTheme]);
 
   const pushStatusLabel = useMemo(() => {
+    if (isPushStatusLoading) return "설정 확인 중";
+    if (pushStatusError) return "설정 확인 실패";
     if (!pushStatus) return "설정 확인 중";
     if (!pushStatus.configured) return "서버 설정 필요";
     return pushStatus.subscribed ? "켜짐" : "꺼짐";
-  }, [pushStatus]);
+  }, [isPushStatusLoading, pushStatusError, pushStatus]);
 
   // 현재 단말 기준으로 알림 권한 복구 경로를 가볍게 안내한다.
   const permissionGuide = useMemo(() => {
@@ -135,18 +143,6 @@ const SettingsClient = () => {
     };
   }, []);
 
-  // VAPID 공개키(base64url)를 브라우저 Push API가 받는 Uint8Array로 변환한다.
-  const urlBase64ToUint8Array = (base64String: string) => {
-    const padding = "=".repeat((4 - (base64String.length % 4)) % 4);
-    const normalized = (base64String + padding).replace(/-/g, "+").replace(/_/g, "/");
-    const rawData = window.atob(normalized);
-    const outputArray = new Uint8Array(rawData.length);
-    for (let i = 0; i < rawData.length; ++i) {
-      outputArray[i] = rawData.charCodeAt(i);
-    }
-    return outputArray;
-  };
-
   // SW가 아직 등록되지 않은 환경(개발/최초 진입)에서도 푸시 설정이 멈추지 않도록 보장한다.
   const ensureServiceWorkerReady = async () => {
     if (!("serviceWorker" in navigator)) {
@@ -180,6 +176,37 @@ const SettingsClient = () => {
     return result;
   };
 
+  // Firebase 메시징 SDK는 브라우저 환경에서만 로드한다.
+  const getMessagingTools = async () => {
+    const [{ app }, messagingModule] = await Promise.all([
+      import("@/firebase"),
+      import("firebase/messaging"),
+    ]);
+
+    return {
+      messaging: messagingModule.getMessaging(app),
+      getToken: messagingModule.getToken,
+      deleteToken: messagingModule.deleteToken,
+    };
+  };
+
+  const getValidatedVapidKey = () => {
+    const raw = pushStatus?.vapidPublicKey || "";
+    const normalized = raw
+      .trim()
+      .replace(/^['"]|['"]$/g, "")
+      .replace(/\s+/g, "");
+
+    // 잘못된 값(예: FCM 토큰 AAA...:APA...)을 조기 차단해 atob 오류를 예방한다.
+    if (!normalized || !/^[A-Za-z0-9\-_]+$/.test(normalized) || normalized.length < 80) {
+      throw new Error(
+        "VAPID 공개키 형식이 올바르지 않습니다. Firebase 웹 푸시 인증서 키를 다시 확인해 주세요."
+      );
+    }
+
+    return normalized;
+  };
+
   const handleTogglePush = async () => {
     if (pushLoading) return;
     setPushLoading(true);
@@ -187,30 +214,43 @@ const SettingsClient = () => {
     setShowPermissionGuide(false);
 
     try {
-      if (!("serviceWorker" in navigator) || !("PushManager" in window)) {
-        throw new Error("현재 브라우저는 푸시 알림을 지원하지 않습니다.");
+      if (!("serviceWorker" in navigator) || !("Notification" in window)) {
+        throw new Error("현재 브라우저는 알림 기능을 지원하지 않습니다.");
       }
 
       if (!pushStatus?.configured || !pushStatus?.vapidPublicKey) {
-        throw new Error("푸시 알림 서버 설정이 완료되지 않았습니다.");
+        throw new Error("FCM 푸시 서버 설정이 완료되지 않았습니다.");
+      }
+      const vapidKey = getValidatedVapidKey();
+
+      const registration = await ensureServiceWorkerReady();
+      const { messaging, getToken, deleteToken } = await getMessagingTools();
+
+      if (pushStatus.subscribed) {
+        // 해제 시 브라우저 토큰 삭제 + 서버 토큰 삭제를 모두 수행한다.
+        const token =
+          currentPushToken ||
+          (await getToken(messaging, {
+            vapidKey,
+            serviceWorkerRegistration: registration,
+          }).catch(() => ""));
+
+        if (token) {
+          await deleteToken(messaging).catch(() => undefined);
+          await requestPushApi({ action: "unsubscribe", token });
+        } else {
+          await requestPushApi({ action: "unsubscribe" });
+        }
+
+        setCurrentPushToken("");
+        await mutatePushStatus();
+        return;
       }
 
       // 브라우저에서 이미 '차단(denied)' 상태면 안내 UI를 우선 노출한다.
       if (Notification.permission === "denied") {
         setShowPermissionGuide(true);
         throw new Error("알림 권한이 차단되어 있습니다. 아래 안내대로 권한을 허용해 주세요.");
-      }
-
-      const registration = await ensureServiceWorkerReady();
-      const existingSubscription = await registration.pushManager.getSubscription();
-
-      if (existingSubscription) {
-        const endpoint = existingSubscription.endpoint;
-        await existingSubscription.unsubscribe();
-        await requestPushApi({ action: "unsubscribe", endpoint });
-
-        await mutatePushStatus();
-        return;
       }
 
       const permission = await Notification.requestPermission();
@@ -221,35 +261,44 @@ const SettingsClient = () => {
         throw new Error("알림 권한이 거부되어 설정할 수 없습니다.");
       }
 
-      const nextSubscription = await registration.pushManager.subscribe({
-        userVisibleOnly: true,
-        applicationServerKey: urlBase64ToUint8Array(pushStatus.vapidPublicKey),
+      const token = await getToken(messaging, {
+        vapidKey,
+        serviceWorkerRegistration: registration,
       });
-      const subscriptionJson = nextSubscription.toJSON();
-      const endpoint = subscriptionJson.endpoint;
-      const keys = subscriptionJson.keys;
-
-      // 일부 브라우저/환경에서는 키가 비어 돌아올 수 있어 서버 저장 전에 검증한다.
-      if (!endpoint || !keys?.p256dh || !keys?.auth) {
-        throw new Error("푸시 구독 키를 확인할 수 없습니다. 다시 시도해 주세요.");
+      if (!token) {
+        throw new Error("FCM 토큰 발급에 실패했습니다. 잠시 후 다시 시도해 주세요.");
       }
 
       await requestPushApi({
         action: "subscribe",
-        subscription: {
-          endpoint,
-          keys: {
-            p256dh: keys.p256dh,
-            auth: keys.auth,
-          },
-        },
+        token,
+        userAgent: navigator.userAgent,
       });
 
+      setCurrentPushToken(token);
       await mutatePushStatus();
     } catch (error: any) {
       setPushErrorMessage(error?.message || "푸시 알림 설정에 실패했습니다.");
     } finally {
       setPushLoading(false);
+    }
+  };
+
+  const handleSendPushTest = async () => {
+    if (pushTestLoading) return;
+    setPushTestLoading(true);
+    setPushErrorMessage("");
+
+    try {
+      const res = await fetch("/api/push/test", { method: "POST" });
+      const result = (await res.json().catch(() => null)) as PushTestResponse | null;
+      if (!res.ok || !result?.success) {
+        throw new Error(result?.error || "테스트 알림 전송에 실패했습니다.");
+      }
+    } catch (error: any) {
+      setPushErrorMessage(error?.message || "테스트 알림 전송에 실패했습니다.");
+    } finally {
+      setPushTestLoading(false);
     }
   };
 
@@ -308,7 +357,7 @@ const SettingsClient = () => {
       items: [
         {
           label: "이용약관",
-          href: "#",
+          href: TERMS_OF_SERVICE_URL,
           icon: (
             <path
               strokeLinecap="round"
@@ -320,13 +369,26 @@ const SettingsClient = () => {
         },
         {
           label: "개인정보 처리방침",
-          href: "#",
+          href: PRIVACY_POLICY_URL,
           icon: (
             <path
               strokeLinecap="round"
               strokeLinejoin="round"
               strokeWidth="2"
               d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"
+            />
+          ),
+        },
+        {
+          label: "고객의 소리",
+          href: "/support",
+          description: "버그 제보/기능 요청/비즈니스 문의 안내",
+          icon: (
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              strokeWidth="2"
+              d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-4l-3 3-3-3z"
             />
           ),
         },
@@ -419,9 +481,9 @@ const SettingsClient = () => {
               <button
                 type="button"
                 onClick={handleTogglePush}
-                disabled={pushLoading}
+                disabled={pushLoading || isPushStatusLoading}
                 className={cn(
-                  "h-9 rounded-full px-3 text-xs font-semibold transition-colors",
+                  "h-9 min-w-[88px] shrink-0 whitespace-nowrap rounded-full px-3 text-xs font-semibold leading-9 transition-colors",
                   pushStatus?.subscribed
                     ? "bg-emerald-600 text-white hover:bg-emerald-700"
                     : "bg-slate-900 text-white hover:bg-slate-800 dark:bg-slate-100 dark:text-slate-900 dark:hover:bg-slate-200",
@@ -439,14 +501,33 @@ const SettingsClient = () => {
               <span className="rounded-full bg-slate-100 px-2 py-1 text-slate-600 dark:bg-slate-800 dark:text-slate-300">
                 상태: {pushStatusLabel}
               </span>
-              {!pushStatus?.configured && (
+              {pushStatus && !pushStatus.configured && (
                 <span className="text-amber-600 dark:text-amber-400">
-                  VAPID 키 환경변수가 필요합니다.
+                  Firebase Admin 서비스계정 + 웹 푸시 키 환경변수가 필요합니다.
                 </span>
               )}
             </div>
+            <div className="mt-2">
+              <button
+                type="button"
+                onClick={handleSendPushTest}
+                disabled={pushTestLoading || !pushStatus?.subscribed}
+                className={cn(
+                  "h-8 rounded-md border px-2.5 text-xs font-semibold transition-colors",
+                  "border-slate-200 bg-white text-slate-700 hover:bg-slate-50",
+                  "disabled:cursor-not-allowed disabled:opacity-60 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200 dark:hover:bg-slate-800"
+                )}
+              >
+                {pushTestLoading ? "전송 중..." : "테스트 알림 보내기"}
+              </button>
+            </div>
             {pushErrorMessage && (
               <p className="mt-2 text-xs text-rose-500">{pushErrorMessage}</p>
+            )}
+            {!pushErrorMessage && pushStatusError && (
+              <p className="mt-2 text-xs text-rose-500">
+                {pushStatusError.message || "푸시 설정 상태를 불러오지 못했습니다."}
+              </p>
             )}
             {showPermissionGuide && (
               <div className="mt-3 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2.5 dark:border-amber-700/40 dark:bg-amber-950/30">

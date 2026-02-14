@@ -34,11 +34,19 @@ interface PostDetail {
   image: string;
 }
 
+interface AdjacentNotice {
+  id: number;
+  title: string;
+  createdAt: Date;
+}
+
 export interface PostDetailResponse {
   success: boolean;
   error?: string;
   post?: PostDetail;
   isLiked?: boolean;
+  prevNotice?: AdjacentNotice | null;
+  nextNotice?: AdjacentNotice | null;
 }
 
 async function handler(
@@ -90,6 +98,66 @@ async function handler(
     return res.status(404).json({ success: false, error: "게시글을 찾을 수 없습니다." });
   }
 
+  const isNoticePost =
+    post.category === "공지" || String(post.title || "").startsWith("[공지]");
+
+  const noticeWhere = {
+    OR: [{ category: "공지" }, { title: { startsWith: "[공지]" } }],
+  };
+
+  const [prevNotice, nextNotice] = isNoticePost
+    ? await Promise.all([
+        client.post.findFirst({
+          where: {
+            AND: [
+              noticeWhere,
+              {
+                OR: [
+                  { createdAt: { gt: post.createdAt } },
+                  {
+                    AND: [
+                      { createdAt: post.createdAt },
+                      { id: { gt: post.id } },
+                    ],
+                  },
+                ],
+              },
+            ],
+          },
+          select: {
+            id: true,
+            title: true,
+            createdAt: true,
+          },
+          orderBy: [{ createdAt: "asc" }, { id: "asc" }],
+        }),
+        client.post.findFirst({
+          where: {
+            AND: [
+              noticeWhere,
+              {
+                OR: [
+                  { createdAt: { lt: post.createdAt } },
+                  {
+                    AND: [
+                      { createdAt: post.createdAt },
+                      { id: { lt: post.id } },
+                    ],
+                  },
+                ],
+              },
+            ],
+          },
+          select: {
+            id: true,
+            title: true,
+            createdAt: true,
+          },
+          orderBy: [{ createdAt: "desc" }, { id: "desc" }],
+        }),
+      ])
+    : [null, null];
+
   const isLiked = Boolean(
     await client.like.findFirst({
       where: {
@@ -106,6 +174,8 @@ async function handler(
     success: true,
     post,
     isLiked,
+    prevNotice,
+    nextNotice,
   });
 }
 

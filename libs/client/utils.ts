@@ -1,6 +1,7 @@
-import defaultImage from "@images/defaultImage.png";
 import { type ClassValue, clsx } from "clsx";
 import { twMerge } from "tailwind-merge";
+
+const DEFAULT_FALLBACK_IMAGE = "/images/placeholders/minimal-gray-blur.svg";
 
 /**
  * 클래스 이름을 병합하는 함수
@@ -41,13 +42,21 @@ export function makeImageUrl(
   variant: undefined | Variants = "public"
 ) {
   if (!imageId) {
-    return defaultImage as any as string;
+    return DEFAULT_FALLBACK_IMAGE;
   }
-  if (imageId.includes("http")) {
+  const normalized = imageId.trim();
+  if (!normalized) {
+    return DEFAULT_FALLBACK_IMAGE;
+  }
+  if (normalized.startsWith("/")) {
+    // 내부 정적 경로(public/*)는 그대로 사용
+    return normalized;
+  }
+  if (normalized.includes("http")) {
     // 구글이나 카카오 로그인시 프로필 사진의 경우
-    return imageId;
+    return normalized;
   }
-  return `https://imagedelivery.net/OvWZrAz6J6K7n9LKUH5pKw/${imageId}/${variant}`;
+  return `https://imagedelivery.net/OvWZrAz6J6K7n9LKUH5pKw/${normalized}/${variant}`;
 }
 
 /**

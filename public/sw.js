@@ -1,4 +1,4 @@
-const CACHE_VERSION = "bredy-pwa-v1";
+const CACHE_VERSION = "bredy-pwa-v2";
 const STATIC_CACHE = `${CACHE_VERSION}-static`;
 const IMAGE_CACHE = `${CACHE_VERSION}-image`;
 const OFFLINE_URL = "/offline";
@@ -76,22 +76,32 @@ self.addEventListener("fetch", (event) => {
     return;
   }
 
-  if (
-    request.destination === "style" ||
-    request.destination === "script" ||
-    url.pathname.startsWith("/_next/static/")
-  ) {
+  if (url.pathname.startsWith("/_next/static/")) {
     event.respondWith(
-      caches.match(request).then((cached) => {
-        const fetchPromise = fetch(request)
-          .then((response) => {
+      fetch(request)
+        .then((response) => {
+          if (response && response.ok) {
             const copy = response.clone();
             caches.open(STATIC_CACHE).then((cache) => cache.put(request, copy));
-            return response;
-          })
-          .catch(() => cached);
-        return cached || fetchPromise;
-      })
+          }
+          return response;
+        })
+        .catch(() => caches.match(request))
+    );
+    return;
+  }
+
+  if (request.destination === "style" || request.destination === "script") {
+    event.respondWith(
+      fetch(request)
+        .then((response) => {
+          if (response && response.ok) {
+            const copy = response.clone();
+            caches.open(STATIC_CACHE).then((cache) => cache.put(request, copy));
+          }
+          return response;
+        })
+        .catch(() => caches.match(request))
     );
   }
 });
@@ -116,11 +126,21 @@ self.addEventListener("push", (event) => {
 
   try {
     const parsed = event.data.json();
+    const notification =
+      parsed && typeof parsed === "object" && parsed.notification
+        ? parsed.notification
+        : {};
+    const data =
+      parsed && typeof parsed === "object" && parsed.data ? parsed.data : {};
     payload = {
-      title: parsed.title || payload.title,
-      body: parsed.body || payload.body,
-      url: parsed.url || payload.url,
-      tag: parsed.tag || payload.tag,
+      title: data.title || notification.title || parsed.title || payload.title,
+      body: data.body || notification.body || parsed.body || payload.body,
+      url:
+        data.url ||
+        notification.click_action ||
+        parsed.url ||
+        payload.url,
+      tag: data.tag || notification.tag || parsed.tag || payload.tag,
     };
   } catch (error) {
     console.error("Push payload parse failed:", error);

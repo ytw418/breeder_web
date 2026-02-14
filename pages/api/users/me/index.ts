@@ -3,6 +3,7 @@ import withHandler, { ResponseType } from "@libs/server/withHandler";
 
 import client from "@libs/server/client";
 import { withApiSession } from "@libs/server/withSession";
+import { hasAdminAccess } from "../../admin/_utils";
 
 async function handler(
   req: NextApiRequest,
@@ -13,11 +14,13 @@ async function handler(
       const profile = await client.user.findUnique({
         where: { id: req.session.user?.id },
       });
+      const isAdmin = profile ? await hasAdminAccess(profile.id) : false;
 
       // console.log("profile :>> ", profile);
       res.json({
         success: true,
         profile,
+        isAdmin,
       });
     }
     if (req.method === "POST") {

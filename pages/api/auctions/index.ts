@@ -48,17 +48,30 @@ const normalizeOptionalUrl = (value: unknown) => {
   return `https://${normalized}`;
 };
 
+const AUCTION_DUPLICATE_GUARD_WINDOW_MS = 10 * 60 * 1000; // 10분
+const TOOL_MODE_COOKIE = "bredy_tool_mode";
+const TOOL_FIXED_CATEGORY = "기타";
+
 async function handler(
   req: NextApiRequest,
   res: NextApiResponse<ResponseType>
 ) {
   // 경매 목록 조회
   if (req.method === "GET") {
-    const { page = 1, status, category } = req.query;
+    const { page = 1, status, category, q } = req.query;
 
     const where: any = {};
     if (status && status !== "전체") where.status = String(status);
     if (category && category !== "전체") where.category = String(category);
+    const keyword = typeof q === "string" ? q.trim() : "";
+    if (keyword) {
+      where.OR = [
+        { title: { contains: keyword, mode: "insensitive" } },
+        { description: { contains: keyword, mode: "insensitive" } },
+        { category: { contains: keyword, mode: "insensitive" } },
+        { user: { name: { contains: keyword, mode: "insensitive" } } },
+      ];
+    }
 
     // 종료 시간이 지난 진행중 경매는 공통 정산 로직으로 처리
     await settleExpiredAuctions();
@@ -113,9 +126,30 @@ async function handler(
       sellerProofImage,
       sellerTrustNote,
     } = req.body;
+    const isToolMode = req.cookies?.[TOOL_MODE_COOKIE] === "1";
+
+    const normalizedTitle = String(title || "").trim();
+    const normalizedDescription = String(description || "").trim();
+    const normalizedCategory = normalizeOptionalText(
+      isToolMode ? TOOL_FIXED_CATEGORY : category,
+      40
+    );
+    const normalizedSellerPhone = normalizeOptionalText(sellerPhone, 40);
+    const normalizedSellerEmail = normalizeOptionalText(sellerEmail, 120);
+    const normalizedSellerBlogUrl = normalizeOptionalUrl(sellerBlogUrl);
+    const normalizedSellerCafeNick = normalizeOptionalText(sellerCafeNick, 60);
+    const normalizedSellerBandNick = normalizeOptionalText(sellerBandNick, 60);
+    const normalizedSellerProofImage = normalizeOptionalText(sellerProofImage, 120);
+    const normalizedSellerTrustNote = normalizeOptionalText(sellerTrustNote, 300);
+    const normalizedPhotos = Array.isArray(photos)
+      ? photos
+          .filter((photo): photo is string => typeof photo === "string")
+          .map((photo) => photo.trim())
+          .filter(Boolean)
+      : [];
 
     // 유효성 검사
-    if (!title || !description || !startPrice || !endAt) {
+    if (!normalizedTitle || !normalizedDescription || !startPrice || !endAt) {
       return res.status(400).json({
         success: false,
         error: "필수 항목을 모두 입력해주세요.",
@@ -143,7 +177,7 @@ async function handler(
     if (!isAuctionDurationValid(endDate)) {
       return res.status(400).json({
         success: false,
-        error: "경매 기간은 등록 시점 기준 24시간~72시간 사이여야 합니다.",
+        error: "경매 기간은 등록 시점 기준 1시간~72시간 사이여야 합니다.",
         errorCode: "AUCTION_DURATION_OUT_OF_RANGE",
       });
     }
@@ -167,8 +201,8 @@ async function handler(
         normalizedStartPrice >= AUCTION_HIGH_PRICE_REQUIRE_CONTACT &&
         !seller.phone &&
         !seller.email &&
-        !normalizeOptionalText(sellerPhone, 40) &&
-        !normalizeOptionalText(sellerEmail, 120)
+        !normalizedSellerPhone &&
+        !normalizedSellerEmail
       ) {
         return res.status(400).json({
           success: false,
@@ -188,7 +222,6 @@ async function handler(
         });
       }
 
-      const normalizedPhotos = Array.isArray(photos) ? photos : [];
       if (normalizedPhotos.length < 1 || normalizedPhotos.length > 5) {
         return res.status(400).json({
           success: false,
@@ -197,19 +230,53 @@ async function handler(
         });
       }
 
+      const duplicatedAuction = await client.auction.findFirst({
+        where: {
+          userId: user.id,
+          createdAt: {
+            gte: new Date(Date.now() - AUCTION_DUPLICATE_GUARD_WINDOW_MS),
+          },
+          title: normalizedTitle,
+          description: normalizedDescription,
+          photos: { equals: normalizedPhotos },
+          category: normalizedCategory,
+          startPrice: normalizedStartPrice,
+          endAt: endDate,
+          sellerPhone: normalizedSellerPhone,
+          sellerEmail: normalizedSellerEmail,
+          sellerBlogUrl: normalizedSellerBlogUrl,
+          sellerCafeNick: normalizedSellerCafeNick,
+          sellerBandNick: normalizedSellerBandNick,
+          sellerProofImage: normalizedSellerProofImage,
+          sellerTrustNote: normalizedSellerTrustNote,
+        },
+        select: { id: true },
+        orderBy: { createdAt: "desc" },
+      });
+
+      if (duplicatedAuction) {
+        return res.status(409).json({
+          success: false,
+          error:
+            "동일한 내용의 경매가 이미 등록되었습니다. 기존 경매를 공유하거나 수정해주세요.",
+          errorCode: "AUCTION_DUPLICATE_RECENT",
+          auctionId: duplicatedAuction.id,
+        });
+      }
+
       const auction = await client.auction.create({
         data: {
-          title,
-          description,
+          title: normalizedTitle,
+          description: normalizedDescription,
           photos: normalizedPhotos,
-          category: category || null,
-          sellerPhone: normalizeOptionalText(sellerPhone, 40),
-          sellerEmail: normalizeOptionalText(sellerEmail, 120),
-          sellerBlogUrl: normalizeOptionalUrl(sellerBlogUrl),
-          sellerCafeNick: normalizeOptionalText(sellerCafeNick, 60),
-          sellerBandNick: normalizeOptionalText(sellerBandNick, 60),
-          sellerProofImage: normalizeOptionalText(sellerProofImage, 120),
-          sellerTrustNote: normalizeOptionalText(sellerTrustNote, 300),
+          category: normalizedCategory,
+          sellerPhone: normalizedSellerPhone,
+          sellerEmail: normalizedSellerEmail,
+          sellerBlogUrl: normalizedSellerBlogUrl,
+          sellerCafeNick: normalizedSellerCafeNick,
+          sellerBandNick: normalizedSellerBandNick,
+          sellerProofImage: normalizedSellerProofImage,
+          sellerTrustNote: normalizedSellerTrustNote,
           startPrice: normalizedStartPrice,
           currentPrice: normalizedStartPrice,
           minBidIncrement,

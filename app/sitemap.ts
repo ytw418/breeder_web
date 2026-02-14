@@ -1,5 +1,6 @@
 import { MetadataRoute } from "next";
 import client from "@libs/server/client";
+import { getProductPath } from "@libs/product-route";
 
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   // 정적 페이지 URL
@@ -11,40 +12,62 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       priority: 1,
     },
     {
-      url: "https://bredy.app/products/[id]",
+      url: "https://bredy.app/auctions",
       lastModified: new Date(),
       changeFrequency: "hourly",
       priority: 0.8,
     },
     {
-      url: "https://bredy.app/chat",
+      url: "https://bredy.app/auctions/rules",
       lastModified: new Date(),
       changeFrequency: "daily",
-      priority: 0.7,
-    },
-    {
-      url: "https://bredy.app/profiles/[id]",
-      lastModified: new Date(),
-      changeFrequency: "daily",
-      priority: 0.7,
+      priority: 0.6,
     },
   ];
 
-  // 상품 페이지 URL
-  const products = await client.product.findMany({
-    select: {
-      id: true,
-      updatedAt: true,
-      name: true,
-    },
-  });
+  if (!process.env.DATABASE_URL) {
+    return staticPages;
+  }
 
-  const productPages: MetadataRoute.Sitemap = products.map((product) => ({
-    url: `https://bredy.app/products/${product.id}-${product.name}`,
-    lastModified: product.updatedAt,
-    changeFrequency: "daily",
-    priority: 0.9,
-  }));
+  try {
+    // 상품 페이지 URL
+    const products = await client.product.findMany({
+      select: {
+        id: true,
+        name: true,
+        updatedAt: true,
+      },
+    });
 
-  return [...staticPages, ...productPages];
+    const productPages: MetadataRoute.Sitemap = products.map((product) => ({
+      url: `https://bredy.app${getProductPath(product.id, product.name)}`,
+      lastModified: product.updatedAt,
+      changeFrequency: "daily",
+      priority: 0.9,
+    }));
+
+    const auctions = await client.auction.findMany({
+      select: {
+        id: true,
+        updatedAt: true,
+      },
+      where: {
+        status: {
+          in: ["진행중", "종료", "유찰"],
+        },
+      },
+      orderBy: { updatedAt: "desc" },
+    });
+
+    const auctionPages: MetadataRoute.Sitemap = auctions.map((auction) => ({
+      url: `https://bredy.app/auctions/${auction.id}`,
+      lastModified: auction.updatedAt,
+      changeFrequency: "hourly",
+      priority: 0.85,
+    }));
+
+    return [...staticPages, ...productPages, ...auctionPages];
+  } catch {
+    return staticPages;
+  }
 }

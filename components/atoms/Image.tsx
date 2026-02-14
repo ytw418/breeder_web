@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from "react";
 import NextImage, { ImageProps as NextImageProps } from "next/image";
-import defaultImage from "@images/defaultImage.png";
+
+const DEFAULT_FALLBACK_IMAGE = "/images/placeholders/minimal-gray-blur.svg";
 
 // 기본 blurDataURL - 작은 회색 이미지
 const defaultBlurDataURL =
@@ -17,13 +18,16 @@ export interface CustomImageProps extends NextImageProps {
 const Image = ({
   src,
   alt,
-  fallbackSrc = defaultImage.src,
+  fallbackSrc = DEFAULT_FALLBACK_IMAGE,
   blurDataURL = defaultBlurDataURL,
   onError,
   ...props
 }: CustomImageProps) => {
   const [imgSrc, setImgSrc] = useState(src);
   const [imgError, setImgError] = useState(false);
+  const isExternalUrl =
+    typeof imgSrc === "string" && /^https?:\/\//i.test(imgSrc);
+  const shouldUnoptimize = props.unoptimized ?? isExternalUrl;
 
   // 부모에서 src가 바뀌면 내부 상태도 동기화한다.
   useEffect(() => {
@@ -49,6 +53,7 @@ const Image = ({
       {...props}
       src={imgSrc}
       alt={alt}
+      unoptimized={shouldUnoptimize}
       blurDataURL={blurDataURL}
       onError={handleError}
     />
