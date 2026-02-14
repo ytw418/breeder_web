@@ -55,10 +55,10 @@ export default function AuctionRulesClient() {
             허위 매물, 미발송, 환불 분쟁 등 문제가 발생하면 신고를 접수해 운영정책에 따라 검토 및 제재합니다.
           </p>
           <a
-            href="mailto:support@bredy.app?subject=[경매%20신고]%20문제%20접수"
+            href="mailto:bredyteam@gmail?subject=[경매%20신고]%20문제%20접수"
             className="mt-2 inline-flex items-center text-sm font-semibold text-amber-900 underline underline-offset-2"
           >
-            신고 접수: support@bredy.app
+            신고 접수: bredyteam@gmail
           </a>
         </section>
 

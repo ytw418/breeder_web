@@ -709,10 +709,10 @@ const CreateAuctionClient = () => {
             </p>
             {!isToolRoute ? (
               <a
-                href="mailto:support@bredy.app?subject=[경매%20신고]%20문제%20접수"
+                href="mailto:bredyteam@gmail?subject=[경매%20신고]%20문제%20접수"
                 className="mt-1.5 inline-flex items-center font-semibold underline underline-offset-2"
               >
-                신고 접수: support@bredy.app
+                신고 접수: bredyteam@gmail
               </a>
             ) : null}
           </div>
