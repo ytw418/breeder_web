@@ -3,7 +3,7 @@ import { Prisma, UserStatus, role as UserRole } from "@prisma/client";
 import withHandler, { ResponseType } from "@libs/server/withHandler";
 import { withApiSession } from "@libs/server/withSession";
 import client from "@libs/server/client";
-import { hasAdminAccess } from "./_utils";
+import { canRunSensitiveAdminAction, hasAdminAccess } from "./_utils";
 import seedPayload from "data/service-initial-data.json";
 
 type TxClient = Prisma.TransactionClient;
@@ -186,6 +186,18 @@ async function handler(req: NextApiRequest, res: NextApiResponse<ResponseType>) 
   const isAdmin = await hasAdminAccess(user?.id);
   if (!isAdmin) {
     return res.status(403).json({ success: false, error: "접근 권한이 없습니다." });
+  }
+
+  const currentAdmin = await client.user.findUnique({
+    where: { id: user?.id },
+    select: { email: true },
+  });
+  if (!canRunSensitiveAdminAction(currentAdmin?.email)) {
+    return res.status(403).json({
+      success: false,
+      error:
+        "데이터 생성은 지정된 운영 계정(ytw418@naver.com, ytw418@gmail.com)에서만 가능합니다.",
+    });
   }
 
   const result: SeedResult = {

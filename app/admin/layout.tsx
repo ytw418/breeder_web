@@ -17,6 +17,17 @@ const ADMIN_MENUS = [
   { name: "상품 관리", href: "/admin/products" },
 ];
 
+const adminEnvRaw = String(
+  process.env.NEXT_PUBLIC_VERCEL_ENV ||
+    process.env.NEXT_PUBLIC_APP_ENV ||
+    process.env.NODE_ENV ||
+    "development"
+).toLowerCase();
+
+const isProdServer = adminEnvRaw === "production" || adminEnvRaw === "prod";
+const adminEnvLabel = isProdServer ? "실서버" : "테스트 서버";
+const adminEnvDetail = adminEnvRaw.toUpperCase();
+
 export default function AdminLayout({
   children,
 }: {
@@ -48,10 +59,22 @@ export default function AdminLayout({
 
   return (
     <div className="min-h-screen bg-gray-100">
+      <div
+        className={cn(
+          "px-4 py-2 text-center text-sm font-extrabold tracking-wide text-white",
+          isProdServer ? "bg-rose-600" : "bg-blue-700"
+        )}
+      >
+        현재 접속 환경: {adminEnvLabel} ({adminEnvDetail})
+      </div>
+
       {/* 모바일 상단 네비 */}
       <header className="sticky top-0 z-20 border-b border-gray-200 bg-white md:hidden">
         <div className="flex h-14 items-center justify-between px-4">
-          <h1 className="text-base font-bold text-gray-900">Bredy Admin</h1>
+          <div>
+            <h1 className="text-base font-bold text-gray-900">Bredy Admin</h1>
+            <p className="text-[11px] font-semibold text-gray-500">{adminEnvLabel}</p>
+          </div>
           <Link
             href="/"
             className="text-xs font-semibold text-gray-500 hover:text-gray-700"
@@ -82,8 +105,18 @@ export default function AdminLayout({
       <div className="md:flex">
         {/* 데스크톱 사이드바 */}
         <aside className="hidden w-64 flex-shrink-0 border-r border-gray-200 bg-white md:block">
-          <div className="flex h-16 items-center border-b border-gray-200 px-6">
+          <div className="flex h-20 flex-col items-start justify-center border-b border-gray-200 px-6">
             <h1 className="text-xl font-bold text-gray-900">Bredy Admin</h1>
+            <p
+              className={cn(
+                "mt-1 inline-flex rounded-full px-2.5 py-0.5 text-xs font-bold",
+                isProdServer
+                  ? "bg-rose-100 text-rose-700"
+                  : "bg-blue-100 text-blue-700"
+              )}
+            >
+              {adminEnvLabel} ({adminEnvDetail})
+            </p>
           </div>
           <nav className="space-y-1 p-4">
             {ADMIN_MENUS.map((menu) => (

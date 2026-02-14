@@ -71,21 +71,8 @@ export default function NoticePostsClient() {
                         {post.description}
                       </p>
 
-                      <div className="mt-2.5 flex items-center gap-2 text-xs text-slate-400">
-                        <div className="flex items-center gap-1">
-                          {post.user?.avatar ? (
-                            <Image
-                              src={makeImageUrl(post.user.avatar, "avatar")}
-                              className="h-4 w-4 rounded-full object-cover"
-                              width={16}
-                              height={16}
-                              alt=""
-                            />
-                          ) : (
-                            <div className="h-4 w-4 rounded-full bg-slate-200" />
-                          )}
-                          <span>{post.user?.name}</span>
-                        </div>
+                      <div className="mt-2.5 text-xs font-medium text-slate-500">
+                        운영팀 공지
                       </div>
                     </div>
 
