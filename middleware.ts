@@ -17,10 +17,12 @@ export function middleware(req: NextRequest, ev: NextFetchEvent) {
   }
   const isToolPath = pathname === "/tool" || pathname.startsWith("/tool/");
   const isToolLoginLoadingPath = pathname === "/login-loading";
+  const isSentryTestPath =
+    pathname === "/sentry-example-page" || pathname.startsWith("/sentry-example-page/");
   const hasToolMode = req.cookies.get(TOOL_MODE_COOKIE)?.value === "1";
   let response: NextResponse | null = null;
 
-  if (hasToolMode && !isToolPath && !isToolLoginLoadingPath) {
+  if (hasToolMode && !isToolPath && !isToolLoginLoadingPath && !isSentryTestPath) {
     if (pathname === "/auth/login") {
       const toolLoginUrl = new URL("/tool/login", req.url);
       const next = req.nextUrl.searchParams.get("next");
