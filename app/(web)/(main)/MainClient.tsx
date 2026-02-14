@@ -245,39 +245,56 @@ const MainClient = () => {
         <div className="mt-3 px-5">
           <div className="app-rail flex gap-3">
             {popularProductsData ? (
-              popularProductsData.products.map((product, index) => (
-                <Link
-                  key={product.id}
-                  href={`/products/${product.id}`}
-                  className="snap-start shrink-0 w-40 app-card app-card-interactive overflow-hidden"
-                >
-                  <div className="relative aspect-square bg-gray-100">
-                    <Image
-                      src={makeImageUrl(product.photos?.[0], "product")}
-                      alt={product.name}
-                      className="object-cover"
-                      fill
-                      sizes="160px"
-                      priority={index === 0}
-                    />
-                  </div>
-                  <div className="p-3">
-                    <h3 className="app-title-md truncate">
-                      {product.name}
-                    </h3>
-                    <p className="mt-1 text-[15px] font-bold tracking-tight text-primary">
-                      {typeof product.price === "number"
-                        ? `${product.price.toLocaleString()}원`
-                        : "가격 문의"}
-                    </p>
-                    <div className="mt-1">
-                      <span className="app-pill-muted bg-rose-50 text-rose-500">
-                        ❤ {product._count.favs}
-                      </span>
+              popularProductsData.products.length > 0 ? (
+                popularProductsData.products.map((product, index) => (
+                  <Link
+                    key={product.id}
+                    href={`/products/${product.id}`}
+                    className="snap-start shrink-0 w-40 app-card app-card-interactive overflow-hidden"
+                  >
+                    <div className="relative aspect-square bg-gray-100">
+                      <Image
+                        src={makeImageUrl(product.photos?.[0], "product")}
+                        alt={product.name}
+                        className="object-cover"
+                        fill
+                        sizes="160px"
+                        priority={index === 0}
+                      />
                     </div>
-                  </div>
-                </Link>
-              ))
+                    <div className="p-3">
+                      <h3 className="app-title-md truncate">
+                        {product.name}
+                      </h3>
+                      <p className="mt-1 text-[15px] font-bold tracking-tight text-primary">
+                        {typeof product.price === "number"
+                          ? `${product.price.toLocaleString()}원`
+                          : "가격 문의"}
+                      </p>
+                      <div className="mt-1">
+                        <span className="app-pill-muted bg-rose-50 text-rose-500">
+                          ❤ {product._count.favs}
+                        </span>
+                      </div>
+                    </div>
+                  </Link>
+                ))
+              ) : (
+                <div className="app-card mx-1 w-[92%] shrink-0 border-dashed px-4 py-5 text-center text-slate-500">
+                  <p className="app-title-md text-slate-600">
+                    등록된 상품이 아직 없습니다
+                  </p>
+                  <p className="app-body-sm mt-1">
+                    지금 개체를 등록해 첫 거래를 시작해보세요.
+                  </p>
+                  <Link
+                    href="/products/upload"
+                    className="mt-3 inline-flex h-8 items-center rounded-md bg-slate-900 px-3 text-xs font-semibold text-white"
+                  >
+                    상품 등록하기
+                  </Link>
+                </div>
+              )
             ) : (
               [...Array(4)].map((_, i) => (
                 <div
@@ -306,38 +323,55 @@ const MainClient = () => {
         />
         <div className="app-rail mt-3 flex gap-3 pl-5 pr-4">
           {ongoingAuctionsData ? (
-            ongoingAuctionsData.auctions.slice(0, 5).map((auction, index) => (
-              <Link
-                key={auction.id}
-                href={`/auctions/${auction.id}`}
-                className="snap-start shrink-0 w-56 app-card app-card-interactive overflow-hidden"
-              >
-                <div className="relative aspect-[4/3] bg-gray-100">
-                  <Image
-                    src={makeImageUrl(auction.photos?.[0], "public")}
-                    alt={auction.title}
-                    className="object-cover"
-                    fill
-                    sizes="224px"
-                    priority={index === 0}
-                  />
-                  <span className="absolute top-2 left-2 px-2 py-1 rounded-full bg-black/70 text-white text-[11px] font-semibold">
-                    {auction.status}
-                  </span>
-                </div>
-                <div className="p-3">
-                  <h3 className="app-title-md line-clamp-1">
-                    {auction.title}
-                  </h3>
-                  <div className="mt-1 flex items-center justify-between gap-2">
-                    <p className="text-[15px] font-bold tracking-tight text-primary">
-                      {auction.currentPrice.toLocaleString()}원
-                    </p>
-                    <span className="app-pill-muted">{getTimeRemaining(auction.endAt)}</span>
+            ongoingAuctionsData.auctions.length > 0 ? (
+              ongoingAuctionsData.auctions.slice(0, 5).map((auction, index) => (
+                <Link
+                  key={auction.id}
+                  href={`/auctions/${auction.id}`}
+                  className="snap-start shrink-0 w-56 app-card app-card-interactive overflow-hidden"
+                >
+                  <div className="relative aspect-[4/3] bg-gray-100">
+                    <Image
+                      src={makeImageUrl(auction.photos?.[0], "public")}
+                      alt={auction.title}
+                      className="object-cover"
+                      fill
+                      sizes="224px"
+                      priority={index === 0}
+                    />
+                    <span className="absolute top-2 left-2 px-2 py-1 rounded-full bg-black/70 text-white text-[11px] font-semibold">
+                      {auction.status}
+                    </span>
                   </div>
-                </div>
-              </Link>
-            ))
+                  <div className="p-3">
+                    <h3 className="app-title-md line-clamp-1">
+                      {auction.title}
+                    </h3>
+                    <div className="mt-1 flex items-center justify-between gap-2">
+                      <p className="text-[15px] font-bold tracking-tight text-primary">
+                        {auction.currentPrice.toLocaleString()}원
+                      </p>
+                      <span className="app-pill-muted">{getTimeRemaining(auction.endAt)}</span>
+                    </div>
+                  </div>
+                </Link>
+              ))
+            ) : (
+              <div className="app-card mx-1 w-[92%] shrink-0 border-dashed px-4 py-5 text-center text-slate-500">
+                <p className="app-title-md text-slate-600">
+                  등록된 경매가 없습니다
+                </p>
+                <p className="app-body-sm mt-1">
+                  지금 개체를 등록해 첫 경매를 열어보세요!
+                </p>
+                <Link
+                  href="/auctions/create"
+                  className="mt-3 inline-flex h-8 items-center rounded-md bg-slate-900 px-3 text-xs font-semibold text-white"
+                >
+                  경매 등록하기
+                </Link>
+              </div>
+            )
           ) : (
             [...Array(3)].map((_, i) => (
               <div
@@ -429,10 +463,18 @@ const MainClient = () => {
           data.length > 0 &&
           data[0].products.length === 0 && (
             <div className="flex flex-col items-center justify-center py-20 text-slate-400">
-              <p className="app-title-md text-slate-500">등록된 상품이 없습니다</p>
-              <p className="app-body-sm mt-1">
-                첫 번째 상품을 등록해 보세요!
+              <p className="app-title-md text-slate-500">
+                상품 피드가 활발해질 준비 중이에요
               </p>
+              <p className="app-body-sm mt-1">
+                지금 개체를 등록해 첫 상품을 올려보세요.
+              </p>
+              <Link
+                href="/products/upload"
+                className="mt-3 inline-flex h-9 items-center rounded-md bg-slate-900 px-3 text-xs font-semibold text-white"
+              >
+                상품 등록하러 가기
+              </Link>
             </div>
           )}
       </div>

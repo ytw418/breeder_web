@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import Image from "@components/atoms/Image";
 import useSWR from "swr";
@@ -39,6 +39,32 @@ const NOTICE_BANNERS = [
     label: "필독",
     title: "거래 유도/홍보성 글은 사전 안내 없이 삭제될 수 있습니다.",
     fallbackHref: "/posts",
+  },
+];
+
+const PRIORITY_CATEGORIES: Record<string, number> = {
+  질문: 0,
+  정보: 1,
+};
+
+const BACKUP_COMMUNITY_CONTENT = [
+  {
+    id: "backup-question",
+    category: "질문",
+    title: "질문 글로 첫 대화를 열어보세요",
+    description:
+      "먹이, 온도, 습도처럼 사육 중 막히는 포인트를 질문으로 남기면 빠르게 답변을 받을 수 있어요.",
+    href: "/posts/upload?category=질문",
+    cta: "질문 글 작성하기",
+  },
+  {
+    id: "backup-info",
+    category: "정보",
+    title: "정보 글로 노하우를 공유해보세요",
+    description:
+      "세팅 팁, 사육 루틴, 성장 기록 같은 실전 정보를 올리면 커뮤니티가 더 빠르게 활발해져요.",
+    href: "/posts/upload?category=정보",
+    cta: "정보 글 작성하기",
   },
 ];
 
@@ -124,6 +150,19 @@ export default function PostsClient() {
         }));
   const loadedPostCount =
     data?.reduce((count, pageData) => count + (pageData?.posts?.length ?? 0), 0) ?? 0;
+  const flattenedPosts = useMemo(
+    () => data?.flatMap((pageData) => pageData?.posts ?? []) ?? [],
+    [data]
+  );
+  const prioritizedPosts = useMemo(() => {
+    if (selectedCategory !== "전체") return flattenedPosts;
+    return [...flattenedPosts].sort((a, b) => {
+      const aRank = PRIORITY_CATEGORIES[a.category ?? ""] ?? Number.MAX_SAFE_INTEGER;
+      const bRank = PRIORITY_CATEGORIES[b.category ?? ""] ?? Number.MAX_SAFE_INTEGER;
+      if (aRank !== bRank) return aRank - bRank;
+      return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
+    });
+  }, [flattenedPosts, selectedCategory]);
 
   return (
     <Layout icon hasTabBar seoTitle="애완동물 서비스" showSearch>
@@ -188,7 +227,7 @@ export default function PostsClient() {
                 ))
               ) : (
                 <div className="app-body-sm text-slate-400 px-1 py-2">
-                  표시할 HOT 게시글이 없습니다.
+                  커뮤니티가 활발해질 준비 중이에요.
                 </div>
               )
             ) : (
@@ -402,8 +441,7 @@ export default function PostsClient() {
         {/* 게시글 목록 */}
         <div className="border-y border-slate-100 bg-white pb-4">
           {data ? (
-            data.map((result) =>
-              result?.posts?.map((post) => (
+            prioritizedPosts.map((post) => (
                 <Link
                   key={post.id}
                   href={`/posts/${post.id}`}
@@ -502,7 +540,6 @@ export default function PostsClient() {
                   </div>
                 </Link>
               ))
-            )
           ) : (
             // 로딩 스켈레톤
             <div className="divide-y divide-slate-100">
@@ -521,10 +558,41 @@ export default function PostsClient() {
           )}
 
           {/* 결과 없을 때 */}
-          {data && data.length > 0 && data[0].posts.length === 0 && (
-            <div className="flex flex-col items-center justify-center py-20 text-slate-400">
-              <p className="app-title-md text-slate-500">등록된 게시글이 없습니다</p>
-              <p className="app-body-sm mt-1">첫 번째 글을 작성해 보세요!</p>
+          {data && prioritizedPosts.length === 0 && (
+            <div className="px-4 py-8">
+              <div className="mb-4 text-center">
+                <p className="app-title-md text-slate-600">
+                  커뮤니티가 활발해질 준비 중이에요
+                </p>
+                <p className="app-body-sm mt-1 text-slate-500">
+                  질문과 정보 글을 먼저 올리면 대화가 더 빨리 시작됩니다.
+                </p>
+              </div>
+              <div className="space-y-2.5">
+                {BACKUP_COMMUNITY_CONTENT.map((content) => (
+                  <Link
+                    key={content.id}
+                    href={content.href}
+                    className="app-card app-card-interactive block border-dashed px-3.5 py-3"
+                  >
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="min-w-0">
+                        <span className="app-pill-accent">{content.category}</span>
+                        <p className="mt-2 app-title-md text-slate-700">
+                          {content.title}
+                        </p>
+                        <p className="mt-1 app-body-sm text-slate-500">
+                          {content.description}
+                        </p>
+                      </div>
+                      <span className="mt-1 app-caption text-slate-400">›</span>
+                    </div>
+                    <p className="mt-2 text-xs font-semibold text-slate-700">
+                      {content.cta}
+                    </p>
+                  </Link>
+                ))}
+              </div>
             </div>
           )}
         </div>
