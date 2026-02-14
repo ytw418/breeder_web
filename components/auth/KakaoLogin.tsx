@@ -41,6 +41,31 @@ const markPostLoginGuide = () => {
   }
 };
 
+const wait = (ms: number) =>
+  new Promise<void>((resolve) => {
+    setTimeout(() => resolve(), ms);
+  });
+
+const navigateAfterSessionReady = async (nextPath: string) => {
+  for (let attempt = 0; attempt < 4; attempt += 1) {
+    try {
+      const meRes = await fetch("/api/users/me", {
+        method: "GET",
+        cache: "no-store",
+      });
+      if (meRes.ok) {
+        window.location.assign(nextPath);
+        return;
+      }
+    } catch {
+      // noop
+    }
+    await wait(100);
+  }
+
+  window.location.assign(nextPath);
+};
+
 export const KakaoLogin = () => {
   const searchParams = useSearchParams()!;
   const router = useRouter();
@@ -129,7 +154,7 @@ export const KakaoLogin = () => {
             const redirectPath = getSafeRedirectPath(
               searchParams.get("state") || searchParams.get("next")
             );
-            router.replace(redirectPath);
+            void navigateAfterSessionReady(redirectPath);
           } else {
             router.replace("/auth/login");
             alert(`로그인에 실패했습니다:${result.error}`);
