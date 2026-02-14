@@ -6,6 +6,7 @@ import useSWR from "swr";
 import { toast } from "react-toastify";
 import { Button } from "@components/ui/button";
 import { Input } from "@components/ui/input";
+import { cn } from "@libs/client/utils";
 import useConfirmDialog from "hooks/useConfirmDialog";
 
 interface BannerItem {
@@ -48,6 +49,19 @@ const HREF_EXAMPLES = [
   },
 ];
 
+const BANNER_STYLE_PRESETS = [
+  { label: "에메랄드", bgClass: "from-emerald-500 to-teal-500" },
+  { label: "스카이", bgClass: "from-sky-500 to-cyan-500" },
+  { label: "퍼플 블루", bgClass: "from-indigo-500 to-blue-500" },
+  { label: "로즈 핑크", bgClass: "from-rose-500 to-pink-500" },
+  { label: "선셋 오렌지", bgClass: "from-orange-500 to-amber-500" },
+  { label: "라임 그린", bgClass: "from-lime-500 to-emerald-500" },
+  { label: "딥 네이비", bgClass: "from-slate-700 to-slate-900" },
+  { label: "코랄", bgClass: "from-red-500 to-orange-500" },
+] as const;
+
+const DEFAULT_BANNER_STYLE = BANNER_STYLE_PRESETS[0].bgClass;
+
 const getHrefGuide = (href: string) => {
   const value = href.trim();
   if (!value) {
@@ -78,7 +92,7 @@ export default function AdminBannersPage() {
     title: "",
     description: "",
     href: "/",
-    bgClass: "from-emerald-500 to-teal-500",
+    bgClass: DEFAULT_BANNER_STYLE,
     order: "1",
   });
 
@@ -111,7 +125,7 @@ export default function AdminBannersPage() {
         title: "",
         description: "",
         href: "/",
-        bgClass: "from-emerald-500 to-teal-500",
+        bgClass: DEFAULT_BANNER_STYLE,
         order: "1",
       });
       mutate();
@@ -243,14 +257,41 @@ export default function AdminBannersPage() {
               ))}
           </div>
         ) : null}
+        <div className="space-y-2">
+          <p className="text-xs font-semibold text-gray-800">배너 컬러 스타일</p>
+          <p className="text-xs text-gray-600">
+            직접 입력 없이, 아래 스타일 중 하나를 선택하세요.
+          </p>
+          <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+            {BANNER_STYLE_PRESETS.map((preset) => {
+              const isSelected = form.bgClass === preset.bgClass;
+              return (
+                <button
+                  key={preset.bgClass}
+                  type="button"
+                  onClick={() =>
+                    setForm((prev) => ({ ...prev, bgClass: preset.bgClass }))
+                  }
+                  className={cn(
+                    "flex items-center gap-2 rounded-md border px-2.5 py-2 text-left text-xs transition-colors",
+                    isSelected
+                      ? "border-blue-500 bg-blue-50 text-blue-700"
+                      : "border-gray-200 text-gray-700 hover:bg-gray-50"
+                  )}
+                >
+                  <span
+                    className={cn(
+                      "h-4 w-4 rounded-full bg-gradient-to-r ring-1 ring-black/10",
+                      preset.bgClass
+                    )}
+                  />
+                  <span className="font-medium">{preset.label}</span>
+                </button>
+              );
+            })}
+          </div>
+        </div>
         <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
-          <Input
-            placeholder="bgClass (예: from-sky-500 to-cyan-500)"
-            value={form.bgClass}
-            onChange={(event) =>
-              setForm((prev) => ({ ...prev, bgClass: event.target.value }))
-            }
-          />
           <Input
             type="number"
             placeholder="정렬순서"
