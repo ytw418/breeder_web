@@ -10,15 +10,14 @@ export const PRODUCT_TYPES = [
 
 export type ProductType = (typeof PRODUCT_TYPES)[number]["id"];
 
-/** 곤충 카테고리 (대분류) */
+/** 상품 카테고리 (경매와 동일한 대분류) */
 export const CATEGORIES = [
-  { id: "장수풍뎅이", name: "장수풍뎅이" },
-  { id: "사슴벌레", name: "사슴벌레" },
-  { id: "타란튤라", name: "타란튤라" },
-  { id: "전갈", name: "전갈" },
-  { id: "나비/나방", name: "나비/나방" },
-  { id: "개미", name: "개미" },
-  { id: "기타곤충", name: "기타곤충" },
+  { id: "곤충", name: "곤충" },
+  { id: "파충류", name: "파충류" },
+  { id: "어류", name: "어류" },
+  { id: "조류", name: "조류" },
+  { id: "포유류", name: "포유류" },
+  { id: "기타", name: "기타" },
 ] as const;
 
 export type Category = (typeof CATEGORIES)[number]["id"];
@@ -76,6 +75,12 @@ export const DEFAULT_IMAGE_LOCAL = "";
 export const APP_STORE_URL = "";
 
 export const GOOGLE_PLAY_URL = "";
+
+/** 서비스 정책 문서 */
+export const TERMS_OF_SERVICE_URL =
+  "https://breeder.notion.site/8a2ca657b9a047498c95ab42ce3d2b75?pvs=74";
+export const PRIVACY_POLICY_URL =
+  "https://breeder.notion.site/be44680c8d5b43848d0aff25c7c2edba?pvs=74";
 
 export const OS = {
   IOS: "ios",

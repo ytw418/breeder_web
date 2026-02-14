@@ -2,6 +2,7 @@
 
 import Layout from "@components/features/MainLayout";
 import { cn } from "@libs/client/utils";
+import { PRIVACY_POLICY_URL, TERMS_OF_SERVICE_URL } from "@libs/constants";
 import useUser from "hooks/useUser";
 import useLogout from "hooks/useLogout";
 import Link from "next/link";
@@ -356,7 +357,7 @@ const SettingsClient = () => {
       items: [
         {
           label: "이용약관",
-          href: "#",
+          href: TERMS_OF_SERVICE_URL,
           icon: (
             <path
               strokeLinecap="round"
@@ -368,7 +369,7 @@ const SettingsClient = () => {
         },
         {
           label: "개인정보 처리방침",
-          href: "#",
+          href: PRIVACY_POLICY_URL,
           icon: (
             <path
               strokeLinecap="round"

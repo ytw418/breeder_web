@@ -2,7 +2,9 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "next/navigation";
+import Link from "next/link";
 import KakaoRound from "@images/KakaoRound.svg";
+import { PRIVACY_POLICY_URL, TERMS_OF_SERVICE_URL } from "@libs/constants";
 
 declare global {
   interface Window {
@@ -114,6 +116,26 @@ const ToolLoginClient = () => {
             {isStartingLogin ? "로그인 페이지로 이동 중..." : "카카오로 계속하기"}
           </span>
         </button>
+
+        <div className="mt-5 border-t border-slate-200 pt-3 text-[11px] leading-relaxed text-slate-500">
+          서비스 이용 시 브리디의{" "}
+          <Link
+            href={TERMS_OF_SERVICE_URL}
+            target="_blank"
+            className="font-semibold text-primary underline underline-offset-2"
+          >
+            이용약관
+          </Link>{" "}
+          및{" "}
+          <Link
+            href={PRIVACY_POLICY_URL}
+            target="_blank"
+            className="font-semibold text-primary underline underline-offset-2"
+          >
+            개인정보 처리방침
+          </Link>{" "}
+          동의로 간주합니다.
+        </div>
       </div>
     </div>
   );
