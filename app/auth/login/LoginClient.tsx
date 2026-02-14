@@ -186,7 +186,7 @@ const LoginClient = () => {
             className="button relative flex h-[54px] w-full items-center justify-center rounded-lg border border-Gray-300 bg-white px-7 py-[14px]"
           >
             <GoogleRound className="absolute left-7" width={26} height={26} />
-            <span className="title-3">{"구글로 계속하기 (개발용)"}</span>
+            <span className="title-3">{"구글로 계속하기"}</span>
           </button>
         ) : (
           <p className="mt-1 text-[11px] text-Gray-500">
