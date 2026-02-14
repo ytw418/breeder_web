@@ -11,8 +11,9 @@ When a pull request targets `main` from `dev`, it runs:
 
 1. `npm ci`
 2. `npm run verify:ci` (lint + typecheck + test)
-3. Slack notification when quality check passes
-4. Review loop gate check (Codex/Gemini 차단 신호 감지 시 실패)
+3. Vercel deployment check wait (`Vercel` check must be `success`)
+4. Slack notification only after quality + Vercel checks pass
+5. Review loop gate check (Codex/Gemini 위험 버그 신호 감지 시 실패)
 
 ## Required setup (one-time)
 

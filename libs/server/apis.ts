@@ -10,37 +10,55 @@ interface GetProductOptions {
   revalidateSeconds?: number;
 }
 
-const resolveBaseUrl = () => {
-  const toAbsoluteUrl = (value: string) => {
-    const normalized = String(value || "").trim().replace(/\/+$/, "");
-    if (!normalized) return "";
-    if (normalized.startsWith("http://") || normalized.startsWith("https://")) {
-      return normalized;
-    }
-    return `https://${normalized}`;
-  };
+const toAbsoluteUrl = (value: string) => {
+  const normalized = String(value || "").trim().replace(/\/+$/, "");
+  if (!normalized) return "";
+  if (normalized.startsWith("http://") || normalized.startsWith("https://")) {
+    return normalized;
+  }
+  return `https://${normalized}`;
+};
 
-  const isLocalHost = (value: string) => {
-    const normalized = String(value || "").toLowerCase();
-    return (
-      normalized.includes("localhost") ||
-      normalized.includes("127.0.0.1") ||
-      normalized.includes("0.0.0.0")
-    );
-  };
+const isLocalHost = (value: string) => {
+  const normalized = String(value || "").toLowerCase();
+  return (
+    normalized.includes("localhost") ||
+    normalized.includes("127.0.0.1") ||
+    normalized.includes("0.0.0.0")
+  );
+};
+
+const resolveBaseUrls = () => {
+  const candidates: string[] = [];
 
   const domain = toAbsoluteUrl(process.env.NEXT_PUBLIC_DOMAIN_URL || "");
-  if (domain && (process.env.NODE_ENV !== "production" || !isLocalHost(domain))) {
-    return domain;
+  const vercelUrl = toAbsoluteUrl(process.env.VERCEL_URL || "");
+  const vercelEnv = String(
+    process.env.VERCEL_ENV || process.env.NEXT_PUBLIC_VERCEL_ENV || ""
+  ).toLowerCase();
+
+  // Preview 배포에서는 현재 Preview URL을 우선 사용해야
+  // 운영 도메인 데이터와 엇갈리며 404가 나는 문제를 피할 수 있다.
+  if (vercelEnv === "preview" && vercelUrl) {
+    candidates.push(vercelUrl);
+    if (domain && !isLocalHost(domain)) {
+      candidates.push(domain);
+    }
   }
 
-  const vercelUrl = toAbsoluteUrl(process.env.VERCEL_URL || "");
-  if (vercelUrl) {
-    return vercelUrl;
+  if (process.env.NODE_ENV === "production") {
+    if (domain && !isLocalHost(domain)) {
+      candidates.push(domain);
+    }
+    if (vercelUrl) {
+      candidates.push(vercelUrl);
+    }
   }
 
   const port = String(process.env.PORT || "3000");
-  return `http://127.0.0.1:${port}`;
+  candidates.push(`http://127.0.0.1:${port}`);
+
+  return Array.from(new Set(candidates.filter(Boolean)));
 };
 
 const parseErrorMessage = async (res: Response) => {
@@ -59,58 +77,104 @@ const parseErrorMessage = async (res: Response) => {
   }
 };
 
+const parseJsonResponse = async <T>(res: Response) => {
+  const contentType = String(res.headers.get("content-type") || "").toLowerCase();
+  if (!contentType.includes("application/json")) {
+    const raw = await res.text();
+    return {
+      success: false as const,
+      error: `응답이 JSON이 아닙니다. content-type=${contentType || "unknown"}, body=${raw.slice(0, 180)}`,
+    };
+  }
+
+  try {
+    const data = (await res.json()) as T;
+    return { success: true as const, data };
+  } catch (error) {
+    return {
+      success: false as const,
+      error:
+        error instanceof Error
+          ? `JSON 파싱 실패: ${error.message}`
+          : "JSON 파싱 중 알 수 없는 오류가 발생했습니다.",
+    };
+  }
+};
+
 export async function getProduct(
   id: string,
   { mode = "no-store", revalidateSeconds = CACHE_TIME }: GetProductOptions = {}
 ) {
-  try {
-    const baseUrl = resolveBaseUrl();
-    const res =
-      mode === "isr"
-        ? await fetch(`${baseUrl}/api/products/${id}`, {
-            next: {
-              revalidate: revalidateSeconds,
-            },
-          })
-        : await fetch(`${baseUrl}/api/products/${id}`, {
-            cache: "no-store",
-          });
+  const baseUrls = resolveBaseUrls();
+  let lastError = "상품 조회 중 오류가 발생했습니다.";
 
-    if (!res.ok) {
-      return {
-        success: false,
-        error: await parseErrorMessage(res),
-      } as ItemDetailResponse;
+  for (const baseUrl of baseUrls) {
+    try {
+      const res =
+        mode === "isr"
+          ? await fetch(`${baseUrl}/api/products/${id}`, {
+              next: {
+                revalidate: revalidateSeconds,
+              },
+            })
+          : await fetch(`${baseUrl}/api/products/${id}`, {
+              cache: "no-store",
+            });
+
+      if (!res.ok) {
+        lastError = `[${baseUrl}] ${await parseErrorMessage(res)}`;
+        continue;
+      }
+
+      const parsed = await parseJsonResponse<ItemDetailResponse>(res);
+      if (parsed.success) {
+        return parsed.data;
+      }
+
+      lastError = `[${baseUrl}] ${parsed.error}`;
+    } catch (error) {
+      lastError = `[${baseUrl}] ${
+        error instanceof Error ? error.message : "상품 조회 중 오류가 발생했습니다."
+      }`;
     }
-
-    return res.json() as Promise<ItemDetailResponse>;
-  } catch (error) {
-    return {
-      success: false,
-      error: error instanceof Error ? error.message : "상품 조회 중 오류가 발생했습니다.",
-    } as ItemDetailResponse;
   }
+
+  return {
+    success: false,
+    error: lastError,
+  } as ItemDetailResponse;
 }
 
 export async function getPost(id: string) {
-  try {
-    const baseUrl = resolveBaseUrl();
-    const res = await fetch(`${baseUrl}/api/posts/${id}`, {
-      cache: "no-store",
-    });
+  const baseUrls = resolveBaseUrls();
+  let lastError = "게시글 조회 중 오류가 발생했습니다.";
 
-    if (!res.ok) {
-      return {
-        success: false,
-        error: await parseErrorMessage(res),
-      } as PostDetailResponse;
+  for (const baseUrl of baseUrls) {
+    try {
+      const res = await fetch(`${baseUrl}/api/posts/${id}`, {
+        cache: "no-store",
+      });
+
+      if (!res.ok) {
+        lastError = `[${baseUrl}] ${await parseErrorMessage(res)}`;
+        continue;
+      }
+
+      const parsed = await parseJsonResponse<PostDetailResponse>(res);
+      if (parsed.success) {
+        return parsed.data;
+      }
+
+      lastError = `[${baseUrl}] ${parsed.error}`;
+    } catch (error) {
+      lastError = `[${baseUrl}] ${
+        error instanceof Error ? error.message : "게시글 조회 중 오류가 발생했습니다."
+      }`;
     }
-
-    return res.json() as Promise<PostDetailResponse>;
-  } catch (error) {
-    return {
-      success: false,
-      error: error instanceof Error ? error.message : "게시글 조회 중 오류가 발생했습니다.",
-    } as PostDetailResponse;
   }
+
+  return {
+    success: false,
+    error: lastError,
+  } as PostDetailResponse;
 }
