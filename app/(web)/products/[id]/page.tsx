@@ -30,15 +30,23 @@ interface Props {
  * - SEO에 유리하며 페이지 로딩 속도 향상
  */
 export async function generateStaticParams() {
-  const products = await client.product.findMany({
-    select: {
-      id: true,
-    },
-  });
+  if (!process.env.DATABASE_URL) {
+    return [];
+  }
 
-  return products.map((product) => ({
-    id: String(product.id),
-  }));
+  try {
+    const products = await client.product.findMany({
+      select: {
+        id: true,
+      },
+    });
+
+    return products.map((product) => ({
+      id: String(product.id),
+    }));
+  } catch {
+    return [];
+  }
 }
 
 /**
