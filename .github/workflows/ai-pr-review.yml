@@ -42,14 +42,7 @@ jobs:
               return;
             }
 
-            if (!process.env.OPENAI_API_KEY) {
-              const body = [
-                marker,
-                "## 자동 코드 리뷰 설정 필요",
-                "- `OPENAI_API_KEY` GitHub Secret이 없어 자동 리뷰를 실행하지 못했습니다.",
-                "- 저장소 설정에서 `OPENAI_API_KEY`를 추가하면 다음 PR 업데이트부터 자동 리뷰가 동작합니다.",
-              ].join("\n");
-
+            async function upsertReviewComment(body) {
               const comments = await github.paginate(github.rest.issues.listComments, {
                 owner,
                 repo,
@@ -79,6 +72,17 @@ jobs:
                   body,
                 });
               }
+            }
+
+            if (!process.env.OPENAI_API_KEY) {
+              const body = [
+                marker,
+                "## 자동 코드 리뷰 설정 필요",
+                "- `OPENAI_API_KEY` GitHub Secret이 없어 자동 리뷰를 실행하지 못했습니다.",
+                "- 저장소 설정에서 `OPENAI_API_KEY`를 추가하면 다음 PR 업데이트부터 자동 리뷰가 동작합니다.",
+              ].join("\n");
+
+              await upsertReviewComment(body);
 
               core.notice("OPENAI_API_KEY secret is missing. AI review skipped.");
               return;
@@ -153,8 +157,21 @@ jobs:
             });
 
             if (!response.ok) {
-              const body = await response.text();
-              core.setFailed(`OpenAI API error: ${response.status} ${body}`);
+              const errBody = await response.text();
+              await upsertReviewComment(
+                [
+                  marker,
+                  "## 자동 코드 리뷰 일시 실패",
+                  `- OpenAI API 오류: \`${response.status}\``,
+                  "- 원인: 쿼터 부족, 일시적 장애, 권한 문제일 수 있습니다.",
+                  "- 조치: Billing/Quota를 확인한 뒤 다음 커밋에서 다시 실행됩니다.",
+                  "",
+                  "```txt",
+                  errBody.slice(0, 3000),
+                  "```",
+                ].join("\n")
+              );
+              core.notice(`OpenAI API error: ${response.status}. AI review skipped.`);
               return;
             }
 
@@ -162,7 +179,15 @@ jobs:
             let text = data.output_text || "";
 
             if (!text) {
-              core.setFailed("OpenAI response output_text is empty.");
+              await upsertReviewComment(
+                [
+                  marker,
+                  "## 자동 코드 리뷰 일시 실패",
+                  "- OpenAI 응답에서 `output_text`가 비어 있어 리뷰를 생성하지 못했습니다.",
+                  "- 다음 커밋에서 자동 재시도됩니다.",
+                ].join("\n")
+              );
+              core.notice("OpenAI output_text empty. AI review skipped.");
               return;
             }
 
@@ -175,7 +200,15 @@ jobs:
               if (start >= 0 && end > start) {
                 parsed = JSON.parse(text.slice(start, end + 1));
               } else {
-                core.setFailed("Failed to parse AI review JSON.");
+                await upsertReviewComment(
+                  [
+                    marker,
+                    "## 자동 코드 리뷰 일시 실패",
+                    "- 모델 응답(JSON) 파싱에 실패했습니다.",
+                    "- 다음 커밋에서 자동 재시도됩니다.",
+                  ].join("\n")
+                );
+                core.notice("Failed to parse AI review JSON. AI review skipped.");
                 return;
               }
             }
@@ -215,35 +248,7 @@ jobs:
 
             const commentBody = [...header, ...bodyLines].join("\n");
 
-            const comments = await github.paginate(github.rest.issues.listComments, {
-              owner,
-              repo,
-              issue_number: pull_number,
-              per_page: 100,
-            });
-
-            const existing = comments.find(
-              (c) =>
-                c.user?.login === "github-actions[bot]" &&
-                typeof c.body === "string" &&
-                c.body.includes(marker)
-            );
-
-            if (existing) {
-              await github.rest.issues.updateComment({
-                owner,
-                repo,
-                comment_id: existing.id,
-                body: commentBody,
-              });
-            } else {
-              await github.rest.issues.createComment({
-                owner,
-                repo,
-                issue_number: pull_number,
-                body: commentBody,
-              });
-            }
+            await upsertReviewComment(commentBody);
 
             const blockingCount = findings.filter((f) => Boolean(f.blocking)).length;
             core.info(`findings=${findings.length}, blocking=${blockingCount}`);
