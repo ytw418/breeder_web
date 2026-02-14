@@ -59,26 +59,39 @@ jobs:
             const owner = context.repo.owner;
             const repo = context.repo.repo;
             const pull_number = context.payload.pull_request.number;
+            let pull = null;
+            let mergeableState = "unknown";
+            let isReady = false;
 
-            let pull;
-            for (let i = 0; i < 5; i++) {
+            // 외부 체크(Vercel 등)로 mergeable_state가 잠시 unstable일 수 있어
+            // 최대 10분 동안 10초 간격으로 재확인한다.
+            for (let i = 0; i < 60; i++) {
               const res = await github.rest.pulls.get({ owner, repo, pull_number });
               pull = res.data;
-              if (pull.mergeable !== null) {
+              mergeableState = pull.mergeable_state || "unknown";
+              const mergeable = pull.mergeable;
+
+              core.info(`attempt=${i + 1} mergeable=${mergeable} mergeable_state=${mergeableState}`);
+
+              if (mergeable === true && mergeableState === "clean") {
+                isReady = true;
                 break;
               }
-              await new Promise((resolve) => setTimeout(resolve, 2000));
-            }
 
-            const mergeableState = pull.mergeable_state || "unknown";
-            const isReady = pull.mergeable === true && mergeableState === "clean";
+              // 명백히 머지 불가 상태면 조기 종료
+              if (mergeableState === "dirty" || mergeableState === "draft") {
+                break;
+              }
+
+              await new Promise((resolve) => setTimeout(resolve, 10000));
+            }
 
             core.setOutput("ready", isReady ? "true" : "false");
             core.setOutput("mergeable_state", mergeableState);
-            core.setOutput("pr_url", pull.html_url);
-            core.setOutput("pr_title", pull.title);
+            core.setOutput("pr_url", pull?.html_url || "");
+            core.setOutput("pr_title", pull?.title || "");
 
-            core.info(`mergeable=${pull.mergeable}, mergeable_state=${mergeableState}`);
+            core.info(`final_ready=${isReady}, final_state=${mergeableState}`);
 
       - name: Skip reason
         if: steps.state.outputs.ready != 'true'
