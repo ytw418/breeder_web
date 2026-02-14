@@ -8,6 +8,7 @@
     "start": "next start",
     "lint": "next lint",
     "typecheck": "tsc --noEmit",
+    "verify:ci": "npm run lint && npm run typecheck && npm test -- --ci --runInBand && npm run build",
     "test": "jest",
     "test:e2e": "playwright test",
     "test:e2e:headed": "playwright test --headed",
