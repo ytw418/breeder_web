@@ -88,7 +88,7 @@ jobs:
     needs:
       - quality
       - merge_ready_state
-    if: needs.merge_ready_state.outputs.ready == 'true' && secrets.SLACK_WEBHOOK_URL != ''
+    if: needs.merge_ready_state.outputs.ready == 'true'
     runs-on: ubuntu-latest
     steps:
       - name: Send Slack notification
@@ -120,4 +120,3 @@ jobs:
               const body = await res.text();
               core.setFailed(`Slack notification failed: ${res.status} ${body}`);
             }
-
