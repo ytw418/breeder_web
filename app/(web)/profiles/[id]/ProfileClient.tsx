@@ -1,10 +1,13 @@
 "use client";
 import { useParams, useRouter } from "next/navigation";
+import { useState } from "react";
 
 import MainLayout from "@components/features/MainLayout";
 import MyPostList from "@components/features/profile/myPostList";
 import MySaleHistroyMenu from "@components/features/profile/MySaleHistroyMenu";
+import MyCommunityPostList from "@components/features/profile/MyCommunityPostList";
 import { Button } from "@components/ui/button";
+import { cn, makeImageUrl } from "@libs/client/utils";
 import useMutation from "hooks/useMutation";
 import useUser from "hooks/useUser";
 import { ChatResponseType } from "pages/api/chat";
@@ -12,11 +15,18 @@ import { UserResponse } from "pages/api/users/[id]";
 import { FollowResponse } from "pages/api/users/[id]/follow";
 import useSWR from "swr";
 import Image from "@components/atoms/Image";
-import { makeImageUrl } from "@libs/client/utils";
+
+type ActivityTab = "products" | "posts";
+
+const PROFILE_ACTIVITY_TABS: { id: ActivityTab; name: string }[] = [
+  { id: "products", name: "상품" },
+  { id: "posts", name: "게시물" },
+];
 
 const ProfileClient = () => {
   const router = useRouter();
   const query = useParams();
+  const [activeTab, setActiveTab] = useState<ActivityTab>("products");
   const { user: me } = useUser();
   const { data, mutate } = useSWR<UserResponse>(
     query && `/api/users/${query.id}`
@@ -58,6 +68,10 @@ const ProfileClient = () => {
       ? user.avatar
       : makeImageUrl(user.avatar, "avatar")
     : "";
+  const tabCountMap: Record<ActivityTab, number> = {
+    products: user?._count?.products ?? 0,
+    posts: user?._count?.posts ?? 0,
+  };
 
   return (
     <MainLayout canGoBack title={user?.name}>
@@ -173,12 +187,36 @@ const ProfileClient = () => {
         {/* 구분선 */}
         <div className="h-2 bg-gray-50" />
 
-        {/* 등록 상품 */}
+        {/* 등록 콘텐츠 */}
         <div className="px-4 py-4">
-          <h3 className="text-base font-semibold text-gray-900 mb-3">
-            등록한 상품
-          </h3>
-          {query?.id && <MyPostList userId={Number(query?.id)} />}
+          <h3 className="mb-3 text-base font-semibold text-gray-900">등록 콘텐츠</h3>
+          <div className="app-card p-2">
+            <div className="app-rail flex gap-2 snap-none">
+              {PROFILE_ACTIVITY_TABS.map((tab) => (
+                <button
+                  key={tab.id}
+                  onClick={() => setActiveTab(tab.id)}
+                  className={cn(
+                    "app-chip",
+                    activeTab === tab.id ? "app-chip-active" : "app-chip-muted"
+                  )}
+                >
+                  {tab.name}
+                  <span className="ml-1.5 text-[11px] opacity-80">
+                    {tabCountMap[tab.id]}
+                  </span>
+                </button>
+              ))}
+            </div>
+          </div>
+          <div className="mt-3">
+            {query?.id && activeTab === "products" && (
+              <MyPostList userId={Number(query?.id)} />
+            )}
+            {query?.id && activeTab === "posts" && (
+              <MyCommunityPostList userId={Number(query?.id)} />
+            )}
+          </div>
         </div>
       </div>
     </MainLayout>
