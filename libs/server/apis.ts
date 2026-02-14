@@ -30,13 +30,24 @@ const resolveBaseUrl = () => {
   };
 
   const domain = toAbsoluteUrl(process.env.NEXT_PUBLIC_DOMAIN_URL || "");
-  if (domain && (process.env.NODE_ENV !== "production" || !isLocalHost(domain))) {
-    return domain;
+  const vercelUrl = toAbsoluteUrl(process.env.VERCEL_URL || "");
+  const vercelEnv = String(
+    process.env.VERCEL_ENV || process.env.NEXT_PUBLIC_VERCEL_ENV || ""
+  ).toLowerCase();
+
+  // Preview 배포에서는 현재 Preview URL을 우선 사용해야
+  // 운영 도메인 데이터와 엇갈리며 404가 나는 문제를 피할 수 있다.
+  if (vercelEnv === "preview" && vercelUrl) {
+    return vercelUrl;
   }
 
-  const vercelUrl = toAbsoluteUrl(process.env.VERCEL_URL || "");
-  if (vercelUrl) {
-    return vercelUrl;
+  if (process.env.NODE_ENV === "production") {
+    if (domain && !isLocalHost(domain)) {
+      return domain;
+    }
+    if (vercelUrl) {
+      return vercelUrl;
+    }
   }
 
   const port = String(process.env.PORT || "3000");
