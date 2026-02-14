@@ -34,19 +34,31 @@ interface LandingPagesResponse {
   }[];
 }
 
-const HREF_EXAMPLES = [
-  {
-    label: "랜딩 페이지",
-    value: "/content/spring-event",
-  },
-  {
-    label: "사이트 내부",
-    value: "/ranking",
-  },
-  {
-    label: "외부 링크",
-    value: "https://example.com/event",
-  },
+type BannerLinkType = "landing" | "internal" | "external" | "custom";
+
+type BannerFormState = {
+  title: string;
+  description: string;
+  href: string;
+  bgClass: string;
+  order: string;
+  linkType: BannerLinkType;
+};
+
+const LINK_TYPE_OPTIONS: { id: BannerLinkType; label: string }[] = [
+  { id: "landing", label: "랜딩 페이지 연결" },
+  { id: "internal", label: "사이트 내부 메뉴" },
+  { id: "external", label: "외부 링크" },
+  { id: "custom", label: "직접 입력" },
+];
+
+const INTERNAL_ROUTE_PRESETS = [
+  { label: "홈", value: "/" },
+  { label: "경매", value: "/auctions" },
+  { label: "커뮤니티", value: "/posts" },
+  { label: "랭킹", value: "/ranking" },
+  { label: "알림", value: "/notifications" },
+  { label: "마이페이지", value: "/myPage" },
 ];
 
 const BANNER_STYLE_PRESETS = [
@@ -61,6 +73,16 @@ const BANNER_STYLE_PRESETS = [
 ] as const;
 
 const DEFAULT_BANNER_STYLE = BANNER_STYLE_PRESETS[0].bgClass;
+const toLandingPath = (slug: string) => `/content/${slug}`;
+
+const inferLinkType = (href: string): BannerLinkType => {
+  const value = href.trim();
+  if (!value) return "custom";
+  if (/^https?:\/\//i.test(value)) return "external";
+  if (/^\/content\/[a-z0-9-]+$/.test(value)) return "landing";
+  if (value.startsWith("/")) return "internal";
+  return "custom";
+};
 
 const getHrefGuide = (href: string) => {
   const value = href.trim();
@@ -88,13 +110,23 @@ export default function AdminBannersPage() {
   const { data: landingPagesData } =
     useSWR<LandingPagesResponse>("/api/admin/landing-pages");
   const { confirm, confirmDialog } = useConfirmDialog();
-  const [form, setForm] = useState({
+  const [form, setForm] = useState<BannerFormState>({
     title: "",
     description: "",
     href: "/",
     bgClass: DEFAULT_BANNER_STYLE,
     order: "1",
+    linkType: "internal",
   });
+
+  const copyLink = async (value: string) => {
+    try {
+      await navigator.clipboard.writeText(value);
+      toast.success("링크를 복사했습니다.");
+    } catch {
+      toast.error("링크 복사에 실패했습니다.");
+    }
+  };
 
   const handleCreate = async (event: React.FormEvent) => {
     event.preventDefault();
@@ -127,6 +159,7 @@ export default function AdminBannersPage() {
         href: "/",
         bgClass: DEFAULT_BANNER_STYLE,
         order: "1",
+        linkType: "internal",
       });
       mutate();
     } catch {
@@ -190,116 +223,204 @@ export default function AdminBannersPage() {
           onSubmit={handleCreate}
           className="bg-white rounded-lg border border-gray-200 p-4 space-y-3"
         >
-        <h3 className="text-sm font-semibold text-gray-800">새 배너 추가</h3>
-        <Input
-          placeholder="제목"
-          value={form.title}
-          onChange={(event) => setForm((prev) => ({ ...prev, title: event.target.value }))}
-        />
-        <Input
-          placeholder="설명"
-          value={form.description}
-          onChange={(event) =>
-            setForm((prev) => ({ ...prev, description: event.target.value }))
-          }
-        />
-        <Input
-          placeholder="링크 (/search 또는 https://...)"
-          value={form.href}
-          onChange={(event) => setForm((prev) => ({ ...prev, href: event.target.value }))}
-        />
-        <div className="rounded-md bg-gray-50 border border-gray-100 p-3 space-y-2">
-          <p className="text-xs font-semibold text-gray-800">링크 입력 가이드</p>
-          <p className="text-xs text-gray-600">
-            1) 랜딩 페이지를 만들려면:
-            {" "}
-            <Link href="/admin/landing-pages" className="font-semibold underline underline-offset-2">
-              /admin/landing-pages
-            </Link>
-          </p>
-          <p className="text-xs text-gray-600">
-            2) 배너 링크 입력: <span className="font-mono">/content/slug</span> 또는 내부경로(
-            <span className="font-mono">/ranking</span>) 또는 외부URL(
-            <span className="font-mono">https://...</span>)
-          </p>
-          <div className="flex flex-wrap gap-2 pt-1">
-            {HREF_EXAMPLES.map((item) => (
-              <button
-                key={item.value}
-                type="button"
-                onClick={() => setForm((prev) => ({ ...prev, href: item.value }))}
-                className="px-2 py-1 rounded-md border border-gray-200 text-xs text-gray-700 hover:bg-gray-100"
-              >
-                {item.label}: <span className="font-mono">{item.value}</span>
-              </button>
-            ))}
-          </div>
-          <p className="text-xs text-emerald-700 bg-emerald-50 border border-emerald-100 rounded-md px-2 py-1.5">
-            현재 링크 상태: {getHrefGuide(form.href)}
-          </p>
-        </div>
-        {landingPagesData?.pages?.length ? (
-          <div className="flex flex-wrap gap-2">
-            {landingPagesData.pages
-              .filter((page) => page.isPublished)
-              .slice(0, 6)
-              .map((page) => (
+          <h3 className="text-sm font-semibold text-gray-800">새 배너 추가</h3>
+          <Input
+            placeholder="제목"
+            value={form.title}
+            onChange={(event) => setForm((prev) => ({ ...prev, title: event.target.value }))}
+          />
+          <Input
+            placeholder="설명"
+            value={form.description}
+            onChange={(event) =>
+              setForm((prev) => ({ ...prev, description: event.target.value }))
+            }
+          />
+
+          <div className="rounded-md border border-gray-100 bg-gray-50 p-3 space-y-2">
+            <p className="text-xs font-semibold text-gray-800">배너 클릭 시 이동 위치</p>
+            <div className="flex flex-wrap gap-2">
+              {LINK_TYPE_OPTIONS.map((option) => (
                 <button
-                  key={page.id}
+                  key={option.id}
                   type="button"
-                  onClick={() =>
-                    setForm((prev) => ({ ...prev, href: `/content/${page.slug}` }))
-                  }
-                  className="px-2 py-1 rounded-md border border-gray-200 text-xs text-gray-700 hover:bg-gray-50"
-                >
-                  페이지 선택: {page.title}
-                </button>
-              ))}
-          </div>
-        ) : null}
-        <div className="space-y-2">
-          <p className="text-xs font-semibold text-gray-800">배너 컬러 스타일</p>
-          <p className="text-xs text-gray-600">
-            직접 입력 없이, 아래 스타일 중 하나를 선택하세요.
-          </p>
-          <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
-            {BANNER_STYLE_PRESETS.map((preset) => {
-              const isSelected = form.bgClass === preset.bgClass;
-              return (
-                <button
-                  key={preset.bgClass}
-                  type="button"
-                  onClick={() =>
-                    setForm((prev) => ({ ...prev, bgClass: preset.bgClass }))
-                  }
+                  onClick={() => {
+                    setForm((prev) => {
+                      const nextHref =
+                        option.id === "external"
+                          ? prev.href.startsWith("http")
+                            ? prev.href
+                            : "https://"
+                          : option.id === "landing"
+                            ? prev.href.startsWith("/content/") ? prev.href : ""
+                            : option.id === "internal"
+                              ? prev.href.startsWith("/") &&
+                                !prev.href.startsWith("/content/")
+                                ? prev.href
+                                : "/"
+                              : prev.href;
+
+                      return { ...prev, linkType: option.id, href: nextHref };
+                    });
+                  }}
                   className={cn(
-                    "flex items-center gap-2 rounded-md border px-2.5 py-2 text-left text-xs transition-colors",
-                    isSelected
-                      ? "border-blue-500 bg-blue-50 text-blue-700"
-                      : "border-gray-200 text-gray-700 hover:bg-gray-50"
+                    "rounded-full px-3 py-1.5 text-xs font-semibold transition-colors",
+                    form.linkType === option.id
+                      ? "bg-gray-900 text-white"
+                      : "bg-white text-gray-600 border border-gray-200 hover:bg-gray-100"
                   )}
                 >
-                  <span
-                    className={cn(
-                      "h-4 w-4 rounded-full bg-gradient-to-r ring-1 ring-black/10",
-                      preset.bgClass
-                    )}
-                  />
-                  <span className="font-medium">{preset.label}</span>
+                  {option.label}
                 </button>
-              );
-            })}
+              ))}
+            </div>
+            <Input
+              placeholder={
+                form.linkType === "external"
+                  ? "예: https://example.com/event"
+                  : form.linkType === "landing"
+                    ? "랜딩페이지 관리에서 복사한 링크를 붙여넣기"
+                    : form.linkType === "internal"
+                      ? "예: /posts"
+                      : "예: /posts 또는 https://example.com"
+              }
+              value={form.href}
+              onChange={(event) => {
+                const nextHref = event.target.value;
+                setForm((prev) => ({
+                  ...prev,
+                  href: nextHref,
+                  linkType: inferLinkType(nextHref),
+                }));
+              }}
+            />
+
+            {form.linkType === "internal" ? (
+              <div className="flex flex-wrap gap-2">
+                {INTERNAL_ROUTE_PRESETS.map((route) => (
+                  <button
+                    key={route.value}
+                    type="button"
+                    onClick={() =>
+                      setForm((prev) => ({ ...prev, href: route.value, linkType: "internal" }))
+                    }
+                    className="px-2 py-1 rounded-md border border-gray-200 text-xs text-gray-700 hover:bg-gray-100"
+                  >
+                    {route.label}
+                  </button>
+                ))}
+              </div>
+            ) : null}
+
+            {form.linkType === "landing" ? (
+              <div className="space-y-2">
+                <p className="text-xs text-gray-600">
+                  랜딩 페이지를 아직 안 만들었다면{" "}
+                  <Link
+                    href="/admin/landing-pages"
+                    className="font-semibold underline underline-offset-2"
+                  >
+                    랜딩 페이지 관리
+                  </Link>
+                  에서 먼저 만들어 주세요.
+                </p>
+                {landingPagesData?.pages?.filter((page) => page.isPublished).length ? (
+                  <div className="space-y-2">
+                    {landingPagesData.pages
+                      .filter((page) => page.isPublished)
+                      .slice(0, 8)
+                      .map((page) => (
+                        <div
+                          key={page.id}
+                          className="flex flex-col gap-2 rounded-md border border-gray-200 bg-white p-2 sm:flex-row sm:items-center sm:justify-between"
+                        >
+                          <div className="min-w-0">
+                            <p className="truncate text-xs font-semibold text-gray-800">{page.title}</p>
+                            <p className="truncate text-[11px] font-mono text-gray-500">
+                              {toLandingPath(page.slug)}
+                            </p>
+                          </div>
+                          <div className="flex gap-1.5">
+                            <button
+                              type="button"
+                              onClick={() =>
+                                setForm((prev) => ({
+                                  ...prev,
+                                  href: toLandingPath(page.slug),
+                                  linkType: "landing",
+                                }))
+                              }
+                              className="rounded-md border border-gray-200 px-2 py-1 text-xs text-gray-700 hover:bg-gray-50"
+                            >
+                              적용
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => copyLink(toLandingPath(page.slug))}
+                              className="rounded-md border border-gray-200 px-2 py-1 text-xs text-gray-700 hover:bg-gray-50"
+                            >
+                              링크 복사
+                            </button>
+                          </div>
+                        </div>
+                      ))}
+                  </div>
+                ) : (
+                  <p className="text-xs text-amber-700">
+                    공개된 랜딩 페이지가 없습니다. 랜딩 페이지를 먼저 만든 뒤 여기서 복사해서 붙여넣으세요.
+                  </p>
+                )}
+              </div>
+            ) : null}
+
+            <p className="text-xs text-emerald-700 bg-emerald-50 border border-emerald-100 rounded-md px-2 py-1.5">
+              현재 링크 상태: {getHrefGuide(form.href)}
+            </p>
           </div>
-        </div>
-        <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
-          <Input
-            type="number"
-            placeholder="정렬순서"
-            value={form.order}
-            onChange={(event) => setForm((prev) => ({ ...prev, order: event.target.value }))}
-          />
-        </div>
-        <Button type="submit">배너 생성</Button>
+
+          <div className="space-y-2">
+            <p className="text-xs font-semibold text-gray-800">배너 컬러 스타일</p>
+            <p className="text-xs text-gray-600">
+              직접 입력 없이, 아래 스타일 중 하나를 선택하세요.
+            </p>
+            <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+              {BANNER_STYLE_PRESETS.map((preset) => {
+                const isSelected = form.bgClass === preset.bgClass;
+                return (
+                  <button
+                    key={preset.bgClass}
+                    type="button"
+                    onClick={() =>
+                      setForm((prev) => ({ ...prev, bgClass: preset.bgClass }))
+                    }
+                    className={cn(
+                      "flex items-center gap-2 rounded-md border px-2.5 py-2 text-left text-xs transition-colors",
+                      isSelected
+                        ? "border-blue-500 bg-blue-50 text-blue-700"
+                        : "border-gray-200 text-gray-700 hover:bg-gray-50"
+                    )}
+                  >
+                    <span
+                      className={cn(
+                        "h-4 w-4 rounded-full bg-gradient-to-r ring-1 ring-black/10",
+                        preset.bgClass
+                      )}
+                    />
+                    <span className="font-medium">{preset.label}</span>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+          <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+            <Input
+              type="number"
+              placeholder="정렬순서"
+              value={form.order}
+              onChange={(event) => setForm((prev) => ({ ...prev, order: event.target.value }))}
+            />
+          </div>
+          <Button type="submit">배너 생성</Button>
         </form>
 
         <div className="space-y-3">

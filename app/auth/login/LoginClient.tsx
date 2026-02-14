@@ -1,5 +1,5 @@
 "use client";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect } from "react";
 
 import KakaoRound from "@images/KakaoRound.svg";
 import GoogleRound from "@images/GoogleRound.svg";
@@ -51,17 +51,9 @@ const LoginClient = () => {
   const router = useRouter();
   const searchParams = useSearchParams();
   const [login] = useMutation<LoginResponseType>("/api/auth/login");
-  const [isPreviewDevDomain, setIsPreviewDevDomain] = useState(false);
-  const [isBredyDomain, setIsBredyDomain] = useState(false);
-
-  // Vercel Preview 배포도 NODE_ENV는 production이므로 별도 판별이 필요하다.
-  const isDevServer = useMemo(() => {
-    const isLocal = process.env.NODE_ENV !== "production";
-    const isVercelPreview = process.env.NEXT_PUBLIC_VERCEL_ENV === "preview";
-    const isDevBranch = process.env.NEXT_PUBLIC_VERCEL_GIT_COMMIT_REF === "dev";
-    return isLocal || isVercelPreview || isDevBranch || isPreviewDevDomain;
-  }, [isPreviewDevDomain]);
-  const shouldShowGoogleLogin = isDevServer && !isBredyDomain;
+  // 기본값은 노출(true). 추후 숨길 때 NEXT_PUBLIC_ENABLE_GOOGLE_LOGIN=false로 설정.
+  const shouldShowGoogleLogin =
+    process.env.NEXT_PUBLIC_ENABLE_GOOGLE_LOGIN !== "false";
 
   /**카카오로그인 */
   const loginWithKakao = () => {
@@ -124,18 +116,6 @@ const LoginClient = () => {
       "https://t1.kakaocdn.net/kakao_js_sdk/2.7.2/kakao.min.js",
       "kakao"
     );
-  }, []);
-
-  useEffect(() => {
-    if (typeof window === "undefined") return;
-    const host = window.location.hostname.toLowerCase();
-    const isVercelDevPreviewHost =
-      host.endsWith(".vercel.app") &&
-      (host.includes("-git-dev-") || host.includes("breeder-web-git-dev-"));
-    const isProductionBredyHost =
-      host === "bredy.app" || host.endsWith(".bredy.app");
-    setIsPreviewDevDomain(isVercelDevPreviewHost);
-    setIsBredyDomain(isProductionBredyHost);
   }, []);
 
   const loginWithGoogle = async () => {
@@ -210,7 +190,7 @@ const LoginClient = () => {
           </button>
         ) : (
           <p className="mt-1 text-[11px] text-Gray-500">
-            현재 경매 참여 계정은 카카오 로그인만 지원합니다.
+            현재는 카카오 로그인만 지원합니다.
           </p>
         )}
         <Link

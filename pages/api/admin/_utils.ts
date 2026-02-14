@@ -1,10 +1,17 @@
 import client from "@libs/server/client";
 
-const ADMIN_EMAIL_ALLOWLIST = new Set(["ytw418@naver.com"]);
+const ADMIN_EMAIL_ALLOWLIST = new Set([
+  "ytw418@naver.com",
+  "ytw418@gmail.com",
+]);
 
 function isWhitelistedAdminEmail(email?: string | null) {
   if (!email) return false;
   return ADMIN_EMAIL_ALLOWLIST.has(email.trim().toLowerCase());
+}
+
+export function canRunSensitiveAdminAction(email?: string | null) {
+  return isWhitelistedAdminEmail(email);
 }
 
 export async function hasAdminAccess(userId?: number) {

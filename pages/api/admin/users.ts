@@ -3,7 +3,7 @@ import withHandler, { ResponseType } from "@libs/server/withHandler";
 import { withApiSession } from "@libs/server/withSession";
 import client from "@libs/server/client";
 import { role as UserRole, UserStatus } from "@prisma/client";
-import { hasAdminAccess } from "./_utils";
+import { canRunSensitiveAdminAction, hasAdminAccess } from "./_utils";
 
 const ROLE_OPTIONS: UserRole[] = ["USER", "ADMIN", "SUPER_USER"];
 const STATUS_OPTIONS: UserStatus[] = [
@@ -45,6 +45,19 @@ async function handler(req: NextApiRequest, res: NextApiResponse<ResponseType>) 
     }
 
     if (action === "grant_admin_by_email") {
+      const currentAdmin = await client.user.findUnique({
+        where: { id: user?.id },
+        select: { email: true },
+      });
+
+      if (!canRunSensitiveAdminAction(currentAdmin?.email)) {
+        return res.status(403).json({
+          success: false,
+          error:
+            "관리자 권한 부여는 지정된 운영 계정(ytw418@naver.com, ytw418@gmail.com)에서만 가능합니다.",
+        });
+      }
+
       const candidates = Array.isArray(emails)
         ? emails
         : email

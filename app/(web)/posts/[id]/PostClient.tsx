@@ -97,26 +97,36 @@ const PostClient = ({
         {/* 작성자 정보 */}
         <div className="px-4 py-4 border-b border-slate-100">
           <div className="flex items-center gap-3">
-            <Link href={`/profiles/${post.user?.id}`}>
-              {post.user?.avatar ? (
-                <Image
-                  src={makeImageUrl(post.user.avatar, "avatar")}
-                  className="w-10 h-10 rounded-full object-cover"
-                  width={40}
-                  height={40}
-                  alt="avatar"
-                />
-              ) : (
-                <div className="w-10 h-10 rounded-full bg-gray-200" />
-              )}
-            </Link>
-            <div className="flex-1">
-              <Link
-                href={`/profiles/${post.user?.id}`}
-                className="text-sm font-semibold text-gray-900 hover:text-primary transition-colors"
-              >
-                {post.user?.name}
+            {isNoticePost ? (
+              <div className="flex h-10 w-10 items-center justify-center rounded-full bg-slate-100 text-sm font-bold text-slate-600">
+                공지
+              </div>
+            ) : (
+              <Link href={`/profiles/${post.user?.id}`}>
+                {post.user?.avatar ? (
+                  <Image
+                    src={makeImageUrl(post.user.avatar, "avatar")}
+                    className="w-10 h-10 rounded-full object-cover"
+                    width={40}
+                    height={40}
+                    alt="avatar"
+                  />
+                ) : (
+                  <div className="w-10 h-10 rounded-full bg-gray-200" />
+                )}
               </Link>
+            )}
+            <div className="flex-1">
+              {isNoticePost ? (
+                <p className="text-sm font-semibold text-gray-900">운영팀</p>
+              ) : (
+                <Link
+                  href={`/profiles/${post.user?.id}`}
+                  className="text-sm font-semibold text-gray-900 hover:text-primary transition-colors"
+                >
+                  {post.user?.name}
+                </Link>
+              )}
               <div className="flex items-center gap-1.5 text-xs text-gray-400 mt-0.5">
                 {post.category && (
                   <>
