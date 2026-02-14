@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from "react";
 import NextImage, { ImageProps as NextImageProps } from "next/image";
-import defaultImage from "@images/defaultImage.png";
+
+const DEFAULT_FALLBACK_IMAGE = "/images/placeholders/minimal-gray-blur.svg";
 
 // 기본 blurDataURL - 작은 회색 이미지
 const defaultBlurDataURL =
@@ -17,7 +18,7 @@ export interface CustomImageProps extends NextImageProps {
 const Image = ({
   src,
   alt,
-  fallbackSrc = defaultImage.src,
+  fallbackSrc = DEFAULT_FALLBACK_IMAGE,
   blurDataURL = defaultBlurDataURL,
   onError,
   ...props

@@ -17,7 +17,7 @@ import useConfirmDialog from "hooks/useConfirmDialog";
 import { ANALYTICS_EVENTS, trackEvent } from "@libs/client/analytics";
 import { extractProductId, getProductPath } from "@libs/product-route";
 
-const DETAIL_FALLBACK_IMAGE = "/images/placeholders/detail-fallback-white.svg";
+const DETAIL_FALLBACK_IMAGE = "/images/placeholders/minimal-gray-blur.svg";
 
 /**
  * 상품 상세 페이지의 클라이언트 컴포넌트

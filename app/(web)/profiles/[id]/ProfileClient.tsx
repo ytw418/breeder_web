@@ -136,8 +136,11 @@ const ProfileClient = () => {
             <h2 className="text-lg font-bold text-gray-900">
               {user?.name || ""}
             </h2>
-            {user?.email && (
+            {isMyProfile && user?.email && (
               <p className="text-sm text-gray-500 mt-0.5">{user.email}</p>
+            )}
+            {!isMyProfile && user?.maskedEmail && (
+              <p className="text-sm text-gray-500 mt-0.5">{user.maskedEmail}</p>
             )}
           </div>
 
