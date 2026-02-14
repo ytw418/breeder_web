@@ -4,6 +4,7 @@ import { withApiSession } from "@libs/server/withSession";
 import client from "@libs/server/client";
 import { role as UserRole, UserStatus } from "@prisma/client";
 import { canRunSensitiveAdminAction, hasAdminAccess } from "./_utils";
+import { randomUUID } from "crypto";
 
 const ROLE_OPTIONS: UserRole[] = ["USER", "ADMIN", "SUPER_USER"];
 const STATUS_OPTIONS: UserStatus[] = [
@@ -108,6 +109,93 @@ async function handler(req: NextApiRequest, res: NextApiResponse<ResponseType>) 
         updatedCount,
         foundCount: users.length,
         notFoundEmails,
+      });
+    }
+
+    if (action === "switch_user_session") {
+      const targetUserId = Number(userId);
+      if (!targetUserId || Number.isNaN(targetUserId)) {
+        return res
+          .status(400)
+          .json({ success: false, error: "전환할 유저 ID가 필요합니다." });
+      }
+
+      const targetUser = await client.user.findUnique({
+        where: { id: targetUserId },
+      });
+      if (!targetUser) {
+        return res
+          .status(404)
+          .json({ success: false, error: "대상 유저를 찾을 수 없습니다." });
+      }
+
+      if (targetUser.status !== "ACTIVE") {
+        return res.status(400).json({
+          success: false,
+          error: "비활성 계정으로는 로그인 전환할 수 없습니다.",
+        });
+      }
+
+      req.session.user = targetUser;
+      await req.session.save();
+      return res.json({
+        success: true,
+        switchedUser: {
+          id: targetUser.id,
+          name: targetUser.name,
+          email: targetUser.email,
+          role: targetUser.role,
+        },
+      });
+    }
+
+    if (action === "create_test_user") {
+      const count = Math.min(Math.max(Number(req.body?.count || 1), 1), 20);
+      const prefix = String(req.body?.namePrefix || "테스트유저")
+        .trim()
+        .slice(0, 12);
+
+      const createdUsers: Array<{ id: number; name: string; email: string | null }> = [];
+
+      for (let index = 0; index < count; index += 1) {
+        let nickname = "";
+        for (let attempt = 0; attempt < 30; attempt += 1) {
+          const suffix = `${Math.floor(Math.random() * 9000) + 1000}`;
+          const candidate = `${prefix}${suffix}`;
+          const exists = await client.user.findUnique({
+            where: { name: candidate },
+            select: { id: true },
+          });
+          if (!exists) {
+            nickname = candidate;
+            break;
+          }
+        }
+
+        if (!nickname) {
+          nickname = `${prefix}${Date.now().toString().slice(-4)}${index}`;
+        }
+
+        const newUser = await client.user.create({
+          data: {
+            snsId: `admin-test-user-${Date.now()}-${randomUUID()}-${index}`,
+            provider: "test_user",
+            name: nickname,
+            email: null,
+          },
+          select: {
+            id: true,
+            name: true,
+            email: true,
+          },
+        });
+
+        createdUsers.push(newUser);
+      }
+
+      return res.json({
+        success: true,
+        createdUsers,
       });
     }
 

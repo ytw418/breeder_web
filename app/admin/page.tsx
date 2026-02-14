@@ -1,11 +1,12 @@
 "use client";
 
 import Link from "next/link";
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { Button } from "@components/ui/button";
 import { Input } from "@components/ui/input";
 import { Textarea } from "@components/ui/textarea";
 import useUser from "hooks/useUser";
+import useSWR from "swr";
 
 type CountStat = {
   created: number;
@@ -43,6 +44,36 @@ type GrantAdminResponse = {
   updatedCount?: number;
   foundCount?: number;
   notFoundEmails?: string[];
+};
+
+type AdminUserListItem = {
+  id: number;
+  name: string;
+  email: string | null;
+  role: "USER" | "ADMIN" | "SUPER_USER";
+  status: "ACTIVE" | "BANNED" | "SUSPENDED_7D" | "SUSPENDED_30D" | "DELETED";
+  createdAt: string;
+};
+
+type AdminUsersResponse = {
+  success?: boolean;
+  users?: AdminUserListItem[];
+  error?: string;
+};
+
+type SwitchUserResponse = {
+  success?: boolean;
+  error?: string;
+};
+
+type CreateTestUsersResponse = {
+  success?: boolean;
+  error?: string;
+  createdUsers?: Array<{
+    id: number;
+    name: string;
+    email: string | null;
+  }>;
 };
 
 const DASHBOARD_MENUS = [
@@ -157,6 +188,36 @@ export default function AdminDashboardPage() {
   const [grantMessage, setGrantMessage] = useState("");
   const [grantError, setGrantError] = useState("");
   const [notFoundEmails, setNotFoundEmails] = useState<string[]>([]);
+  const [accountKeyword, setAccountKeyword] = useState("");
+  const [switchingUserId, setSwitchingUserId] = useState<number | null>(null);
+  const [switchMessage, setSwitchMessage] = useState("");
+  const [switchError, setSwitchError] = useState("");
+  const [testUserPrefix, setTestUserPrefix] = useState("테스트유저");
+  const [testUserCount, setTestUserCount] = useState("5");
+  const [creatingTestUsers, setCreatingTestUsers] = useState(false);
+  const {
+    data: adminUsersData,
+    mutate: mutateAdminUsers,
+    isLoading: isAdminUsersLoading,
+  } = useSWR<AdminUsersResponse>("/api/admin/users");
+
+  const filteredSwitchTargets = useMemo(() => {
+    const normalizedKeyword = accountKeyword.trim().toLowerCase();
+    const users = adminUsersData?.users || [];
+    const activeUsers = users.filter((item) => item.status === "ACTIVE");
+
+    if (!normalizedKeyword) return activeUsers.slice(0, 30);
+    return activeUsers
+      .filter((item) => {
+        const email = String(item.email || "").toLowerCase();
+        return (
+          item.name.toLowerCase().includes(normalizedKeyword) ||
+          email.includes(normalizedKeyword)
+        );
+      })
+      .slice(0, 30);
+  }, [accountKeyword, adminUsersData?.users]);
+
   const normalizedUserEmail = String(user?.email || "")
     .trim()
     .toLowerCase();
@@ -286,6 +347,72 @@ export default function AdminDashboardPage() {
       setGrantError(error instanceof Error ? error.message : "요청 중 오류가 발생했습니다.");
     } finally {
       setGrantingAdmin(false);
+    }
+  };
+
+  const handleSwitchUserSession = async (targetUser: AdminUserListItem) => {
+    if (targetUser.id === user?.id) return;
+
+    const confirmed = window.confirm(
+      `${targetUser.name} 계정으로 로그인 상태를 전환할까요?\n전환 후 현재 어드민 화면에서 나가게 됩니다.`
+    );
+    if (!confirmed) return;
+
+    setSwitchError("");
+    setSwitchMessage("");
+
+    try {
+      setSwitchingUserId(targetUser.id);
+      const res = await fetch("/api/admin/users", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          action: "switch_user_session",
+          userId: targetUser.id,
+        }),
+      });
+      const data = (await res.json()) as SwitchUserResponse;
+      if (!res.ok || !data.success) {
+        throw new Error(data.error || "계정 전환에 실패했습니다.");
+      }
+      window.location.assign("/myPage");
+    } catch (error) {
+      setSwitchError(error instanceof Error ? error.message : "요청 중 오류가 발생했습니다.");
+    } finally {
+      setSwitchingUserId(null);
+    }
+  };
+
+  const handleCreateTestUsers = async (event: React.FormEvent) => {
+    event.preventDefault();
+    setSwitchError("");
+    setSwitchMessage("");
+
+    const count = Math.min(Math.max(Number(testUserCount || "1"), 1), 20);
+    const namePrefix = testUserPrefix.trim().slice(0, 12) || "테스트유저";
+
+    try {
+      setCreatingTestUsers(true);
+      const res = await fetch("/api/admin/users", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          action: "create_test_user",
+          count,
+          namePrefix,
+        }),
+      });
+      const data = (await res.json()) as CreateTestUsersResponse;
+      if (!res.ok || !data.success) {
+        throw new Error(data.error || "테스트 계정 생성에 실패했습니다.");
+      }
+      const createdCount = data.createdUsers?.length || 0;
+      setSwitchMessage(`테스트 계정 ${createdCount}개를 생성했습니다.`);
+      await mutateAdminUsers();
+    } catch (error) {
+      setSwitchError(error instanceof Error ? error.message : "요청 중 오류가 발생했습니다.");
+    } finally {
+      setCreatingTestUsers(false);
     }
   };
 
@@ -463,6 +590,82 @@ export default function AdminDashboardPage() {
                   <p className="mt-2 text-xs text-amber-700">
                     계정 없음: {notFoundEmails.join(", ")}
                   </p>
+                ) : null}
+              </div>
+
+              <div className="rounded-lg border border-gray-100 p-4">
+                <p className="text-base font-semibold text-gray-900">3) 테스트 계정 생성/즉시 전환</p>
+                <p className="mt-1 text-sm text-gray-500">
+                  테스트 계정을 여러 개 만들고 버튼 클릭으로 바로 로그인 전환할 수 있습니다.
+                </p>
+
+                <form onSubmit={handleCreateTestUsers} className="mt-3 grid gap-2 md:grid-cols-3">
+                  <Input
+                    value={testUserPrefix}
+                    onChange={(event) => setTestUserPrefix(event.target.value)}
+                    placeholder="닉네임 접두어"
+                  />
+                  <Input
+                    type="number"
+                    min={1}
+                    max={20}
+                    value={testUserCount}
+                    onChange={(event) => setTestUserCount(event.target.value)}
+                    placeholder="생성 개수 (1~20)"
+                  />
+                  <Button type="submit" disabled={creatingTestUsers}>
+                    {creatingTestUsers ? "생성 중..." : "테스트 계정 생성"}
+                  </Button>
+                </form>
+
+                <div className="mt-4 rounded-lg border border-gray-100 bg-gray-50 p-3">
+                  <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
+                    <p className="text-xs font-semibold text-gray-700">
+                      계정 전환 버튼 ({filteredSwitchTargets.length}개 표시)
+                    </p>
+                    <Input
+                      value={accountKeyword}
+                      onChange={(event) => setAccountKeyword(event.target.value)}
+                      placeholder="닉네임/이메일 검색"
+                      className="md:max-w-xs"
+                    />
+                  </div>
+
+                  {isAdminUsersLoading ? (
+                    <p className="mt-3 text-xs text-gray-500">계정 목록 불러오는 중...</p>
+                  ) : (
+                    <div className="mt-3 grid grid-cols-1 gap-2 md:grid-cols-2">
+                      {filteredSwitchTargets.map((target) => (
+                        <button
+                          key={target.id}
+                          type="button"
+                          onClick={() => handleSwitchUserSession(target)}
+                          disabled={switchingUserId === target.id}
+                          className="rounded-lg border border-gray-200 bg-white px-3 py-2 text-left hover:bg-gray-50 disabled:opacity-60"
+                        >
+                          <p className="text-sm font-semibold text-gray-900">
+                            {target.name}
+                            {target.id === user?.id ? " (현재 계정)" : ""}
+                          </p>
+                          <p className="mt-0.5 text-xs text-gray-500">{target.email || "이메일 없음"}</p>
+                          <p className="mt-1 text-[11px] text-gray-500">
+                            권한 {target.role} / 상태 {target.status}
+                          </p>
+                        </button>
+                      ))}
+                    </div>
+                  )}
+
+                  {!isAdminUsersLoading && filteredSwitchTargets.length === 0 ? (
+                    <p className="mt-3 text-xs text-gray-500">표시할 계정이 없습니다.</p>
+                  ) : null}
+                </div>
+
+                {switchMessage ? (
+                  <p className="mt-3 text-sm font-medium text-emerald-600">{switchMessage}</p>
+                ) : null}
+                {switchError ? (
+                  <p className="mt-3 text-sm font-medium text-rose-600">{switchError}</p>
                 ) : null}
               </div>
             </div>

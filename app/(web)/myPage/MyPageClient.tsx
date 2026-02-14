@@ -44,6 +44,22 @@ const GUINNESS_STATUS_CLASS: Record<GuinnessSubmission["status"], string> = {
   rejected: "bg-rose-100 text-rose-700",
 };
 
+const TEST_USER_PROVIDERS = new Set(["test_user", "seed"]);
+
+type TestSwitchUserItem = {
+  id: number;
+  name: string;
+  email: string | null;
+  provider: string;
+  createdAt: string;
+};
+
+type TestAccountsResponse = {
+  success: boolean;
+  error?: string;
+  users: TestSwitchUserItem[];
+};
+
 const GuinnessSubmissionList = ({
   submissions,
   isLoading,
@@ -125,6 +141,8 @@ const MyPageClient = () => {
   const [activeTab, setActiveTab] = useState<ActivityTab>("posts");
   const [switchError, setSwitchError] = useState("");
   const [switchMessage, setSwitchMessage] = useState("");
+  const [testSwitchError, setTestSwitchError] = useState("");
+  const [switchingTestUserId, setSwitchingTestUserId] = useState<number | null>(null);
   const [loginWithProvider, { loading: switchingGoogle }] =
     useMutation<LoginResponseType>("/api/auth/login");
 
@@ -136,6 +154,11 @@ const MyPageClient = () => {
     useSWR<GuinnessSubmissionsResponse>(
       user?.id ? "/api/guinness/submissions" : null
     );
+  const isTestUser = TEST_USER_PROVIDERS.has(String(user?.provider || ""));
+  const {
+    data: testAccountsData,
+    isLoading: isTestAccountsLoading,
+  } = useSWR<TestAccountsResponse>(isTestUser ? "/api/users/test-accounts" : null);
 
   const avatarUrl =
     user?.avatar &&
@@ -167,6 +190,8 @@ const MyPageClient = () => {
       ? "Google"
       : user?.provider === USER_INFO.provider.APPLE
         ? "Apple"
+        : TEST_USER_PROVIDERS.has(String(user?.provider || ""))
+          ? "테스트 유저"
         : "Kakao";
 
   const handleSwitchToGoogle = async () => {
@@ -210,6 +235,32 @@ const MyPageClient = () => {
           ? error.message
           : "구글 계정 전환에 실패했습니다."
       );
+    }
+  };
+
+  const handleSwitchTestUser = async (target: TestSwitchUserItem) => {
+    if (target.id === user?.id) return;
+    const confirmed = window.confirm(`${target.name} 계정으로 전환할까요?`);
+    if (!confirmed) return;
+
+    setTestSwitchError("");
+
+    try {
+      setSwitchingTestUserId(target.id);
+      const res = await fetch("/api/users/test-accounts", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ userId: target.id }),
+      });
+      const result = (await res.json()) as { success?: boolean; error?: string };
+      if (!res.ok || !result.success) {
+        throw new Error(result.error || "테스트 계정 전환에 실패했습니다.");
+      }
+      window.location.assign("/myPage");
+    } catch (error) {
+      setTestSwitchError(error instanceof Error ? error.message : "요청 중 오류가 발생했습니다.");
+    } finally {
+      setSwitchingTestUserId(null);
     }
   };
 
@@ -340,6 +391,40 @@ const MyPageClient = () => {
                 </p>
               ) : null}
             </div>
+          </div>
+        ) : null}
+        {isTestUser ? (
+          <div className="mt-2 rounded-lg border border-indigo-200 bg-indigo-50 p-3">
+            <p className="text-xs font-semibold text-indigo-900">테스트 유저 계정 전환</p>
+            <p className="mt-1 text-xs text-indigo-700">
+              테스트 유저 권한 계정끼리 버튼으로 즉시 세션 전환할 수 있습니다.
+            </p>
+            {isTestAccountsLoading ? (
+              <p className="mt-2 text-xs text-indigo-700">계정 목록 불러오는 중...</p>
+            ) : (
+              <div className="mt-2 grid grid-cols-1 gap-2 sm:grid-cols-2">
+                {(testAccountsData?.users || []).map((account) => (
+                  <button
+                    key={account.id}
+                    type="button"
+                    disabled={switchingTestUserId === account.id}
+                    onClick={() => handleSwitchTestUser(account)}
+                    className="rounded-md border border-indigo-200 bg-white px-3 py-2 text-left text-xs text-indigo-900 transition-colors hover:bg-indigo-100 disabled:opacity-60"
+                  >
+                    <p className="font-semibold">
+                      {account.name}
+                      {account.id === user?.id ? " (현재)" : ""}
+                    </p>
+                    <p className="mt-0.5 text-[11px] text-indigo-700">
+                      {account.email || "이메일 없음"}
+                    </p>
+                  </button>
+                ))}
+              </div>
+            )}
+            {testSwitchError ? (
+              <p className="mt-2 text-xs font-semibold text-rose-600">{testSwitchError}</p>
+            ) : null}
           </div>
         ) : null}
       </div>
