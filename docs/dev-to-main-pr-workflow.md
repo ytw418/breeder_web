@@ -10,8 +10,7 @@ When a pull request targets `main` from `dev`, it runs:
 
 1. `npm ci`
 2. `npm run verify:ci` (lint + typecheck + test)
-3. PR mergeability check (`mergeable_state == clean`)
-4. Slack notification when the PR is merge-ready
+3. Slack notification when quality check passes
 
 ## Required setup (one-time)
 
@@ -58,4 +57,4 @@ bash scripts/open-dev-pr.sh --skip-verify
 ## Notes
 
 - Slack notification is skipped if `SLACK_WEBHOOK_URL` is not set.
-- If PR has conflicts or blocking rules, `mergeable_state` will not be `clean`, so Slack is not sent.
+- Mergeability (`clean`) is validated in GitHub PR UI / Vercel checks, not in this workflow.

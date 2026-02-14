@@ -38,78 +38,17 @@ jobs:
       - name: Run CI verification
         run: npm run verify:ci
 
-  merge_ready_state:
+  notify_slack:
     needs: quality
     if: github.event_name == 'pull_request' && needs.quality.result == 'success'
-    runs-on: ubuntu-latest
-    permissions:
-      contents: read
-      pull-requests: read
-    outputs:
-      ready: ${{ steps.state.outputs.ready }}
-      mergeable_state: ${{ steps.state.outputs.mergeable_state }}
-      pr_url: ${{ steps.state.outputs.pr_url }}
-      pr_title: ${{ steps.state.outputs.pr_title }}
-    steps:
-      - name: Evaluate PR mergeable state
-        id: state
-        uses: actions/github-script@v7
-        with:
-          script: |
-            const owner = context.repo.owner;
-            const repo = context.repo.repo;
-            const pull_number = context.payload.pull_request.number;
-            let pull = null;
-            let mergeableState = "unknown";
-            let isReady = false;
-
-            // 외부 체크(Vercel 등)로 mergeable_state가 잠시 unstable일 수 있어
-            // 최대 10분 동안 10초 간격으로 재확인한다.
-            for (let i = 0; i < 60; i++) {
-              const res = await github.rest.pulls.get({ owner, repo, pull_number });
-              pull = res.data;
-              mergeableState = pull.mergeable_state || "unknown";
-              const mergeable = pull.mergeable;
-
-              core.info(`attempt=${i + 1} mergeable=${mergeable} mergeable_state=${mergeableState}`);
-
-              if (mergeable === true && mergeableState === "clean") {
-                isReady = true;
-                break;
-              }
-
-              // 명백히 머지 불가 상태면 조기 종료
-              if (mergeableState === "dirty" || mergeableState === "draft") {
-                break;
-              }
-
-              await new Promise((resolve) => setTimeout(resolve, 10000));
-            }
-
-            core.setOutput("ready", isReady ? "true" : "false");
-            core.setOutput("mergeable_state", mergeableState);
-            core.setOutput("pr_url", pull?.html_url || "");
-            core.setOutput("pr_title", pull?.title || "");
-
-            core.info(`final_ready=${isReady}, final_state=${mergeableState}`);
-
-      - name: Skip reason
-        if: steps.state.outputs.ready != 'true'
-        run: echo "Slack notification skipped. mergeable_state=${{ steps.state.outputs.mergeable_state }}"
-
-  notify_slack:
-    needs:
-      - quality
-      - merge_ready_state
-    if: needs.merge_ready_state.outputs.ready == 'true'
     runs-on: ubuntu-latest
     steps:
       - name: Send Slack notification
         uses: actions/github-script@v7
         env:
           SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
-          PR_URL: ${{ needs.merge_ready_state.outputs.pr_url }}
-          PR_TITLE: ${{ needs.merge_ready_state.outputs.pr_title }}
+          PR_URL: ${{ github.event.pull_request.html_url }}
+          PR_TITLE: ${{ github.event.pull_request.title }}
           REPO: ${{ github.repository }}
         with:
           script: |
