@@ -1,0 +1,74 @@
+name: Dev to Main Quality Gate
+
+on:
+  pull_request:
+    branches:
+      - main
+    types:
+      - opened
+      - synchronize
+      - reopened
+      - ready_for_review
+  workflow_dispatch:
+
+concurrency:
+  group: dev-to-main-${{ github.event.pull_request.number || github.run_id }}
+  cancel-in-progress: true
+
+jobs:
+  quality:
+    if: github.event_name != 'pull_request' || (github.event.pull_request.head.ref == 'dev' && github.event.pull_request.base.ref == 'main')
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run CI verification
+        run: npm run verify:ci
+
+  notify_slack:
+    needs: quality
+    if: github.event_name == 'pull_request' && needs.quality.result == 'success'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Send Slack notification
+        uses: actions/github-script@v7
+        env:
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+          PR_URL: ${{ github.event.pull_request.html_url }}
+          PR_TITLE: ${{ github.event.pull_request.title }}
+          REPO: ${{ github.repository }}
+        with:
+          script: |
+            const webhook = process.env.SLACK_WEBHOOK_URL;
+            if (!webhook) {
+              core.info("No webhook configured.");
+              return;
+            }
+
+            const payload = {
+              text: `✅ Merge ready: ${process.env.PR_TITLE}\n${process.env.PR_URL}\nrepo: ${process.env.REPO}`
+            };
+
+            const res = await fetch(webhook, {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify(payload)
+            });
+
+            if (!res.ok) {
+              const body = await res.text();
+              core.setFailed(`Slack notification failed: ${res.status} ${body}`);
+            }

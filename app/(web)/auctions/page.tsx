@@ -58,12 +58,20 @@ export const metadata: Metadata = {
 };
 
 const page = async () => {
-  const auctions = await client.auction.findMany({
-    where: { status: "진행중" },
-    select: { id: true, title: true, currentPrice: true },
-    orderBy: { createdAt: "desc" },
-    take: 30,
-  });
+  let auctions: Array<{ id: number; title: string }> = [];
+
+  if (process.env.DATABASE_URL) {
+    try {
+      auctions = await client.auction.findMany({
+        where: { status: "진행중" },
+        select: { id: true, title: true },
+        orderBy: { createdAt: "desc" },
+        take: 30,
+      });
+    } catch {
+      auctions = [];
+    }
+  }
 
   const itemListJsonLd = {
     "@context": "https://schema.org",
