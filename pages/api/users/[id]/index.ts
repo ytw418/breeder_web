@@ -5,20 +5,47 @@ import client from "@libs/server/client";
 import { withApiSession } from "@libs/server/withSession";
 import { User } from "@prisma/client";
 
+type UserWithCounts = User & {
+  _count: {
+    followers: number;
+    following: number;
+    products: number;
+    posts: number;
+    Comments: number;
+    insectRecords: number;
+    receivedReviews: number;
+  };
+  maskedEmail?: string | null;
+};
+
 export interface UserResponse {
   success: boolean;
-  user?: User & {
-    _count: {
-      followers: number;
-      following: number;
-      products: number;
-      posts: number;
-      Comments: number;
-      insectRecords: number;
-      receivedReviews: number;
-    };
-  };
+  user?: UserWithCounts;
   isFollowing?: boolean;
+}
+
+function maskEmail(email?: string | null) {
+  const value = String(email || "").trim().toLowerCase();
+  if (!value || !value.includes("@")) return null;
+
+  const [local = "", domain = ""] = value.split("@");
+  const [domainHead = "", ...domainRest] = domain.split(".");
+
+  if (!local || !domainHead) return null;
+
+  const localMasked =
+    local.length <= 2
+      ? `${local.slice(0, 1)}*`
+      : `${local.slice(0, 2)}${"*".repeat(Math.min(6, Math.max(3, local.length - 2)))}`;
+
+  const domainHeadMasked =
+    domainHead.length <= 1
+      ? `${domainHead}*`
+      : `${domainHead.slice(0, 1)}${"*".repeat(Math.min(5, Math.max(3, domainHead.length - 1)))}`;
+
+  return `${localMasked}@${domainHeadMasked}${
+    domainRest.length ? `.${domainRest.join(".")}` : ""
+  }`;
 }
 
 async function handler(
@@ -71,7 +98,12 @@ async function handler(
     isFollowing = !!follow;
   }
 
-  return res.json({ success: true, user, isFollowing });
+  const safeUser: UserWithCounts =
+    myId === userId
+      ? { ...user, maskedEmail: maskEmail(user.email) }
+      : { ...user, email: null, maskedEmail: maskEmail(user.email) };
+
+  return res.json({ success: true, user: safeUser, isFollowing });
 }
 
 export default withApiSession(

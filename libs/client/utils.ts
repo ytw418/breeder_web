@@ -1,6 +1,7 @@
-import defaultImage from "@images/defaultImage.png";
 import { type ClassValue, clsx } from "clsx";
 import { twMerge } from "tailwind-merge";
+
+const DEFAULT_FALLBACK_IMAGE = "/images/placeholders/minimal-gray-blur.svg";
 
 /**
  * 클래스 이름을 병합하는 함수
@@ -41,11 +42,11 @@ export function makeImageUrl(
   variant: undefined | Variants = "public"
 ) {
   if (!imageId) {
-    return defaultImage as any as string;
+    return DEFAULT_FALLBACK_IMAGE;
   }
   const normalized = imageId.trim();
   if (!normalized) {
-    return defaultImage as any as string;
+    return DEFAULT_FALLBACK_IMAGE;
   }
   if (normalized.startsWith("/")) {
     // 내부 정적 경로(public/*)는 그대로 사용

@@ -20,7 +20,7 @@ import {
 import { getAuctionErrorMessage } from "@libs/client/auctionErrorMessage";
 import { ANALYTICS_EVENTS, trackEvent } from "@libs/client/analytics";
 
-const DETAIL_FALLBACK_IMAGE = "/images/placeholders/detail-fallback-white.svg";
+const DETAIL_FALLBACK_IMAGE = "/images/placeholders/minimal-gray-blur.svg";
 
 interface AuctionReportResponse {
   success: boolean;

@@ -67,10 +67,10 @@ export type RecordType = (typeof RECORD_TYPES)[number]["id"];
 export const DEFAULT_THUMBNAIL_CDN = "";
 
 /** 유저 썸네일에 문제 생겼을 경우 대체 시킬 기본 이미지 (로컬) */
-export const DEFAULT_THUMBNAIL_LOCAL = "";
+export const DEFAULT_THUMBNAIL_LOCAL = "/images/placeholders/minimal-gray-blur.svg";
 
 /** 이미지에 문제 생겼을 경우 대체 시킬 기본 이미지 (로컬) */
-export const DEFAULT_IMAGE_LOCAL = "";
+export const DEFAULT_IMAGE_LOCAL = "/images/placeholders/minimal-gray-blur.svg";
 
 export const APP_STORE_URL = "";
 
