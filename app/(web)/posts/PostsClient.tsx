@@ -126,13 +126,8 @@ export default function PostsClient() {
     data?.reduce((count, pageData) => count + (pageData?.posts?.length ?? 0), 0) ?? 0;
 
   return (
-    <Layout icon hasTabBar seoTitle="애완동물 서비스" showSearch>
+    <Layout icon hasTabBar seoTitle="반려생활" showSearch>
       <div className="app-page flex flex-col h-full">
-        {/* 헤더 타이틀 */}
-        <div className="px-4 pt-3 pb-1">
-          <h1 className="app-title-lg">애완동물 서비스</h1>
-        </div>
-
         {/* 공지/고정 게시글 */}
         <section className="px-4 py-3 space-y-2 app-reveal">
           <div className="flex items-center justify-between pb-1">
