@@ -43,7 +43,44 @@ jobs:
             }
 
             if (!process.env.OPENAI_API_KEY) {
-              core.setFailed("OPENAI_API_KEY secret is missing.");
+              const body = [
+                marker,
+                "## 자동 코드 리뷰 설정 필요",
+                "- `OPENAI_API_KEY` GitHub Secret이 없어 자동 리뷰를 실행하지 못했습니다.",
+                "- 저장소 설정에서 `OPENAI_API_KEY`를 추가하면 다음 PR 업데이트부터 자동 리뷰가 동작합니다.",
+              ].join("\n");
+
+              const comments = await github.paginate(github.rest.issues.listComments, {
+                owner,
+                repo,
+                issue_number: pull_number,
+                per_page: 100,
+              });
+
+              const existing = comments.find(
+                (c) =>
+                  c.user?.login === "github-actions[bot]" &&
+                  typeof c.body === "string" &&
+                  c.body.includes(marker)
+              );
+
+              if (existing) {
+                await github.rest.issues.updateComment({
+                  owner,
+                  repo,
+                  comment_id: existing.id,
+                  body,
+                });
+              } else {
+                await github.rest.issues.createComment({
+                  owner,
+                  repo,
+                  issue_number: pull_number,
+                  body,
+                });
+              }
+
+              core.notice("OPENAI_API_KEY secret is missing. AI review skipped.");
               return;
             }
 
