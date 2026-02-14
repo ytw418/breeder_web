@@ -402,7 +402,7 @@ const AuctionDetailClient = () => {
         )}
       >
         {/* 이미지 슬라이더 */}
-        <div className="relative aspect-[4/3] bg-gray-100">
+        <div className="relative aspect-[4/3] bg-gray-100 dark:bg-slate-800">
           <Image
             src={mainImageSrc}
             fallbackSrc={DETAIL_FALLBACK_IMAGE}
@@ -434,8 +434,8 @@ const AuctionDetailClient = () => {
             className={cn(
               "mt-4 py-3 px-4 rounded-xl text-center font-bold",
               countdown.isEnded || auction.status !== "진행중"
-                ? "bg-gray-100 text-gray-500"
-                : "bg-red-50 text-red-600"
+                ? "bg-gray-100 text-gray-500 dark:bg-slate-800 dark:text-slate-300"
+                : "bg-red-50 text-red-600 dark:bg-rose-950/40 dark:text-rose-300"
             )}
           >
             {auction.status === "진행중" ? (
@@ -455,9 +455,9 @@ const AuctionDetailClient = () => {
           </div>
 
           {auction.status === "취소" && (
-            <div className="mt-3 rounded-xl border border-rose-200 bg-rose-50 px-3.5 py-3">
-              <p className="text-sm font-bold text-rose-800">신고/운영 처리로 경매 중단</p>
-              <p className="mt-1 text-xs leading-relaxed text-rose-900">
+            <div className="mt-3 rounded-xl border border-rose-200 bg-rose-50 px-3.5 py-3 dark:border-rose-800 dark:bg-rose-950/40">
+              <p className="text-sm font-bold text-rose-800 dark:text-rose-200">신고/운영 처리로 경매 중단</p>
+              <p className="mt-1 text-xs leading-relaxed text-rose-900 dark:text-rose-200/90">
                 이 경매는 운영 정책에 따라 취소되었습니다. 추가 이의가 있으면 신고 접수 채널로 문의해 주세요.
               </p>
             </div>
@@ -468,24 +468,24 @@ const AuctionDetailClient = () => {
               className={cn(
                 "mt-3 rounded-xl border px-3.5 py-3",
                 isWinner
-                  ? "border-emerald-200 bg-emerald-50"
-                  : "border-blue-200 bg-blue-50"
+                  ? "border-emerald-200 bg-emerald-50 dark:border-emerald-800 dark:bg-emerald-950/35"
+                  : "border-blue-200 bg-blue-50 dark:border-blue-800 dark:bg-blue-950/35"
               )}
             >
               <p
                 className={cn(
                   "text-sm font-bold",
-                  isWinner ? "text-emerald-800" : "text-blue-800"
+                  isWinner ? "text-emerald-800 dark:text-emerald-200" : "text-blue-800 dark:text-blue-200"
                 )}
               >
                 {isWinner ? "낙찰 완료: 축하합니다!" : "낙찰 결과"}
               </p>
-              <div className="mt-1.5 space-y-1 text-xs text-slate-700">
+              <div className="mt-1.5 space-y-1 text-xs text-slate-700 dark:text-slate-200">
                 <p>낙찰자: {winnerBid.user?.name}</p>
                 <p>낙찰가: {winnerBid.amount.toLocaleString()}원</p>
                 <p>종료시각: {new Date(auction.endAt).toLocaleString()}</p>
               </div>
-              <div className="mt-2 rounded-lg border border-white/80 bg-white/80 px-2.5 py-2 text-[11px] text-slate-700">
+              <div className="mt-2 rounded-lg border border-white/80 bg-white/80 px-2.5 py-2 text-[11px] text-slate-700 dark:border-slate-700 dark:bg-slate-800/80 dark:text-slate-200">
                 {isWinner ? (
                   <p>
                     판매자 신뢰 정보(전화/이메일/블로그)를 확인해 거래를 진행하세요. 분쟁 발생 시 신고 기능을 사용하세요.
@@ -505,7 +505,7 @@ const AuctionDetailClient = () => {
 
           {/* 판매자 정보 */}
           {isToolRoute ? (
-            <div className="flex items-center gap-3 py-4 border-b border-gray-100">
+            <div className="flex items-center gap-3 border-b border-gray-100 py-4 dark:border-slate-800">
               {auction.user?.avatar ? (
                 <Image
                   src={makeImageUrl(auction.user.avatar, "avatar")}
@@ -515,17 +515,17 @@ const AuctionDetailClient = () => {
                   alt=""
                 />
               ) : (
-                <div className="w-10 h-10 rounded-full bg-gray-200" />
+                <div className="h-10 w-10 rounded-full bg-gray-200 dark:bg-slate-700" />
               )}
               <div>
-                <p className="text-sm font-semibold text-gray-900">{auction.user?.name}</p>
-                <p className="text-xs text-gray-400">경매 등록자</p>
+                <p className="text-sm font-semibold text-gray-900 dark:text-slate-100">{auction.user?.name}</p>
+                <p className="text-xs text-gray-400 dark:text-slate-500">경매 등록자</p>
               </div>
             </div>
           ) : (
             <Link
               href={`/profiles/${auction.user?.id}`}
-              className="flex items-center gap-3 py-4 border-b border-gray-100"
+              className="flex items-center gap-3 border-b border-gray-100 py-4 dark:border-slate-800"
             >
               {auction.user?.avatar ? (
                 <Image
@@ -536,17 +536,17 @@ const AuctionDetailClient = () => {
                   alt=""
                 />
               ) : (
-                <div className="w-10 h-10 rounded-full bg-gray-200" />
+                <div className="h-10 w-10 rounded-full bg-gray-200 dark:bg-slate-700" />
               )}
               <div>
-                <p className="text-sm font-semibold text-gray-900">{auction.user?.name}</p>
-                <p className="text-xs text-gray-400">경매 등록자</p>
+                <p className="text-sm font-semibold text-gray-900 dark:text-slate-100">{auction.user?.name}</p>
+                <p className="text-xs text-gray-400 dark:text-slate-500">경매 등록자</p>
               </div>
             </Link>
           )}
 
           {/* 상품 정보 */}
-          <div className="py-4 space-y-3 border-b border-gray-100">
+          <div className="space-y-3 border-b border-gray-100 py-4 dark:border-slate-800">
             <div className="flex items-center gap-2">
               {auction.category && (
                 <span className="text-xs font-medium text-primary bg-primary/10 px-2 py-0.5 rounded">
@@ -558,13 +558,13 @@ const AuctionDetailClient = () => {
                   "text-xs px-2 py-0.5 rounded-full font-medium",
                   auction.status === "진행중"
                     ? "bg-green-100 text-green-700"
-                    : "bg-gray-200 text-gray-500"
+                    : "bg-gray-200 text-gray-500 dark:bg-slate-700 dark:text-slate-300"
                 )}
               >
                 {auction.status}
               </span>
             </div>
-            <h1 className="text-lg font-bold text-gray-900 break-words [overflow-wrap:anywhere]">
+            <h1 className="text-lg font-bold text-gray-900 break-words [overflow-wrap:anywhere] dark:text-slate-50">
               {auction.title}
             </h1>
             <p className="text-sm text-gray-600 dark:text-slate-300 whitespace-pre-line leading-relaxed break-words [overflow-wrap:anywhere]">
@@ -595,7 +595,7 @@ const AuctionDetailClient = () => {
               </button>
             </div>
             {data?.isOwner && !data?.canEdit ? (
-              <p className="text-xs text-slate-500">
+              <p className="text-xs text-slate-500 dark:text-slate-400">
                 진행중 상태에서 등록 후 10분 이내, 입찰이 없을 때만 수정할 수 있습니다.
               </p>
             ) : null}
@@ -606,9 +606,9 @@ const AuctionDetailClient = () => {
               auction.sellerBandNick ||
               auction.sellerTrustNote ||
               auction.sellerProofImage) && (
-              <div className="rounded-lg border border-slate-200 bg-slate-50 px-3.5 py-3">
-                <p className="text-xs font-semibold text-slate-700">판매자 신뢰 정보</p>
-                <div className="mt-2 space-y-1 text-xs text-slate-600">
+              <div className="rounded-lg border border-slate-200 bg-slate-50 px-3.5 py-3 dark:border-slate-700 dark:bg-slate-800/70">
+                <p className="text-xs font-semibold text-slate-700 dark:text-slate-200">판매자 신뢰 정보</p>
+                <div className="mt-2 space-y-1 text-xs text-slate-600 dark:text-slate-300">
                   {auction.sellerPhone ? <p>연락처: {auction.sellerPhone}</p> : null}
                   {auction.sellerEmail ? <p>이메일: {auction.sellerEmail}</p> : null}
                   {auction.sellerBlogUrl ? (
@@ -630,7 +630,7 @@ const AuctionDetailClient = () => {
                   ) : null}
                 </div>
                 {auction.sellerProofImage ? (
-                  <div className="relative mt-2 h-28 w-40 overflow-hidden rounded-md border border-slate-200">
+                  <div className="relative mt-2 h-28 w-40 overflow-hidden rounded-md border border-slate-200 dark:border-slate-700">
                     <Image
                       src={makeImageUrl(auction.sellerProofImage, "public")}
                       className="object-cover"
@@ -647,11 +647,11 @@ const AuctionDetailClient = () => {
           <div className="py-4 space-y-4">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-xs text-gray-400">시작가</p>
-                <p className="text-sm text-gray-500">{auction.startPrice.toLocaleString()}원</p>
+                <p className="text-xs text-gray-400 dark:text-slate-500">시작가</p>
+                <p className="text-sm text-gray-500 dark:text-slate-300">{auction.startPrice.toLocaleString()}원</p>
               </div>
               <div className="text-right">
-                <p className="text-xs text-gray-400">현재 최고가</p>
+                <p className="text-xs text-gray-400 dark:text-slate-500">현재 최고가</p>
                 <p className="text-2xl font-bold text-primary">
                   {auction.currentPrice.toLocaleString()}원
                 </p>
@@ -660,7 +660,7 @@ const AuctionDetailClient = () => {
 
             <div className="rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/70 px-3.5 py-3">
               <div className="flex items-center justify-between gap-3">
-                <p className="text-sm font-semibold text-slate-800">경매 규칙</p>
+                <p className="text-sm font-semibold text-slate-800 dark:text-slate-100">경매 규칙</p>
                 {!isToolRoute ? (
                   <Link
                     href="/auctions/rules"
@@ -670,13 +670,13 @@ const AuctionDetailClient = () => {
                   </Link>
                 ) : null}
               </div>
-              <ul className="mt-2 space-y-1 text-xs text-slate-600">
+              <ul className="mt-2 space-y-1 text-xs text-slate-600 dark:text-slate-300">
                 <li>• 현재가 기준 입찰 단위: {getBidIncrement(auction.currentPrice).toLocaleString()}원</li>
                 <li>• 마감 {extensionWindowMinutes}분 이내 입찰 시 종료 시간이 {extensionMinutes}분 연장됩니다.</li>
                 <li>• 입찰은 취소할 수 없으며, 본인 경매 입찰은 불가합니다.</li>
                 <li>• 현재 최고 입찰자는 재입찰할 수 없습니다.</li>
               </ul>
-              <div className="mt-3 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2.5 text-xs text-amber-900">
+              <div className="mt-3 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2.5 text-xs text-amber-900 dark:border-amber-700 dark:bg-amber-950/40 dark:text-amber-200">
                 <p className="font-semibold">분쟁/신고 안내</p>
                 <p className="mt-1 leading-relaxed">
                   본 서비스는 거래 당사자 간 분쟁에 대해 법적 책임을 지지 않습니다.
@@ -694,15 +694,15 @@ const AuctionDetailClient = () => {
                   </a>
                 ) : null}
                 {!data?.isOwner && (
-                  <div className="mt-3 rounded-lg border border-amber-300 bg-white/70 p-2.5">
-                    <p className="text-[11px] font-semibold text-amber-900">빠른 신고 접수</p>
+                  <div className="mt-3 rounded-lg border border-amber-300 bg-white/70 p-2.5 dark:border-amber-700 dark:bg-slate-900/65">
+                    <p className="text-[11px] font-semibold text-amber-900 dark:text-amber-200">빠른 신고 접수</p>
                     <div className="mt-1.5 space-y-1.5">
                       <select
                         value={reportReason}
                         onChange={(event) =>
                           setReportReason(event.target.value as (typeof REPORT_REASONS)[number])
                         }
-                        className="w-full rounded-md border border-amber-200 bg-white px-2 py-1.5 text-[11px]"
+                        className="w-full rounded-md border border-amber-200 bg-white px-2 py-1.5 text-[11px] dark:border-amber-700 dark:bg-slate-900 dark:text-slate-100"
                       >
                         {REPORT_REASONS.map((reason) => (
                           <option key={reason} value={reason}>
@@ -715,7 +715,7 @@ const AuctionDetailClient = () => {
                         onChange={(event) => setReportDetail(event.target.value)}
                         placeholder="신고 내용을 5자 이상 입력해주세요."
                         rows={2}
-                        className="w-full rounded-md border border-amber-200 bg-white px-2 py-1.5 text-[11px]"
+                        className="w-full rounded-md border border-amber-200 bg-white px-2 py-1.5 text-[11px] dark:border-amber-700 dark:bg-slate-900 dark:text-slate-100 dark:placeholder:text-slate-500"
                       />
                       <button
                         type="button"
@@ -743,7 +743,9 @@ const AuctionDetailClient = () => {
                       key={bid.id}
                       className={cn(
                         "flex items-center justify-between py-2 px-3 rounded-lg",
-                        i === 0 ? "bg-primary/5 border border-primary/20" : "bg-gray-50"
+                        i === 0
+                          ? "border border-primary/20 bg-primary/5 dark:border-primary/30 dark:bg-primary/10"
+                          : "bg-gray-50 dark:bg-slate-800/70"
                       )}
                     >
                       <div className="flex items-center gap-2">
@@ -763,15 +765,15 @@ const AuctionDetailClient = () => {
                             alt=""
                           />
                         ) : (
-                          <div className="w-6 h-6 rounded-full bg-gray-200" />
+                          <div className="h-6 w-6 rounded-full bg-gray-200 dark:bg-slate-700" />
                         )}
-                        <span className="text-sm text-gray-700">{bid.user?.name}</span>
+                        <span className="text-sm text-gray-700 dark:text-slate-200">{bid.user?.name}</span>
                       </div>
                       <div className="text-right">
-                        <p className="text-sm font-semibold text-gray-900">
+                        <p className="text-sm font-semibold text-gray-900 dark:text-slate-100">
                           {bid.amount.toLocaleString()}원
                         </p>
-                        <p className="text-xs text-gray-400">
+                        <p className="text-xs text-gray-400 dark:text-slate-500">
                           {getTimeAgoString(new Date(bid.createdAt))}
                         </p>
                       </div>
@@ -779,7 +781,7 @@ const AuctionDetailClient = () => {
                   ))}
                 </div>
               ) : (
-                <p className="text-sm text-gray-400 dark:text-slate-500 text-center py-4">
+                <p className="py-4 text-center text-sm text-gray-400 dark:text-slate-500">
                   아직 입찰 내역이 없습니다
                 </p>
               )}
@@ -817,50 +819,50 @@ const AuctionDetailClient = () => {
                 <button
                   onClick={() => increaseBidAmount(bidIncrement)}
                   disabled={isTopBidder}
-                  className="rounded-lg bg-gray-100 px-2 py-2 text-[11px] font-semibold text-gray-700 transition-colors hover:bg-gray-200 disabled:cursor-not-allowed disabled:opacity-50"
+                  className="rounded-lg bg-gray-100 px-2 py-2 text-[11px] font-semibold text-gray-700 transition-colors hover:bg-gray-200 disabled:cursor-not-allowed disabled:opacity-50 dark:bg-slate-700 dark:text-slate-100 dark:hover:bg-slate-600"
                 >
                   +1틱
                 </button>
                 <button
                   onClick={() => increaseBidAmount(bidIncrement * 2)}
                   disabled={isTopBidder}
-                  className="rounded-lg bg-gray-100 px-2 py-2 text-[11px] font-semibold text-gray-700 transition-colors hover:bg-gray-200 disabled:cursor-not-allowed disabled:opacity-50"
+                  className="rounded-lg bg-gray-100 px-2 py-2 text-[11px] font-semibold text-gray-700 transition-colors hover:bg-gray-200 disabled:cursor-not-allowed disabled:opacity-50 dark:bg-slate-700 dark:text-slate-100 dark:hover:bg-slate-600"
                 >
                   +2틱
                 </button>
                 <button
                   onClick={() => increaseBidAmount(10_000)}
                   disabled={isTopBidder}
-                  className="rounded-lg bg-gray-100 px-2 py-2 text-[11px] font-semibold text-gray-700 transition-colors hover:bg-gray-200 disabled:cursor-not-allowed disabled:opacity-50"
+                  className="rounded-lg bg-gray-100 px-2 py-2 text-[11px] font-semibold text-gray-700 transition-colors hover:bg-gray-200 disabled:cursor-not-allowed disabled:opacity-50 dark:bg-slate-700 dark:text-slate-100 dark:hover:bg-slate-600"
                 >
                   +10,000원
                 </button>
                 <button
                   onClick={() => increaseBidAmount(50_000)}
                   disabled={isTopBidder}
-                  className="rounded-lg bg-gray-100 px-2 py-2 text-[11px] font-semibold text-gray-700 transition-colors hover:bg-gray-200 disabled:cursor-not-allowed disabled:opacity-50"
+                  className="rounded-lg bg-gray-100 px-2 py-2 text-[11px] font-semibold text-gray-700 transition-colors hover:bg-gray-200 disabled:cursor-not-allowed disabled:opacity-50 dark:bg-slate-700 dark:text-slate-100 dark:hover:bg-slate-600"
                 >
                   +50,000원
                 </button>
                 <button
                   onClick={() => increaseBidAmount(100_000)}
                   disabled={isTopBidder}
-                  className="rounded-lg bg-gray-100 px-2 py-2 text-[11px] font-semibold text-gray-700 transition-colors hover:bg-gray-200 disabled:cursor-not-allowed disabled:opacity-50"
+                  className="rounded-lg bg-gray-100 px-2 py-2 text-[11px] font-semibold text-gray-700 transition-colors hover:bg-gray-200 disabled:cursor-not-allowed disabled:opacity-50 dark:bg-slate-700 dark:text-slate-100 dark:hover:bg-slate-600"
                 >
                   +100,000원
                 </button>
                 <button
                   onClick={() => setBidAmount(minimumBid)}
                   disabled={isTopBidder}
-                  className="rounded-lg bg-gray-100 px-2 py-2 text-[11px] font-semibold text-gray-700 transition-colors hover:bg-gray-200 disabled:cursor-not-allowed disabled:opacity-50"
+                  className="rounded-lg bg-gray-100 px-2 py-2 text-[11px] font-semibold text-gray-700 transition-colors hover:bg-gray-200 disabled:cursor-not-allowed disabled:opacity-50 dark:bg-slate-700 dark:text-slate-100 dark:hover:bg-slate-600"
                 >
                   최소가
                 </button>
               </div>
               <div className="flex items-center gap-2">
-                <div className="flex-1 rounded-lg bg-gray-100 px-3 py-2 text-right">
-                  <p className="text-[10px] font-medium text-gray-500">선택 입찰가</p>
-                  <p className="text-sm font-bold text-gray-900">
+                <div className="flex-1 rounded-lg bg-gray-100 px-3 py-2 text-right dark:bg-slate-800">
+                  <p className="text-[10px] font-medium text-gray-500 dark:text-slate-400">선택 입찰가</p>
+                  <p className="text-sm font-bold text-gray-900 dark:text-slate-100">
                     {selectedBidAmount.toLocaleString()}원
                   </p>
                 </div>
@@ -876,7 +878,7 @@ const AuctionDetailClient = () => {
               </div>
             </div>
             {isTopBidder ? (
-              <p className="mt-2 text-[11px] text-amber-700">
+              <p className="mt-2 text-[11px] text-amber-700 dark:text-amber-300">
                 현재 최고 입찰자는 다시 입찰할 수 없습니다. 다른 참여자의 입찰을 기다려주세요.
               </p>
             ) : null}
