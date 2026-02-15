@@ -87,6 +87,13 @@ model User {
   auctionReportsSubmitted AuctionReport[] @relation("AuctionReportReporter")
   auctionReportsReceived  AuctionReport[] @relation("AuctionReportReportedUser")
   auctionReportsResolved  AuctionReport[] @relation("AuctionReportResolver")
+  createdBloodlineCards     BloodlineCard[]        @relation("BloodlineCardCreator")
+  ownedBloodlineCards       BloodlineCard[]        @relation("BloodlineCardOwner")
+  bloodlineCardEventsAsActor   BloodlineCardEvent[] @relation("BloodlineCardEventActor")
+  bloodlineCardEventsFrom      BloodlineCardEvent[] @relation("BloodlineCardEventFrom")
+  bloodlineCardEventsTo        BloodlineCardEvent[] @relation("BloodlineCardEventTo")
+  bloodlineCardTransfersFrom BloodlineCardTransfer[] @relation("BloodlineCardTransferFrom")
+  bloodlineCardTransfersTo   BloodlineCardTransfer[] @relation("BloodlineCardTransferTo")
   insectRecords   InsectRecord[]
   guinnessSubmissions GuinnessSubmission[]
 }
@@ -532,6 +539,104 @@ model AdminBanner {
   updatedAt   DateTime @updatedAt
 
   @@index([order])
+}
+
+model BloodlineCard {
+  id                   Int                      @id @default(autoincrement())
+  cardType             BloodlineCardType        @default(BLOODLINE)
+  speciesType          String?
+  bloodlineReferenceId Int?
+  parentCardId         Int?
+  status               BloodlineCardStatus      @default(ACTIVE)
+  transferPolicy       BloodlineCardTransferPolicy @default(NONE)
+  issueCount           Int                      @default(0)
+  transferCount        Int                      @default(0)
+  visualStyle          String                   @default("noir")
+  creatorId            Int
+  currentOwnerId       Int
+  name                 String
+  description          String?
+  image                String?
+  createdAt            DateTime                 @default(now())
+  updatedAt            DateTime                 @updatedAt
+
+  creator                  User                  @relation("BloodlineCardCreator", fields: [creatorId], references: [id], onDelete: Cascade)
+  currentOwner             User                  @relation("BloodlineCardOwner", fields: [currentOwnerId], references: [id], onDelete: Cascade)
+  events                   BloodlineCardEvent[]
+  transfers                BloodlineCardTransfer[]
+
+  @@index([cardType, currentOwnerId, createdAt])
+  @@index([cardType, creatorId, createdAt])
+  @@index([bloodlineReferenceId])
+  @@index([parentCardId])
+  @@index([currentOwnerId, createdAt])
+  @@index([creatorId])
+}
+
+model BloodlineCardEvent {
+  id           Int      @id @default(autoincrement())
+  cardId       Int
+  action       BloodlineCardEventType
+  actorUserId  Int?
+  fromUserId   Int?
+  toUserId     Int?
+  note         String?
+  createdAt    DateTime @default(now())
+
+  card         BloodlineCard @relation(fields: [cardId], references: [id], onDelete: Restrict, onUpdate: Restrict)
+  actorUser    User?         @relation("BloodlineCardEventActor", fields: [actorUserId], references: [id], onDelete: SetNull)
+  fromUser     User?         @relation("BloodlineCardEventFrom", fields: [fromUserId], references: [id], onDelete: SetNull)
+  toUser       User?         @relation("BloodlineCardEventTo", fields: [toUserId], references: [id], onDelete: SetNull)
+  relatedCardId Int?
+
+  @@index([cardId, createdAt])
+  @@index([actorUserId, createdAt])
+  @@index([fromUserId, createdAt])
+  @@index([toUserId, createdAt])
+}
+
+model BloodlineCardTransfer {
+  id         Int      @id @default(autoincrement())
+  cardId     Int
+  fromUserId Int?
+  toUserId   Int
+  note       String?
+  createdAt  DateTime @default(now())
+
+  card     BloodlineCard @relation(fields: [cardId], references: [id], onDelete: Restrict, onUpdate: Restrict)
+  fromUser User?         @relation("BloodlineCardTransferFrom", fields: [fromUserId], references: [id], onDelete: SetNull)
+  toUser   User          @relation("BloodlineCardTransferTo", fields: [toUserId], references: [id], onDelete: Cascade)
+
+  @@index([cardId, createdAt])
+  @@index([toUserId, createdAt])
+}
+
+enum BloodlineCardType {
+  BLOODLINE
+  LINE
+}
+
+enum BloodlineCardStatus {
+  ACTIVE
+  INACTIVE
+  REVOKED
+}
+
+enum BloodlineCardTransferPolicy {
+  NONE
+  ONE_TIME
+  LIMITED_CHAIN
+  LIMITED_COUNT
+  VERIFIED_ONLY
+}
+
+enum BloodlineCardEventType {
+  BLOODLINE_CREATED
+  BLOODLINE_TRANSFER
+  LINE_CREATED
+  LINE_ISSUED
+  LINE_TRANSFER
+  CARD_REVOKED
 }
 
 enum VoiceInquiryType {

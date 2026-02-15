@@ -20,16 +20,19 @@ import {
 import { LoginReqBody, LoginResponseType } from "pages/api/auth/login";
 import useSWR from "swr";
 import { UserResponse } from "pages/api/users/[id]";
+import type { BloodlineCardsResponse } from "@libs/shared/bloodline-card";
+import { BloodlineVisualCard } from "@components/features/bloodline/BloodlineVisualCard";
 import { useMemo, useState } from "react";
 import useLogout from "../../../hooks/useLogout";
 
-type ActivityTab = "posts" | "comments" | "guinness" | "products";
+type ActivityTab = "posts" | "comments" | "guinness" | "products" | "bloodline";
 
 const TAB_META: { id: ActivityTab; name: string }[] = [
   { id: "posts", name: "게시물" },
   { id: "comments", name: "댓글" },
   { id: "guinness", name: "브리디북" },
   { id: "products", name: "상품" },
+  { id: "bloodline", name: "보유 혈통 카드" },
 ];
 
 const GUINNESS_STATUS_TEXT: Record<GuinnessSubmission["status"], string> = {
@@ -159,6 +162,11 @@ const MyPageClient = () => {
     data: testAccountsData,
     isLoading: isTestAccountsLoading,
   } = useSWR<TestAccountsResponse>(isTestUser ? "/api/users/test-accounts" : null);
+  const {
+    data: bloodlineData,
+    isLoading: isBloodlineLoading,
+    error: bloodlineLoadError,
+  } = useSWR<BloodlineCardsResponse>(user?.id ? "/api/bloodline-cards" : null);
 
   const avatarUrl =
     user?.avatar &&
@@ -178,11 +186,34 @@ const MyPageClient = () => {
     [guinnessData?.submissions]
   );
 
+  const receivedCards = useMemo(() => {
+    if (!bloodlineData) return [];
+    if (bloodlineData.receivedBloodlines?.length) return bloodlineData.receivedBloodlines;
+    if (bloodlineData.receivedCards?.length) {
+      return bloodlineData.receivedCards.filter((card) => card.cardType === "BLOODLINE");
+    }
+    return (bloodlineData.ownedCards || []).filter(
+      (card) => card.creator.id !== user?.id && card.cardType === "BLOODLINE"
+    );
+  }, [bloodlineData, user?.id]);
+
+  const myCreatedCards = useMemo(() => {
+    if (!bloodlineData) return [];
+    if (bloodlineData.myBloodlines?.length) return bloodlineData.myBloodlines;
+    if (bloodlineData.myCreatedCards?.length) {
+      return bloodlineData.myCreatedCards.filter((card) => card.cardType === "BLOODLINE");
+    }
+    return (bloodlineData.ownedCards || []).filter(
+      (card) => card.creator.id === user?.id && card.cardType === "BLOODLINE"
+    );
+  }, [bloodlineData, user?.id]);
+
   const tabCountMap: Record<ActivityTab, number> = {
     posts: profileUser?._count?.posts ?? 0,
     comments: profileUser?._count?.Comments ?? 0,
     guinness: mySubmissions.length,
     products: profileUser?._count?.products ?? 0,
+    bloodline: (myCreatedCards.length + receivedCards.length) ?? 0,
   };
 
   const providerLabel =
@@ -474,6 +505,89 @@ const MyPageClient = () => {
             />
           )}
           {activeTab === "products" && <MyPostList userId={user?.id} />}
+          {activeTab === "bloodline" && (
+            <div className="space-y-3">
+              <div className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs leading-relaxed text-amber-900">
+                혈통카드는 이용자 생성 기반 기능이며, 브리디는 혈통/적법성/품질을 보증하지 않습니다.
+              </div>
+              <Link
+                href="/bloodline-cards/create"
+                className="inline-flex h-10 w-full items-center justify-center rounded-lg bg-slate-900 text-sm font-semibold text-white"
+              >
+                혈통카드 만들기 / 전달하기
+              </Link>
+
+              {isBloodlineLoading ? (
+                <div className="flex h-28 items-center justify-center">
+                  <Spinner />
+                </div>
+              ) : null}
+
+              {bloodlineLoadError ? (
+                <p className="rounded-md border border-rose-200 bg-rose-50 px-3 py-2 text-xs font-semibold text-rose-700">
+                  혈통카드 정보를 불러오지 못했습니다. 잠시 후 다시 시도해주세요.
+                </p>
+              ) : null}
+
+              <div className="rounded-md border border-slate-200 bg-white p-3">
+                <div className="mb-2 flex items-center justify-between">
+                  <p className="text-xs font-semibold text-slate-500">내가 만든 혈통카드</p>
+                  <span className="rounded-full bg-slate-100 px-2 py-1 text-[11px] font-semibold text-slate-700">
+                    {myCreatedCards.length}장
+                  </span>
+                </div>
+                {myCreatedCards.length ? (
+                  <div className="space-y-2">
+                    {myCreatedCards.map((card) => (
+                      <BloodlineVisualCard
+                        key={card.id}
+                        cardId={card.id}
+                        name={card.name}
+                        ownerName={card.currentOwner.name}
+                        subtitle={card.description || "설명을 입력해주세요"}
+                        image={card.image}
+                        variant={card.visualStyle}
+                        compact
+                      />
+                    ))}
+                  </div>
+                ) : (
+                  <p className="text-xs text-slate-500">
+                    아직 만든 혈통카드가 없습니다. 혈통 카드를 만들어보세요.
+                  </p>
+                )}
+              </div>
+
+              <div className="rounded-md border border-slate-200 bg-white p-3">
+                <div className="mb-2 flex items-center justify-between">
+                  <p className="text-xs font-semibold text-slate-500">내가 받은 혈통카드</p>
+                  <span className="rounded-full bg-slate-100 px-2 py-1 text-[11px] font-semibold text-slate-700">
+                    {receivedCards.length}장
+                  </span>
+                </div>
+                {receivedCards.length ? (
+                  <div className="space-y-2">
+                    {receivedCards.map((card) => (
+                      <BloodlineVisualCard
+                        key={card.id}
+                        cardId={card.id}
+                        name={card.name}
+                        ownerName={card.currentOwner.name}
+                        subtitle={card.description || "혈통카드 설명이 아직 없습니다"}
+                        image={card.image}
+                        variant={card.visualStyle}
+                        compact
+                      />
+                    ))}
+                  </div>
+                ) : (
+                  <p className="text-xs text-slate-500">
+                    아직 전달받은 혈통카드가 없습니다.
+                  </p>
+                )}
+              </div>
+            </div>
+          )}
         </div>
       </div>
     </div>

@@ -325,6 +325,31 @@ const MainClient = () => {
         </div>
       </section>
 
+      {/* 혈통카드 */}
+      <section className="app-section app-reveal app-reveal-1">
+        <SectionHeader
+          title="혈통카드"
+          subtitle="내 대표 혈통카드를 만들고 전달해보세요"
+          href="/bloodline-cards/create"
+          actionLabel="만들기"
+        />
+        <div className="mt-3 px-5">
+          <Link
+            href="/bloodline-cards/create"
+            className="app-card app-card-interactive block overflow-hidden border-transparent bg-gradient-to-r from-slate-900 via-indigo-900 to-slate-800 p-5 text-white"
+          >
+            <p className="app-kicker text-white/70">Bloodline Card</p>
+            <h3 className="mt-2 text-lg font-semibold">혈통카드 만들기</h3>
+            <p className="mt-2 text-sm text-white/80">
+              내 대표 혈통카드를 만들고, 다른 유저에게 전달할 수 있습니다.
+            </p>
+            <span className="mt-4 inline-flex h-8 items-center rounded-full bg-white/15 px-3 text-xs font-semibold">
+              혈통카드 페이지로 이동
+            </span>
+          </Link>
+        </div>
+      </section>
+
       {/* 인기 상품 */}
       <section className="app-section-muted app-reveal app-reveal-1">
         <SectionHeader title="인기 상품" subtitle="좋아요가 많은 상품" />
