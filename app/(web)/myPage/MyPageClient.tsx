@@ -360,6 +360,41 @@ const MyPageClient = () => {
         <MySaleHistroyMenu />
       </div>
 
+      <section className="px-4 py-4">
+        <div className="rounded-xl border border-amber-200 bg-gradient-to-r from-amber-50 via-white to-yellow-50 p-3.5">
+          <div className="flex items-center justify-between">
+            <h3 className="text-sm font-semibold text-amber-900">내 보유 혈통카드</h3>
+            <Link href="/bloodline-cards/create" className="text-xs font-semibold text-amber-700">
+              전체 보기
+            </Link>
+          </div>
+
+          {isBloodlineLoading ? (
+            <div className="mt-2 flex h-14 items-center justify-center">
+              <Spinner />
+            </div>
+          ) : (
+            <div className="mt-2 space-y-1.5">
+              {(bloodlineData?.ownedCards || []).slice(0, 3).map((card) => (
+                <Link
+                  key={card.id}
+                  href={`/bloodline-cards/${card.id}`}
+                  className="flex items-center justify-between rounded-lg border border-amber-100 bg-white px-3 py-2"
+                >
+                  <p className="truncate text-sm font-semibold text-slate-900">{card.name}</p>
+                  <span className="ml-2 shrink-0 text-xs text-slate-500">{`#${card.id}`}</span>
+                </Link>
+              ))}
+              {!isBloodlineLoading && (bloodlineData?.ownedCards?.length || 0) === 0 ? (
+                <p className="rounded-lg border border-dashed border-amber-200 bg-white px-3 py-2 text-xs text-slate-500">
+                  아직 보유 중인 혈통카드가 없습니다.
+                </p>
+              ) : null}
+            </div>
+          )}
+        </div>
+      </section>
+
       {/* 구분선 */}
       <div className="h-2 bg-gray-50" />
 

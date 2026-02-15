@@ -41,31 +41,32 @@ function BloodlinePhotoCard({
 }) {
   return (
     <div className="relative mx-auto w-full max-w-[360px]">
-      <div className="absolute -inset-1 rounded-[30px] bg-gradient-to-br from-amber-300/40 via-transparent to-yellow-200/30 blur-lg" />
-      <div className="relative aspect-square overflow-hidden rounded-3xl border border-amber-200/60 bg-gradient-to-br from-[#0f0a02] via-[#2a1a06] to-[#5b3a0a] p-5 text-amber-50 shadow-[0_22px_65px_rgba(62,39,7,0.48)]">
-        <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_12%_8%,rgba(255,244,214,0.55),transparent_34%),radial-gradient(circle_at_78%_14%,rgba(251,191,36,0.28),transparent_38%),linear-gradient(118deg,rgba(255,255,255,0.14),transparent_36%,rgba(255,231,176,0.16)_60%,transparent_82%)]" />
-        <div className="pointer-events-none absolute inset-x-5 top-[72px] h-px bg-gradient-to-r from-transparent via-amber-100/60 to-transparent" />
+      <div className="absolute -inset-[1px] rounded-[30px] bg-gradient-to-br from-amber-300/55 via-yellow-200/20 to-orange-300/45 blur-md" />
+      <div className="relative aspect-square overflow-hidden rounded-3xl border border-amber-200/65 bg-gradient-to-br from-[#0b0701] via-[#2b1a05] to-[#6d4308] p-5 text-amber-50 shadow-[0_24px_70px_rgba(70,39,4,0.55)]">
+        <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_16%_10%,rgba(255,244,214,0.6),transparent_35%),radial-gradient(circle_at_80%_8%,rgba(245,158,11,0.35),transparent_38%)]" />
+        <div className="pointer-events-none absolute inset-0 bg-[linear-gradient(120deg,transparent_12%,rgba(255,255,255,0.26)_34%,transparent_52%)] motion-safe:animate-pulse" />
+        <div className="pointer-events-none absolute inset-x-5 top-[74px] h-px bg-gradient-to-r from-transparent via-amber-100/70 to-transparent" />
 
         <div className="relative z-10 flex h-full flex-col justify-between">
           <div className="flex items-start justify-between">
             <div>
-              <p className="text-[10px] font-semibold tracking-[0.18em] text-amber-100/80">BREDY SIGNATURE CARD</p>
-              <p className="mt-1 text-[10px] font-semibold text-amber-100/65">{formatCardNo(cardId)}</p>
+              <p className="text-[10px] font-semibold tracking-[0.18em] text-amber-100/80">BREDY SIGNATURE</p>
+              <p className="mt-1 text-[10px] font-semibold text-amber-100/70">{formatCardNo(cardId)}</p>
             </div>
-            <span className="rounded-full border border-amber-100/40 bg-amber-100/10 px-2.5 py-1 text-[10px] font-semibold text-amber-100">
-              SIGNATURE
+            <span className="rounded-full border border-amber-100/45 bg-amber-100/10 px-2.5 py-1 text-[10px] font-semibold text-amber-100">
+              VERIFIED
             </span>
           </div>
 
           <div>
-            <p className="line-clamp-2 bg-gradient-to-r from-amber-50 via-yellow-100 to-amber-200 bg-clip-text text-[30px] font-black leading-[1.12] tracking-tight text-transparent">
+            <p className="line-clamp-2 bg-gradient-to-r from-amber-50 via-yellow-100 to-amber-200 bg-clip-text text-[30px] font-black leading-[1.1] tracking-tight text-transparent">
               {name}
             </p>
-            <p className="mt-2 line-clamp-2 text-xs leading-relaxed text-amber-100/85">{subtitle}</p>
+            <p className="mt-2 line-clamp-2 text-xs leading-relaxed text-amber-100/90">{subtitle}</p>
           </div>
 
-          <div className="rounded-xl border border-amber-100/20 bg-black/20 px-3 py-2 backdrop-blur-sm">
-            <p className="text-[10px] font-medium uppercase tracking-[0.16em] text-amber-100/70">Owner</p>
+          <div className="rounded-xl border border-amber-100/25 bg-black/25 px-3 py-2 backdrop-blur-sm">
+            <p className="text-[10px] uppercase tracking-[0.16em] text-amber-100/70">Owner</p>
             <p className="mt-1 text-sm font-semibold text-amber-50">{ownerName}</p>
           </div>
         </div>
@@ -73,6 +74,7 @@ function BloodlinePhotoCard({
     </div>
   );
 }
+
 
 export default function BloodlineCardCreateClient() {
   const { user, isLoading: isUserLoading } = useUser();
@@ -100,15 +102,17 @@ export default function BloodlineCardCreateClient() {
     cardName: targetCardName,
     owner,
     cardNo,
+    cardDetailUrl,
   }: {
     cardName: string;
     owner: string;
     cardNo: string;
+    cardDetailUrl: string;
   }) =>
     [
       `✨ ${targetCardName}`,
       `카드번호 ${cardNo} · 보유자 ${owner}`,
-      "나만의 혈통카드 만들기",
+      `카드 자세히 보기: ${cardDetailUrl}`,
       "https://bredy.app/bloodline-cards/create",
       "#브리디 #혈통카드",
     ].join("\n");
@@ -138,22 +142,30 @@ export default function BloodlineCardCreateClient() {
     cardName: targetCardName,
     owner,
     cardNo,
+    cardId,
     channel,
   }: {
     cardName: string;
     owner: string;
     cardNo: string;
+    cardId: number;
     channel: "generic" | "instagram" | "cafe";
   }) => {
     try {
-      const shareText = createShareText({ cardName: targetCardName, owner, cardNo });
+      const cardDetailUrl = `https://bredy.app/bloodline-cards/${cardId}`;
+      const shareText = createShareText({
+        cardName: targetCardName,
+        owner,
+        cardNo,
+        cardDetailUrl,
+      });
       const channelLabel = channel === "instagram" ? "인스타" : channel === "cafe" ? "카페" : "SNS";
 
       if (channel === "generic" && typeof navigator !== "undefined" && navigator.share) {
         await navigator.share({
           title: `${targetCardName} 혈통카드`,
           text: shareText,
-          url: "https://bredy.app/bloodline-cards/create",
+          url: cardDetailUrl,
         });
         setMessage("공유를 완료했습니다. 친구들에게 혈통카드를 자랑해보세요!");
         return;
@@ -170,6 +182,14 @@ export default function BloodlineCardCreateClient() {
     () => (cardName.trim() || `${user?.name || "브리더"} 혈통`).slice(0, 40),
     [cardName, user?.name]
   );
+  const previewDescription = useMemo(
+    () =>
+      (cardDescription.trim() ||
+        bloodlineData?.createdCard?.description ||
+        "한 줄 소개를 입력하면 카드 미리보기에 반영됩니다.").slice(0, 120),
+    [bloodlineData?.createdCard?.description, cardDescription]
+  );
+  const previewCardId = bloodlineData?.createdCard?.id ?? null;
 
   const activeTransferQuery = useMemo(() => {
     if (!activeSuggestCardId) return "";
@@ -307,14 +327,17 @@ export default function BloodlineCardCreateClient() {
           혈통카드는 이용자 생성 기반 기능이며, 브리디는 혈통/적법성/품질을 보증하지 않습니다.
         </section>
 
-        <section className="rounded-xl border border-slate-200 bg-white p-4">
-          <p className="text-xs font-semibold tracking-wide text-slate-500">대표 카드 미리보기</p>
-          <div className="mt-3">
+        <section className="rounded-2xl border border-amber-200/80 bg-gradient-to-b from-[#fff8e9] to-white p-4">
+          <div className="flex items-center justify-between">
+            <p className="text-xs font-semibold tracking-wide text-amber-900">대표 카드 미리보기</p>
+            <span className="text-[11px] font-medium text-amber-700">캡처 추천 영역</span>
+          </div>
+          <div className="mt-3 rounded-2xl bg-[#120a02] p-4 sm:p-5">
             <BloodlinePhotoCard
-              cardId={bloodlineData?.createdCard?.id ?? null}
+              cardId={previewCardId}
               name={previewName}
               ownerName={user?.name || "브리더"}
-              subtitle={`${user?.name || "브리더"} 님의 대표 혈통카드`}
+              subtitle={previewDescription}
             />
           </div>
         </section>
@@ -428,55 +451,55 @@ export default function BloodlineCardCreateClient() {
                     </span>
                   </div>
 
-                  <div className="mt-3 rounded-lg border border-amber-200 bg-gradient-to-r from-amber-50 via-orange-50 to-yellow-50 p-3">
-                    <p className="text-xs font-semibold text-amber-900">자랑하기 · 공유하기</p>
-                    <div className="mt-2 grid grid-cols-1 gap-1.5 sm:grid-cols-3">
-                      <Button
-                        type="button"
-                        variant="outline"
-                        className="text-xs"
-                        onClick={() =>
-                          handleShareCard({
-                            cardName: card.name,
-                            owner: card.currentOwner.name,
-                            cardNo: formatCardNo(card.id),
-                            channel: "generic",
-                          })
-                        }
-                      >
-                        바로 공유
-                      </Button>
-                      <Button
-                        type="button"
-                        variant="outline"
-                        className="text-xs"
-                        onClick={() =>
-                          handleShareCard({
-                            cardName: card.name,
-                            owner: card.currentOwner.name,
-                            cardNo: formatCardNo(card.id),
-                            channel: "instagram",
-                          })
-                        }
-                      >
-                        인스타 문구 복사
-                      </Button>
-                      <Button
-                        type="button"
-                        variant="outline"
-                        className="text-xs"
-                        onClick={() =>
-                          handleShareCard({
-                            cardName: card.name,
-                            owner: card.currentOwner.name,
-                            cardNo: formatCardNo(card.id),
-                            channel: "cafe",
-                          })
-                        }
-                      >
-                        카페 문구 복사
-                      </Button>
-                    </div>
+                  <div className="mt-3 flex flex-wrap items-center gap-1.5">
+                    <Button
+                      type="button"
+                      variant="outline"
+                      className="h-8 rounded-full border-amber-200 bg-amber-50 px-3 text-xs text-amber-900 hover:bg-amber-100"
+                      onClick={() =>
+                        handleShareCard({
+                          cardName: card.name,
+                          owner: card.currentOwner.name,
+                          cardNo: formatCardNo(card.id),
+                          cardId: card.id,
+                          channel: "generic",
+                        })
+                      }
+                    >
+                      공유
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      className="h-8 rounded-full px-3 text-xs"
+                      onClick={() =>
+                        handleShareCard({
+                          cardName: card.name,
+                          owner: card.currentOwner.name,
+                          cardNo: formatCardNo(card.id),
+                          cardId: card.id,
+                          channel: "instagram",
+                        })
+                      }
+                    >
+                      인스타 복사
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      className="h-8 rounded-full px-3 text-xs"
+                      onClick={() =>
+                        handleShareCard({
+                          cardName: card.name,
+                          owner: card.currentOwner.name,
+                          cardNo: formatCardNo(card.id),
+                          cardId: card.id,
+                          channel: "cafe",
+                        })
+                      }
+                    >
+                      카페 복사
+                    </Button>
                   </div>
 
                   <div className="mt-3 space-y-2 rounded-lg border border-slate-200 bg-slate-50 p-3">
