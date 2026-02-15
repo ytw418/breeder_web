@@ -26,12 +26,9 @@ async function runEnsureSchema() {
       "note" TEXT,
       "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
       CONSTRAINT "BloodlineCardTransfer_pkey" PRIMARY KEY ("id")
-    );
-  `);
-
-  await client.$executeRawUnsafe(
-    'CREATE UNIQUE INDEX IF NOT EXISTS "BloodlineCard_creatorId_key" ON "BloodlineCard"("creatorId");'
   );
+`);
+
   await client.$executeRawUnsafe(
     'CREATE INDEX IF NOT EXISTS "BloodlineCard_currentOwnerId_createdAt_idx" ON "BloodlineCard"("currentOwnerId", "createdAt");'
   );

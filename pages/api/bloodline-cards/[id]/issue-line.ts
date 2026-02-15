@@ -2,6 +2,7 @@ import { NextApiRequest, NextApiResponse } from "next";
 import withHandler from "@libs/server/withHandler";
 import { withApiSession } from "@libs/server/withSession";
 import client from "@libs/server/client";
+import { Prisma } from "@prisma/client";
 import {
   BloodlineCardIssueLineResponse,
   BloodlineCardItem,
@@ -18,7 +19,6 @@ interface SourceCard {
   image: string | null;
   speciesType: string | null;
   bloodlineReferenceId: number | null;
-  creatorId: number;
   currentOwnerId: number;
   status: "ACTIVE" | "INACTIVE" | "REVOKED";
 }
@@ -103,136 +103,135 @@ async function handler(
 
   try {
     await ensureBloodlineSchema();
-    const issueLine = async () => {
-      const receiverQuery = parsedToUserName
-        ? { name: parsedToUserName }
-        : { id: userId };
+    const runIssueLine = async () => {
+      const receiverWhere = parsedToUserName
+        ? ({ name: parsedToUserName } as const)
+        : ({ id: userId } as const);
 
-      const [sourceCard, targetUser, sourceStyleRows] = await Promise.all([
-        client.bloodlineCard.findUnique({
-          where: { id: parsedCardId, status: "ACTIVE" },
-          select: {
-            id: true,
-            cardType: true,
-            name: true,
-            description: true,
-            image: true,
-            speciesType: true,
-            bloodlineReferenceId: true,
-            transferPolicy: true,
-            creatorId: true,
-            currentOwnerId: true,
-            status: true,
-          },
-        }),
-        client.user.findUnique({
-          where: receiverQuery as { id: number } | { name: string },
-          select: { id: true, status: true },
-        }),
-        client.$queryRaw<{ visualStyle: string | null }[]>`
-          SELECT "visualStyle"
-          FROM "BloodlineCard"
-          WHERE id = ${parsedCardId}
-        `,
-      ]);
+      return client.$transaction(
+        async (tx) => {
+          const sourceCard = await tx.bloodlineCard.findUnique({
+            where: { id: parsedCardId, status: "ACTIVE" },
+            select: {
+              id: true,
+              cardType: true,
+              name: true,
+              description: true,
+              image: true,
+              speciesType: true,
+              bloodlineReferenceId: true,
+              currentOwnerId: true,
+              status: true,
+            },
+          });
+          const targetUser = await tx.user.findUnique({
+            where: receiverWhere,
+            select: { id: true, status: true },
+          });
 
-      if (!sourceCard) {
-        return "not-found" as const;
-      }
-      if (!targetUser) {
-        return "target-not-found" as const;
-      }
-      if (targetUser.status !== "ACTIVE") {
-        return "target-inactive" as const;
-      }
-      const source = sourceCard as SourceCard;
-const canIssue =
-        source.cardType === "BLOODLINE" && source.currentOwnerId === userId;
+          if (!sourceCard) return "not-found" as const;
+          if (!targetUser) return "target-not-found" as const;
+          if (targetUser.status !== "ACTIVE") return "target-inactive" as const;
 
-      if (!canIssue) {
-        return "forbidden" as const;
-      }
+          const source = sourceCard as SourceCard;
+          const canIssue = source.cardType === "BLOODLINE" && source.currentOwnerId === userId;
+          if (!canIssue) {
+            return "forbidden" as const;
+          }
 
-      const bloodlineReferenceId =
-        source.cardType === "BLOODLINE" ? source.id : source.bloodlineReferenceId;
-      if (!bloodlineReferenceId) {
-        return "invalid-source" as const;
-      }
+          const bloodlineReferenceId =
+            source.cardType === "BLOODLINE" ? source.id : source.bloodlineReferenceId;
+          if (!bloodlineReferenceId) return "invalid-source" as const;
 
-      const existing = await client.bloodlineCard.findFirst({
-        where: {
-          cardType: "LINE",
-          parentCardId: source.id,
-          bloodlineReferenceId,
-          currentOwnerId: targetUser.id,
-          status: "ACTIVE",
+          const existing = await tx.bloodlineCard.findFirst({
+            where: {
+              cardType: "LINE",
+              parentCardId: source.id,
+              bloodlineReferenceId,
+              currentOwnerId: targetUser.id,
+              status: "ACTIVE",
+            },
+            select: { id: true },
+          });
+          if (existing) return "duplicate" as const;
+
+          const sourceStyleRows = await tx.$queryRaw<{ visualStyle: string | null }[]>`
+            SELECT "visualStyle"
+            FROM "BloodlineCard"
+            WHERE id = ${parsedCardId}
+          `;
+          const sourceVisualStyle = normalizeVisualStyle(sourceStyleRows[0]?.visualStyle);
+
+          await tx.bloodlineCard.update({
+            where: { id: source.id },
+            data: { issueCount: { increment: 1 } },
+          });
+
+          const created = await tx.bloodlineCard.create({
+            data: {
+              cardType: "LINE",
+              speciesType: source.speciesType,
+              bloodlineReferenceId,
+              parentCardId: source.id,
+              creatorId: userId,
+              currentOwnerId: targetUser.id,
+              name: defaultLineName,
+              description: parsedDescription || `${source.name} 라인카드`,
+              image: parsedImage || null,
+              transferPolicy: "LIMITED_CHAIN",
+            },
+            include: {
+              creator: { select: { id: true, name: true } },
+              currentOwner: { select: { id: true, name: true } },
+            },
+          });
+
+          await tx.$executeRaw`
+            UPDATE "BloodlineCard"
+            SET "visualStyle" = ${sourceVisualStyle}
+            WHERE id = ${created.id}
+          `;
+
+          await tx.bloodlineCardEvent.create({
+            data: {
+              cardId: source.id,
+              action: "LINE_ISSUED",
+              actorUserId: userId,
+              toUserId: targetUser.id,
+              relatedCardId: created.id,
+              note: `라인카드 발급: ${created.name}`,
+            },
+          });
+
+          await tx.bloodlineCardEvent.create({
+            data: {
+              cardId: created.id,
+              action: "LINE_CREATED",
+              actorUserId: userId,
+              toUserId: targetUser.id,
+              note: "라인카드 생성",
+            },
+          });
+
+          return makeCardItem(created, sourceVisualStyle);
         },
-        select: { id: true },
-      });
-      if (existing) {
-        return "duplicate" as const;
+        {
+          isolationLevel: Prisma.TransactionIsolationLevel.Serializable,
+          maxWait: 5000,
+          timeout: 10000,
+        }
+      );
+    };
+
+    const issueLine = async () => {
+      try {
+        return await runIssueLine();
+      } catch (error) {
+        if ((error as { code?: string })?.code === "P2034") {
+          return "conflict" as const;
+        }
+        throw error;
       }
-
-      const sourceVisualStyle = normalizeVisualStyle(sourceStyleRows[0]?.visualStyle);
-
-      const lineCard = await client.$transaction(async (tx) => {
-        await tx.bloodlineCard.update({
-          where: { id: source.id },
-          data: { issueCount: { increment: 1 } },
-        });
-
-        const created = await tx.bloodlineCard.create({
-          data: {
-            cardType: "LINE",
-            speciesType: source.speciesType,
-            bloodlineReferenceId,
-            parentCardId: source.id,
-            creatorId: userId,
-            currentOwnerId: targetUser.id,
-            name: defaultLineName,
-            description:
-              parsedDescription ||
-              `${source.name} 라인카드`,
-            image: parsedImage || null,
-            transferPolicy: "LIMITED_CHAIN",
-          },
-          include: {
-            creator: { select: { id: true, name: true } },
-            currentOwner: { select: { id: true, name: true } },
-          },
-        });
-
-        await tx.$executeRaw`
-          UPDATE "BloodlineCard"
-          SET "visualStyle" = ${sourceVisualStyle}
-          WHERE id = ${created.id}
-        `;
-
-        await tx.bloodlineCardEvent.create({
-          data: {
-            cardId: source.id,
-            action: "LINE_ISSUED",
-            actorUserId: userId,
-            toUserId: targetUser.id,
-            relatedCardId: created.id,
-            note: `라인카드 발급: ${created.name}`,
-          },
-        });
-
-        await tx.bloodlineCardEvent.create({
-          data: {
-            cardId: created.id,
-            action: "LINE_CREATED",
-            actorUserId: userId,
-            toUserId: targetUser.id,
-            note: "라인카드 생성",
-          },
-        });
-
-        return makeCardItem(created, sourceVisualStyle);
-      });
-
-      return lineCard;
     };
 
     let issuedLine:
@@ -243,6 +242,7 @@ const canIssue =
       | "forbidden"
       | "invalid-source"
       | "duplicate"
+      | "conflict"
       | null = null;
 
     issuedLine = await issueLine();
@@ -268,6 +268,13 @@ const canIssue =
     }
     if (issuedLine === "duplicate") {
       return res.status(409).json({ success: false, card: null, error: "이미 해당 유저에게 라인카드를 발급했습니다." });
+    }
+    if (issuedLine === "conflict") {
+      return res.status(409).json({
+        success: false,
+        card: null,
+        error: "동일 대상에 대한 동시 발급 요청이 감지되었습니다. 잠시 후 다시 시도해주세요.",
+      });
     }
 
     if (!issuedLine) {
