@@ -41,42 +41,32 @@ function BloodlinePhotoCard({
 }) {
   return (
     <div className="relative mx-auto w-full max-w-[360px]">
-      <div className="absolute inset-1 rounded-[26px] bg-gradient-to-br from-fuchsia-400/35 via-violet-500/15 to-cyan-300/25 blur-md" />
-      <div className="relative aspect-square overflow-hidden rounded-3xl border border-slate-200/80 bg-gradient-to-br from-[#050816] via-[#1c0f4b] to-[#123b68] p-4 text-white shadow-[0_22px_55px_rgba(15,23,42,0.35)]">
-        <div className="pointer-events-none absolute -right-12 -top-10 h-36 w-36 rounded-full bg-fuchsia-300/25 blur-2xl" />
-        <div className="pointer-events-none absolute -bottom-10 -left-10 h-36 w-36 rounded-full bg-cyan-300/20 blur-2xl" />
-        <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_14%_10%,rgba(255,255,255,0.28),transparent_40%),radial-gradient(circle_at_82%_24%,rgba(190,242,255,0.24),transparent_30%),linear-gradient(112deg,rgba(255,255,255,0.08),transparent_45%,rgba(255,255,255,0.04))]" />
-        <div className="pointer-events-none absolute inset-x-5 top-20 h-px bg-gradient-to-r from-transparent via-white/40 to-transparent" />
-        <div className="pointer-events-none absolute inset-x-5 bottom-16 h-px bg-gradient-to-r from-transparent via-cyan-100/40 to-transparent" />
+      <div className="absolute -inset-1 rounded-[30px] bg-gradient-to-br from-amber-300/40 via-transparent to-yellow-200/30 blur-lg" />
+      <div className="relative aspect-square overflow-hidden rounded-3xl border border-amber-200/60 bg-gradient-to-br from-[#0f0a02] via-[#2a1a06] to-[#5b3a0a] p-5 text-amber-50 shadow-[0_22px_65px_rgba(62,39,7,0.48)]">
+        <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_12%_8%,rgba(255,244,214,0.55),transparent_34%),radial-gradient(circle_at_78%_14%,rgba(251,191,36,0.28),transparent_38%),linear-gradient(118deg,rgba(255,255,255,0.14),transparent_36%,rgba(255,231,176,0.16)_60%,transparent_82%)]" />
+        <div className="pointer-events-none absolute inset-x-5 top-[72px] h-px bg-gradient-to-r from-transparent via-amber-100/60 to-transparent" />
 
         <div className="relative z-10 flex h-full flex-col justify-between">
           <div className="flex items-start justify-between">
             <div>
-              <p className="text-[11px] font-semibold tracking-[0.16em] text-white/75">BREDY BLOODLINE</p>
-              <p className="mt-1 text-[10px] font-medium text-white/65">{formatCardNo(cardId)}</p>
+              <p className="text-[10px] font-semibold tracking-[0.18em] text-amber-100/80">BREDY SIGNATURE CARD</p>
+              <p className="mt-1 text-[10px] font-semibold text-amber-100/65">{formatCardNo(cardId)}</p>
             </div>
-            <span className="rounded-full border border-white/20 bg-white/15 px-2 py-1 text-[10px] font-semibold text-white/90">
-              OFFICIAL
+            <span className="rounded-full border border-amber-100/40 bg-amber-100/10 px-2.5 py-1 text-[10px] font-semibold text-amber-100">
+              SIGNATURE
             </span>
           </div>
 
           <div>
-            <p className="line-clamp-2 text-[28px] font-black leading-[1.15] tracking-tight">{name}</p>
-            <p className="mt-2 text-xs text-white/80">{subtitle}</p>
+            <p className="line-clamp-2 bg-gradient-to-r from-amber-50 via-yellow-100 to-amber-200 bg-clip-text text-[30px] font-black leading-[1.12] tracking-tight text-transparent">
+              {name}
+            </p>
+            <p className="mt-2 line-clamp-2 text-xs leading-relaxed text-amber-100/85">{subtitle}</p>
           </div>
 
-          <div className="space-y-2">
-            <div className="rounded-lg border border-white/15 bg-white/10 px-2.5 py-2 backdrop-blur-sm">
-              <div className="flex items-center justify-between">
-                <p className="text-[10px] font-medium uppercase tracking-[0.14em] text-white/70">Current Owner</p>
-                <p className="text-xs font-semibold">{ownerName}</p>
-              </div>
-            </div>
-            <div className="grid grid-cols-3 gap-1 text-center text-[10px]">
-              <p className="rounded-md border border-white/15 bg-black/20 px-1 py-1.5 text-white/75">Rare</p>
-              <p className="rounded-md border border-white/15 bg-black/20 px-1 py-1.5 text-white/75">Verified</p>
-              <p className="rounded-md border border-white/15 bg-black/20 px-1 py-1.5 text-white/75">Shareable</p>
-            </div>
+          <div className="rounded-xl border border-amber-100/20 bg-black/20 px-3 py-2 backdrop-blur-sm">
+            <p className="text-[10px] font-medium uppercase tracking-[0.16em] text-amber-100/70">Owner</p>
+            <p className="mt-1 text-sm font-semibold text-amber-50">{ownerName}</p>
           </div>
         </div>
       </div>
@@ -116,12 +106,11 @@ export default function BloodlineCardCreateClient() {
     cardNo: string;
   }) =>
     [
-      `✨ ${targetCardName} 혈통카드 자랑합니다!`,
-      `카드번호: ${cardNo}`,
-      `현재 보유자: ${owner}`,
-      "브리디에서 우리 아이 혈통카드를 만들고 이어가보세요 🐾",
+      `✨ ${targetCardName}`,
+      `카드번호 ${cardNo} · 보유자 ${owner}`,
+      "나만의 혈통카드 만들기",
       "https://bredy.app/bloodline-cards/create",
-      "#브리디 #혈통카드 #반려생활 #펫스타그램",
+      "#브리디 #혈통카드",
     ].join("\n");
 
   const copyText = async (text: string) => {
@@ -439,11 +428,8 @@ export default function BloodlineCardCreateClient() {
                     </span>
                   </div>
 
-                  <div className="mt-3 rounded-lg border border-indigo-100 bg-gradient-to-r from-indigo-50 via-white to-cyan-50 p-3">
-                    <p className="text-xs font-semibold text-slate-800">자랑하기 · 공유하기</p>
-                    <p className="mt-1 text-[11px] leading-relaxed text-slate-600">
-                      인스타/카페에 붙여넣기 좋은 문구를 자동으로 만들어드려요.
-                    </p>
+                  <div className="mt-3 rounded-lg border border-amber-200 bg-gradient-to-r from-amber-50 via-orange-50 to-yellow-50 p-3">
+                    <p className="text-xs font-semibold text-amber-900">자랑하기 · 공유하기</p>
                     <div className="mt-2 grid grid-cols-1 gap-1.5 sm:grid-cols-3">
                       <Button
                         type="button"
