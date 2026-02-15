@@ -79,8 +79,14 @@ async function handler(
             },
           }),
           client.bloodlineCard.findMany({
-            where: { currentOwnerId: userId },
+            where: {
+              OR: [
+                { creatorId: userId },
+                { transfers: { some: { toUserId: userId } } },
+              ],
+            },
             orderBy: [{ updatedAt: "desc" }, { id: "desc" }],
+            distinct: ["id"],
             include: {
               creator: { select: { id: true, name: true } },
               currentOwner: { select: { id: true, name: true } },

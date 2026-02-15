@@ -45,6 +45,7 @@ async function handler(
           where: { id: parsedCardId },
           select: {
             id: true,
+            creatorId: true,
             currentOwnerId: true,
           },
         }),
@@ -58,7 +59,7 @@ async function handler(
         return "not-found" as const;
       }
 
-      if (card.currentOwnerId !== userId) {
+      if (card.creatorId !== userId) {
         return "forbidden" as const;
       }
 
@@ -74,22 +75,14 @@ async function handler(
         return "self-transfer" as const;
       }
 
-      await client.$transaction([
-        client.bloodlineCard.update({
-          where: { id: card.id },
-          data: {
-            currentOwnerId: targetUser.id,
-          },
-        }),
-        client.bloodlineCardTransfer.create({
-          data: {
-            cardId: card.id,
-            fromUserId: userId,
-            toUserId: targetUser.id,
-            note: parsedNote || null,
-          },
-        }),
-      ]);
+      await client.bloodlineCardTransfer.create({
+        data: {
+          cardId: card.id,
+          fromUserId: userId,
+          toUserId: targetUser.id,
+          note: parsedNote || null,
+        },
+      });
 
       return "success" as const;
     };
@@ -116,7 +109,7 @@ async function handler(
     if (transferResult === "forbidden") {
       return res.status(403).json({
         success: false,
-        error: "현재 보유 중인 혈통카드만 전달할 수 있습니다.",
+        error: "혈통카드 최초 생성자만 전달할 수 있습니다.",
       });
     }
 
