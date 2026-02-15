@@ -54,6 +54,7 @@ const LoginClient = () => {
   // 기본값은 노출(true). 추후 숨길 때 NEXT_PUBLIC_ENABLE_GOOGLE_LOGIN=false로 설정.
   const shouldShowGoogleLogin =
     process.env.NEXT_PUBLIC_ENABLE_GOOGLE_LOGIN !== "false";
+  const isVercelPreview = process.env.NEXT_PUBLIC_VERCEL_ENV === "preview";
 
   /**카카오로그인 */
   const loginWithKakao = () => {
@@ -117,6 +118,34 @@ const LoginClient = () => {
       "kakao"
     );
   }, []);
+
+  const loginWithPreviewTestUser = () => {
+    const nextPath = getSafeNextPath(searchParams?.get("next") ?? null);
+
+    const body: LoginReqBody = {
+      snsId: "vercel-preview-test-user",
+      name: "프리뷰 테스트 유저",
+      provider: USER_INFO.provider.KAKAO,
+      email: "preview-test-user@bredy.app",
+      avatar:
+        "https://images.unsplash.com/photo-1548199973-03cce0bbc87b?auto=format&fit=crop&w=200&q=80",
+    };
+
+    login({
+      data: body,
+      onCompleted(result) {
+        if (result.success) {
+          markPostLoginGuide();
+          router.replace(nextPath);
+          return;
+        }
+        alert(`테스트 로그인에 실패했습니다:${result.error}`);
+      },
+      onError(error) {
+        alert(error);
+      },
+    });
+  };
 
   const loginWithGoogle = async () => {
     try {
@@ -193,6 +222,14 @@ const LoginClient = () => {
             현재는 카카오 로그인만 지원합니다.
           </p>
         )}
+        {isVercelPreview ? (
+          <button
+            onClick={loginWithPreviewTestUser}
+            className="button relative flex h-[54px] w-full items-center justify-center rounded-lg border border-amber-300 bg-amber-50 px-7 py-[14px]"
+          >
+            <span className="title-3 text-amber-900">{"프리뷰 테스트 유저로 로그인"}</span>
+          </button>
+        ) : null}
         <Link
           href={"/"}
           className="button relative flex h-[54px] w-full items-center justify-center rounded-lg border border-Gray-300 px-7 py-[14px]"
