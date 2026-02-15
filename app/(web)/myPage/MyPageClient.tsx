@@ -437,12 +437,26 @@ const MyPageClient = () => {
               <div className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs leading-relaxed text-amber-900">
                 혈통카드는 이용자 생성 기반 기능이며, 브리디는 혈통/적법성/품질을 보증하지 않습니다.
               </div>
-              <Link
-                href="/bloodline-cards/create"
-                className="inline-flex h-10 w-full items-center justify-center rounded-lg bg-slate-900 text-sm font-semibold text-white"
-              >
-                혈통카드 만들기 / 전달하기
-              </Link>
+              <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
+                <Link
+                  href="/bloodline-cards/create"
+                  className="inline-flex h-10 items-center justify-center rounded-lg bg-slate-900 text-sm font-semibold text-white"
+                >
+                  혈통 만들기
+                </Link>
+                <Link
+                  href="/bloodline-cards/my"
+                  className="inline-flex h-10 items-center justify-center rounded-lg border border-slate-200 bg-white text-sm font-semibold text-slate-800"
+                >
+                  내 혈통 상세
+                </Link>
+                <Link
+                  href="/bloodline-cards/owned"
+                  className="inline-flex h-10 items-center justify-center rounded-lg border border-slate-200 bg-white text-sm font-semibold text-slate-800"
+                >
+                  보유 혈통 리스트
+                </Link>
+              </div>
 
               {isBloodlineLoading ? (
                 <div className="flex h-28 items-center justify-center">

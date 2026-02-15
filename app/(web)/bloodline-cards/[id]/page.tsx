@@ -80,8 +80,8 @@ export default async function BloodlineCardDetailPage({ params }: PageProps) {
         </div>
       </section>
 
-      <Link href="/bloodline-cards/create" className="inline-flex h-10 items-center justify-center rounded-lg bg-slate-900 px-4 text-sm font-semibold text-white">
-        혈통카드 관리 페이지로 이동
+      <Link href="/bloodline-cards/owned" className="inline-flex h-10 items-center justify-center rounded-lg bg-slate-900 px-4 text-sm font-semibold text-white">
+        보유 혈통 리스트로 이동
       </Link>
     </main>
   );

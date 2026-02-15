@@ -1,6 +1,6 @@
 "use client";
 
-import { FormEvent, useEffect, useMemo, useState } from "react";
+import { FormEvent, useMemo, useState } from "react";
 import Link from "next/link";
 import Layout from "@components/features/MainLayout";
 import { Spinner } from "@components/atoms/Spinner";
@@ -9,21 +9,7 @@ import { Input } from "@components/ui/input";
 import { Textarea } from "@components/ui/textarea";
 import useUser from "hooks/useUser";
 import useSWR from "swr";
-import type {
-  BloodlineCardsResponse,
-  BloodlineCardTransferResponse,
-} from "@libs/shared/bloodline-card";
-
-interface SearchUserItem {
-  id: number;
-  name: string;
-  avatar: string | null;
-}
-
-interface SearchUsersResponse {
-  success: boolean;
-  users: SearchUserItem[];
-}
+import type { BloodlineCardsResponse } from "@libs/shared/bloodline-card";
 
 const formatCardNo = (id: number | null) =>
   id ? `BC-${String(id).padStart(6, "0")}` : "BC-NEW";
@@ -75,7 +61,6 @@ function BloodlinePhotoCard({
   );
 }
 
-
 export default function BloodlineCardCreateClient() {
   const { user, isLoading: isUserLoading } = useUser();
   const {
@@ -90,93 +75,6 @@ export default function BloodlineCardCreateClient() {
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
   const [creatingCard, setCreatingCard] = useState(false);
-  const [transferringCardId, setTransferringCardId] = useState<number | null>(null);
-  const [transferDrafts, setTransferDrafts] = useState<
-    Record<number, { toUserName: string; note: string }>
-  >({});
-  const [activeSuggestCardId, setActiveSuggestCardId] = useState<number | null>(null);
-  const [suggestUsers, setSuggestUsers] = useState<SearchUserItem[]>([]);
-  const [isSuggestLoading, setIsSuggestLoading] = useState(false);
-
-  const createShareText = ({
-    cardName: targetCardName,
-    owner,
-    cardNo,
-    cardDetailUrl,
-  }: {
-    cardName: string;
-    owner: string;
-    cardNo: string;
-    cardDetailUrl: string;
-  }) =>
-    [
-      `✨ ${targetCardName}`,
-      `카드번호 ${cardNo} · 보유자 ${owner}`,
-      `카드 자세히 보기: ${cardDetailUrl}`,
-      "https://bredy.app/bloodline-cards/create",
-      "#브리디 #혈통카드",
-    ].join("\n");
-
-  const copyText = async (text: string) => {
-    if (typeof navigator !== "undefined" && navigator.clipboard?.writeText) {
-      await navigator.clipboard.writeText(text);
-      return;
-    }
-
-    if (typeof document === "undefined") {
-      throw new Error("복사를 지원하지 않는 환경입니다.");
-    }
-
-    const textarea = document.createElement("textarea");
-    textarea.value = text;
-    textarea.setAttribute("readonly", "");
-    textarea.style.position = "absolute";
-    textarea.style.left = "-9999px";
-    document.body.appendChild(textarea);
-    textarea.select();
-    document.execCommand("copy");
-    document.body.removeChild(textarea);
-  };
-
-  const handleShareCard = async ({
-    cardName: targetCardName,
-    owner,
-    cardNo,
-    cardId,
-    channel,
-  }: {
-    cardName: string;
-    owner: string;
-    cardNo: string;
-    cardId: number;
-    channel: "generic" | "instagram" | "cafe";
-  }) => {
-    try {
-      const cardDetailUrl = `https://bredy.app/bloodline-cards/${cardId}`;
-      const shareText = createShareText({
-        cardName: targetCardName,
-        owner,
-        cardNo,
-        cardDetailUrl,
-      });
-      const channelLabel = channel === "instagram" ? "인스타" : channel === "cafe" ? "카페" : "SNS";
-
-      if (channel === "generic" && typeof navigator !== "undefined" && navigator.share) {
-        await navigator.share({
-          title: `${targetCardName} 혈통카드`,
-          text: shareText,
-          url: cardDetailUrl,
-        });
-        setMessage("공유를 완료했습니다. 친구들에게 혈통카드를 자랑해보세요!");
-        return;
-      }
-
-      await copyText(shareText);
-      setMessage(`${channelLabel} 공유용 문구를 복사했습니다. 붙여넣어 바로 자랑해보세요!`);
-    } catch {
-      setError("공유 문구를 준비하지 못했습니다. 잠시 후 다시 시도해주세요.");
-    }
-  };
 
   const previewName = useMemo(
     () => (cardName.trim() || `${user?.name || "브리더"} 혈통`).slice(0, 40),
@@ -189,50 +87,6 @@ export default function BloodlineCardCreateClient() {
         "한 줄 소개를 입력하면 카드 미리보기에 반영됩니다.").slice(0, 120),
     [bloodlineData?.createdCard?.description, cardDescription]
   );
-  const previewCardId = bloodlineData?.createdCard?.id ?? null;
-
-  const activeTransferQuery = useMemo(() => {
-    if (!activeSuggestCardId) return "";
-    return String(transferDrafts[activeSuggestCardId]?.toUserName || "").trim();
-  }, [activeSuggestCardId, transferDrafts]);
-
-  useEffect(() => {
-    if (!activeSuggestCardId || activeTransferQuery.length < 1) {
-      setSuggestUsers([]);
-      setIsSuggestLoading(false);
-      return;
-    }
-
-    const controller = new AbortController();
-    const timer = setTimeout(async () => {
-      try {
-        setIsSuggestLoading(true);
-        const res = await fetch(
-          `/api/search?type=users&q=${encodeURIComponent(activeTransferQuery)}`,
-          { signal: controller.signal }
-        );
-        const result = (await res.json()) as SearchUsersResponse;
-        if (!res.ok || !result.success) {
-          setSuggestUsers([]);
-          return;
-        }
-
-        const filtered = (result.users || [])
-          .filter((candidate) => candidate.id !== user?.id)
-          .slice(0, 6);
-        setSuggestUsers(filtered);
-      } catch {
-        setSuggestUsers([]);
-      } finally {
-        setIsSuggestLoading(false);
-      }
-    }, 220);
-
-    return () => {
-      clearTimeout(timer);
-      controller.abort();
-    };
-  }, [activeSuggestCardId, activeTransferQuery, user?.id]);
 
   const handleCreateBloodlineCard = async (event: FormEvent) => {
     event.preventDefault();
@@ -273,53 +127,6 @@ export default function BloodlineCardCreateClient() {
     }
   };
 
-  const handleTransferCard = async (cardId: number) => {
-    const draft = transferDrafts[cardId];
-    const toUserName = String(draft?.toUserName || "").trim();
-    const note = String(draft?.note || "").trim();
-
-    if (!toUserName) {
-      setError("받는 사람 닉네임을 입력해주세요.");
-      return;
-    }
-    if (!confirm(`${toUserName}님에게 혈통카드를 전달할까요?`)) {
-      return;
-    }
-
-    setMessage("");
-    setError("");
-
-    try {
-      setTransferringCardId(cardId);
-      const res = await fetch("/api/bloodline-cards/transfer", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ cardId, toUserName, note }),
-      });
-
-      const result = (await res.json()) as BloodlineCardTransferResponse;
-      if (!res.ok || !result.success) {
-        throw new Error(result.error || "카드 전달에 실패했습니다.");
-      }
-
-      setTransferDrafts((prev) => ({
-        ...prev,
-        [cardId]: { toUserName: "", note: "" },
-      }));
-      setSuggestUsers([]);
-      setMessage("혈통카드를 전달했습니다.");
-      await mutateBloodline();
-    } catch (transferError) {
-      setError(
-        transferError instanceof Error
-          ? transferError.message
-          : "요청 처리 중 오류가 발생했습니다."
-      );
-    } finally {
-      setTransferringCardId(null);
-    }
-  };
-
   return (
     <Layout canGoBack showHome title="혈통카드 만들기" seoTitle="혈통카드 만들기">
       <div className="space-y-4 px-4 py-4 pb-12">
@@ -334,7 +141,7 @@ export default function BloodlineCardCreateClient() {
           </div>
           <div className="mt-3 rounded-2xl bg-[#120a02] p-4 sm:p-5">
             <BloodlinePhotoCard
-              cardId={previewCardId}
+              cardId={bloodlineData?.createdCard?.id ?? null}
               name={previewName}
               ownerName={user?.name || "브리더"}
               subtitle={previewDescription}
@@ -415,210 +222,32 @@ export default function BloodlineCardCreateClient() {
               </section>
             ) : null}
 
-            <section className="space-y-3">
-              <div className="flex items-center justify-between">
-                <h3 className="text-sm font-semibold text-slate-900">보유 혈통카드</h3>
-                <span className="rounded-full bg-slate-100 px-2.5 py-1 text-xs font-semibold text-slate-700">
-                  {(bloodlineData?.ownedCards || []).length}장
-                </span>
+            <section className="space-y-3 rounded-xl border border-slate-200 bg-white p-4">
+              <h3 className="text-sm font-semibold text-slate-900">내 혈통카드 페이지 이동</h3>
+              <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
+                <Link
+                  href="/bloodline-cards/my"
+                  className="inline-flex h-10 items-center justify-center rounded-lg border border-amber-200 bg-amber-50 text-sm font-semibold text-amber-900"
+                >
+                  내 혈통 상세
+                </Link>
+                <Link
+                  href="/bloodline-cards/owned"
+                  className="inline-flex h-10 items-center justify-center rounded-lg border border-slate-200 bg-white text-sm font-semibold text-slate-800"
+                >
+                  보유 혈통 리스트
+                </Link>
+                <Link
+                  href={
+                    bloodlineData?.createdCard
+                      ? `/bloodline-cards/${bloodlineData.createdCard.id}`
+                      : "/bloodline-cards/my"
+                  }
+                  className="inline-flex h-10 items-center justify-center rounded-lg border border-slate-200 bg-white text-sm font-semibold text-slate-800"
+                >
+                  대표 카드 상세 링크
+                </Link>
               </div>
-
-              {isBloodlineLoading ? (
-                <div className="flex h-28 items-center justify-center rounded-xl border border-slate-200 bg-white">
-                  <Spinner />
-                </div>
-              ) : null}
-
-              {(bloodlineData?.ownedCards || []).map((card) => (
-                <div key={card.id} className="rounded-xl border border-slate-200 bg-white p-4">
-                  <div className="mb-3">
-                    <BloodlinePhotoCard
-                      cardId={card.id}
-                      name={card.name}
-                      ownerName={card.currentOwner.name}
-                      subtitle={card.description || "혈통카드 설명이 아직 등록되지 않았습니다."}
-                    />
-                  </div>
-                  <div className="mt-2 flex flex-wrap items-center gap-1.5">
-                    <span className="rounded-full bg-slate-100 px-2 py-1 text-[11px] font-semibold text-slate-700">
-                      제작자 {card.creator.name}
-                    </span>
-                    <span className="rounded-full bg-slate-100 px-2 py-1 text-[11px] font-semibold text-slate-700">
-                      보유자 {card.currentOwner.name}
-                    </span>
-                    <span className="rounded-full bg-indigo-50 px-2 py-1 text-[11px] font-semibold text-indigo-700">
-                      전달 {card.transfers?.length || 0}건
-                    </span>
-                  </div>
-
-                  <div className="mt-3 flex flex-wrap items-center gap-1.5">
-                    <Button
-                      type="button"
-                      variant="outline"
-                      className="h-8 rounded-full border-amber-200 bg-amber-50 px-3 text-xs text-amber-900 hover:bg-amber-100"
-                      onClick={() =>
-                        handleShareCard({
-                          cardName: card.name,
-                          owner: card.currentOwner.name,
-                          cardNo: formatCardNo(card.id),
-                          cardId: card.id,
-                          channel: "generic",
-                        })
-                      }
-                    >
-                      공유
-                    </Button>
-                    <Button
-                      type="button"
-                      variant="outline"
-                      className="h-8 rounded-full px-3 text-xs"
-                      onClick={() =>
-                        handleShareCard({
-                          cardName: card.name,
-                          owner: card.currentOwner.name,
-                          cardNo: formatCardNo(card.id),
-                          cardId: card.id,
-                          channel: "instagram",
-                        })
-                      }
-                    >
-                      인스타 복사
-                    </Button>
-                    <Button
-                      type="button"
-                      variant="outline"
-                      className="h-8 rounded-full px-3 text-xs"
-                      onClick={() =>
-                        handleShareCard({
-                          cardName: card.name,
-                          owner: card.currentOwner.name,
-                          cardNo: formatCardNo(card.id),
-                          cardId: card.id,
-                          channel: "cafe",
-                        })
-                      }
-                    >
-                      카페 복사
-                    </Button>
-                  </div>
-
-                  <div className="mt-3 space-y-2 rounded-lg border border-slate-200 bg-slate-50 p-3">
-                    <p className="text-xs font-semibold text-slate-700">다른 유저에게 전달</p>
-                    <Input
-                      value={transferDrafts[card.id]?.toUserName || ""}
-                      onChange={(event) =>
-                        setTransferDrafts((prev) => ({
-                          ...prev,
-                          [card.id]: {
-                            toUserName: event.target.value,
-                            note: prev[card.id]?.note || "",
-                          },
-                        }))
-                      }
-                      onFocus={() => setActiveSuggestCardId(card.id)}
-                      placeholder="받는 사람 닉네임"
-                    />
-                    {activeSuggestCardId === card.id ? (
-                      <div className="rounded-md border border-slate-200 bg-white p-1.5">
-                        {isSuggestLoading ? (
-                          <p className="px-2 py-1 text-xs text-slate-500">닉네임 검색 중...</p>
-                        ) : suggestUsers.length ? (
-                          <div className="space-y-1">
-                            {suggestUsers.map((candidate) => (
-                              <button
-                                key={candidate.id}
-                                type="button"
-                                onClick={() => {
-                                  setTransferDrafts((prev) => ({
-                                    ...prev,
-                                    [card.id]: {
-                                      toUserName: candidate.name,
-                                      note: prev[card.id]?.note || "",
-                                    },
-                                  }));
-                                  setSuggestUsers([]);
-                                }}
-                                className="flex w-full items-center justify-between rounded px-2 py-1.5 text-left text-xs text-slate-700 hover:bg-slate-50"
-                              >
-                                <span>{candidate.name}</span>
-                                <span className="text-[10px] text-slate-400">선택</span>
-                              </button>
-                            ))}
-                          </div>
-                        ) : activeTransferQuery.length > 0 ? (
-                          <p className="px-2 py-1 text-xs text-slate-500">일치하는 닉네임이 없습니다.</p>
-                        ) : (
-                          <p className="px-2 py-1 text-xs text-slate-500">닉네임을 입력하면 추천 목록이 보입니다.</p>
-                        )}
-                      </div>
-                    ) : null}
-                    <Textarea
-                      rows={2}
-                      value={transferDrafts[card.id]?.note || ""}
-                      onChange={(event) =>
-                        setTransferDrafts((prev) => ({
-                          ...prev,
-                          [card.id]: {
-                            toUserName: prev[card.id]?.toUserName || "",
-                            note: event.target.value,
-                          },
-                        }))
-                      }
-                      placeholder="전달 메모 (선택)"
-                    />
-                    <div className="flex flex-wrap gap-1">
-                      {["첫 전달", "분양", "교환", "선물"].map((preset) => (
-                        <button
-                          key={preset}
-                          type="button"
-                          onClick={() =>
-                            setTransferDrafts((prev) => ({
-                              ...prev,
-                              [card.id]: {
-                                toUserName: prev[card.id]?.toUserName || "",
-                                note: preset,
-                              },
-                            }))
-                          }
-                          className="rounded-full border border-slate-200 bg-white px-2 py-1 text-[11px] font-semibold text-slate-600"
-                        >
-                          {preset}
-                        </button>
-                      ))}
-                    </div>
-                    <Button
-                      type="button"
-                      variant="outline"
-                      disabled={transferringCardId === card.id}
-                      onClick={() => handleTransferCard(card.id)}
-                    >
-                      {transferringCardId === card.id ? "전달 중..." : "이 카드 전달하기"}
-                    </Button>
-                  </div>
-
-                  {card.transfers?.length ? (
-                    <div className="mt-3 rounded-lg border border-slate-100 bg-slate-50 p-2.5">
-                      <p className="text-xs font-semibold text-slate-700">최근 전달 이력</p>
-                      <div className="mt-1.5 space-y-1.5">
-                        {card.transfers.map((transfer) => (
-                          <p key={transfer.id} className="text-xs text-slate-500">
-                            {new Date(transfer.createdAt).toLocaleDateString("ko-KR")} ·{" "}
-                            {transfer.fromUser ? transfer.fromUser.name : "시스템"} →{" "}
-                            {transfer.toUser.name}
-                            {transfer.note ? ` · ${transfer.note}` : ""}
-                          </p>
-                        ))}
-                      </div>
-                    </div>
-                  ) : null}
-                </div>
-              ))}
-
-              {!isBloodlineLoading && (bloodlineData?.ownedCards?.length || 0) === 0 ? (
-                <div className="rounded-xl border border-dashed border-slate-300 bg-white p-5 text-center text-sm text-slate-500">
-                  아직 보유 중인 혈통카드가 없습니다.
-                </div>
-              ) : null}
             </section>
           </>
         ) : null}
