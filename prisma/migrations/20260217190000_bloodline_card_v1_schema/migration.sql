@@ -1,10 +1,45 @@
 -- Bloodline v1 schema extension
 -- 카드 타입/상태/정책 + 이벤트 로그
 
-CREATE TYPE IF NOT EXISTS "BloodlineCardType" AS ENUM ('BLOODLINE', 'LINE');
-CREATE TYPE IF NOT EXISTS "BloodlineCardStatus" AS ENUM ('ACTIVE', 'INACTIVE', 'REVOKED');
-CREATE TYPE IF NOT EXISTS "BloodlineCardTransferPolicy" AS ENUM ('NONE', 'ONE_TIME', 'LIMITED_CHAIN', 'LIMITED_COUNT', 'VERIFIED_ONLY');
-CREATE TYPE IF NOT EXISTS "BloodlineCardEventType" AS ENUM ('BLOODLINE_CREATED', 'BLOODLINE_TRANSFER', 'LINE_CREATED', 'LINE_ISSUED', 'LINE_TRANSFER', 'CARD_REVOKED');
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1
+    FROM pg_type t
+    JOIN pg_namespace n ON n.oid = t.typnamespace
+    WHERE LOWER(t.typname) = 'bloodlinecardtype'
+      AND n.nspname = 'public'
+  ) THEN
+    CREATE TYPE "BloodlineCardType" AS ENUM ('BLOODLINE', 'LINE');
+  END IF;
+  IF NOT EXISTS (
+    SELECT 1
+    FROM pg_type t
+    JOIN pg_namespace n ON n.oid = t.typnamespace
+    WHERE LOWER(t.typname) = 'bloodlinecardstatus'
+      AND n.nspname = 'public'
+  ) THEN
+    CREATE TYPE "BloodlineCardStatus" AS ENUM ('ACTIVE', 'INACTIVE', 'REVOKED');
+  END IF;
+  IF NOT EXISTS (
+    SELECT 1
+    FROM pg_type t
+    JOIN pg_namespace n ON n.oid = t.typnamespace
+    WHERE LOWER(t.typname) = 'bloodlinecardtransferpolicy'
+      AND n.nspname = 'public'
+  ) THEN
+    CREATE TYPE "BloodlineCardTransferPolicy" AS ENUM ('NONE', 'ONE_TIME', 'LIMITED_CHAIN', 'LIMITED_COUNT', 'VERIFIED_ONLY');
+  END IF;
+  IF NOT EXISTS (
+    SELECT 1
+    FROM pg_type t
+    JOIN pg_namespace n ON n.oid = t.typnamespace
+    WHERE LOWER(t.typname) = 'bloodlinecardeventtype'
+      AND n.nspname = 'public'
+  ) THEN
+    CREATE TYPE "BloodlineCardEventType" AS ENUM ('BLOODLINE_CREATED', 'BLOODLINE_TRANSFER', 'LINE_CREATED', 'LINE_ISSUED', 'LINE_TRANSFER', 'CARD_REVOKED');
+  END IF;
+END $$;
 
 ALTER TABLE "BloodlineCard" ADD COLUMN IF NOT EXISTS "cardType" "BloodlineCardType" DEFAULT 'BLOODLINE' NOT NULL;
 ALTER TABLE "BloodlineCard" ADD COLUMN IF NOT EXISTS "speciesType" TEXT;
