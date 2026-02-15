@@ -1,175 +1,251 @@
 "use client";
 
-import { FormEvent, useEffect, useMemo, useState } from "react";
+import { ChangeEvent, FormEvent, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import Layout from "@components/features/MainLayout";
 import { Spinner } from "@components/atoms/Spinner";
 import { Button } from "@components/ui/button";
 import { Input } from "@components/ui/input";
 import { Textarea } from "@components/ui/textarea";
 import useUser from "hooks/useUser";
-import useSWR from "swr";
-import type {
-  BloodlineCardsResponse,
-  BloodlineCardTransferResponse,
-} from "@libs/shared/bloodline-card";
+import type { BloodlineCardsResponse } from "@libs/shared/bloodline-card";
+import {
+  BloodlineVisualCard,
+  bloodlineVisualCardVariants,
+  type BloodlineVisualCardVariant,
+} from "@components/features/bloodline/BloodlineVisualCard";
 
-interface SearchUserItem {
-  id: number;
-  name: string;
-  avatar: string | null;
-}
+const CARD_VARIANT_LABELS: { value: BloodlineVisualCardVariant; label: string }[] = [
+  { value: "noir", label: "모던" },
+  { value: "clean", label: "클린" },
+  { value: "editorial", label: "에디토리얼" },
+];
 
-interface SearchUsersResponse {
-  success: boolean;
-  users: SearchUserItem[];
-}
+const CARD_VARIANT_STORAGE_KEY = "bloodline.visual.card.variant";
+const MAX_IMAGE_SIZE = 10 * 1024 * 1024;
+const ALLOWED_IMAGE_EXTENSIONS = [".jpg", ".jpeg", ".png", ".webp", ".heic", ".heif"] as const;
 
-const formatCardNo = (id: number | null) =>
-  id ? `BC-${String(id).padStart(6, "0")}` : "BC-NEW";
-
-function BloodlinePhotoCard({
-  cardId,
-  name,
-  ownerName,
-  subtitle,
-}: {
-  cardId: number | null;
-  name: string;
-  ownerName: string;
-  subtitle: string;
-}) {
-  return (
-    <div className="relative mx-auto w-full max-w-[360px]">
-      <div className="relative aspect-square overflow-hidden rounded-3xl border border-slate-200 bg-gradient-to-br from-slate-900 via-indigo-950 to-slate-700 p-4 text-white shadow-[0_18px_45px_rgba(15,23,42,0.28)]">
-        <div className="pointer-events-none absolute -right-10 -top-8 h-32 w-32 rounded-full bg-white/20 blur-2xl" />
-        <div className="pointer-events-none absolute -bottom-10 -left-8 h-28 w-28 rounded-full bg-cyan-300/20 blur-2xl" />
-        <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_22%_18%,rgba(255,255,255,0.22),transparent_46%),linear-gradient(122deg,rgba(255,255,255,0.12),transparent_55%,rgba(255,255,255,0.05))]" />
-
-        <div className="relative z-10 flex h-full flex-col justify-between">
-          <div className="flex items-start justify-between">
-            <div>
-              <p className="text-[11px] font-semibold tracking-[0.16em] text-white/75">BREDY BLOODLINE</p>
-              <p className="mt-1 text-[10px] font-medium text-white/65">{formatCardNo(cardId)}</p>
-            </div>
-            <span className="rounded-full bg-white/15 px-2 py-1 text-[10px] font-semibold text-white/90">
-              OFFICIAL
-            </span>
-          </div>
-
-          <div>
-            <p className="line-clamp-2 text-[28px] font-black leading-[1.15] tracking-tight">{name}</p>
-            <p className="mt-2 text-xs text-white/80">{subtitle}</p>
-          </div>
-
-          <div className="flex items-center justify-between border-t border-white/20 pt-3">
-            <p className="text-[10px] font-medium uppercase tracking-[0.14em] text-white/70">Current Owner</p>
-            <p className="text-xs font-semibold">{ownerName}</p>
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-}
+const getFileExtension = (name: string) => {
+  const pointIndex = name.lastIndexOf(".");
+  if (pointIndex === -1) return "";
+  return name.slice(pointIndex).toLowerCase();
+};
 
 export default function BloodlineCardCreateClient() {
   const { user, isLoading: isUserLoading } = useUser();
-  const {
-    data: bloodlineData,
-    isLoading: isBloodlineLoading,
-    error: bloodlineLoadError,
-    mutate: mutateBloodline,
-  } = useSWR<BloodlineCardsResponse>(user?.id ? "/api/bloodline-cards" : null);
+  const router = useRouter();
+  const imageInputRef = useRef<HTMLInputElement | null>(null);
 
   const [cardName, setCardName] = useState("");
   const [cardDescription, setCardDescription] = useState("");
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
   const [creatingCard, setCreatingCard] = useState(false);
-  const [transferringCardId, setTransferringCardId] = useState<number | null>(null);
-  const [transferDrafts, setTransferDrafts] = useState<
-    Record<number, { toUserName: string; note: string }>
-  >({});
-  const [activeSuggestCardId, setActiveSuggestCardId] = useState<number | null>(null);
-  const [suggestUsers, setSuggestUsers] = useState<SearchUserItem[]>([]);
-  const [isSuggestLoading, setIsSuggestLoading] = useState(false);
+  const [cardVisualVariant, setCardVisualVariant] =
+    useState<BloodlineVisualCardVariant>("noir");
+  const [cardImageFile, setCardImageFile] = useState<File | null>(null);
+  const [cardImagePreview, setCardImagePreview] = useState("");
 
   const previewName = useMemo(
-    () => (cardName.trim() || `${user?.name || "브리더"} 혈통`).slice(0, 40),
-    [cardName, user?.name]
+    () => (cardName.trim() || "새 혈통").slice(0, 40),
+    [cardName]
   );
 
-  const activeTransferQuery = useMemo(() => {
-    if (!activeSuggestCardId) return "";
-    return String(transferDrafts[activeSuggestCardId]?.toUserName || "").trim();
-  }, [activeSuggestCardId, transferDrafts]);
+  const previewImageUrl = useMemo(() => cardImagePreview || "", [cardImagePreview]);
 
   useEffect(() => {
-    if (!activeSuggestCardId || activeTransferQuery.length < 1) {
-      setSuggestUsers([]);
-      setIsSuggestLoading(false);
+    if (!cardImageFile) {
+      setCardImagePreview("");
+      return;
+    }
+    const nextImage = URL.createObjectURL(cardImageFile);
+    setCardImagePreview(nextImage);
+    return () => URL.revokeObjectURL(nextImage);
+  }, [cardImageFile]);
+
+  useEffect(() => {
+    try {
+      const saved = localStorage.getItem(CARD_VARIANT_STORAGE_KEY);
+      if (
+        saved &&
+        bloodlineVisualCardVariants.includes(saved as BloodlineVisualCardVariant)
+      ) {
+        setCardVisualVariant(saved as BloodlineVisualCardVariant);
+      }
+    } catch {
+      // localStorage unavailable
+    }
+  }, []);
+
+  useEffect(() => {
+    try {
+      localStorage.setItem(CARD_VARIANT_STORAGE_KEY, cardVisualVariant);
+    } catch {
+      // localStorage unavailable
+    }
+  }, [cardVisualVariant]);
+
+  const parseCreateResponse = async (response: Response) => {
+    const payload = (await response.json().catch(() => null)) as
+      | (BloodlineCardsResponse & { error?: string })
+      | null;
+    if (response.ok && payload?.success) {
+      return { payload, errorMessage: "" };
+    }
+    const reason =
+      payload?.error ||
+      (response.status === 401
+        ? "로그인이 필요합니다."
+        : response.status === 400
+        ? "입력 값을 확인해주세요."
+        : "혈통카드 생성에 실패했습니다.");
+    return { payload, errorMessage: reason };
+  };
+
+  const uploadCardImage = async (file: File) => {
+    const fileApiResponse = await fetch("/api/files");
+    if (!fileApiResponse.ok) {
+      throw new Error("이미지 업로드 URL을 가져오지 못했습니다.");
+    }
+
+    const fileApiResult = (await fileApiResponse.json().catch(() => null)) as {
+      uploadURL?: string;
+      id?: string;
+    } | null;
+    const uploadURL = fileApiResult?.uploadURL;
+    if (!uploadURL) {
+      throw new Error("이미지 업로드 URL을 확인하지 못했습니다.");
+    }
+
+    const formData = new FormData();
+    formData.append("file", file, file.name || "bloodline-card-image");
+    const uploadResponse = await fetch(uploadURL, {
+      method: "POST",
+      body: formData,
+    });
+
+    const uploadResult = (await uploadResponse.json().catch(() => null)) as {
+      success?: boolean;
+      result?: { id?: string };
+    } | null;
+    const uploadedImage = uploadResult?.result?.id || fileApiResult?.id;
+
+    if (!uploadResponse.ok || !uploadedImage) {
+      throw new Error("이미지 업로드에 실패했습니다.");
+    }
+
+    if (uploadResult?.success === false) {
+      throw new Error("이미지 업로드에 실패했습니다.");
+    }
+
+    return uploadedImage;
+  };
+
+  const handleImageChange = (event: ChangeEvent<HTMLInputElement>) => {
+    const nextFile = event.target.files?.[0];
+    if (!nextFile) return;
+
+    const nextType = nextFile.type?.toLowerCase() || "";
+    const nextExt = getFileExtension(nextFile.name || "").toLowerCase();
+    const isImageTypeAllowed =
+      nextType.startsWith("image/") ||
+      ALLOWED_IMAGE_EXTENSIONS.includes(nextExt as (typeof ALLOWED_IMAGE_EXTENSIONS)[number]);
+
+    if (!isImageTypeAllowed) {
+      setError("이미지 파일만 업로드할 수 있습니다.");
+      event.target.value = "";
+      return;
+    }
+    if (nextFile.size > MAX_IMAGE_SIZE) {
+      setError("이미지는 최대 10MB까지 등록할 수 있습니다.");
+      event.target.value = "";
       return;
     }
 
-    const controller = new AbortController();
-    const timer = setTimeout(async () => {
-      try {
-        setIsSuggestLoading(true);
-        const res = await fetch(
-          `/api/search?type=users&q=${encodeURIComponent(activeTransferQuery)}`,
-          { signal: controller.signal }
-        );
-        const result = (await res.json()) as SearchUsersResponse;
-        if (!res.ok || !result.success) {
-          setSuggestUsers([]);
-          return;
-        }
+    setError("");
+    setMessage("");
+    setCardImageFile(nextFile);
+    // 이미 선택된 파일을 다시 동일 파일로 다시 선택할 수 있게 input 값 초기화
+    if (event.target.value) {
+      event.target.value = "";
+    }
+  };
 
-        const filtered = (result.users || [])
-          .filter((candidate) => candidate.id !== user?.id)
-          .slice(0, 6);
-        setSuggestUsers(filtered);
-      } catch {
-        setSuggestUsers([]);
-      } finally {
-        setIsSuggestLoading(false);
-      }
-    }, 220);
-
-    return () => {
-      clearTimeout(timer);
-      controller.abort();
-    };
-  }, [activeSuggestCardId, activeTransferQuery, user?.id]);
+  const handleRemoveImage = () => {
+    setCardImageFile(null);
+    setCardImagePreview("");
+    if (imageInputRef.current) {
+      imageInputRef.current.value = "";
+    }
+  };
 
   const handleCreateBloodlineCard = async (event: FormEvent) => {
     event.preventDefault();
     setMessage("");
     setError("");
 
-    const nextName = (cardName.trim() || `${user?.name || "브리더"} 혈통`).slice(0, 40);
+    const nextName = cardName.trim().slice(0, 40);
     const nextDescription = cardDescription.trim().slice(0, 300);
+
+    if (!nextName) {
+      setError("이름은 필수 항목입니다.");
+      return;
+    }
+    if (!nextDescription) {
+      setError("설명은 필수 항목입니다.");
+      return;
+    }
+
+    const isConfirmed = window.confirm(`"${nextName}" 혈통카드를 정말로 만드시겠어요?`);
+    if (!isConfirmed) {
+      return;
+    }
 
     try {
       setCreatingCard(true);
+      if (cardImageFile) {
+        setMessage("카드 이미지 업로드 중...");
+      }
+      const image = cardImageFile ? await uploadCardImage(cardImageFile) : "";
+      setMessage(cardImageFile ? "이미지 업로드 완료. 카드 생성 중..." : "카드 생성 중...");
+
       const res = await fetch("/api/bloodline-cards", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           name: nextName,
           description: nextDescription,
+          visualStyle: cardVisualVariant,
+          ...(image ? { image } : {}),
         }),
       });
 
-      const result = (await res.json()) as BloodlineCardsResponse;
-      if (!res.ok || !result.success) {
-        throw new Error(result.error || "혈통카드 생성에 실패했습니다.");
+      const { payload, errorMessage } = await parseCreateResponse(res);
+      if (!payload) {
+        throw new Error(errorMessage);
+      }
+      if (!payload.success) {
+        throw new Error(errorMessage || payload.error || "혈통카드 생성에 실패했습니다.");
+      }
+
+      const createdCardId =
+        payload.myBloodlines?.[0]?.id ||
+        payload.myCreatedCards?.[0]?.id ||
+        payload.ownedCards?.[0]?.id;
+      if (!createdCardId) {
+        throw new Error("생성된 카드 정보를 확인할 수 없습니다.");
       }
 
       setCardName("");
       setCardDescription("");
-      setMessage("대표 혈통카드를 생성했습니다.");
-      await mutateBloodline();
+      setCardImageFile(null);
+      setCardImagePreview("");
+      if (imageInputRef.current) {
+        imageInputRef.current.value = "";
+      }
+      setMessage("");
+      router.push(`/bloodline-management/card/${createdCardId}`);
     } catch (createError) {
       setError(
         createError instanceof Error
@@ -181,68 +257,53 @@ export default function BloodlineCardCreateClient() {
     }
   };
 
-  const handleTransferCard = async (cardId: number) => {
-    const draft = transferDrafts[cardId];
-    const toUserName = String(draft?.toUserName || "").trim();
-    const note = String(draft?.note || "").trim();
-
-    if (!toUserName) {
-      setError("받는 사람 닉네임을 입력해주세요.");
-      return;
-    }
-    if (!confirm(`${toUserName}님에게 혈통카드를 전달할까요?`)) {
-      return;
-    }
-
-    setMessage("");
-    setError("");
-
-    try {
-      setTransferringCardId(cardId);
-      const res = await fetch("/api/bloodline-cards/transfer", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ cardId, toUserName, note }),
-      });
-
-      const result = (await res.json()) as BloodlineCardTransferResponse;
-      if (!res.ok || !result.success) {
-        throw new Error(result.error || "카드 전달에 실패했습니다.");
-      }
-
-      setTransferDrafts((prev) => ({
-        ...prev,
-        [cardId]: { toUserName: "", note: "" },
-      }));
-      setSuggestUsers([]);
-      setMessage("혈통카드를 전달했습니다.");
-      await mutateBloodline();
-    } catch (transferError) {
-      setError(
-        transferError instanceof Error
-          ? transferError.message
-          : "요청 처리 중 오류가 발생했습니다."
-      );
-    } finally {
-      setTransferringCardId(null);
-    }
-  };
-
   return (
     <Layout canGoBack showHome title="혈통카드 만들기" seoTitle="혈통카드 만들기">
       <div className="space-y-4 px-4 py-4 pb-12">
-        <section className="rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm leading-relaxed text-amber-900">
-          혈통카드는 이용자 생성 기반 기능이며, 브리디는 혈통/적법성/품질을 보증하지 않습니다.
-        </section>
-
-        <section className="rounded-xl border border-slate-200 bg-white p-4">
-          <p className="text-xs font-semibold tracking-wide text-slate-500">대표 카드 미리보기</p>
+        <section className="app-reveal app-reveal-1 relative overflow-hidden rounded-2xl border border-slate-200/80 bg-gradient-to-br from-white/90 via-slate-50 to-slate-50 p-4 shadow-[0_15px_40px_rgba(15, 23, 42,0.18)] transition duration-300 hover:-translate-y-0.5 hover:shadow-[0_18px_40px_rgba(15, 23, 42,0.24)]">
+          <div className="pointer-events-none absolute -left-20 -bottom-16 h-36 w-36 rounded-full bg-slate-200/45 blur-2xl" />
+          <div className="mb-3 flex items-start justify-between gap-3">
+            <div>
+              <p className="text-xs font-black uppercase tracking-[0.16em] text-slate-500">대표 카드 미리보기</p>
+              <p className="mt-1 text-[13px] font-semibold text-slate-900">내가 상상한 혈통의 정수</p>
+            </div>
+            <span className="shrink-0 rounded-full border border-slate-200 bg-white/80 px-2.5 py-1 text-[11px] font-semibold text-slate-700">
+              LIVE
+            </span>
+          </div>
+          <div className="mb-3">
+            <div className="mb-2 flex items-center justify-between gap-2">
+              <p className="text-xs font-semibold text-slate-700">카드 스타일</p>
+              <span className="text-[11px] text-slate-500">원클릭 적용</span>
+            </div>
+            <div className="grid grid-cols-3 gap-2">
+              {CARD_VARIANT_LABELS.map((item) => (
+                <button
+                  key={item.value}
+                  type="button"
+                  onClick={() => setCardVisualVariant(item.value)}
+                  className={`h-9 rounded-full border px-3 text-[11px] font-semibold transition ${
+                    cardVisualVariant === item.value
+                      ? "bg-slate-900 text-white"
+                      : "bg-white text-slate-700 hover:border-slate-300 hover:bg-slate-50"
+                  }`}
+                  aria-pressed={cardVisualVariant === item.value}
+                >
+                  {item.label}
+                </button>
+              ))}
+            </div>
+          </div>
           <div className="mt-3">
-            <BloodlinePhotoCard
-              cardId={bloodlineData?.createdCard?.id ?? null}
+            <BloodlineVisualCard
+              cardId={null}
               name={previewName}
               ownerName={user?.name || "브리더"}
-              subtitle={`${user?.name || "브리더"} 님의 대표 혈통카드`}
+              subtitle="새 혈통카드 미리보기"
+              variant={cardVisualVariant}
+              image={null}
+              imageUrl={previewImageUrl || ""}
+              compact
             />
           </div>
         </section>
@@ -267,213 +328,85 @@ export default function BloodlineCardCreateClient() {
 
         {user ? (
           <>
-            {bloodlineLoadError ? (
-              <section className="rounded-xl border border-rose-200 bg-rose-50 p-4 text-sm text-rose-700">
-                혈통카드 정보를 불러오지 못했습니다. 잠시 후 다시 시도해주세요.
-              </section>
-            ) : null}
-
             {message ? (
-              <p className="rounded-md border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm font-semibold text-emerald-700">
+              <p className="rounded-md border border-slate-200 bg-slate-50 px-3 py-2 text-sm font-semibold text-slate-700">
                 {message}
               </p>
             ) : null}
             {error ? (
-              <p className="rounded-md border border-rose-200 bg-rose-50 px-3 py-2 text-sm font-semibold text-rose-700">
+              <p className="rounded-md border border-slate-200 bg-slate-50 px-3 py-2 text-sm font-semibold text-slate-700">
                 {error}
               </p>
             ) : null}
 
-            {!isBloodlineLoading && !bloodlineData?.createdCard ? (
-              <form
-                onSubmit={handleCreateBloodlineCard}
-                className="space-y-3 rounded-xl border border-slate-200 bg-white p-4"
-              >
-                <h2 className="text-base font-bold text-slate-900">대표 혈통카드 생성</h2>
-                <Input
-                  value={cardName}
-                  onChange={(event) => setCardName(event.target.value)}
-                  placeholder={`${user?.name || "브리더"} 혈통`}
+            <form
+              onSubmit={handleCreateBloodlineCard}
+              className="app-reveal app-reveal-2 space-y-3 rounded-2xl border border-slate-200/80 bg-white/90 p-4 shadow-[0_12px_34px_rgba(15, 23, 42,0.14)] transition duration-300 hover:-translate-y-0.5 hover:shadow-[0_16px_40px_rgba(15, 23, 42,0.22)]"
+            >
+              <h2 className="text-base font-black tracking-tight text-slate-900">혈통카드 생성</h2>
+              <Input
+                value={cardName}
+                onChange={(event) => setCardName(event.target.value)}
+                placeholder="혈통 이름을 입력해주세요 (필수)"
+                className="h-11 border-slate-200/70"
+                disabled={creatingCard}
+              />
+              <Textarea
+                rows={4}
+                value={cardDescription}
+                onChange={(event) => setCardDescription(event.target.value)}
+                placeholder="이 혈통카드의 소개를 적어주세요 (필수)"
+                className="leading-relaxed"
+                disabled={creatingCard}
+              />
+              <div className="space-y-2">
+                <p className="text-xs font-bold text-slate-700">카드 이미지</p>
+                <div className="rounded-lg border border-slate-200 bg-slate-50 p-3">
+                <label
+                  htmlFor="bloodline-card-image"
+                  className={`inline-flex h-11 w-full cursor-pointer items-center justify-center rounded-lg border border-dashed border-slate-300 bg-white text-sm font-semibold text-slate-700 transition hover:bg-slate-50 ${
+                    creatingCard ? "pointer-events-none opacity-60" : ""
+                  }`}
+                >
+                  {cardImageFile ? "다른 이미지로 바꾸기" : "이미지 선택"}
+                </label>
+                <input
+                  id="bloodline-card-image"
+                  ref={imageInputRef}
+                  type="file"
+                  accept="image/*"
+                  className="sr-only"
+                  onChange={handleImageChange}
+                  disabled={creatingCard}
                 />
-                <Textarea
-                  rows={4}
-                  value={cardDescription}
-                  onChange={(event) => setCardDescription(event.target.value)}
-                  placeholder="이 혈통카드의 소개를 적어주세요 (선택)"
-                />
-                <Button type="submit" disabled={creatingCard}>
-                  {creatingCard ? "생성 중..." : "대표 혈통카드 생성"}
-                </Button>
-              </form>
-            ) : null}
-
-            {bloodlineData?.createdCard ? (
-              <section className="rounded-xl border border-slate-200 bg-white p-4">
-                <p className="text-xs font-semibold tracking-wide text-slate-500">내 대표 카드</p>
-                <p className="mt-1 text-lg font-bold text-slate-900">{bloodlineData.createdCard.name}</p>
-                {bloodlineData.createdCard.description ? (
-                  <p className="mt-1 text-sm text-slate-600">{bloodlineData.createdCard.description}</p>
-                ) : null}
-                <p className="mt-2 text-xs text-slate-500">
-                  현재 보유자: {bloodlineData.createdCard.currentOwner.name}
-                </p>
-              </section>
-            ) : null}
-
-            <section className="space-y-3">
-              <div className="flex items-center justify-between">
-                <h3 className="text-sm font-semibold text-slate-900">보유 혈통카드</h3>
-                <span className="rounded-full bg-slate-100 px-2.5 py-1 text-xs font-semibold text-slate-700">
-                  {(bloodlineData?.ownedCards || []).length}장
-                </span>
-              </div>
-
-              {isBloodlineLoading ? (
-                <div className="flex h-28 items-center justify-center rounded-xl border border-slate-200 bg-white">
-                  <Spinner />
-                </div>
-              ) : null}
-
-              {(bloodlineData?.ownedCards || []).map((card) => (
-                <div key={card.id} className="rounded-xl border border-slate-200 bg-white p-4">
-                  <div className="mb-3">
-                    <BloodlinePhotoCard
-                      cardId={card.id}
-                      name={card.name}
-                      ownerName={card.currentOwner.name}
-                      subtitle={card.description || "혈통카드 설명이 아직 등록되지 않았습니다."}
-                    />
-                  </div>
-                  <div className="mt-2 flex flex-wrap items-center gap-1.5">
-                    <span className="rounded-full bg-slate-100 px-2 py-1 text-[11px] font-semibold text-slate-700">
-                      제작자 {card.creator.name}
-                    </span>
-                    <span className="rounded-full bg-slate-100 px-2 py-1 text-[11px] font-semibold text-slate-700">
-                      보유자 {card.currentOwner.name}
-                    </span>
-                    <span className="rounded-full bg-indigo-50 px-2 py-1 text-[11px] font-semibold text-indigo-700">
-                      전달 {card.transfers?.length || 0}건
-                    </span>
-                  </div>
-
-                  <div className="mt-3 space-y-2 rounded-lg border border-slate-200 bg-slate-50 p-3">
-                    <p className="text-xs font-semibold text-slate-700">다른 유저에게 전달</p>
-                    <Input
-                      value={transferDrafts[card.id]?.toUserName || ""}
-                      onChange={(event) =>
-                        setTransferDrafts((prev) => ({
-                          ...prev,
-                          [card.id]: {
-                            toUserName: event.target.value,
-                            note: prev[card.id]?.note || "",
-                          },
-                        }))
-                      }
-                      onFocus={() => setActiveSuggestCardId(card.id)}
-                      placeholder="받는 사람 닉네임"
-                    />
-                    {activeSuggestCardId === card.id ? (
-                      <div className="rounded-md border border-slate-200 bg-white p-1.5">
-                        {isSuggestLoading ? (
-                          <p className="px-2 py-1 text-xs text-slate-500">닉네임 검색 중...</p>
-                        ) : suggestUsers.length ? (
-                          <div className="space-y-1">
-                            {suggestUsers.map((candidate) => (
-                              <button
-                                key={candidate.id}
-                                type="button"
-                                onClick={() => {
-                                  setTransferDrafts((prev) => ({
-                                    ...prev,
-                                    [card.id]: {
-                                      toUserName: candidate.name,
-                                      note: prev[card.id]?.note || "",
-                                    },
-                                  }));
-                                  setSuggestUsers([]);
-                                }}
-                                className="flex w-full items-center justify-between rounded px-2 py-1.5 text-left text-xs text-slate-700 hover:bg-slate-50"
-                              >
-                                <span>{candidate.name}</span>
-                                <span className="text-[10px] text-slate-400">선택</span>
-                              </button>
-                            ))}
-                          </div>
-                        ) : activeTransferQuery.length > 0 ? (
-                          <p className="px-2 py-1 text-xs text-slate-500">일치하는 닉네임이 없습니다.</p>
-                        ) : (
-                          <p className="px-2 py-1 text-xs text-slate-500">닉네임을 입력하면 추천 목록이 보입니다.</p>
-                        )}
+                  {previewImageUrl ? (
+                    <div className="mt-3 flex items-center gap-2">
+                      <div className="h-16 w-16 overflow-hidden rounded-lg border border-slate-200 bg-white">
+                        <img
+                          src={previewImageUrl}
+                          alt="카드 이미지 미리보기"
+                          className="h-full w-full object-cover"
+                        />
                       </div>
-                    ) : null}
-                    <Textarea
-                      rows={2}
-                      value={transferDrafts[card.id]?.note || ""}
-                      onChange={(event) =>
-                        setTransferDrafts((prev) => ({
-                          ...prev,
-                          [card.id]: {
-                            toUserName: prev[card.id]?.toUserName || "",
-                            note: event.target.value,
-                          },
-                        }))
-                      }
-                      placeholder="전달 메모 (선택)"
-                    />
-                    <div className="flex flex-wrap gap-1">
-                      {["첫 전달", "분양", "교환", "선물"].map((preset) => (
-                        <button
-                          key={preset}
-                          type="button"
-                          onClick={() =>
-                            setTransferDrafts((prev) => ({
-                              ...prev,
-                              [card.id]: {
-                                toUserName: prev[card.id]?.toUserName || "",
-                                note: preset,
-                              },
-                            }))
-                          }
-                          className="rounded-full border border-slate-200 bg-white px-2 py-1 text-[11px] font-semibold text-slate-600"
-                        >
-                          {preset}
-                        </button>
-                      ))}
-                    </div>
-                    <Button
-                      type="button"
-                      variant="outline"
-                      disabled={transferringCardId === card.id}
-                      onClick={() => handleTransferCard(card.id)}
-                    >
-                      {transferringCardId === card.id ? "전달 중..." : "이 카드 전달하기"}
-                    </Button>
-                  </div>
-
-                  {card.transfers?.length ? (
-                    <div className="mt-3 rounded-lg border border-slate-100 bg-slate-50 p-2.5">
-                      <p className="text-xs font-semibold text-slate-700">최근 전달 이력</p>
-                      <div className="mt-1.5 space-y-1.5">
-                        {card.transfers.map((transfer) => (
-                          <p key={transfer.id} className="text-xs text-slate-500">
-                            {new Date(transfer.createdAt).toLocaleDateString("ko-KR")} ·{" "}
-                            {transfer.fromUser ? transfer.fromUser.name : "시스템"} →{" "}
-                            {transfer.toUser.name}
-                            {transfer.note ? ` · ${transfer.note}` : ""}
-                          </p>
-                        ))}
-                      </div>
+                      <button
+                        type="button"
+                        onClick={handleRemoveImage}
+                        className="inline-flex h-8 items-center rounded-full bg-white px-3 text-xs font-semibold text-slate-700 transition hover:bg-slate-100"
+                        disabled={creatingCard}
+                      >
+                        삭제
+                      </button>
                     </div>
                   ) : null}
                 </div>
-              ))}
-
-              {!isBloodlineLoading && (bloodlineData?.ownedCards?.length || 0) === 0 ? (
-                <div className="rounded-xl border border-dashed border-slate-300 bg-white p-5 text-center text-sm text-slate-500">
-                  아직 보유 중인 혈통카드가 없습니다.
-                </div>
-              ) : null}
-            </section>
+                <p className="text-[11px] text-slate-500">
+                  JPG / PNG / WEBP, 최대 10MB. 이미지 첨부는 선택 항목입니다.
+                </p>
+              </div>
+              <Button type="submit" disabled={creatingCard} className="h-11">
+                {creatingCard ? "생성 중..." : "혈통카드 생성"}
+              </Button>
+            </form>
           </>
         ) : null}
       </div>
