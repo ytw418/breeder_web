@@ -227,7 +227,8 @@ async function handler(
       try {
         return await runIssueLine();
       } catch (error) {
-        if ((error as { code?: string })?.code === "P2034") {
+        const code = (error as { code?: string })?.code;
+        if (code === "P2034" || code === "P2032") {
           return "conflict" as const;
         }
         throw error;
