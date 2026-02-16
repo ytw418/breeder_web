@@ -282,9 +282,11 @@ export default function BloodlineCardCreateClient() {
         {creatingCard ? (
           <div className="fixed inset-0 z-40 grid place-items-center bg-white/80">
             <div className="rounded-xl border border-slate-200 bg-white px-5 py-4 shadow-md">
-              <div className="flex items-center gap-3">
+              <div className="flex flex-col items-center gap-3">
                 <Spinner />
-                <p className="text-sm font-semibold text-slate-800">혈통카드를 생성하고 있습니다.</p>
+                <p className="text-center text-sm font-semibold text-slate-800">
+                  혈통카드를 생성하고 있습니다.
+                </p>
               </div>
             </div>
           </div>
