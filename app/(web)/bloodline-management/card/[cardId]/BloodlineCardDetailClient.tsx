@@ -90,6 +90,7 @@ export default function BloodlineCardDetailClient({ cardId }: BloodlineCardDetai
   const [error, setError] = useState("");
   const [events, setEvents] = useState<BloodlineCardEventsResponse["events"]>([]);
   const [eventsLoading, setEventsLoading] = useState(false);
+  const [missingCardRetryCount, setMissingCardRetryCount] = useState(0);
   const [transferCandidates, setTransferCandidates] = useState<TransferUserItem[]>([]);
   const [transferSearchLoading, setTransferSearchLoading] = useState(false);
   const searchDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -175,32 +176,27 @@ export default function BloodlineCardDetailClient({ cardId }: BloodlineCardDetai
     setActiveAction(requested);
   }, [searchParams, canTransfer, canIssue]);
 
-  if (isLoading) {
-    return (
-      <div className="app-page flex min-h-screen items-center justify-center">
-        <Spinner />
-      </div>
-    );
-  }
+  useEffect(() => {
+    if (!user?.id || isLoading) {
+      return;
+    }
 
-  if (!card) {
-    return (
-      <section className="app-page">
-        <div className="mx-auto w-full max-w-[680px] rounded-xl border border-slate-200 bg-white p-5">
-          <h1 className="text-lg font-black text-slate-900">카드를 찾을 수 없습니다.</h1>
-          <p className="mt-1 text-sm text-slate-600">
-            카드 ID가 없거나 열람 권한이 없을 수 있습니다.
-          </p>
-          <Link
-            href="/bloodline-management"
-            className="mt-4 inline-flex h-10 items-center justify-center rounded-lg bg-slate-900 px-4 text-sm font-medium text-white transition hover:bg-slate-800"
-          >
-            혈통관리로 이동
-          </Link>
-        </div>
-      </section>
-    );
-  }
+    if (card) {
+      setMissingCardRetryCount(0);
+      return;
+    }
+
+    if (missingCardRetryCount >= 2) {
+      return;
+    }
+
+    const timeoutId = setTimeout(async () => {
+      await mutateBloodline();
+      setMissingCardRetryCount((prev) => prev + 1);
+    }, 600);
+
+    return () => clearTimeout(timeoutId);
+  }, [card, isLoading, missingCardRetryCount, mutateBloodline, user?.id]);
 
   const handleTransferSubmit = async (event: FormEvent) => {
     event.preventDefault();
@@ -363,6 +359,45 @@ export default function BloodlineCardDetailClient({ cardId }: BloodlineCardDetai
     }
   };
 
+  if (isLoading) {
+    return (
+      <div className="app-page flex min-h-screen items-center justify-center">
+        <Spinner />
+      </div>
+    );
+  }
+
+  if (!card) {
+    const isWaitingForSync = missingCardRetryCount < 2;
+    if (isWaitingForSync) {
+      return (
+        <div className="app-page flex min-h-screen items-center justify-center">
+          <div className="rounded-xl border border-slate-200 bg-white px-4 py-4 text-sm text-slate-700 shadow-sm">
+            <Spinner />
+            <p className="mt-2">카드 정보를 불러오는 중입니다.</p>
+          </div>
+        </div>
+      );
+    }
+
+    return (
+      <section className="app-page">
+        <div className="mx-auto w-full max-w-[680px] rounded-xl border border-slate-200 bg-white p-5">
+          <h1 className="text-lg font-black text-slate-900">카드를 찾을 수 없습니다.</h1>
+          <p className="mt-1 text-sm text-slate-600">
+            카드 ID가 없거나 열람 권한이 없을 수 있습니다.
+          </p>
+          <Link
+            href="/bloodline-management"
+            className="mt-4 inline-flex h-10 items-center justify-center rounded-lg bg-slate-900 px-4 text-sm font-medium text-white transition hover:bg-slate-800"
+          >
+            혈통관리로 이동
+          </Link>
+        </div>
+      </section>
+    );
+  }
+
   return (
     <section className="app-page min-h-screen">
       <div className="mx-auto flex w-full max-w-[680px] flex-col gap-3">
@@ -452,7 +487,7 @@ export default function BloodlineCardDetailClient({ cardId }: BloodlineCardDetai
 
         <article className={sectionClass}>
           <div className={panelHeaderClass}>
-            <h2 className="text-sm font-bold text-slate-900">바로 실행</h2>
+            <h2 className="text-sm font-bold text-slate-900">카드 발급/전송</h2>
           </div>
 
           {canTransfer || canIssue ? (
