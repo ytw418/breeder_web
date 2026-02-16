@@ -90,6 +90,7 @@ export default function BloodlineCardDetailClient({ cardId }: BloodlineCardDetai
   const [error, setError] = useState("");
   const [events, setEvents] = useState<BloodlineCardEventsResponse["events"]>([]);
   const [eventsLoading, setEventsLoading] = useState(false);
+  const [missingCardRetryCount, setMissingCardRetryCount] = useState(0);
   const [transferCandidates, setTransferCandidates] = useState<TransferUserItem[]>([]);
   const [transferSearchLoading, setTransferSearchLoading] = useState(false);
   const searchDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -175,6 +176,28 @@ export default function BloodlineCardDetailClient({ cardId }: BloodlineCardDetai
     setActiveAction(requested);
   }, [searchParams, canTransfer, canIssue]);
 
+  useEffect(() => {
+    if (!user?.id || isLoading) {
+      return;
+    }
+
+    if (card) {
+      setMissingCardRetryCount(0);
+      return;
+    }
+
+    if (missingCardRetryCount >= 2) {
+      return;
+    }
+
+    const timeoutId = setTimeout(async () => {
+      await mutateBloodline();
+      setMissingCardRetryCount((prev) => prev + 1);
+    }, 600);
+
+    return () => clearTimeout(timeoutId);
+  }, [card, isLoading, missingCardRetryCount, mutateBloodline, user?.id]);
+
   if (isLoading) {
     return (
       <div className="app-page flex min-h-screen items-center justify-center">
@@ -184,6 +207,18 @@ export default function BloodlineCardDetailClient({ cardId }: BloodlineCardDetai
   }
 
   if (!card) {
+    const isWaitingForSync = missingCardRetryCount < 2;
+    if (isWaitingForSync) {
+      return (
+        <div className="app-page flex min-h-screen items-center justify-center">
+          <div className="rounded-xl border border-slate-200 bg-white px-4 py-4 text-sm text-slate-700 shadow-sm">
+            <Spinner />
+            <p className="mt-2">카드 정보를 불러오는 중입니다.</p>
+          </div>
+        </div>
+      );
+    }
+
     return (
       <section className="app-page">
         <div className="mx-auto w-full max-w-[680px] rounded-xl border border-slate-200 bg-white p-5">

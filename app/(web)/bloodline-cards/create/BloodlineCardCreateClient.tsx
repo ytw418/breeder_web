@@ -22,6 +22,8 @@ const CARD_VARIANT_LABELS: { value: BloodlineVisualCardVariant; label: string }[
   { value: "editorial", label: "에디토리얼" },
 ];
 
+const allowedNamePattern = /^[A-Za-z0-9가-힣]+$/;
+
 const CARD_VARIANT_STORAGE_KEY = "bloodline.visual.card.variant";
 const MAX_IMAGE_SIZE = 10 * 1024 * 1024;
 const ALLOWED_IMAGE_EXTENSIONS = [".jpg", ".jpeg", ".png", ".webp", ".heic", ".heif"] as const;
@@ -192,6 +194,14 @@ export default function BloodlineCardCreateClient() {
       setError("이름은 필수 항목입니다.");
       return;
     }
+    if (nextName.length < 2) {
+      setError("이름은 2자 이상 입력해주세요.");
+      return;
+    }
+    if (!allowedNamePattern.test(nextName)) {
+      setError("이름은 영문, 숫자, 한글만 입력 가능하며 공백/특수문자는 허용되지 않습니다.");
+      return;
+    }
     if (!nextDescription) {
       setError("설명은 필수 항목입니다.");
       return;
@@ -259,7 +269,17 @@ export default function BloodlineCardCreateClient() {
 
   return (
     <Layout canGoBack showHome title="혈통카드 만들기" seoTitle="혈통카드 만들기">
-      <div className="space-y-4 px-4 py-4 pb-12">
+      <div className={`relative space-y-4 px-4 py-4 pb-12 ${creatingCard ? "pointer-events-none" : ""}`}>
+        {creatingCard ? (
+          <div className="fixed inset-0 z-40 grid place-items-center bg-white/80">
+            <div className="rounded-xl border border-slate-200 bg-white px-5 py-4 shadow-md">
+              <div className="flex items-center gap-3">
+                <Spinner />
+                <p className="text-sm font-semibold text-slate-800">혈통카드를 생성하고 있습니다.</p>
+              </div>
+            </div>
+          </div>
+        ) : null}
         <section className="app-reveal app-reveal-1 relative overflow-hidden rounded-2xl border border-slate-200/80 bg-gradient-to-br from-white/90 via-slate-50 to-slate-50 p-4 shadow-[0_15px_40px_rgba(15, 23, 42,0.18)] transition duration-300 hover:-translate-y-0.5 hover:shadow-[0_18px_40px_rgba(15, 23, 42,0.24)]">
           <div className="pointer-events-none absolute -left-20 -bottom-16 h-36 w-36 rounded-full bg-slate-200/45 blur-2xl" />
           <div className="mb-3 flex items-start justify-between gap-3">
