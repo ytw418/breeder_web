@@ -419,7 +419,7 @@ export default function PostsClient() {
           )}
 
           {/* 결과 없을 때 */}
-          {data && prioritizedPosts.length === 0 && (
+          {data && orderedPosts.length === 0 && (
             <div className="px-4 py-8">
               <div className="mb-4 text-center">
                 <p className="app-title-md text-slate-600">
