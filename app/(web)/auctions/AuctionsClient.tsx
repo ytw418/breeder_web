@@ -47,7 +47,7 @@ const getTimeRemaining = (endAt: string | Date) => {
 };
 
 export default function AuctionsClient() {
-  const [selectedStatus, setSelectedStatus] = useState("진행중");
+  const [selectedStatus, setSelectedStatus] = useState("전체");
   const [selectedCategory, setSelectedCategory] = useState("전체");
   const [searchInput, setSearchInput] = useState("");
   const [searchQuery, setSearchQuery] = useState("");
