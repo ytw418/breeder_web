@@ -17,11 +17,11 @@ import {
   GuinnessSubmission,
   GuinnessSubmissionsResponse,
 } from "pages/api/guinness/submissions";
+import { BloodlineVisualCard } from "@components/features/bloodline/BloodlineVisualCard";
 import { LoginReqBody, LoginResponseType } from "pages/api/auth/login";
 import useSWR from "swr";
 import { UserResponse } from "pages/api/users/[id]";
 import type { BloodlineCardsResponse } from "@libs/shared/bloodline-card";
-import { BloodlineVisualCard } from "@components/features/bloodline/BloodlineVisualCard";
 import { useMemo, useState } from "react";
 import useLogout from "../../../hooks/useLogout";
 
@@ -30,9 +30,9 @@ type ActivityTab = "posts" | "comments" | "guinness" | "products" | "bloodline";
 const TAB_META: { id: ActivityTab; name: string }[] = [
   { id: "posts", name: "게시물" },
   { id: "comments", name: "댓글" },
-  { id: "guinness", name: "브리디북" },
   { id: "products", name: "상품" },
   { id: "bloodline", name: "보유 혈통 카드" },
+  { id: "guinness", name: "브리디북" },
 ];
 
 const GUINNESS_STATUS_TEXT: Record<GuinnessSubmission["status"], string> = {
@@ -42,25 +42,9 @@ const GUINNESS_STATUS_TEXT: Record<GuinnessSubmission["status"], string> = {
 };
 
 const GUINNESS_STATUS_CLASS: Record<GuinnessSubmission["status"], string> = {
-  pending: "bg-amber-100 text-amber-700",
-  approved: "bg-emerald-100 text-emerald-700",
-  rejected: "bg-rose-100 text-rose-700",
-};
-
-const TEST_USER_PROVIDERS = new Set(["test_user", "seed"]);
-
-type TestSwitchUserItem = {
-  id: number;
-  name: string;
-  email: string | null;
-  provider: string;
-  createdAt: string;
-};
-
-type TestAccountsResponse = {
-  success: boolean;
-  error?: string;
-  users: TestSwitchUserItem[];
+  pending: "bg-slate-100 text-slate-700",
+  approved: "bg-slate-100 text-slate-700",
+  rejected: "bg-slate-100 text-slate-700",
 };
 
 const GuinnessSubmissionList = ({
@@ -144,8 +128,6 @@ const MyPageClient = () => {
   const [activeTab, setActiveTab] = useState<ActivityTab>("posts");
   const [switchError, setSwitchError] = useState("");
   const [switchMessage, setSwitchMessage] = useState("");
-  const [testSwitchError, setTestSwitchError] = useState("");
-  const [switchingTestUserId, setSwitchingTestUserId] = useState<number | null>(null);
   const [loginWithProvider, { loading: switchingGoogle }] =
     useMutation<LoginResponseType>("/api/auth/login");
 
@@ -157,11 +139,6 @@ const MyPageClient = () => {
     useSWR<GuinnessSubmissionsResponse>(
       user?.id ? "/api/guinness/submissions" : null
     );
-  const isTestUser = TEST_USER_PROVIDERS.has(String(user?.provider || ""));
-  const {
-    data: testAccountsData,
-    isLoading: isTestAccountsLoading,
-  } = useSWR<TestAccountsResponse>(isTestUser ? "/api/users/test-accounts" : null);
   const {
     data: bloodlineData,
     isLoading: isBloodlineLoading,
@@ -185,7 +162,6 @@ const MyPageClient = () => {
         ),
     [guinnessData?.submissions]
   );
-
   const receivedCards = useMemo(() => {
     if (!bloodlineData) return [];
     if (bloodlineData.receivedBloodlines?.length) return bloodlineData.receivedBloodlines;
@@ -221,8 +197,6 @@ const MyPageClient = () => {
       ? "Google"
       : user?.provider === USER_INFO.provider.APPLE
         ? "Apple"
-        : TEST_USER_PROVIDERS.has(String(user?.provider || ""))
-          ? "테스트 유저"
         : "Kakao";
 
   const handleSwitchToGoogle = async () => {
@@ -269,32 +243,6 @@ const MyPageClient = () => {
     }
   };
 
-  const handleSwitchTestUser = async (target: TestSwitchUserItem) => {
-    if (target.id === user?.id) return;
-    const confirmed = window.confirm(`${target.name} 계정으로 전환할까요?`);
-    if (!confirmed) return;
-
-    setTestSwitchError("");
-
-    try {
-      setSwitchingTestUserId(target.id);
-      const res = await fetch("/api/users/test-accounts", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ userId: target.id }),
-      });
-      const result = (await res.json()) as { success?: boolean; error?: string };
-      if (!res.ok || !result.success) {
-        throw new Error(result.error || "테스트 계정 전환에 실패했습니다.");
-      }
-      window.location.assign("/myPage");
-    } catch (error) {
-      setTestSwitchError(error instanceof Error ? error.message : "요청 중 오류가 발생했습니다.");
-    } finally {
-      setSwitchingTestUserId(null);
-    }
-  };
-
   return (
     <div className="flex flex-col pb-4">
       {/* 프로필 헤더 */}
@@ -308,12 +256,12 @@ const MyPageClient = () => {
                 alt={user?.name || "프로필"}
                 width={80}
                 height={80}
-                className="w-20 h-20 rounded-full bg-gray-200 dark:bg-slate-700 object-cover"
+                className="w-20 h-20 rounded-full bg-slate-200 dark:bg-slate-700 object-cover"
               />
             ) : (
-              <div className="w-20 h-20 rounded-full bg-gray-200 dark:bg-slate-700 flex items-center justify-center">
+              <div className="w-20 h-20 rounded-full bg-slate-200 dark:bg-slate-700 flex items-center justify-center">
                 <svg
-                  className="w-10 h-10 text-gray-400"
+                  className="w-10 h-10 text-slate-400"
                   fill="none"
                   stroke="currentColor"
                   viewBox="0 0 24 24"
@@ -332,33 +280,33 @@ const MyPageClient = () => {
           {/* 통계 */}
           <div className="flex-1 flex justify-around">
             <div className="flex flex-col items-center">
-              <span className="text-lg font-bold text-gray-900">
+              <span className="text-lg font-bold text-slate-900">
                 {profileUser?._count?.posts ?? 0}
               </span>
-              <span className="text-xs text-gray-500">게시물</span>
+              <span className="text-xs text-slate-500">게시물</span>
             </div>
             <div className="flex flex-col items-center">
-              <span className="text-lg font-bold text-gray-900">
+              <span className="text-lg font-bold text-slate-900">
                 {profileUser?._count?.insectRecords ?? 0}
               </span>
-              <span className="text-xs text-gray-500">공식 기록</span>
+              <span className="text-xs text-slate-500">공식 기록</span>
             </div>
             <div className="flex flex-col items-center">
-              <span className="text-lg font-bold text-gray-900">
+              <span className="text-lg font-bold text-slate-900">
                 {profileUser?._count?.followers ?? 0}
               </span>
-              <span className="text-xs text-gray-500">팔로워</span>
+              <span className="text-xs text-slate-500">팔로워</span>
             </div>
           </div>
         </div>
 
         {/* 이름 + 이메일 */}
         <div className="mt-4">
-          <h2 className="text-lg font-bold text-gray-900">
+          <h2 className="text-lg font-bold text-slate-900">
             {user?.name || ""}
           </h2>
           {user?.email && (
-            <p className="text-sm text-gray-500 dark:text-slate-400 mt-0.5">{user.email}</p>
+            <p className="text-sm text-slate-500 dark:text-slate-400 mt-0.5">{user.email}</p>
           )}
         </div>
 
@@ -412,68 +360,32 @@ const MyPageClient = () => {
                 </Link>
               </div>
               {switchMessage ? (
-                <p className="mt-2 text-xs font-semibold text-emerald-600">
+                <p className="mt-2 text-xs font-semibold text-slate-600">
                   {switchMessage}
                 </p>
               ) : null}
               {switchError ? (
-                <p className="mt-2 text-xs font-semibold text-rose-600">
+                <p className="mt-2 text-xs font-semibold text-slate-600">
                   {switchError}
                 </p>
               ) : null}
             </div>
           </div>
         ) : null}
-        {isTestUser ? (
-          <div className="mt-2 rounded-lg border border-indigo-200 bg-indigo-50 p-3">
-            <p className="text-xs font-semibold text-indigo-900">테스트 유저 계정 전환</p>
-            <p className="mt-1 text-xs text-indigo-700">
-              테스트 유저 권한 계정끼리 버튼으로 즉시 세션 전환할 수 있습니다.
-            </p>
-            {isTestAccountsLoading ? (
-              <p className="mt-2 text-xs text-indigo-700">계정 목록 불러오는 중...</p>
-            ) : (
-              <div className="mt-2 grid grid-cols-1 gap-2 sm:grid-cols-2">
-                {(testAccountsData?.users || []).map((account) => (
-                  <button
-                    key={account.id}
-                    type="button"
-                    disabled={switchingTestUserId === account.id}
-                    onClick={() => handleSwitchTestUser(account)}
-                    className="rounded-md border border-indigo-200 bg-white px-3 py-2 text-left text-xs text-indigo-900 transition-colors hover:bg-indigo-100 disabled:opacity-60"
-                  >
-                    <p className="font-semibold">
-                      {account.name}
-                      {account.id === user?.id ? " (현재)" : ""}
-                    </p>
-                    <p className="mt-0.5 text-[11px] text-indigo-700">
-                      {account.email || "이메일 없음"}
-                    </p>
-                  </button>
-                ))}
-              </div>
-            )}
-            {testSwitchError ? (
-              <p className="mt-2 text-xs font-semibold text-rose-600">{testSwitchError}</p>
-            ) : null}
-          </div>
-        ) : null}
       </div>
 
-      {/* 구분선 */}
-      <div className="h-2 bg-gray-50" />
+      <div className="h-px border-t border-slate-100/80" />
 
       {/* 거래 메뉴 */}
       <div className="px-4 py-4">
         <MySaleHistroyMenu />
       </div>
 
-      {/* 구분선 */}
-      <div className="h-2 bg-gray-50" />
+      <div className="h-px border-t border-slate-100/80" />
 
       {/* 활동 탭 */}
       <div className="px-4 py-4">
-        <h3 className="mb-3 text-base font-semibold text-gray-900">내 활동</h3>
+        <h3 className="mb-3 text-base font-semibold text-slate-900">내 활동</h3>
 
         <div className="app-card p-2">
           <div className="app-rail flex gap-2 snap-none">
@@ -507,14 +419,11 @@ const MyPageClient = () => {
           {activeTab === "products" && <MyPostList userId={user?.id} />}
           {activeTab === "bloodline" && (
             <div className="space-y-3">
-              <div className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs leading-relaxed text-amber-900">
-                혈통카드는 이용자 생성 기반 기능이며, 브리디는 혈통/적법성/품질을 보증하지 않습니다.
-              </div>
               <Link
-                href="/bloodline-cards/create"
-                className="inline-flex h-10 w-full items-center justify-center rounded-lg bg-slate-900 text-sm font-semibold text-white"
+                href="/bloodline-management"
+                className="inline-flex h-10 w-full items-center justify-center rounded-lg bg-gradient-to-r from-slate-500 to-slate-500 text-sm font-semibold text-white shadow-[0_12px_24px_rgba(15, 23, 42,0.23)] transition hover:scale-[1.01] hover:shadow-[0_16px_28px_rgba(15, 23, 42,0.3)]"
               >
-                혈통카드 만들기 / 전달하기
+                혈통관리로 이동
               </Link>
 
               {isBloodlineLoading ? (
@@ -524,68 +433,119 @@ const MyPageClient = () => {
               ) : null}
 
               {bloodlineLoadError ? (
-                <p className="rounded-md border border-rose-200 bg-rose-50 px-3 py-2 text-xs font-semibold text-rose-700">
+                <p className="rounded-md border border-slate-200 bg-slate-50 px-3 py-2 text-xs font-semibold text-slate-700">
                   혈통카드 정보를 불러오지 못했습니다. 잠시 후 다시 시도해주세요.
                 </p>
               ) : null}
 
-              <div className="rounded-md border border-slate-200 bg-white p-3">
-                <div className="mb-2 flex items-center justify-between">
-                  <p className="text-xs font-semibold text-slate-500">내가 만든 혈통카드</p>
-                  <span className="rounded-full bg-slate-100 px-2 py-1 text-[11px] font-semibold text-slate-700">
-                    {myCreatedCards.length}장
-                  </span>
-                </div>
-                {myCreatedCards.length ? (
-                  <div className="space-y-2">
-                    {myCreatedCards.map((card) => (
-                      <BloodlineVisualCard
-                        key={card.id}
-                        cardId={card.id}
-                        name={card.name}
-                        ownerName={card.currentOwner.name}
-                        subtitle={card.description || "설명을 입력해주세요"}
-                        image={card.image}
-                        variant={card.visualStyle}
-                        compact
-                      />
-                    ))}
-                  </div>
-                ) : (
-                  <p className="text-xs text-slate-500">
-                    아직 만든 혈통카드가 없습니다. 혈통 카드를 만들어보세요.
-                  </p>
-                )}
+              <div className="mb-2 flex items-center justify-between">
+                <p className="text-xs font-black uppercase tracking-[0.16em] text-slate-500">내가 만든 카드</p>
+                <span className="rounded-full bg-slate-100 px-2 py-1 text-[11px] font-semibold text-slate-700">
+                  {myCreatedCards.length}장
+                </span>
               </div>
 
-              <div className="rounded-md border border-slate-200 bg-white p-3">
-                <div className="mb-2 flex items-center justify-between">
-                  <p className="text-xs font-semibold text-slate-500">내가 받은 혈통카드</p>
+              <div className="grid grid-cols-2 gap-2">
+                {myCreatedCards.map((card) => (
+                  <section
+                    key={card.id}
+                    className="overflow-hidden rounded-2xl border border-slate-200/75 bg-gradient-to-br from-white/90 via-slate-50 to-slate-50 p-2.5"
+                  >
+                    <div className="mb-2 flex items-center justify-between">
+                      <p className="text-[11px] font-black uppercase tracking-[0.16em] text-slate-500">
+                        내가 만든 카드
+                      </p>
+                      <span className="rounded-full bg-slate-100 px-2 py-1 text-[10px] font-semibold text-slate-700">
+                        ACTIVE
+                      </span>
+                    </div>
+                    <BloodlineVisualCard
+                      cardId={card.id}
+                      name={card.name}
+                      ownerName={card.currentOwner.name}
+                      subtitle={`${card.currentOwner.name} 님의 내가 만든 혈통카드`}
+                      image={card.image}
+                      variant={card.visualStyle}
+                      compact
+                    />
+                    {card.description ? (
+                      <p className="mt-2 text-xs leading-relaxed text-slate-600">
+                        {card.description}
+                      </p>
+                    ) : null}
+                    <p className="mt-2 text-[11px] text-slate-500">
+                      현재 보유자: {card.currentOwner.name}
+                    </p>
+                  </section>
+                ))}
+              </div>
+
+              {!isBloodlineLoading && myCreatedCards.length === 0 ? (
+                <div className="rounded-xl border border-dashed border-slate-300 bg-white p-5 text-center text-sm text-slate-500">
+                  아직 만든 혈통카드가 없습니다.
+                </div>
+              ) : null}
+
+              <section className="space-y-3">
+                <div className="mb-1 flex items-center justify-between">
+                  <p className="text-xs font-black uppercase tracking-[0.16em] text-slate-500">내가 전달받은 카드</p>
                   <span className="rounded-full bg-slate-100 px-2 py-1 text-[11px] font-semibold text-slate-700">
                     {receivedCards.length}장
                   </span>
                 </div>
-                {receivedCards.length ? (
-                  <div className="space-y-2">
-                    {receivedCards.map((card) => (
+
+                {receivedCards.length ? null : (
+                  <div className="rounded-xl border border-dashed border-slate-300 bg-white p-5 text-center text-sm text-slate-500">
+                    아직 전달받은 카드가 없습니다.
+                  </div>
+                )}
+
+                <div className="grid grid-cols-2 gap-2">
+                  {receivedCards.map((card) => (
+                    <section
+                      key={card.id}
+                      className="overflow-hidden rounded-2xl border border-slate-200/80 bg-gradient-to-br from-white/95 via-slate-50 to-slate-50 p-2.5 transition duration-300 hover:-translate-y-0.5 hover:shadow-[0_16px_36px_rgba(15, 23, 42,0.2)]"
+                    >
                       <BloodlineVisualCard
-                        key={card.id}
                         cardId={card.id}
                         name={card.name}
                         ownerName={card.currentOwner.name}
-                        subtitle={card.description || "혈통카드 설명이 아직 없습니다"}
+                        subtitle={card.description || "혈통카드 설명이 아직 등록되지 않았습니다."}
                         image={card.image}
                         variant={card.visualStyle}
                         compact
                       />
-                    ))}
-                  </div>
-                ) : (
-                  <p className="text-xs text-slate-500">
-                    아직 전달받은 혈통카드가 없습니다.
-                  </p>
-                )}
-              </div>
+                      <div className="mt-2 flex flex-wrap gap-1">
+                        <span className="rounded-full bg-slate-100 px-2 py-1 text-[11px] font-semibold text-slate-700">
+                          제작자 {card.creator.name}
+                        </span>
+                        <span className="rounded-full bg-slate-100 px-2 py-1 text-[11px] font-semibold text-slate-700">
+                          보유자 {card.currentOwner.name}
+                        </span>
+                        <span className="rounded-full bg-slate-100 px-2 py-1 text-[11px] font-semibold text-slate-700">
+                          전달 {card.transfers?.length || 0}건
+                        </span>
+                      </div>
+
+                      {card.transfers?.length ? (
+                        <div className="mt-3 space-y-1.5 rounded-lg border border-slate-100 bg-slate-50/80 p-2">
+                          <p className="text-[11px] font-black uppercase tracking-[0.16em] text-slate-700">
+                            최근 전달 이력
+                          </p>
+                          {card.transfers.map((transfer) => (
+                            <p key={transfer.id} className="text-[11px] leading-relaxed text-slate-500">
+                              {new Date(transfer.createdAt).toLocaleDateString("ko-KR")} ·{" "}
+                              {transfer.fromUser ? transfer.fromUser.name : "시스템"} → {transfer.toUser.name}
+                              {transfer.note ? ` · ${transfer.note}` : ""}
+                            </p>
+                          ))}
+                        </div>
+                      ) : null}
+                    </section>
+                  ))}
+                </div>
+              </section>
+
             </div>
           )}
         </div>

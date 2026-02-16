@@ -238,7 +238,7 @@ export default function BloodlineManagementClient() {
               <h1 className="app-title-lg">혈통관리</h1>
               <Link
                 href="/bloodline-cards/create"
-                className="inline-flex h-9 items-center justify-center rounded-full bg-[hsl(var(--accent))] px-3 text-xs font-semibold text-white shadow-sm transition hover:opacity-95"
+                className="inline-flex h-9 items-center justify-center rounded-full bg-orange-500 px-3 text-xs font-semibold text-white shadow-sm transition hover:bg-orange-600"
               >
                 새 혈통 만들기
               </Link>

@@ -10,6 +10,24 @@ import { UserBloodlineCardsResponse } from "pages/api/users/[id]/bloodline-cards
 const getCardTypeLabel = (cardType: "BLOODLINE" | "LINE") =>
   cardType === "BLOODLINE" ? "혈통" : "라인";
 
+const getCardStatusLabel = (
+  status: "ACTIVE" | "INACTIVE" | "REVOKED" | string
+) => {
+  if (status === "ACTIVE") return "활성";
+  if (status === "INACTIVE") return "비활성";
+  if (status === "REVOKED") return "해지";
+  return "상태";
+};
+
+const getCardStatusClass = (
+  status: "ACTIVE" | "INACTIVE" | "REVOKED" | string
+) => {
+  if (status === "ACTIVE") return "bg-emerald-100 text-emerald-700";
+  if (status === "INACTIVE") return "bg-amber-100 text-amber-700";
+  if (status === "REVOKED") return "bg-rose-100 text-rose-600";
+  return "bg-slate-100 text-slate-700";
+};
+
 const ProfileBloodlineList = ({ userId }: { userId?: number }) => {
   const { data, isLoading } = useSWR<UserBloodlineCardsResponse>(
     userId ? `/api/users/${userId}/bloodline-cards` : null
@@ -33,44 +51,63 @@ const ProfileBloodlineList = ({ userId }: { userId?: number }) => {
   }
 
   return (
-    <div className="space-y-2.5">
+    <div className="grid grid-cols-2 gap-2">
       {data.cards.map((card) => (
         <Link
           key={card.id}
           href={`/bloodline-management/card/${card.id}`}
-          className="app-card app-card-interactive block px-3.5 py-3"
+          className="app-card app-card-interactive flex min-w-0"
         >
-          <div className="flex items-start gap-3">
-            <div className="h-16 w-16 flex-shrink-0 overflow-hidden rounded-lg bg-slate-100">
+          <div className="flex items-stretch gap-3 p-3.5">
+            <div className="relative h-20 w-20 flex-shrink-0 overflow-hidden rounded-lg border border-slate-200/70 bg-slate-100">
               {card.image ? (
                 <Image
                   src={makeImageUrl(card.image, "product")}
-                  className="h-full w-full object-cover"
+                  className="h-full w-full object-cover transition-transform duration-200"
                   width={64}
                   height={64}
                   alt={card.name}
                 />
-              ) : null}
+              ) : (
+                <div className="h-full w-full bg-gradient-to-br from-slate-100 to-slate-200 text-[10px] font-black tracking-[0.18em] text-slate-500 flex items-center justify-center">
+                  BLOODLINE
+                </div>
+              )}
+              <span className="absolute left-2 top-2 inline-flex items-center rounded-full bg-white/90 px-1.5 py-0.5 text-[10px] font-semibold text-slate-700">
+                {getCardTypeLabel(card.cardType)}
+              </span>
             </div>
 
             <div className="min-w-0 flex-1">
-              <div className="mb-1.5 flex items-center gap-1.5">
-                <span className="app-pill-accent">{getCardTypeLabel(card.cardType)}</span>
-                <span className="app-caption">현재주인 {card.currentOwner.name}</span>
+              <div className="mb-1.5 flex items-start justify-between gap-2">
+                <h3
+                  className="app-title-md line-clamp-1 leading-snug text-slate-900"
+                  title={card.name}
+                >
+                  {card.name}
+                </h3>
+                <span
+                  className={`inline-flex rounded-full px-2 py-0.5 text-[10px] font-semibold ${getCardStatusClass(
+                    card.status
+                  )}`}
+                >
+                  {getCardStatusLabel(card.status)}
+                </span>
               </div>
 
-              <h3 className="app-title-md line-clamp-1 leading-snug">{card.name}</h3>
-
               <p className="app-body-sm mt-1 line-clamp-2 leading-relaxed">
-                {card.description || `${card.speciesType ? `${card.speciesType} | ` : ""}BC-${String(
-                  card.id
-                ).padStart(6, "0")}`}
+                {card.description ||
+                  `${card.speciesType ? `${card.speciesType} · ` : ""}BC-${String(
+                    card.id
+                  ).padStart(6, "0")}`}
               </p>
 
               <div className="mt-2 flex items-center gap-2 text-xs text-slate-500">
-                <span>{card.status}</span>
-                <span className="text-slate-300">·</span>
-                <span>이전 이력 {card.transfers.length}</span>
+                <span className="app-pill-muted">소유 {card.currentOwner.name}</span>
+                {card.issueCount > 0 ? (
+                  <span className="app-pill-muted">발급 {card.issueCount}회</span>
+                ) : null}
+                <span className="app-pill-muted">이전 {card.transfers.length}회</span>
               </div>
             </div>
           </div>

@@ -6,6 +6,8 @@ import MainLayout from "@components/features/MainLayout";
 import MyPostList from "@components/features/profile/myPostList";
 import MySaleHistroyMenu from "@components/features/profile/MySaleHistroyMenu";
 import MyCommunityPostList from "@components/features/profile/MyCommunityPostList";
+import ProfileAuctionList from "@components/features/profile/ProfileAuctionList";
+import ProfileBloodlineList from "@components/features/profile/ProfileBloodlineList";
 import { Button } from "@components/ui/button";
 import { cn, makeImageUrl } from "@libs/client/utils";
 import useMutation from "hooks/useMutation";
@@ -16,11 +18,13 @@ import { FollowResponse } from "pages/api/users/[id]/follow";
 import useSWR from "swr";
 import Image from "@components/atoms/Image";
 
-type ActivityTab = "products" | "posts";
+type ActivityTab = "products" | "posts" | "bloodlines" | "auctions";
 
 const PROFILE_ACTIVITY_TABS: { id: ActivityTab; name: string }[] = [
   { id: "products", name: "상품" },
   { id: "posts", name: "게시물" },
+  { id: "auctions", name: "경매" },
+  { id: "bloodlines", name: "보유혈통" },
 ];
 
 const ProfileClient = () => {
@@ -71,6 +75,8 @@ const ProfileClient = () => {
   const tabCountMap: Record<ActivityTab, number> = {
     products: user?._count?.products ?? 0,
     posts: user?._count?.posts ?? 0,
+    auctions: 0,
+    bloodlines: 0,
   };
 
   return (
@@ -195,7 +201,7 @@ const ProfileClient = () => {
           <h3 className="mb-3 text-base font-semibold text-gray-900">등록 콘텐츠</h3>
           <div className="app-card p-2">
             <div className="app-rail flex gap-2 snap-none">
-              {PROFILE_ACTIVITY_TABS.map((tab) => (
+            {PROFILE_ACTIVITY_TABS.map((tab) => (
                 <button
                   key={tab.id}
                   onClick={() => setActiveTab(tab.id)}
@@ -218,6 +224,12 @@ const ProfileClient = () => {
             )}
             {query?.id && activeTab === "posts" && (
               <MyCommunityPostList userId={Number(query?.id)} />
+            )}
+            {query?.id && activeTab === "auctions" && (
+              <ProfileAuctionList userId={Number(query?.id)} />
+            )}
+            {query?.id && activeTab === "bloodlines" && (
+              <ProfileBloodlineList userId={Number(query?.id)} />
             )}
           </div>
         </div>
