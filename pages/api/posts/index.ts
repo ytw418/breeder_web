@@ -27,8 +27,12 @@ const handler = async (
 ) => {
   if (req.method === "GET") {
     const {
-      query: { page = 1, category },
+      query: { page = 1, category, sort },
     } = req;
+    const selectedSort =
+      typeof sort === "string" && ["latest", "popular", "comments"].includes(sort)
+        ? sort
+        : "latest";
 
     // 기본 피드에서는 공지 카테고리 제외
     const where: any = { NOT: { category: "공지" } };
@@ -38,6 +42,13 @@ const handler = async (
         delete where.NOT;
       }
     }
+
+    const orderBy: any =
+      selectedSort === "popular"
+        ? [{ _count: { Likes: "desc" as const } }, { createdAt: "desc" as const }]
+        : selectedSort === "comments"
+        ? [{ _count: { comments: "desc" as const } }, { createdAt: "desc" as const }]
+        : { createdAt: "desc" as const };
 
     const [posts, postCount] = await Promise.all([
       client.post.findMany({
@@ -57,7 +68,7 @@ const handler = async (
             },
           },
         },
-        orderBy: { createdAt: "desc" },
+        orderBy,
         take: 10,
         skip: page ? (+page - 1) * 10 : 0,
       }),

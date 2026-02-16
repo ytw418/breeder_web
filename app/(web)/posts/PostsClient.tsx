@@ -18,6 +18,13 @@ import { RankingResponse } from "pages/api/ranking";
 
 /** 카테고리 탭 목록 */
 const TABS = [{ id: "전체", name: "전체" }, ...POST_CATEGORIES];
+const SORT_TABS = [
+  { id: "latest", name: "최신순" },
+  { id: "popular", name: "인기순" },
+  { id: "comments", name: "댓글순" },
+];
+type SortType = (typeof SORT_TABS)[number]["id"];
+
 const CATEGORY_ACCENT: Record<string, string> = {
   전체: "bg-slate-500",
   사진: "bg-slate-500",
@@ -88,6 +95,7 @@ const SectionHeader = ({
 
 export default function PostsClient() {
   const [selectedCategory, setSelectedCategory] = useState("전체");
+  const [selectedSort, setSelectedSort] = useState<SortType>("latest");
 
   const getKey = (
     pageIndex: number,
@@ -96,7 +104,8 @@ export default function PostsClient() {
     if (previousPageData && !previousPageData.posts.length) return null;
     const categoryParam =
       selectedCategory !== "전체" ? `&category=${selectedCategory}` : "";
-    return `/api/posts?page=${pageIndex + 1}${categoryParam}`;
+    const sortParam = selectedSort !== "latest" ? `&sort=${selectedSort}` : "";
+    return `/api/posts?page=${pageIndex + 1}${categoryParam}${sortParam}`;
   };
 
   const { data, setSize, mutate } = useSWRInfinite<PostsListResponse>(getKey);
@@ -114,10 +123,13 @@ export default function PostsClient() {
   const handleCategoryChange = (categoryId: string) => {
     setSelectedCategory(categoryId);
   };
+  const handleSortChange = (sortType: SortType) => {
+    setSelectedSort(sortType);
+  };
 
   useEffect(() => {
     mutate();
-  }, [selectedCategory, mutate]);
+  }, [selectedCategory, selectedSort, mutate]);
 
   const bredyRanking = bredyData?.bredyRanking?.slice(0, 5) ?? [];
   const noticePosts = noticeData?.posts ?? [];
@@ -137,15 +149,12 @@ export default function PostsClient() {
         }));
   const loadedPostCount =
     data?.reduce((count, pageData) => count + (pageData?.posts?.length ?? 0), 0) ?? 0;
-  const flattenedPosts = useMemo(
+  const sortedPosts = useMemo(
     () => data?.flatMap((pageData) => pageData?.posts ?? []) ?? [],
     [data]
   );
-  const orderedPosts = useMemo(() => {
-    return [...flattenedPosts].sort(
-      (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
-    );
-  }, [flattenedPosts]);
+  const sortLabel =
+    SORT_TABS.find((sortTab) => sortTab.id === selectedSort)?.name ?? "최신순";
 
   return (
     <Layout icon hasTabBar seoTitle="반려생활" showSearch>
@@ -258,6 +267,23 @@ export default function PostsClient() {
           <div className="px-4 py-3">
             <div className="app-card p-2">
               <div className="app-rail flex gap-2 snap-none">
+                {SORT_TABS.map((tab) => (
+                  <button
+                    key={tab.id}
+                    onClick={() => handleSortChange(tab.id)}
+                    className={cn(
+                      "app-chip",
+                      selectedSort === tab.id
+                        ? "app-chip-active"
+                        : "app-chip-muted"
+                    )}
+                  >
+                    {tab.name}
+                  </button>
+                ))}
+              </div>
+              <div className="mt-2 h-px w-full bg-slate-100" />
+              <div className="app-rail flex gap-2 snap-none">
                 {TABS.map((tab) => (
                   <button
                     key={tab.id}
@@ -292,7 +318,7 @@ export default function PostsClient() {
                 {selectedCategory === "전체" ? "전체 게시글" : `${selectedCategory} 게시글`}
               </h2>
               <p className="mt-1 app-caption">
-                최신 활동 순으로 노출됩니다.
+                {sortLabel}로 노출됩니다.
               </p>
             </div>
             <span className="app-count-chip">{loadedPostCount}개</span>
@@ -302,7 +328,7 @@ export default function PostsClient() {
         {/* 게시글 목록 */}
         <div className="border-y border-slate-100 bg-white pb-4">
           {data ? (
-            orderedPosts.map((post) => (
+            sortedPosts.map((post) => (
                 <Link
                   key={post.id}
                   href={`/posts/${post.id}`}
@@ -419,7 +445,7 @@ export default function PostsClient() {
           )}
 
           {/* 결과 없을 때 */}
-          {data && orderedPosts.length === 0 && (
+          {data && sortedPosts.length === 0 && (
             <div className="px-4 py-8">
               <div className="mb-4 text-center">
                 <p className="app-title-md text-slate-600">
