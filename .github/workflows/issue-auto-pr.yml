@@ -1,0 +1,49 @@
+name: Issue Auto PR
+
+on:
+  workflow_dispatch:
+    inputs:
+      issue_number:
+        description: "자동화할 GitHub 이슈 번호"
+        required: true
+        type: number
+  issues:
+    types:
+      - labeled
+  issue_comment:
+    types:
+      - created
+
+permissions:
+  contents: write
+  pull-requests: write
+  issues: write
+
+jobs:
+  issue-auto-pr:
+    if: >
+      github.event_name == 'workflow_dispatch' ||
+      (github.event_name == 'issues' && contains(github.event.label.name, 'auto-pr')) ||
+      (github.event_name == 'issue_comment' && contains(github.event.comment.body, '/create-pr'))
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Node.js 설정
+        uses: actions/setup-node@v4
+        with:
+          node-version: "18"
+
+      - name: 브랜치/PR 자동 생성
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          if [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
+            ISSUE_NUMBER="${{ github.event.inputs.issue_number }}"
+          else
+            ISSUE_NUMBER="${{ github.event.issue.number }}"
+          fi
+
+          node scripts/issue-auto-pr.mjs "$ISSUE_NUMBER"
