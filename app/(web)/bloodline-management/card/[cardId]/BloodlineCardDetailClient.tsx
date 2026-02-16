@@ -8,6 +8,7 @@ import { Button } from "@components/ui/button";
 import { Input } from "@components/ui/input";
 import { Spinner } from "@components/atoms/Spinner";
 import useUser from "hooks/useUser";
+import { toast } from "react-toastify";
 import {
   BloodlineCardIssueLineResponse,
   BloodlineCardItem,
@@ -363,6 +364,72 @@ export default function BloodlineCardDetailClient({ cardId }: BloodlineCardDetai
     }
   };
 
+  const getCardShareUrl = () => {
+    if (typeof window === "undefined") return "";
+    return window.location.href;
+  };
+
+  const copyToClipboard = async (value: string) => {
+    if (!value) return;
+    if (navigator.clipboard?.writeText) {
+      await navigator.clipboard.writeText(value);
+      return;
+    }
+
+    const textarea = document.createElement("textarea");
+    textarea.value = value;
+    textarea.style.position = "fixed";
+    textarea.style.left = "-9999px";
+    document.body.appendChild(textarea);
+    textarea.focus();
+    textarea.select();
+    document.execCommand("copy");
+    document.body.removeChild(textarea);
+  };
+
+  const handleCopyCardLink = async () => {
+    try {
+      const url = getCardShareUrl();
+      if (!url) {
+        toast.error("공유 링크를 생성하지 못했습니다.");
+        return;
+      }
+
+      await copyToClipboard(url);
+      toast.success("혈통카드 링크가 복사되었습니다.");
+    } catch {
+      toast.error("링크 복사에 실패했습니다.");
+    }
+  };
+
+  const handleShareCard = async () => {
+    try {
+      const url = getCardShareUrl();
+      if (!url) {
+        toast.error("공유 링크를 생성하지 못했습니다.");
+        return;
+      }
+
+      const shareText = `${card?.name || "혈통 카드"} 혈통카드를 확인해보세요`;
+
+      if (navigator.share) {
+        await navigator.share({
+          title: card?.name || "혈통카드",
+          text: shareText,
+          url,
+        });
+        toast.success("공유를 완료했습니다.");
+        return;
+      }
+
+      await copyToClipboard(`${shareText}\n${url}`);
+      toast.info("이 기기에서는 바로 공유를 지원하지 않아 링크를 복사했습니다.");
+    } catch (error) {
+      if (error instanceof Error && error.name === "AbortError") return;
+      toast.error("공유에 실패했습니다.");
+    }
+  };
+
   return (
     <section className="app-page min-h-screen">
       <div className="mx-auto flex w-full max-w-[680px] flex-col gap-3">
@@ -414,7 +481,7 @@ export default function BloodlineCardDetailClient({ cardId }: BloodlineCardDetai
           <div className={panelHeaderClass}>
             <h2 className="text-sm font-bold text-slate-900">기본 정보</h2>
           </div>
-            <div className="grid gap-2">
+          <div className="grid gap-2">
             <p className={chipClass}>제작자: {card.creator.name}</p>
             <p className={chipClass}>현재 보유자: {card.currentOwner.name}</p>
             {card.cardType === "LINE" ? (
@@ -446,7 +513,24 @@ export default function BloodlineCardDetailClient({ cardId }: BloodlineCardDetai
                   )}
                 </div>
               </>
-            ) : null}
+              ) : null}
+          </div>
+        </article>
+
+        <article className={sectionClass}>
+          <div className={panelHeaderClass}>
+            <h2 className="text-sm font-bold text-slate-900">공유하기</h2>
+          </div>
+          <p className="mb-2 text-xs text-slate-600">
+            카드 상세를 SNS에 공유하거나 링크를 복사해 나의 혈통카드를 자랑해보세요.
+          </p>
+          <div className="grid gap-2">
+            <Button type="button" className={actionButtonClass} onClick={handleCopyCardLink}>
+              링크 복사
+            </Button>
+            <Button type="button" className={accentButtonClass} onClick={handleShareCard}>
+              공유하기
+            </Button>
           </div>
         </article>
 
