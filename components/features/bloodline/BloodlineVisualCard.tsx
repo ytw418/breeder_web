@@ -85,7 +85,7 @@ const makeFallbackCardSerial = (cardId: number | null, name: string) => {
 
   let hash = 0;
   for (let i = 0; i < Math.min(base.length, 8); i += 1) {
-    hash = (hash * 31 + base.charCodeAt(i)) % 10000000;
+    hash = (hash * 31 + base.charCodeAt(i)) % 100000;
   }
   return `CID-${String(hash).padStart(5, "0")}`;
 };

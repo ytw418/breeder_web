@@ -41,7 +41,7 @@ const panelHeaderClass = "mb-3 flex items-center justify-between gap-2";
 const actionButtonClass =
   "inline-flex h-11 w-full items-center justify-center rounded-lg bg-slate-900 px-4 text-sm font-semibold text-white transition hover:bg-slate-800";
 const accentButtonClass =
-  "inline-flex h-11 w-full items-center justify-center rounded-lg bg-[hsl(var(--accent))] px-4 text-sm font-semibold text-white transition hover:opacity-95";
+  "inline-flex h-11 w-full items-center justify-center rounded-lg bg-[hsl(var(--accent))] px-4 text-sm font-semibold text-[hsl(var(--accent-foreground))] transition hover:opacity-95";
 const cancelButtonClass =
   "inline-flex h-10 w-full items-center justify-center rounded-lg bg-white border border-slate-200 text-sm font-semibold text-slate-700 transition hover:bg-slate-50";
 const chipClass = "rounded-full bg-slate-100 px-2 py-1 text-xs text-slate-600";
@@ -190,15 +190,16 @@ export default function BloodlineCardDetailClient({ cardId }: BloodlineCardDetai
     const nextName = searchParams?.get("name") || card?.name || "";
     setCelebrationCardName(nextName ? decodeURIComponent(nextName) : "");
     setShowCelebrationModal(true);
-  }, [celebration, card?.name, searchParams]);
+  }, [card?.name, searchParams]);
 
   const handleCloseCelebrationModal = () => {
+    const resolvedPathname = pathname ?? "/";
     setShowCelebrationModal(false);
     const nextSearchParams = new URLSearchParams(searchParams?.toString() || "");
     nextSearchParams.delete("celebration");
     nextSearchParams.delete("name");
     const nextQuery = nextSearchParams.toString();
-    router.replace(nextQuery ? `${pathname}?${nextQuery}` : pathname);
+    router.replace(nextQuery ? `${resolvedPathname}?${nextQuery}` : resolvedPathname);
   };
 
   useEffect(() => {
@@ -437,7 +438,7 @@ export default function BloodlineCardDetailClient({ cardId }: BloodlineCardDetai
               <div className="relative text-center">
                 <p className="text-sm font-black tracking-wide text-cyan-700">
                   {celebrationCardName ? `"${celebrationCardName}"` : "혈통카드"}
-                  가 완성됬습니다!
+                  가 완성됐습니다!
                 </p>
                 <p className="mt-2 text-base font-semibold text-slate-900">화면을 캡쳐해서 친구들에게 자랑하세요</p>
                 <Button
