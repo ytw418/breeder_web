@@ -27,6 +27,14 @@ const CATEGORY_ACCENT: Record<string, string> = {
   자유: "bg-slate-500",
 };
 
+const PRIORITY_CATEGORIES = POST_CATEGORIES.reduce<Record<string, number>>(
+  (acc, category, index) => {
+    acc[category.id] = index;
+    return acc;
+  },
+  {}
+);
+
 const NOTICE_BANNERS = [
   {
     id: "notice-1",
