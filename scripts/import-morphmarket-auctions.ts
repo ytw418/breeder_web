@@ -183,20 +183,32 @@ const toFetchList = (listing: MorphmarketListing): string[] => {
   const thumb = listing.thumb_image;
   const result: string[] = [];
 
-  if (typeof thumb === "string") {
-    return thumb
+  const extractFromString = (value: string) =>
+    value
       .split(",")
       .map((part) => part.trim().split(" ")[0])
       .filter((part): part is string => part.startsWith("http"));
+
+  if (typeof thumb === "string") {
+    return extractFromString(thumb);
+  }
+
+  if (Array.isArray(thumb)) {
+    return thumb
+      .flatMap((entry) => {
+        if (typeof entry === "string") return extractFromString(entry);
+        if (entry && typeof entry === "object" && "src" in entry) {
+          return extractFromString(asString((entry as JsonObject).src));
+        }
+        return [] as string[];
+      })
+      .filter((value): value is string => value.startsWith("http"));
   }
 
   if (thumb && typeof thumb === "object" && "src" in thumb) {
     const src = asString((thumb as JsonObject).src);
     if (!src) return result;
-    return src
-      .split(",")
-      .map((part) => part.trim().split(" ")[0])
-      .filter((part): part is string => part.startsWith("http"));
+    return extractFromString(src);
   }
 
   return result;
@@ -246,7 +258,7 @@ const uploadImageToCloudflare = async (url: string) => {
   });
 
   if (!imageResponse.ok) {
-    throw new Error(`썸네일 다운로드 실패: ${imageResponse.status}`);
+    throw new Error(`썸네일 다운로드 실패: ${imageResponse.status} ${imageResponse.statusText}`);
   }
 
   const imageBlob = await imageResponse.blob();
@@ -262,7 +274,14 @@ const uploadImageToCloudflare = async (url: string) => {
     body: formData,
   });
 
-  const uploadPayload = (await uploaded.json().catch(() => null)) as
+  const uploadText = await uploaded.text();
+  const uploadPayload = (await (() => {
+    try {
+      return Promise.resolve(JSON.parse(uploadText));
+    } catch {
+      return Promise.resolve(null);
+    }
+  })()) as
     | {
         success?: boolean;
         result?: {
@@ -272,7 +291,9 @@ const uploadImageToCloudflare = async (url: string) => {
     | null;
 
   if (!uploaded.ok || !uploadPayload?.success || !uploadPayload.result?.id) {
-    throw new Error("Cloudflare 이미지 업로드 실패");
+    throw new Error(
+      `Cloudflare 이미지 업로드 실패: uploadedOk=${uploaded.ok}, status=${uploaded.status}, payload=${uploadText}`,
+    );
   }
 
   return uploadPayload.result.id;
@@ -447,6 +468,9 @@ const uploadPhotos = async (
       uploaded.push(imageId);
       console.log(`  [${logPrefix}] 업로드 완료: ${photoIdToShort(imageId)}`);
     } catch (error) {
+      if (process.env.MORPH_IMPORT_DEBUG === "true") {
+        console.error(`[${logPrefix}] 업로드 상세 오류`, error instanceof Error ? error.message : error);
+      }
       console.warn(
         `  [${logPrefix}] 이미지 업로드 실패: ${photoUrl}`,
       );
