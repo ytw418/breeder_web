@@ -27,14 +27,6 @@ const CATEGORY_ACCENT: Record<string, string> = {
   자유: "bg-slate-500",
 };
 
-const PRIORITY_CATEGORIES = POST_CATEGORIES.reduce<Record<string, number>>(
-  (acc, category, index) => {
-    acc[category.id] = index;
-    return acc;
-  },
-  {}
-);
-
 const NOTICE_BANNERS = [
   {
     id: "notice-1",
@@ -149,15 +141,11 @@ export default function PostsClient() {
     () => data?.flatMap((pageData) => pageData?.posts ?? []) ?? [],
     [data]
   );
-  const prioritizedPosts = useMemo(() => {
-    if (selectedCategory !== "전체") return flattenedPosts;
-    return [...flattenedPosts].sort((a, b) => {
-      const aRank = PRIORITY_CATEGORIES[a.category ?? ""] ?? Number.MAX_SAFE_INTEGER;
-      const bRank = PRIORITY_CATEGORIES[b.category ?? ""] ?? Number.MAX_SAFE_INTEGER;
-      if (aRank !== bRank) return aRank - bRank;
-      return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
-    });
-  }, [flattenedPosts, selectedCategory]);
+  const orderedPosts = useMemo(() => {
+    return [...flattenedPosts].sort(
+      (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+    );
+  }, [flattenedPosts]);
 
   return (
     <Layout icon hasTabBar seoTitle="반려생활" showSearch>
@@ -314,7 +302,7 @@ export default function PostsClient() {
         {/* 게시글 목록 */}
         <div className="border-y border-slate-100 bg-white pb-4">
           {data ? (
-            prioritizedPosts.map((post) => (
+            orderedPosts.map((post) => (
                 <Link
                   key={post.id}
                   href={`/posts/${post.id}`}
