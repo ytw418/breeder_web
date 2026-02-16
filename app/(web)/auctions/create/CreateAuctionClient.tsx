@@ -81,6 +81,11 @@ const toDateTimeLocalInputValue = (date: Date) => {
   return localDate.toISOString().slice(0, 16);
 };
 
+const toIsoDateTimeValue = (value: string) => {
+  const date = new Date(value);
+  return Number.isNaN(date.getTime()) ? "" : date.toISOString();
+};
+
 const getPresetEndAtValue = (hours: number) => {
   const base = new Date();
   // datetime-local은 분 단위로 저장되므로 올림 처리해 1시간 프리셋 경계 오류를 방지한다.
@@ -371,18 +376,19 @@ const CreateAuctionClient = () => {
       return;
     }
 
-    const normalizedEndAt = getPresetEndAtValue(selectedDuration);
+    const normalizedEndAt = toIsoDateTimeValue(getPresetEndAtValue(selectedDuration));
+    if (!normalizedEndAt) return;
 
-      const requestData = {
-        ...data,
-        title: normalizeSignatureText(data.title),
-        description: normalizeSignatureText(data.description),
-        endAt: normalizedEndAt,
-        category: categoryForSubmit,
-        photos,
-        sellerProofImage,
-        startPrice: Number(data.startPrice),
-      };
+    const requestData = {
+      ...data,
+      title: normalizeSignatureText(data.title),
+      description: normalizeSignatureText(data.description),
+      endAt: normalizedEndAt,
+      category: categoryForSubmit,
+      photos,
+      sellerProofImage,
+      startPrice: Number(data.startPrice),
+    };
 
     const signature = buildSubmissionSignature(requestData);
 
@@ -408,10 +414,16 @@ const CreateAuctionClient = () => {
   const handleConfirmCreate = () => {
     if (!pendingSubmission || loading) return;
 
+    const refreshedEndAt = selectedDuration
+      ? toIsoDateTimeValue(getPresetEndAtValue(selectedDuration))
+      : pendingSubmission.requestData.endAt;
+
+    if (!refreshedEndAt) return;
+
     const refreshedRequestData = selectedDuration
       ? {
           ...pendingSubmission.requestData,
-          endAt: getPresetEndAtValue(selectedDuration),
+          endAt: refreshedEndAt,
         }
       : pendingSubmission.requestData;
     const refreshedSignature = buildSubmissionSignature(refreshedRequestData);

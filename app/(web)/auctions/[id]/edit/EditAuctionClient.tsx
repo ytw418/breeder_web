@@ -60,6 +60,11 @@ const toDateTimeLocalValue = (value: string | Date) => {
   return local.toISOString().slice(0, 16);
 };
 
+const toIsoDateTimeValue = (value: string) => {
+  const date = new Date(value);
+  return Number.isNaN(date.getTime()) ? "" : date.toISOString();
+};
+
 const EditAuctionClient = () => {
   const params = useParams();
   const router = useRouter();
@@ -194,11 +199,17 @@ const EditAuctionClient = () => {
       toast.error("최소 1장의 사진을 등록해주세요.");
       return;
     }
+    const normalizedEndAt = toIsoDateTimeValue(form.endAt);
+    if (!normalizedEndAt) {
+      toast.error("유효한 종료 시간을 입력해주세요.");
+      return;
+    }
 
     updateAuction({
       data: {
         action: "update",
         ...form,
+        endAt: normalizedEndAt,
         category: selectedCategory,
         photos,
         sellerProofImage,
