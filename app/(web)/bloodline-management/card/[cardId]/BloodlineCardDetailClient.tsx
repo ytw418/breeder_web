@@ -487,7 +487,7 @@ export default function BloodlineCardDetailClient({ cardId }: BloodlineCardDetai
 
         <article className={sectionClass}>
           <div className={panelHeaderClass}>
-            <h2 className="text-sm font-bold text-slate-900">바로 실행</h2>
+            <h2 className="text-sm font-bold text-slate-900">카드 발급/전송</h2>
           </div>
 
           {canTransfer || canIssue ? (
