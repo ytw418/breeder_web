@@ -40,6 +40,7 @@ export interface BloodlineCardItem {
   transferCount: number;
   creator: { id: number; name: string };
   currentOwner: { id: number; name: string };
+  isOwnedByMe?: boolean;
   createdAt: string;
   updatedAt: string;
   transfers: BloodlineCardTransferItem[];

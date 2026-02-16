@@ -1,5 +1,5 @@
 "use client";
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 
 import KakaoRound from "@images/KakaoRound.svg";
 import GoogleRound from "@images/GoogleRound.svg";
@@ -72,9 +72,36 @@ const navigateAfterSessionReady = async (nextPath: string) => {
   window.location.assign(nextPath);
 };
 
-const LoginClient = () => {
+type TestAccountItem = {
+  id: number;
+  name: string;
+  email: string | null;
+  provider: string;
+  createdAt: string;
+};
+
+type TestAccountListResponse = {
+  success: boolean;
+  error?: string;
+  users?: TestAccountItem[];
+};
+
+type TestAccountSwitchResponse = {
+  success: boolean;
+  error?: string;
+};
+
+type LoginClientProps = {
+  shouldShowTestLogin: boolean;
+};
+
+const LoginClient = ({ shouldShowTestLogin }: LoginClientProps) => {
   const searchParams = useSearchParams();
   const [login] = useMutation<LoginResponseType>("/api/auth/login");
+  const [testAccounts, setTestAccounts] = useState<TestAccountItem[]>([]);
+  const [isLoadingTestAccounts, setIsLoadingTestAccounts] = useState(false);
+  const [testLoginError, setTestLoginError] = useState("");
+  const [switchingTestUserId, setSwitchingTestUserId] = useState<number | null>(null);
   // 기본값은 노출(true). 추후 숨길 때 NEXT_PUBLIC_ENABLE_GOOGLE_LOGIN=false로 설정.
   const shouldShowGoogleLogin =
     process.env.NEXT_PUBLIC_ENABLE_GOOGLE_LOGIN !== "false";
@@ -142,6 +169,45 @@ const LoginClient = () => {
     );
   }, []);
 
+  useEffect(() => {
+    if (!shouldShowTestLogin) return;
+
+    let mounted = true;
+    setIsLoadingTestAccounts(true);
+    setTestLoginError("");
+
+    const fetchTestAccounts = async () => {
+      try {
+        const res = await fetch("/api/users/test-accounts", {
+          method: "GET",
+          cache: "no-store",
+        });
+        const data = (await res.json()) as TestAccountListResponse;
+        if (!mounted) return;
+        if (!res.ok || !data.success) {
+          throw new Error(data.error || "테스트 계정 목록 조회에 실패했습니다.");
+        }
+        setTestAccounts(data.users || []);
+      } catch (error) {
+        if (!mounted) return;
+        setTestAccounts([]);
+        setTestLoginError(
+          error instanceof Error ? error.message : "테스트 계정 목록 조회 중 오류가 발생했습니다."
+        );
+      } finally {
+        if (mounted) {
+          setIsLoadingTestAccounts(false);
+        }
+      }
+    };
+
+    void fetchTestAccounts();
+
+    return () => {
+      mounted = false;
+    };
+  }, [shouldShowTestLogin]);
+
   const loginWithGoogle = async () => {
     try {
       const nextPath = getSafeNextPath(searchParams?.get("next") ?? null);
@@ -186,6 +252,39 @@ const LoginClient = () => {
     }
   };
 
+  const loginAsTestUser = async (targetUserId: number) => {
+    if (switchingTestUserId === targetUserId) return;
+
+    const nextPath = getSafeNextPath(searchParams?.get("next") ?? null);
+    setSwitchingTestUserId(targetUserId);
+    setTestLoginError("");
+
+    try {
+      const res = await fetch("/api/users/test-accounts", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ userId: targetUserId }),
+      });
+      const data = (await res.json()) as TestAccountSwitchResponse;
+
+      if (!res.ok || !data.success) {
+        throw new Error(data.error || "테스트 계정 전환에 실패했습니다.");
+      }
+
+      markPostLoginGuide();
+      void navigateAfterSessionReady(nextPath);
+    } catch (error) {
+      const message =
+        error instanceof Error ? error.message : "테스트 계정 전환 중 오류가 발생했습니다.";
+      setTestLoginError(message);
+      alert(message);
+    } finally {
+      setSwitchingTestUserId(null);
+    }
+  };
+
   return (
     <div className="flex h-screen w-full items-center justify-center p-5 flex-col">
       <div className="flex flex-col items-center mb-[80px]">
@@ -217,6 +316,39 @@ const LoginClient = () => {
             현재는 카카오 로그인만 지원합니다.
           </p>
         )}
+        {shouldShowTestLogin ? (
+          <div className="w-full rounded-lg border border-Gray-200 bg-Gray-50 p-3">
+            <p className="text-[11px] text-Gray-500">테스트 로그인 (개발/테스트 환경 전용)</p>
+            {isLoadingTestAccounts ? (
+              <p className="mt-2 text-[11px] text-Gray-500">테스트 계정 목록 불러오는 중...</p>
+            ) : null}
+            {testLoginError ? <p className="mt-2 text-[11px] text-rose-500">{testLoginError}</p> : null}
+            {!isLoadingTestAccounts && !testAccounts.length ? (
+              <p className="mt-2 text-[11px] text-Gray-500">
+                사용 가능한 테스트 계정이 없습니다.
+              </p>
+            ) : (
+              <div className="mt-2 space-y-1">
+                {testAccounts.map((account) => (
+                  <button
+                    key={account.id}
+                    type="button"
+                    onClick={() => loginAsTestUser(account.id)}
+                    disabled={switchingTestUserId === account.id}
+                    className="button relative flex h-10 w-full items-center justify-between rounded-md border border-Gray-300 bg-white px-3 text-left"
+                  >
+                    <span className="text-xs text-Gray-700 truncate">{account.name}</span>
+                    <span className="text-[11px] text-Gray-500">
+                      {switchingTestUserId === account.id
+                        ? "전환 중..."
+                        : account.provider}
+                    </span>
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+        ) : null}
         <Link
           href={"/"}
           className="button relative flex h-[54px] w-full items-center justify-center rounded-lg border border-Gray-300 px-7 py-[14px]"

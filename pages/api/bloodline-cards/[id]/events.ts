@@ -5,6 +5,7 @@ import client from "@libs/server/client";
 import { BloodlineCardEventsResponse } from "@libs/shared/bloodline-card";
 import { resolveBloodlineApiError } from "@libs/server/bloodline-error";
 import { ensureBloodlineSchema } from "@libs/server/bloodline-schema";
+import { isCardOwner } from "@libs/server/bloodline-ownership";
 
 async function handler(
   req: NextApiRequest,
@@ -40,7 +41,8 @@ async function handler(
       });
     }
 
-    if (card.creatorId !== userId && card.currentOwnerId !== userId) {
+    const isOwner = await isCardOwner(parsedCardId, userId);
+    if (card.creatorId !== userId && !isOwner) {
       return res.status(403).json({
         success: false,
         events: [],

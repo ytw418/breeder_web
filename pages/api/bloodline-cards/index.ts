@@ -4,6 +4,10 @@ import withHandler from "@libs/server/withHandler";
 import { withApiSession } from "@libs/server/withSession";
 import client from "@libs/server/client";
 import {
+  addCardOwner,
+  fetchOwnedCardIds,
+} from "@libs/server/bloodline-ownership";
+import {
   BloodlineCardItem,
   BloodlineCardVisualStyle,
   BloodlineCardsResponse,
@@ -48,6 +52,8 @@ type RawVisualStyleRow = {
 
 const bloodlineVisualStyles = ["noir", "clean", "editorial"] as const;
 
+const allowedNamePattern = /^[A-Za-z0-9가-힣]+$/;
+
 type LoadCardResult = {
   myBloodlines: BloodlineCardWithRelations[];
   receivedBloodlines: BloodlineCardWithRelations[];
@@ -55,6 +61,7 @@ type LoadCardResult = {
   receivedLines: BloodlineCardWithRelations[];
   ownedCards: BloodlineCardWithRelations[];
   visualStyleMap: Map<number, BloodlineCardVisualStyle>;
+  ownedCardIds: Set<number>;
 };
 
 const isVisualStyle = (value: unknown): value is BloodlineCardVisualStyle => {
@@ -81,7 +88,8 @@ const baseResponse: BloodlineCardsResponse = {
 
 const toCardItem = (
   card: BloodlineCardWithRelations,
-  visualStyleMap: Map<number, BloodlineCardVisualStyle>
+  visualStyleMap: Map<number, BloodlineCardVisualStyle>,
+  isOwnedByMe: boolean
 ): BloodlineCardItem => ({
   id: card.id,
   name: card.name,
@@ -97,6 +105,7 @@ const toCardItem = (
   transferCount: card.transferCount,
   creator: card.creator,
   currentOwner: card.currentOwner,
+  isOwnedByMe,
   createdAt: card.createdAt.toISOString(),
   updatedAt: card.updatedAt.toISOString(),
   transfers: card.transfers.map((transfer) => ({
@@ -139,6 +148,9 @@ const fetchVisualStyles = async (cardIds: number[]) => {
 };
 
 const loadCards = async (userId: number): Promise<LoadCardResult> => {
+  const ownedCardIds = await fetchOwnedCardIds(userId);
+  const ownedCardIdList = Array.from(ownedCardIds);
+
   const [myBloodlines, receivedBloodlines, createdLines, receivedLines, ownedCards] =
     await Promise.all([
       client.bloodlineCard.findMany({
@@ -154,7 +166,7 @@ const loadCards = async (userId: number): Promise<LoadCardResult> => {
         where: {
           cardType: "BLOODLINE",
           status: "ACTIVE",
-          currentOwnerId: userId,
+          id: { in: ownedCardIdList },
           creatorId: { not: userId },
         },
         orderBy: [{ updatedAt: "desc" }, { id: "desc" }],
@@ -173,7 +185,7 @@ const loadCards = async (userId: number): Promise<LoadCardResult> => {
         where: {
           cardType: "LINE",
           status: "ACTIVE",
-          currentOwnerId: userId,
+          id: { in: ownedCardIdList },
           creatorId: { not: userId },
         },
         orderBy: [{ updatedAt: "desc" }, { id: "desc" }],
@@ -182,7 +194,7 @@ const loadCards = async (userId: number): Promise<LoadCardResult> => {
       client.bloodlineCard.findMany({
         where: {
           status: "ACTIVE",
-          currentOwnerId: userId,
+          id: { in: ownedCardIdList },
         },
         orderBy: [{ updatedAt: "desc" }, { id: "desc" }],
         include: includeWithTransfers,
@@ -205,17 +217,21 @@ const loadCards = async (userId: number): Promise<LoadCardResult> => {
     createdLines,
     receivedLines,
     ownedCards,
+    ownedCardIds,
     visualStyleMap,
   };
 };
 
 const loadCreateModeCards = async (userId: number): Promise<LoadCardResult> => {
+  const ownedCardIds = await fetchOwnedCardIds(userId);
+  const ownedCardIdList = Array.from(ownedCardIds);
+
   const myBloodlines = await client.bloodlineCard.findMany({
     where: {
       creatorId: userId,
-      currentOwnerId: userId,
       cardType: "BLOODLINE",
       status: "ACTIVE",
+      id: { in: ownedCardIdList },
     },
     orderBy: [{ createdAt: "desc" }, { id: "desc" }],
     include: includeWithTransfers,
@@ -231,6 +247,7 @@ const loadCreateModeCards = async (userId: number): Promise<LoadCardResult> => {
     createdLines: [],
     receivedLines: [],
     ownedCards: myBloodlines,
+    ownedCardIds,
     visualStyleMap,
   };
 };
@@ -258,13 +275,21 @@ async function handler(
       const lists =
         mode === "create" ? await loadCreateModeCards(userId) : await loadCards(userId);
 
-      const myBloodlines = lists.myBloodlines.map((card) => toCardItem(card, lists.visualStyleMap));
-      const receivedBloodlines = lists.receivedBloodlines.map((card) =>
-        toCardItem(card, lists.visualStyleMap)
+      const myBloodlines = lists.myBloodlines.map((card) =>
+        toCardItem(card, lists.visualStyleMap, lists.ownedCardIds.has(card.id))
       );
-      const createdLines = lists.createdLines.map((card) => toCardItem(card, lists.visualStyleMap));
-      const receivedLines = lists.receivedLines.map((card) => toCardItem(card, lists.visualStyleMap));
-      const ownedCards = lists.ownedCards.map((card) => toCardItem(card, lists.visualStyleMap));
+      const receivedBloodlines = lists.receivedBloodlines.map((card) =>
+        toCardItem(card, lists.visualStyleMap, lists.ownedCardIds.has(card.id))
+      );
+      const createdLines = lists.createdLines.map((card) =>
+        toCardItem(card, lists.visualStyleMap, lists.ownedCardIds.has(card.id))
+      );
+      const receivedLines = lists.receivedLines.map((card) =>
+        toCardItem(card, lists.visualStyleMap, lists.ownedCardIds.has(card.id))
+      );
+      const ownedCards = lists.ownedCards.map((card) =>
+        toCardItem(card, lists.visualStyleMap, lists.ownedCardIds.has(card.id))
+      );
 
       return res.json({
         ...baseResponse,
@@ -291,6 +316,12 @@ async function handler(
   }
 
   if (req.method === "POST") {
+    const fallbackNameSource = String(req.session.user?.name || "브리더").replace(
+      /[^A-Za-z0-9가-힣]+/g,
+      ""
+    );
+    const fallbackBloodlineName = `${fallbackNameSource || "브리더"}혈통`;
+
     const {
       name,
       description = "",
@@ -300,7 +331,7 @@ async function handler(
       visualStyle,
     } = req.body || {};
 
-    const parsedName = String(name || `${userName || "브리더"} 혈통`)
+    const parsedName = String(name || fallbackBloodlineName)
       .trim()
       .slice(0, 40);
     const parsedDescription = String(description || "").trim().slice(0, 300);
@@ -319,6 +350,14 @@ async function handler(
         ...baseResponse,
         success: false,
         error: "카드 이름은 2자 이상 입력해주세요.",
+      });
+    }
+
+    if (!allowedNamePattern.test(parsedName)) {
+      return res.status(400).json({
+        ...baseResponse,
+        success: false,
+        error: "카드 이름에는 영문, 숫자, 한글만 사용 가능하며 공백과 특수문자는 허용되지 않습니다.",
       });
     }
 
@@ -348,6 +387,23 @@ async function handler(
 
     try {
       await ensureBloodlineSchema();
+      const duplicateName = await client.bloodlineCard.findFirst({
+        where: {
+          cardType: "BLOODLINE",
+          name: parsedName,
+          status: "ACTIVE",
+        },
+        select: { id: true },
+      });
+
+      if (duplicateName) {
+        return res.status(409).json({
+          ...baseResponse,
+          success: false,
+          error: "이미 사용 중인 혈통 카드 이름입니다.",
+        });
+      }
+
       const createCard = async () =>
         client.$transaction(async (tx) => {
           const card = await tx.bloodlineCard.create({
@@ -398,6 +454,8 @@ async function handler(
             },
           });
 
+          await addCardOwner(tx, card.id, userId);
+
           await tx.bloodlineCardEvent.create({
             data: {
               cardId: card.id,
@@ -435,6 +493,7 @@ async function handler(
         transferPolicy: created.transferPolicy,
         issueCount: created.issueCount ?? 0,
         transferCount: created.transferCount ?? 0,
+        isOwnedByMe: true,
         creator: {
           id: created.creatorId,
           name: creatorName,
