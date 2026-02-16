@@ -2,7 +2,7 @@
 
 import { FormEvent, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
-import { useSearchParams } from "next/navigation";
+import { usePathname, useSearchParams, useRouter } from "next/navigation";
 import useSWR from "swr";
 import { Button } from "@components/ui/button";
 import { Input } from "@components/ui/input";
@@ -73,6 +73,8 @@ const eventToneByAction: Record<string, string> = {
 
 export default function BloodlineCardDetailClient({ cardId }: BloodlineCardDetailClientProps) {
   const { user } = useUser();
+  const router = useRouter();
+  const pathname = usePathname();
   const searchParams = useSearchParams();
 
   const {
@@ -93,6 +95,8 @@ export default function BloodlineCardDetailClient({ cardId }: BloodlineCardDetai
   const [missingCardRetryCount, setMissingCardRetryCount] = useState(0);
   const [transferCandidates, setTransferCandidates] = useState<TransferUserItem[]>([]);
   const [transferSearchLoading, setTransferSearchLoading] = useState(false);
+  const [showCelebrationModal, setShowCelebrationModal] = useState(false);
+  const [celebrationCardName, setCelebrationCardName] = useState("");
   const searchDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const searchAbortRef = useRef<AbortController | null>(null);
 
@@ -175,6 +179,27 @@ export default function BloodlineCardDetailClient({ cardId }: BloodlineCardDetai
     if (requested === "issue" && !canIssue) return;
     setActiveAction(requested);
   }, [searchParams, canTransfer, canIssue]);
+
+  const celebration = searchParams?.get("celebration");
+  useEffect(() => {
+    if (celebration !== "card-created") {
+      setShowCelebrationModal(false);
+      return;
+    }
+
+    const nextName = searchParams?.get("name") || card?.name || "";
+    setCelebrationCardName(nextName ? decodeURIComponent(nextName) : "");
+    setShowCelebrationModal(true);
+  }, [celebration, card?.name, searchParams]);
+
+  const handleCloseCelebrationModal = () => {
+    setShowCelebrationModal(false);
+    const nextSearchParams = new URLSearchParams(searchParams?.toString() || "");
+    nextSearchParams.delete("celebration");
+    nextSearchParams.delete("name");
+    const nextQuery = nextSearchParams.toString();
+    router.replace(nextQuery ? `${pathname}?${nextQuery}` : pathname);
+  };
 
   useEffect(() => {
     if (!user?.id || isLoading) {
@@ -401,6 +426,31 @@ export default function BloodlineCardDetailClient({ cardId }: BloodlineCardDetai
   return (
     <section className="app-page min-h-screen">
       <div className="mx-auto flex w-full max-w-[680px] flex-col gap-3">
+        {showCelebrationModal ? (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/55 px-4">
+            <div className="relative overflow-hidden rounded-3xl border-2 border-sky-300/90 bg-white/95 p-6 shadow-[0_28px_80px_rgba(2,132,199,0.35)] backdrop-blur">
+              <div className="pointer-events-none absolute -left-10 -top-16 h-40 w-40 rounded-full bg-cyan-200/50 blur-2xl" />
+              <div className="pointer-events-none absolute -right-8 -bottom-12 h-36 w-36 rounded-full bg-yellow-200/45 blur-2xl" />
+              <div className="absolute inset-x-0 top-0 flex justify-center">
+                <div className="mt-1 h-1.5 w-2/3 rounded-full bg-gradient-to-r from-yellow-300 via-sky-300 to-rose-300 animate-pulse" />
+              </div>
+              <div className="relative text-center">
+                <p className="text-sm font-black tracking-wide text-cyan-700">
+                  {celebrationCardName ? `"${celebrationCardName}"` : "혈통카드"}
+                  가 완성됬습니다!
+                </p>
+                <p className="mt-2 text-base font-semibold text-slate-900">화면을 캡쳐해서 친구들에게 자랑하세요</p>
+                <Button
+                  type="button"
+                  className="mt-6 h-11 w-full bg-slate-900 text-sm font-black text-white hover:bg-slate-800"
+                  onClick={handleCloseCelebrationModal}
+                >
+                  닫기
+                </Button>
+              </div>
+            </div>
+          </div>
+        ) : null}
         <div className={sectionClass}>
           <div className={panelHeaderClass}>
             <Link

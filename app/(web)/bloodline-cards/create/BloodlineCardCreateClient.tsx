@@ -3,6 +3,7 @@
 import { ChangeEvent, FormEvent, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { toast } from "react-toastify";
 import Layout from "@components/features/MainLayout";
 import { Spinner } from "@components/atoms/Spinner";
 import { Button } from "@components/ui/button";
@@ -32,6 +33,10 @@ const getFileExtension = (name: string) => {
   const pointIndex = name.lastIndexOf(".");
   if (pointIndex === -1) return "";
   return name.slice(pointIndex).toLowerCase();
+};
+
+const isDuplicatedBloodlineNameError = (message: string) => {
+  return message.includes("이미 사용 중인 혈통 카드 이름입니다.");
 };
 
 export default function BloodlineCardCreateClient() {
@@ -255,13 +260,17 @@ export default function BloodlineCardCreateClient() {
         imageInputRef.current.value = "";
       }
       setMessage("");
-      router.push(`/bloodline-management/card/${createdCardId}`);
+      const encodedCardName = encodeURIComponent(nextName);
+      router.push(`/bloodline-management/card/${createdCardId}?celebration=card-created&name=${encodedCardName}`);
     } catch (createError) {
-      setError(
+      const errorMessage =
         createError instanceof Error
           ? createError.message
-          : "요청 처리 중 오류가 발생했습니다."
-      );
+          : "요청 처리 중 오류가 발생했습니다.";
+      setError(errorMessage);
+      if (isDuplicatedBloodlineNameError(errorMessage)) {
+        toast.error(errorMessage);
+      }
     } finally {
       setCreatingCard(false);
     }
