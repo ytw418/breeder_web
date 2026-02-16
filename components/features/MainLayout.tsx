@@ -225,10 +225,13 @@ export default function MainLayout({
       event.preventDefault();
       setDeferredInstallPrompt(event as BeforeInstallPromptEvent);
     };
+    const onAppInstalled = () => setDeferredInstallPrompt(null);
 
     window.addEventListener("beforeinstallprompt", onBeforeInstallPrompt);
+    window.addEventListener("appinstalled", onAppInstalled);
     return () => {
       window.removeEventListener("beforeinstallprompt", onBeforeInstallPrompt);
+      window.removeEventListener("appinstalled", onAppInstalled);
     };
   }, []);
 
@@ -522,7 +525,7 @@ export default function MainLayout({
             type="button"
             onClick={handleInstallAppClick}
             className="flex w-full items-center gap-3 border-t border-slate-100 px-5 py-3.5 text-left text-sm font-medium text-slate-700 transition-colors hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-70 dark:border-slate-800 dark:text-slate-300 dark:hover:bg-slate-800/70"
-            disabled={installLoading}
+            disabled={installLoading || !deferredInstallPrompt}
           >
             <svg
               className="h-5 w-5"
