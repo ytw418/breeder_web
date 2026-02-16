@@ -95,6 +95,74 @@ const MENU_ITEMS = [
   },
 ];
 
+const BOTTOM_NAV_ITEMS = [
+  {
+    label: "홈",
+    href: "/",
+    isActive: (pathname: string) => pathname === "/",
+    icon: (
+      <path
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        strokeWidth="2"
+        d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"
+      />
+    ),
+  },
+  {
+    label: "채팅",
+    href: "/chat",
+    isActive: (pathname: string) => pathname.startsWith("/chat"),
+    icon: (
+      <path
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        strokeWidth="2"
+        d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"
+      />
+    ),
+  },
+  {
+    label: "반려생활",
+    href: "/posts",
+    isActive: (pathname: string) => pathname.startsWith("/posts"),
+    icon: (
+      <path
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        strokeWidth="2"
+        d="M19 20H5a2 2 0 01-2-2V6a2 2 0 012-2h10a2 2 0 012 2v1m2 13a2 2 0 01-2-2V7m2 13a2 2 0 002-2V9a2 2 0 00-2-2h-2m-4-3H9M7 16h6M7 8h6v4H7V8z"
+      />
+    ),
+  },
+  {
+    label: "경매",
+    href: "/auctions",
+    isActive: (pathname: string) => pathname.startsWith("/auctions"),
+    icon: (
+      <path
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        strokeWidth="2"
+        d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+      />
+    ),
+  },
+  {
+    label: "마이페이지",
+    href: "/myPage",
+    isActive: (pathname: string) => pathname.startsWith("/myPage"),
+    icon: (
+      <path
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        strokeWidth="2"
+        d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"
+      />
+    ),
+  },
+];
+
 export default function MainLayout({
   title,
   canGoBack,
@@ -477,145 +545,56 @@ export default function MainLayout({
       <div
         className={clsx(
           "max-w-xl mx-auto",
-          hasTabBar && !isToolPath ? "pb-[86px]" : "pb-6"
+          hasTabBar && !isToolPath ? "pb-[84px]" : "pb-6"
         )}
       >
         {children}
       </div>
       {hasTabBar && !isToolPath ? (
-        <nav className="fixed bottom-0 left-0 right-0 z-40 border-t border-slate-200/80 bg-white/92 backdrop-blur-xl dark:border-slate-800/80 dark:bg-slate-950/92">
-          <div className="max-w-xl mx-auto px-4 pb-safe">
-            <div className="flex justify-between items-center py-3">
-              <Link
-                href="/"
-                className={clsx(
-                  "flex flex-col items-center space-y-1.5 w-full",
-                  pathname === "/"
-                    ? "text-primary"
-                    : "text-slate-500 transition-colors hover:text-slate-900 dark:text-slate-400 dark:hover:text-slate-100"
-                )}
-              >
-                <svg
-                  className="w-6 h-6"
-                  fill="none"
-                  stroke="currentColor"
-                  viewBox="0 0 24 24"
-                  xmlns="http://www.w3.org/2000/svg"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth="2"
-                    d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"
-                  ></path>
-                </svg>
-                <span className="text-xs font-medium">홈</span>
-              </Link>
-              <Link
-                href="/posts"
-                className={clsx(
-                  "flex flex-col items-center space-y-1.5 w-full",
-                  pathname === "/posts"
-                    ? "text-primary"
-                    : "text-slate-500 transition-colors hover:text-slate-900 dark:text-slate-400 dark:hover:text-slate-100"
-                )}
-              >
-                <svg
-                  className="w-6 h-6"
-                  fill="none"
-                  stroke="currentColor"
-                  viewBox="0 0 24 24"
-                  xmlns="http://www.w3.org/2000/svg"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth="2"
-                    d="M19 20H5a2 2 0 01-2-2V6a2 2 0 012-2h10a2 2 0 012 2v1m2 13a2 2 0 01-2-2V7m2 13a2 2 0 002-2V9a2 2 0 00-2-2h-2m-4-3H9M7 16h6M7 8h6v4H7V8z"
-                  ></path>
-                </svg>
-                <span className="text-xs font-medium">반려생활</span>
-              </Link>
-              <Link
-                href="/auctions"
-                className={clsx(
-                  "flex flex-col items-center space-y-1.5 w-full",
-                  pathname?.startsWith("/auctions")
-                    ? "text-primary"
-                    : "text-slate-500 transition-colors hover:text-slate-900 dark:text-slate-400 dark:hover:text-slate-100"
-                )}
-              >
-                <svg
-                  className="w-6 h-6"
-                  fill="none"
-                  stroke="currentColor"
-                  viewBox="0 0 24 24"
-                  xmlns="http://www.w3.org/2000/svg"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth="2"
-                    d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
-                  ></path>
-                </svg>
-                <span className="text-xs font-medium">경매</span>
-              </Link>
-              <Link
-                href="/chat"
-                className={clsx(
-                  "flex flex-col items-center space-y-1.5 w-full relative",
-                  pathname === "/chat"
-                    ? "text-primary"
-                    : "text-slate-500 transition-colors hover:text-slate-900 dark:text-slate-400 dark:hover:text-slate-100"
-                )}
-              >
-                {unreadData?.success && unreadData.unreadCount > 0 && (
-                  <span className="absolute -top-1 -right-1 bg-orange-500 text-white rounded-full w-5 h-5 flex items-center justify-center text-xs">
-                    {unreadData.unreadCount}
-                  </span>
-                )}
-                <svg
-                  className="w-6 h-6"
-                  fill="none"
-                  stroke="currentColor"
-                  viewBox="0 0 24 24"
-                  xmlns="http://www.w3.org/2000/svg"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth="2"
-                    d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"
-                  ></path>
-                </svg>
-                <span className="text-xs font-medium">채팅</span>
-              </Link>
-              <Link
-                href="/myPage"
-                className={clsx(
-                  "flex flex-col items-center space-y-1.5 w-full",
-                  pathname === "/myPage"
-                    ? "text-primary"
-                    : "text-slate-500 transition-colors hover:text-slate-900 dark:text-slate-400 dark:hover:text-slate-100"
-                )}
-              >
-                <svg
-                  className="w-6 h-6"
-                  fill="none"
-                  stroke="currentColor"
-                  viewBox="0 0 24 24"
-                  xmlns="http://www.w3.org/2000/svg"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth="2"
-                    d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"
-                  ></path>
-                </svg>
-                <span className="text-xs font-medium">마이페이지</span>
-              </Link>
+        <nav className="fixed inset-x-0 bottom-0 z-40 pb-[env(safe-area-inset-bottom)]">
+          <div className="max-w-xl mx-auto">
+            <div className="relative mx-auto flex h-[50px] w-full items-center justify-center border-t border-[#dbdbdb] bg-white text-[#262626]">
+              <div className="grid w-full grid-cols-5">
+                {BOTTOM_NAV_ITEMS.map((item) => {
+                  const active = item.isActive(pathname || "");
+                  return (
+                    <Link
+                      href={item.href}
+                      key={item.href}
+                      className={cn(
+                        "relative flex h-full flex-col items-center justify-center gap-0.5 text-[10px] leading-none transition-colors",
+                        active
+                          ? "text-black"
+                          : "text-[#8e8e8e] hover:text-[#262626]"
+                      )}
+                    >
+                      <span className="inline-flex h-7 w-7 items-center justify-center">
+                        <svg
+                          className="h-5 w-5"
+                          fill="none"
+                          stroke="currentColor"
+                          viewBox="0 0 24 24"
+                          xmlns="http://www.w3.org/2000/svg"
+                        >
+                          {item.icon}
+                        </svg>
+                        {item.href === "/chat" &&
+                        unreadData?.success &&
+                        unreadData.unreadCount > 0 ? (
+                          <span className="absolute -right-1 -top-0.5 grid h-4 w-4 place-items-center rounded-full bg-[#ed4956] text-[9px] font-semibold text-white">
+                            {unreadData.unreadCount > 9
+                              ? "9+"
+                              : unreadData.unreadCount}
+                          </span>
+                        ) : null}
+                      </span>
+                      <span className="text-[9px] font-medium leading-none tracking-tight">
+                        {item.label}
+                      </span>
+                    </Link>
+                  );
+                })}
+              </div>
             </div>
           </div>
         </nav>

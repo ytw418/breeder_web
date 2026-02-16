@@ -20,11 +20,11 @@ import { RankingResponse } from "pages/api/ranking";
 const TABS = [{ id: "전체", name: "전체" }, ...POST_CATEGORIES];
 const CATEGORY_ACCENT: Record<string, string> = {
   전체: "bg-slate-500",
-  사진: "bg-cyan-500",
-  변이: "bg-violet-500",
-  사육: "bg-emerald-500",
-  질문: "bg-amber-500",
-  자유: "bg-pink-500",
+  사진: "bg-slate-500",
+  변이: "bg-slate-500",
+  사육: "bg-slate-500",
+  질문: "bg-slate-500",
+  자유: "bg-slate-500",
 };
 
 const NOTICE_BANNERS = [
@@ -41,39 +41,6 @@ const NOTICE_BANNERS = [
     fallbackHref: "/posts/notices",
   },
 ];
-
-const PRIORITY_CATEGORIES: Record<string, number> = {
-  질문: 0,
-  정보: 1,
-};
-
-const BACKUP_COMMUNITY_CONTENT = [
-  {
-    id: "backup-question",
-    category: "질문",
-    title: "질문 글로 첫 대화를 열어보세요",
-    description:
-      "먹이, 온도, 습도처럼 사육 중 막히는 포인트를 질문으로 남기면 빠르게 답변을 받을 수 있어요.",
-    href: "/posts/upload?category=질문",
-    cta: "질문 글 작성하기",
-  },
-  {
-    id: "backup-info",
-    category: "정보",
-    title: "정보 글로 노하우를 공유해보세요",
-    description:
-      "세팅 팁, 사육 루틴, 성장 기록 같은 실전 정보를 올리면 커뮤니티가 더 빠르게 활발해져요.",
-    href: "/posts/upload?category=정보",
-    cta: "정보 글 작성하기",
-  },
-];
-
-const getMedalClass = (rank: number) => {
-  if (rank === 1) return "bg-yellow-400 text-white";
-  if (rank === 2) return "bg-gray-400 text-white";
-  if (rank === 3) return "bg-amber-700 text-white";
-  return "bg-gray-200 text-gray-600";
-};
 
 const SectionHeader = ({
   title,
@@ -105,12 +72,6 @@ export default function PostsClient() {
   };
 
   const { data, setSize, mutate } = useSWRInfinite<PostsListResponse>(getKey);
-  const { data: hotRankingData } = useSWR<RankingResponse>(
-    "/api/ranking?tab=coolInsect"
-  );
-  const { data: guinnessData } = useSWR<RankingResponse>(
-    "/api/ranking?tab=guinness"
-  );
   const { data: bredyData } = useSWR<RankingResponse>(
     "/api/ranking?tab=bredy"
   );
@@ -130,8 +91,6 @@ export default function PostsClient() {
     mutate();
   }, [selectedCategory, mutate]);
 
-  const hotPosts = hotRankingData?.postRanking?.slice(0, 5) ?? [];
-  const guinnessRecords = guinnessData?.records?.slice(0, 3) ?? [];
   const bredyRanking = bredyData?.bredyRanking?.slice(0, 5) ?? [];
   const noticePosts = noticeData?.posts ?? [];
   const displayNotices =
@@ -180,13 +139,13 @@ export default function PostsClient() {
             <Link
               key={notice.id}
               href={notice.href}
-              className="app-card-interactive block rounded-xl border border-amber-200 bg-gradient-to-r from-amber-50 to-orange-50 px-3 py-2.5"
+              className="app-card-interactive block rounded-xl border border-slate-200 bg-gradient-to-r from-slate-50 to-slate-50 px-3 py-2.5"
             >
               <div className="flex items-center gap-2">
-                <span className="inline-flex shrink-0 min-w-[42px] justify-center px-2 py-0.5 text-[11px] font-semibold rounded-full bg-amber-500 text-white">
+                <span className="inline-flex shrink-0 min-w-[42px] justify-center px-2 py-0.5 text-[11px] font-semibold rounded-full bg-slate-700 text-white">
                   {notice.label}
                 </span>
-                <p className="app-body-md min-w-0 flex-1 text-amber-900 line-clamp-1">
+                <p className="app-body-md min-w-0 flex-1 text-slate-900 line-clamp-1">
                   {notice.title}
                 </p>
               </div>
@@ -194,176 +153,52 @@ export default function PostsClient() {
           ))}
         </section>
 
-        {/* HOT 게시글 */}
-        <section className="app-section-muted app-reveal app-reveal-1">
-          <SectionHeader title="HOT 게시글" href="/ranking" />
-          <div className="app-rail mt-3 flex gap-3 px-4">
-            {hotRankingData ? (
-              hotPosts.length > 0 ? (
-                hotPosts.map((post) => (
-                  <Link
-                    key={post.id}
-                    href={`/posts/${post.id}`}
-                    className="snap-start shrink-0 w-40 app-card app-card-interactive overflow-hidden"
-                  >
-                    <div className="relative aspect-square bg-gray-100">
-                      {post.image ? (
-                        <Image
-                          src={makeImageUrl(post.image, "public")}
-                          className="object-cover"
-                          fill
-                          sizes="160px"
-                          alt={post.title}
-                        />
-                      ) : (
-                        <div className="w-full h-full bg-gray-100" />
-                      )}
-                    </div>
-                    <div className="p-3">
-                      <h3 className="app-title-md line-clamp-1">
-                        {post.title}
-                      </h3>
-                      <p className="mt-1 app-caption">❤️ {post._count.Likes}</p>
-                    </div>
-                  </Link>
-                ))
-              ) : (
-                <div className="app-body-sm text-slate-400 px-1 py-2">
-                  커뮤니티가 활발해질 준비 중이에요.
-                </div>
-              )
-            ) : (
-              [...Array(3)].map((_, i) => (
-                <div
-                  key={i}
-                  className="snap-start shrink-0 w-40 app-card overflow-hidden animate-pulse"
-                >
-                  <div className="aspect-square bg-gray-200" />
-                  <div className="p-3 space-y-2">
-                    <div className="h-3 bg-gray-200 rounded w-4/5" />
-                    <div className="h-3 bg-gray-200 rounded w-1/3" />
-                  </div>
-                </div>
-              ))
-            )}
-          </div>
-        </section>
-
-        {/* 브리디북 미리보기 */}
-        <section className="app-section app-reveal app-reveal-2">
-          <SectionHeader title="브리디북" href="/guinness" />
-          <div className="app-rail mt-3 flex gap-3 px-4">
-            {guinnessData ? (
-              guinnessRecords.filter((record) => record.recordType === "size").length > 0 ? (
-                guinnessRecords
-                  .filter((record) => record.recordType === "size")
-                  .map((record, index) => (
-                  <Link
-                    key={record.id}
-                    href="/guinness"
-                    className="snap-start shrink-0 w-56 app-card app-card-interactive overflow-hidden p-4"
-                  >
-                    <div className="flex items-start justify-between">
-                      <span
-                        className={cn(
-                          "w-7 h-7 rounded-full text-xs font-bold flex items-center justify-center",
-                          getMedalClass(index + 1)
-                        )}
-                      >
-                        {index + 1}
-                      </span>
-                      <p className="app-caption">{record.species}</p>
-                    </div>
-                    <p className="mt-3 app-title-md">
-                      체장 기록
-                    </p>
-                    <p className="mt-1 text-xl font-bold text-primary">
-                      {record.value}
-                      <span className="app-caption ml-1">mm</span>
-                    </p>
-                    <div className="mt-3 flex items-center gap-2">
-                      {record.user.avatar ? (
-                        <Image
-                          src={makeImageUrl(record.user.avatar, "avatar")}
-                          className="w-6 h-6 rounded-full object-cover"
-                          width={24}
-                          height={24}
-                          alt=""
-                        />
-                      ) : (
-                        <div className="w-6 h-6 rounded-full bg-gray-200" />
-                      )}
-                      <span className="app-caption text-slate-500">{record.user.name}</span>
-                    </div>
-                  </Link>
-                ))
-              ) : (
-                <div className="app-body-sm text-slate-400 px-1 py-2">
-                  표시할 체장 기록이 없습니다.
-                </div>
-              )
-            ) : (
-              [...Array(3)].map((_, i) => (
-                <div
-                  key={i}
-                  className="snap-start shrink-0 w-56 app-card overflow-hidden p-4 animate-pulse"
-                >
-                  <div className="h-7 w-7 rounded-full bg-gray-200" />
-                  <div className="mt-3 h-4 bg-gray-200 rounded w-2/5" />
-                  <div className="mt-2 h-6 bg-gray-200 rounded w-1/2" />
-                  <div className="mt-3 h-4 bg-gray-200 rounded w-1/3" />
-                </div>
-              ))
-            )}
-          </div>
-        </section>
-
         {/* TOP 브리디 */}
-        <section className="app-section-muted app-reveal app-reveal-3">
+        <section className="app-section app-reveal app-reveal-3 py-2">
           <SectionHeader title="TOP 브리디" href="/ranking" />
-          <div className="app-rail mt-3 flex gap-3 px-4">
+          <div className="app-rail mt-2 flex gap-2.5 px-4">
             {bredyData ? (
               bredyRanking.length > 0 ? (
                 bredyRanking.map((bredy, index) => (
                   <Link
                     key={bredy.user.id}
                     href={`/profiles/${bredy.user.id}`}
-                    className="snap-start shrink-0 w-44 app-card app-card-interactive p-3"
+                    className="snap-start shrink-0 w-40 app-card app-card-interactive px-2.5 py-2"
                   >
                     <div className="flex items-center justify-between">
                       {index < 3 ? (
-                        <span className="text-base leading-none">
+                        <span className="text-xs leading-none">
                           {index === 0 ? "🥇" : index === 1 ? "🥈" : "🥉"}
                         </span>
                       ) : (
-                        <span className="app-caption font-bold text-slate-500">
+                        <span className="app-caption text-[11px] font-semibold text-slate-500">
                           {index + 1}위
                         </span>
                       )}
-                      <span className="app-caption">점수</span>
+                      <span className="app-caption text-[11px]">점수</span>
                     </div>
-                    <div className="mt-3 flex items-center gap-2">
+                    <div className="mt-2 flex items-center gap-2">
                       {bredy.user.avatar ? (
                         <Image
                           src={makeImageUrl(bredy.user.avatar, "avatar")}
-                          className="w-9 h-9 rounded-full object-cover"
+                          className="w-7 h-7 rounded-full object-cover"
                           width={36}
                           height={36}
                           alt=""
                         />
                       ) : (
-                        <div className="w-9 h-9 rounded-full bg-gray-200" />
+                        <div className="w-7 h-7 rounded-full bg-slate-200" />
                       )}
                       <div className="min-w-0">
-                        <p className="app-title-md truncate">
+                        <p className="text-sm font-semibold tracking-tight text-slate-900 truncate">
                           {bredy.user.name}
                         </p>
-                        <p className="app-caption">
+                        <p className="app-caption text-[11px]">
                           ❤️ {bredy.totalLikes}
                         </p>
                       </div>
                     </div>
-                    <p className="mt-3 text-lg font-bold text-primary">
+                    <p className="mt-2 text-sm font-bold text-primary">
                       {bredy.score.toLocaleString()}
                     </p>
                   </Link>
@@ -377,17 +212,17 @@ export default function PostsClient() {
               [...Array(3)].map((_, i) => (
                 <div
                   key={i}
-                  className="snap-start shrink-0 w-44 app-card p-3 animate-pulse"
+                  className="snap-start shrink-0 w-40 app-card px-2.5 py-2 animate-pulse"
                 >
-                  <div className="h-4 bg-gray-200 rounded w-1/4" />
-                  <div className="mt-3 flex items-center gap-2">
-                    <div className="w-9 h-9 rounded-full bg-gray-200" />
+                  <div className="h-4 bg-slate-200 rounded w-1/4" />
+                  <div className="mt-2 flex items-center gap-2">
+                    <div className="w-7 h-7 rounded-full bg-slate-200" />
                     <div className="space-y-1 flex-1">
-                      <div className="h-3 bg-gray-200 rounded w-2/3" />
-                      <div className="h-3 bg-gray-200 rounded w-1/3" />
+                      <div className="h-3 bg-slate-200 rounded w-2/3" />
+                      <div className="h-3 bg-slate-200 rounded w-1/3" />
                     </div>
                   </div>
-                  <div className="mt-3 h-5 bg-gray-200 rounded w-1/2" />
+                  <div className="mt-2 h-4 bg-slate-200 rounded w-1/2" />
                 </div>
               ))
             )}
@@ -548,12 +383,12 @@ export default function PostsClient() {
               {[...Array(5)].map((_, i) => (
                 <div key={i} className="px-4 py-3 flex gap-3 animate-pulse">
                   <div className="flex-1 space-y-2">
-                    <div className="h-3 bg-gray-200 rounded w-16" />
-                    <div className="h-4 bg-gray-200 rounded w-3/4" />
-                    <div className="h-3 bg-gray-200 rounded w-full" />
-                    <div className="h-3 bg-gray-200 rounded w-1/2" />
+                    <div className="h-3 bg-slate-200 rounded w-16" />
+                    <div className="h-4 bg-slate-200 rounded w-3/4" />
+                    <div className="h-3 bg-slate-200 rounded w-full" />
+                    <div className="h-3 bg-slate-200 rounded w-1/2" />
                   </div>
-                  <div className="w-20 h-20 bg-gray-200 rounded-lg flex-shrink-0" />
+                  <div className="w-20 h-20 bg-slate-200 rounded-lg flex-shrink-0" />
                 </div>
               ))}
             </div>

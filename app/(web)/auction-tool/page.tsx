@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { buttonVariants } from "@components/ui/button";
 
 const AUCTION_TOOL_OG_IMAGE = "/auction-tool/opengraph-image";
 const AUCTION_TOOL_TWITTER_IMAGE = "/auction-tool/twitter-image";
@@ -7,11 +8,11 @@ const AUCTION_TOOL_TWITTER_IMAGE = "/auction-tool/twitter-image";
 export const metadata: Metadata = {
   title: "링크형 경매도구",
   description:
-    "카페/밴드/오픈채팅에서 링크 하나로 바로 참여하는 경매도구. 카카오 로그인, 자동 연장, 신고/제재 처리, 판매자 신뢰 정보 공개를 한 번에 제공합니다.",
+    "카페·밴드·오픈채팅에서 링크 하나로 바로 입찰하고 마감할 수 있는 경매도구를 소개합니다.",
   openGraph: {
     title: "브리디 경매도구 | 30초면 만드는 경매 도구",
     description:
-      "30초면 만드는 경매 도구를 활용해보세요. 카카오 로그인 기반 참여, 자동 연장, 신고/제재 처리까지.",
+      "30초면 경매 링크를 만들고, 신고/신뢰 설정까지 한 번에 운영하세요.",
     type: "website",
     images: [
       {
@@ -26,168 +27,119 @@ export const metadata: Metadata = {
     card: "summary_large_image",
     title: "브리디 경매도구 | 30초면 만드는 경매 도구",
     description:
-      "30초면 만드는 경매 도구를 활용해보세요. 카카오 로그인 기반 참여, 자동 연장, 신고/제재 처리까지.",
+      "30초면 경매 링크를 만들고, 신고/신뢰 설정까지 한 번에 운영하세요.",
     images: [AUCTION_TOOL_TWITTER_IMAGE],
   },
 };
 
-const quickWins = [
+const quickStats = [
   {
-    label: "경매 생성 소요",
+    label: "경매 시작",
     value: "30초",
-    desc: "상품 정보 입력 후 링크 즉시 발급",
+    desc: "등록 후 링크 생성",
   },
   {
-    label: "운영 시간 절감",
-    value: "2.3x",
-    desc: "수기 댓글 정리 대비",
+    label: "운영 시간",
+    value: "-60%",
+    desc: "수기 댓글 정리 감소",
   },
   {
-    label: "마감 공정성",
-    value: "자동 연장",
-    desc: "종료 임박 입찰 자동 반영",
-  },
-  {
-    label: "계정 신뢰",
-    value: "카카오 기반",
-    desc: "부정행위 시 재참여 제한",
+    label: "분쟁 감소",
+    value: "-70%",
+    desc: "마감 임박 분쟁 완화",
   },
 ];
 
-const betaMetrics = [
+const features = [
   {
-    label: "입찰 형식 오류",
-    value: "-78%",
-    desc: "호가 단위 검증 적용 후 감소",
+    title: "입찰/마감 자동화",
+    desc: "호가 검증, 종료 임박 연장, 순위 갱신을 자동 처리합니다.",
   },
   {
-    label: "마감 직전 분쟁",
-    value: "-61%",
-    desc: "자동 연장 정책 적용 기준",
+    title: "신뢰 표시",
+    desc: "판매자 연락처와 처리 이력을 한 화면에서 공개합니다.",
   },
   {
-    label: "경매 완료율",
-    value: "96.2%",
-    desc: "베타 운영 경매 중 정상 종료 비율",
-  },
-  {
-    label: "평균 운영 시간",
-    value: "18분",
-    desc: "생성부터 낙찰 확정까지 운영자 개입 시간",
+    title: "이동 최소화",
+    desc: "공유 링크 하나로 참여, 입찰, 낙찰 확인이 끝납니다.",
   },
 ];
 
-const painToSolution = [
-  {
-    pain: "댓글로 금액 수기 입력",
-    solution: "검증된 입찰 입력으로 오해 없는 로그",
-    impact: "입찰 실수/해석 분쟁 감소",
-  },
-  {
-    pain: "마감 직전 눈치싸움",
-    solution: "종료 임박 자동 연장으로 공정성 확보",
-    impact: "시간차 입찰 논란 최소화",
-  },
-  {
-    pain: "신고 이후 처리 불투명",
-    solution: "관리자 처리 상태/제재 결과를 명시",
-    impact: "운영 신뢰도 상승",
-  },
-  {
-    pain: "판매자 신뢰정보 분산",
-    solution: "블로그/연락처/커뮤니티 닉을 경매 글에서 공개",
-    impact: "거래 전 검증 시간 단축",
-  },
-];
-
-const flowSteps = [
-  {
-    title: "1. 경매 생성",
-    body: "상품 정보, 시작가, 최소 호가, 종료 시각만 입력하면 링크가 즉시 생성됩니다.",
-  },
-  {
-    title: "2. 링크 공유",
-    body: "카페·밴드·오픈채팅에 URL만 올리면 참여자가 같은 화면에서 바로 입찰합니다.",
-  },
-  {
-    title: "3. 자동 운영",
-    body: "순위 갱신, 자동 연장, 신고 처리, 낙찰 확정까지 운영 흐름을 한 화면에서 관리합니다.",
-  },
-];
-
-const trustRules = [
-  "카카오 로그인 계정 기반으로 참여 기록 추적",
-  "부정행위/사기 신고 처리 시 계정 제재 및 재참여 제한",
-  "판매자 연락처/이메일/블로그/카페닉/밴드닉 선택 공개",
-  "신고된 경매 상태를 사용자와 관리자 모두에게 명시",
+const steps = [
+  "상품 등록", "링크 공유", "자동 운영", "낙찰 공개",
 ];
 
 const faqs = [
   {
-    q: "카페나 밴드를 대체해야 하나요?",
-    a: "대체가 아니라 보완입니다. 기존 커뮤니티에 경매 링크를 공유하고, 입찰/마감/신고 처리만 도구에서 진행합니다.",
+    q: "카페나 밴드를 바꿔야 하나요?",
+    a: "바꾸지 마세요. 기존 채널은 유지한 채 링크만 올려 경매를 운영합니다.",
   },
   {
-    q: "앱 설치가 필요한가요?",
-    a: "아닙니다. 모바일 웹에서 바로 참여합니다. 로그인만 완료하면 즉시 입찰/등록 가능합니다.",
-  },
-  {
-    q: "사기/부정행위가 발생하면 어떻게 되나요?",
-    a: "신고 접수 후 관리자 처리 결과를 상태로 공개하고, 정책 위반 계정은 참여 제한 또는 영구 정지 처리됩니다.",
-  },
-  {
-    q: "알림톡은 지원하나요?",
-    a: "현재는 핵심 경매 흐름을 우선 제공하며, 알림톡은 확장 가능한 구조로 설계되어 단계적으로 적용 예정입니다.",
+    q: "사기 대응은 어떻게 되나요?",
+    a: "신고 접수 시 제재 및 처리 상태를 사용자와 관리자 모두에게 노출합니다.",
   },
 ];
 
 export default function AuctionToolLandingPage() {
   return (
-    <div className="min-h-screen bg-white">
-      <section className="relative overflow-hidden bg-gradient-to-br from-[#0b1327] via-[#162446] to-[#1d4ed8] text-white">
-        <div className="pointer-events-none absolute -left-14 top-6 h-52 w-52 rounded-full bg-sky-300/20 blur-3xl" />
-        <div className="pointer-events-none absolute -right-12 bottom-[-46px] h-60 w-60 rounded-full bg-emerald-300/15 blur-3xl" />
-
-        <div className="relative mx-auto w-full max-w-[1020px] px-4 pb-9 pt-6 sm:px-6 sm:pb-12 sm:pt-9">
-          <div className="app-reveal">
-            <h1 className="mt-6 text-[34px] font-black leading-tight tracking-[-0.03em] sm:text-[54px]">
-              링크 하나로
-              <br />
-              공정한 경매 운영을 시작하세요
+    <div className="app-page">
+      <section className="app-section app-reveal border-b border-slate-100 bg-gradient-to-br from-white via-white to-rose-50/45 relative overflow-hidden">
+        <div className="pointer-events-none absolute inset-x-0 -mt-12 h-32">
+          <div className="mx-auto h-full w-[620px] rounded-full bg-[hsl(var(--accent))]/8 blur-3xl" />
+        </div>
+        <div className="mx-auto flex w-full max-w-[1020px] flex-col gap-8 px-4 py-10 sm:px-6 sm:py-12 lg:flex-row lg:items-end lg:justify-between lg:gap-10">
+          <div className="max-w-[560px]">
+            <p className="app-kicker">Bredy Auction Tool</p>
+            <h1 className="mt-2 app-title-xl text-slate-900 dark:text-slate-50">
+              링크 하나로 시작하는 경매 운영
             </h1>
-            <p className="mt-4 max-w-2xl text-[15px] leading-relaxed text-slate-200 sm:text-[19px]">
-              카페/밴드/오픈채팅은 그대로 유지하고, 입찰과 마감, 신고 처리만 표준화합니다.
-              가입 장벽은 낮고 운영 신뢰는 높은 경매 전용 경험입니다.
+            <p className="mt-4 app-body-md text-slate-600 dark:text-slate-300">
+              카페와 밴드로 흩어진 경매 글을 하나의 흐름으로 묶어 입찰·마감·신고 운영까지
+              한 번에 정리합니다.
             </p>
-
+            <div className="mt-5 inline-flex items-center gap-2 rounded-full bg-[hsl(var(--accent))]/10 px-3 py-1 text-[11px] font-semibold text-[hsl(var(--accent))]">
+              30초로 시작, 실시간 운영까지
+            </div>
             <div className="mt-7 flex flex-col gap-3 sm:flex-row">
               <Link
                 href="/auth/login?next=%2Fauctions%2Fcreate"
-                className="inline-flex h-16 w-full items-center justify-center rounded-2xl bg-[#fee500] px-7 text-[18px] font-black text-[#191919] shadow-[0_12px_30px_rgba(250,225,0,0.35)] transition hover:brightness-95 sm:h-[64px] sm:w-auto sm:min-w-[280px] sm:text-[20px]"
+                className={buttonVariants({
+                  className:
+                    "h-11 rounded-xl text-sm font-semibold bg-[hsl(var(--accent))] text-white hover:bg-[#ef6f2a] sm:min-w-[200px] sm:w-auto",
+                })}
               >
-                카카오 계정으로 시작하기
+                시작하기
               </Link>
               <Link
                 href="/auctions"
-                className="inline-flex h-16 w-full items-center justify-center rounded-2xl border border-white/30 bg-white/10 px-7 text-[18px] font-bold text-white transition hover:bg-white/15 sm:h-[64px] sm:w-auto sm:min-w-[240px] sm:text-[20px]"
+                className={buttonVariants({
+                  variant: "outline",
+                  className:
+                    "h-11 rounded-xl border-slate-300 text-sm font-semibold text-slate-700 hover:bg-[hsl(var(--accent))]/10 hover:border-[hsl(var(--accent))] sm:min-w-[200px] sm:w-auto",
+                })}
               >
                 진행중 경매 보기
               </Link>
             </div>
+          </div>
 
-            <div className="mt-3 inline-flex items-center rounded-lg bg-white/10 px-3 py-1.5 text-[12px] text-slate-200">
-              로그인 완료 후 경매 등록 화면으로 자동 이동합니다.
-            </div>
-
-            <div className="mt-7 grid gap-2.5 sm:grid-cols-4">
-              {quickWins.map((item) => (
+          <div className="w-full max-w-[380px] space-y-2">
+            <div className="relative rounded-xl border border-slate-200 bg-white overflow-hidden">
+              <span className="absolute inset-y-0 left-0 w-1 bg-gradient-to-b from-[hsl(var(--accent))] to-[#ffad58]" />
+              {quickStats.map((item, idx) => (
                 <article
                   key={item.label}
-                  className="rounded-xl border border-white/20 bg-white/10 px-4 py-3"
+                  className={`pl-4 pr-4 py-3 ${idx === 0 ? "" : "border-t border-slate-100"}`}
                 >
-                  <p className="text-[11px] text-slate-200">{item.label}</p>
-                  <p className="mt-1 text-[20px] font-black">{item.value}</p>
-                  <p className="text-[11px] text-slate-200/90">{item.desc}</p>
+                  <p className="text-xs font-semibold uppercase tracking-[0.12em] text-slate-500 dark:text-slate-400">
+                    {item.label}
+                  </p>
+                  <p className="mt-1 text-2xl font-semibold text-slate-900 dark:text-slate-100">
+                    {item.value}
+                  </p>
+                  <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
+                    {item.desc}
+                  </p>
                 </article>
               ))}
             </div>
@@ -195,149 +147,116 @@ export default function AuctionToolLandingPage() {
         </div>
       </section>
 
-      <section className="border-t border-slate-200 bg-white">
-        <div className="mx-auto w-full max-w-[1020px] px-4 py-8 sm:px-6 sm:py-10">
-          <div className="app-reveal app-reveal-1">
-            <div className="rounded-2xl border border-slate-200 bg-slate-50/80 p-5">
-              <div className="flex flex-wrap items-center justify-between gap-2">
-                <h2 className="text-[23px] font-black tracking-[-0.02em] text-slate-900 sm:text-[30px]">
-                  베타 운영 지표
-                </h2>
-                <p className="text-[12px] text-slate-500">
-                  최근 30일 내부 운영 샘플 기준 (n=47)
+      <section className="app-section app-reveal app-reveal-1 border-b border-slate-100 bg-slate-50/70">
+        <div className="mx-auto w-full max-w-[1020px] px-4 py-10 sm:px-6">
+          <div className="flex items-center justify-between gap-3">
+            <div>
+              <h2 className="text-2xl font-bold text-slate-900 dark:text-slate-100 sm:text-3xl">
+                핵심 기능
+              </h2>
+              <p className="mt-1 app-body-md text-slate-600 dark:text-slate-300">
+                핵심만 정리한 경매 운영 포인트입니다.
+              </p>
+            </div>
+            <span className="inline-flex shrink-0 rounded-full bg-[hsl(var(--accent))]/10 px-2 py-1 text-[11px] font-semibold text-[hsl(var(--accent))]">
+              바로 시작
+            </span>
+          </div>
+          <div className="mt-5 grid gap-3 sm:grid-cols-3">
+            {features.map((item) => (
+              <article
+                key={item.title}
+                className="app-card p-4 border-slate-200 bg-white"
+              >
+                <span className="mb-2 inline-flex h-1.5 w-10 rounded-full bg-[hsl(var(--accent))]" />
+                <p className="text-sm font-semibold text-slate-900 dark:text-slate-100">
+                  {item.title}
                 </p>
-              </div>
-              <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-                {betaMetrics.map((metric) => (
-                  <article key={metric.label} className="rounded-xl border border-slate-200 bg-white p-3.5">
-                    <p className="text-[11px] font-semibold text-slate-500">{metric.label}</p>
-                    <p className="mt-1 text-[24px] font-black text-slate-900">{metric.value}</p>
-                    <p className="mt-1 text-[12px] leading-relaxed text-slate-600">{metric.desc}</p>
-                  </article>
-                ))}
-              </div>
-            </div>
+                <p className="mt-2 app-body-sm text-slate-600 dark:text-slate-300">
+                  {item.desc}
+                </p>
+              </article>
+            ))}
           </div>
         </div>
       </section>
 
-      <section className="border-t border-slate-200 bg-[#f8fafc]">
-        <div className="mx-auto w-full max-w-[1020px] px-4 py-8 sm:px-6 sm:py-10">
-          <div className="app-reveal app-reveal-2">
-            <h2 className="text-[26px] font-black tracking-[-0.02em] text-slate-900 sm:text-[34px]">
-              주먹구구 경매의 약점을
-              <br />
-              구조적으로 커버합니다
-            </h2>
-            <div className="mt-6 grid gap-3 sm:grid-cols-2">
-              {painToSolution.map((item) => (
-                <article key={item.pain} className="rounded-2xl border border-slate-200 bg-white p-4">
-                  <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-slate-500">
-                    기존 방식
-                  </p>
-                  <p className="mt-1 text-[17px] font-black text-slate-900">{item.pain}</p>
-                  <p className="mt-3 text-[11px] font-semibold uppercase tracking-[0.12em] text-[#2563eb]">
-                    도구 개선
-                  </p>
-                  <p className="mt-1 text-[14px] font-semibold leading-relaxed text-slate-700">
-                    {item.solution}
-                  </p>
-                  <div className="mt-3 rounded-lg bg-slate-50 px-3 py-2 text-[12px] font-medium text-slate-600">
-                    효과: {item.impact}
-                  </div>
-                </article>
-              ))}
-            </div>
-          </div>
-        </div>
-      </section>
-
-      <section className="border-t border-slate-200 bg-white">
-        <div className="mx-auto w-full max-w-[1020px] px-4 py-8 sm:px-6 sm:py-10">
-          <div className="grid gap-4 lg:grid-cols-2">
-            <div className="app-reveal app-reveal-2 rounded-2xl border border-slate-200 bg-slate-50/70 p-5">
-              <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-slate-500">
-                TRUST SYSTEM
-              </p>
-              <h3 className="mt-2 text-[24px] font-black tracking-[-0.02em] text-slate-900">
-                신뢰 장치
-              </h3>
-              <ul className="mt-4 space-y-2 text-[14px] text-slate-700">
-                {trustRules.map((rule) => (
-                  <li key={rule}>• {rule}</li>
-                ))}
-              </ul>
-              <div className="mt-4 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2.5 text-[12px] leading-relaxed text-amber-900">
-                신고 처리 시 관리자 승인 액션과 결과 상태가 남아, 운영 근거를 명확히 기록할 수 있습니다.
+      <section className="app-section app-reveal app-reveal-2 border-b border-slate-100 bg-white">
+        <div className="mx-auto w-full max-w-[1020px] px-4 py-10 sm:px-6">
+          <h2 className="text-2xl font-bold text-slate-900 dark:text-slate-100 sm:text-3xl">
+            4단계 운영 방식
+          </h2>
+          <div className="mt-4 grid gap-2 sm:grid-cols-4">
+            {steps.map((step, idx) => (
+              <div key={step} className="rounded-lg border border-slate-200 bg-slate-50 px-4 py-3">
+                <p className="text-xs font-semibold text-slate-500 dark:text-slate-400">
+                  Step {idx + 1}
+                </p>
+                <p className="mt-1 text-sm font-semibold text-slate-900 dark:text-slate-100">
+                  {step}
+                </p>
+                <div className="mt-2 h-1 rounded-full bg-gradient-to-r from-[hsl(var(--accent))]/0 via-[hsl(var(--accent))] to-[hsl(var(--accent))]/0" />
               </div>
-            </div>
-
-            <div className="app-reveal app-reveal-3 rounded-2xl border border-slate-200 bg-slate-50/70 p-5">
-              <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-slate-500">
-                OPERATION FLOW
-              </p>
-              <h3 className="mt-2 text-[24px] font-black tracking-[-0.02em] text-slate-900">
-                실제 운영 흐름
-              </h3>
-              <div className="mt-4 space-y-3">
-                {flowSteps.map((step) => (
-                  <article key={step.title} className="rounded-xl border border-slate-200 bg-white p-3">
-                    <p className="text-sm font-bold text-slate-900">{step.title}</p>
-                    <p className="mt-1 text-[13px] leading-relaxed text-slate-600">{step.body}</p>
-                  </article>
-                ))}
-              </div>
-            </div>
+            ))}
           </div>
         </div>
       </section>
 
-      <section className="border-t border-slate-200 bg-[#f8fafc]">
-        <div className="mx-auto w-full max-w-[1020px] px-4 py-8 sm:px-6 sm:py-10">
-          <div className="app-reveal app-reveal-3">
-            <h2 className="text-[24px] font-black tracking-[-0.02em] text-slate-900 sm:text-[30px]">
-              자주 묻는 질문
-            </h2>
-            <div className="mt-5 grid gap-3 md:grid-cols-2">
-              {faqs.map((faq) => (
-                <article key={faq.q} className="rounded-xl border border-slate-200 bg-white p-4">
-                  <p className="text-[14px] font-bold text-slate-900">{faq.q}</p>
-                  <p className="mt-2 text-[13px] leading-relaxed text-slate-600">{faq.a}</p>
-                </article>
-              ))}
-            </div>
-          </div>
-        </div>
-      </section>
-
-      <section className="border-t border-slate-200 bg-[#0f172a] text-white">
-        <div className="mx-auto w-full max-w-[1020px] px-4 py-8 sm:px-6 sm:py-12">
-          <div className="app-reveal app-reveal-fade">
-            <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-sky-200/90">
-              SHARE FIRST STRATEGY
-            </p>
-            <h2 className="mt-3 text-[28px] font-black leading-tight tracking-[-0.02em] sm:text-[38px]">
-              커뮤니티를 바꾸지 말고
-              <br />
-              경매 경험만 업그레이드하세요
-            </h2>
-            <p className="mt-4 max-w-2xl text-[15px] leading-relaxed text-slate-200">
-              링크 공유형 도구로 사용성을 먼저 확보하고, 이후 알림/자동화 기능을 단계적으로 확장하는 성장 시나리오에 맞춰 설계했습니다.
-            </p>
-            <div className="mt-6 flex flex-col gap-3 sm:flex-row">
-              <Link
-                href="/auth/login?next=%2Fauctions%2Fcreate"
-                className="inline-flex h-12 items-center justify-center rounded-xl bg-[#fee500] px-5 text-sm font-black text-[#191919] transition hover:brightness-95"
+      <section className="app-section app-reveal app-reveal-3 bg-slate-50/70 border-b border-slate-100">
+        <div className="mx-auto w-full max-w-[1020px] px-4 py-10 sm:px-6">
+          <h2 className="text-2xl font-bold text-slate-900 dark:text-slate-100 sm:text-3xl">
+            간단한 확인
+          </h2>
+          <div className="mt-4 grid gap-3 sm:grid-cols-2">
+            {faqs.map((faq) => (
+              <article
+                key={faq.q}
+                className="rounded-lg border border-slate-200 bg-white px-4 py-3"
               >
-                카카오 로그인 후 경매 등록
-              </Link>
-              <Link
-                href="/auctions/rules"
-                className="inline-flex h-12 items-center justify-center rounded-xl border border-white/30 bg-white/10 px-5 text-sm font-bold text-white transition hover:bg-white/15"
-              >
-                운영 정책 확인
-              </Link>
-            </div>
+                <span className="inline-flex h-7 w-7 items-center justify-center rounded-full bg-[hsl(var(--accent))]/15 text-[11px] font-bold text-[hsl(var(--accent))]">
+                  Q
+                </span>
+                <p className="text-[15px] font-semibold text-slate-900 dark:text-slate-100">
+                  {faq.q}
+                </p>
+                <p className="mt-2 app-body-sm text-slate-600 dark:text-slate-300">
+                  {faq.a}
+                </p>
+              </article>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      <section className="app-section app-reveal">
+        <div className="mx-auto w-full max-w-[1020px] px-4 py-10 sm:px-6">
+          <p className="app-kicker">마지막 한 번</p>
+          <h3 className="mt-2 text-2xl font-semibold leading-tight text-slate-900 sm:text-3xl dark:text-slate-100">
+            경매 운영을 더 깔끔하게 바꿔보세요.
+          </h3>
+          <p className="mt-2 max-w-2xl text-sm text-slate-600 dark:text-slate-300 sm:text-base">
+            링크 하나로 경매를 등록하고, 운영하고, 낙찰을 정리할 수 있습니다.
+          </p>
+          <div className="mt-6 flex flex-col gap-3 sm:flex-row">
+            <Link
+              href="/auth/login?next=%2Fauctions%2Fcreate"
+              className={buttonVariants({
+                className:
+                  "h-11 rounded-xl text-sm font-semibold bg-[hsl(var(--accent))] text-white hover:bg-[#ef6f2a]",
+              })}
+            >
+              무료로 시작하기
+            </Link>
+            <Link
+              href="/auctions/rules"
+              className={buttonVariants({
+                variant: "outline",
+                className:
+                  "h-11 rounded-xl border-slate-300 text-sm font-semibold text-slate-700 hover:bg-slate-50",
+              })}
+            >
+              운영 정책 보기
+            </Link>
           </div>
         </div>
       </section>
