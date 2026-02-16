@@ -25,7 +25,7 @@
     "seed:dummy:reset": "ts-node --transpile-only --compiler-options '{\"module\":\"CommonJS\"}' prisma/seed-dummy.ts --reset",
     "seed:auction-flow": "ts-node --transpile-only --compiler-options '{\"module\":\"CommonJS\"}' prisma/seed-auction-flow.ts",
     "issue:auto-pr": "node scripts/issue-auto-pr.mjs",
-    "import:morphmarket:auction": "npx ts-node --transpile-only scripts/import-morphmarket-auctions.ts"
+    "import:morphmarket:auction": "npx ts-node --transpile-only --compiler-options '{\"module\":\"CommonJS\"}' -r tsconfig-paths/register scripts/import-morphmarket-auctions.ts"
   },
   "dependencies": {
     "@heroicons/react": "^2.0.18",

@@ -93,7 +93,11 @@ const stripHtml = (value: string) =>
     .replace(/\s+/g, " ")
     .trim();
 
-const asString = (value: unknown) => (typeof value === "string" ? value.trim() : "");
+const asString = (value: unknown) => {
+  if (typeof value === "string") return value.trim();
+  if (typeof value === "number") return String(value);
+  return "";
+};
 
 const asNumber = (value: unknown): number | null => {
   if (typeof value === "number" && Number.isFinite(value)) return value;
