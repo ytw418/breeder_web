@@ -11,14 +11,14 @@ const MySaleHistroyMenu = () => {
   const id = params?.id ? Number(params?.id) : user?.id;
 
   return (
-    <div className="grid grid-cols-3 gap-4">
+    <div className="grid grid-cols-3 gap-2">
       <Link
         href={`/profiles/${id}/sales`}
-        className="flex flex-col items-center p-4 bg-white rounded-2xl shadow-sm hover:shadow-md transition-shadow"
+        className="flex flex-col items-center p-3 bg-white rounded-xl shadow-sm hover:shadow-md transition-shadow"
       >
-        <div className="w-14 h-14 bg-primary/10 text-primary rounded-full flex items-center justify-center mb-2">
+        <div className="w-11 h-11 text-primary rounded-full flex items-center justify-center mb-1.5">
           <svg
-            className="w-6 h-6"
+            className="w-5 h-5"
             fill="none"
             stroke="currentColor"
             viewBox="0 0 24 24"
@@ -31,16 +31,16 @@ const MySaleHistroyMenu = () => {
             />
           </svg>
         </div>
-        <span className="text-sm font-medium">판매내역</span>
+        <span className="text-xs font-medium">판매내역</span>
       </Link>
 
       <Link
         href={`/profiles/${id}/purchases`}
-        className="flex flex-col items-center p-4 bg-white rounded-2xl shadow-sm hover:shadow-md transition-shadow"
+        className="flex flex-col items-center p-3 bg-white rounded-xl shadow-sm hover:shadow-md transition-shadow"
       >
-        <div className="w-14 h-14 bg-primary/10 text-primary rounded-full flex items-center justify-center mb-2">
+        <div className="w-11 h-11 text-primary rounded-full flex items-center justify-center mb-1.5">
           <svg
-            className="w-6 h-6"
+            className="w-5 h-5"
             fill="none"
             stroke="currentColor"
             viewBox="0 0 24 24"
@@ -53,16 +53,16 @@ const MySaleHistroyMenu = () => {
             />
           </svg>
         </div>
-        <span className="text-sm font-medium">구매내역</span>
+        <span className="text-xs font-medium">구매내역</span>
       </Link>
 
       <Link
         href={`/profiles/${id}/favs`}
-        className="flex flex-col items-center p-4 bg-white rounded-2xl shadow-sm hover:shadow-md transition-shadow"
+        className="flex flex-col items-center p-3 bg-white rounded-xl shadow-sm hover:shadow-md transition-shadow"
       >
-        <div className="w-14 h-14 bg-primary/10 text-primary rounded-full flex items-center justify-center mb-2">
+        <div className="w-11 h-11 text-primary rounded-full flex items-center justify-center mb-1.5">
           <svg
-            className="w-6 h-6"
+            className="w-5 h-5"
             fill="none"
             stroke="currentColor"
             viewBox="0 0 24 24"
@@ -75,7 +75,7 @@ const MySaleHistroyMenu = () => {
             />
           </svg>
         </div>
-        <span className="text-sm font-medium">관심목록</span>
+        <span className="text-xs font-medium">관심목록</span>
       </Link>
     </div>
   );

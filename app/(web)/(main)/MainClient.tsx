@@ -18,10 +18,9 @@ import SkeletonItem from "@components/atoms/SkeletonItem";
 import { cn, makeImageUrl } from "@libs/client/utils";
 import { CATEGORIES } from "@libs/constants";
 import { ANALYTICS_EVENTS, trackEvent } from "@libs/client/analytics";
-import { getProductPath } from "@libs/product-route";
 import { AuctionsListResponse } from "pages/api/auctions";
-import { PopularProductsResponse } from "pages/api/products/popular";
 import useUser from "hooks/useUser";
+import { RankingResponse } from "pages/api/ranking";
 
 export interface ProductWithCount extends Product {
   _count: { favs: number };
@@ -110,11 +109,11 @@ const MainClient = () => {
   };
 
   const { data, setSize, mutate } = useSWRInfinite<ProductsResponse>(getKey);
-  const { data: popularProductsData } = useSWR<PopularProductsResponse>(
-    "/api/products/popular"
-  );
   const { data: ongoingAuctionsData } = useSWR<AuctionsListResponse>(
     "/api/auctions?status=진행중&page=1"
+  );
+  const { data: hotPostsData } = useSWR<RankingResponse>(
+    "/api/ranking?tab=mutation"
   );
   // 배너 데이터 호출
   const { data: bannerData } = useSWR("/api/admin/banners");
@@ -240,19 +239,12 @@ const MainClient = () => {
   return (
     <div className="app-page flex flex-col h-full">
       {/* 상단 배너/히어로 */}
-      <section className="app-section app-reveal">
-        <div className="px-5 pb-3">
-          <p className="app-kicker">TODAY</p>
-          <h1 className="mt-1 text-[22px] font-extrabold tracking-[-0.03em] text-slate-950">
-            브리디 홈
-          </h1>
-        </div>
-        <div className="px-5">
-          <div
-            ref={bannerRef}
-            onScroll={handleBannerScroll}
-            className="app-rail flex gap-3.5"
-          >
+      <section className="app-reveal">
+        <div
+          ref={bannerRef}
+          onScroll={handleBannerScroll}
+          className="app-rail flex gap-0"
+        >
             {banners.map((banner: any) => (
               <Link
                 key={banner.id}
@@ -266,8 +258,8 @@ const MainClient = () => {
                   })
                 }
                 className={cn(
-                  "snap-start shrink-0 w-[84%] app-card app-card-interactive p-5 text-white bg-gradient-to-r relative overflow-hidden border-transparent",
-                  banner.bgClass || "from-gray-500 to-gray-600"
+                  "snap-start shrink-0 w-full app-card-interactive rounded-none border-0 shadow-none px-5 py-5 text-white bg-gradient-to-r relative overflow-hidden from-emerald-500 to-teal-500",
+                  banner.bgClass
                 )}
               >
                 <span className="app-kicker text-white/75 relative z-10">Bredy</span>
@@ -281,7 +273,7 @@ const MainClient = () => {
                 <div className="pointer-events-none absolute -right-8 -top-10 h-28 w-28 rounded-full bg-white/12" />
               </Link>
             ))}
-          </div>
+          
         </div>
         <div className="mt-3 flex items-center justify-center gap-1.5">
           {banners.map((banner: any, index: number) => (
@@ -298,117 +290,130 @@ const MainClient = () => {
         </div>
       </section>
 
-      {/* 브리디북 랜딩 */}
-      <section className="app-section app-reveal app-reveal-1">
-        <SectionHeader
-          title="브리디북"
-          subtitle="당신의 브리딩 실력을 기록하세요"
-          href="/bredybook-landing"
-          actionLabel="바로가기"
-        />
-        <div className="mt-3 px-5">
-          <Link
-            href="/bredybook-landing"
-            className="app-card app-card-interactive block overflow-hidden border-transparent bg-gradient-to-r from-slate-900 via-slate-800 to-slate-900 p-5 text-white"
-          >
-            <p className="app-kicker text-white/70">Bredybook</p>
-            <h3 className="mt-2 text-lg font-semibold">
-              당신의 기록을 새로운 스탠다드로
-            </h3>
-            <p className="mt-2 text-sm text-white/80">
-              이제 더이상 카더라 기네스는 그만. 공식 기록으로 증명하세요.
-            </p>
-            <span className="mt-4 inline-flex h-8 items-center rounded-full bg-white/15 px-3 text-xs font-semibold">
-              브리디북 기록하러 가기
-            </span>
-          </Link>
-        </div>
-      </section>
-
       {/* 혈통카드 */}
-      <section className="app-section app-reveal app-reveal-1">
+      <section className="app-section app-reveal app-reveal-1 py-2">
         <SectionHeader
           title="혈통카드"
           subtitle="내 대표 혈통카드를 만들고 전달해보세요"
           href="/bloodline-cards/create"
           actionLabel="만들기"
         />
-        <div className="mt-3 px-5">
+        <div className="mt-1 px-5">
           <Link
             href="/bloodline-cards/create"
-            className="app-card app-card-interactive block overflow-hidden border-transparent bg-gradient-to-r from-slate-900 via-indigo-900 to-slate-800 p-5 text-white"
+            className="relative overflow-hidden app-card app-card-interactive block border-slate-200/70 bg-gradient-to-br from-amber-50 via-orange-50 to-amber-100 p-4 text-slate-900 transition duration-300 hover:-translate-y-1 hover:shadow-[0_18px_38px_rgba(15, 23, 42,0.28)]"
           >
-            <p className="app-kicker text-white/70">Bloodline Card</p>
-            <h3 className="mt-2 text-lg font-semibold">혈통카드 만들기</h3>
-            <p className="mt-2 text-sm text-white/80">
+            <div className="pointer-events-none absolute -left-12 -top-12 h-36 w-36 rounded-full bg-slate-200/45 blur-2xl" />
+            <div className="pointer-events-none absolute -right-16 -bottom-12 h-36 w-36 rounded-full bg-slate-200/35 blur-2xl" />
+            <span className="pointer-events-none absolute right-4 top-4 inline-flex h-2.5 w-2.5 rounded-full bg-white/80">
+              <span className="inline-flex h-full w-full animate-ping rounded-full bg-white/90" />
+            </span>
+            <p className="app-kicker text-amber-800">Bloodline Card</p>
+            <h3 className="mt-1.5 text-base font-bold text-slate-900">혈통카드 만들기</h3>
+            <p className="mt-1.5 text-xs leading-snug text-slate-700">
               내 대표 혈통카드를 만들고, 다른 유저에게 전달할 수 있습니다.
             </p>
-            <span className="mt-4 inline-flex h-8 items-center rounded-full bg-white/15 px-3 text-xs font-semibold">
+            <span className="mt-3 inline-flex h-7 items-center rounded-full bg-amber-500 px-2.5 text-[11px] font-semibold text-white">
               혈통카드 페이지로 이동
             </span>
           </Link>
         </div>
       </section>
 
-      {/* 인기 상품 */}
-      <section className="app-section-muted app-reveal app-reveal-1">
-        <SectionHeader title="인기 상품" subtitle="좋아요가 많은 상품" />
-        <div className="mt-3 px-5">
+      {/* 브리디북 랜딩 */}
+      <section className="app-section app-reveal app-reveal-1 py-2">
+        <SectionHeader
+          title="브리디북"
+          subtitle="당신의 브리딩 실력을 기록하세요"
+          href="/bredybook-landing"
+          actionLabel="바로가기"
+        />
+        <div className="mt-1 px-5">
+          <Link
+            href="/bredybook-landing"
+            className="app-card app-card-interactive block overflow-hidden border-transparent bg-gradient-to-r from-slate-900 via-violet-900 to-indigo-900 p-4 text-white"
+          >
+            <p className="app-kicker text-white/70">Bredybook</p>
+            <h3 className="mt-1.5 text-base font-semibold">
+              당신의 기록을 새로운 스탠다드로
+            </h3>
+            <p className="mt-1.5 text-xs leading-snug text-white/80">
+              이제 더이상 카더라 기네스는 그만. 공식 기록으로 증명하세요.
+            </p>
+            <span className="mt-3 inline-flex h-7 items-center rounded-full bg-white/20 px-2.5 text-[11px] font-semibold">
+              브리디북 기록하러 가기
+            </span>
+          </Link>
+        </div>
+      </section>
+
+      {/* 인기 게시글 */}
+      <section className="app-section app-reveal app-reveal-1 py-2">
+        <SectionHeader
+          title="인기 게시글"
+          subtitle="좋아요가 많이 모인 글"
+          href="/posts"
+        />
+        <div className="mt-1 px-5">
           <div className="app-rail flex gap-3">
-            {popularProductsData ? (
-              popularProductsData.products.map((product, index) => (
-                <Link
-                  key={product.id}
-                  href={getProductPath(product.id, product.name)}
-                  onClick={() =>
-                    trackEvent(ANALYTICS_EVENTS.homePopularProductClicked, {
-                      product_id: product.id,
-                      product_name: product.name,
-                      rank_index: index,
-                      user_id: user?.id || null,
-                    })
-                  }
-                  className="snap-start shrink-0 w-40 app-card app-card-interactive overflow-hidden"
-                >
-                  <div className="relative aspect-square bg-gray-100">
-                    <Image
-                      src={makeImageUrl(product.photos?.[0], "product")}
-                      alt={product.name}
-                      className="object-cover"
-                      fill
-                      sizes="160px"
-                      priority={index === 0}
-                    />
-                  </div>
-                  <div className="p-3">
-                    <h3 className="app-title-md truncate">
-                      {product.name}
-                    </h3>
-                    <p className="mt-1 text-[15px] font-bold tracking-tight text-primary">
-                      {typeof product.price === "number"
-                        ? `${product.price.toLocaleString()}원`
-                        : "가격 문의"}
-                    </p>
-                    <div className="mt-1">
-                      <span className="app-pill-muted bg-rose-50 text-rose-500">
-                        ❤ {product._count.favs}
-                      </span>
+            {hotPostsData ? (
+              hotPostsData.postRanking && hotPostsData.postRanking.length > 0 ? (
+                hotPostsData.postRanking.slice(0, 5).map((post, index) => (
+                  <Link
+                    key={post.id}
+                    href={`/posts/${post.id}`}
+                    className="snap-start shrink-0 w-64 app-card app-card-interactive p-3"
+                  >
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="min-w-0 flex-1">
+                        <div className="flex items-center gap-2">
+                          {index < 3 ? (
+                            <span className="text-xs font-bold text-amber-500">
+                              {index === 0 ? "1위" : index === 1 ? "2위" : "3위"}
+                            </span>
+                          ) : (
+                            <span className="app-caption">{index + 1}위</span>
+                          )}
+                          <span className="app-kicker truncate">HOT</span>
+                        </div>
+                        <h3 className="mt-1.5 text-sm font-semibold leading-snug text-slate-900 line-clamp-2">
+                          {post.title}
+                        </h3>
+                        <p className="mt-1 app-body-sm text-slate-500 line-clamp-2 leading-snug">
+                          {post.description}
+                        </p>
+                        <div className="mt-2 flex items-center gap-2 text-xs text-slate-500">
+                          <span>{post.user?.name}</span>
+                          <span className="text-slate-300">·</span>
+                          <span>좋아요 {post._count?.Likes ?? 0}</span>
+                        </div>
+                      </div>
+                      {post.image ? (
+                        <div className="h-16 w-16 shrink-0 overflow-hidden rounded-lg bg-slate-100">
+                          <Image
+                            src={makeImageUrl(post.image, "public")}
+                            className="h-full w-full object-cover"
+                            width={64}
+                            height={64}
+                            alt={post.title}
+                          />
+                        </div>
+                      ) : null}
                     </div>
-                  </div>
-                </Link>
-              ))
+                  </Link>
+                ))
+              ) : (
+                <div className="px-1 py-2 text-sm text-slate-400">표시할 인기 게시글이 없습니다.</div>
+              )
             ) : (
-              [...Array(4)].map((_, i) => (
+              [...Array(3)].map((_, i) => (
                 <div
                   key={i}
-                  className="snap-start shrink-0 w-40 app-card overflow-hidden animate-pulse"
+                  className="snap-start shrink-0 w-64 app-card p-3 animate-pulse"
                 >
-                  <div className="aspect-square bg-gray-200" />
-                  <div className="p-3 space-y-2">
-                    <div className="h-3 bg-gray-200 rounded w-4/5" />
-                    <div className="h-4 bg-gray-200 rounded w-1/2" />
-                    <div className="h-3 bg-gray-200 rounded w-1/3" />
-                  </div>
+                  <div className="h-3 bg-slate-200 rounded w-3/4" />
+                  <div className="mt-2 h-4 bg-slate-200 rounded w-full" />
+                  <div className="mt-2 h-3 bg-slate-200 rounded w-1/2" />
                 </div>
               ))
             )}
@@ -423,7 +428,7 @@ const MainClient = () => {
           subtitle="마감 전 빠르게 확인"
           href="/auctions"
         />
-        <div className="app-rail mt-3 flex gap-3 pl-5 pr-4">
+        <div className="app-rail mt-2 flex gap-3 pl-5 pr-4">
           {ongoingAuctionsData ? (
             ongoingAuctionsData.auctions.slice(0, 5).map((auction, index) => (
               <Link
@@ -440,7 +445,7 @@ const MainClient = () => {
                 }
                 className="snap-start shrink-0 w-56 app-card app-card-interactive overflow-hidden"
               >
-                <div className="relative aspect-[4/3] bg-gray-100">
+                <div className="relative aspect-[4/3] bg-slate-100">
                   <Image
                     src={makeImageUrl(auction.photos?.[0], "public")}
                     alt={auction.title}
@@ -472,11 +477,11 @@ const MainClient = () => {
                 key={i}
                 className="snap-start shrink-0 w-56 app-card overflow-hidden animate-pulse"
               >
-                <div className="aspect-[4/3] bg-gray-200" />
+                <div className="aspect-[4/3] bg-slate-200" />
                 <div className="p-3 space-y-2">
-                  <div className="h-3 bg-gray-200 rounded w-3/4" />
-                  <div className="h-4 bg-gray-200 rounded w-1/2" />
-                  <div className="h-3 bg-gray-200 rounded w-1/3" />
+                  <div className="h-3 bg-slate-200 rounded w-3/4" />
+                  <div className="h-4 bg-slate-200 rounded w-1/2" />
+                  <div className="h-3 bg-slate-200 rounded w-1/3" />
                 </div>
               </div>
             ))
@@ -607,7 +612,7 @@ const MainClient = () => {
               <button
                 type="button"
                 onClick={handleGoPushSettings}
-                className="h-11 rounded-xl bg-emerald-600 text-sm font-semibold text-white transition-colors hover:bg-emerald-700"
+                className="h-11 rounded-xl bg-slate-600 text-sm font-semibold text-white transition-colors hover:bg-slate-700"
               >
                 푸시 알림 설정하기
               </button>
