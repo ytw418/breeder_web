@@ -30,9 +30,9 @@ type ActivityTab = "posts" | "comments" | "guinness" | "products" | "bloodline";
 const TAB_META: { id: ActivityTab; name: string }[] = [
   { id: "posts", name: "게시물" },
   { id: "comments", name: "댓글" },
-  { id: "guinness", name: "브리디북" },
   { id: "products", name: "상품" },
   { id: "bloodline", name: "보유 혈통 카드" },
+  { id: "guinness", name: "브리디북" },
 ];
 
 const GUINNESS_STATUS_TEXT: Record<GuinnessSubmission["status"], string> = {
@@ -445,17 +445,20 @@ const MyPageClient = () => {
                 </span>
               </div>
 
-              {myCreatedCards.map((card) => (
-                <section
-                  key={card.id}
-                  className="overflow-hidden rounded-2xl border border-slate-200/75 bg-gradient-to-br from-white/90 via-slate-50 to-slate-50 p-3"
-                >
-                  <div className="mb-2 flex items-center justify-between">
-                    <p className="text-xs font-black uppercase tracking-[0.16em] text-slate-500">내가 만든 카드</p>
-                    <span className="rounded-full bg-slate-100 px-2 py-1 text-[11px] font-semibold text-slate-700">
-                      ACTIVE
-                    </span>
-                  </div>
+              <div className="grid grid-cols-2 gap-2">
+                {myCreatedCards.map((card) => (
+                  <section
+                    key={card.id}
+                    className="overflow-hidden rounded-2xl border border-slate-200/75 bg-gradient-to-br from-white/90 via-slate-50 to-slate-50 p-2.5"
+                  >
+                    <div className="mb-2 flex items-center justify-between">
+                      <p className="text-[11px] font-black uppercase tracking-[0.16em] text-slate-500">
+                        내가 만든 카드
+                      </p>
+                      <span className="rounded-full bg-slate-100 px-2 py-1 text-[10px] font-semibold text-slate-700">
+                        ACTIVE
+                      </span>
+                    </div>
                     <BloodlineVisualCard
                       cardId={card.id}
                       name={card.name}
@@ -465,16 +468,17 @@ const MyPageClient = () => {
                       variant={card.visualStyle}
                       compact
                     />
-                  {card.description ? (
-                    <p className="mt-2 text-sm leading-relaxed text-slate-600">
-                      {card.description}
+                    {card.description ? (
+                      <p className="mt-2 text-xs leading-relaxed text-slate-600">
+                        {card.description}
+                      </p>
+                    ) : null}
+                    <p className="mt-2 text-[11px] text-slate-500">
+                      현재 보유자: {card.currentOwner.name}
                     </p>
-                  ) : null}
-                  <p className="mt-2 text-xs text-slate-500">
-                    현재 보유자: {card.currentOwner.name}
-                  </p>
-                </section>
-              ))}
+                  </section>
+                ))}
+              </div>
 
               {!isBloodlineLoading && myCreatedCards.length === 0 ? (
                 <div className="rounded-xl border border-dashed border-slate-300 bg-white p-5 text-center text-sm text-slate-500">
@@ -496,48 +500,50 @@ const MyPageClient = () => {
                   </div>
                 )}
 
-                {receivedCards.map((card) => (
-                  <section
-                    key={card.id}
-                    className="overflow-hidden rounded-2xl border border-slate-200/80 bg-gradient-to-br from-white/95 via-slate-50 to-slate-50 p-3 transition duration-300 hover:-translate-y-0.5 hover:shadow-[0_16px_36px_rgba(15, 23, 42,0.2)]"
-                  >
-                    <BloodlineVisualCard
-                      cardId={card.id}
-                      name={card.name}
-                      ownerName={card.currentOwner.name}
-                      subtitle={card.description || "혈통카드 설명이 아직 등록되지 않았습니다."}
-                      image={card.image}
-                      variant={card.visualStyle}
-                      compact
-                    />
-                    <div className="mt-2 flex flex-wrap gap-1.5">
-                      <span className="rounded-full bg-slate-100 px-2 py-1 text-[11px] font-semibold text-slate-700">
-                        제작자 {card.creator.name}
-                      </span>
-                      <span className="rounded-full bg-slate-100 px-2 py-1 text-[11px] font-semibold text-slate-700">
-                        보유자 {card.currentOwner.name}
-                      </span>
-                      <span className="rounded-full bg-slate-100 px-2 py-1 text-[11px] font-semibold text-slate-700">
-                        전달 {card.transfers?.length || 0}건
-                      </span>
-                    </div>
-
-                    {card.transfers?.length ? (
-                      <div className="mt-3 space-y-1.5 rounded-lg border border-slate-100 bg-slate-50/80 p-2">
-                        <p className="text-xs font-black uppercase tracking-[0.16em] text-slate-700">
-                          최근 전달 이력
-                        </p>
-                        {card.transfers.map((transfer) => (
-                          <p key={transfer.id} className="text-xs leading-relaxed text-slate-500">
-                            {new Date(transfer.createdAt).toLocaleDateString("ko-KR")} ·{" "}
-                            {transfer.fromUser ? transfer.fromUser.name : "시스템"} → {transfer.toUser.name}
-                            {transfer.note ? ` · ${transfer.note}` : ""}
-                          </p>
-                        ))}
+                <div className="grid grid-cols-2 gap-2">
+                  {receivedCards.map((card) => (
+                    <section
+                      key={card.id}
+                      className="overflow-hidden rounded-2xl border border-slate-200/80 bg-gradient-to-br from-white/95 via-slate-50 to-slate-50 p-2.5 transition duration-300 hover:-translate-y-0.5 hover:shadow-[0_16px_36px_rgba(15, 23, 42,0.2)]"
+                    >
+                      <BloodlineVisualCard
+                        cardId={card.id}
+                        name={card.name}
+                        ownerName={card.currentOwner.name}
+                        subtitle={card.description || "혈통카드 설명이 아직 등록되지 않았습니다."}
+                        image={card.image}
+                        variant={card.visualStyle}
+                        compact
+                      />
+                      <div className="mt-2 flex flex-wrap gap-1">
+                        <span className="rounded-full bg-slate-100 px-2 py-1 text-[11px] font-semibold text-slate-700">
+                          제작자 {card.creator.name}
+                        </span>
+                        <span className="rounded-full bg-slate-100 px-2 py-1 text-[11px] font-semibold text-slate-700">
+                          보유자 {card.currentOwner.name}
+                        </span>
+                        <span className="rounded-full bg-slate-100 px-2 py-1 text-[11px] font-semibold text-slate-700">
+                          전달 {card.transfers?.length || 0}건
+                        </span>
                       </div>
-                    ) : null}
-                  </section>
-                ))}
+
+                      {card.transfers?.length ? (
+                        <div className="mt-3 space-y-1.5 rounded-lg border border-slate-100 bg-slate-50/80 p-2">
+                          <p className="text-[11px] font-black uppercase tracking-[0.16em] text-slate-700">
+                            최근 전달 이력
+                          </p>
+                          {card.transfers.map((transfer) => (
+                            <p key={transfer.id} className="text-[11px] leading-relaxed text-slate-500">
+                              {new Date(transfer.createdAt).toLocaleDateString("ko-KR")} ·{" "}
+                              {transfer.fromUser ? transfer.fromUser.name : "시스템"} → {transfer.toUser.name}
+                              {transfer.note ? ` · ${transfer.note}` : ""}
+                            </p>
+                          ))}
+                        </div>
+                      ) : null}
+                    </section>
+                  ))}
+                </div>
               </section>
 
             </div>
