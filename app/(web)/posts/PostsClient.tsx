@@ -50,6 +50,34 @@ const NOTICE_BANNERS = [
   },
 ];
 
+type BackupCommunityContent = {
+  id: string;
+  category: string;
+  title: string;
+  description: string;
+  cta: string;
+  href: string;
+};
+
+const BACKUP_COMMUNITY_CONTENT: BackupCommunityContent[] = [
+  {
+    id: "community-fallback-1",
+    category: "정보",
+    title: "브리더 노하우 공유 시작",
+    description: "사육, 변이, 거래 팁을 나누고 서로 성장할 수 있어요.",
+    cta: "첫 게시글 작성하기",
+    href: "/posts/upload",
+  },
+  {
+    id: "community-fallback-2",
+    category: "질문",
+    title: "궁금한 점이 있다면 편하게 물어보세요",
+    description: "좋은 답변을 받기 위한 질문 가이드도 함께 제공해요.",
+    cta: "질문 글 쓰기",
+    href: "/posts/upload",
+  },
+];
+
 const SectionHeader = ({
   title,
   href,
