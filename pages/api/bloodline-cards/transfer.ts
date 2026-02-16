@@ -5,6 +5,7 @@ import client from "@libs/server/client";
 import { BloodlineCardTransferResponse } from "@libs/shared/bloodline-card";
 import { resolveBloodlineApiError } from "@libs/server/bloodline-error";
 import { ensureBloodlineSchema } from "@libs/server/bloodline-schema";
+import { addCardOwner, isCardOwner } from "@libs/server/bloodline-ownership";
 
 async function handler(
   req: NextApiRequest,
@@ -19,10 +20,11 @@ async function handler(
     });
   }
 
-  const { cardId, toUserName, note = "" } = req.body || {};
+  const { cardId, toUserName, toUserId, note = "" } = req.body || {};
   const parsedCardId = Number(cardId);
   const parsedToUserName = String(toUserName || "").trim();
   const parsedNote = String(note || "").trim().slice(0, 300);
+  const parsedToUserId = toUserId ? Number(toUserId) : null;
 
   if (!parsedCardId || Number.isNaN(parsedCardId)) {
     return res.status(400).json({
@@ -31,7 +33,7 @@ async function handler(
     });
   }
 
-  if (parsedToUserName.length < 2) {
+  if (!parsedToUserName && (!parsedToUserId || Number.isNaN(parsedToUserId))) {
     return res.status(400).json({
       success: false,
       error: "받는 사람 닉네임을 입력해주세요.",
@@ -50,12 +52,18 @@ async function handler(
             cardType: true,
             creatorId: true,
             currentOwnerId: true,
+            status: true,
           },
         }),
-        client.user.findUnique({
-          where: { name: parsedToUserName },
-          select: { id: true, status: true },
-        }),
+        parsedToUserId && !Number.isNaN(parsedToUserId)
+          ? client.user.findUnique({
+              where: { id: parsedToUserId },
+              select: { id: true, status: true },
+            })
+          : client.user.findUnique({
+              where: { name: parsedToUserName },
+              select: { id: true, status: true },
+            }),
       ]);
 
       if (!card) {
@@ -74,32 +82,34 @@ async function handler(
         return "self-transfer" as const;
       }
 
-      const isCreator = card.creatorId === userId;
-      const isCurrentOwner = card.currentOwnerId === userId;
-      const isBloodline = card.cardType === "BLOODLINE";
-
-      const canTransfer = isBloodline ? isCurrentOwner && isCreator : isCurrentOwner;
-      if (!canTransfer) {
+      if (card.status !== "ACTIVE") {
         return "forbidden" as const;
       }
 
-      await client.$transaction([
-        client.bloodlineCard.update({
+      const isBloodline = card.cardType === "BLOODLINE";
+      const isOwner = await isCardOwner(card.id, userId);
+      if (!isOwner) {
+        return "forbidden" as const;
+      }
+
+      await client.$transaction(async (tx) => {
+        await tx.bloodlineCard.update({
           where: { id: card.id },
           data: {
             currentOwnerId: targetUser.id,
             transferCount: { increment: 1 },
           },
-        }),
-        client.bloodlineCardTransfer.create({
+        });
+        await addCardOwner(tx, card.id, targetUser.id);
+        await tx.bloodlineCardTransfer.create({
           data: {
             cardId: card.id,
             fromUserId: userId,
             toUserId: targetUser.id,
             note: parsedNote || null,
           },
-        }),
-        client.bloodlineCardEvent.create({
+        });
+        await tx.bloodlineCardEvent.create({
           data: {
             cardId: card.id,
             action: isBloodline ? "BLOODLINE_TRANSFER" : "LINE_TRANSFER",
@@ -108,8 +118,8 @@ async function handler(
             toUserId: targetUser.id,
             note: parsedNote || `${isBloodline ? "혈통카드" : "라인카드"} 보내기`,
           },
-        }),
-      ]);
+        });
+      });
 
       return "success" as const;
     };

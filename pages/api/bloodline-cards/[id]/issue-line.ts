@@ -10,6 +10,7 @@ import {
 } from "@libs/shared/bloodline-card";
 import { resolveBloodlineApiError } from "@libs/server/bloodline-error";
 import { ensureBloodlineSchema } from "@libs/server/bloodline-schema";
+import { addCardOwner, isCardOwner } from "@libs/server/bloodline-ownership";
 
 interface SourceCard {
   id: number;
@@ -24,6 +25,7 @@ interface SourceCard {
 }
 
 const VALID_VISUAL_STYLES = ["noir", "clean", "editorial"] as const;
+const allowedNamePattern = /^[A-Za-z0-9가-힣]+$/;
 
 const isVisualStyle = (value: unknown): value is BloodlineCardVisualStyle =>
   typeof value === "string" && (VALID_VISUAL_STYLES as readonly string[]).includes(value);
@@ -99,7 +101,27 @@ async function handler(
       error: "유효한 혈통카드 ID가 필요합니다.",
     });
   }
-  const defaultLineName = parsedName || `${String(req.session.user?.name || "브리더")} 라인`;
+  const fallbackUserName = String(req.session.user?.name || "브리더").replace(
+    /[^A-Za-z0-9가-힣]+/g,
+    ""
+  );
+  const defaultLineName = parsedName || `${fallbackUserName || "브리더"}라인`;
+
+  if (parsedName && !allowedNamePattern.test(parsedName)) {
+    return res.status(400).json({
+      success: false,
+      card: null,
+      error: "라인 카드 이름에는 영문, 숫자, 한글만 사용 가능하며 공백과 특수문자는 허용되지 않습니다.",
+    });
+  }
+
+  if (!allowedNamePattern.test(defaultLineName)) {
+    return res.status(500).json({
+      success: false,
+      card: null,
+      error: "기본 라인 이름 생성에 실패했습니다.",
+    });
+  }
 
   try {
     await ensureBloodlineSchema();
@@ -134,7 +156,8 @@ async function handler(
           if (targetUser.status !== "ACTIVE") return "target-inactive" as const;
 
           const source = sourceCard as SourceCard;
-          const canIssue = source.cardType === "BLOODLINE" && source.currentOwnerId === userId;
+          const isOwner = await isCardOwner(source.id, userId);
+          const canIssue = source.cardType === "BLOODLINE" && isOwner;
           if (!canIssue) {
             return "forbidden" as const;
           }
@@ -143,17 +166,37 @@ async function handler(
             source.cardType === "BLOODLINE" ? source.id : source.bloodlineReferenceId;
           if (!bloodlineReferenceId) return "invalid-source" as const;
 
-          const existing = await tx.bloodlineCard.findFirst({
+          const duplicateOwnedRows = await tx.$queryRaw<{ id: number }[]>`
+            SELECT bl.id
+            FROM "BloodlineCard" bl
+            WHERE bl."cardType" = 'LINE'
+              AND bl."parentCardId" = ${source.id}
+              AND bl."bloodlineReferenceId" = ${bloodlineReferenceId}
+              AND bl."status" = 'ACTIVE'
+              AND (
+                EXISTS (
+                  SELECT 1
+                  FROM "BloodlineCardOwner" bo
+                  WHERE bo."bloodlineCardId" = bl.id
+                    AND bo."userId" = ${targetUser.id}
+                )
+                OR bl."currentOwnerId" = ${targetUser.id}
+              )
+              LIMIT 1
+          `;
+          if (duplicateOwnedRows.length) return "duplicate" as const;
+
+          const duplicateName = await tx.bloodlineCard.findFirst({
             where: {
               cardType: "LINE",
-              parentCardId: source.id,
-              bloodlineReferenceId,
-              currentOwnerId: targetUser.id,
+              name: defaultLineName,
               status: "ACTIVE",
             },
             select: { id: true },
           });
-          if (existing) return "duplicate" as const;
+          if (duplicateName) {
+            return "duplicate-name" as const;
+          }
 
           const sourceStyleRows = await tx.$queryRaw<{ visualStyle: string | null }[]>`
             SELECT "visualStyle"
@@ -185,6 +228,8 @@ async function handler(
               currentOwner: { select: { id: true, name: true } },
             },
           });
+
+          await addCardOwner(tx, created.id, targetUser.id);
 
           await tx.$executeRaw`
             UPDATE "BloodlineCard"
@@ -243,6 +288,7 @@ async function handler(
       | "forbidden"
       | "invalid-source"
       | "duplicate"
+      | "duplicate-name"
       | "conflict"
       | null = null;
 
@@ -269,6 +315,13 @@ async function handler(
     }
     if (issuedLine === "duplicate") {
       return res.status(409).json({ success: false, card: null, error: "이미 해당 유저에게 라인카드를 발급했습니다." });
+    }
+    if (issuedLine === "duplicate-name") {
+      return res.status(409).json({
+        success: false,
+        card: null,
+        error: "이미 사용 중인 라인 카드 이름입니다.",
+      });
     }
     if (issuedLine === "conflict") {
       return res.status(409).json({

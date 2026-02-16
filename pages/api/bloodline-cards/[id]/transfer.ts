@@ -5,6 +5,7 @@ import client from "@libs/server/client";
 import { BloodlineCardTransferResponse } from "@libs/shared/bloodline-card";
 import { resolveBloodlineApiError } from "@libs/server/bloodline-error";
 import { ensureBloodlineSchema } from "@libs/server/bloodline-schema";
+import { addCardOwner, isCardOwner } from "@libs/server/bloodline-ownership";
 
 async function handler(
   req: NextApiRequest,
@@ -20,9 +21,11 @@ async function handler(
   }
 
   const parsedCardId = Number(req.query.id);
-  const { toUserName, receiverNickName, receiverName, note = "" } = req.body || {};
+  const { toUserName, toUserId, receiverNickName, receiverName, note = "" } =
+    req.body || {};
   const parsedToUserName = String(toUserName || receiverNickName || receiverName || "").trim();
   const parsedNote = String(note || "").trim().slice(0, 300);
+  const parsedToUserId = toUserId ? Number(toUserId) : null;
 
   if (!parsedCardId || Number.isNaN(parsedCardId)) {
     return res.status(400).json({
@@ -31,7 +34,7 @@ async function handler(
     });
   }
 
-  if (!parsedToUserName) {
+  if (!parsedToUserName && (!parsedToUserId || Number.isNaN(parsedToUserId))) {
     return res.status(400).json({
       success: false,
       error: "받는 사람 닉네임을 입력해주세요.",
@@ -54,10 +57,15 @@ async function handler(
             currentOwnerId: true,
           },
         }),
-        client.user.findUnique({
-          where: { name: parsedToUserName },
-          select: { id: true, status: true },
-        }),
+        parsedToUserId && !Number.isNaN(parsedToUserId)
+          ? client.user.findUnique({
+              where: { id: parsedToUserId },
+              select: { id: true, status: true },
+            })
+          : client.user.findUnique({
+              where: { name: parsedToUserName },
+              select: { id: true, status: true },
+            }),
       ]);
 
       if (!card) {
@@ -76,15 +84,9 @@ async function handler(
         return "self-transfer" as const;
       }
 
-      const isCreator = card.creatorId === userId;
-      const isCurrentOwner = card.currentOwnerId === userId;
       const isBloodline = card.cardType === "BLOODLINE";
-      const canTransfer =
-        isBloodline
-          ? isCurrentOwner && isCreator
-          : isCurrentOwner;
-
-      if (!canTransfer) {
+      const isOwner = await isCardOwner(card.id, userId);
+      if (!isOwner) {
         return "forbidden" as const;
       }
 
@@ -105,6 +107,8 @@ async function handler(
             note: parsedNote || null,
           },
         });
+
+        await addCardOwner(tx, card.id, targetUser.id);
 
         await tx.bloodlineCardEvent.create({
           data: {

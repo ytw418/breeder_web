@@ -1,6 +1,6 @@
 "use client";
 
-import { FormEvent, useEffect, useMemo, useState } from "react";
+import { FormEvent, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import useSWR from "swr";
@@ -25,9 +25,15 @@ interface BloodlineCardDetailClientProps {
 interface Drafts {
   [cardId: number]: {
     toUserName?: string;
+    toUserId?: number;
     note?: string;
     lineName?: string;
   };
+}
+
+interface TransferUserItem {
+  id: number;
+  name: string;
 }
 
 const sectionClass = "rounded-xl border border-slate-200/80 bg-white p-4";
@@ -84,6 +90,10 @@ export default function BloodlineCardDetailClient({ cardId }: BloodlineCardDetai
   const [error, setError] = useState("");
   const [events, setEvents] = useState<BloodlineCardEventsResponse["events"]>([]);
   const [eventsLoading, setEventsLoading] = useState(false);
+  const [transferCandidates, setTransferCandidates] = useState<TransferUserItem[]>([]);
+  const [transferSearchLoading, setTransferSearchLoading] = useState(false);
+  const searchDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const searchAbortRef = useRef<AbortController | null>(null);
 
   const cards = useMemo(() => {
     if (!bloodlineData) return [] as BloodlineCardItem[];
@@ -99,12 +109,38 @@ export default function BloodlineCardDetailClient({ cardId }: BloodlineCardDetai
 
   const card = useMemo(() => cards.find((item) => item.id === cardId), [cards, cardId]);
 
-  const isCurrentOwner = card?.currentOwner.id === user?.id;
+  const isOwnedByMe = card?.isOwnedByMe ?? card?.currentOwner.id === user?.id;
   const isBloodline = card?.cardType === "BLOODLINE";
-  const canTransfer = Boolean(
-    card && (isBloodline ? card.creator.id === user?.id && isCurrentOwner : isCurrentOwner)
-  );
-  const canIssue = Boolean(card && isCurrentOwner && isBloodline);
+  const canTransfer = Boolean(card && isOwnedByMe);
+  const canIssue = Boolean(card && isOwnedByMe && isBloodline);
+
+  const bloodlineSourceCard = useMemo(() => {
+    if (!card?.bloodlineReferenceId) return null;
+    return cards.find((item) => item.id === card.bloodlineReferenceId) || null;
+  }, [cards, card]);
+
+  const parentLineCard = useMemo(() => {
+    if (!card?.parentCardId) return null;
+    return cards.find((item) => item.id === card.parentCardId) || null;
+  }, [cards, card]);
+
+  const lineageTransferHint = useMemo(() => {
+    if (!card || card.cardType !== "LINE" || !user?.id) {
+      return null;
+    }
+
+    const incoming = events.find(
+      (event) =>
+        (event.action === "LINE_ISSUED" || event.action === "LINE_TRANSFER") &&
+        event.toUser?.id === user.id
+    );
+
+    if (!incoming) return null;
+
+    const sourceName =
+      incoming.fromUser?.name || incoming.actorUser?.name || "알 수 없음";
+    return `${sourceName}로부터 최근 수신`;
+  }, [card, events, user?.id]);
 
   useEffect(() => {
     if (!user?.id || !card) {
@@ -171,6 +207,7 @@ export default function BloodlineCardDetailClient({ cardId }: BloodlineCardDetai
     if (!card || !user?.id) return;
 
     const toUserName = String(transferDraft[card.id]?.toUserName || "").trim();
+    const toUserId = transferDraft[card.id]?.toUserId;
     const note = String(transferDraft[card.id]?.note || "").trim();
     if (!toUserName) {
       setError("받는 사람 닉네임을 입력해주세요.");
@@ -185,7 +222,7 @@ export default function BloodlineCardDetailClient({ cardId }: BloodlineCardDetai
       const response = await fetch(`/api/bloodline-cards/${card.id}/transfer`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ cardId: card.id, toUserName, note }),
+        body: JSON.stringify({ cardId: card.id, toUserName, toUserId, note }),
       });
       const payload = await response.json();
       if (!response.ok || !payload.success) {
@@ -194,7 +231,11 @@ export default function BloodlineCardDetailClient({ cardId }: BloodlineCardDetai
 
       setMessage("카드 보내기 요청이 완료되었습니다.");
       setActiveAction(null);
-      setTransferDraft((prev) => ({ ...prev, [card.id]: { toUserName: "", note: "" } }));
+      setTransferDraft((prev) => ({
+        ...prev,
+        [card.id]: { toUserName: "", toUserId: undefined, note: "" },
+      }));
+      setTransferCandidates([]);
       await mutateBloodline();
     } catch (transferError) {
       setError(
@@ -204,6 +245,89 @@ export default function BloodlineCardDetailClient({ cardId }: BloodlineCardDetai
       setTransferLoading(false);
     }
   };
+
+  const handleTransferCandidateSelect = (user: TransferUserItem) => {
+    if (!card) return;
+
+    setTransferDraft((prev) => ({
+      ...prev,
+      [card.id]: {
+        ...prev[card.id],
+        toUserName: user.name,
+        toUserId: user.id,
+      },
+    }));
+    setTransferCandidates([]);
+  };
+
+  useEffect(() => {
+    const inputKeyword = String(transferDraft[card?.id || 0]?.toUserName || "").trim();
+    const selectedUserId = transferDraft[card?.id || 0]?.toUserId;
+
+    if (activeAction !== "transfer" || !card) {
+      setTransferSearchLoading(false);
+      setTransferCandidates([]);
+      return;
+    }
+
+    if (selectedUserId) {
+      setTransferSearchLoading(false);
+      setTransferCandidates([]);
+      return;
+    }
+
+    if (inputKeyword.length < 1) {
+      setTransferSearchLoading(false);
+      setTransferCandidates([]);
+      return;
+    }
+
+    if (searchDebounceRef.current) {
+      clearTimeout(searchDebounceRef.current);
+    }
+
+    const keyword = inputKeyword;
+
+    searchDebounceRef.current = setTimeout(async () => {
+      searchAbortRef.current?.abort();
+      const controller = new AbortController();
+      searchAbortRef.current = controller;
+
+      setTransferSearchLoading(true);
+      try {
+        const response = await fetch(
+          `/api/users/search?q=${encodeURIComponent(keyword)}&limit=8`,
+          { signal: controller.signal }
+        );
+        const payload = (await response.json()) as {
+          success: boolean;
+          users?: TransferUserItem[];
+        };
+        if (!activeAction || !card) return;
+        if (keyword !== String(transferDraft[card.id]?.toUserName || "").trim()) return;
+        if (transferDraft[card.id]?.toUserId) return;
+        if (response.ok && payload.success) {
+          setTransferCandidates(payload.users || []);
+        } else {
+          setTransferCandidates([]);
+        }
+      } catch (candidateError) {
+        if ((candidateError as DOMException).name === "AbortError") return;
+        setTransferCandidates([]);
+      } finally {
+        if (activeAction === "transfer" && card) {
+          setTransferSearchLoading(false);
+        }
+      }
+    }, 200);
+
+    return () => {
+      if (searchDebounceRef.current) {
+        clearTimeout(searchDebounceRef.current);
+      }
+      searchAbortRef.current?.abort();
+    };
+  }, [activeAction, card?.id, transferDraft[card?.id || 0]?.toUserName, transferDraft[card?.id || 0]?.toUserId]);
 
   const handleIssueSubmit = async (event: FormEvent) => {
     event.preventDefault();
@@ -265,6 +389,11 @@ export default function BloodlineCardDetailClient({ cardId }: BloodlineCardDetai
             <span className={chipClass}>발급 {card.transfers.length}회</span>
             <span className={chipClass}>ID #{card.id}</span>
           </div>
+          {lineageTransferHint ? (
+            <p className="mt-2 inline-flex rounded-full bg-amber-50 px-3 py-1 text-xs text-amber-700">
+              {lineageTransferHint}
+            </p>
+          ) : null}
         </div>
 
         <article className={sectionClass}>
@@ -288,6 +417,36 @@ export default function BloodlineCardDetailClient({ cardId }: BloodlineCardDetai
             <div className="grid gap-2">
             <p className={chipClass}>제작자: {card.creator.name}</p>
             <p className={chipClass}>현재 보유자: {card.currentOwner.name}</p>
+            {card.cardType === "LINE" ? (
+              <>
+                <div className={chipClass}>
+                  원본 혈통: {bloodlineSourceCard ? (
+                    <Link
+                      href={`/bloodline-management/card/${bloodlineSourceCard.id}`}
+                      className="font-semibold text-slate-900 underline underline-offset-4"
+                    >
+                      #{bloodlineSourceCard.id} {bloodlineSourceCard.name}
+                    </Link>
+                  ) : (
+                    `#${card.bloodlineReferenceId}`
+                  )}
+                </div>
+                <div className={chipClass}>
+                  상위 라인: {parentLineCard ? (
+                    <Link
+                      href={`/bloodline-management/card/${parentLineCard.id}`}
+                      className="font-semibold text-slate-900 underline underline-offset-4"
+                    >
+                      #{parentLineCard.id} {parentLineCard.name}
+                    </Link>
+                  ) : card.parentCardId ? (
+                    `#${card.parentCardId}`
+                  ) : (
+                    "직접 파생 없음"
+                  )}
+                </div>
+              </>
+            ) : null}
           </div>
         </article>
 
@@ -310,20 +469,41 @@ export default function BloodlineCardDetailClient({ cardId }: BloodlineCardDetai
               ) : null}
               {activeAction === "transfer" ? (
                 <form className="space-y-2" onSubmit={handleTransferSubmit}>
-                  <Input
-                    value={transferDraft[card.id]?.toUserName || ""}
-                    onChange={(event) =>
-                      setTransferDraft((prev) => ({
-                        ...prev,
-                        [card.id]: {
-                          ...prev[card.id],
-                          toUserName: event.target.value,
-                        },
-                      }))
-                    }
-                    placeholder="보내는 상대 닉네임(필수)"
-                    className="h-11 rounded-lg"
-                  />
+                  <div className="relative">
+                    <Input
+                      value={transferDraft[card.id]?.toUserName || ""}
+                      onChange={(event) =>
+                        setTransferDraft((prev) => ({
+                          ...prev,
+                          [card.id]: {
+                            ...prev[card.id],
+                            toUserName: event.target.value,
+                            toUserId: undefined,
+                          },
+                        }))
+                      }
+                      placeholder="보내는 상대 닉네임(필수)"
+                      className="h-11 rounded-lg"
+                    />
+                    {(transferSearchLoading || transferCandidates.length > 0) ? (
+                      <div className="absolute left-0 right-0 z-20 mt-1 max-h-56 overflow-y-auto rounded-lg border border-slate-200 bg-white shadow-md">
+                        {transferSearchLoading ? (
+                          <p className="px-3 py-2 text-sm text-slate-500">검색 중...</p>
+                        ) : transferCandidates.length ? (
+                          transferCandidates.map((item) => (
+                            <button
+                              key={item.id}
+                              type="button"
+                              onClick={() => handleTransferCandidateSelect(item)}
+                              className="w-full px-3 py-2 text-left text-sm text-slate-900 transition hover:bg-slate-50"
+                            >
+                              {item.name}
+                            </button>
+                          ))
+                        ) : null}
+                      </div>
+                    ) : null}
+                  </div>
                   <Input
                     value={transferDraft[card.id]?.note || ""}
                     onChange={(event) =>
@@ -435,6 +615,9 @@ export default function BloodlineCardDetailClient({ cardId }: BloodlineCardDetai
                     {record.actorUser?.name || "시스템"}
                     {record.fromUser ? ` · ${record.fromUser.name} → ${record.toUser?.name || "시스템"}` : ""}
                   </p>
+                  {record.note ? (
+                    <p className="mt-1 text-xs text-slate-500">메모: {record.note}</p>
+                  ) : null}
                   <p className="mt-1 text-xs text-slate-500">{formatDate(record.createdAt)}</p>
                 </div>
               ))}

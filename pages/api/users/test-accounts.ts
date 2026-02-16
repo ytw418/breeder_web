@@ -4,6 +4,20 @@ import { withApiSession } from "@libs/server/withSession";
 import client from "@libs/server/client";
 
 const TEST_USER_PROVIDERS = ["test_user", "seed"] as const;
+const TEST_ACCOUNT_LIMIT = 5;
+
+const isTestLoginEnabled = () => {
+  const rawEnv = String(
+    process.env.NEXT_PUBLIC_VERCEL_ENV ||
+      process.env.VERCEL_ENV ||
+      process.env.NEXT_PUBLIC_APP_ENV ||
+      process.env.APP_ENV ||
+      process.env.NODE_ENV ||
+      "development"
+  ).toLowerCase();
+
+  return rawEnv !== "production" && rawEnv !== "prod";
+};
 
 type TestAccountItem = {
   id: number;
@@ -32,24 +46,10 @@ async function handler(
   req: NextApiRequest,
   res: NextApiResponse<TestAccountsResponse | TestAccountSwitchResponse>
 ) {
-  const sessionUserId = req.session.user?.id;
-  if (!sessionUserId) {
-    return res.status(401).json({
-      success: false,
-      error: "로그인이 필요합니다.",
-      users: [],
-    } satisfies TestAccountsResponse);
-  }
-
-  const currentUser = await client.user.findUnique({
-    where: { id: sessionUserId },
-    select: { id: true, provider: true, status: true },
-  });
-
-  if (!currentUser || !isTestUserProvider(currentUser.provider)) {
+  if (!isTestLoginEnabled()) {
     return res.status(403).json({
       success: false,
-      error: "테스트 유저 권한이 필요합니다.",
+      error: "프로덕션에서는 테스트 로그인 API를 사용할 수 없습니다.",
       users: [],
     } satisfies TestAccountsResponse);
   }
@@ -61,7 +61,7 @@ async function handler(
         status: "ACTIVE",
       },
       orderBy: [{ createdAt: "desc" }, { id: "desc" }],
-      take: 80,
+      take: TEST_ACCOUNT_LIMIT,
       select: {
         id: true,
         name: true,
@@ -127,6 +127,6 @@ export default withApiSession(
   withHandler({
     methods: ["GET", "POST"],
     handler,
-    isPrivate: true,
+    isPrivate: false,
   })
 );

@@ -7,6 +7,7 @@ import {
   BloodlineCardTransferItem,
   BloodlineCardVisualStyle,
 } from "@libs/shared/bloodline-card";
+import { ensureBloodlineSchema } from "@libs/server/bloodline-schema";
 
 type ProfileCardRow = {
   id: number;
@@ -122,6 +123,8 @@ async function handler(
     return;
   }
 
+  await ensureBloodlineSchema();
+
   const cards = await client.$queryRaw<ProfileCardRow[]>`
     SELECT
       bc.id,
@@ -146,7 +149,16 @@ async function handler(
     FROM "BloodlineCard" bc
     LEFT JOIN "User" cu ON cu.id = bc."creatorId"
     LEFT JOIN "User" co ON co.id = bc."currentOwnerId"
-    WHERE (bc."creatorId" = ${userId} OR bc."currentOwnerId" = ${userId})
+    WHERE (
+      bc."creatorId" = ${userId}
+      OR bc."currentOwnerId" = ${userId}
+      OR EXISTS (
+        SELECT 1
+        FROM "BloodlineCardOwner" bo
+        WHERE bo."bloodlineCardId" = bc.id
+          AND bo."userId" = ${userId}
+      )
+    )
       AND bc.status = 'ACTIVE'
     ORDER BY bc."updatedAt" DESC
   `;
