@@ -24,21 +24,8 @@ type TestAccountSwitchResponse = {
   error?: string;
 };
 
-const isTestEnvAvailable = () => {
-  const rawEnv = String(
-    process.env.NEXT_PUBLIC_VERCEL_ENV ||
-      process.env.VERCEL_ENV ||
-      process.env.NEXT_PUBLIC_APP_ENV ||
-      process.env.APP_ENV ||
-      process.env.NODE_ENV ||
-      "development"
-  ).toLowerCase();
-  return rawEnv !== "production" && rawEnv !== "prod";
-};
-
 const FakePageClient = () => {
   const router = useRouter();
-  const canAccess = isTestEnvAvailable();
   const [testUsers, setTestUsers] = useState<TestAccountItem[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState("");
@@ -48,7 +35,6 @@ const FakePageClient = () => {
   const [isCreatingUsers, setIsCreatingUsers] = useState(false);
 
   const loadUsers = async () => {
-    if (!canAccess) return;
     setIsLoading(true);
     setError("");
 
@@ -73,7 +59,7 @@ const FakePageClient = () => {
 
   useEffect(() => {
     void loadUsers();
-  }, [canAccess]);
+  }, []);
 
   const handleCreateTestUsers = async () => {
     setCreateError("");
@@ -145,16 +131,6 @@ const FakePageClient = () => {
       setSwitchingUserId(null);
     }
   };
-
-  if (!canAccess) {
-    return (
-      <div className="mx-auto flex min-h-screen max-w-md flex-col items-start justify-center gap-3 px-4">
-        <p className="text-sm text-slate-600">
-          현재 환경에서는 테스트 계정 목록을 노출하지 않습니다.
-        </p>
-      </div>
-    );
-  }
 
   return (
     <div className="mx-auto min-h-screen max-w-md px-4 pb-8 pt-6">
