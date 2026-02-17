@@ -27,7 +27,6 @@ interface MorphmarketListing {
   inquire_for_price?: unknown;
   thumb_image?: unknown;
   share_link?: unknown;
-  store_name?: unknown;
   category_name?: unknown;
   category_scientific_name?: unknown;
   sex?: unknown;
@@ -45,7 +44,6 @@ interface ImportRow {
   endAt: Date;
   photos: string[];
   sourceUrl: string;
-  sourceStore: string | null;
 }
 
 interface ImportLog {
@@ -85,6 +83,8 @@ interface CliOptions {
   morphExchangeRate: number;
   delayMs: number;
   maxStartPrice: number | null;
+  search: string;
+  translateToKorean: boolean;
 }
 
 const stripHtml = (value: string) =>
@@ -108,6 +108,114 @@ const asNumber = (value: unknown): number | null => {
   }
   return null;
 };
+
+const KR_TRANSLATE_RULES: Array<{ pattern: RegExp; replacement: string }> = [
+  { pattern: /\bball python\b/gi, replacement: "볼 파이톤" },
+  { pattern: /\bcrested gecko\b/gi, replacement: "크레스티드 게코" },
+  { pattern: /\bgecko\b/gi, replacement: "게코" },
+  { pattern: /\bpython\b/gi, replacement: "파이톤" },
+  { pattern: /\bhet\b/gi, replacement: "헤트" },
+  { pattern: /\bmale\b/gi, replacement: "수컷" },
+  { pattern: /\bfemale\b/gi, replacement: "암컷" },
+  { pattern: /\byoung\b/gi, replacement: "젊은" },
+  { pattern: /\bbaby\b/gi, replacement: "유생" },
+  { pattern: /\bpair\b/gi, replacement: "한 쌍" },
+  { pattern: /\bdalmatian\b/gi, replacement: "달마시안" },
+  { pattern: /\bpinstripe\b/gi, replacement: "핀스트라이프" },
+  { pattern: /\baxanthic\b/gi, replacement: "아잔틱" },
+  { pattern: /\bblue\b/gi, replacement: "블루" },
+  { pattern: /\bleopard\b/gi, replacement: "레오파드" },
+];
+
+const normalizeKoreanByContext = (value: string) =>
+  KR_TRANSLATE_RULES.reduce((acc, rule) => acc.replace(rule.pattern, rule.replacement), value);
+
+const translateToKoreanText = (value: string) => {
+  if (!value) return value;
+  return normalizeKoreanByContext(value);
+};
+
+const KO_TITLE_PREFIXES = [
+  "✨",
+  "⭐",
+  "추천",
+  "상태 좋은",
+  "클린한",
+  "건강 체크 완료",
+  "실물 확인 완료",
+];
+
+const KO_TITLE_SUFFIXES = [
+  "판매합니다",
+  "급하게 찾는 분께",
+  "입문자도 OK",
+  "빠른 응대",
+  "연락 환영",
+  "직접 확인 가능",
+];
+
+const KO_DESCRIPTION_LEADS = [
+  "원하는 동물의 정보를 정리해 올렸습니다.",
+  "사진 기준으로 상태와 형태를 같이 확인했습니다.",
+  "체크 리스트를 기반으로 사육 환경을 검토했습니다.",
+  "상태 관리가 잘 된 개체입니다.",
+  "문진 결과를 반영해 정리한 상품입니다.",
+];
+
+const KO_DESCRIPTION_MID = [
+  "거래 전 상태 문의 주시면 상세 정보를 더 안내해드릴 수 있습니다.",
+  "실제 색상은 촬영 환경에 따라 다르게 보일 수 있습니다.",
+  "개체 성격은 안정적이며 초보자도 다루기 쉬운 편입니다.",
+  "교배용인지 개체 전용용인지 추가로 확인 가능합니다.",
+  "최근 입고분으로 상태가 양호한 편입니다.",
+];
+
+const KO_DESCRIPTION_TAILS = [
+  "빠른 처리 원하시면 연락 주세요.",
+  "원하시는 방식으로 협의 후 거래 가능합니다.",
+  "상태 문의는 DM으로 먼저 주세요.",
+  "배송일정은 거래 후 협의합니다.",
+  "관심 있으시면 바로 메시지 주세요.",
+];
+
+const hashFromString = (value: string) => {
+  let hash = 0;
+  for (let i = 0; i < value.length; i += 1) {
+    hash = (hash * 31 + value.charCodeAt(i)) % 2147483647;
+  }
+  return Math.abs(hash);
+};
+
+const pickBySeed = (items: string[], seed: string) =>
+  items[Math.abs(hashFromString(seed)) % items.length];
+
+const mixKoreanVariation = (title: string, description: string, sourceKey: string) => {
+  const prefix = pickBySeed(KO_TITLE_PREFIXES, `${sourceKey}-prefix`);
+  const suffix = pickBySeed(KO_TITLE_SUFFIXES, `${sourceKey}-suffix`);
+  const lead = pickBySeed(KO_DESCRIPTION_LEADS, `${sourceKey}-lead`);
+  const mid = pickBySeed(KO_DESCRIPTION_MID, `${sourceKey}-mid`);
+  const tail = pickBySeed(KO_DESCRIPTION_TAILS, `${sourceKey}-tail`);
+
+  const mixedTitle = [prefix, title, suffix]
+    .filter((value) => value && value.trim().length > 0)
+    .join(" ")
+    .replace(/\s+/g, " ")
+    .trim()
+    .slice(0, 100);
+
+  const mixedDescription = [lead, description, mid, tail]
+    .filter((value) => value && value.trim().length > 0)
+    .join("\n\n")
+    .slice(0, 1900);
+
+  return { title: mixedTitle, description: mixedDescription };
+};
+
+const removeSummaryBlock = (value: string) =>
+  value
+    .replace(/\[한글 요약\][\s\S]*/g, "")
+    .replace(/\[Korean summary\][\s\S]*/gi, "")
+    .trim();
 
 const parseArgs = (): CliOptions => {
   const args = process.argv.slice(2);
@@ -148,6 +256,8 @@ const parseArgs = (): CliOptions => {
     state: getValue("state") || "for_sale",
     morphExchangeRate: toNumber("exchange-rate", DEFAULT_MORPH_EXCHANGE_RATE),
     delayMs: toNumber("delay-ms", 900),
+    search: getValue("search") || getValue("q") || "",
+    translateToKorean: getBool("translate-ko"),
     maxStartPrice: (() => {
       const raw = getValue("max-start-price");
       if (!raw) return null;
@@ -173,6 +283,8 @@ Options:
   --include-inquire-price  '가격 문의' 건도 가져오기 (기본: 제외)
   --dry-run                실제 생성 없이 검증만 수행
   --category               MorphMarket 카테고리 slug (기본: cgs)
+  --search                 검색 키워드(예: geckos). 대소문자 구분 없음
+  --translate-ko           제목/설명을 로컬 사전 기반 한글 변환
   --region                 지역 코드 (기본: us)
   --state                  상태 필터 (기본: for_sale)
   --delay-ms               목록/등록 간 대기(ms, 기본: 900)
@@ -305,6 +417,7 @@ const fetchMorphmarketPage = async (
   category: string,
   region: string,
   state: string,
+  search?: string,
 ): Promise<MorphmarketListing[]> => {
   const apiUrl = new URL("https://www.morphmarket.com/api/v1/listings/");
   apiUrl.searchParams.set("category", category);
@@ -313,6 +426,7 @@ const fetchMorphmarketPage = async (
   apiUrl.searchParams.set("region", region);
   apiUrl.searchParams.set("state", state);
   apiUrl.searchParams.set("view", "grid");
+  if (search) apiUrl.searchParams.set("search", search);
 
   const response = await fetch(apiUrl, {
     headers: {
@@ -383,7 +497,6 @@ const mapListingToImport = (listing: MorphmarketListing, options: CliOptions): I
   }
 
   const sourceUrl = asString(listing.share_link);
-  const store = asString(listing.store_name) || null;
   const maturity = asString(listing.maturity);
   const sex = asString(listing.sex);
   const categoryName = asString(listing.category_name);
@@ -391,11 +504,10 @@ const mapListingToImport = (listing: MorphmarketListing, options: CliOptions): I
   const shippingType = asString(listing.shipping_type);
   const minShipping = asNumber(listing.min_shipping);
   const maxShipping = asNumber(listing.max_shipping);
-  const baseDescription = stripHtml(asString(listing.description));
+  const baseDescription = removeSummaryBlock(stripHtml(asString(listing.description)));
 
   const extraLines = [
     baseDescription,
-    store ? `판매자: ${store}` : null,
     categoryName ? `분류: ${categoryName}` : null,
     scientificName ? `학명: ${scientificName}` : null,
     sex ? `성별: ${sex}` : null,
@@ -404,7 +516,6 @@ const mapListingToImport = (listing: MorphmarketListing, options: CliOptions): I
     minShipping !== null || maxShipping !== null
       ? `배송비: ${minShipping ?? "-"} ~ ${maxShipping ?? "-"}`
       : null,
-    sourceUrl ? `원본: ${sourceUrl}` : null,
   ].filter((line): line is string => typeof line === "string" && line.trim().length > 0);
 
   const description = extraLines
@@ -425,15 +536,25 @@ const mapListingToImport = (listing: MorphmarketListing, options: CliOptions): I
     .filter((item, index, array) => array.indexOf(item) === index)
     .slice(0, MAX_PHOTOS_PER_AUCTION);
 
+  const normalizedTitle = options.translateToKorean
+    ? translateToKoreanText(title.slice(0, 100))
+    : title.slice(0, 100);
+  const normalizedDescription = options.translateToKorean
+    ? description.trim()
+    : description;
+
+  const mixed = options.translateToKorean
+    ? mixKoreanVariation(normalizedTitle, normalizedDescription, sourceKey)
+    : { title: normalizedTitle, description: normalizedDescription };
+
   return {
     sourceKey,
-    title: title.slice(0, 100),
-    description,
+    title: mixed.title,
+    description: mixed.description.slice(0, 1900),
     startPrice: roundStartPrice,
     endAt,
     photos,
     sourceUrl,
-    sourceStore: store,
   };
 };
 
@@ -484,8 +605,23 @@ const photoIdToShort = (photoId: string) => photoId.slice(0, 10);
 
 const shouldSkipByDuplicate = async (
   userId: number,
-  payload: Omit<ImportRow, "photos" | "sourceUrl" | "sourceStore" | "sourceKey">
+  payload: Omit<ImportRow, "photos" | "sourceStore" | "sourceKey">
 ) => {
+  const sellerTrustNote = payload.sourceUrl ? `입력 데이터: ${payload.sourceUrl}` : null;
+  if (sellerTrustNote) {
+    const duplicatedBySource = await client.auction.findFirst({
+      where: {
+        userId,
+        sellerTrustNote,
+      },
+      select: { id: true },
+    });
+
+    if (duplicatedBySource) {
+      return true;
+    }
+  }
+
   const duplicated = await client.auction.findFirst({
     where: {
       userId,
@@ -593,6 +729,7 @@ const main = async () => {
         options.category,
         options.region,
         options.state,
+        options.search,
       );
 
       console.log(`Page ${page} fetched: ${listings.length}`);
@@ -630,6 +767,7 @@ const main = async () => {
           description: mapped.description,
           startPrice: mapped.startPrice,
           endAt: mapped.endAt,
+          sourceUrl: mapped.sourceUrl,
         })) {
           stats.skippedByValidation += 1;
           skippedRows.push({
