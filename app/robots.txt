@@ -4,5 +4,32 @@ Disallow: /api/
 Disallow: /_next/
 Disallow: /private/
 Disallow: /admin/
+Disallow: /fake
+Disallow: /myPage
+Disallow: /settings
+Disallow: /editProfile
+Disallow: /notifications
+Disallow: /chat
+Disallow: /posts/upload
+Disallow: /products/upload
+Disallow: /auth
+Disallow: /search
+
+User-agent: Googlebot
+Allow: /
+Disallow: /api/
+Disallow: /_next/
+Disallow: /private/
+Disallow: /admin/
+Disallow: /fake
+Disallow: /myPage
+Disallow: /settings
+Disallow: /editProfile
+Disallow: /notifications
+Disallow: /chat
+Disallow: /posts/upload
+Disallow: /products/upload
+Disallow: /auth
+Disallow: /search
 
 Sitemap: https://bredy.app/sitemap.xml

@@ -13,6 +13,29 @@ const inter = Inter({ subsets: ["latin"] });
 const posthogKey = process.env.NEXT_PUBLIC_POSTHOG_KEY;
 const posthogHost =
   process.env.NEXT_PUBLIC_POSTHOG_HOST || "https://us.i.posthog.com";
+const siteUrl = "https://bredy.app";
+
+const websiteJsonLd = {
+  "@context": "https://schema.org",
+  "@type": "WebSite",
+  name: "Bredy",
+  url: siteUrl,
+  description: "반려동물 링크형 경매와 거래 도구를 제공하는 커뮤니티 플랫폼",
+  potentialAction: {
+    "@type": "SearchAction",
+    target: `${siteUrl}/search?q={search_term_string}`,
+    "query-input": "required name=search_term_string",
+  },
+};
+
+const organizationJsonLd = {
+  "@context": "https://schema.org",
+  "@type": "Organization",
+  name: "Bredy",
+  url: siteUrl,
+  logo: `${siteUrl}/images/pwa/icon-512.png`,
+  sameAs: ["https://www.instagram.com/bredy_breeder"],
+};
 
 export const viewport: Viewport = {
   width: "device-width",
@@ -25,7 +48,7 @@ export const viewport: Viewport = {
 };
 
 export const metadata: Metadata = {
-  metadataBase: new URL("https://bredy.app"),
+  metadataBase: new URL(siteUrl),
   title: {
     default: "Bredy | 애완동물 서비스",
     template: "%s | Bredy",
@@ -127,6 +150,22 @@ export default function RootLayout({
           content="ca-pub-8957945516038764"
         ></meta>
         <meta name="mobile-web-app-capable" content="yes" />
+        <Script
+          id="website-jsonld"
+          type="application/ld+json"
+          strategy="beforeInteractive"
+          dangerouslySetInnerHTML={{
+            __html: JSON.stringify(websiteJsonLd),
+          }}
+        />
+        <Script
+          id="organization-jsonld"
+          type="application/ld+json"
+          strategy="beforeInteractive"
+          dangerouslySetInnerHTML={{
+            __html: JSON.stringify(organizationJsonLd),
+          }}
+        />
         {posthogKey ? (
           <Script
             id="posthog-init"

@@ -23,6 +23,42 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       changeFrequency: "daily",
       priority: 0.6,
     },
+    {
+      url: "https://bredy.app/posts",
+      lastModified: new Date(),
+      changeFrequency: "daily",
+      priority: 0.7,
+    },
+    {
+      url: "https://bredy.app/ranking",
+      lastModified: new Date(),
+      changeFrequency: "daily",
+      priority: 0.7,
+    },
+    {
+      url: "https://bredy.app/support",
+      lastModified: new Date(),
+      changeFrequency: "monthly",
+      priority: 0.45,
+    },
+    {
+      url: "https://bredy.app/auction-tool",
+      lastModified: new Date(),
+      changeFrequency: "monthly",
+      priority: 0.6,
+    },
+    {
+      url: "https://bredy.app/guinness",
+      lastModified: new Date(),
+      changeFrequency: "weekly",
+      priority: 0.55,
+    },
+    {
+      url: "https://bredy.app/bredybook-landing",
+      lastModified: new Date(),
+      changeFrequency: "weekly",
+      priority: 0.55,
+    },
   ];
 
   if (!process.env.DATABASE_URL) {
@@ -66,7 +102,25 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       priority: 0.85,
     }));
 
-    return [...staticPages, ...productPages, ...auctionPages];
+    const posts = await client.post.findMany({
+      select: {
+        id: true,
+        updatedAt: true,
+      },
+      orderBy: {
+        updatedAt: "desc",
+      },
+      take: 50,
+    });
+
+    const postPages: MetadataRoute.Sitemap = posts.map((post) => ({
+      url: `https://bredy.app/posts/${post.id}`,
+      lastModified: post.updatedAt,
+      changeFrequency: "weekly",
+      priority: 0.65,
+    }));
+
+    return [...staticPages, ...productPages, ...auctionPages, ...postPages];
   } catch {
     return staticPages;
   }
