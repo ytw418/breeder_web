@@ -178,6 +178,13 @@ async function handler(
       },
     });
 
+    if (!targetUser) {
+      return res.status(404).json({
+        success: false,
+        error: "테스트 유저 계정을 찾을 수 없습니다.",
+      } satisfies TestAccountSwitchResponse);
+    }
+
     if (!isSwitchableTestUser(targetUser)) {
       return res.status(404).json({
         success: false,
@@ -185,16 +192,18 @@ async function handler(
       } satisfies TestAccountSwitchResponse);
     }
 
+    const switchableUser = targetUser;
+
     req.session.user = {
-      id: targetUser.id,
-      snsId: targetUser.snsId,
-      provider: targetUser.provider,
-      phone: targetUser.phone,
-      email: targetUser.email,
-      name: targetUser.name,
-      avatar: targetUser.avatar,
-      createdAt: targetUser.createdAt,
-      updatedAt: targetUser.updatedAt,
+      id: switchableUser.id,
+      snsId: switchableUser.snsId,
+      provider: switchableUser.provider,
+      phone: switchableUser.phone,
+      email: switchableUser.email,
+      name: switchableUser.name,
+      avatar: switchableUser.avatar,
+      createdAt: switchableUser.createdAt,
+      updatedAt: switchableUser.updatedAt,
     };
     await req.session.save();
 

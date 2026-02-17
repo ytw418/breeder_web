@@ -57,7 +57,6 @@ interface ImportedAuctionResult {
   skippedByQuery: number;
   skippedByValidation: number;
   created: number;
-  failed: number;
   createdAuctionIds: number[];
   skippedRows: ImportLog[];
 }
@@ -605,7 +604,12 @@ const photoIdToShort = (photoId: string) => photoId.slice(0, 10);
 
 const shouldSkipByDuplicate = async (
   userId: number,
-  payload: Omit<ImportRow, "photos" | "sourceStore" | "sourceKey">
+  payload: {
+    title: string;
+    description: string;
+    startPrice: number;
+    sourceUrl?: string;
+  }
 ) => {
   const sellerTrustNote = payload.sourceUrl ? `입력 데이터: ${payload.sourceUrl}` : null;
   if (sellerTrustNote) {
@@ -628,7 +632,6 @@ const shouldSkipByDuplicate = async (
       title: payload.title,
       description: payload.description,
       startPrice: payload.startPrice,
-      endAt: payload.endAt,
       category: "파충류",
     },
     select: { id: true },
@@ -717,7 +720,6 @@ const main = async () => {
       skippedByQuery: 0,
       skippedByValidation: 0,
       created: 0,
-      failed: 0,
       createdAuctionIds: [],
       skippedRows: skippedRows,
     };
@@ -766,7 +768,6 @@ const main = async () => {
           title: mapped.title,
           description: mapped.description,
           startPrice: mapped.startPrice,
-          endAt: mapped.endAt,
           sourceUrl: mapped.sourceUrl,
         })) {
           stats.skippedByValidation += 1;
@@ -802,7 +803,6 @@ const main = async () => {
         );
 
         if (!createResult.created) {
-          stats.failed += 1;
           stats.skippedByValidation += 1;
           skippedRows.push({
             sourceKey: mapped.sourceKey,
@@ -820,7 +820,7 @@ const main = async () => {
         }
       }
 
-      if (stats.created + stats.failed >= options.maxItems) {
+      if (stats.created + stats.skippedByValidation + stats.skippedByQuery >= options.maxItems) {
         break;
       }
 
@@ -832,7 +832,7 @@ const main = async () => {
     console.log("\nImport summary");
     console.log(`총 후보: ${stats.totalCandidates}`);
     console.log(`생성 성공: ${stats.created}`);
-    console.log(`실패/스킵: ${stats.failed + stats.skippedByValidation + stats.skippedByQuery}`);
+    console.log(`실패/스킵: ${stats.skippedByValidation + stats.skippedByQuery}`);
     console.log(`총 조회: ${totalFetched}`);
 
     if (stats.createdAuctionIds.length > 0) {
