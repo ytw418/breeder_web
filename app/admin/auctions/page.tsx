@@ -7,6 +7,7 @@ import { toast } from "react-toastify";
 import { Button } from "@components/ui/button";
 import { Input } from "@components/ui/input";
 import useConfirmDialog from "hooks/useConfirmDialog";
+import { toAuctionPath } from "@libs/auction-route";
 import {
   AUCTION_EDIT_WINDOW_MS,
   AUCTION_EXTENSION_MS,
@@ -480,7 +481,7 @@ export default function AdminAuctionsPage() {
                 <tr key={auction.id}>
                   <td className="px-6 py-4">
                     <Link
-                      href={`/auctions/${auction.id}`}
+                      href={toAuctionPath(auction.id, auction.title)}
                       target="_blank"
                       className="inline-flex max-w-full text-sm font-semibold text-gray-900 underline-offset-2 hover:underline"
                     >

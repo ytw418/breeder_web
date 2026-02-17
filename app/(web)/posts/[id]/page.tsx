@@ -1,6 +1,7 @@
 import React from "react";
 import PostClient from "./PostClient";
 import { getPost } from "@libs/server/apis";
+import { extractPostIdFromPath, toPostPath } from "@libs/post-route";
 import { notFound } from "next/navigation";
 import type { Metadata } from "next";
 
@@ -13,15 +14,32 @@ const trimText = (value: string, length: number) => {
   return `${normalized.slice(0, length)}...`;
 };
 
-const getPostCanonical = (id: string) => `${SITE_URL}/posts/${id}`;
+const getPostCanonical = (id: number, title?: string | null) =>
+  `${SITE_URL}${toPostPath(id, title)}`;
 
 export async function generateMetadata({
   params,
 }: {
   params: { id: string };
 }): Promise<Metadata> {
-  const data = await getPost(params.id);
-  const canonical = getPostCanonical(params.id);
+  const postId = extractPostIdFromPath(params.id);
+  if (Number.isNaN(postId)) {
+    return {
+      title: "게시글을 찾을 수 없습니다 | 브리디",
+      description:
+        "요청하신 게시글을 찾을 수 없거나 삭제된 게시글입니다.",
+      robots: {
+        index: false,
+        follow: false,
+      },
+      alternates: {
+        canonical: `${SITE_URL}/posts`,
+      },
+    };
+  }
+
+  const data = await getPost(String(postId));
+  const canonical = getPostCanonical(postId, data.post?.title);
 
   if (!data.success || !data.post) {
     return {
@@ -94,7 +112,12 @@ export async function generateMetadata({
 }
 
 const page = async ({ params: { id } }: { params: { id: string } }) => {
-  const data = await getPost(id);
+  const postId = extractPostIdFromPath(id);
+  if (Number.isNaN(postId)) {
+    notFound();
+  }
+
+  const data = await getPost(String(postId));
   if (!data.success || !data.post) {
     notFound();
   }

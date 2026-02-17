@@ -3,6 +3,7 @@ import type { Metadata } from "next";
 import AuctionsClient from "./AuctionsClient";
 import Script from "next/script";
 import client from "@libs/server/client";
+import { toAuctionPath } from "@libs/auction-route";
 
 const AUCTION_OG_IMAGE = "/designer/og/bredy-og-auction.png";
 const SITE_URL = "https://bredy.app";
@@ -80,7 +81,7 @@ const page = async () => {
     itemListElement: auctions.map((auction, index) => ({
       "@type": "ListItem",
       position: index + 1,
-      url: `${SITE_URL}/auctions/${auction.id}`,
+      url: `${SITE_URL}${toAuctionPath(auction.id, auction.title)}`,
       name: auction.title,
     })),
   };

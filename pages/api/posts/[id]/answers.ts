@@ -2,6 +2,7 @@ import { NextApiRequest, NextApiResponse } from "next";
 import withHandler, { ResponseType } from "@libs/server/withHandler";
 
 import client from "@libs/server/client";
+import { extractPostIdFromPath } from "@libs/post-route";
 import { withApiSession } from "@libs/server/withSession";
 import { createNotification } from "@libs/server/notification";
 
@@ -15,7 +16,10 @@ async function handler(
     body: { comment },
   } = req;
 
-  const postId = +id.toString();
+  const postId = extractPostIdFromPath(id);
+  if (Number.isNaN(postId)) {
+    return res.status(400).json({ success: false, error: "유효하지 않은 게시글 ID입니다." });
+  }
 
   const newAnswer = await client.comment.create({
     data: {

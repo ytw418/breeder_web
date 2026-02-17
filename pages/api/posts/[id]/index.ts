@@ -2,6 +2,7 @@ import { NextApiRequest, NextApiResponse } from "next";
 import withHandler, { ResponseType } from "@libs/server/withHandler";
 
 import client from "@libs/server/client";
+import { extractPostIdFromPath } from "@libs/post-route";
 import { withApiSession } from "@libs/server/withSession";
 
 interface PostDetail {
@@ -57,10 +58,14 @@ async function handler(
     query: { id = "" },
     session: { user },
   } = req;
+  const postId = extractPostIdFromPath(id);
+  if (Number.isNaN(postId)) {
+    return res.status(400).json({ success: false, error: "유효하지 않은 게시글 ID입니다." });
+  }
 
   const post = await client.post.findUnique({
     where: {
-      id: +id.toString(),
+      id: postId,
     },
     include: {
       user: {
@@ -161,7 +166,7 @@ async function handler(
   const isLiked = Boolean(
     await client.like.findFirst({
       where: {
-        postId: +id.toString(),
+        postId,
         userId: user?.id,
       },
       select: {

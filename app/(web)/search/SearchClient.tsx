@@ -9,6 +9,7 @@ import Link from "next/link";
 import { SearchResponse } from "pages/api/search";
 import { CATEGORIES } from "@libs/constants";
 import { getProductPath } from "@libs/product-route";
+import { toPostPath } from "@libs/post-route";
 
 type SearchTab = "all" | "products" | "posts" | "users";
 
@@ -329,12 +330,12 @@ const SearchClient = () => {
                 </Link>
               </div>
               <div className="divide-y divide-gray-50 dark:divide-slate-800">
-                {recommendPosts.posts.slice(0, 5).map((post) => (
-                  <Link
-                    key={post.id}
-                    href={`/posts/${post.id}`}
-                    className="flex items-center gap-4 px-4 py-3 hover:bg-gray-50 dark:hover:bg-slate-800/70 transition-colors"
-                  >
+                  {recommendPosts.posts.slice(0, 5).map((post) => (
+                    <Link
+                      key={post.id}
+                      href={toPostPath(post.id, post.title)}
+                      className="flex items-center gap-4 px-4 py-3 hover:bg-gray-50 dark:hover:bg-slate-800/70 transition-colors"
+                    >
                     <div className="flex-1 min-w-0">
                       <p className="text-sm font-medium text-gray-900 dark:text-slate-100 truncate">
                         {post.title}
@@ -485,7 +486,7 @@ const SearchClient = () => {
                   {data.posts.map((post) => (
                     <Link
                       key={post.id}
-                      href={`/posts/${post.id}`}
+                      href={toPostPath(post.id, post.title)}
                       className="flex items-center gap-4 px-4 py-3 hover:bg-gray-50 dark:hover:bg-slate-800/70 transition-colors"
                     >
                       <div className="flex-1 min-w-0">

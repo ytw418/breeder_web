@@ -12,6 +12,7 @@ import { Textarea } from "@components/ui/textarea";
 import useMutation from "hooks/useMutation";
 import useUser from "hooks/useUser";
 import { cn, makeImageUrl } from "@libs/client/utils";
+import { toAuctionPath } from "@libs/auction-route";
 import { toast } from "react-toastify";
 import {
   AUCTION_EXTENSION_MS,
@@ -140,6 +141,7 @@ const CreateAuctionClient = () => {
   const [agreedDisputePolicy, setAgreedDisputePolicy] = useState(false);
   const [shareModalOpen, setShareModalOpen] = useState(false);
   const [createdAuctionId, setCreatedAuctionId] = useState<number | null>(null);
+  const [createdAuctionTitle, setCreatedAuctionTitle] = useState<string>("");
   const [lastCreatedSignature, setLastCreatedSignature] = useState<string | null>(null);
   const [confirmModalOpen, setConfirmModalOpen] = useState(false);
   const [pendingSubmission, setPendingSubmission] =
@@ -439,6 +441,7 @@ const CreateAuctionClient = () => {
         if (result.success && result.auction?.id) {
           setLastCreatedSignature(refreshedSignature);
           setCreatedAuctionId(result.auction.id);
+          setCreatedAuctionTitle(result.auction.title || "");
           setConfirmModalOpen(false);
           setPendingSubmission(null);
           setShareModalOpen(true);
@@ -459,7 +462,9 @@ const CreateAuctionClient = () => {
   };
 
   const getCreatedAuctionPath = () =>
-    createdAuctionId ? withBasePath(`/auctions/${createdAuctionId}`) : "";
+    createdAuctionId
+      ? withBasePath(toAuctionPath(createdAuctionId, createdAuctionTitle))
+      : "";
 
   const getCreatedAuctionUrl = () => {
     const path = getCreatedAuctionPath();

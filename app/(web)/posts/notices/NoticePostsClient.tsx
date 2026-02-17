@@ -8,6 +8,7 @@ import Image from "@components/atoms/Image";
 import Layout from "@components/features/MainLayout";
 import { useInfiniteScroll } from "hooks/useInfiniteScroll";
 import { getTimeAgoString, makeImageUrl } from "@libs/client/utils";
+import { toPostPath } from "@libs/post-route";
 import { NoticePostsResponse } from "pages/api/posts/notices";
 
 const PAGE_SIZE = 10;
@@ -52,7 +53,7 @@ export default function NoticePostsClient() {
               notices.map((post) => (
                 <Link
                   key={post.id}
-                  href={`/posts/${post.id}`}
+                  href={toPostPath(post.id, post.title)}
                   className="block w-full border-b border-slate-100 px-4 py-3 transition-colors hover:bg-slate-50"
                 >
                   <div className="flex items-start gap-2.5">

@@ -12,6 +12,8 @@ import { NotificationsResponse } from "pages/api/notifications";
 import { NotificationType } from "@prisma/client";
 import { usePathname } from "next/navigation";
 import { getProductPath } from "@libs/product-route";
+import { toPostPath } from "@libs/post-route";
+import { toAuctionPath } from "@libs/auction-route";
 
 /** 알림 타입별 색상 */
 const NOTIFICATION_COLORS: Record<NotificationType, string> = {
@@ -38,7 +40,7 @@ const getNotificationLink = (
 
   switch (targetType) {
     case "post":
-      return `/posts/${targetId}`;
+      return toPostPath(targetId);
     case "product":
       return getProductPath(targetId);
     case "chatRoom":
@@ -46,7 +48,7 @@ const getNotificationLink = (
     case "user":
       return `/profiles/${targetId}`;
     case "auction":
-      return `/auctions/${targetId}`;
+      return toAuctionPath(targetId);
     case "record":
       return `/guinness`;
     case "guinness_submission":
@@ -106,7 +108,7 @@ const NotificationsClient = () => {
     if (!targetType || !targetId) return "/tool";
 
     if (targetType === "auction") {
-      return `/tool/auctions/${targetId}`;
+      return `/tool${toAuctionPath(targetId)}`;
     }
 
     return "/tool";

@@ -8,6 +8,7 @@ import { Button } from "@components/ui/button";
 import { Input } from "@components/ui/input";
 import { Textarea } from "@components/ui/textarea";
 import useConfirmDialog from "hooks/useConfirmDialog";
+import { toPostPath } from "@libs/post-route";
 
 export default function AdminPostsPage() {
   const [page, setPage] = useState(1);
@@ -154,13 +155,13 @@ export default function AdminPostsPage() {
                         </span>
                       )}
                       <div className="text-sm font-medium text-gray-900 line-clamp-1">
-                        <Link href={`/posts/${post.id}`} target="_blank" className="hover:underline">
+                        <Link href={toPostPath(post.id, post.title)} target="_blank" className="hover:underline">
                           {post.title}
                         </Link>
                       </div>
                     </div>
                     <div className="text-sm text-gray-500 line-clamp-1 mt-1">
-                      <Link href={`/posts/${post.id}`} target="_blank" className="hover:underline">
+                      <Link href={toPostPath(post.id, post.title)} target="_blank" className="hover:underline">
                         {post.description}
                       </Link>
                     </div>

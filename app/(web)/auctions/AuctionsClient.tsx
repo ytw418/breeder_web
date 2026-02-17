@@ -11,6 +11,7 @@ import { useInfiniteScroll } from "hooks/useInfiniteScroll";
 
 import { cn, makeImageUrl } from "@libs/client/utils";
 import { AuctionsListResponse } from "pages/api/auctions";
+import { toAuctionPath } from "@libs/auction-route";
 
 /** 상태 탭 */
 const STATUS_TABS = [
@@ -226,7 +227,7 @@ export default function AuctionsClient() {
                 result?.auctions?.map((auction) => (
                   <Link
                     key={auction.id}
-                    href={`/auctions/${auction.id}`}
+                    href={toAuctionPath(auction.id, auction.title)}
                     className="block overflow-hidden rounded-xl border border-slate-100 bg-white dark:border-slate-800 dark:bg-slate-900"
                   >
                     {/* 이미지 */}

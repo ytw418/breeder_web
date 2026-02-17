@@ -10,6 +10,7 @@ import {
   getBidIncrement,
 } from "@libs/auctionRules";
 import { settleExpiredAuctions } from "@libs/server/auctionSettlement";
+import { extractAuctionIdFromPath } from "@libs/auction-route";
 
 /** 입찰 응답 타입 */
 export interface BidResponse {
@@ -38,7 +39,7 @@ async function handler(
     });
   }
 
-  const auctionId = Number(id);
+  const auctionId = extractAuctionIdFromPath(id);
   const bidAmount = Number(amount);
 
   if (isNaN(auctionId) || isNaN(bidAmount)) {

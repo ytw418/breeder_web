@@ -21,6 +21,8 @@ import { ANALYTICS_EVENTS, trackEvent } from "@libs/client/analytics";
 import { AuctionsListResponse } from "pages/api/auctions";
 import useUser from "hooks/useUser";
 import { RankingResponse } from "pages/api/ranking";
+import { toAuctionPath } from "@libs/auction-route";
+import { toPostPath } from "@libs/post-route";
 
 export interface ProductWithCount extends Product {
   _count: { favs: number };
@@ -364,7 +366,7 @@ const MainClient = () => {
                 hotPostsData.postRanking.slice(0, 5).map((post, index) => (
                   <Link
                     key={post.id}
-                    href={`/posts/${post.id}`}
+                    href={toPostPath(post.id, post.title)}
                     className="snap-start shrink-0 w-64 app-card app-card-interactive p-3"
                   >
                     <div className="flex items-start justify-between gap-2">
@@ -434,9 +436,9 @@ const MainClient = () => {
         <div className="app-rail mt-2 flex gap-3 pl-5 pr-4">
           {ongoingAuctionsData ? (
             ongoingAuctionsData.auctions.slice(0, 5).map((auction, index) => (
-              <Link
+                  <Link
                 key={auction.id}
-                href={`/auctions/${auction.id}`}
+                href={toAuctionPath(auction.id, auction.title)}
                 onClick={() =>
                   trackEvent(ANALYTICS_EVENTS.homeOngoingAuctionClicked, {
                     auction_id: auction.id,
