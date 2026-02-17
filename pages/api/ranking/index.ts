@@ -97,7 +97,7 @@ async function handler(
           user: { select: { id: true, name: true, avatar: true } },
           _count: { select: { Likes: true } },
         },
-        orderBy: [{ _count: { Likes: "desc" as const } }, { createdAt: "desc" as const }],
+        orderBy: [{ Likes: { _count: "desc" as const } }, { createdAt: "desc" as const }],
         take: 50,
       });
 
