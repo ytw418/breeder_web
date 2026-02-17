@@ -113,7 +113,7 @@ const MainClient = () => {
     "/api/auctions?status=진행중&page=1"
   );
   const { data: hotPostsData } = useSWR<RankingResponse>(
-    "/api/ranking?tab=mutation"
+    "/api/ranking?tab=popular"
   );
   // 배너 데이터 호출
   const { data: bannerData } = useSWR("/api/admin/banners");
