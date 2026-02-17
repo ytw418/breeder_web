@@ -182,6 +182,7 @@ async function handler(req: NextApiRequest, res: NextApiResponse<ResponseType>) 
             provider: "test_user",
             name: nickname,
             email: null,
+            role: "FAKE_USER",
           },
           select: {
             id: true,

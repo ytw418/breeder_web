@@ -220,10 +220,11 @@ const MyPageClient = () => {
   }, [bloodlineData, user?.id]);
 
   const isTestEnv = isTestEnvAvailable();
+  const isTestUser = user?.role === "FAKE_USER" || user?.provider === "test_user";
   const fakeUserListForSwitch = fakeUsers.filter((item) => item.id !== user?.id);
 
   useEffect(() => {
-    if (!isTestEnv || user?.role !== "FAKE_USER") return;
+    if (!isTestEnv || !isTestUser) return;
 
     let mounted = true;
     setFakeUsersLoading(true);
@@ -264,7 +265,7 @@ const MyPageClient = () => {
     return () => {
       mounted = false;
     };
-  }, [user?.role, isTestEnv]);
+  }, [isTestUser, isTestEnv]);
 
   const tabCountMap: Record<ActivityTab, number> = {
     posts: profileUser?._count?.posts ?? 0,
@@ -444,7 +445,7 @@ const MyPageClient = () => {
             로그아웃
           </Button>
         </div>
-        {user?.role === "FAKE_USER" ? (
+        {isTestUser ? (
           <div className="mt-4 rounded-lg border border-slate-200 bg-slate-50 p-3 dark:border-slate-700/80 dark:bg-slate-800/50">
             <p className="text-xs font-semibold text-slate-700">다른 FAKE_USER 전환</p>
             <p className="mt-1 text-[11px] text-slate-500">
