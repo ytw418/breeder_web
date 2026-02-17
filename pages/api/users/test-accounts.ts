@@ -8,19 +8,6 @@ import { role as UserRole, UserStatus } from "@prisma/client";
 const TEST_ACCOUNT_LIMIT = 5;
 const TEST_USER_ROLE: UserRole = "FAKE_USER";
 
-const isTestLoginEnabled = () => {
-  const rawEnv = String(
-    process.env.NEXT_PUBLIC_VERCEL_ENV ||
-      process.env.VERCEL_ENV ||
-      process.env.NEXT_PUBLIC_APP_ENV ||
-      process.env.APP_ENV ||
-      process.env.NODE_ENV ||
-      "development"
-  ).toLowerCase();
-
-  return rawEnv !== "production" && rawEnv !== "prod";
-};
-
 type TestAccountItem = {
   id: number;
   name: string;
@@ -64,14 +51,6 @@ async function handler(
   req: NextApiRequest,
   res: NextApiResponse<TestAccountsResponse | TestAccountSwitchResponse | TestAccountCreateResponse>
 ) {
-  if (!isTestLoginEnabled()) {
-    return res.status(403).json({
-      success: false,
-      error: "프로덕션에서는 테스트 로그인 API를 사용할 수 없습니다.",
-      users: [],
-    } satisfies TestAccountsResponse);
-  }
-
   if (req.method === "GET") {
     const users = await client.user.findMany({
       where: {
