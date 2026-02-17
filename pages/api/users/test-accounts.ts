@@ -62,7 +62,7 @@ const isSwitchableTestUser = (targetUser?: {
 
 async function handler(
   req: NextApiRequest,
-  res: NextApiResponse<TestAccountsResponse | TestAccountSwitchResponse>
+  res: NextApiResponse<TestAccountsResponse | TestAccountSwitchResponse | TestAccountCreateResponse>
 ) {
   if (!isTestLoginEnabled()) {
     return res.status(403).json({
