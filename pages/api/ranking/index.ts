@@ -86,6 +86,24 @@ async function handler(
       return res.json({ success: true, postRanking });
     }
 
+    /** 3) 인기 게시글 (전체 카테고리 좋아요순) */
+    if (tab === "popular") {
+      const where: any = { NOT: { category: "공지" } };
+      if (periodStart) where.createdAt = { gte: periodStart };
+
+      const postRanking = await client.post.findMany({
+        where,
+        include: {
+          user: { select: { id: true, name: true, avatar: true } },
+          _count: { select: { Likes: true } },
+        },
+        orderBy: [{ Likes: { _count: "desc" as const } }, { createdAt: "desc" as const }],
+        take: 50,
+      });
+
+      return res.json({ success: true, postRanking });
+    }
+
     /** 3) 변이 랭킹 (변이 카테고리 좋아요순) */
     if (tab === "mutation") {
       const where: any = { category: "변이" };

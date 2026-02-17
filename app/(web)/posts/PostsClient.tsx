@@ -108,7 +108,7 @@ export default function PostsClient() {
     return `/api/posts?page=${pageIndex + 1}${categoryParam}${sortParam}`;
   };
 
-  const { data, setSize, mutate } = useSWRInfinite<PostsListResponse>(getKey);
+  const { data, setSize } = useSWRInfinite<PostsListResponse>(getKey);
   const { data: bredyData } = useSWR<RankingResponse>(
     "/api/ranking?tab=bredy"
   );
@@ -122,14 +122,13 @@ export default function PostsClient() {
   // 카테고리 변경 시 데이터 리셋
   const handleCategoryChange = (categoryId: string) => {
     setSelectedCategory(categoryId);
+    setSize(1);
   };
   const handleSortChange = (sortType: SortType) => {
+    if (selectedSort === sortType) return;
     setSelectedSort(sortType);
+    setSize(1);
   };
-
-  useEffect(() => {
-    mutate();
-  }, [selectedCategory, selectedSort, mutate]);
 
   const bredyRanking = bredyData?.bredyRanking?.slice(0, 5) ?? [];
   const noticePosts = noticeData?.posts ?? [];
