@@ -1,10 +1,12 @@
 import { NextApiRequest, NextApiResponse } from "next";
+import { randomUUID } from "crypto";
 import withHandler from "@libs/server/withHandler";
 import { withApiSession } from "@libs/server/withSession";
 import client from "@libs/server/client";
+import { role as UserRole, UserStatus } from "@prisma/client";
 
-const TEST_USER_PROVIDERS = ["test_user", "seed"] as const;
 const TEST_ACCOUNT_LIMIT = 5;
+const TEST_USER_ROLE: UserRole = "FAKE_USER";
 
 const isTestLoginEnabled = () => {
   const rawEnv = String(
@@ -38,13 +40,29 @@ interface TestAccountSwitchResponse {
   error?: string;
 }
 
-const isTestUserProvider = (provider?: string | null) =>
-  typeof provider === "string" &&
-  TEST_USER_PROVIDERS.includes(provider as (typeof TEST_USER_PROVIDERS)[number]);
+type TestAccountCreateResponse = TestAccountSwitchResponse & {
+  createdCount?: number;
+};
+
+type TestAccountRequestBody = {
+  action?: "create" | "switch";
+  userId?: number;
+  count?: number;
+  namePrefix?: string;
+};
+
+const isSwitchableTestUser = (targetUser?: {
+  provider?: string | null;
+  role?: UserRole;
+  status?: UserStatus;
+} | null): boolean => {
+  if (!targetUser) return false;
+  return targetUser.status === "ACTIVE" && targetUser.role === TEST_USER_ROLE;
+};
 
 async function handler(
   req: NextApiRequest,
-  res: NextApiResponse<TestAccountsResponse | TestAccountSwitchResponse>
+  res: NextApiResponse<TestAccountsResponse | TestAccountSwitchResponse | TestAccountCreateResponse>
 ) {
   if (!isTestLoginEnabled()) {
     return res.status(403).json({
@@ -57,7 +75,7 @@ async function handler(
   if (req.method === "GET") {
     const users = await client.user.findMany({
       where: {
-        provider: { in: [...TEST_USER_PROVIDERS] },
+        role: TEST_USER_ROLE,
         status: "ACTIVE",
       },
       orderBy: [{ createdAt: "desc" }, { id: "desc" }],
@@ -81,7 +99,60 @@ async function handler(
   }
 
   if (req.method === "POST") {
-    const targetUserId = Number(req.body?.userId);
+    const requestBody = req.body as TestAccountRequestBody;
+    const action = requestBody?.action || "switch";
+
+    if (action === "create") {
+      const count = Math.min(Math.max(Number(requestBody?.count || 1), 1), 20);
+      const namePrefix = String(requestBody?.namePrefix || "fake")
+        .trim()
+        .slice(0, 12) || "fake";
+
+      try {
+        for (let index = 0; index < count; index += 1) {
+          let nickname = "";
+          for (let attempt = 0; attempt < 30; attempt += 1) {
+            const suffix = `${Math.floor(Math.random() * 9000) + 1000}`;
+            const candidate = `${namePrefix}${suffix}`;
+            const exists = await client.user.findUnique({
+              where: { name: candidate },
+              select: { id: true },
+            });
+            if (!exists) {
+              nickname = candidate;
+              break;
+            }
+          }
+
+          if (!nickname) {
+            nickname = `${namePrefix}${Date.now().toString().slice(-4)}${index}`;
+          }
+
+          await client.user.create({
+            data: {
+              snsId: `seed-${Date.now()}-${randomUUID()}-${index}`,
+              provider: "test_user",
+              name: nickname,
+              email: null,
+              role: TEST_USER_ROLE,
+            },
+          });
+        }
+      } catch (error) {
+        console.log("test-accounts.create.fail", error);
+        return res.status(500).json({
+          success: false,
+          error: "테스트 계정 생성 중 오류가 발생했습니다.",
+        } satisfies TestAccountCreateResponse);
+      }
+
+      return res.json({
+        success: true,
+        createdCount: count,
+      } satisfies TestAccountCreateResponse);
+    }
+
+    const targetUserId = Number(requestBody?.userId);
 
     if (!targetUserId || Number.isNaN(targetUserId)) {
       return res.status(400).json({
@@ -92,23 +163,48 @@ async function handler(
 
     const targetUser = await client.user.findUnique({
       where: { id: targetUserId },
+      select: {
+        id: true,
+        snsId: true,
+        provider: true,
+        role: true,
+        phone: true,
+        email: true,
+        name: true,
+        avatar: true,
+        createdAt: true,
+        updatedAt: true,
+        status: true,
+      },
     });
 
-    if (!targetUser || !isTestUserProvider(targetUser.provider)) {
+    if (!targetUser) {
       return res.status(404).json({
         success: false,
         error: "테스트 유저 계정을 찾을 수 없습니다.",
       } satisfies TestAccountSwitchResponse);
     }
 
-    if (targetUser.status !== "ACTIVE") {
-      return res.status(400).json({
+    if (!isSwitchableTestUser(targetUser)) {
+      return res.status(404).json({
         success: false,
-        error: "비활성 계정으로는 전환할 수 없습니다.",
+        error: "테스트 유저 계정을 찾을 수 없습니다.",
       } satisfies TestAccountSwitchResponse);
     }
 
-    req.session.user = targetUser;
+    const switchableUser = targetUser;
+
+    req.session.user = {
+      id: switchableUser.id,
+      snsId: switchableUser.snsId,
+      provider: switchableUser.provider,
+      phone: switchableUser.phone,
+      email: switchableUser.email,
+      name: switchableUser.name,
+      avatar: switchableUser.avatar,
+      createdAt: switchableUser.createdAt,
+      updatedAt: switchableUser.updatedAt,
+    };
     await req.session.save();
 
     return res.json({

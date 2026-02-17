@@ -50,7 +50,7 @@ type AdminUserListItem = {
   id: number;
   name: string;
   email: string | null;
-  role: "USER" | "ADMIN" | "SUPER_USER";
+  role: "USER" | "FAKE_USER" | "ADMIN" | "SUPER_USER";
   status: "ACTIVE" | "BANNED" | "SUSPENDED_7D" | "SUSPENDED_30D" | "DELETED";
   createdAt: string;
 };

@@ -22,7 +22,7 @@ import { LoginReqBody, LoginResponseType } from "pages/api/auth/login";
 import useSWR from "swr";
 import { UserResponse } from "pages/api/users/[id]";
 import type { BloodlineCardsResponse } from "@libs/shared/bloodline-card";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import useLogout from "../../../hooks/useLogout";
 
 type ActivityTab = "posts" | "comments" | "guinness" | "products" | "bloodline";
@@ -45,6 +45,37 @@ const GUINNESS_STATUS_CLASS: Record<GuinnessSubmission["status"], string> = {
   pending: "bg-slate-100 text-slate-700",
   approved: "bg-slate-100 text-slate-700",
   rejected: "bg-slate-100 text-slate-700",
+};
+
+type TestAccountItem = {
+  id: number;
+  name: string;
+  email: string | null;
+  provider: string;
+  createdAt: string;
+};
+
+type TestAccountListResponse = {
+  success: boolean;
+  error?: string;
+  users?: TestAccountItem[];
+};
+
+type TestAccountSwitchResponse = {
+  success: boolean;
+  error?: string;
+};
+
+const isTestEnvAvailable = () => {
+  const rawEnv = String(
+    process.env.NEXT_PUBLIC_VERCEL_ENV ||
+      process.env.VERCEL_ENV ||
+      process.env.NEXT_PUBLIC_APP_ENV ||
+      process.env.APP_ENV ||
+      process.env.NODE_ENV ||
+      "development"
+  ).toLowerCase();
+  return rawEnv !== "production" && rawEnv !== "prod";
 };
 
 const GuinnessSubmissionList = ({
@@ -130,6 +161,10 @@ const MyPageClient = () => {
   const [switchMessage, setSwitchMessage] = useState("");
   const [loginWithProvider, { loading: switchingGoogle }] =
     useMutation<LoginResponseType>("/api/auth/login");
+  const [fakeUsers, setFakeUsers] = useState<TestAccountItem[]>([]);
+  const [fakeUsersLoading, setFakeUsersLoading] = useState(false);
+  const [fakeUsersError, setFakeUsersError] = useState("");
+  const [switchingFakeUserId, setSwitchingFakeUserId] = useState<number | null>(null);
 
   // _count 포함된 유저 정보 가져오기
   const { data } = useSWR<UserResponse>(
@@ -183,6 +218,53 @@ const MyPageClient = () => {
       (card) => card.creator.id === user?.id && card.cardType === "BLOODLINE"
     );
   }, [bloodlineData, user?.id]);
+
+  const isTestEnv = isTestEnvAvailable();
+  const fakeUserListForSwitch = fakeUsers.filter((item) => item.id !== user?.id);
+
+  useEffect(() => {
+    if (!isTestEnv || user?.role !== "FAKE_USER") return;
+
+    let mounted = true;
+    setFakeUsersLoading(true);
+    setFakeUsersError("");
+
+    const fetchFakeUsers = async () => {
+      try {
+        const res = await fetch("/api/users/test-accounts", {
+          method: "GET",
+          cache: "no-store",
+        });
+        const data = (await res.json()) as TestAccountListResponse;
+
+        if (!mounted) return;
+
+        if (!res.ok || !data.success) {
+          throw new Error(data.error || "fake user 목록을 불러오지 못했습니다.");
+        }
+
+        setFakeUsers(data.users || []);
+      } catch (error) {
+        if (!mounted) return;
+        setFakeUsers([]);
+        setFakeUsersError(
+          error instanceof Error
+            ? error.message
+            : "fake user 목록 조회 중 오류가 발생했습니다."
+        );
+      } finally {
+        if (mounted) {
+          setFakeUsersLoading(false);
+        }
+      }
+    };
+
+    void fetchFakeUsers();
+
+    return () => {
+      mounted = false;
+    };
+  }, [user?.role, isTestEnv]);
 
   const tabCountMap: Record<ActivityTab, number> = {
     posts: profileUser?._count?.posts ?? 0,
@@ -240,6 +322,41 @@ const MyPageClient = () => {
           ? error.message
           : "구글 계정 전환에 실패했습니다."
       );
+    }
+  };
+
+  const handleSwitchToFakeUser = async (targetUserId: number) => {
+    if (switchingFakeUserId === targetUserId || targetUserId === user?.id) return;
+
+    setSwitchError("");
+    setSwitchMessage("");
+    setSwitchingFakeUserId(targetUserId);
+
+    try {
+      const res = await fetch("/api/users/test-accounts", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ userId: targetUserId }),
+      });
+      const data = (await res.json()) as TestAccountSwitchResponse;
+
+      if (!res.ok || !data.success) {
+        throw new Error(data.error || "fake user 전환에 실패했습니다.");
+      }
+
+      await mutateUser();
+      setSwitchMessage("다른 fake user로 전환되었습니다.");
+      router.refresh();
+    } catch (error) {
+      setSwitchError(
+        error instanceof Error
+          ? error.message
+          : "fake user 전환 중 오류가 발생했습니다."
+      );
+    } finally {
+      setSwitchingFakeUserId(null);
     }
   };
 
@@ -327,6 +444,41 @@ const MyPageClient = () => {
             로그아웃
           </Button>
         </div>
+        {user?.role === "FAKE_USER" ? (
+          <div className="mt-4 rounded-lg border border-slate-200 bg-slate-50 p-3">
+            <p className="text-xs font-semibold text-slate-700">다른 FAKE_USER 전환</p>
+            <p className="mt-1 text-[11px] text-slate-500">
+              fake 계정을 전환해 커뮤니티/거래 활동을 시뮬레이션할 수 있습니다.
+            </p>
+            {fakeUsersLoading ? (
+              <p className="mt-2 text-xs text-slate-500">목록을 불러오는 중...</p>
+            ) : null}
+            {fakeUsersError ? (
+              <p className="mt-2 text-xs font-semibold text-rose-500">{fakeUsersError}</p>
+            ) : null}
+            {!fakeUsersLoading && !fakeUserListForSwitch.length ? (
+              <p className="mt-2 text-xs text-slate-500">
+                전환 가능한 FAKE_USER가 없습니다.
+              </p>
+            ) : null}
+            <div className="mt-2 space-y-1.5">
+              {fakeUserListForSwitch.map((account) => (
+                <button
+                  key={account.id}
+                  type="button"
+                  onClick={() => handleSwitchToFakeUser(account.id)}
+                  disabled={switchingFakeUserId === account.id}
+                  className="w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-left text-sm text-slate-700 disabled:opacity-50"
+                >
+                  <span className="truncate block">{account.name}</span>
+                  <span className="text-[11px] text-slate-500">
+                    {switchingFakeUserId === account.id ? "전환 중..." : account.provider}
+                  </span>
+                </button>
+              ))}
+            </div>
+          </div>
+        ) : null}
         {isAdmin ? (
           <div className="mt-2 space-y-2">
             <Link

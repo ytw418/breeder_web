@@ -5,7 +5,7 @@ import { toast } from "react-toastify";
 import { Button } from "@components/ui/button";
 import useConfirmDialog from "hooks/useConfirmDialog";
 
-const ROLE_OPTIONS = ["USER", "ADMIN", "SUPER_USER"] as const;
+const ROLE_OPTIONS = ["USER", "FAKE_USER", "ADMIN", "SUPER_USER"] as const;
 const STATUS_OPTIONS = [
   "ACTIVE",
   "BANNED",

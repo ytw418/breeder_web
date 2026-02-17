@@ -8,7 +8,7 @@ const AUCTION_ERROR_MESSAGES: Record<string, string> = {
   AUCTION_SELLER_RESTRICTED: "현재 계정 상태에서는 경매 등록이 제한됩니다.",
   AUCTION_CONTACT_REQUIRED_HIGH_PRICE:
     "고가 경매는 연락처(전화/이메일) 정보가 필요합니다.",
-  AUCTION_ACTIVE_LIMIT_EXCEEDED: "동시 진행 경매는 최대 3개까지 등록할 수 있습니다.",
+  AUCTION_ACTIVE_LIMIT_EXCEEDED: "동시 진행 경매는 최대 100개까지 등록할 수 있습니다.",
   AUCTION_INVALID_PHOTO_COUNT: "사진은 최소 1장, 최대 5장까지 등록할 수 있습니다.",
   AUCTION_DUPLICATE_RECENT:
     "동일한 내용의 경매가 이미 등록되었습니다. 기존 경매를 공유하거나 수정해주세요.",
