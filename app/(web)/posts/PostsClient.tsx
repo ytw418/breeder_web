@@ -163,13 +163,13 @@ export default function PostsClient() {
             <Link
               key={notice.id}
               href={notice.href}
-              className="app-card-interactive block rounded-xl border border-slate-200 bg-gradient-to-r from-slate-50 to-slate-50 px-3 py-2.5"
+              className="app-card-interactive block rounded-xl border border-slate-200 bg-gradient-to-r from-slate-50 to-slate-50 px-3 py-2.5 dark:border-slate-700/80 dark:from-slate-900 dark:to-slate-900/80"
             >
               <div className="flex items-center gap-2">
-                <span className="inline-flex shrink-0 min-w-[42px] justify-center px-2 py-0.5 text-[11px] font-semibold rounded-full bg-slate-700 text-white">
+                <span className="inline-flex shrink-0 min-w-[42px] justify-center px-2 py-0.5 text-[11px] font-semibold rounded-full bg-slate-700 text-white dark:bg-slate-200 dark:text-slate-900">
                   {notice.label}
                 </span>
-                <p className="app-body-md min-w-0 flex-1 text-slate-900 line-clamp-1">
+                <p className="app-body-md min-w-0 flex-1 text-slate-900 dark:text-slate-100 line-clamp-1">
                   {notice.title}
                 </p>
               </div>
