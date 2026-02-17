@@ -5,7 +5,6 @@ import { withApiSession } from "@libs/server/withSession";
 import client from "@libs/server/client";
 import { role as UserRole, UserStatus } from "@prisma/client";
 
-const TEST_ACCOUNT_LIMIT = 5;
 const TEST_USER_ROLE: UserRole = "FAKE_USER";
 
 type TestAccountItem = {
@@ -58,7 +57,6 @@ async function handler(
         status: "ACTIVE",
       },
       orderBy: [{ createdAt: "desc" }, { id: "desc" }],
-      take: TEST_ACCOUNT_LIMIT,
       select: {
         id: true,
         name: true,

@@ -556,7 +556,7 @@ export default function MainLayout({
       {hasTabBar && !isToolPath ? (
         <nav className="fixed inset-x-0 bottom-0 z-40 pb-[env(safe-area-inset-bottom)]">
           <div className="max-w-xl mx-auto">
-            <div className="relative mx-auto flex h-[50px] w-full items-center justify-center border-t border-[#dbdbdb] bg-white text-[#262626]">
+            <div className="relative mx-auto flex h-[50px] w-full items-center justify-center border-t border-[#dbdbdb] bg-white text-[#262626] dark:border-slate-700/80 dark:bg-slate-950 dark:text-slate-300">
               <div className="grid w-full grid-cols-5">
                 {BOTTOM_NAV_ITEMS.map((item) => {
                   const active = item.isActive(pathname || "");
@@ -567,8 +567,8 @@ export default function MainLayout({
                       className={cn(
                         "relative flex h-full flex-col items-center justify-center gap-0.5 text-[10px] leading-none transition-colors",
                         active
-                          ? "text-black"
-                          : "text-[#8e8e8e] hover:text-[#262626]"
+                          ? "text-black dark:text-slate-100"
+                          : "text-[#8e8e8e] hover:text-[#262626] dark:text-slate-500 dark:hover:text-slate-200"
                       )}
                     >
                       <span className="inline-flex h-7 w-7 items-center justify-center">

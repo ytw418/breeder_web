@@ -445,7 +445,7 @@ const MyPageClient = () => {
           </Button>
         </div>
         {user?.role === "FAKE_USER" ? (
-          <div className="mt-4 rounded-lg border border-slate-200 bg-slate-50 p-3">
+          <div className="mt-4 rounded-lg border border-slate-200 bg-slate-50 p-3 dark:border-slate-700/80 dark:bg-slate-800/50">
             <p className="text-xs font-semibold text-slate-700">다른 FAKE_USER 전환</p>
             <p className="mt-1 text-[11px] text-slate-500">
               fake 계정을 전환해 커뮤니티/거래 활동을 시뮬레이션할 수 있습니다.
@@ -468,7 +468,7 @@ const MyPageClient = () => {
                   type="button"
                   onClick={() => handleSwitchToFakeUser(account.id)}
                   disabled={switchingFakeUserId === account.id}
-                  className="w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-left text-sm text-slate-700 disabled:opacity-50"
+                  className="w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-left text-sm text-slate-700 disabled:opacity-50 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200"
                 >
                   <span className="truncate block">{account.name}</span>
                   <span className="text-[11px] text-slate-500">
@@ -487,7 +487,7 @@ const MyPageClient = () => {
             >
               관리자 페이지로 이동
             </Link>
-            <div className="rounded-lg border border-slate-200 bg-slate-50 p-3">
+            <div className="rounded-lg border border-slate-200 bg-slate-50 p-3 dark:border-slate-700/80 dark:bg-slate-800/50">
               <p className="text-xs font-semibold text-slate-700">
                 관리자 계정 전환
               </p>
@@ -506,7 +506,7 @@ const MyPageClient = () => {
                 </Button>
                 <Link
                   href="/auth/login?next=%2FmyPage"
-                  className="inline-flex h-10 items-center justify-center rounded-md border border-slate-300 bg-white px-3 text-sm font-medium text-slate-700"
+                  className="inline-flex h-10 items-center justify-center rounded-md border border-slate-300 bg-white px-3 text-sm font-medium text-slate-700 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200"
                 >
                   카카오 로그인으로 전환
                 </Link>
@@ -526,14 +526,14 @@ const MyPageClient = () => {
         ) : null}
       </div>
 
-      <div className="h-px border-t border-slate-100/80" />
+      <div className="h-px border-t border-slate-100/80 dark:border-slate-800/80" />
 
       {/* 거래 메뉴 */}
       <div className="px-4 py-4">
         <MySaleHistroyMenu />
       </div>
 
-      <div className="h-px border-t border-slate-100/80" />
+      <div className="h-px border-t border-slate-100/80 dark:border-slate-800/80" />
 
       {/* 활동 탭 */}
       <div className="px-4 py-4">
@@ -585,7 +585,7 @@ const MyPageClient = () => {
               ) : null}
 
               {bloodlineLoadError ? (
-                <p className="rounded-md border border-slate-200 bg-slate-50 px-3 py-2 text-xs font-semibold text-slate-700">
+                <p className="rounded-md border border-slate-200 bg-slate-50 px-3 py-2 text-xs font-semibold text-slate-700 dark:border-slate-700/80 dark:bg-slate-900/70">
                   혈통카드 정보를 불러오지 못했습니다. 잠시 후 다시 시도해주세요.
                 </p>
               ) : null}
@@ -601,7 +601,7 @@ const MyPageClient = () => {
                 {myCreatedCards.map((card) => (
                   <section
                     key={card.id}
-                    className="overflow-hidden rounded-2xl border border-slate-200/75 bg-gradient-to-br from-white/90 via-slate-50 to-slate-50 p-2.5"
+                    className="overflow-hidden rounded-2xl border border-slate-200/75 bg-gradient-to-br from-white/90 via-slate-50 to-slate-50 p-2.5 dark:border-slate-700/80 dark:from-slate-900 dark:to-slate-900/80"
                   >
                     <div className="mb-2 flex items-center justify-between">
                       <p className="text-[11px] font-black uppercase tracking-[0.16em] text-slate-500">
@@ -633,7 +633,7 @@ const MyPageClient = () => {
               </div>
 
               {!isBloodlineLoading && myCreatedCards.length === 0 ? (
-                <div className="rounded-xl border border-dashed border-slate-300 bg-white p-5 text-center text-sm text-slate-500">
+                <div className="rounded-xl border border-dashed border-slate-300 bg-white p-5 text-center text-sm text-slate-500 dark:border-slate-700 dark:bg-slate-900/70 dark:text-slate-300">
                   아직 만든 혈통카드가 없습니다.
                 </div>
               ) : null}
@@ -647,7 +647,7 @@ const MyPageClient = () => {
                 </div>
 
                 {receivedCards.length ? null : (
-                  <div className="rounded-xl border border-dashed border-slate-300 bg-white p-5 text-center text-sm text-slate-500">
+                  <div className="rounded-xl border border-dashed border-slate-300 bg-white p-5 text-center text-sm text-slate-500 dark:border-slate-700 dark:bg-slate-900/70 dark:text-slate-300">
                     아직 전달받은 카드가 없습니다.
                   </div>
                 )}
@@ -656,7 +656,7 @@ const MyPageClient = () => {
                   {receivedCards.map((card) => (
                     <section
                       key={card.id}
-                      className="overflow-hidden rounded-2xl border border-slate-200/80 bg-gradient-to-br from-white/95 via-slate-50 to-slate-50 p-2.5 transition duration-300 hover:-translate-y-0.5 hover:shadow-[0_16px_36px_rgba(15, 23, 42,0.2)]"
+                      className="overflow-hidden rounded-2xl border border-slate-200/80 bg-gradient-to-br from-white/95 via-slate-50 to-slate-50 p-2.5 transition duration-300 hover:-translate-y-0.5 hover:shadow-[0_16px_36px_rgba(15, 23, 42,0.2)] dark:border-slate-700/80 dark:from-slate-900 dark:to-slate-900/80"
                     >
                       <BloodlineVisualCard
                         cardId={card.id}
@@ -680,7 +680,7 @@ const MyPageClient = () => {
                       </div>
 
                       {card.transfers?.length ? (
-                        <div className="mt-3 space-y-1.5 rounded-lg border border-slate-100 bg-slate-50/80 p-2">
+                        <div className="mt-3 space-y-1.5 rounded-lg border border-slate-100 bg-slate-50/80 p-2 dark:border-slate-700/80 dark:bg-slate-900/70">
                           <p className="text-[11px] font-black uppercase tracking-[0.16em] text-slate-700">
                             최근 전달 이력
                           </p>
