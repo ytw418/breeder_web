@@ -301,19 +301,19 @@ const MainClient = () => {
         <div className="mt-1 px-5">
           <Link
             href="/bloodline-cards/create"
-            className="relative overflow-hidden app-card app-card-interactive block border-slate-200/70 bg-gradient-to-br from-amber-50 via-orange-50 to-amber-100 p-4 text-slate-900 transition duration-300 hover:-translate-y-1 hover:shadow-[0_18px_38px_rgba(15, 23, 42,0.28)]"
+            className="relative overflow-hidden app-card app-card-interactive block border border-white/15 bg-gradient-to-r from-slate-900 via-violet-900 to-indigo-900 p-4 text-white transition duration-200 hover:-translate-y-0.5"
           >
-            <div className="pointer-events-none absolute -left-12 -top-12 h-36 w-36 rounded-full bg-slate-200/45 blur-2xl" />
-            <div className="pointer-events-none absolute -right-16 -bottom-12 h-36 w-36 rounded-full bg-slate-200/35 blur-2xl" />
-            <span className="pointer-events-none absolute right-4 top-4 inline-flex h-2.5 w-2.5 rounded-full bg-white/80">
-              <span className="inline-flex h-full w-full animate-ping rounded-full bg-white/90" />
-            </span>
-            <p className="app-kicker text-amber-800">Bloodline Card</p>
-            <h3 className="mt-1.5 text-base font-bold text-slate-900">혈통카드 만들기</h3>
-            <p className="mt-1.5 text-xs leading-snug text-slate-700">
+            <div className="pointer-events-none absolute inset-x-5 top-0 h-px bg-gradient-to-r from-transparent via-white/35 to-transparent" />
+            <div className="pointer-events-none absolute -left-6 -top-6 h-16 w-16 rounded-full bg-violet-300/20 blur-2xl" />
+            <div className="pointer-events-none absolute -right-8 -bottom-8 h-16 w-16 rounded-full bg-indigo-300/18 blur-2xl" />
+            <p className="app-kicker text-white/90">Bloodline Card</p>
+            <h3 className="mt-1.5 text-base font-semibold text-white">
+              혈통카드 만들기
+            </h3>
+            <p className="mt-1.5 text-xs leading-snug text-white/85">
               내 대표 혈통카드를 만들고, 다른 유저에게 전달할 수 있습니다.
             </p>
-            <span className="mt-3 inline-flex h-7 items-center rounded-full bg-amber-500 px-2.5 text-[11px] font-semibold text-white">
+            <span className="mt-3 inline-flex h-7 items-center rounded-full bg-white/20 px-2.5 text-[11px] font-semibold text-white">
               혈통카드 페이지로 이동
             </span>
           </Link>
@@ -331,16 +331,19 @@ const MainClient = () => {
         <div className="mt-1 px-5">
           <Link
             href="/bredybook-landing"
-            className="app-card app-card-interactive block overflow-hidden border-transparent bg-gradient-to-r from-slate-900 via-violet-900 to-indigo-900 p-4 text-white"
+            className="relative overflow-hidden app-card app-card-interactive block border border-orange-400/45 bg-gradient-to-r from-[#ff8b2a] via-[#ff6f0f] to-[#ff8b2a] p-4 text-white transition duration-200 hover:-translate-y-0.5 overflow-hidden"
           >
-            <p className="app-kicker text-white/70">Bredybook</p>
-            <h3 className="mt-1.5 text-base font-semibold">
+            <div className="pointer-events-none absolute inset-x-5 top-0 h-px bg-gradient-to-r from-transparent via-white/30 to-transparent" />
+            <div className="pointer-events-none absolute -left-6 -top-6 h-16 w-16 rounded-full bg-white/20 blur-2xl" />
+            <div className="pointer-events-none absolute -right-8 -bottom-8 h-16 w-16 rounded-full bg-yellow-100/20 blur-2xl" />
+            <p className="app-kicker text-white/90">Bredybook</p>
+            <h3 className="mt-1.5 text-base font-semibold text-white">
               당신의 기록을 새로운 스탠다드로
             </h3>
-            <p className="mt-1.5 text-xs leading-snug text-white/80">
+            <p className="mt-1.5 text-xs leading-snug text-white/85">
               이제 더이상 카더라 기네스는 그만. 공식 기록으로 증명하세요.
             </p>
-            <span className="mt-3 inline-flex h-7 items-center rounded-full bg-white/20 px-2.5 text-[11px] font-semibold">
+            <span className="mt-3 inline-flex h-7 items-center rounded-full bg-white/20 px-2.5 text-[11px] font-semibold text-white">
               브리디북 기록하러 가기
             </span>
           </Link>
