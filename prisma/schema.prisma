@@ -15,6 +15,7 @@ datasource db {
 
 enum role {
   USER
+  FAKE_USER
   ADMIN
   SUPER_USER
 }

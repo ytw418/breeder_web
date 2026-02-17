@@ -105,6 +105,7 @@ export const metaTitleLocale = {
 
 export const Role = {
   USER: "USER",
+  FAKE_USER: "FAKE_USER",
   ADMIN: "ADMIN",
   SUPER_USER: "SUPER_USER",
 };

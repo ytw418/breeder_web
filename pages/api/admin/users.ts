@@ -6,7 +6,7 @@ import { role as UserRole, UserStatus } from "@prisma/client";
 import { canRunSensitiveAdminAction, hasAdminAccess } from "./_utils";
 import { randomUUID } from "crypto";
 
-const ROLE_OPTIONS: UserRole[] = ["USER", "ADMIN", "SUPER_USER"];
+const ROLE_OPTIONS: UserRole[] = ["USER", "FAKE_USER", "ADMIN", "SUPER_USER"];
 const STATUS_OPTIONS: UserStatus[] = [
   "ACTIVE",
   "BANNED",

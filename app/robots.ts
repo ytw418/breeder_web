@@ -11,6 +11,8 @@ export default function robots(): MetadataRoute.Robots {
           "/admin/",
           "/auth/",
           "/chat/",
+          "/fake",
+          "/fake/",
           "/profiles/*/edit",
           "/products/*/edit",
         ],
