@@ -13,6 +13,7 @@ import { useParams, useRouter } from "next/navigation";
 import { useForm } from "react-hook-form";
 
 import { PostDetailResponse } from "pages/api/posts/[id]";
+import { extractPostIdFromPath, toPostPath } from "@libs/post-route";
 import { toast } from "react-toastify";
 
 interface CommentForm {
@@ -25,22 +26,24 @@ const PostClient = ({
   nextNotice: initialNextNotice,
 }: PostDetailResponse) => {
   const query = useParams();
+  const postId = extractPostIdFromPath(query?.id);
+  const postApiId = Number.isNaN(postId) ? null : postId;
   const router = useRouter();
   const { user } = useUser();
 
   // 실시간 데이터 페칭
   const { data, mutate: boundMutate } = useSWR<PostDetailResponse>(
-    query?.id ? `/api/posts/${query.id}` : null
+    postApiId ? `/api/posts/${postApiId}` : null
   );
 
   // 좋아요 토글 API
   const [toggleLike, { loading: likeLoading }] = useMutation(
-    query?.id ? `/api/posts/${query?.id}/wonder` : ""
+    postApiId ? `/api/posts/${postApiId}/wonder` : ""
   );
 
   // 댓글 작성 API
   const [postComment, { loading: commentLoading }] = useMutation(
-    query?.id ? `/api/posts/${query?.id}/answers` : ""
+    postApiId ? `/api/posts/${postApiId}/answers` : ""
   );
 
   const { register, handleSubmit, reset } = useForm<CommentForm>();
@@ -204,11 +207,11 @@ const PostClient = ({
           <section className="border-b border-slate-100 bg-slate-50 px-4 py-3">
             <h2 className="text-sm font-semibold text-slate-700">다른 공지 보기</h2>
             <div className="mt-2 overflow-hidden rounded-lg border border-slate-200 bg-white">
-              {prevNotice ? (
-                <Link
-                  href={`/posts/${prevNotice.id}`}
-                  className="flex items-center gap-2 border-b border-slate-100 px-3 py-2.5 hover:bg-slate-50"
-                >
+	              {prevNotice ? (
+	                <Link
+	                  href={toPostPath(prevNotice.id, prevNotice.title)}
+	                  className="flex items-center gap-2 border-b border-slate-100 px-3 py-2.5 hover:bg-slate-50"
+	                >
                   <span className="shrink-0 text-xs font-semibold text-slate-500">
                     이전 공지
                   </span>
@@ -225,11 +228,11 @@ const PostClient = ({
                 </div>
               )}
 
-              {nextNotice ? (
-                <Link
-                  href={`/posts/${nextNotice.id}`}
-                  className="flex items-center gap-2 px-3 py-2.5 hover:bg-slate-50"
-                >
+	              {nextNotice ? (
+	                <Link
+	                  href={toPostPath(nextNotice.id, nextNotice.title)}
+	                  className="flex items-center gap-2 px-3 py-2.5 hover:bg-slate-50"
+	                >
                   <span className="shrink-0 text-xs font-semibold text-slate-500">
                     다음 공지
                   </span>

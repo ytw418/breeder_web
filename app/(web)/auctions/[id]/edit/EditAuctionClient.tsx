@@ -15,6 +15,7 @@ import { toast } from "react-toastify";
 import { AuctionDetailResponse } from "pages/api/auctions/[id]";
 import { AUCTION_MIN_START_PRICE, getBidIncrement } from "@libs/auctionRules";
 import { getAuctionErrorMessage } from "@libs/client/auctionErrorMessage";
+import { extractAuctionIdFromPath, toAuctionPath } from "@libs/auction-route";
 
 interface AuctionEditForm {
   title: string;
@@ -74,9 +75,10 @@ const EditAuctionClient = () => {
   const [proofUploading, setProofUploading] = useState(false);
   const [selectedCategory, setSelectedCategory] = useState("");
   const [selectedDuration, setSelectedDuration] = useState<number | null>(null);
+  const auctionId = params?.id ? extractAuctionIdFromPath(params.id) : Number.NaN;
 
   const { data } = useSWR<AuctionDetailResponse>(
-    params?.id ? `/api/auctions/${params.id}` : null
+    Number.isNaN(auctionId) ? null : `/api/auctions/${auctionId}`
   );
 
   const {
@@ -89,7 +91,7 @@ const EditAuctionClient = () => {
   } = useForm<AuctionEditForm>();
 
   const [updateAuction, { loading }] = useMutation<AuctionUpdateResponse>(
-    params?.id ? `/api/auctions/${params.id}` : ""
+    Number.isNaN(auctionId) ? "" : `/api/auctions/${auctionId}`
   );
 
   useEffect(() => {
@@ -222,7 +224,10 @@ const EditAuctionClient = () => {
           );
         }
         toast.success("경매가 수정되었습니다.");
-        router.push(`/auctions/${params?.id}`);
+        if (Number.isNaN(auctionId)) {
+          return router.push("/auctions");
+        }
+        router.push(toAuctionPath(auctionId, form.title));
       },
       onError() {
         toast.error("오류가 발생했습니다.");
@@ -263,7 +268,7 @@ const EditAuctionClient = () => {
             <Button
               type="button"
               className="mt-2"
-              onClick={() => router.push(`/auctions/${params?.id}`)}
+              onClick={() => router.push(Number.isNaN(auctionId) ? "/auctions" : toAuctionPath(auctionId, data?.auction?.title))}
             >
               상세로 돌아가기
             </Button>

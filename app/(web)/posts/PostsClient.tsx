@@ -11,6 +11,7 @@ import useSWRInfinite from "swr/infinite";
 import { useInfiniteScroll } from "hooks/useInfiniteScroll";
 
 import { cn, getTimeAgoString, makeImageUrl } from "@libs/client/utils";
+import { toPostPath } from "@libs/post-route";
 import { POST_CATEGORIES } from "@libs/constants";
 import { PostsListResponse } from "pages/api/posts";
 import { NoticePostsResponse } from "pages/api/posts/notices";
@@ -138,7 +139,7 @@ export default function PostsClient() {
           id: `notice-${post.id}`,
           label: "공지",
           title: post.title,
-          href: `/posts/${post.id}`,
+          href: toPostPath(post.id, post.title),
         }))
       : NOTICE_BANNERS.map((notice) => ({
           id: notice.id,
@@ -330,7 +331,7 @@ export default function PostsClient() {
             sortedPosts.map((post) => (
                 <Link
                   key={post.id}
-                  href={`/posts/${post.id}`}
+                  href={toPostPath(post.id, post.title)}
                   className="block w-full border-b border-slate-100 px-4 py-3 transition-colors hover:bg-slate-50"
                 >
                   <div className="flex items-start gap-2.5">

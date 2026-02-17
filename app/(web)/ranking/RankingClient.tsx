@@ -8,6 +8,7 @@ import Layout from "@components/features/MainLayout";
 import { cn, makeImageUrl } from "@libs/client/utils";
 import { RankingResponse, BredyRank } from "pages/api/ranking";
 import { useRouter } from "next/navigation";
+import { toPostPath } from "@libs/post-route";
 
 /** 메인 탭 */
 const TABS = [
@@ -300,7 +301,7 @@ const PostRankingContent = ({ posts }: { posts: RankingResponse["postRanking"] }
           {posts.slice(0, 3).map((post, i) => (
             <Link
               key={post.id}
-              href={`/posts/${post.id}`}
+              href={toPostPath(post.id, post.title)}
               className="relative overflow-hidden rounded-xl aspect-square app-card-interactive"
             >
               {post.image && (
@@ -340,7 +341,7 @@ const PostRankingContent = ({ posts }: { posts: RankingResponse["postRanking"] }
         return (
           <Link
             key={post.id}
-            href={`/posts/${post.id}`}
+            href={toPostPath(post.id, post.title)}
             className="app-card app-card-interactive flex items-center gap-3 p-3 transition-colors hover:bg-slate-50"
           >
             <div

@@ -4,6 +4,10 @@ import { notFound } from "next/navigation";
 import AuctionDetailClient from "./AuctionDetailClient";
 import client from "@libs/server/client";
 import Script from "next/script";
+import {
+  extractAuctionIdFromPath,
+  toAuctionPath,
+} from "@libs/auction-route";
 
 interface Props {
   params: {
@@ -50,11 +54,11 @@ const getAuctionForSeo = async (auctionId: number) => {
   }
 };
 
-const getAuctionCanonicalUrl = (auctionId: number) =>
-  `${SITE_URL}/auctions/${auctionId}`;
+const getAuctionCanonicalUrl = (auctionId: number, title?: string | null) =>
+  `${SITE_URL}${toAuctionPath(auctionId, title)}`;
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
-  const auctionId = Number(params.id.split("-")[0]);
+  const auctionId = extractAuctionIdFromPath(params.id);
 
   if (Number.isNaN(auctionId)) {
     return {
@@ -90,6 +94,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   }
 
   const auction = await getAuctionForSeo(auctionId);
+  const canonicalUrl = auction ? getAuctionCanonicalUrl(auction.id, auction.title) : undefined;
 
   if (!auction) {
     return {
@@ -110,8 +115,6 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const title = `${auction.title} | 브리디 경매`;
   const description = `${trimmedDescription} · 현재가 ${auction.currentPrice.toLocaleString()}원`;
   const ogImage = toPublicImageUrl(auction.photos?.[0]);
-  const canonicalUrl = getAuctionCanonicalUrl(auction.id);
-
   return {
     title,
     description,
@@ -157,7 +160,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 
 const generateAuctionJsonLd = (auction: Awaited<ReturnType<typeof getAuctionForSeo>>) => {
   if (!auction) return null;
-  const canonicalUrl = getAuctionCanonicalUrl(auction.id);
+  const canonicalUrl = getAuctionCanonicalUrl(auction.id, auction.title);
   const imageUrl = toPublicImageUrl(auction.photos?.[0]);
 
   return {
@@ -187,7 +190,7 @@ const generateAuctionJsonLd = (auction: Awaited<ReturnType<typeof getAuctionForS
 
 const generateBreadcrumbJsonLd = (auction: Awaited<ReturnType<typeof getAuctionForSeo>>) => {
   if (!auction) return null;
-  const canonicalUrl = getAuctionCanonicalUrl(auction.id);
+  const canonicalUrl = getAuctionCanonicalUrl(auction.id, auction.title);
   return {
     "@context": "https://schema.org",
     "@type": "BreadcrumbList",
@@ -215,7 +218,7 @@ const generateBreadcrumbJsonLd = (auction: Awaited<ReturnType<typeof getAuctionF
 };
 
 const page = async ({ params }: Props) => {
-  const auctionId = Number(params.id.split("-")[0]);
+  const auctionId = extractAuctionIdFromPath(params.id);
   if (Number.isNaN(auctionId)) {
     notFound();
   }

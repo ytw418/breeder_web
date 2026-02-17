@@ -3,6 +3,7 @@ import withHandler, { ResponseType } from "@libs/server/withHandler";
 import client from "@libs/server/client";
 import { withApiSession } from "@libs/server/withSession";
 import { Auction, Bid, User } from "@prisma/client";
+import { extractAuctionIdFromPath } from "@libs/auction-route";
 import {
   AUCTION_HIGH_PRICE_REQUIRE_CONTACT,
   AUCTION_MIN_START_PRICE,
@@ -53,7 +54,7 @@ async function handler(
     session: { user },
   } = req;
 
-  const auctionId = Number(id);
+  const auctionId = extractAuctionIdFromPath(id);
   if (isNaN(auctionId)) {
     return res.status(400).json({
       success: false,

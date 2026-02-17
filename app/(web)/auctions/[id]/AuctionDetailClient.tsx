@@ -19,6 +19,7 @@ import {
 } from "@libs/auctionRules";
 import { getAuctionErrorMessage } from "@libs/client/auctionErrorMessage";
 import { ANALYTICS_EVENTS, trackEvent } from "@libs/client/analytics";
+import { extractAuctionIdFromPath, toAuctionPath } from "@libs/auction-route";
 
 const DETAIL_FALLBACK_IMAGE = "/images/placeholders/minimal-gray-blur.svg";
 
@@ -60,6 +61,7 @@ const AuctionDetailClient = () => {
   const router = useRouter();
   const pathname = usePathname();
   const { user } = useUser();
+  const auctionId = params?.id ? extractAuctionIdFromPath(params.id) : Number.NaN;
   const [bidAmount, setBidAmount] = useState<number | null>(null);
   const [countdown, setCountdown] = useState({ text: "", isEnded: false });
   const [imageIndex, setImageIndex] = useState(0);
@@ -71,17 +73,17 @@ const AuctionDetailClient = () => {
 
   // 경매 데이터 (5초 간격 새로고침)
   const { data, mutate: boundMutate } = useSWR<AuctionDetailResponse>(
-    params?.id ? `/api/auctions/${params.id}` : null,
+    Number.isNaN(auctionId) ? null : `/api/auctions/${auctionId}`,
     { refreshInterval: 5000 }
   );
 
   // 입찰 API
   const [submitBid, { loading: bidLoading }] = useMutation<BidResponse>(
-    params?.id ? `/api/auctions/${params.id}/bid` : ""
+    Number.isNaN(auctionId) ? "" : `/api/auctions/${auctionId}/bid`
   );
   const [submitReport, { loading: reportLoading }] =
     useMutation<AuctionReportResponse>(
-      params?.id ? `/api/auctions/${params.id}/report` : ""
+      Number.isNaN(auctionId) ? "" : `/api/auctions/${auctionId}/report`
     );
 
   // 1초마다 카운트다운 갱신
@@ -255,8 +257,8 @@ const AuctionDetailClient = () => {
   };
 
   const getAuctionUrl = () => {
-    if (typeof window === "undefined") return "";
-    return window.location.href;
+    if (!auction || typeof window === "undefined") return "";
+    return new URL(toAuctionPath(auction.id, auction.title), window.location.origin).toString();
   };
 
   const copyToClipboard = async (value: string) => {
@@ -573,7 +575,7 @@ const AuctionDetailClient = () => {
             <div className="flex flex-wrap items-center gap-2">
               {data?.isOwner && data?.canEdit && !isToolRoute ? (
                 <Link
-                  href={`/auctions/${auction.id}/edit`}
+                  href={`${toAuctionPath(auction.id, auction.title)}/edit`}
                   className="inline-flex h-10 items-center rounded-xl bg-emerald-600 px-4 text-sm font-semibold text-white transition-colors hover:bg-emerald-700"
                 >
                   경매 수정하기

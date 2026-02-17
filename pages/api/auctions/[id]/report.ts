@@ -2,6 +2,7 @@ import { NextApiRequest, NextApiResponse } from "next";
 import withHandler, { ResponseType } from "@libs/server/withHandler";
 import { withApiSession } from "@libs/server/withSession";
 import client from "@libs/server/client";
+import { extractAuctionIdFromPath } from "@libs/auction-route";
 
 const REPORT_REASONS = [
   "허위 매물 의심",
@@ -34,7 +35,7 @@ async function handler(
     });
   }
 
-  const auctionId = Number(req.query.id);
+  const auctionId = extractAuctionIdFromPath(req.query.id);
   if (Number.isNaN(auctionId)) {
     return res.status(400).json({
       success: false,

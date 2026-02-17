@@ -13,6 +13,7 @@ import { useEffect, useState } from "react";
 import { useForm } from "react-hook-form";
 import { cn } from "@libs/client/utils";
 import { POST_CATEGORIES } from "@libs/constants";
+import { toPostPath } from "@libs/post-route";
 import { toast } from "react-toastify";
 
 interface UploadPostForm {
@@ -111,7 +112,7 @@ const UploadClient = () => {
 
       if (result.success && result.post?.id) {
         toast.success("게시글이 등록되었습니다.");
-        router.push(`/posts/${result.post.id}`);
+        router.push(toPostPath(result.post.id, result.post.title));
         return;
       }
 

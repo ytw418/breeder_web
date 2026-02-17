@@ -1,6 +1,8 @@
 import { MetadataRoute } from "next";
 import client from "@libs/server/client";
 import { getProductPath } from "@libs/product-route";
+import { toAuctionPath } from "@libs/auction-route";
+import { toPostPath } from "@libs/post-route";
 
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   // 정적 페이지 URL
@@ -85,6 +87,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     const auctions = await client.auction.findMany({
       select: {
         id: true,
+        title: true,
         updatedAt: true,
       },
       where: {
@@ -96,7 +99,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     });
 
     const auctionPages: MetadataRoute.Sitemap = auctions.map((auction) => ({
-      url: `https://bredy.app/auctions/${auction.id}`,
+      url: `https://bredy.app${toAuctionPath(auction.id, auction.title)}`,
       lastModified: auction.updatedAt,
       changeFrequency: "hourly",
       priority: 0.85,
@@ -105,6 +108,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     const posts = await client.post.findMany({
       select: {
         id: true,
+        title: true,
         updatedAt: true,
       },
       orderBy: {
@@ -114,7 +118,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     });
 
     const postPages: MetadataRoute.Sitemap = posts.map((post) => ({
-      url: `https://bredy.app/posts/${post.id}`,
+      url: `https://bredy.app${toPostPath(post.id, post.title)}`,
       lastModified: post.updatedAt,
       changeFrequency: "weekly",
       priority: 0.65,
