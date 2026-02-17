@@ -43,7 +43,10 @@ const isSwitchableTestUser = (targetUser?: {
   status?: UserStatus;
 } | null): boolean => {
   if (!targetUser) return false;
-  return targetUser.status === "ACTIVE" && targetUser.role === TEST_USER_ROLE;
+  return (
+    targetUser.status === "ACTIVE" &&
+    (targetUser.role === TEST_USER_ROLE || targetUser.provider === "test_user")
+  );
 };
 
 async function handler(
@@ -53,7 +56,7 @@ async function handler(
   if (req.method === "GET") {
     const users = await client.user.findMany({
       where: {
-        role: TEST_USER_ROLE,
+        OR: [{ role: TEST_USER_ROLE }, { provider: "test_user" }],
         status: "ACTIVE",
       },
       orderBy: [{ createdAt: "desc" }, { id: "desc" }],
