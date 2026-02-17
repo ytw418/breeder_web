@@ -43,37 +43,51 @@ const handler = async (
       }
     }
 
-    const orderBy: any =
-      selectedSort === "popular"
-        ? [{ _count: { Likes: "desc" as const } }, { createdAt: "desc" as const }]
-        : selectedSort === "comments"
-        ? [{ _count: { comments: "desc" as const } }, { createdAt: "desc" as const }]
-        : { createdAt: "desc" as const };
+    const pageNumber = Number(page);
+    const normalizedPage = Number.isInteger(pageNumber) && pageNumber > 0 ? pageNumber : 1;
+    const skip = (normalizedPage - 1) * 10;
 
-    const [posts, postCount] = await Promise.all([
-      client.post.findMany({
-        where,
-        include: {
-          user: {
-            select: {
-              id: true,
-              name: true,
-              avatar: true,
-            },
-          },
-          _count: {
-            select: {
-              comments: true,
-              Likes: true,
-            },
+    const basePostQuery = {
+      where,
+      include: {
+        user: {
+          select: {
+            id: true,
+            name: true,
+            avatar: true,
           },
         },
-        orderBy,
-        take: 10,
-        skip: page ? (+page - 1) * 10 : 0,
-      }),
+        _count: {
+          select: {
+            comments: true,
+            Likes: true,
+          },
+        },
+      },
+      orderBy: { createdAt: "desc" as const },
+    };
+
+    const [allPosts, postCount] = await Promise.all([
+      client.post.findMany(basePostQuery),
       client.post.count({ where }),
     ]);
+
+    const sortedPosts =
+      selectedSort === "latest"
+        ? allPosts
+        : allPosts.sort((a, b) => {
+            if (selectedSort === "popular") {
+              const likeDiff = b._count.Likes - a._count.Likes;
+              if (likeDiff !== 0) return likeDiff;
+            }
+            if (selectedSort === "comments") {
+              const commentDiff = b._count.comments - a._count.comments;
+              if (commentDiff !== 0) return commentDiff;
+            }
+            return b.createdAt.getTime() - a.createdAt.getTime();
+          });
+
+    const posts = sortedPosts.slice(skip, skip + 10);
 
     res.json({
       success: true,
