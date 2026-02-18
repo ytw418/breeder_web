@@ -42,6 +42,16 @@ async function handler(
   const { tab, period = "all", species } = req.query;
 
   try {
+    // 캐싱 전략: 탭과 기간에 따라 다른 캐시 시간 적용
+    // - 기네스북/멋진곤충/변이: 5분 캐시 (콘텐츠 변경 빈도 낮음)
+    // - 인기 게시글: 2분 캐시 (빠른 업데이트 필요)
+    // - 브리디 랭킹: 5분 캐시 (계산 비용 높음)
+    const cacheTime = tab === "popular" ? 120 : 300;
+    res.setHeader(
+      'Cache-Control',
+      `public, s-maxage=${cacheTime}, stale-while-revalidate=${cacheTime * 2}`
+    );
+
     // 기간 필터 (이번 달/올해)
     const now = new Date();
     const monthStart =
