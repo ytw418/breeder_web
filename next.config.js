@@ -14,6 +14,11 @@ const nextConfig = {
   },
   images: {
     remotePatterns: [{ hostname: "**" }],
+    // Vercel 이미지 최적화 및 캐싱 설정
+    formats: ['image/avif', 'image/webp'],
+    minimumCacheTTL: 60 * 60 * 24 * 30, // 30일 캐시
+    deviceSizes: [640, 750, 828, 1080, 1200, 1920, 2048, 3840],
+    imageSizes: [16, 32, 48, 64, 96, 128, 256, 384],
   },
   // 실험적 기능: 부분 사전 렌더링 (PPR) 활성화
   // ISR과 함께 사용하여 성능 최적화
