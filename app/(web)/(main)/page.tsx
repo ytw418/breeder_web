@@ -34,6 +34,13 @@ export const metadata: Metadata = {
   },
 };
 
+/**
+ * 메인 페이지 ISR 설정
+ * - 60초마다 페이지 재생성
+ * - 자주 변경되는 인기 콘텐츠를 적절한 주기로 업데이트
+ */
+export const revalidate = 60;
+
 const page = () => {
   return <MainClient />;
 };

@@ -60,6 +60,15 @@ async function handler(
   if (req.method === "GET") {
     const { page = 1, status, category, q } = req.query;
 
+    // 캐싱 전략: 검색/필터 없는 기본 목록은 30초 캐시
+    // 검색어나 필터가 있는 경우 캐시 시간을 짧게 설정
+    const hasFilters = q || (category && category !== "전체");
+    const cacheTime = hasFilters ? 15 : 30;
+    res.setHeader(
+      'Cache-Control',
+      `public, s-maxage=${cacheTime}, stale-while-revalidate=${cacheTime * 2}`
+    );
+
     const where: any = {};
     if (status && status !== "전체") where.status = String(status);
     if (category && category !== "전체") where.category = String(category);

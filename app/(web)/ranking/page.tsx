@@ -32,6 +32,13 @@ export const metadata: Metadata = {
   },
 };
 
+/**
+ * 랭킹 페이지 ISR 설정
+ * - 60초마다 페이지 재생성
+ * - 랭킹 데이터의 실시간성과 성능의 균형 유지
+ */
+export const revalidate = 60;
+
 const page = () => {
   return <RankingClient />;
 };
