@@ -27,15 +27,15 @@ res.setHeader(
 | API 엔드포인트 | 캐시 시간 | SWR 시간 | 이유 |
 |--------------|---------|---------|------|
 | `/api/products/popular` | 300초 (5분) | 600초 (10분) | 인기 상품 변동이 적음 |
-| `/api/ranking/index?tab=popular` | 120초 (2분) | 240초 (4분) | 인기 게시글은 빠른 업데이트 필요 |
-| `/api/ranking/index?tab=bredy` | 300초 (5분) | 600초 (10분) | 랭킹 계산 비용이 높음 |
-| `/api/ranking/index?tab=guinness` | 300초 (5분) | 600초 (10분) | 기네스 기록 변동이 적음 |
-| `/api/auctions/index` | 30초 | 60초 | 진행중 경매는 실시간성 중요 |
-| `/api/auctions/index?q=검색어` | 15초 | 30초 | 검색 결과는 더 짧은 캐시 |
-| `/api/products/index` | 60초 | 120초 | 일반 상품 목록 |
-| `/api/products/index?category=곤충` | 30초 | 60초 | 필터링된 목록은 짧은 캐시 |
-| `/api/posts/index?sort=latest` | 30초 | 60초 | 최신 게시글은 빠른 업데이트 |
-| `/api/posts/index?sort=popular` | 120초 (2분) | 240초 (4분) | 인기 게시글은 계산 비용 절감 |
+| `/api/ranking?tab=popular` | 120초 (2분) | 240초 (4분) | 인기 게시글은 빠른 업데이트 필요 |
+| `/api/ranking?tab=bredy` | 300초 (5분) | 600초 (10분) | 랭킹 계산 비용이 높음 |
+| `/api/ranking?tab=guinness` | 300초 (5분) | 600초 (10분) | 기네스 기록 변동이 적음 |
+| `/api/auctions` | 30초 | 60초 | 진행중 경매는 실시간성 중요 |
+| `/api/auctions?q=검색어` | 15초 | 30초 | 검색 결과는 더 짧은 캐시 |
+| `/api/products` | 60초 | 120초 | 일반 상품 목록 |
+| `/api/products?category=곤충` | 30초 | 60초 | 필터링된 목록은 짧은 캐시 |
+| `/api/posts?sort=latest` | 30초 | 60초 | 최신 게시글은 빠른 업데이트 |
+| `/api/posts?sort=popular` | 120초 (2분) | 240초 (4분) | 인기 게시글은 계산 비용 절감 |
 
 ### 2. ISR (Incremental Static Regeneration)
 
@@ -119,6 +119,64 @@ const nextConfig = {
     maxInactiveAge: 60 * 1000,     // 60초간 메모리 유지
     pagesBufferLength: 5,           // 최대 5개 페이지 버퍼
   },
+  
+  // 이미지 최적화 및 캐싱 설정
+  images: {
+    formats: ['image/avif', 'image/webp'],
+    minimumCacheTTL: 60 * 60 * 24 * 30, // 30일 캐시
+    deviceSizes: [640, 750, 828, 1080, 1200, 1920, 2048, 3840],
+    imageSizes: [16, 32, 48, 64, 96, 128, 256, 384],
+  },
+};
+```
+
+### 이미지 캐싱 전략
+
+Vercel의 이미지 최적화 기능을 활용하여 이미지 성능을 개선합니다:
+
+#### 자동 포맷 변환
+- **AVIF/WebP**: 최신 브라우저에서 자동으로 최적화된 포맷 제공
+- **자동 감지**: 브라우저가 지원하는 최적 포맷 자동 선택
+- **파일 크기**: 기존 JPEG/PNG 대비 30-50% 감소
+
+#### 캐시 전략
+- **minimumCacheTTL**: 30일 (2,592,000초)
+- **CDN 캐싱**: Vercel Edge Network에서 전 세계 엣지 서버에 캐시
+- **브라우저 캐싱**: `Cache-Control` 헤더 자동 설정
+
+#### 반응형 이미지
+- **deviceSizes**: 다양한 디바이스 화면 크기에 최적화된 이미지 제공
+- **imageSizes**: 레이아웃 크기에 맞는 이미지 자동 선택
+- **Lazy Loading**: 뷰포트에 진입할 때 이미지 로드
+
+#### 사용 예시
+
+```tsx
+// Next.js Image 컴포넌트 사용
+import Image from 'next/image';
+
+<Image
+  src="/photos/product-image.jpg"
+  alt="상품 이미지"
+  width={800}
+  height={600}
+  priority={false} // 중요하지 않은 이미지는 lazy load
+/>
+
+// Cloudflare Images 사용 시
+<Image
+  src="https://imagedelivery.net/.../.../public"
+  alt="상품 이미지"
+  width={800}
+  height={600}
+/>
+```
+
+#### 성능 개선 효과
+- **로딩 속도**: 이미지 크기 감소로 30-50% 빠른 로딩
+- **대역폭**: CDN 캐싱으로 원본 서버 부하 감소
+- **사용자 경험**: 반응형 이미지로 모든 디바이스에서 최적 화질
+  },
 };
 ```
 
@@ -149,11 +207,22 @@ const nextConfig = {
 ### 수동 무효화 (필요 시)
 
 ```typescript
-// On-Demand Revalidation 사용 예시
-await fetch('/api/revalidate?path=/ranking', {
+// On-Demand Revalidation 예시 (실제 구현 필요)
+// 보안을 위해 토큰 검증이 포함된 API를 만들어야 함
+// pages/api/revalidate.ts 파일을 생성하여 구현
+
+// 예시 코드:
+await fetch('/api/revalidate', {
   method: 'POST',
+  headers: {
+    'Content-Type': 'application/json',
+    'Authorization': 'Bearer YOUR_SECRET_TOKEN',
+  },
+  body: JSON.stringify({ path: '/ranking' }),
 });
 ```
+
+**참고**: 현재 `/api/revalidate` 엔드포인트는 구현되어 있지 않습니다. 필요한 경우 보안 토큰 검증을 포함하여 별도로 구현해야 합니다.
 
 ## 주의사항
 
