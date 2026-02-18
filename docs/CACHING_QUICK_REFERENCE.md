@@ -217,3 +217,56 @@ cache-control: public, s-maxage=60, stale-while-revalidate=120
 - `docs/CACHING_STRATEGY.md` - 전체 캐싱 전략
 - [Next.js ISR 문서](https://nextjs.org/docs/app/building-your-application/data-fetching/incremental-static-regeneration)
 - [HTTP 캐싱 가이드](https://web.dev/http-cache/)
+
+## 이미지 최적화
+
+### Next.js Image 컴포넌트 사용
+
+```tsx
+import Image from 'next/image';
+
+// 기본 사용법
+<Image
+  src="/photos/product.jpg"
+  alt="상품 이미지"
+  width={800}
+  height={600}
+  priority={false} // 중요하지 않은 이미지는 lazy load
+/>
+
+// Cloudflare Images
+<Image
+  src="https://imagedelivery.net/.../public"
+  alt="상품 이미지"
+  width={800}
+  height={600}
+  loading="lazy"
+/>
+```
+
+### 이미지 캐싱 설정
+
+프로젝트에 이미 적용된 설정:
+- **포맷**: AVIF/WebP 자동 변환 (30-50% 파일 크기 감소)
+- **캐시**: 30일 장기 캐싱
+- **반응형**: 디바이스별 최적 크기 자동 제공
+- **CDN**: Vercel Edge Network에서 전 세계 캐싱
+
+### 이미지 사용 팁
+
+1. **priority 속성**: 첫 화면에 보이는 중요 이미지만 `priority={true}` 사용
+2. **sizes 속성**: 반응형 레이아웃에서 정확한 크기 명시
+3. **lazy loading**: 기본값이므로 대부분의 이미지는 자동 적용
+4. **width/height**: 항상 명시하여 Layout Shift 방지
+
+```tsx
+// 반응형 이미지 예시
+<Image
+  src="/banner.jpg"
+  alt="배너"
+  width={1200}
+  height={400}
+  sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
+  priority={true} // 첫 화면 배너
+/>
+```
