@@ -15,6 +15,20 @@ const nextConfig = {
   images: {
     remotePatterns: [{ hostname: "**" }],
   },
+  // 실험적 기능: 부분 사전 렌더링 (PPR) 활성화
+  // ISR과 함께 사용하여 성능 최적화
+  experimental: {
+    // PPR 활성화 시 ISR과 함께 사용되어 더 빠른 페이지 로딩 제공
+    // ppr: true, // 안정화 버전에서 활성화 고려
+  },
+  // 캐싱 최적화: onDemandEntries 설정
+  // 개발 모드에서도 페이지를 메모리에 유지하는 시간 설정
+  onDemandEntries: {
+    // 페이지를 메모리에 유지하는 시간 (밀리초)
+    maxInactiveAge: 60 * 1000,
+    // 동시에 메모리에 유지할 수 있는 페이지 수
+    pagesBufferLength: 5,
+  },
 };
 
 module.exports = withSentryConfig(nextConfig, {

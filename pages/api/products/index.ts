@@ -71,6 +71,15 @@ const handler = async (
       ? Math.min(sizeNumber, 50)
       : 10;
 
+    // 캐싱 전략: 필터 없는 기본 목록은 60초 캐시
+    // 필터가 있는 경우 30초 캐시
+    const hasFilters = (category && category !== "전체") || productType || status;
+    const cacheTime = hasFilters ? 30 : 60;
+    res.setHeader(
+      'Cache-Control',
+      `public, s-maxage=${cacheTime}, stale-while-revalidate=${cacheTime * 2}`
+    );
+
     // 카테고리/타입/상태 필터 조건
     const where: any = {};
     if (category && category !== "전체") {

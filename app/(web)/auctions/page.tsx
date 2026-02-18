@@ -58,6 +58,13 @@ export const metadata: Metadata = {
   },
 };
 
+/**
+ * 경매 목록 페이지 ISR 설정
+ * - 30초마다 페이지 재생성
+ * - 진행중인 경매의 실시간성 유지를 위해 짧은 revalidate 시간 사용
+ */
+export const revalidate = 30;
+
 const page = async () => {
   let auctions: Array<{ id: number; title: string }> = [];
 

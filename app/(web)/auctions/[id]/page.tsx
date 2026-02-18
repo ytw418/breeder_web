@@ -57,6 +57,13 @@ const getAuctionForSeo = async (auctionId: number) => {
 const getAuctionCanonicalUrl = (auctionId: number, title?: string | null) =>
   `${SITE_URL}${toAuctionPath(auctionId, title)}`;
 
+/**
+ * 경매 상세 페이지 ISR 설정
+ * - 15초마다 페이지 재생성
+ * - 입찰 정보의 실시간성을 위해 짧은 revalidate 시간 사용
+ */
+export const revalidate = 15;
+
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const auctionId = extractAuctionIdFromPath(params.id);
 
