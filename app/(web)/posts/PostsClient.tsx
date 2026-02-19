@@ -14,6 +14,7 @@ import { cn, getTimeAgoString, makeImageUrl } from "@libs/client/utils";
 import { toPostPath } from "@libs/post-route";
 import { POST_CATEGORIES } from "@libs/constants";
 import { PostsListResponse } from "pages/api/posts";
+import { TOP_LEVEL_CATEGORIES } from "@libs/categoryTaxonomy";
 import { NoticePostsResponse } from "pages/api/posts/notices";
 import { RankingResponse } from "pages/api/ranking";
 
@@ -97,6 +98,7 @@ const SectionHeader = ({
 export default function PostsClient() {
   const [selectedCategory, setSelectedCategory] = useState("전체");
   const [selectedSort, setSelectedSort] = useState<SortType>("latest");
+  const [selectedSpecies, setSelectedSpecies] = useState("전체");
 
   const getKey = (
     pageIndex: number,
@@ -106,7 +108,8 @@ export default function PostsClient() {
     const categoryParam =
       selectedCategory !== "전체" ? `&category=${selectedCategory}` : "";
     const sortParam = selectedSort !== "latest" ? `&sort=${selectedSort}` : "";
-    return `/api/posts?page=${pageIndex + 1}${categoryParam}${sortParam}`;
+    const speciesParam = selectedSpecies !== "전체" ? `&species=${selectedSpecies}` : "";
+    return `/api/posts?page=${pageIndex + 1}${categoryParam}${sortParam}${speciesParam}`;
   };
 
   const { data, setSize } = useSWRInfinite<PostsListResponse>(getKey);
@@ -128,6 +131,11 @@ export default function PostsClient() {
   const handleSortChange = (sortType: SortType) => {
     if (selectedSort === sortType) return;
     setSelectedSort(sortType);
+    setSize(1);
+  };
+
+  const handleSpeciesChange = (species: string) => {
+    setSelectedSpecies(species);
     setSize(1);
   };
 
@@ -186,6 +194,26 @@ export default function PostsClient() {
           ))}
         </section>
 
+
+        <section className="px-4 pb-2 app-reveal">
+          <div className="flex items-center gap-2 overflow-x-auto pb-1">
+            {[{ id: "전체", name: "전체" }, ...TOP_LEVEL_CATEGORIES].map((species) => (
+              <button
+                key={species.id}
+                type="button"
+                onClick={() => handleSpeciesChange(species.id)}
+                className={cn(
+                  "shrink-0 rounded-full border px-3 py-1 text-xs font-medium transition-colors",
+                  selectedSpecies === species.id
+                    ? "border-primary bg-primary text-white"
+                    : "border-slate-200 bg-white text-slate-500"
+                )}
+              >
+                {species.name}
+              </button>
+            ))}
+          </div>
+        </section>
         {/* TOP 브리디 */}
         <section className="app-section app-reveal app-reveal-3 py-2">
           <SectionHeader title="TOP 브리디" href="/ranking" />

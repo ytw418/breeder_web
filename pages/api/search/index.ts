@@ -2,6 +2,7 @@ import { NextApiRequest, NextApiResponse } from "next";
 import withHandler from "@libs/server/withHandler";
 import client from "@libs/server/client";
 import { withApiSession } from "@libs/server/withSession";
+import { getCategorySearchKeywords } from "@libs/categoryTaxonomy";
 
 export interface SearchResponse {
   success: boolean;
@@ -49,6 +50,10 @@ async function handler(
 ) {
   try {
     const { query: { q, type = "all" } } = req;
+    const normalizedType =
+      typeof type === "string" && ["all", "products", "posts", "users"].includes(type)
+        ? type
+        : "all";
 
     if (!q || (q as string).trim() === "") {
       return res.json({
@@ -60,16 +65,20 @@ async function handler(
     }
 
     const keyword = (q as string).trim();
+    const categoryKeywords = getCategorySearchKeywords(keyword);
 
     // 상품 검색
     const products =
-      type === "all" || type === "products"
+      normalizedType === "all" || normalizedType === "products"
         ? await client.product.findMany({
             where: {
               OR: [
                 { name: { contains: keyword, mode: "insensitive" } },
                 { description: { contains: keyword, mode: "insensitive" } },
                 { category: { contains: keyword, mode: "insensitive" } },
+                ...(categoryKeywords.length
+                  ? [{ category: { in: categoryKeywords } }]
+                  : []),
               ],
             },
             select: {
@@ -93,12 +102,17 @@ async function handler(
 
     // 게시글 검색
     const posts =
-      type === "all" || type === "posts"
+      normalizedType === "all" || normalizedType === "posts"
         ? await client.post.findMany({
             where: {
+              category: { not: "공지" },
               OR: [
                 { title: { contains: keyword, mode: "insensitive" } },
                 { description: { contains: keyword, mode: "insensitive" } },
+                { type: { contains: keyword, mode: "insensitive" } },
+                ...(categoryKeywords.length
+                  ? [{ type: { in: categoryKeywords } }]
+                  : []),
               ],
             },
             select: {
@@ -120,7 +134,7 @@ async function handler(
 
     // 유저 검색
     const users =
-      type === "all" || type === "users"
+      normalizedType === "all" || normalizedType === "users"
         ? await client.user.findMany({
             where: {
               name: { contains: keyword, mode: "insensitive" },

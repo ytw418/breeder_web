@@ -16,6 +16,7 @@ import { AuctionDetailResponse } from "pages/api/auctions/[id]";
 import { AUCTION_MIN_START_PRICE, getBidIncrement } from "@libs/auctionRules";
 import { getAuctionErrorMessage } from "@libs/client/auctionErrorMessage";
 import { extractAuctionIdFromPath, toAuctionPath } from "@libs/auction-route";
+import { TOP_LEVEL_CATEGORIES, findCategoryBranch, getSubcategories } from "@libs/categoryTaxonomy";
 
 interface AuctionEditForm {
   title: string;
@@ -36,15 +37,6 @@ interface AuctionUpdateResponse {
   errorCode?: string;
   auction?: { id: number };
 }
-
-const AUCTION_CATEGORIES = [
-  "곤충",
-  "파충류",
-  "어류",
-  "조류",
-  "포유류",
-  "기타",
-];
 
 const DURATION_PRESETS = [
   { label: "1시간", hours: 1 },
@@ -74,6 +66,7 @@ const EditAuctionClient = () => {
   const [uploading, setUploading] = useState(false);
   const [proofUploading, setProofUploading] = useState(false);
   const [selectedCategory, setSelectedCategory] = useState("");
+  const [selectedSubcategory, setSelectedSubcategory] = useState("");
   const [selectedDuration, setSelectedDuration] = useState<number | null>(null);
   const auctionId = params?.id ? extractAuctionIdFromPath(params.id) : Number.NaN;
 
@@ -108,12 +101,15 @@ const EditAuctionClient = () => {
       sellerBandNick: data.auction.sellerBandNick || "",
       sellerTrustNote: data.auction.sellerTrustNote || "",
     });
-    setSelectedCategory(data.auction.category || "");
+    const branch = findCategoryBranch(data.auction.category || "");
+    setSelectedCategory(branch.parent);
+    setSelectedSubcategory(branch.child);
     setPhotos(data.auction.photos || []);
     setSellerProofImage(data.auction.sellerProofImage || null);
   }, [data?.auction, reset]);
 
   const watchedStartPrice = Number(watch("startPrice") || 0);
+  const subcategories = selectedCategory ? getSubcategories(selectedCategory) : [];
   const currentBidIncrement = getBidIncrement(watchedStartPrice);
   const editAvailableUntilText = useMemo(() => {
     if (!data?.editAvailableUntil) return "-";
@@ -212,7 +208,7 @@ const EditAuctionClient = () => {
         action: "update",
         ...form,
         endAt: normalizedEndAt,
-        category: selectedCategory,
+        category: selectedSubcategory || selectedCategory,
         photos,
         sellerProofImage,
         startPrice: Number(form.startPrice),
@@ -341,22 +337,44 @@ const EditAuctionClient = () => {
             카테고리 <span className="text-red-500">*</span>
           </label>
           <div className="flex flex-wrap gap-2">
-            {AUCTION_CATEGORIES.map((cat) => (
+            {TOP_LEVEL_CATEGORIES.map((cat) => (
               <button
-                key={cat}
+                key={cat.id}
                 type="button"
-                onClick={() => setSelectedCategory(cat)}
+                onClick={() => {
+                  setSelectedCategory(cat.id);
+                  setSelectedSubcategory("");
+                }}
                 className={cn(
                   "px-3 py-1.5 rounded-full text-sm font-medium transition-colors",
-                  selectedCategory === cat
+                  selectedCategory === cat.id
                     ? "bg-gray-900 text-white"
                     : "bg-gray-100 text-gray-600 hover:bg-gray-200"
                 )}
               >
-                {cat}
+                {cat.name}
               </button>
             ))}
           </div>
+          {subcategories.length > 0 ? (
+            <div className="mt-2 flex flex-wrap gap-2">
+              {subcategories.map((subcategory) => (
+                <button
+                  key={subcategory}
+                  type="button"
+                  onClick={() => setSelectedSubcategory(subcategory)}
+                  className={cn(
+                    "rounded-full border px-3 py-1 text-xs font-medium transition-colors",
+                    selectedSubcategory === subcategory
+                      ? "border-primary bg-primary text-white"
+                      : "border-slate-200 bg-white text-slate-500 hover:bg-slate-50"
+                  )}
+                >
+                  {subcategory}
+                </button>
+              ))}
+            </div>
+          ) : null}
         </div>
 
         <div>

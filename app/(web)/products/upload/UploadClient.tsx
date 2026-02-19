@@ -12,7 +12,8 @@ import Image from "@components/atoms/Image";
 import { toast } from "react-toastify";
 import { Label } from "@components/ui/label";
 import { cn } from "@libs/client/utils";
-import { CATEGORIES, PRODUCT_TYPES } from "@libs/constants";
+import { PRODUCT_TYPES } from "@libs/constants";
+import { TOP_LEVEL_CATEGORIES, getSubcategories } from "@libs/categoryTaxonomy";
 import MarkdownEditor from "@components/features/product/MarkdownEditor";
 import { getProductPath } from "@libs/product-route";
 
@@ -64,6 +65,7 @@ const UploadClient = () => {
   const [isUploading, setIsUploading] = useState(false);
   const [submitStep, setSubmitStep] = useState<SubmitStep>("idle");
   const [selectedCategory, setSelectedCategory] = useState<string>("");
+  const [selectedSubcategory, setSelectedSubcategory] = useState<string>("");
   const [selectedProductType, setSelectedProductType] = useState<string>("");
   const [categoryError, setCategoryError] = useState<string>("");
   const [productTypeError, setProductTypeError] = useState<string>("");
@@ -161,7 +163,7 @@ const UploadClient = () => {
           price: formData.price,
           description: formData.description.trim(),
           photos: photoIds,
-          category: selectedCategory,
+          category: selectedSubcategory || selectedCategory,
           productType: selectedProductType,
         },
       });
@@ -199,6 +201,8 @@ const UploadClient = () => {
       previews.forEach((preview) => URL.revokeObjectURL(preview.url));
     };
   }, [previews]);
+
+  const subcategories = selectedCategory ? getSubcategories(selectedCategory) : [];
 
   const isSubmitDisabled =
     isUploading ||
@@ -293,11 +297,14 @@ const UploadClient = () => {
           <div className="space-y-2">
             <Label>카테고리</Label>
             <div className="flex flex-wrap gap-2">
-              {CATEGORIES.map((cat) => (
+              {TOP_LEVEL_CATEGORIES.map((cat) => (
                 <button
                   key={cat.id}
                   type="button"
-                  onClick={() => setSelectedCategory(cat.id)}
+                  onClick={() => {
+                    setSelectedCategory(cat.id);
+                    setSelectedSubcategory("");
+                  }}
                   className={cn(
                     "rounded-md border px-3 py-1.5 text-sm font-medium transition-colors",
                     selectedCategory === cat.id
@@ -309,6 +316,25 @@ const UploadClient = () => {
                 </button>
               ))}
             </div>
+            {subcategories.length > 0 ? (
+              <div className="mt-2 flex flex-wrap gap-2">
+                {subcategories.map((sub) => (
+                  <button
+                    key={sub}
+                    type="button"
+                    onClick={() => setSelectedSubcategory(sub)}
+                    className={cn(
+                      "rounded-md border px-3 py-1 text-xs font-medium transition-colors",
+                      selectedSubcategory === sub
+                        ? "border-primary bg-primary text-white"
+                        : "border-slate-200 bg-white text-slate-500 hover:bg-slate-50"
+                    )}
+                  >
+                    {sub}
+                  </button>
+                ))}
+              </div>
+            ) : null}
             {categoryError ? <p className="text-xs text-red-500">{categoryError}</p> : null}
           </div>
 

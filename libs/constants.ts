@@ -1,3 +1,5 @@
+import { TOP_LEVEL_CATEGORIES } from "@libs/categoryTaxonomy";
+
 // ============================================================
 // 카테고리 시스템
 // ============================================================
@@ -12,12 +14,7 @@ export type ProductType = (typeof PRODUCT_TYPES)[number]["id"];
 
 /** 상품 카테고리 (경매와 동일한 대분류) */
 export const CATEGORIES = [
-  { id: "곤충", name: "곤충" },
-  { id: "파충류", name: "파충류" },
-  { id: "어류", name: "어류" },
-  { id: "조류", name: "조류" },
-  { id: "포유류", name: "포유류" },
-  { id: "기타", name: "기타" },
+  ...TOP_LEVEL_CATEGORIES,
 ] as const;
 
 export type Category = (typeof CATEGORIES)[number]["id"];
