@@ -3,8 +3,8 @@ import { useParams, useRouter } from "next/navigation";
 import { useState } from "react";
 
 import MainLayout from "@components/features/MainLayout";
-import MyPostList from "@components/features/profile/myPostList";
-import MySaleHistroyMenu from "@components/features/profile/MySaleHistroyMenu";
+import MyPostList from "@components/features/profile/MyPostList";
+import MySaleHistoryMenu from "@components/features/profile/MySaleHistoryMenu";
 import MyCommunityPostList from "@components/features/profile/MyCommunityPostList";
 import ProfileAuctionList from "@components/features/profile/ProfileAuctionList";
 import ProfileBloodlineList from "@components/features/profile/ProfileBloodlineList";
@@ -190,7 +190,7 @@ const ProfileClient = () => {
 
         {/* 거래 메뉴 */}
         <div className="px-4 py-4">
-          <MySaleHistroyMenu />
+          <MySaleHistoryMenu />
         </div>
 
         {/* 구분선 */}
