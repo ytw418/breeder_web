@@ -1,27 +1,7 @@
 import { IronSessionOptions } from "iron-session";
 import { withIronSessionApiRoute, withIronSessionSsr } from "iron-session/next";
 import { GetServerSidePropsContext, GetServerSidePropsResult } from "next";
-
-export interface PendingPayment {
-  goodsName?: string;
-  grandTotal: number;
-  buyerName: string;
-}
-declare module "iron-session" {
-  interface IronSessionData {
-    user?: {
-      id: number;
-      snsId: string;
-      provider: string;
-      phone: string | null;
-      email: string | null;
-      name: string;
-      avatar: string | null;
-      createdAt: Date;
-      updatedAt: Date;
-    };
-  }
-}
+import { SESSION_COOKIE_NAME } from "@libs/constants";
 
 export type SessionUser = {
   id: number;
@@ -35,8 +15,14 @@ export type SessionUser = {
   updatedAt: Date;
 };
 
+declare module "iron-session" {
+  interface IronSessionData {
+    user?: SessionUser;
+  }
+}
+
 const sessionOptions: IronSessionOptions = {
-  cookieName: "kakaoDev", //
+  cookieName: SESSION_COOKIE_NAME,
   password: process.env.COOKIE_PASSWORD!,
   cookieOptions: {
     secure: process.env.NODE_ENV === "production",

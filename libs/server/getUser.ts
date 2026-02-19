@@ -2,6 +2,7 @@ import { unsealData } from "iron-session";
 import { cookies } from "next/headers";
 
 import { SessionUser } from "./withSession";
+import { SESSION_COOKIE_NAME } from "@libs/constants";
 
 /**
  * 세션에서 유저 정보를 가져옵니다.
@@ -10,7 +11,7 @@ import { SessionUser } from "./withSession";
  */
 export async function getSessionUser(): Promise<SessionUser | null> {
   const nextCookies = cookies();
-  const found = nextCookies.get("kakaoDev");
+  const found = nextCookies.get(SESSION_COOKIE_NAME);
 
   if (!found) return null;
   try {

@@ -4,8 +4,8 @@ import Image from "@components/atoms/Image";
 import { Spinner } from "@components/atoms/Spinner";
 import MyCommentList from "@components/features/profile/MyCommentList";
 import MyCommunityPostList from "@components/features/profile/MyCommunityPostList";
-import MySaleHistroyMenu from "@components/features/profile/MySaleHistroyMenu";
-import MyPostList from "@components/features/profile/myPostList";
+import MySaleHistoryMenu from "@components/features/profile/MySaleHistoryMenu";
+import MyPostList from "@components/features/profile/MyPostList";
 import { Button } from "@components/ui/button";
 import { cn } from "@libs/client/utils";
 import { USER_INFO } from "@libs/constants";
@@ -531,7 +531,7 @@ const MyPageClient = () => {
 
       {/* 거래 메뉴 */}
       <div className="px-4 py-4">
-        <MySaleHistroyMenu />
+        <MySaleHistoryMenu />
       </div>
 
       <div className="h-px border-t border-slate-100/80 dark:border-slate-800/80" />
