@@ -17,6 +17,12 @@ const handler = async (
   req: NextApiRequest,
   res: NextApiResponse<ResponseType>
 ) => {
+  // 캐싱 헤더 설정: 5분간 캐시, 10분간 stale-while-revalidate
+  res.setHeader(
+    'Cache-Control',
+    'public, s-maxage=300, stale-while-revalidate=600'
+  );
+
   const products = await client.product.findMany({
     include: {
       _count: {

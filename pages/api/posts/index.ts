@@ -34,6 +34,15 @@ const handler = async (
         ? sort
         : "latest";
 
+    // 캐싱 전략: 정렬 방식에 따라 다른 캐시 시간 적용
+    // - latest: 30초 캐시 (최신 게시글 빠른 반영)
+    // - popular/comments: 120초 캐시 (정렬 계산 비용 절감)
+    const cacheTime = selectedSort === "latest" ? 30 : 120;
+    res.setHeader(
+      'Cache-Control',
+      `public, s-maxage=${cacheTime}, stale-while-revalidate=${cacheTime * 2}`
+    );
+
     // 기본 피드에서는 공지 카테고리 제외
     const where: any = { NOT: { category: "공지" } };
     if (category && category !== "전체") {

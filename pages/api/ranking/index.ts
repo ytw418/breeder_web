@@ -52,6 +52,12 @@ async function handler(
 
     /** 1) 기네스북 (곤충 크기/무게 기록) */
     if (tab === "guinness") {
+      // 캐싱 전략: 기네스북 - 5분 캐시 (콘텐츠 변경 빈도 낮음)
+      res.setHeader(
+        'Cache-Control',
+        'public, s-maxage=300, stale-while-revalidate=600'
+      );
+
       const where: any = { isVerified: true };
       if (species && species !== "전체") where.species = String(species);
       if (periodStart) where.createdAt = { gte: periodStart };
@@ -70,6 +76,12 @@ async function handler(
 
     /** 2) 멋진 곤충 랭킹 (사진 카테고리 좋아요순) */
     if (tab === "coolInsect") {
+      // 캐싱 전략: 멋진곤충 - 5분 캐시 (콘텐츠 변경 빈도 낮음)
+      res.setHeader(
+        'Cache-Control',
+        'public, s-maxage=300, stale-while-revalidate=600'
+      );
+
       const where: any = { category: "사진" };
       if (periodStart) where.createdAt = { gte: periodStart };
 
@@ -88,6 +100,12 @@ async function handler(
 
     /** 3) 인기 게시글 (전체 카테고리 좋아요순) */
     if (tab === "popular") {
+      // 캐싱 전략: 인기 게시글 - 2분 캐시 (빠른 업데이트 필요)
+      res.setHeader(
+        'Cache-Control',
+        'public, s-maxage=120, stale-while-revalidate=240'
+      );
+
       const where: any = { NOT: { category: "공지" } };
       if (periodStart) where.createdAt = { gte: periodStart };
 
@@ -106,6 +124,12 @@ async function handler(
 
     /** 3) 변이 랭킹 (변이 카테고리 좋아요순) */
     if (tab === "mutation") {
+      // 캐싱 전략: 변이 - 5분 캐시 (콘텐츠 변경 빈도 낮음)
+      res.setHeader(
+        'Cache-Control',
+        'public, s-maxage=300, stale-while-revalidate=600'
+      );
+
       const where: any = { category: "변이" };
       if (periodStart) where.createdAt = { gte: periodStart };
 
@@ -124,6 +148,11 @@ async function handler(
 
     /** 4) 최고 브리디 랭킹 (종합 점수) */
     if (tab === "bredy") {
+      // 캐싱 전략: 브리디 랭킹 - 5분 캐시 (계산 비용 높음)
+      res.setHeader(
+        'Cache-Control',
+        'public, s-maxage=300, stale-while-revalidate=600'
+      );
       // 유저별 점수 계산을 위해 관련 데이터 조회
       const users = await client.user.findMany({
         select: {
