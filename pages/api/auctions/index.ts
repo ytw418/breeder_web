@@ -12,6 +12,7 @@ import {
 } from "@libs/auctionRules";
 import { settleExpiredAuctions } from "@libs/server/auctionSettlement";
 import { normalizeOptionalText, normalizeOptionalUrl } from "@libs/shared/normalize";
+import { getCategoryFilterValues } from "@libs/categoryTaxonomy";
 
 /** 경매 목록 응답 타입 */
 export interface AuctionWithUser extends Auction {
@@ -47,7 +48,9 @@ async function handler(
 
     const where: any = {};
     if (status && status !== "전체") where.status = String(status);
-    if (category && category !== "전체") where.category = String(category);
+    if (category && category !== "전체") {
+      where.category = { in: getCategoryFilterValues(String(category)) };
+    }
     const keyword = typeof q === "string" ? q.trim() : "";
     if (keyword) {
       where.OR = [
