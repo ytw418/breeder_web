@@ -14,6 +14,7 @@ import { settleExpiredAuctions } from "@libs/server/auctionSettlement";
 import { normalizeOptionalText, normalizeOptionalUrl } from "@libs/shared/normalize";
 import { getCategoryFilterValues } from "@libs/categoryTaxonomy";
 import { normalizeOptionalText, normalizeOptionalUrl } from "@libs/shared/normalize";
+import { getCategoryFilterValues } from "@libs/categoryTaxonomy";
 
 /** 경매 목록 응답 타입 */
 export interface AuctionWithUser extends Auction {
