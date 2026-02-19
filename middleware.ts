@@ -1,4 +1,5 @@
 import { NextFetchEvent, NextRequest, NextResponse } from "next/server";
+import { SESSION_COOKIE_NAME } from "@libs/constants";
 
 const TOOL_MODE_COOKIE = "bredy_tool_mode";
 
@@ -56,7 +57,7 @@ export function middleware(req: NextRequest, ev: NextFetchEvent) {
       return response ?? NextResponse.next();
     }
 
-    const found = req.cookies.get("kakaoDev");
+    const found = req.cookies.get(SESSION_COOKIE_NAME);
     if (!found) {
       const next = encodeURIComponent(`${pathname}${search}`);
       return NextResponse.redirect(new URL(`/admin/login?next=${next}`, req.url));
@@ -65,7 +66,7 @@ export function middleware(req: NextRequest, ev: NextFetchEvent) {
 
   // 비로그인 접근 제한
   if (pathname.includes("myPage")) {
-    const found = req.cookies.get("kakaoDev");
+    const found = req.cookies.get(SESSION_COOKIE_NAME);
     if (!found) {
       // 로그인 전 프리패치에서 생성된 리다이렉트 캐시가
       // 로그인 후에도 재사용되는 문제를 막기 위해 프리패치는 통과시킨다.

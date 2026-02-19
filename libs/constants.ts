@@ -91,6 +91,9 @@ export const Provider = {
   KAKAO: "kakao",
 } as const;
 
+/** iron-session 쿠키 이름 */
+export const SESSION_COOKIE_NAME = "kakaoDev";
+
 // 무한스크롤 페이지 사이즈
 export const PAGE_SIZE = 30;
 

@@ -12,6 +12,7 @@ import {
 } from "@libs/auctionRules";
 import { settleExpiredAuctions } from "@libs/server/auctionSettlement";
 import { getCategoryFilterValues } from "@libs/categoryTaxonomy";
+import { normalizeOptionalText, normalizeOptionalUrl } from "@libs/shared/normalize";
 
 /** 경매 목록 응답 타입 */
 export interface AuctionWithUser extends Auction {
@@ -32,22 +33,6 @@ export interface CreateAuctionResponse {
   error?: string;
   errorCode?: string;
 }
-
-const normalizeOptionalText = (value: unknown, max = 120) => {
-  if (typeof value !== "string") return null;
-  const trimmed = value.trim();
-  if (!trimmed) return null;
-  return trimmed.slice(0, max);
-};
-
-const normalizeOptionalUrl = (value: unknown) => {
-  const normalized = normalizeOptionalText(value, 300);
-  if (!normalized) return null;
-  if (normalized.startsWith("http://") || normalized.startsWith("https://")) {
-    return normalized;
-  }
-  return `https://${normalized}`;
-};
 
 const AUCTION_DUPLICATE_GUARD_WINDOW_MS = 10 * 60 * 1000; // 10분
 const TOOL_MODE_COOKIE = "bredy_tool_mode";

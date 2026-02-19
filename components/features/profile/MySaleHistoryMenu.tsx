@@ -4,7 +4,7 @@ import React from "react";
 import { useParams } from "next/navigation";
 import useUser from "hooks/useUser";
 
-const MySaleHistroyMenu = () => {
+const MySaleHistoryMenu = () => {
   const params = useParams();
   const { user } = useUser();
   // 마이페이지면 user.id 다른 유저의 프로필페이지면 params.id
@@ -81,4 +81,4 @@ const MySaleHistroyMenu = () => {
   );
 };
 
-export default MySaleHistroyMenu;
+export default MySaleHistoryMenu;

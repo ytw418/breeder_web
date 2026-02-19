@@ -1,4 +1,3 @@
-import { promises } from "dns";
 import { NextApiRequest, NextApiResponse } from "next";
 
 export interface ResponseType {
@@ -36,9 +35,10 @@ export default function withHandler({
     try {
       await handler(req, res);
     } catch (error) {
-      console.log("withHandler.error", error);
-      console.log("error.req", req);
-      return res.status(500).json({ message: JSON.stringify(error) });
+      console.error("withHandler.error", error);
+      const message =
+        error instanceof Error ? error.message : "서버 내부 오류가 발생했습니다.";
+      return res.status(500).json({ success: false, message });
     }
   };
 }
