@@ -10,6 +10,7 @@ import { SearchResponse } from "pages/api/search";
 import { CATEGORIES } from "@libs/constants";
 import { getProductPath } from "@libs/product-route";
 import { toPostPath } from "@libs/post-route";
+import { ANALYTICS_EVENTS, trackEvent } from "@libs/client/analytics";
 
 type SearchTab = "all" | "products" | "posts" | "users";
 
@@ -84,19 +85,31 @@ const SearchClient = () => {
   /** 검색 실행 */
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
-    if (keyword.trim()) {
-      setSearchQuery(keyword.trim());
+    const normalizedKeyword = keyword.trim();
+    if (!normalizedKeyword) {
+      setSearchQuery("");
+      return;
     }
+
+    trackEvent(ANALYTICS_EVENTS.searchSubmitted, {
+      query: normalizedKeyword,
+      activeTab,
+    });
+    setSearchQuery(normalizedKeyword);
   };
 
   /** 인기 검색어 클릭 */
   const handleKeywordClick = (kw: string) => {
+    trackEvent(ANALYTICS_EVENTS.searchKeywordQuickSelected, { keyword: kw });
     setKeyword(kw);
     setSearchQuery(kw);
   };
 
   /** 카테고리 클릭 */
   const handleCategoryClick = (categoryName: string) => {
+    trackEvent(ANALYTICS_EVENTS.searchCategoryQuickSelected, {
+      category: categoryName,
+    });
     setKeyword(categoryName);
     setSearchQuery(categoryName);
   };
@@ -106,6 +119,20 @@ const SearchClient = () => {
     (data.products.length > 0 ||
       data.posts.length > 0 ||
       data.users.length > 0);
+
+  const totalResults = data
+    ? data.products.length + data.posts.length + data.users.length
+    : 0;
+
+  const selectTab = (nextTab: SearchTab) => {
+    if (activeTab === nextTab) return;
+    trackEvent(ANALYTICS_EVENTS.searchTabChanged, {
+      from: activeTab,
+      to: nextTab,
+      query: searchQuery,
+    });
+    setActiveTab(nextTab);
+  };
 
   return (
     <Layout canGoBack title="검색" seoTitle="검색">
@@ -167,7 +194,8 @@ const SearchClient = () => {
           {SEARCH_TABS.map((tab) => (
             <button
               key={tab.id}
-              onClick={() => setActiveTab(tab.id)}
+              onClick={() => selectTab(tab.id)}
+              aria-pressed={activeTab === tab.id}
               className={cn(
                 "px-4 py-1.5 rounded-full text-sm font-medium transition-colors",
                 activeTab === tab.id
@@ -178,6 +206,13 @@ const SearchClient = () => {
               {tab.name}
             </button>
           ))}
+        </div>
+      )}
+
+      {searchQuery && !isLoading && data && (
+        <div className="px-4 py-2 text-xs text-slate-500 dark:text-slate-400">
+          <span className="font-medium text-slate-700 dark:text-slate-200">&quot;{searchQuery}&quot;</span>
+          {' '}검색 결과 총 <span className="font-semibold">{totalResults}</span>건
         </div>
       )}
 
@@ -214,6 +249,16 @@ const SearchClient = () => {
                   {kw}
                 </button>
               ))}
+            </div>
+          </div>
+
+          <div className="px-4 pt-4">
+            <div className="rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-xs text-slate-600 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300">
+              <p className="font-semibold text-slate-800 dark:text-slate-100">검색 팁</p>
+              <ul className="mt-1 list-disc pl-4 space-y-0.5">
+                <li>대분류(예: 파충류)로 검색하면 하위 분류도 함께 찾아줘요.</li>
+                <li>품종명 + 키워드(예: 볼파이썬 분양) 조합이 가장 정확해요.</li>
+              </ul>
             </div>
           </div>
 
@@ -416,7 +461,7 @@ const SearchClient = () => {
                   <div className="px-4 py-3 flex items-center justify-between">
                     <h3 className="font-semibold text-gray-900">상품</h3>
                     <button
-                      onClick={() => setActiveTab("products")}
+                      onClick={() => selectTab("products")}
                       className="text-sm text-primary"
                     >
                       더보기
@@ -475,7 +520,7 @@ const SearchClient = () => {
                   <div className="px-4 py-3 flex items-center justify-between border-t border-gray-100">
                     <h3 className="font-semibold text-gray-900">게시글</h3>
                     <button
-                      onClick={() => setActiveTab("posts")}
+                      onClick={() => selectTab("posts")}
                       className="text-sm text-primary"
                     >
                       더보기
@@ -525,7 +570,7 @@ const SearchClient = () => {
                   <div className="px-4 py-3 flex items-center justify-between border-t border-gray-100">
                     <h3 className="font-semibold text-gray-900">유저</h3>
                     <button
-                      onClick={() => setActiveTab("users")}
+                      onClick={() => selectTab("users")}
                       className="text-sm text-primary"
                     >
                       더보기

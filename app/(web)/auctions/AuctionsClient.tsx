@@ -12,6 +12,7 @@ import { useInfiniteScroll } from "hooks/useInfiniteScroll";
 import { cn, makeImageUrl } from "@libs/client/utils";
 import { AuctionsListResponse } from "pages/api/auctions";
 import { toAuctionPath } from "@libs/auction-route";
+import { TOP_LEVEL_CATEGORIES } from "@libs/categoryTaxonomy";
 
 /** 상태 탭 */
 const STATUS_TABS = [
@@ -20,15 +21,7 @@ const STATUS_TABS = [
   { id: "종료", name: "종료" },
 ];
 
-const CATEGORY_TABS = [
-  { id: "전체", name: "전체" },
-  { id: "곤충", name: "곤충" },
-  { id: "파충류", name: "파충류" },
-  { id: "어류", name: "어류" },
-  { id: "조류", name: "조류" },
-  { id: "포유류", name: "포유류" },
-  { id: "기타", name: "기타" },
-];
+const CATEGORY_TABS = [{ id: "전체", name: "전체" }, ...TOP_LEVEL_CATEGORIES];
 
 /** 남은 시간 계산 */
 const getTimeRemaining = (endAt: string | Date) => {

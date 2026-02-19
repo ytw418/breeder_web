@@ -4,17 +4,7 @@ import withHandler, { ResponseType } from "@libs/server/withHandler";
 import client from "@libs/server/client";
 import { withApiSession } from "@libs/server/withSession";
 import { notifyFollowers } from "@libs/server/notification";
-
-const LEGACY_INSECT_CATEGORIES = [
-  "곤충",
-  "장수풍뎅이",
-  "사슴벌레",
-  "타란튤라",
-  "전갈",
-  "나비/나방",
-  "개미",
-  "기타곤충",
-];
+import { getCategoryFilterValues } from "@libs/categoryTaxonomy";
 
 const handler = async (
   req: NextApiRequest,
@@ -74,20 +64,22 @@ const handler = async (
       query: { page = 1, size = 10, category, productType, status },
     } = req;
 
+    const pageNumber = Number(page);
+    const sizeNumber = Number(size);
+    const normalizedPage = Number.isInteger(pageNumber) && pageNumber > 0 ? pageNumber : 1;
+    const normalizedSize = Number.isInteger(sizeNumber) && sizeNumber > 0
+      ? Math.min(sizeNumber, 50)
+      : 10;
+
     // 카테고리/타입/상태 필터 조건
     const where: any = {};
     if (category && category !== "전체") {
-      if (category === "곤충") {
-        // 기존 데이터(사슴벌레/장수풍뎅이 등)와 신규 대분류(곤충)를 함께 조회
-        where.category = { in: LEGACY_INSECT_CATEGORIES };
-      } else {
-        where.category = category as string;
-      }
+      where.category = { in: getCategoryFilterValues(String(category)) };
     }
-    if (productType) {
+    if (productType && productType !== "전체") {
       where.productType = productType as string;
     }
-    if (status) {
+    if (status && status !== "전체") {
       where.status = status as string;
     }
 
@@ -111,8 +103,8 @@ const handler = async (
         orderBy: {
           createdAt: "desc",
         },
-        take: Number(size),
-        skip: (Number(page) - 1) * Number(size),
+        take: normalizedSize,
+        skip: (normalizedPage - 1) * normalizedSize,
       }),
       client.product.count({ where }),
     ]);
@@ -120,7 +112,7 @@ const handler = async (
     return res.json({
       success: true,
       products,
-      pages: Math.ceil(productCount / Number(size)),
+      pages: Math.ceil(productCount / normalizedSize),
     });
   }
 };

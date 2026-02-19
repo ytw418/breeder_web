@@ -13,6 +13,7 @@ import { useEffect, useState } from "react";
 import { useForm } from "react-hook-form";
 import { cn } from "@libs/client/utils";
 import { POST_CATEGORIES } from "@libs/constants";
+import { TOP_LEVEL_CATEGORIES } from "@libs/categoryTaxonomy";
 import { toPostPath } from "@libs/post-route";
 import { toast } from "react-toastify";
 
@@ -60,6 +61,7 @@ const UploadClient = () => {
   // 카테고리 선택 상태
   const [selectedCategory, setSelectedCategory] = useState<string>("");
   const [categoryError, setCategoryError] = useState<string>("");
+  const [selectedSpecies, setSelectedSpecies] = useState<string>("");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitStep, setSubmitStep] = useState<SubmitStep>("idle");
   const [imageFile, setImageFile] = useState<File | null>(null);
@@ -107,6 +109,7 @@ const UploadClient = () => {
           description: description.trim(),
           image: uploadedImageId,
           category: selectedCategory,
+          species: selectedSpecies,
         },
       });
 
@@ -202,6 +205,28 @@ const UploadClient = () => {
             ))}
           </div>
           {categoryError ? <p className="mt-2 text-xs text-red-500">{categoryError}</p> : null}
+        </section>
+
+        <section className="rounded-xl border border-slate-200 bg-white p-4">
+          <Label>관심 생물군 (선택)</Label>
+          <div className="mt-2 flex flex-wrap gap-2">
+            {TOP_LEVEL_CATEGORIES.map((cat) => (
+              <button
+                key={cat.id}
+                type="button"
+                onClick={() => setSelectedSpecies((prev) => (prev === cat.id ? "" : cat.id))}
+                className={cn(
+                  "rounded-md border px-3 py-1.5 text-sm font-medium transition-colors",
+                  selectedSpecies === cat.id
+                    ? "border-primary bg-primary text-white"
+                    : "border-slate-200 bg-white text-slate-600 hover:bg-slate-50"
+                )}
+              >
+                {cat.name}
+              </button>
+            ))}
+          </div>
+          <p className="mt-2 text-xs text-slate-500">게시글 노출/필터링에 사용됩니다.</p>
         </section>
 
         <section className="rounded-xl border border-slate-200 bg-white p-4">
