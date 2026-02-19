@@ -282,7 +282,7 @@ export default function PostsClient() {
                   </button>
                 ))}
               </div>
-              <div className="app-rail flex gap-2 snap-none">
+              <div className="app-rail flex gap-2 snap-none mt-2">
                 {TABS.map((tab) => (
                   <button
                     key={tab.id}
