@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import useSWR from "swr";
 import Image from "@components/atoms/Image";
 import Link from "next/link";
@@ -72,6 +72,9 @@ const AuctionDetailClient = () => {
   const [reportReason, setReportReason] =
     useState<(typeof REPORT_REASONS)[number]>("허위 매물 의심");
   const [reportDetail, setReportDetail] = useState("");
+  const touchStartX = useRef<number | null>(null);
+  const touchEndX = useRef<number | null>(null);
+  const isImageDragging = useRef(false);
 
   // 경매 데이터 (5초 간격 새로고침)
   const { data, mutate: boundMutate } = useSWR<AuctionDetailResponse>(
@@ -151,6 +154,44 @@ const AuctionDetailClient = () => {
       return Math.min(prev, auctionImageUrls.length - 1);
     });
   }, [auctionImageUrls.length]);
+
+
+  const handleImageTouchStart = (event: React.TouchEvent) => {
+    isImageDragging.current = false;
+    touchStartX.current = event.targetTouches[0].clientX;
+    touchEndX.current = null;
+  };
+
+  const handleImageTouchMove = (event: React.TouchEvent) => {
+    const movedX = event.targetTouches[0].clientX;
+    const startX = touchStartX.current;
+    if (startX !== null && Math.abs(startX - movedX) > 10) {
+      isImageDragging.current = true;
+    }
+    touchEndX.current = movedX;
+  };
+
+  const handleImageTouchEnd = () => {
+    const startX = touchStartX.current;
+    const endX = touchEndX.current;
+
+    touchStartX.current = null;
+    touchEndX.current = null;
+
+    if (startX === null || endX === null) return;
+
+    const distance = startX - endX;
+    if (distance > 50) {
+      setImageIndex((prev) => (prev + 1) % auctionImageUrls.length);
+      return;
+    }
+    if (distance < -50) {
+      setImageIndex((prev) => (prev - 1 + auctionImageUrls.length) % auctionImageUrls.length);
+      return;
+    }
+
+    isImageDragging.current = false;
+  };
 
   const normalizeBidAmount = (targetAmount: number) => {
     if (!auction) return 0;
@@ -418,8 +459,17 @@ const AuctionDetailClient = () => {
       >
         {/* 이미지 슬라이더 */}
         <div
-          className="relative aspect-[4/3] bg-gray-100 dark:bg-slate-800 cursor-zoom-in"
-          onClick={() => setIsImageLightboxOpen(true)}
+          className="group relative aspect-[4/3] bg-gray-100 dark:bg-slate-800 cursor-zoom-in"
+          onTouchStart={handleImageTouchStart}
+          onTouchMove={handleImageTouchMove}
+          onTouchEnd={handleImageTouchEnd}
+          onClick={() => {
+            if (isImageDragging.current) {
+              isImageDragging.current = false;
+              return;
+            }
+            setIsImageLightboxOpen(true);
+          }}
         >
           <Image
             src={mainImageSrc}
@@ -432,32 +482,62 @@ const AuctionDetailClient = () => {
             quality={100}
           />
           {auction.photos.length > 1 && (
-            <div className="absolute bottom-3 left-1/2 -translate-x-1/2 flex gap-1.5">
-              {auction.photos.map((_, i) => (
-                <button
-                  key={i}
-                  onClick={(event) => {
-                    event.stopPropagation();
-                    setImageIndex(i);
-                  }}
-                  className={cn(
-                    "w-2 h-2 rounded-full transition-all",
-                    imageIndex === i ? "bg-white dark:bg-white" : "bg-white/50 dark:bg-white/50"
-                  )}
-                />
-              ))}
-            </div>
+            <>
+              <button
+                type="button"
+                onClick={(event) => {
+                  event.stopPropagation();
+                  setImageIndex((prev) => (prev - 1 + auction.photos.length) % auction.photos.length);
+                }}
+                className="absolute left-2 top-1/2 -translate-y-1/2 rounded-full bg-black/40 p-2 text-white transition-all hover:bg-black/55 md:opacity-0 md:group-hover:opacity-100"
+                aria-label="이전 이미지"
+              >
+                <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+                </svg>
+              </button>
+              <button
+                type="button"
+                onClick={(event) => {
+                  event.stopPropagation();
+                  setImageIndex((prev) => (prev + 1) % auction.photos.length);
+                }}
+                className="absolute right-2 top-1/2 -translate-y-1/2 rounded-full bg-black/40 p-2 text-white transition-all hover:bg-black/55 md:opacity-0 md:group-hover:opacity-100"
+                aria-label="다음 이미지"
+              >
+                <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                </svg>
+              </button>
+
+              <div className="absolute bottom-3 left-1/2 -translate-x-1/2 flex gap-1.5">
+                {auction.photos.map((_, i) => (
+                  <button
+                    key={i}
+                    onClick={(event) => {
+                      event.stopPropagation();
+                      setImageIndex(i);
+                    }}
+                    className={cn(
+                      "h-2 w-2 rounded-full transition-all",
+                      imageIndex === i ? "bg-white dark:bg-white" : "bg-white/50 dark:bg-white/50"
+                    )}
+                    aria-label={`${i + 1}번 이미지로 이동`}
+                  />
+                ))}
+              </div>
+            </>
           )}
         </div>
 
-      <ImageLightbox
+        <ImageLightbox
         images={auctionImageUrls}
         isOpen={isImageLightboxOpen}
         currentIndex={imageIndex}
         onClose={() => setIsImageLightboxOpen(false)}
         onIndexChange={setImageIndex}
         altPrefix="경매 이미지"
-      />
+        />
 
         <div className="px-4">
           {/* 카운트다운 배너 */}

@@ -97,6 +97,10 @@ const ProductClient = ({ product, relatedProducts }: ItemDetailResponse) => {
   const handleTouchEnd = () => {
     const startX = touchStartX.current;
     const endX = touchEndX.current;
+
+    touchStartX.current = null;
+    touchEndX.current = null;
+
     if (startX === null || endX === null) return;
 
     const distance = startX - endX;
@@ -110,8 +114,6 @@ const ProductClient = ({ product, relatedProducts }: ItemDetailResponse) => {
       isImageDragging.current = false;
     }
 
-    touchStartX.current = null;
-    touchEndX.current = null;
   };
 
   /**
