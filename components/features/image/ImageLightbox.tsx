@@ -1,7 +1,7 @@
 "use client";
 
 import Image from "@components/atoms/Image";
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 
 interface ImageLightboxProps {
   images: string[];
@@ -24,6 +24,30 @@ const ImageLightbox = ({
 }: ImageLightboxProps) => {
   const hasImages = images.length > 0;
   const safeIndex = hasImages ? ((currentIndex % images.length) + images.length) % images.length : 0;
+  const touchStartX = useRef<number | null>(null);
+  const touchEndX = useRef<number | null>(null);
+
+  const handleTouchStart = (event: React.TouchEvent<HTMLDivElement>) => {
+    touchStartX.current = event.targetTouches[0].clientX;
+    touchEndX.current = null;
+  };
+
+  const handleTouchMove = (event: React.TouchEvent<HTMLDivElement>) => {
+    touchEndX.current = event.targetTouches[0].clientX;
+  };
+
+  const handleTouchEnd = () => {
+    const startX = touchStartX.current;
+    const endX = touchEndX.current;
+    if (startX === null || endX === null || images.length <= 1) return;
+
+    const distance = startX - endX;
+    if (distance > 50) onIndexChange((safeIndex + 1) % images.length);
+    if (distance < -50) onIndexChange((safeIndex - 1 + images.length) % images.length);
+
+    touchStartX.current = null;
+    touchEndX.current = null;
+  };
   useEffect(() => {
     if (!isOpen) return;
 
@@ -48,22 +72,25 @@ const ImageLightbox = ({
 
   return (
     <div
-      className="fixed inset-0 z-[120] bg-black/90 p-3 sm:p-6"
+      className="fixed inset-0 z-[120] bg-black/90 p-3 pb-[calc(1rem+env(safe-area-inset-bottom))] sm:p-6"
       role="dialog"
       aria-modal="true"
       onClick={onClose}
     >
       <button
         type="button"
-        className="absolute right-4 top-4 z-10 rounded-full bg-white/15 px-3 py-1.5 text-sm text-white backdrop-blur"
+        className="absolute right-4 top-4 z-20 rounded-full bg-black/45 px-3 py-2 text-sm text-white backdrop-blur"
         onClick={onClose}
       >
-        닫기
+        닫기 ✕
       </button>
 
       <div
         className="relative mx-auto flex h-full w-full max-w-5xl items-center justify-center"
         onClick={(event) => event.stopPropagation()}
+        onTouchStart={handleTouchStart}
+        onTouchMove={handleTouchMove}
+        onTouchEnd={handleTouchEnd}
       >
         <div className="relative h-[82vh] w-full">
           <Image
@@ -100,9 +127,15 @@ const ImageLightbox = ({
         )}
       </div>
 
-      <div className="pointer-events-none absolute bottom-4 left-1/2 -translate-x-1/2 rounded-full bg-black/40 px-3 py-1 text-xs text-white">
+      <div className="pointer-events-none absolute inset-x-0 top-0 h-24 bg-gradient-to-b from-black/45 to-transparent" />
+      <div className="pointer-events-none absolute inset-x-0 bottom-0 h-28 bg-gradient-to-t from-black/45 to-transparent" />
+
+      <div className="pointer-events-none absolute bottom-11 left-1/2 -translate-x-1/2 rounded-full bg-black/45 px-3 py-1 text-xs text-white">
         {safeIndex + 1} / {images.length}
       </div>
+      <p className="pointer-events-none absolute bottom-5 left-1/2 -translate-x-1/2 text-[11px] text-white/75">
+        좌우로 스와이프하거나 버튼으로 이동
+      </p>
 
     </div>
   );
