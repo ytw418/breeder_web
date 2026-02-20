@@ -49,8 +49,8 @@ const ProductClient = ({ product, relatedProducts }: ItemDetailResponse) => {
   );
 
   // 터치 이벤트 상태 관리
-  const [touchStart, setTouchStart] = useState(0);
-  const [touchEnd, setTouchEnd] = useState(0);
+  const touchStartX = useRef<number | null>(null);
+  const touchEndX = useRef<number | null>(null);
   const isImageDragging = useRef(false);
 
   // 상품 삭제 API 호출
@@ -73,7 +73,8 @@ const ProductClient = ({ product, relatedProducts }: ItemDetailResponse) => {
    */
   const handleTouchStart = (e: React.TouchEvent) => {
     isImageDragging.current = false;
-    setTouchStart(e.targetTouches[0].clientX);
+    touchStartX.current = e.targetTouches[0].clientX;
+    touchEndX.current = null;
   };
 
   /**
@@ -82,10 +83,11 @@ const ProductClient = ({ product, relatedProducts }: ItemDetailResponse) => {
    */
   const handleTouchMove = (e: React.TouchEvent) => {
     const movedX = e.targetTouches[0].clientX;
-    if (Math.abs(touchStart - movedX) > 10) {
+    const startX = touchStartX.current;
+    if (startX !== null && Math.abs(startX - movedX) > 10) {
       isImageDragging.current = true;
     }
-    setTouchEnd(movedX);
+    touchEndX.current = movedX;
   };
 
   /**
@@ -93,18 +95,23 @@ const ProductClient = ({ product, relatedProducts }: ItemDetailResponse) => {
    * 이미지 슬라이드 방향 결정 및 처리
    */
   const handleTouchEnd = () => {
-    if (!touchStart || !touchEnd) return;
+    const startX = touchStartX.current;
+    const endX = touchEndX.current;
+    if (startX === null || endX === null) return;
 
-    const distance = touchStart - touchEnd;
+    const distance = startX - endX;
     const isLeftSwipe = distance > 50;
     const isRightSwipe = distance < -50;
 
-    if (isLeftSwipe) {
-      nextImage();
+    if (isLeftSwipe) nextImage();
+    if (isRightSwipe) prevImage();
+
+    if (!isLeftSwipe && !isRightSwipe) {
+      isImageDragging.current = false;
     }
-    if (isRightSwipe) {
-      prevImage();
-    }
+
+    touchStartX.current = null;
+    touchEndX.current = null;
   };
 
   /**
@@ -404,7 +411,7 @@ const ProductClient = ({ product, relatedProducts }: ItemDetailResponse) => {
                     event.stopPropagation();
                     prevImage();
                   }}
-                  className="absolute left-2 top-1/2 -translate-y-1/2 rounded-full bg-black/35 p-2 text-white transition-all hover:bg-black/55 opacity-0 group-hover:opacity-100"
+                  className="absolute left-2 top-1/2 -translate-y-1/2 rounded-full bg-black/40 p-2 text-white transition-all hover:bg-black/55 md:opacity-0 md:group-hover:opacity-100"
                   aria-label="이전 이미지"
                 >
                   <svg
@@ -426,7 +433,7 @@ const ProductClient = ({ product, relatedProducts }: ItemDetailResponse) => {
                     event.stopPropagation();
                     nextImage();
                   }}
-                  className="absolute right-2 top-1/2 -translate-y-1/2 rounded-full bg-black/35 p-2 text-white transition-all hover:bg-black/55 opacity-0 group-hover:opacity-100"
+                  className="absolute right-2 top-1/2 -translate-y-1/2 rounded-full bg-black/40 p-2 text-white transition-all hover:bg-black/55 md:opacity-0 md:group-hover:opacity-100"
                   aria-label="다음 이미지"
                 >
                   <svg
