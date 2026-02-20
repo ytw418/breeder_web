@@ -20,6 +20,7 @@ import {
 import { getAuctionErrorMessage } from "@libs/client/auctionErrorMessage";
 import { ANALYTICS_EVENTS, trackEvent } from "@libs/client/analytics";
 import { extractAuctionIdFromPath, toAuctionPath } from "@libs/auction-route";
+import ImageLightbox from "@components/features/image/ImageLightbox";
 
 const DETAIL_FALLBACK_IMAGE = "/images/placeholders/minimal-gray-blur.svg";
 
@@ -65,6 +66,7 @@ const AuctionDetailClient = () => {
   const [bidAmount, setBidAmount] = useState<number | null>(null);
   const [countdown, setCountdown] = useState({ text: "", isEnded: false });
   const [imageIndex, setImageIndex] = useState(0);
+  const [isImageLightboxOpen, setIsImageLightboxOpen] = useState(false);
   const [agreedBidRule, setAgreedBidRule] = useState(false);
   const [agreedDisputePolicy, setAgreedDisputePolicy] = useState(false);
   const [reportReason, setReportReason] =
@@ -138,6 +140,17 @@ const AuctionDetailClient = () => {
     auction?.photos?.[imageIndex]
       ? makeImageUrl(auction.photos[imageIndex], "public")
       : DETAIL_FALLBACK_IMAGE;
+  const auctionImageUrls =
+    auction?.photos?.length && auction.photos.length > 0
+      ? auction.photos.map((photo) => makeImageUrl(photo, "public"))
+      : [DETAIL_FALLBACK_IMAGE];
+
+  useEffect(() => {
+    setImageIndex((prev) => {
+      if (auctionImageUrls.length === 0) return 0;
+      return Math.min(prev, auctionImageUrls.length - 1);
+    });
+  }, [auctionImageUrls.length]);
 
   const normalizeBidAmount = (targetAmount: number) => {
     if (!auction) return 0;
@@ -404,22 +417,29 @@ const AuctionDetailClient = () => {
         )}
       >
         {/* 이미지 슬라이더 */}
-        <div className="relative aspect-[4/3] bg-gray-100 dark:bg-slate-800">
+        <div
+          className="relative aspect-[4/3] bg-gray-100 dark:bg-slate-800 cursor-zoom-in"
+          onClick={() => setIsImageLightboxOpen(true)}
+        >
           <Image
             src={mainImageSrc}
             fallbackSrc={DETAIL_FALLBACK_IMAGE}
-            className="object-cover"
+            className="object-contain p-2"
             alt={auction.title}
             fill
             sizes="600px"
             priority
+            quality={100}
           />
           {auction.photos.length > 1 && (
             <div className="absolute bottom-3 left-1/2 -translate-x-1/2 flex gap-1.5">
               {auction.photos.map((_, i) => (
                 <button
                   key={i}
-                  onClick={() => setImageIndex(i)}
+                  onClick={(event) => {
+                    event.stopPropagation();
+                    setImageIndex(i);
+                  }}
                   className={cn(
                     "w-2 h-2 rounded-full transition-all",
                     imageIndex === i ? "bg-white dark:bg-white" : "bg-white/50 dark:bg-white/50"
@@ -429,6 +449,15 @@ const AuctionDetailClient = () => {
             </div>
           )}
         </div>
+
+      <ImageLightbox
+        images={auctionImageUrls}
+        isOpen={isImageLightboxOpen}
+        currentIndex={imageIndex}
+        onClose={() => setIsImageLightboxOpen(false)}
+        onIndexChange={setImageIndex}
+        altPrefix="경매 이미지"
+      />
 
         <div className="px-4">
           {/* 카운트다운 배너 */}
@@ -635,7 +664,7 @@ const AuctionDetailClient = () => {
                   <div className="relative mt-2 h-28 w-40 overflow-hidden rounded-md border border-slate-200 dark:border-slate-700">
                     <Image
                       src={makeImageUrl(auction.sellerProofImage, "public")}
-                      className="object-cover"
+                      className="object-contain p-2"
                       fill
                       alt="판매자 신뢰 자료"
                     />
