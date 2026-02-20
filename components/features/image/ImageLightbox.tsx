@@ -39,14 +39,15 @@ const ImageLightbox = ({
   const handleTouchEnd = () => {
     const startX = touchStartX.current;
     const endX = touchEndX.current;
+
+    touchStartX.current = null;
+    touchEndX.current = null;
+
     if (startX === null || endX === null || images.length <= 1) return;
 
     const distance = startX - endX;
     if (distance > 50) onIndexChange((safeIndex + 1) % images.length);
     if (distance < -50) onIndexChange((safeIndex - 1 + images.length) % images.length);
-
-    touchStartX.current = null;
-    touchEndX.current = null;
   };
   useEffect(() => {
     if (!isOpen) return;
