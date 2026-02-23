@@ -5,6 +5,7 @@ import client from "@libs/server/client";
 import { withApiSession } from "@libs/server/withSession";
 import { notifyFollowers } from "@libs/server/notification";
 import { Post, User } from "@prisma/client";
+import { getCategoryFilterValues } from "@libs/categoryTaxonomy";
 
 /** 게시글 목록 응답 타입 */
 export interface PostWithUser extends Post {
@@ -27,7 +28,7 @@ const handler = async (
 ) => {
   if (req.method === "GET") {
     const {
-      query: { page = 1, category, sort },
+      query: { page = 1, category, sort, species },
     } = req;
     const selectedSort =
       typeof sort === "string" && ["latest", "popular", "comments"].includes(sort)
@@ -41,6 +42,10 @@ const handler = async (
       if (String(category) === "공지") {
         delete where.NOT;
       }
+    }
+
+    if (species && species !== "전체") {
+      where.type = { in: getCategoryFilterValues(String(species)) };
     }
 
     const pageNumber = Number(page);
@@ -98,7 +103,7 @@ const handler = async (
 
   if (req.method === "POST") {
     const {
-      body: { description, title, image, category },
+      body: { description, title, image, category, species },
       session: { user },
     } = req;
 
@@ -123,6 +128,7 @@ const handler = async (
         image: image || "",
         description,
         category: category || null,
+        type: species || null,
         user: {
           connect: {
             id: user?.id,
