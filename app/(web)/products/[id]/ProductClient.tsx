@@ -8,7 +8,7 @@ import MarkdownPreview from "@components/features/product/MarkdownPreview";
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import { ItemDetailResponse } from "pages/api/products/[id]";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import useSWR, { useSWRConfig } from "swr";
 
 import { ChatResponseType } from "pages/api/chat";
@@ -16,6 +16,7 @@ import { toast } from "react-toastify";
 import useConfirmDialog from "hooks/useConfirmDialog";
 import { ANALYTICS_EVENTS, trackEvent } from "@libs/client/analytics";
 import { extractProductId, getProductPath } from "@libs/product-route";
+import ImageLightbox from "@components/features/image/ImageLightbox";
 
 const DETAIL_FALLBACK_IMAGE = "/images/placeholders/minimal-gray-blur.svg";
 
@@ -27,6 +28,7 @@ const DETAIL_FALLBACK_IMAGE = "/images/placeholders/minimal-gray-blur.svg";
 const ProductClient = ({ product, relatedProducts }: ItemDetailResponse) => {
   // 이미지 슬라이더 상태 관리
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
+  const [isImageLightboxOpen, setIsImageLightboxOpen] = useState(false);
   const query = useParams();
 
   // 채팅방 생성 API 호출
@@ -47,8 +49,9 @@ const ProductClient = ({ product, relatedProducts }: ItemDetailResponse) => {
   );
 
   // 터치 이벤트 상태 관리
-  const [touchStart, setTouchStart] = useState(0);
-  const [touchEnd, setTouchEnd] = useState(0);
+  const touchStartX = useRef<number | null>(null);
+  const touchEndX = useRef<number | null>(null);
+  const isImageDragging = useRef(false);
 
   // 상품 삭제 API 호출
   const [deleteProduct, { loading: deleteLoading }] = useMutation(
@@ -69,7 +72,9 @@ const ProductClient = ({ product, relatedProducts }: ItemDetailResponse) => {
    * @param e - 터치 이벤트 객체
    */
   const handleTouchStart = (e: React.TouchEvent) => {
-    setTouchStart(e.targetTouches[0].clientX);
+    isImageDragging.current = false;
+    touchStartX.current = e.targetTouches[0].clientX;
+    touchEndX.current = null;
   };
 
   /**
@@ -77,7 +82,12 @@ const ProductClient = ({ product, relatedProducts }: ItemDetailResponse) => {
    * @param e - 터치 이벤트 객체
    */
   const handleTouchMove = (e: React.TouchEvent) => {
-    setTouchEnd(e.targetTouches[0].clientX);
+    const movedX = e.targetTouches[0].clientX;
+    const startX = touchStartX.current;
+    if (startX !== null && Math.abs(startX - movedX) > 10) {
+      isImageDragging.current = true;
+    }
+    touchEndX.current = movedX;
   };
 
   /**
@@ -85,18 +95,25 @@ const ProductClient = ({ product, relatedProducts }: ItemDetailResponse) => {
    * 이미지 슬라이드 방향 결정 및 처리
    */
   const handleTouchEnd = () => {
-    if (!touchStart || !touchEnd) return;
+    const startX = touchStartX.current;
+    const endX = touchEndX.current;
 
-    const distance = touchStart - touchEnd;
+    touchStartX.current = null;
+    touchEndX.current = null;
+
+    if (startX === null || endX === null) return;
+
+    const distance = startX - endX;
     const isLeftSwipe = distance > 50;
     const isRightSwipe = distance < -50;
 
-    if (isLeftSwipe) {
-      nextImage();
+    if (isLeftSwipe) nextImage();
+    if (isRightSwipe) prevImage();
+
+    if (!isLeftSwipe && !isRightSwipe) {
+      isImageDragging.current = false;
     }
-    if (isRightSwipe) {
-      prevImage();
-    }
+
   };
 
   /**
@@ -322,6 +339,17 @@ const ProductClient = ({ product, relatedProducts }: ItemDetailResponse) => {
     product?.photos && product.photos.length > 0
       ? makeImageUrl(product.photos[currentImageIndex], "public")
       : DETAIL_FALLBACK_IMAGE;
+  const productImageUrls =
+    product?.photos?.length && product.photos.length > 0
+      ? product.photos.map((photo) => makeImageUrl(photo, "public"))
+      : [DETAIL_FALLBACK_IMAGE];
+
+  useEffect(() => {
+    setCurrentImageIndex((prev) => {
+      if (productImageUrls.length === 0) return 0;
+      return Math.min(prev, productImageUrls.length - 1);
+    });
+  }, [productImageUrls.length]);
 
   useEffect(() => {
     if (!product?.id) return;
@@ -359,11 +387,18 @@ const ProductClient = ({ product, relatedProducts }: ItemDetailResponse) => {
             onTouchStart={handleTouchStart}
             onTouchMove={handleTouchMove}
             onTouchEnd={handleTouchEnd}
+            onClick={() => {
+              if (isImageDragging.current) {
+                isImageDragging.current = false;
+                return;
+              }
+              setIsImageLightboxOpen(true);
+            }}
           >
             <Image
               src={mainImageSrc}
               fallbackSrc={DETAIL_FALLBACK_IMAGE}
-              className="object-cover"
+              className="object-contain p-2"
               alt={`상품 이미지 ${currentImageIndex + 1}`}
               fill={true}
               sizes="600px"
@@ -374,8 +409,11 @@ const ProductClient = ({ product, relatedProducts }: ItemDetailResponse) => {
             {product?.photos && product.photos.length > 1 && (
               <>
                 <button
-                  onClick={prevImage}
-                  className="absolute left-2 top-1/2 -translate-y-1/2 rounded-full bg-black/35 p-2 text-white transition-all hover:bg-black/55 opacity-0 group-hover:opacity-100"
+                  onClick={(event) => {
+                    event.stopPropagation();
+                    prevImage();
+                  }}
+                  className="absolute left-2 top-1/2 -translate-y-1/2 rounded-full bg-black/40 p-2 text-white transition-all hover:bg-black/55 md:opacity-0 md:group-hover:opacity-100"
                   aria-label="이전 이미지"
                 >
                   <svg
@@ -393,8 +431,11 @@ const ProductClient = ({ product, relatedProducts }: ItemDetailResponse) => {
                   </svg>
                 </button>
                 <button
-                  onClick={nextImage}
-                  className="absolute right-2 top-1/2 -translate-y-1/2 rounded-full bg-black/35 p-2 text-white transition-all hover:bg-black/55 opacity-0 group-hover:opacity-100"
+                  onClick={(event) => {
+                    event.stopPropagation();
+                    nextImage();
+                  }}
+                  className="absolute right-2 top-1/2 -translate-y-1/2 rounded-full bg-black/40 p-2 text-white transition-all hover:bg-black/55 md:opacity-0 md:group-hover:opacity-100"
                   aria-label="다음 이미지"
                 >
                   <svg
@@ -416,7 +457,10 @@ const ProductClient = ({ product, relatedProducts }: ItemDetailResponse) => {
                   {product.photos.map((_, index) => (
                     <button
                       key={index}
-                      onClick={() => setCurrentImageIndex(index)}
+                      onClick={(event) => {
+                        event.stopPropagation();
+                        setCurrentImageIndex(index);
+                      }}
                       className={cn(
                         "w-2 h-2 rounded-full transition-all",
                         currentImageIndex === index
@@ -688,6 +732,14 @@ const ProductClient = ({ product, relatedProducts }: ItemDetailResponse) => {
           </div>
         )}
       </div>
+      <ImageLightbox
+        images={productImageUrls}
+        isOpen={isImageLightboxOpen}
+        currentIndex={currentImageIndex}
+        onClose={() => setIsImageLightboxOpen(false)}
+        onIndexChange={setCurrentImageIndex}
+        altPrefix="상품 이미지"
+      />
       {confirmDialog}
     </Layout>
   );

@@ -21,6 +21,7 @@ import {
   getBidIncrement,
 } from "@libs/auctionRules";
 import { getAuctionErrorMessage } from "@libs/client/auctionErrorMessage";
+import { TOP_LEVEL_CATEGORIES, getSubcategories } from "@libs/categoryTaxonomy";
 import { CreateAuctionResponse } from "pages/api/auctions";
 
 interface AuctionForm {
@@ -53,16 +54,6 @@ interface PendingCreateSubmission {
 
 type CustomFieldErrorKey = "photos" | "category" | "agreement" | "duration";
 type CustomFieldErrors = Partial<Record<CustomFieldErrorKey, string>>;
-
-/** 경매 카테고리 목록 */
-const AUCTION_CATEGORIES = [
-  "곤충",
-  "파충류",
-  "어류",
-  "조류",
-  "포유류",
-  "기타",
-];
 
 /** 경매 기간 프리셋 */
 const DURATION_PRESETS = [
@@ -136,6 +127,7 @@ const CreateAuctionClient = () => {
   const [uploading, setUploading] = useState(false);
   const [proofUploading, setProofUploading] = useState(false);
   const [selectedCategory, setSelectedCategory] = useState("");
+  const [selectedSubcategory, setSelectedSubcategory] = useState("");
   const [selectedDuration, setSelectedDuration] = useState<number | null>(null);
   const [agreedAuctionNotice, setAgreedAuctionNotice] = useState(false);
   const [agreedDisputePolicy, setAgreedDisputePolicy] = useState(false);
@@ -163,6 +155,8 @@ const CreateAuctionClient = () => {
   const extensionWindowMinutes = Math.floor(
     AUCTION_EXTENSION_WINDOW_MS / (60 * 1000)
   );
+  const subcategories = selectedCategory ? getSubcategories(selectedCategory) : [];
+
   const customErrorMessages = [
     customFieldErrors.photos,
     customFieldErrors.category,
@@ -173,7 +167,9 @@ const CreateAuctionClient = () => {
   const isToolRoute = pathname?.startsWith("/tool");
   const withBasePath = (path: string) =>
     isToolRoute ? `/tool${path}` : path;
-  const categoryForSubmit = isToolRoute ? TOOL_FIXED_CATEGORY : selectedCategory;
+  const categoryForSubmit = isToolRoute
+    ? TOOL_FIXED_CATEGORY
+    : selectedSubcategory || selectedCategory;
   const loginPath = isToolRoute ? "/tool/login" : "/auth/login";
   const loginHref = `${loginPath}?next=${encodeURIComponent(
     withBasePath("/auctions/create")
@@ -181,8 +177,9 @@ const CreateAuctionClient = () => {
 
   useEffect(() => {
     if (!isToolRoute) return;
-    if (selectedCategory === TOOL_FIXED_CATEGORY) return;
+    if (selectedCategory === TOOL_FIXED_CATEGORY && !selectedSubcategory) return;
     setSelectedCategory(TOOL_FIXED_CATEGORY);
+    setSelectedSubcategory("");
     setCustomFieldErrors((prev) => ({ ...prev, category: undefined }));
   }, [isToolRoute, selectedCategory]);
 
@@ -602,26 +599,51 @@ const CreateAuctionClient = () => {
               {TOOL_FIXED_CATEGORY}
             </div>
           ) : (
+            <>
             <div className="flex flex-wrap gap-2">
-              {AUCTION_CATEGORIES.map((cat) => (
+              {TOP_LEVEL_CATEGORIES.map((cat) => (
                 <button
-                  key={cat}
+                  key={cat.id}
                   type="button"
                   onClick={() => {
-                    setSelectedCategory(cat);
+                    setSelectedCategory(cat.id);
+                    setSelectedSubcategory("");
                     setCustomFieldErrors((prev) => ({ ...prev, category: undefined }));
                   }}
                   className={cn(
                     "px-3 py-1.5 rounded-full text-sm font-medium transition-colors",
-                    selectedCategory === cat
+                    selectedCategory === cat.id
                       ? "bg-gray-900 text-white"
                       : "bg-gray-100 text-gray-600 hover:bg-gray-200"
                   )}
                 >
-                  {cat}
+                  {cat.name}
                 </button>
               ))}
             </div>
+            {subcategories.length > 0 ? (
+              <div className="mt-2 flex flex-wrap gap-2">
+                {subcategories.map((subcategory) => (
+                  <button
+                    key={subcategory}
+                    type="button"
+                    onClick={() => {
+                      setSelectedSubcategory(subcategory);
+                      setCustomFieldErrors((prev) => ({ ...prev, category: undefined }));
+                    }}
+                    className={cn(
+                      "rounded-full border px-3 py-1 text-xs font-medium transition-colors",
+                      selectedSubcategory === subcategory
+                        ? "border-primary bg-primary text-white"
+                        : "border-slate-200 bg-white text-slate-500 hover:bg-slate-50"
+                    )}
+                  >
+                    {subcategory}
+                  </button>
+                ))}
+              </div>
+            ) : null}
+            </>
           )}
           {customFieldErrors.category ? (
             <p className="mt-1 text-xs text-red-500">{customFieldErrors.category}</p>
