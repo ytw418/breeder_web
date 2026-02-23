@@ -89,13 +89,6 @@ const handler = async (
       `public, s-maxage=${cacheTime}, stale-while-revalidate=${cacheTime * 2}`
     );
 
-    const pageNumber = Number(page);
-    const sizeNumber = Number(size);
-    const normalizedPage = Number.isInteger(pageNumber) && pageNumber > 0 ? pageNumber : 1;
-    const normalizedSize = Number.isInteger(sizeNumber) && sizeNumber > 0
-      ? Math.min(sizeNumber, 50)
-      : 10;
-
     // 카테고리/타입/상태 필터 조건
     const where: any = {};
     if (category && category !== "전체") {
