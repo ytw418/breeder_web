@@ -61,7 +61,9 @@ async function handler(
       res.json({ success: true });
     }
   } catch (error) {
-    res.json({ success: false, error: JSON.stringify(error) });
+    const message =
+      error instanceof Error ? error.message : "서버 내부 오류가 발생했습니다.";
+    res.json({ success: false, error: message });
   }
 }
 

@@ -13,6 +13,7 @@ import {
   getBidIncrement,
 } from "@libs/auctionRules";
 import { settleExpiredAuctions } from "@libs/server/auctionSettlement";
+import { normalizeOptionalText, normalizeOptionalUrl } from "@libs/shared/normalize";
 
 /** 경매 상세 응답 타입 */
 export interface AuctionDetailResponse {
@@ -28,22 +29,6 @@ export interface AuctionDetailResponse {
   canEdit?: boolean;
   editAvailableUntil?: string;
 }
-
-const normalizeOptionalText = (value: unknown, max = 120) => {
-  if (typeof value !== "string") return null;
-  const trimmed = value.trim();
-  if (!trimmed) return null;
-  return trimmed.slice(0, max);
-};
-
-const normalizeOptionalUrl = (value: unknown) => {
-  const normalized = normalizeOptionalText(value, 300);
-  if (!normalized) return null;
-  if (normalized.startsWith("http://") || normalized.startsWith("https://")) {
-    return normalized;
-  }
-  return `https://${normalized}`;
-};
 
 async function handler(
   req: NextApiRequest,
