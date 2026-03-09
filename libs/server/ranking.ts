@@ -454,18 +454,15 @@ export const getAuctionRanking = async ({
 
 export const getBloodlineRanking = async ({
   limit = 20,
-  period = "weekly",
+  baseDate: _baseDate,
   speciesType,
-  baseDate,
 }: {
   limit?: number;
   period?: RankingPeriod;
   speciesType?: string;
   baseDate?: Date;
 } = {}): Promise<BloodlineRankingItem[]> => {
-  // 혈통 랭킹은 파생 카드가 아니라 root 카드 기준으로 묶어 follow/거래/평균가를 합산한다.
-  const current = getKstWeekWindow(baseDate);
-  const previous = getPreviousKstWeekWindow(baseDate);
+  // 혈통 랭킹은 실사용 데이터를 우선해 root별 "실제 보유자 수" 중심으로 단순 집계한다.
   const rootWhere: Record<string, unknown> = {
     cardType: "BLOODLINE",
     status: "ACTIVE",
@@ -475,154 +472,86 @@ export const getBloodlineRanking = async ({
     rootWhere.speciesType = speciesType;
   }
 
-  const [roots, followRows, currentAuctionStats, previousAuctionStats] = await Promise.all([
-    client.bloodlineCard.findMany({
-      where: rootWhere,
-      select: {
-        id: true,
-        name: true,
-        speciesType: true,
-        image: true,
-        creator: {
-          select: {
-            id: true,
-            name: true,
-          },
+  const roots = await client.bloodlineCard.findMany({
+    where: rootWhere,
+    select: {
+      id: true,
+      name: true,
+      speciesType: true,
+      image: true,
+      createdAt: true,
+      creator: {
+        select: {
+          id: true,
+          name: true,
         },
       },
-    }),
-    countByGroup("bloodlineFollow", {}),
-    client.auction.groupBy({
-      by: ["bloodlineRootId"],
-      where: {
-        bloodlineRootId: { not: null },
-        status: "종료",
-        winnerId: { not: null },
-        ...(period === "weekly" ? { endAt: { gte: current.startAt, lte: current.endAt } } : {}),
-      },
-      _count: { _all: true },
-      _avg: { currentPrice: true },
-    }),
-    period === "weekly"
-      ? client.auction.groupBy({
-          by: ["bloodlineRootId"],
-          where: {
-            bloodlineRootId: { not: null },
-            status: "종료",
-            winnerId: { not: null },
-            endAt: { gte: previous.startAt, lte: previous.endAt },
-          },
-          _count: { _all: true },
-          _avg: { currentPrice: true },
-        })
-      : Promise.resolve([]),
-  ]);
+    },
+    orderBy: { createdAt: "desc" },
+  });
 
-  const followMap = toCountMap(followRows);
-  const currentTradeMap = new Map(
-    currentAuctionStats
-      .filter((row) => row.bloodlineRootId !== null)
-      .map((row) => [
-        row.bloodlineRootId as number,
-        {
-          tradeCount: row._count._all,
-          avgClosingPrice: Math.round(row._avg.currentPrice ?? 0),
-        },
-      ])
-  );
-  const previousTradeMap = new Map(
-    previousAuctionStats
-      .filter((row) => row.bloodlineRootId !== null)
-      .map((row) => [
-        row.bloodlineRootId as number,
-        {
-          tradeCount: row._count._all,
-          avgClosingPrice: Math.round(row._avg.currentPrice ?? 0),
-        },
-      ])
-  );
+  if (roots.length === 0) return [];
+  const rootIds = roots.map((root) => root.id);
+
+  const lineageCards = await client.bloodlineCard.findMany({
+    where: {
+      status: "ACTIVE",
+      OR: [
+        { id: { in: rootIds } },
+        { bloodlineReferenceId: { in: rootIds } },
+      ],
+      currentOwner: { status: "ACTIVE" },
+    },
+    select: {
+      id: true,
+      bloodlineReferenceId: true,
+      currentOwnerId: true,
+    },
+  });
+
+  const ownerMap = new Map<number, Set<number>>();
+  const issuedCountMap = new Map<number, number>();
+
+  lineageCards.forEach((card) => {
+    const rootId = card.bloodlineReferenceId ?? card.id;
+    const ownerSet = ownerMap.get(rootId) ?? new Set<number>();
+    ownerSet.add(card.currentOwnerId);
+    ownerMap.set(rootId, ownerSet);
+    issuedCountMap.set(rootId, (issuedCountMap.get(rootId) ?? 0) + 1);
+  });
 
   const scored = roots
     .map((root) => {
-      const currentTrade = currentTradeMap.get(root.id) ?? { tradeCount: 0, avgClosingPrice: 0 };
-      const previousTrade = previousTradeMap.get(root.id) ?? { tradeCount: 0, avgClosingPrice: 0 };
-      const followCount = followMap.get(root.id) ?? 0;
-      const growthRate7d =
-        period !== "weekly"
-          ? 0
-          : previousTrade.avgClosingPrice > 0
-          ? (currentTrade.avgClosingPrice - previousTrade.avgClosingPrice) /
-            previousTrade.avgClosingPrice
-          : currentTrade.avgClosingPrice > 0
-            ? 1
-            : 0;
-
+      const ownerCount = ownerMap.get(root.id)?.size ?? 1;
+      const issuedCount = issuedCountMap.get(root.id) ?? 1;
       return {
         root,
-        followCount,
-        tradeCount: currentTrade.tradeCount,
-        avgClosingPrice: currentTrade.avgClosingPrice,
-        growthRate7d,
-        previousScore:
-          period === "weekly"
-            ? scoreBloodline({
-                followCount,
-                tradeCount: previousTrade.tradeCount,
-                avgClosingPrice: previousTrade.avgClosingPrice,
-                growthRate7d: 0,
-              })
-            : 0,
-        score: scoreBloodline({
-          followCount,
-          tradeCount: currentTrade.tradeCount,
-          avgClosingPrice: currentTrade.avgClosingPrice,
-          growthRate7d,
-        }),
+        ownerCount,
+        issuedCount,
+        score: ownerCount * 1000 + issuedCount,
       };
     })
-    .filter((item) => item.score > 0)
-    .sort((a, b) => b.score - a.score || a.root.name.localeCompare(b.root.name, "ko"));
+    .sort(
+      (a, b) =>
+        b.ownerCount - a.ownerCount ||
+        b.issuedCount - a.issuedCount ||
+        b.root.createdAt.getTime() - a.root.createdAt.getTime()
+    );
 
-  const previousScored =
-    period === "weekly"
-      ? roots
-          .map((root) => {
-            const prev = previousTradeMap.get(root.id) ?? { tradeCount: 0, avgClosingPrice: 0 };
-            const followCount = followMap.get(root.id) ?? 0;
-            return {
-              key: root.id,
-              score: scoreBloodline({
-                followCount,
-                tradeCount: prev.tradeCount,
-                avgClosingPrice: prev.avgClosingPrice,
-                growthRate7d: 0,
-              }),
-            };
-          })
-          .filter((item) => item.score > 0)
-          .sort((a, b) => b.score - a.score || a.key - b.key)
-      : [];
-  const previousRankMap = getRankMap(previousScored);
-
-  return scored.slice(0, limit).map((item, index) => {
-    const previousMeta = previousRankMap.get(item.root.id);
-    return {
-      rank: index + 1,
-      previousRank: previousMeta?.rank ?? null,
-      rankDelta: previousMeta ? previousMeta.rank - (index + 1) : 0,
-      score: item.score,
-      scoreDelta: item.score - (previousMeta?.score ?? 0),
-      bloodlineRootId: item.root.id,
-      name: item.root.name,
-      speciesType: item.root.speciesType,
-      image: item.root.image,
-      creator: item.root.creator,
-      followCount: item.followCount,
-      tradeCount: item.tradeCount,
-      avgClosingPrice: item.avgClosingPrice,
-      growthRate7d: Number(item.growthRate7d.toFixed(4)),
-    };
-  });
+  return scored.slice(0, limit).map((item, index) => ({
+    rank: index + 1,
+    previousRank: null,
+    rankDelta: 0,
+    score: item.score,
+    scoreDelta: 0,
+    bloodlineRootId: item.root.id,
+    name: item.root.name,
+    speciesType: item.root.speciesType,
+    image: item.root.image,
+    creator: item.root.creator,
+    ownerCount: item.ownerCount,
+    issuedCount: item.issuedCount,
+  }));
 };
 
 export const getMyRankingSummary = async (userId: number): Promise<RankingMeSummary | null> => {
