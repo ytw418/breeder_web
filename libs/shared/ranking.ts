@@ -44,10 +44,8 @@ export interface BloodlineRankingItem {
     id: number;
     name: string;
   };
-  followCount: number;
-  tradeCount: number;
-  avgClosingPrice: number;
-  growthRate7d: number;
+  ownerCount: number;
+  issuedCount: number;
 }
 
 export interface AuctionRankingItem {

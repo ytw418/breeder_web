@@ -21,7 +21,7 @@ import {
 const RANKING_TABS = [
   { id: "breeders", label: "브리더", description: "게시, 댓글, 입찰, 낙찰 활동 점수" },
   { id: "auctions", label: "최고가 경매", description: "카테고리별 최고 낙찰 기록" },
-  { id: "bloodlines", label: "인기 혈통", description: "팔로우, 거래 수, 평균 낙찰가 기반" },
+  { id: "bloodlines", label: "인기 혈통", description: "보유자 수와 발급 수 기반" },
   { id: "community", label: "커뮤니티", description: "좋아요와 댓글 반응이 높은 글" },
 ] as const;
 
@@ -50,9 +50,6 @@ const formatRankDelta = (rankDelta: number) => {
   if (rankDelta < 0) return `▼ ${Math.abs(rankDelta)}`;
   return "유지";
 };
-
-const formatGrowthRate = (growthRate: number) =>
-  `${growthRate >= 0 ? "+" : ""}${Math.round(growthRate * 100)}%`;
 
 const getSummary = (tab: RankingTab, period: RankingPeriod) => {
   const periodLabel = period === "weekly" ? "이번 주" : "역대";
@@ -86,8 +83,8 @@ const getSummary = (tab: RankingTab, period: RankingPeriod) => {
       title: `${periodLabel} 인기 혈통`,
       description:
         period === "weekly"
-          ? "이번 주 거래 수, 평균 낙찰가, 팔로우 수, 직전 주 대비 상승률을 반영합니다."
-          : "누적 거래와 팔로우를 기준으로 인기 혈통을 정렬합니다.",
+          ? "실제 보유자 수가 많은 혈통카드를 우선으로 보여줍니다."
+          : "실제 보유자 수와 총 발급 수를 기준으로 인기 혈통을 정렬합니다.",
       ctaHref: "/bloodline-cards/create",
       ctaLabel: "혈통카드 만들기",
     };
@@ -332,10 +329,8 @@ const RankingClient = () => {
                       </div>
                     </div>
                     <div className="mt-3 grid grid-cols-2 gap-2 text-[11px] text-slate-600">
-                      <div className="rounded-2xl bg-slate-50 px-3 py-2">팔로우 {item.followCount}</div>
-                      <div className="rounded-2xl bg-slate-50 px-3 py-2">거래 {item.tradeCount}</div>
-                      <div className="rounded-2xl bg-slate-50 px-3 py-2">평균가 {item.avgClosingPrice.toLocaleString()}원</div>
-                      <div className="rounded-2xl bg-slate-50 px-3 py-2">상승률 {formatGrowthRate(item.growthRate7d)}</div>
+                      <div className="rounded-2xl bg-slate-50 px-3 py-2">보유자 {item.ownerCount}</div>
+                      <div className="rounded-2xl bg-slate-50 px-3 py-2">발급 수 {item.issuedCount}</div>
                     </div>
                   </Link>
                 ))}
