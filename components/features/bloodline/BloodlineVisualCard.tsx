@@ -149,7 +149,7 @@ export function BloodlineVisualCard({
           >
             BLOODLINE SERIES
           </span>
-          <div>
+          <div className="space-y-3">
             <p
               className={`${compact ? "text-[11px]" : "text-[13px]"} font-semibold tracking-[0.16em] ${activeVariant.titleClass}`}
             >
@@ -170,21 +170,20 @@ export function BloodlineVisualCard({
                 {subtitle || "브리더가 만든 혈통카드"}
               </p>
             </div>
-          </div>
-        </div>
-
-        <div className="pointer-events-none absolute right-3 bottom-3 left-3 flex justify-end">
-          <div
-            className={`relative inline-flex max-w-[90%] flex-col rounded-xl border px-3 py-2 ${activeVariant.serialClass}`}
-          >
-            <span className="absolute inset-x-0 top-[4px] h-px bg-current/22" />
-            <span className="absolute inset-x-0 bottom-[4px] h-px bg-current/8" />
-            <p className="text-[8px] leading-none tracking-[0.28em] text-current/65">
-              BLOODLINE CODE
-            </p>
-            <p className="mt-1 text-[11px] leading-none tracking-[0.18em] font-semibold uppercase font-mono text-current">
-              {serialText}
-            </p>
+            <div className="flex justify-start">
+              <div
+                className={`relative inline-flex max-w-full flex-col rounded-xl border px-3 py-2 ${activeVariant.serialClass}`}
+              >
+                <span className="absolute inset-x-0 top-[4px] h-px bg-current/22" />
+                <span className="absolute inset-x-0 bottom-[4px] h-px bg-current/8" />
+                <p className="text-[8px] leading-none tracking-[0.28em] text-current/65">
+                  BLOODLINE CODE
+                </p>
+                <p className="mt-1 text-[11px] leading-none tracking-[0.18em] font-semibold uppercase font-mono text-current">
+                  {serialText}
+                </p>
+              </div>
+            </div>
           </div>
         </div>
       </div>
