@@ -29,6 +29,10 @@ const NOTIFICATION_COLORS: Record<NotificationType, string> = {
   AUCTION_WON: "bg-yellow-500",
   AUCTION_END: "bg-gray-400",
   NEW_RECORD: "bg-indigo-400",
+  BREEDER_RANK_DROP: "bg-rose-500",
+  BREEDER_OVERTAKEN: "bg-orange-500",
+  BLOODLINE_OVERTAKEN: "bg-fuchsia-500",
+  AUCTION_RECORD_BROKEN: "bg-cyan-500",
 };
 
 /** 알림 타입별 링크 경로 */

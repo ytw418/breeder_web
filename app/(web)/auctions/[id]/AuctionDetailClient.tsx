@@ -233,6 +233,12 @@ const AuctionDetailClient = () => {
 
   /** 입찰 핸들러 */
   const handleBid = () => {
+    trackEvent(ANALYTICS_EVENTS.auctionBidStart, {
+      auction_id: auction?.id || null,
+      category: auction?.category || null,
+      current_price: auction?.currentPrice || null,
+      bloodline_root_id: auction?.bloodlineRootId || null,
+    });
     trackEvent(ANALYTICS_EVENTS.auctionBidAttempted, {
       auction_id: auction?.id || null,
       user_id: user?.id || null,

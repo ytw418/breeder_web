@@ -28,7 +28,7 @@ test("상품 목록 -> 상세 -> 찜 토글이 동작한다", async ({ page }) =
   });
 
   // 찜 토글 API 호출 횟수를 추적해 실제 요청이 발생했는지 검증한다.
-  await page.route(/\/api\/products\/101-[^/]+\/fav$/, async (route) => {
+  await page.route(/\/api\/products\/101(?:-[^/]+)?\/fav$/, async (route) => {
     favToggleCount += 1;
     await route.fulfill({
       status: 200,
@@ -41,7 +41,7 @@ test("상품 목록 -> 상세 -> 찜 토글이 동작한다", async ({ page }) =
   });
 
   // 상세 조회 API를 고정 응답으로 모킹해 테스트 데이터를 안정화한다.
-  await page.route(/\/api\/products\/101-[^/]+$/, async (route) => {
+  await page.route(/\/api\/products\/101(?:-[^/]+)?$/, async (route) => {
     await route.fulfill({
       status: 200,
       contentType: "application/json",

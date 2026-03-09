@@ -123,6 +123,7 @@ async function handler(
       sellerBandNick,
       sellerProofImage,
       sellerTrustNote,
+      bloodlineRootId,
     } = req.body;
     const isToolMode = req.cookies?.[TOOL_MODE_COOKIE] === "1";
 
@@ -139,6 +140,11 @@ async function handler(
     const normalizedSellerBandNick = normalizeOptionalText(sellerBandNick, 60);
     const normalizedSellerProofImage = normalizeOptionalText(sellerProofImage, 120);
     const normalizedSellerTrustNote = normalizeOptionalText(sellerTrustNote, 300);
+    const parsedBloodlineRootId = Number(bloodlineRootId);
+    const normalizedBloodlineRootId =
+      Number.isInteger(parsedBloodlineRootId) && parsedBloodlineRootId > 0
+        ? parsedBloodlineRootId
+        : null;
     const normalizedPhotos = Array.isArray(photos)
       ? photos
           .filter((photo): photo is string => typeof photo === "string")
@@ -228,6 +234,24 @@ async function handler(
         });
       }
 
+      if (normalizedBloodlineRootId) {
+        const linkedBloodline = await client.bloodlineCard.findFirst({
+          where: {
+            id: normalizedBloodlineRootId,
+            cardType: "BLOODLINE",
+            status: "ACTIVE",
+          },
+          select: { id: true },
+        });
+        if (!linkedBloodline) {
+          return res.status(400).json({
+            success: false,
+            error: "연결할 원본 혈통카드를 찾을 수 없습니다.",
+            errorCode: "AUCTION_INVALID_BLOODLINE_ROOT",
+          });
+        }
+      }
+
       const duplicatedAuction = await client.auction.findFirst({
         where: {
           userId: user.id,
@@ -275,6 +299,7 @@ async function handler(
           sellerBandNick: normalizedSellerBandNick,
           sellerProofImage: normalizedSellerProofImage,
           sellerTrustNote: normalizedSellerTrustNote,
+          bloodlineRootId: normalizedBloodlineRootId,
           startPrice: normalizedStartPrice,
           currentPrice: normalizedStartPrice,
           minBidIncrement,

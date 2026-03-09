@@ -6,6 +6,7 @@ import { withApiSession } from "@libs/server/withSession";
 import { notifyFollowers } from "@libs/server/notification";
 import { Post, User } from "@prisma/client";
 import { getCategoryFilterValues } from "@libs/categoryTaxonomy";
+import { incrementUserMissionProgress } from "@libs/server/growth";
 
 /** 게시글 목록 응답 타입 */
 export interface PostWithUser extends Post {
@@ -162,6 +163,7 @@ const handler = async (
         targetId: post.id,
         targetType: "post",
       });
+      await incrementUserMissionProgress(user.id, "post_create");
     }
 
     return res.json({ success: true, post });

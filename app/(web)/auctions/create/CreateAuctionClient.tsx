@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { useForm } from "react-hook-form";
 import { usePathname, useRouter } from "next/navigation";
 import Link from "next/link";
+import useSWR from "swr";
 import Image from "@components/atoms/Image";
 import Layout from "@components/features/MainLayout";
 import { Button } from "@components/ui/button";
@@ -23,6 +24,7 @@ import {
 import { getAuctionErrorMessage } from "@libs/client/auctionErrorMessage";
 import { TOP_LEVEL_CATEGORIES, getSubcategories } from "@libs/categoryTaxonomy";
 import { CreateAuctionResponse } from "pages/api/auctions";
+import { BloodlineCardsResponse } from "@libs/shared/bloodline-card";
 
 interface AuctionForm {
   title: string;
@@ -45,6 +47,7 @@ interface AuctionCreatePayload extends AuctionForm {
   photos: string[];
   sellerProofImage: string | null;
   startPrice: number;
+  bloodlineRootId: number | null;
 }
 
 interface PendingCreateSubmission {
@@ -116,6 +119,7 @@ const buildSubmissionSignature = (requestData: AuctionCreatePayload) =>
     sellerBandNick: normalizeSignatureText(requestData.sellerBandNick),
     sellerTrustNote: normalizeSignatureText(requestData.sellerTrustNote),
     sellerProofImage: normalizeSignatureText(requestData.sellerProofImage),
+    bloodlineRootId: requestData.bloodlineRootId,
   });
 
 const CreateAuctionClient = () => {
@@ -139,6 +143,7 @@ const CreateAuctionClient = () => {
   const [pendingSubmission, setPendingSubmission] =
     useState<PendingCreateSubmission | null>(null);
   const [customFieldErrors, setCustomFieldErrors] = useState<CustomFieldErrors>({});
+  const [selectedBloodlineRootId, setSelectedBloodlineRootId] = useState<string>("");
 
   const photosSectionRef = useRef<HTMLDivElement | null>(null);
   const categorySectionRef = useRef<HTMLDivElement | null>(null);
@@ -146,6 +151,9 @@ const CreateAuctionClient = () => {
   const durationSectionRef = useRef<HTMLDivElement | null>(null);
 
   const { register, handleSubmit, setValue, watch, formState: { errors } } = useForm<AuctionForm>();
+  const { data: bloodlineData } = useSWR<BloodlineCardsResponse>(
+    user?.id ? "/api/bloodline-cards" : null
+  );
 
   const [createAuction, { loading }] = useMutation<CreateAuctionResponse>("/api/auctions");
   const watchedStartPrice = Number(watch("startPrice") || 0);
@@ -156,6 +164,11 @@ const CreateAuctionClient = () => {
     AUCTION_EXTENSION_WINDOW_MS / (60 * 1000)
   );
   const subcategories = selectedCategory ? getSubcategories(selectedCategory) : [];
+  const bloodlineOptions =
+    (bloodlineData?.myBloodlines?.length
+      ? bloodlineData.myBloodlines
+      : bloodlineData?.ownedCards || []
+    ).filter((card) => card.cardType === "BLOODLINE");
 
   const customErrorMessages = [
     customFieldErrors.photos,
@@ -384,6 +397,7 @@ const CreateAuctionClient = () => {
       description: normalizeSignatureText(data.description),
       endAt: normalizedEndAt,
       category: categoryForSubmit,
+      bloodlineRootId: selectedBloodlineRootId ? Number(selectedBloodlineRootId) : null,
       photos,
       sellerProofImage,
       startPrice: Number(data.startPrice),
@@ -648,6 +662,28 @@ const CreateAuctionClient = () => {
           {customFieldErrors.category ? (
             <p className="mt-1 text-xs text-red-500">{customFieldErrors.category}</p>
           ) : null}
+        </div>
+
+        <div>
+          <label className="mb-2 block text-sm font-semibold text-gray-900">
+            연결 혈통카드 <span className="text-xs font-normal text-gray-400">(선택)</span>
+          </label>
+          <select
+            value={selectedBloodlineRootId}
+            onChange={(event) => setSelectedBloodlineRootId(event.target.value)}
+            className="w-full rounded-md border border-gray-200 bg-white px-3 py-2 text-sm text-slate-700"
+          >
+            <option value="">혈통 연결 안 함</option>
+            {bloodlineOptions.map((card) => (
+              <option key={card.id} value={card.id}>
+                {card.name}
+                {card.speciesType ? ` · ${card.speciesType}` : ""}
+              </option>
+            ))}
+          </select>
+          <p className="mt-1 text-xs text-slate-500">
+            혈통을 연결하면 해당 경매가 인기 혈통 랭킹 집계에 반영됩니다.
+          </p>
         </div>
 
         {/* 제목 */}

@@ -17,10 +17,12 @@ import { AUCTION_MIN_START_PRICE, getBidIncrement } from "@libs/auctionRules";
 import { getAuctionErrorMessage } from "@libs/client/auctionErrorMessage";
 import { extractAuctionIdFromPath, toAuctionPath } from "@libs/auction-route";
 import { TOP_LEVEL_CATEGORIES, findCategoryBranch, getSubcategories } from "@libs/categoryTaxonomy";
+import { BloodlineCardsResponse } from "@libs/shared/bloodline-card";
 
 interface AuctionEditForm {
   title: string;
   description: string;
+  bloodlineRootId?: string;
   startPrice: number;
   endAt: string;
   sellerPhone: string;
@@ -68,11 +70,13 @@ const EditAuctionClient = () => {
   const [selectedCategory, setSelectedCategory] = useState("");
   const [selectedSubcategory, setSelectedSubcategory] = useState("");
   const [selectedDuration, setSelectedDuration] = useState<number | null>(null);
+  const [selectedBloodlineRootId, setSelectedBloodlineRootId] = useState("");
   const auctionId = params?.id ? extractAuctionIdFromPath(params.id) : Number.NaN;
 
   const { data } = useSWR<AuctionDetailResponse>(
     Number.isNaN(auctionId) ? null : `/api/auctions/${auctionId}`
   );
+  const { data: bloodlineData } = useSWR<BloodlineCardsResponse>("/api/bloodline-cards");
 
   const {
     register,
@@ -104,12 +108,18 @@ const EditAuctionClient = () => {
     const branch = findCategoryBranch(data.auction.category || "");
     setSelectedCategory(branch.parent);
     setSelectedSubcategory(branch.child);
+    setSelectedBloodlineRootId(data.auction.bloodlineRootId ? String(data.auction.bloodlineRootId) : "");
     setPhotos(data.auction.photos || []);
     setSellerProofImage(data.auction.sellerProofImage || null);
   }, [data?.auction, reset]);
 
   const watchedStartPrice = Number(watch("startPrice") || 0);
   const subcategories = selectedCategory ? getSubcategories(selectedCategory) : [];
+  const bloodlineOptions =
+    (bloodlineData?.myBloodlines?.length
+      ? bloodlineData.myBloodlines
+      : bloodlineData?.ownedCards || []
+    ).filter((card) => card.cardType === "BLOODLINE");
   const currentBidIncrement = getBidIncrement(watchedStartPrice);
   const editAvailableUntilText = useMemo(() => {
     if (!data?.editAvailableUntil) return "-";
@@ -209,6 +219,7 @@ const EditAuctionClient = () => {
         ...form,
         endAt: normalizedEndAt,
         category: selectedSubcategory || selectedCategory,
+        bloodlineRootId: selectedBloodlineRootId ? Number(selectedBloodlineRootId) : null,
         photos,
         sellerProofImage,
         startPrice: Number(form.startPrice),
@@ -375,6 +386,28 @@ const EditAuctionClient = () => {
               ))}
             </div>
           ) : null}
+        </div>
+
+        <div>
+          <label className="mb-2 block text-sm font-semibold text-gray-900">
+            연결 혈통카드 <span className="text-xs font-normal text-gray-400">(선택)</span>
+          </label>
+          <select
+            value={selectedBloodlineRootId}
+            onChange={(event) => setSelectedBloodlineRootId(event.target.value)}
+            className="w-full rounded-md border border-gray-200 bg-white px-3 py-2 text-sm text-slate-700"
+          >
+            <option value="">혈통 연결 안 함</option>
+            {bloodlineOptions.map((card) => (
+              <option key={card.id} value={card.id}>
+                {card.name}
+                {card.speciesType ? ` · ${card.speciesType}` : ""}
+              </option>
+            ))}
+          </select>
+          <p className="mt-1 text-xs text-slate-500">
+            혈통을 연결하면 해당 경매의 낙찰가가 혈통 랭킹 집계에 반영됩니다.
+          </p>
         </div>
 
         <div>

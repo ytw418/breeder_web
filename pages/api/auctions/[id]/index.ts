@@ -116,6 +116,7 @@ async function handler(
       sellerBandNick,
       sellerProofImage,
       sellerTrustNote,
+      bloodlineRootId,
     } = req.body;
 
     if (action !== "update") {
@@ -200,12 +201,35 @@ async function handler(
       }
 
       const normalizedPhotos = Array.isArray(photos) ? photos : [];
+      const parsedBloodlineRootId = Number(bloodlineRootId);
+      const normalizedBloodlineRootId =
+        Number.isInteger(parsedBloodlineRootId) && parsedBloodlineRootId > 0
+          ? parsedBloodlineRootId
+          : null;
       if (normalizedPhotos.length < 1 || normalizedPhotos.length > 5) {
         return res.status(400).json({
           success: false,
           error: "사진은 최소 1장, 최대 5장까지 등록할 수 있습니다.",
           errorCode: "AUCTION_INVALID_PHOTO_COUNT",
         });
+      }
+
+      if (normalizedBloodlineRootId) {
+        const linkedBloodline = await client.bloodlineCard.findFirst({
+          where: {
+            id: normalizedBloodlineRootId,
+            cardType: "BLOODLINE",
+            status: "ACTIVE",
+          },
+          select: { id: true },
+        });
+        if (!linkedBloodline) {
+          return res.status(400).json({
+            success: false,
+            error: "연결할 원본 혈통카드를 찾을 수 없습니다.",
+            errorCode: "AUCTION_INVALID_BLOODLINE_ROOT",
+          });
+        }
       }
 
       if (
@@ -236,6 +260,7 @@ async function handler(
           sellerBandNick: normalizeOptionalText(sellerBandNick, 60),
           sellerProofImage: normalizeOptionalText(sellerProofImage, 120),
           sellerTrustNote: normalizeOptionalText(sellerTrustNote, 300),
+          bloodlineRootId: normalizedBloodlineRootId,
           startPrice: normalizedStartPrice,
           currentPrice: normalizedStartPrice,
           minBidIncrement: getBidIncrement(normalizedStartPrice),
