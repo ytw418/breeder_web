@@ -1,5 +1,6 @@
-export type RankingPeriod = "weekly";
+export type RankingPeriod = "weekly" | "all";
 export type AuctionPeriodScope = "week" | "month" | "all";
+export type CommunityWindow = "24h" | "all";
 export type RankingEntityType = "USER" | "BLOODLINE" | "AUCTION";
 
 export interface SeasonBadgeItem {
@@ -108,9 +109,13 @@ export interface RankingMeSummary {
 export interface HomeFeedResponse {
   success: boolean;
   heroBreeder: BreederRankingItem | null;
+  heroBreederMode: RankingPeriod;
   topAuctionsByCategory: AuctionRankingItem[];
+  topAuctionsMode: AuctionPeriodScope;
   topBloodlines: BloodlineRankingItem[];
+  topBloodlinesMode: RankingPeriod;
   trendingPosts: TrendingPostItem[];
+  trendingPostsMode: CommunityWindow;
   myRanking: RankingMeSummary | null;
   myMissionSummary: MissionProgressItem[];
   currentSeasonId: number | null;

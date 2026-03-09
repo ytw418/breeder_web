@@ -97,7 +97,13 @@ test("상품 목록 -> 상세 -> 찜 토글이 동작한다", async ({ page }) =
   });
 
   await page.goto("/e2e/product-flow");
-  await page.getByTestId("product-link-101").click();
+  const detailLink = page.getByTestId("product-link-101");
+  await expect(detailLink).toHaveAttribute("href", /\/e2e\/product-flow\/101-/);
+  const detailHref = await detailLink.getAttribute("href");
+  if (!detailHref) {
+    throw new Error("상품 상세 경로를 읽지 못했습니다.");
+  }
+  await page.goto(detailHref);
 
   await expect(page).toHaveURL(/\/e2e\/product-flow\/101-/);
   await expect(

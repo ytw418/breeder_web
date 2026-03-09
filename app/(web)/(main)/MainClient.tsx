@@ -81,6 +81,9 @@ const formatGrowthRate = (growthRate: number) => {
   return `${growthRate >= 0 ? "+" : ""}${Math.round(growthRate * 100)}%`;
 };
 
+const toRankingHref = (tab: "breeders" | "auctions" | "bloodlines" | "community", period: "weekly" | "all") =>
+  `/ranking?tab=${tab}&period=${period}`;
+
 const MainClient = () => {
   const router = useRouter();
   const { user, isLoading: isUserLoading } = useUser();
@@ -239,6 +242,26 @@ const MainClient = () => {
 
   const loadedProductCount =
     data?.reduce((count, pageData) => count + (pageData?.products?.length ?? 0), 0) ?? 0;
+  const heroBreederPeriod = homeFeedData?.heroBreederMode ?? "weekly";
+  const auctionPeriod = homeFeedData?.topAuctionsMode === "all" ? "all" : "weekly";
+  const bloodlinePeriod = homeFeedData?.topBloodlinesMode ?? "weekly";
+  const communityPeriod = homeFeedData?.trendingPostsMode === "all" ? "all" : "weekly";
+  const heroSubtitle =
+    heroBreederPeriod === "weekly"
+      ? "게시, 댓글, 입찰, 낙찰 활동을 합산한 주간 리더보드"
+      : "이번 주 데이터가 없어 역대 누적 활동 기준으로 표시 중";
+  const auctionSubtitle =
+    auctionPeriod === "weekly"
+      ? "이번 주 가장 높은 낙찰가를 기록한 경매"
+      : "이번 주 데이터가 없어 역대 최고 낙찰가를 표시 중";
+  const bloodlineSubtitle =
+    bloodlinePeriod === "weekly"
+      ? "팔로우, 거래 수, 평균 낙찰가를 반영한 혈통 랭킹"
+      : "이번 주 데이터가 없어 역대 누적 활동 기준으로 표시 중";
+  const communitySubtitle =
+    communityPeriod === "weekly"
+      ? "최근 24시간 반응이 빠르게 늘어난 글"
+      : "최근 24시간 데이터가 없어 역대 인기 글을 표시 중";
 
   return (
     <div className="app-page flex flex-col h-full">
@@ -297,15 +320,17 @@ const MainClient = () => {
       <section className="app-section app-reveal app-reveal-1 py-2">
         <SectionHeader
           title="이번 주 TOP 브리더"
-          subtitle="게시, 댓글, 입찰, 낙찰 활동을 합산한 주간 리더보드"
-          href="/ranking"
+          subtitle={heroSubtitle}
+          href={toRankingHref("breeders", heroBreederPeriod)}
           actionLabel="랭킹 보기"
         />
         <div className="mt-1 px-5">
           {homeFeedData?.heroBreeder ? (
             // 첫 스크린은 주간 1위 브리더와 즉시 행동 CTA에 집중해 홈 방향성을 명확히 준다.
             <div className="relative overflow-hidden rounded-3xl bg-[radial-gradient(circle_at_top_left,_rgba(29,78,216,0.22),_transparent_38%),linear-gradient(135deg,#0f172a,#111827_55%,#1d4ed8)] p-5 text-white shadow-xl">
-              <p className="app-kicker text-white/70">Weekly Hero</p>
+              <p className="app-kicker text-white/70">
+                {heroBreederPeriod === "weekly" ? "Weekly Hero" : "All-time Leader"}
+              </p>
               <div className="mt-3 flex items-start justify-between gap-3">
                 <div>
                   <h3 className="text-2xl font-black tracking-tight">
@@ -341,7 +366,11 @@ const MainClient = () => {
                       challenge_id: "weekly_breeder_rank",
                       entry_type: user ? "member" : "guest",
                     });
-                    router.push(user ? "/ranking" : "/auth/login?next=%2Franking");
+                    router.push(
+                      user
+                        ? toRankingHref("breeders", "weekly")
+                        : "/auth/login?next=%2Franking%3Ftab%3Dbreeders%26period%3Dweekly"
+                    );
                   }}
                   className="inline-flex h-9 items-center rounded-full bg-white px-4 text-sm font-semibold text-slate-900"
                 >
@@ -358,8 +387,8 @@ const MainClient = () => {
       <section className="app-section app-reveal app-reveal-1 py-2">
         <SectionHeader
           title="카테고리별 최고가 경매"
-          subtitle="이번 주 가장 높은 낙찰가를 기록한 경매"
-          href="/auctions"
+          subtitle={auctionSubtitle}
+          href={toRankingHref("auctions", auctionPeriod)}
         />
         <div className="mt-1 px-5">
           <div className="app-rail flex gap-3">
@@ -396,7 +425,7 @@ const MainClient = () => {
                 </Link>
               ))
             ) : (
-              <div className="app-card p-4 text-sm text-slate-400">이번 주 낙찰 데이터가 없습니다.</div>
+              <div className="app-card p-4 text-sm text-slate-400">집계 가능한 낙찰 데이터가 없습니다.</div>
             )}
           </div>
         </div>
@@ -405,9 +434,9 @@ const MainClient = () => {
       <section className="app-section app-reveal app-reveal-1 py-2">
         <SectionHeader
           title="인기 혈통 TOP"
-          subtitle="팔로우, 거래 수, 평균 낙찰가를 반영한 혈통 랭킹"
-          href="/bloodline-management"
-          actionLabel="혈통 관리"
+          subtitle={bloodlineSubtitle}
+          href={toRankingHref("bloodlines", bloodlinePeriod)}
+          actionLabel="랭킹 보기"
         />
         <div className="mt-1 px-5">
           <div className="app-rail flex gap-3">
@@ -464,8 +493,8 @@ const MainClient = () => {
       <section className="app-section app-reveal app-reveal-1 py-2">
         <SectionHeader
           title="급상승 커뮤니티"
-          subtitle="최근 24시간 반응이 빠르게 늘어난 글"
-          href="/posts"
+          subtitle={communitySubtitle}
+          href={toRankingHref("community", communityPeriod)}
         />
         <div className="mt-1 px-5">
           <div className="app-rail flex gap-3">
@@ -528,7 +557,11 @@ const MainClient = () => {
               ? "이번 주 순위와 미션 진행도를 한 번에 확인하세요"
               : "로그인 후 순위, 미션, 배지까지 이어지는 성장 루프를 시작하세요"
           }
-          href={user ? "/ranking" : "/auth/login?next=%2Franking"}
+          href={
+            user
+              ? toRankingHref("breeders", "weekly")
+              : "/auth/login?next=%2Franking%3Ftab%3Dbreeders%26period%3Dweekly"
+          }
           actionLabel={user ? "내 순위 보기" : "로그인"}
         />
         <div className="mt-1 px-5">

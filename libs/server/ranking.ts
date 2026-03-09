@@ -4,7 +4,9 @@ import {
   AuctionRankingItem,
   BloodlineRankingItem,
   BreederRankingItem,
+  CommunityWindow,
   RankingMeSummary,
+  RankingPeriod,
   SeasonBadgeItem,
   TrendingPostItem,
 } from "@libs/shared/ranking";
@@ -155,16 +157,27 @@ const getRankMap = <T extends { key: number; score: number }>(items: T[]) =>
 
 export const getBreederRanking = async ({
   limit = 20,
+  period = "weekly",
   userId,
   baseDate,
 }: {
   limit?: number;
+  period?: RankingPeriod;
   userId?: number;
   baseDate?: Date;
 } = {}): Promise<BreederRankingItem[]> => {
   // KST 현재 주/직전 주를 같은 기준으로 잘라야 rankDelta와 scoreDelta가 흔들리지 않는다.
   const current = getKstWeekWindow(baseDate);
   const previous = getPreviousKstWeekWindow(baseDate);
+
+  const currentWindowFilter =
+    period === "weekly"
+      ? { createdAt: { gte: current.startAt, lte: current.endAt } }
+      : {};
+  const currentAuctionWindowFilter =
+    period === "weekly"
+      ? { endAt: { gte: current.startAt, lte: current.endAt } }
+      : {};
 
   const [users, currentPosts, currentComments, currentBids, currentWins, currentSellerEnds] =
     await Promise.all([
@@ -173,50 +186,52 @@ export const getBreederRanking = async ({
         select: { id: true, name: true, avatar: true },
       }),
       countByGroup("post", {
-        createdAt: { gte: current.startAt, lte: current.endAt },
+        ...currentWindowFilter,
         category: { not: "공지" },
       }),
       countByGroup("comment", {
-        createdAt: { gte: current.startAt, lte: current.endAt },
+        ...currentWindowFilter,
       }),
       countByGroup("bid", {
-        createdAt: { gte: current.startAt, lte: current.endAt },
+        ...currentWindowFilter,
       }),
       countByGroup("auctionByWinner", {
         status: "종료",
         winnerId: { not: null },
-        endAt: { gte: current.startAt, lte: current.endAt },
+        ...currentAuctionWindowFilter,
       }),
       countByGroup("auctionBySeller", {
         status: "종료",
         winnerId: { not: null },
-        endAt: { gte: current.startAt, lte: current.endAt },
+        ...currentAuctionWindowFilter,
       }),
     ]);
 
   const [previousPosts, previousComments, previousBids, previousWins, previousSellerEnds] =
-    await Promise.all([
-      countByGroup("post", {
-        createdAt: { gte: previous.startAt, lte: previous.endAt },
-        category: { not: "공지" },
-      }),
-      countByGroup("comment", {
-        createdAt: { gte: previous.startAt, lte: previous.endAt },
-      }),
-      countByGroup("bid", {
-        createdAt: { gte: previous.startAt, lte: previous.endAt },
-      }),
-      countByGroup("auctionByWinner", {
-        status: "종료",
-        winnerId: { not: null },
-        endAt: { gte: previous.startAt, lte: previous.endAt },
-      }),
-      countByGroup("auctionBySeller", {
-        status: "종료",
-        winnerId: { not: null },
-        endAt: { gte: previous.startAt, lte: previous.endAt },
-      }),
-    ]);
+    period === "weekly"
+      ? await Promise.all([
+          countByGroup("post", {
+            createdAt: { gte: previous.startAt, lte: previous.endAt },
+            category: { not: "공지" },
+          }),
+          countByGroup("comment", {
+            createdAt: { gte: previous.startAt, lte: previous.endAt },
+          }),
+          countByGroup("bid", {
+            createdAt: { gte: previous.startAt, lte: previous.endAt },
+          }),
+          countByGroup("auctionByWinner", {
+            status: "종료",
+            winnerId: { not: null },
+            endAt: { gte: previous.startAt, lte: previous.endAt },
+          }),
+          countByGroup("auctionBySeller", {
+            status: "종료",
+            winnerId: { not: null },
+            endAt: { gte: previous.startAt, lte: previous.endAt },
+          }),
+        ])
+      : [[], [], [], [], []];
 
   const userMap = new Map(users.map((row) => [row.id, row]));
   const maps = {
@@ -293,19 +308,27 @@ export const getBreederRanking = async ({
 
 export const getTrendingCommunityPosts = async ({
   limit = 10,
+  window = "24h",
 }: {
   limit?: number;
+  window?: CommunityWindow;
 } = {}): Promise<TrendingPostItem[]> => {
   const now = new Date();
   const recentBoundary = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
   const windowStart = new Date(now.getTime() - 24 * 60 * 60 * 1000);
 
   const [likeRows, commentRows, posts] = await Promise.all([
-    countByGroup("likeByPost", { createdAt: { gte: windowStart, lte: now } }),
-    countByGroup("commentByPost", { createdAt: { gte: windowStart, lte: now } }),
+    countByGroup(
+      "likeByPost",
+      window === "24h" ? { createdAt: { gte: windowStart, lte: now } } : {}
+    ),
+    countByGroup(
+      "commentByPost",
+      window === "24h" ? { createdAt: { gte: windowStart, lte: now } } : {}
+    ),
     client.post.findMany({
       where: {
-        createdAt: { gte: recentBoundary, lte: now },
+        ...(window === "24h" ? { createdAt: { gte: recentBoundary, lte: now } } : {}),
         NOT: { category: "공지" },
         user: { status: "ACTIVE" },
       },
@@ -429,10 +452,12 @@ export const getAuctionRanking = async ({
 
 export const getBloodlineRanking = async ({
   limit = 20,
+  period = "weekly",
   speciesType,
   baseDate,
 }: {
   limit?: number;
+  period?: RankingPeriod;
   speciesType?: string;
   baseDate?: Date;
 } = {}): Promise<BloodlineRankingItem[]> => {
@@ -471,22 +496,24 @@ export const getBloodlineRanking = async ({
         bloodlineRootId: { not: null },
         status: "종료",
         winnerId: { not: null },
-        endAt: { gte: current.startAt, lte: current.endAt },
+        ...(period === "weekly" ? { endAt: { gte: current.startAt, lte: current.endAt } } : {}),
       },
       _count: { _all: true },
       _avg: { currentPrice: true },
     }),
-    client.auction.groupBy({
-      by: ["bloodlineRootId"],
-      where: {
-        bloodlineRootId: { not: null },
-        status: "종료",
-        winnerId: { not: null },
-        endAt: { gte: previous.startAt, lte: previous.endAt },
-      },
-      _count: { _all: true },
-      _avg: { currentPrice: true },
-    }),
+    period === "weekly"
+      ? client.auction.groupBy({
+          by: ["bloodlineRootId"],
+          where: {
+            bloodlineRootId: { not: null },
+            status: "종료",
+            winnerId: { not: null },
+            endAt: { gte: previous.startAt, lte: previous.endAt },
+          },
+          _count: { _all: true },
+          _avg: { currentPrice: true },
+        })
+      : Promise.resolve([]),
   ]);
 
   const followMap = toCountMap(followRows);
@@ -519,7 +546,9 @@ export const getBloodlineRanking = async ({
       const previousTrade = previousTradeMap.get(root.id) ?? { tradeCount: 0, avgClosingPrice: 0 };
       const followCount = followMap.get(root.id) ?? 0;
       const growthRate7d =
-        previousTrade.avgClosingPrice > 0
+        period !== "weekly"
+          ? 0
+          : previousTrade.avgClosingPrice > 0
           ? (currentTrade.avgClosingPrice - previousTrade.avgClosingPrice) /
             previousTrade.avgClosingPrice
           : currentTrade.avgClosingPrice > 0
@@ -532,12 +561,15 @@ export const getBloodlineRanking = async ({
         tradeCount: currentTrade.tradeCount,
         avgClosingPrice: currentTrade.avgClosingPrice,
         growthRate7d,
-        previousScore: scoreBloodline({
-          followCount,
-          tradeCount: previousTrade.tradeCount,
-          avgClosingPrice: previousTrade.avgClosingPrice,
-          growthRate7d: 0,
-        }),
+        previousScore:
+          period === "weekly"
+            ? scoreBloodline({
+                followCount,
+                tradeCount: previousTrade.tradeCount,
+                avgClosingPrice: previousTrade.avgClosingPrice,
+                growthRate7d: 0,
+              })
+            : 0,
         score: scoreBloodline({
           followCount,
           tradeCount: currentTrade.tradeCount,
@@ -549,22 +581,25 @@ export const getBloodlineRanking = async ({
     .filter((item) => item.score > 0)
     .sort((a, b) => b.score - a.score || a.root.name.localeCompare(b.root.name, "ko"));
 
-  const previousScored = roots
-    .map((root) => {
-      const prev = previousTradeMap.get(root.id) ?? { tradeCount: 0, avgClosingPrice: 0 };
-      const followCount = followMap.get(root.id) ?? 0;
-      return {
-        key: root.id,
-        score: scoreBloodline({
-          followCount,
-          tradeCount: prev.tradeCount,
-          avgClosingPrice: prev.avgClosingPrice,
-          growthRate7d: 0,
-        }),
-      };
-    })
-    .filter((item) => item.score > 0)
-    .sort((a, b) => b.score - a.score || a.key - b.key);
+  const previousScored =
+    period === "weekly"
+      ? roots
+          .map((root) => {
+            const prev = previousTradeMap.get(root.id) ?? { tradeCount: 0, avgClosingPrice: 0 };
+            const followCount = followMap.get(root.id) ?? 0;
+            return {
+              key: root.id,
+              score: scoreBloodline({
+                followCount,
+                tradeCount: prev.tradeCount,
+                avgClosingPrice: prev.avgClosingPrice,
+                growthRate7d: 0,
+              }),
+            };
+          })
+          .filter((item) => item.score > 0)
+          .sort((a, b) => b.score - a.score || a.key - b.key)
+      : [];
   const previousRankMap = getRankMap(previousScored);
 
   return scored.slice(0, limit).map((item, index) => {

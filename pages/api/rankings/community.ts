@@ -1,8 +1,11 @@
 import { NextApiRequest, NextApiResponse } from "next";
 import withHandler from "@libs/server/withHandler";
 import { withApiSession } from "@libs/server/withSession";
-import { TrendingPostItem } from "@libs/shared/ranking";
+import { CommunityWindow, TrendingPostItem } from "@libs/shared/ranking";
 import { getTrendingCommunityPosts } from "@libs/server/ranking";
+
+const isCommunityWindow = (value: string): value is CommunityWindow =>
+  value === "24h" || value === "all";
 
 export interface CommunityRankingResponse {
   success: boolean;
@@ -17,7 +20,10 @@ async function handler(
   try {
     const parsedLimit = Number(req.query.limit || "");
     const limit = Number.isNaN(parsedLimit) ? 10 : Math.min(Math.max(parsedLimit, 1), 30);
-    const items = await getTrendingCommunityPosts({ limit });
+    const window = isCommunityWindow(String(req.query.window || "24h"))
+      ? (req.query.window as CommunityWindow)
+      : "24h";
+    const items = await getTrendingCommunityPosts({ limit, window });
 
     res.setHeader("Cache-Control", "public, s-maxage=60, stale-while-revalidate=120");
     return res.json({

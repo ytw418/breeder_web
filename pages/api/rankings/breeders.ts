@@ -1,8 +1,11 @@
 import { NextApiRequest, NextApiResponse } from "next";
 import withHandler from "@libs/server/withHandler";
 import { withApiSession } from "@libs/server/withSession";
-import { BreederRankingItem } from "@libs/shared/ranking";
+import { BreederRankingItem, RankingPeriod } from "@libs/shared/ranking";
 import { getBreederRanking } from "@libs/server/ranking";
+
+const isRankingPeriod = (value: string): value is RankingPeriod =>
+  value === "weekly" || value === "all";
 
 export interface BreedersRankingResponse {
   success: boolean;
@@ -17,7 +20,10 @@ async function handler(
   try {
     const parsedLimit = Number(req.query.limit || "");
     const limit = Number.isNaN(parsedLimit) ? 20 : Math.min(Math.max(parsedLimit, 1), 50);
-    const items = await getBreederRanking({ limit });
+    const period = isRankingPeriod(String(req.query.period || "weekly"))
+      ? (req.query.period as RankingPeriod)
+      : "weekly";
+    const items = await getBreederRanking({ limit, period });
 
     res.setHeader("Cache-Control", "public, s-maxage=60, stale-while-revalidate=120");
     return res.json({

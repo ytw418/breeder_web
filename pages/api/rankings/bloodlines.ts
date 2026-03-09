@@ -1,8 +1,11 @@
 import { NextApiRequest, NextApiResponse } from "next";
 import withHandler from "@libs/server/withHandler";
 import { withApiSession } from "@libs/server/withSession";
-import { BloodlineRankingItem } from "@libs/shared/ranking";
+import { BloodlineRankingItem, RankingPeriod } from "@libs/shared/ranking";
 import { getBloodlineRanking } from "@libs/server/ranking";
+
+const isRankingPeriod = (value: string): value is RankingPeriod =>
+  value === "weekly" || value === "all";
 
 export interface BloodlinesRankingResponse {
   success: boolean;
@@ -19,7 +22,10 @@ async function handler(
     const limit = Number.isNaN(parsedLimit) ? 20 : Math.min(Math.max(parsedLimit, 1), 50);
     const speciesType =
       typeof req.query.speciesType === "string" ? req.query.speciesType : undefined;
-    const items = await getBloodlineRanking({ limit, speciesType });
+    const period = isRankingPeriod(String(req.query.period || "weekly"))
+      ? (req.query.period as RankingPeriod)
+      : "weekly";
+    const items = await getBloodlineRanking({ limit, speciesType, period });
 
     res.setHeader("Cache-Control", "public, s-maxage=60, stale-while-revalidate=120");
     return res.json({
