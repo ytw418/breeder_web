@@ -61,5 +61,41 @@ export default function ClientComp() {
       .catch((error) => console.error("Service Worker registration failed:", error));
   }, []);
 
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+
+    const reloadKey = "bredy:chunk-reload";
+    const handleChunkError = (event: PromiseRejectionEvent) => {
+      const reason = event.reason;
+      const message =
+        typeof reason === "string"
+          ? reason
+          : reason instanceof Error
+            ? reason.message
+            : "";
+
+      if (!/Loading chunk|ChunkLoadError|Failed to fetch dynamically imported module/i.test(message)) {
+        return;
+      }
+
+      // 새 배포 직후 오래된 청크를 잡은 탭은 한 번 새로고침해 최신 번들을 다시 받는다.
+      const alreadyReloaded = sessionStorage.getItem(reloadKey) === "1";
+      if (alreadyReloaded) return;
+      sessionStorage.setItem(reloadKey, "1");
+      window.location.reload();
+    };
+
+    const resetReloadFlag = () => {
+      sessionStorage.removeItem(reloadKey);
+    };
+
+    window.addEventListener("unhandledrejection", handleChunkError);
+    window.addEventListener("load", resetReloadFlag);
+    return () => {
+      window.removeEventListener("unhandledrejection", handleChunkError);
+      window.removeEventListener("load", resetReloadFlag);
+    };
+  }, []);
+
   return <div className=""></div>;
 }
