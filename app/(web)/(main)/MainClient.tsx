@@ -246,22 +246,10 @@ const MainClient = () => {
   const auctionPeriod = homeFeedData?.topAuctionsMode === "all" ? "all" : "weekly";
   const bloodlinePeriod = homeFeedData?.topBloodlinesMode ?? "weekly";
   const communityPeriod = homeFeedData?.trendingPostsMode === "all" ? "all" : "weekly";
-  const heroSubtitle =
-    heroBreederPeriod === "weekly"
-      ? "게시, 댓글, 입찰, 낙찰 활동을 합산한 주간 리더보드"
-      : "이번 주 데이터가 없어 역대 누적 활동 기준으로 표시 중";
-  const auctionSubtitle =
-    auctionPeriod === "weekly"
-      ? "이번 주 가장 높은 낙찰가를 기록한 경매"
-      : "이번 주 데이터가 없어 역대 최고 낙찰가를 표시 중";
-  const bloodlineSubtitle =
-    bloodlinePeriod === "weekly"
-      ? "팔로우, 거래 수, 평균 낙찰가를 반영한 혈통 랭킹"
-      : "이번 주 데이터가 없어 역대 누적 활동 기준으로 표시 중";
-  const communitySubtitle =
-    communityPeriod === "weekly"
-      ? "최근 24시간 반응이 빠르게 늘어난 글"
-      : "최근 24시간 데이터가 없어 역대 인기 글을 표시 중";
+  const heroSubtitle = "게시, 댓글, 입찰, 낙찰 활동을 합산한 브리더 리더보드";
+  const auctionSubtitle = "카테고리별 최고 낙찰가를 기록한 경매";
+  const bloodlineSubtitle = "팔로우, 거래 수, 평균 낙찰가를 반영한 혈통 랭킹";
+  const communitySubtitle = "좋아요와 댓글 반응이 높은 커뮤니티 글";
 
   return (
     <div className="app-page flex flex-col h-full">
@@ -549,76 +537,6 @@ const MainClient = () => {
         </div>
       </section>
 
-      <section className="app-section app-reveal app-reveal-2 py-2">
-        <SectionHeader
-          title={user ? "내 랭킹 현황" : "랭킹 참여 시작하기"}
-          subtitle={
-            user
-              ? "이번 주 순위와 미션 진행도를 한 번에 확인하세요"
-              : "로그인 후 순위, 미션, 배지까지 이어지는 성장 루프를 시작하세요"
-          }
-          href={
-            user
-              ? toRankingHref("breeders", "weekly")
-              : "/auth/login?next=%2Franking%3Ftab%3Dbreeders%26period%3Dweekly"
-          }
-          actionLabel={user ? "내 순위 보기" : "로그인"}
-        />
-        <div className="mt-1 px-5">
-          {user && homeFeedData?.myRanking ? (
-            // 로그인 사용자는 현재 순위와 미션을 한 카드에서 보고 다음 행동을 바로 선택할 수 있어야 한다.
-            <div className="rounded-3xl border border-slate-200 bg-white p-4 shadow-sm">
-              <div className="flex items-center justify-between gap-3">
-                <div>
-                  <p className="app-kicker">My Weekly Rank</p>
-                  <h3 className="mt-1 text-2xl font-black text-slate-900">
-                    {homeFeedData.myRanking.currentRank ? `#${homeFeedData.myRanking.currentRank}` : "집계 대기"}
-                  </h3>
-                  <p className="mt-1 text-sm text-slate-500">
-                    점수 {homeFeedData.myRanking.score.toLocaleString()} · {formatRankDelta(homeFeedData.myRanking.rankDelta)}
-                  </p>
-                </div>
-                <div className="flex flex-wrap justify-end gap-2">
-                  {homeFeedData.myRanking.badges.slice(0, 2).map((badge) => (
-                    <span key={badge.id} className="rounded-full bg-amber-50 px-2.5 py-1 text-[11px] font-semibold text-amber-700">
-                      {badge.label}
-                    </span>
-                  ))}
-                </div>
-              </div>
-              <div className="mt-4 grid gap-2">
-                {homeFeedData.myMissionSummary.map((mission) => (
-                  <div key={mission.key} className="rounded-2xl bg-slate-50 px-3 py-2.5">
-                    <div className="flex items-center justify-between gap-3 text-sm">
-                      <span className="font-medium text-slate-700">{mission.title}</span>
-                      <span className="text-xs text-slate-500">
-                        {mission.progress}/{mission.targetCount}
-                      </span>
-                    </div>
-                    <div className="mt-2 h-2 overflow-hidden rounded-full bg-slate-200">
-                      <div
-                        className="h-full rounded-full bg-slate-900 transition-all"
-                        style={{
-                          width: `${Math.min(100, (mission.progress / mission.targetCount) * 100)}%`,
-                        }}
-                      />
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-          ) : (
-            <div className="rounded-3xl bg-gradient-to-r from-slate-900 via-slate-800 to-slate-700 p-5 text-white">
-              <p className="app-kicker text-white/70">Join The Stage</p>
-              <h3 className="mt-2 text-xl font-black">실력은 기록되고, 신뢰는 거래로 증명됩니다</h3>
-              <p className="mt-2 text-sm leading-relaxed text-white/80">
-                로그인 후 주간 랭킹, 미션, 배지, 알림까지 한 화면에서 이어집니다.
-              </p>
-            </div>
-          )}
-        </div>
-      </section>
-
       {/* 혈통카드 */}
       <section className="app-section app-reveal app-reveal-2 py-2">
         <SectionHeader
@@ -639,31 +557,6 @@ const MainClient = () => {
             <h3 className="mt-1.5 text-base font-semibold text-white">내 혈통카드 만들기</h3>
             <p className="mt-1.5 text-xs leading-snug text-white/85">
               대표 혈통을 공개하고 거래/보유 이력을 신뢰 레이어로 연결하세요.
-            </p>
-          </Link>
-        </div>
-      </section>
-
-      {/* 브리디북 랜딩 */}
-      <section className="app-section app-reveal app-reveal-2 py-2">
-        <SectionHeader
-          title="브리디북"
-          subtitle="메인 유입이 아닌 증빙 기록 레이어"
-          href="/bredybook-landing"
-          actionLabel="바로가기"
-        />
-        <div className="mt-1 px-5">
-          <Link
-            href="/bredybook-landing"
-            className="relative overflow-hidden app-card app-card-interactive block border border-orange-400/45 bg-gradient-to-r from-[#ff8b2a] via-[#ff6f0f] to-[#ff8b2a] p-4 text-white transition duration-200 hover:-translate-y-0.5 overflow-hidden"
-          >
-            <div className="pointer-events-none absolute inset-x-5 top-0 h-px bg-gradient-to-r from-transparent via-white/30 to-transparent" />
-            <div className="pointer-events-none absolute -left-6 -top-6 h-16 w-16 rounded-full bg-white/20 blur-2xl" />
-            <div className="pointer-events-none absolute -right-8 -bottom-8 h-16 w-16 rounded-full bg-yellow-100/20 blur-2xl" />
-            <p className="app-kicker text-white/90">Bredybook</p>
-            <h3 className="mt-1.5 text-base font-semibold text-white">공식 기록으로 실력을 증명하세요</h3>
-            <p className="mt-1.5 text-xs leading-snug text-white/85">
-              프로필과 랭킹에서 신뢰 근거로 이어지는 기록을 축적합니다.
             </p>
           </Link>
         </div>
