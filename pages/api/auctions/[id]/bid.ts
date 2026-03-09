@@ -11,6 +11,7 @@ import {
 } from "@libs/auctionRules";
 import { settleExpiredAuctions } from "@libs/server/auctionSettlement";
 import { extractAuctionIdFromPath } from "@libs/auction-route";
+import { incrementUserMissionProgress } from "@libs/server/growth";
 
 /** 입찰 응답 타입 */
 export interface BidResponse {
@@ -181,6 +182,8 @@ async function handler(
         targetType: "auction",
       });
     }
+
+    await incrementUserMissionProgress(user.id, "auction_bid");
 
     return res.json({ success: true, extended: shouldExtend, endAt: nextEndAt.toISOString() });
   } catch (error) {

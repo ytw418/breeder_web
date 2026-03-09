@@ -85,6 +85,10 @@ model User {
   fcmTokens         FcmToken[]
   auctions        Auction[]
   bids            Bid[]
+  badges          UserBadge[]
+  missionProgress UserMissionProgress[]
+  alertSubscriptions AlertSubscription[]
+  bloodlineFollows BloodlineFollow[]
   auctionReportsSubmitted AuctionReport[] @relation("AuctionReportReporter")
   auctionReportsReceived  AuctionReport[] @relation("AuctionReportReportedUser")
   auctionReportsResolved  AuctionReport[] @relation("AuctionReportResolver")
@@ -331,6 +335,39 @@ enum NotificationType {
   AUCTION_WON   // 경매 낙찰
   AUCTION_END   // 내 경매 종료
   NEW_RECORD    // 기네스북 기록 갱신
+  BREEDER_RANK_DROP
+  BREEDER_OVERTAKEN
+  BLOODLINE_OVERTAKEN
+  AUCTION_RECORD_BROKEN
+}
+
+enum SeasonKind {
+  WEEKLY
+}
+
+enum SeasonStatus {
+  UPCOMING
+  ACTIVE
+  CLOSED
+}
+
+enum BadgeType {
+  TOP_BREEDER
+  TOP_BLOODLINE
+  HIGHEST_AUCTION_SELLER
+}
+
+enum RankingEntityType {
+  USER
+  BLOODLINE
+  AUCTION
+}
+
+enum AlertType {
+  BREEDER_RANK_DROP
+  BREEDER_OVERTAKEN
+  BLOODLINE_OVERTAKEN
+  AUCTION_RECORD_BROKEN
 }
 
 model Notification {
@@ -350,6 +387,111 @@ model Notification {
   @@index([userId])
   @@index([senderId])
   @@index([userId, isRead])
+}
+
+model Season {
+  id        Int          @id @default(autoincrement())
+  kind      SeasonKind
+  startAt   DateTime
+  endAt     DateTime
+  status    SeasonStatus @default(ACTIVE)
+  createdAt DateTime     @default(now())
+  updatedAt DateTime     @updatedAt
+
+  badges          UserBadge[]
+  missionProgress UserMissionProgress[]
+
+  @@unique([kind, startAt, endAt])
+  @@index([kind, status, startAt, endAt])
+}
+
+model UserBadge {
+  id         Int               @id @default(autoincrement())
+  userId     Int
+  seasonId   Int
+  badgeType  BadgeType
+  rank       Int
+  entityType RankingEntityType
+  entityId   Int?
+  label      String
+  createdAt  DateTime          @default(now())
+
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  season Season @relation(fields: [seasonId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, seasonId, badgeType, rank])
+  @@index([userId, createdAt])
+  @@index([seasonId, badgeType, rank])
+}
+
+model MissionTemplate {
+  id          Int      @id @default(autoincrement())
+  key         String   @unique
+  title       String
+  targetCount Int
+  rewardLabel String?
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+model UserMissionProgress {
+  id          Int       @id @default(autoincrement())
+  userId      Int
+  seasonId    Int
+  missionKey  String
+  progress    Int       @default(0)
+  completedAt DateTime?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  season Season @relation(fields: [seasonId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, seasonId, missionKey])
+  @@index([seasonId, missionKey])
+  @@index([userId, completedAt])
+}
+
+model AlertSubscription {
+  id         Int               @id @default(autoincrement())
+  userId     Int
+  alertType  AlertType
+  entityType RankingEntityType
+  entityId   Int
+  enabled    Boolean           @default(true)
+  createdAt  DateTime          @default(now())
+  updatedAt  DateTime          @updatedAt
+
+  user  User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  state AlertState?
+
+  @@unique([userId, alertType, entityType, entityId])
+  @@index([enabled, alertType])
+}
+
+model AlertState {
+  id                Int      @id @default(autoincrement())
+  subscriptionId    Int      @unique
+  lastObservedRank  Int?
+  lastObservedValue Float?
+  lastNotifiedAt    DateTime?
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  subscription AlertSubscription @relation(fields: [subscriptionId], references: [id], onDelete: Cascade)
+}
+
+model BloodlineFollow {
+  id              Int      @id @default(autoincrement())
+  userId          Int
+  bloodlineRootId Int
+  createdAt       DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, bloodlineRootId])
+  @@index([bloodlineRootId, createdAt])
 }
 
 model FcmToken {
@@ -382,6 +524,7 @@ model Auction {
   sellerBandNick  String?
   sellerProofImage String?
   sellerTrustNote String?
+  bloodlineRootId Int?
   startPrice      Int       // 시작가
   currentPrice    Int       // 현재 최고 입찰가
   minBidIncrement Int       @default(1000) // 최소 입찰 단위 (원)
@@ -401,6 +544,7 @@ model Auction {
   @@index([status])
   @@index([endAt])
   @@index([category])
+  @@index([bloodlineRootId, endAt])
 }
 
 model Bid {

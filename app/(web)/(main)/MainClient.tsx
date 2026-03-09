@@ -18,11 +18,10 @@ import SkeletonItem from "@components/atoms/SkeletonItem";
 import { cn, makeImageUrl } from "@libs/client/utils";
 import { CATEGORIES } from "@libs/constants";
 import { ANALYTICS_EVENTS, trackEvent } from "@libs/client/analytics";
-import { AuctionsListResponse } from "pages/api/auctions";
 import useUser from "hooks/useUser";
-import { RankingResponse } from "pages/api/ranking";
 import { toAuctionPath } from "@libs/auction-route";
 import { toPostPath } from "@libs/post-route";
+import { HomeFeedResponse } from "@libs/shared/ranking";
 
 export interface ProductWithCount extends Product {
   _count: { favs: number };
@@ -41,22 +40,6 @@ interface BeforeInstallPromptEvent extends Event {
 
 /** 탭 목록: "전체" + 카테고리 목록 */
 const TABS = [{ id: "전체", name: "전체" }, ...CATEGORIES];
-
-const getTimeRemaining = (endAt: string | Date) => {
-  const end = new Date(endAt).getTime();
-  const now = Date.now();
-  const diff = end - now;
-
-  if (diff <= 0) return "종료됨";
-
-  const days = Math.floor(diff / (1000 * 60 * 60 * 24));
-  const hours = Math.floor((diff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
-  const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
-
-  if (days > 0) return `${days}일 ${hours}시간 남음`;
-  if (hours > 0) return `${hours}시간 ${minutes}분 남음`;
-  return `${minutes}분 남음`;
-};
 
 const SectionHeader = ({
   title,
@@ -88,6 +71,19 @@ const SectionHeader = ({
   </div>
 );
 
+const formatRankDelta = (rankDelta: number) => {
+  if (rankDelta > 0) return `▲ ${rankDelta}`;
+  if (rankDelta < 0) return `▼ ${Math.abs(rankDelta)}`;
+  return "유지";
+};
+
+const formatGrowthRate = (growthRate: number) => {
+  return `${growthRate >= 0 ? "+" : ""}${Math.round(growthRate * 100)}%`;
+};
+
+const toRankingHref = (tab: "breeders" | "auctions" | "bloodlines" | "community", period: "weekly" | "all") =>
+  `/ranking?tab=${tab}&period=${period}`;
+
 const MainClient = () => {
   const router = useRouter();
   const { user, isLoading: isUserLoading } = useUser();
@@ -98,7 +94,6 @@ const MainClient = () => {
     useState<BeforeInstallPromptEvent | null>(null);
   const [installLoading, setInstallLoading] = useState(false);
   const bannerRef = useRef<HTMLDivElement>(null);
-  const [, setTick] = useState(0);
 
   const getKey = (
     pageIndex: number,
@@ -111,12 +106,8 @@ const MainClient = () => {
   };
 
   const { data, setSize, mutate } = useSWRInfinite<ProductsResponse>(getKey);
-  const { data: ongoingAuctionsData } = useSWR<AuctionsListResponse>(
-    "/api/auctions?status=진행중&page=1"
-  );
-  const { data: hotPostsData } = useSWR<RankingResponse>(
-    "/api/ranking?tab=popular"
-  );
+  // 상단 홈 경험은 단일 피드 API로 묶고, 상품 리스트만 기존 무한스크롤 구조를 유지한다.
+  const { data: homeFeedData } = useSWR<HomeFeedResponse>("/api/home/feed?period=weekly");
   // 배너 데이터 호출
   const { data: bannerData } = useSWR("/api/admin/banners");
   const banners = bannerData?.banners && bannerData.banners.length > 0 ? bannerData.banners : [];
@@ -142,12 +133,6 @@ const MainClient = () => {
     mutate();
   }, [selectedCategory, mutate]);
 
-  // 진행중 경매 남은 시간 갱신
-  useEffect(() => {
-    const timer = setInterval(() => setTick((prev) => prev + 1), 60000);
-    return () => clearInterval(timer);
-  }, []);
-
   useEffect(() => {
     const onBeforeInstallPrompt = (event: Event) => {
       event.preventDefault();
@@ -172,6 +157,26 @@ const MainClient = () => {
       // noop
     }
   }, [isUserLoading, user]);
+
+  useEffect(() => {
+    if (!homeFeedData?.success) return;
+    // 랭킹 우선 IA 전환 이후 섹션별 노출량을 비교할 수 있도록 홈 진입 시 한 번에 기록한다.
+    const sectionIds = [
+      "hero_breeder",
+      "auction_ranking",
+      "bloodline_ranking",
+      "trending_community",
+      "personalized_home",
+    ];
+    sectionIds.forEach((sectionId, index) => {
+      trackEvent(ANALYTICS_EVENTS.homeSectionView, {
+        section_id: sectionId,
+        position: index + 1,
+        user_tier: user ? "member" : "guest",
+        season_id: homeFeedData.currentSeasonId,
+      });
+    });
+  }, [homeFeedData?.currentSeasonId, homeFeedData?.success, user]);
 
   const handleInstallClick = async () => {
     if (!deferredInstallPrompt) {
@@ -237,6 +242,14 @@ const MainClient = () => {
 
   const loadedProductCount =
     data?.reduce((count, pageData) => count + (pageData?.products?.length ?? 0), 0) ?? 0;
+  const heroBreederPeriod = homeFeedData?.heroBreederMode ?? "weekly";
+  const auctionPeriod = homeFeedData?.topAuctionsMode === "all" ? "all" : "weekly";
+  const bloodlinePeriod = homeFeedData?.topBloodlinesMode ?? "weekly";
+  const communityPeriod = homeFeedData?.trendingPostsMode === "all" ? "all" : "weekly";
+  const heroSubtitle = "게시, 댓글, 입찰, 낙찰 활동을 합산한 브리더 리더보드";
+  const auctionSubtitle = "카테고리별 최고 낙찰가를 기록한 경매";
+  const bloodlineSubtitle = "팔로우, 거래 수, 평균 낙찰가를 반영한 혈통 랭킹";
+  const communitySubtitle = "좋아요와 댓글 반응이 높은 커뮤니티 글";
 
   return (
     <div className="app-page flex flex-col h-full">
@@ -292,11 +305,292 @@ const MainClient = () => {
         </div>
       </section>
 
-      {/* 혈통카드 */}
       <section className="app-section app-reveal app-reveal-1 py-2">
         <SectionHeader
+          title="이번 주 TOP 브리더"
+          subtitle={heroSubtitle}
+          href={toRankingHref("breeders", heroBreederPeriod)}
+          actionLabel="랭킹 보기"
+        />
+        <div className="mt-1 px-5">
+          {homeFeedData?.heroBreeder ? (
+            // 첫 스크린은 주간 1위 브리더와 즉시 행동 CTA에 집중해 홈 방향성을 명확히 준다.
+            <div className="relative overflow-hidden rounded-3xl bg-[radial-gradient(circle_at_top_left,_rgba(29,78,216,0.22),_transparent_38%),linear-gradient(135deg,#0f172a,#111827_55%,#1d4ed8)] p-4 text-white shadow-xl">
+              <p className="app-kicker text-white/70 text-[10px]">
+                {heroBreederPeriod === "weekly" ? "Weekly Hero" : "All-time Leader"}
+              </p>
+              <div className="mt-3 flex items-start justify-between gap-3">
+                <div className="min-w-0 flex-1">
+                  <div className="flex items-center gap-2.5">
+                    <div className="h-10 w-10 overflow-hidden rounded-2xl bg-white/10 ring-1 ring-white/15">
+                      {homeFeedData.heroBreeder.user.avatar ? (
+                        <Image
+                          src={makeImageUrl(homeFeedData.heroBreeder.user.avatar, "avatar")}
+                          alt={homeFeedData.heroBreeder.user.name}
+                          width={40}
+                          height={40}
+                          className="h-full w-full object-cover"
+                        />
+                      ) : null}
+                    </div>
+                    <div className="min-w-0">
+                      <h3 className="truncate text-xl font-black tracking-tight">
+                        {homeFeedData.heroBreeder.user.name}
+                      </h3>
+                      <p className="mt-0.5 text-xs text-white/75">
+                        브리더 랭킹 {homeFeedData.heroBreeder.rank}위
+                      </p>
+                    </div>
+                  </div>
+                  <p className="mt-2 text-sm text-white/75">
+                    점수 {homeFeedData.heroBreeder.score.toLocaleString()} · {formatRankDelta(homeFeedData.heroBreeder.rankDelta)}
+                  </p>
+                  <div className="mt-3 flex flex-wrap gap-1.5 text-[10px]">
+                    <span className="rounded-full bg-white/10 px-2 py-1">게시 {homeFeedData.heroBreeder.postsCount}</span>
+                    <span className="rounded-full bg-white/10 px-2 py-1">댓글 {homeFeedData.heroBreeder.commentsCount}</span>
+                    <span className="rounded-full bg-white/10 px-2 py-1">입찰 {homeFeedData.heroBreeder.bidsCount}</span>
+                    <span className="rounded-full bg-white/10 px-2 py-1">낙찰 {homeFeedData.heroBreeder.auctionWinsCount}</span>
+                  </div>
+                </div>
+                <div className="rounded-2xl bg-white/10 px-3 py-2 text-right backdrop-blur-sm">
+                  <p className="text-[10px] text-white/70">현재 순위</p>
+                  <p className="text-2xl font-black">#{homeFeedData.heroBreeder.rank}</p>
+                </div>
+              </div>
+              <div className="mt-3 flex items-center justify-between gap-3">
+                <div className="flex flex-wrap gap-1.5">
+                  {(homeFeedData.heroBreeder.badges || []).slice(0, 2).map((badge) => (
+                    <span key={badge.id} className="rounded-full border border-white/15 bg-white/10 px-2 py-1 text-[10px] font-semibold">
+                      {badge.label}
+                    </span>
+                  ))}
+                </div>
+                <button
+                  type="button"
+                  onClick={() => {
+                    trackEvent(ANALYTICS_EVENTS.challengeJoin, {
+                      challenge_id: "weekly_breeder_rank",
+                      entry_type: user ? "member" : "guest",
+                    });
+                    router.push(
+                      user
+                        ? toRankingHref("breeders", "weekly")
+                        : "/auth/login?next=%2Franking%3Ftab%3Dbreeders%26period%3Dweekly"
+                    );
+                  }}
+                  className="inline-flex h-8 items-center rounded-full bg-white px-3.5 text-xs font-semibold text-slate-900"
+                >
+                  내 순위 올리기
+                </button>
+              </div>
+            </div>
+          ) : (
+            <div className="app-card p-4 text-sm text-slate-400">이번 주 브리더 집계가 준비 중입니다.</div>
+          )}
+        </div>
+      </section>
+
+      <section className="app-section app-reveal app-reveal-1 py-2">
+        <SectionHeader
+          title="카테고리별 최고가 경매"
+          subtitle={auctionSubtitle}
+          href={toRankingHref("auctions", auctionPeriod)}
+        />
+        <div className="mt-1 px-5">
+          <div className="app-rail flex gap-3">
+            {homeFeedData?.topAuctionsByCategory?.length ? (
+              homeFeedData.topAuctionsByCategory.map((auction, index) => (
+                <Link
+                  key={auction.auctionId}
+                  href={toAuctionPath(auction.auctionId, auction.title)}
+                  onClick={() => {
+                    trackEvent(ANALYTICS_EVENTS.rankingCardClick, {
+                      ranking_type: "auction",
+                      rank: auction.rank,
+                      entity_id: auction.auctionId,
+                      section_id: "auction_ranking",
+                    });
+                    trackEvent(ANALYTICS_EVENTS.homeOngoingAuctionClicked, {
+                      auction_id: auction.auctionId,
+                      auction_title: auction.title,
+                      rank_index: index,
+                      current_price: auction.currentPrice,
+                      user_id: user?.id || null,
+                    });
+                  }}
+                  className="snap-start shrink-0 w-64 app-card app-card-interactive p-3.5"
+                >
+                  <div className="flex gap-3">
+                    <div className="h-16 w-16 shrink-0 overflow-hidden rounded-2xl bg-slate-100">
+                      {auction.photo ? (
+                        <Image
+                          src={makeImageUrl(auction.photo, "public")}
+                          alt={auction.title}
+                          width={64}
+                          height={64}
+                          className="h-full w-full object-cover"
+                        />
+                      ) : null}
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <p className="app-kicker">{auction.topLevelCategory}</p>
+                      <h3 className="mt-1.5 line-clamp-2 text-sm font-semibold text-slate-900">{auction.title}</h3>
+                      <p className="mt-2 text-lg font-black tracking-tight text-primary">
+                        {auction.currentPrice.toLocaleString()}원
+                      </p>
+                    </div>
+                  </div>
+                  <div className="mt-3 flex items-center gap-2.5">
+                    <div className="h-8 w-8 overflow-hidden rounded-full bg-slate-100">
+                      {auction.seller.avatar ? (
+                        <Image
+                          src={makeImageUrl(auction.seller.avatar, "avatar")}
+                          alt={auction.seller.name}
+                          width={32}
+                          height={32}
+                          className="h-full w-full object-cover"
+                        />
+                      ) : null}
+                    </div>
+                    <div className="min-w-0">
+                      <p className="truncate text-xs font-medium text-slate-700">{auction.seller.name}</p>
+                      <p className="text-[11px] text-slate-500">
+                        {new Date(auction.endAt).toLocaleDateString("ko-KR")}
+                      </p>
+                    </div>
+                  </div>
+                </Link>
+              ))
+            ) : (
+              <div className="app-card p-4 text-sm text-slate-400">집계 가능한 낙찰 데이터가 없습니다.</div>
+            )}
+          </div>
+        </div>
+      </section>
+
+      <section className="app-section app-reveal app-reveal-1 py-2">
+        <SectionHeader
+          title="인기 혈통 TOP"
+          subtitle={bloodlineSubtitle}
+          href={toRankingHref("bloodlines", bloodlinePeriod)}
+          actionLabel="랭킹 보기"
+        />
+        <div className="mt-1 px-5">
+          <div className="app-rail flex gap-3">
+            {homeFeedData?.topBloodlines?.length ? (
+              homeFeedData.topBloodlines.map((bloodline) => (
+                <Link
+                  key={bloodline.bloodlineRootId}
+                  href={`/bloodline-management/card/${bloodline.bloodlineRootId}`}
+                  onClick={() =>
+                    trackEvent(ANALYTICS_EVENTS.rankingCardClick, {
+                      ranking_type: "bloodline",
+                      rank: bloodline.rank,
+                      entity_id: bloodline.bloodlineRootId,
+                      section_id: "bloodline_ranking",
+                    })
+                  }
+                  className="snap-start shrink-0 w-64 rounded-3xl border border-slate-200 bg-white p-4 shadow-sm"
+                >
+                  <div className="flex items-center gap-3">
+                    <div className="h-14 w-14 overflow-hidden rounded-2xl bg-slate-100">
+                      {bloodline.image ? (
+                        <Image
+                          src={makeImageUrl(bloodline.image, "public")}
+                          alt={bloodline.name}
+                          width={56}
+                          height={56}
+                          className="h-full w-full object-cover"
+                        />
+                      ) : null}
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <p className="text-xs font-bold text-amber-500">#{bloodline.rank}</p>
+                      <h3 className="truncate text-sm font-semibold text-slate-900">{bloodline.name}</h3>
+                      <p className="text-xs text-slate-500">
+                        {bloodline.speciesType || "종 미지정"} · {bloodline.creator.name}
+                      </p>
+                    </div>
+                  </div>
+                  <div className="mt-3 grid grid-cols-2 gap-2 text-[11px] text-slate-600">
+                    <div className="rounded-2xl bg-slate-50 px-3 py-2">팔로우 {bloodline.followCount}</div>
+                    <div className="rounded-2xl bg-slate-50 px-3 py-2">거래 {bloodline.tradeCount}</div>
+                    <div className="rounded-2xl bg-slate-50 px-3 py-2">평균가 {bloodline.avgClosingPrice.toLocaleString()}원</div>
+                    <div className="rounded-2xl bg-slate-50 px-3 py-2">상승률 {formatGrowthRate(bloodline.growthRate7d)}</div>
+                  </div>
+                </Link>
+              ))
+            ) : (
+              <div className="app-card p-4 text-sm text-slate-400">집계 가능한 혈통 활동이 아직 부족합니다.</div>
+            )}
+          </div>
+        </div>
+      </section>
+
+      <section className="app-section app-reveal app-reveal-1 py-2">
+        <SectionHeader
+          title="급상승 커뮤니티"
+          subtitle={communitySubtitle}
+          href={toRankingHref("community", communityPeriod)}
+        />
+        <div className="mt-1 px-5">
+          <div className="app-rail flex gap-3">
+            {homeFeedData?.trendingPosts?.length ? (
+              homeFeedData.trendingPosts.map((item) => (
+                <Link
+                  key={item.post.id}
+                  href={toPostPath(item.post.id, item.post.title)}
+                  onClick={() =>
+                    trackEvent(ANALYTICS_EVENTS.rankingCardClick, {
+                      ranking_type: "community",
+                      rank: item.rank,
+                      entity_id: item.post.id,
+                      section_id: "trending_community",
+                    })
+                  }
+                  className="snap-start shrink-0 w-64 app-card app-card-interactive p-3"
+                >
+                  <div className="flex items-start justify-between gap-2">
+                    <div className="min-w-0 flex-1">
+                      <p className="text-xs font-bold text-rose-500">#{item.rank} 상승중</p>
+                      <h3 className="mt-1.5 line-clamp-2 text-sm font-semibold text-slate-900">
+                        {item.post.title}
+                      </h3>
+                      <p className="mt-1 line-clamp-2 text-xs leading-snug text-slate-500">
+                        {item.post.description}
+                      </p>
+                      <div className="mt-2 flex items-center gap-2 text-[11px] text-slate-500">
+                        <span>{item.post.user.name}</span>
+                        <span>좋아요 {item.likes24h}</span>
+                        <span>댓글 {item.comments24h}</span>
+                      </div>
+                    </div>
+                    {item.post.image ? (
+                      <div className="h-16 w-16 overflow-hidden rounded-xl bg-slate-100">
+                        <Image
+                          src={makeImageUrl(item.post.image, "public")}
+                          className="h-full w-full object-cover"
+                          width={64}
+                          height={64}
+                          alt={item.post.title}
+                        />
+                      </div>
+                    ) : null}
+                  </div>
+                </Link>
+              ))
+            ) : (
+              <div className="app-card p-4 text-sm text-slate-400">급상승 글이 집계되면 여기에 표시됩니다.</div>
+            )}
+          </div>
+        </div>
+      </section>
+
+      {/* 혈통카드 */}
+      <section className="app-section app-reveal app-reveal-2 py-2">
+        <SectionHeader
           title="혈통카드"
-          subtitle="내 대표 혈통카드를 만들고 전달해보세요"
+          subtitle="랭킹 이후의 신뢰 증빙 레이어"
           href="/bloodline-cards/create"
           actionLabel="만들기"
         />
@@ -309,188 +603,11 @@ const MainClient = () => {
             <div className="pointer-events-none absolute -left-6 -top-6 h-16 w-16 rounded-full bg-violet-300/20 blur-2xl" />
             <div className="pointer-events-none absolute -right-8 -bottom-8 h-16 w-16 rounded-full bg-indigo-300/18 blur-2xl" />
             <p className="app-kicker text-white/90">Bloodline Card</p>
-            <h3 className="mt-1.5 text-base font-semibold text-white">
-              혈통카드 만들기
-            </h3>
+            <h3 className="mt-1.5 text-base font-semibold text-white">내 혈통카드 만들기</h3>
             <p className="mt-1.5 text-xs leading-snug text-white/85">
-              내 대표 혈통카드를 만들고, 다른 유저에게 전달할 수 있습니다.
+              대표 혈통을 공개하고 거래/보유 이력을 신뢰 레이어로 연결하세요.
             </p>
-            <span className="mt-3 inline-flex h-7 items-center rounded-full bg-white/20 px-2.5 text-[11px] font-semibold text-white">
-              혈통카드 페이지로 이동
-            </span>
           </Link>
-        </div>
-      </section>
-
-      {/* 브리디북 랜딩 */}
-      <section className="app-section app-reveal app-reveal-1 py-2">
-        <SectionHeader
-          title="브리디북"
-          subtitle="당신의 브리딩 실력을 기록하세요"
-          href="/bredybook-landing"
-          actionLabel="바로가기"
-        />
-        <div className="mt-1 px-5">
-          <Link
-            href="/bredybook-landing"
-            className="relative overflow-hidden app-card app-card-interactive block border border-orange-400/45 bg-gradient-to-r from-[#ff8b2a] via-[#ff6f0f] to-[#ff8b2a] p-4 text-white transition duration-200 hover:-translate-y-0.5 overflow-hidden"
-          >
-            <div className="pointer-events-none absolute inset-x-5 top-0 h-px bg-gradient-to-r from-transparent via-white/30 to-transparent" />
-            <div className="pointer-events-none absolute -left-6 -top-6 h-16 w-16 rounded-full bg-white/20 blur-2xl" />
-            <div className="pointer-events-none absolute -right-8 -bottom-8 h-16 w-16 rounded-full bg-yellow-100/20 blur-2xl" />
-            <p className="app-kicker text-white/90">Bredybook</p>
-            <h3 className="mt-1.5 text-base font-semibold text-white">
-              당신의 기록을 새로운 스탠다드로
-            </h3>
-            <p className="mt-1.5 text-xs leading-snug text-white/85">
-              이제 더이상 카더라 기네스는 그만. 공식 기록으로 증명하세요.
-            </p>
-            <span className="mt-3 inline-flex h-7 items-center rounded-full bg-white/20 px-2.5 text-[11px] font-semibold text-white">
-              브리디북 기록하러 가기
-            </span>
-          </Link>
-        </div>
-      </section>
-
-      {/* 인기 게시글 */}
-      <section className="app-section app-reveal app-reveal-1 py-2">
-        <SectionHeader
-          title="인기 게시글"
-          subtitle="좋아요가 많이 모인 글"
-          href="/posts"
-        />
-        <div className="mt-1 px-5">
-          <div className="app-rail flex gap-3">
-            {hotPostsData ? (
-              hotPostsData.postRanking && hotPostsData.postRanking.length > 0 ? (
-                hotPostsData.postRanking.slice(0, 5).map((post, index) => (
-                  <Link
-                    key={post.id}
-                    href={toPostPath(post.id, post.title)}
-                    className="snap-start shrink-0 w-64 app-card app-card-interactive p-3"
-                  >
-                    <div className="flex items-start justify-between gap-2">
-                      <div className="min-w-0 flex-1">
-                        <div className="flex items-center gap-2">
-                          {index < 3 ? (
-                            <span className="text-xs font-bold text-amber-500">
-                              {index === 0 ? "1위" : index === 1 ? "2위" : "3위"}
-                            </span>
-                          ) : (
-                            <span className="app-caption">{index + 1}위</span>
-                          )}
-                          <span className="app-kicker truncate">HOT</span>
-                        </div>
-                        <h3 className="mt-1.5 text-sm font-semibold leading-snug text-slate-900 line-clamp-2">
-                          {post.title}
-                        </h3>
-                        <p className="mt-1 app-body-sm text-slate-500 line-clamp-2 leading-snug">
-                          {post.description}
-                        </p>
-                        <div className="mt-2 flex items-center gap-2 text-xs text-slate-500">
-                          <span>{post.user?.name}</span>
-                          <span className="text-slate-300">·</span>
-                          <span>좋아요 {post._count?.Likes ?? 0}</span>
-                        </div>
-                      </div>
-                      {post.image ? (
-                        <div className="h-16 w-16 shrink-0 overflow-hidden rounded-lg bg-slate-100">
-                          <Image
-                            src={makeImageUrl(post.image, "public")}
-                            className="h-full w-full object-cover"
-                            width={64}
-                            height={64}
-                            alt={post.title}
-                          />
-                        </div>
-                      ) : null}
-                    </div>
-                  </Link>
-                ))
-              ) : (
-                <div className="px-1 py-2 text-sm text-slate-400">표시할 인기 게시글이 없습니다.</div>
-              )
-            ) : (
-              [...Array(3)].map((_, i) => (
-                <div
-                  key={i}
-                  className="snap-start shrink-0 w-64 app-card p-3 animate-pulse"
-                >
-                  <div className="h-3 bg-slate-200 rounded w-3/4" />
-                  <div className="mt-2 h-4 bg-slate-200 rounded w-full" />
-                  <div className="mt-2 h-3 bg-slate-200 rounded w-1/2" />
-                </div>
-              ))
-            )}
-          </div>
-        </div>
-      </section>
-
-      {/* 진행중 경매 */}
-      <section className="app-section app-reveal app-reveal-2">
-        <SectionHeader
-          title="진행중인 경매"
-          subtitle="마감 전 빠르게 확인"
-          href="/auctions"
-        />
-        <div className="app-rail mt-2 flex gap-3 pl-5 pr-4">
-          {ongoingAuctionsData ? (
-            ongoingAuctionsData.auctions.slice(0, 5).map((auction, index) => (
-                  <Link
-                key={auction.id}
-                href={toAuctionPath(auction.id, auction.title)}
-                onClick={() =>
-                  trackEvent(ANALYTICS_EVENTS.homeOngoingAuctionClicked, {
-                    auction_id: auction.id,
-                    auction_title: auction.title,
-                    rank_index: index,
-                    current_price: auction.currentPrice,
-                    user_id: user?.id || null,
-                  })
-                }
-                className="snap-start shrink-0 w-56 app-card app-card-interactive overflow-hidden"
-              >
-                <div className="relative aspect-[4/3] bg-slate-100">
-                  <Image
-                    src={makeImageUrl(auction.photos?.[0], "public")}
-                    alt={auction.title}
-                    className="object-cover"
-                    fill
-                    sizes="224px"
-                    priority={index === 0}
-                  />
-                  <span className="absolute top-2 left-2 px-2 py-1 rounded-full bg-black/70 text-white text-[11px] font-semibold">
-                    {auction.status}
-                  </span>
-                </div>
-                <div className="p-3">
-                  <h3 className="app-title-md line-clamp-1">
-                    {auction.title}
-                  </h3>
-                  <div className="mt-1 flex items-center justify-between gap-2">
-                    <p className="text-[15px] font-bold tracking-tight text-primary">
-                      {auction.currentPrice.toLocaleString()}원
-                    </p>
-                    <span className="app-pill-muted">{getTimeRemaining(auction.endAt)}</span>
-                  </div>
-                </div>
-              </Link>
-            ))
-          ) : (
-            [...Array(3)].map((_, i) => (
-              <div
-                key={i}
-                className="snap-start shrink-0 w-56 app-card overflow-hidden animate-pulse"
-              >
-                <div className="aspect-[4/3] bg-slate-200" />
-                <div className="p-3 space-y-2">
-                  <div className="h-3 bg-slate-200 rounded w-3/4" />
-                  <div className="h-4 bg-slate-200 rounded w-1/2" />
-                  <div className="h-3 bg-slate-200 rounded w-1/3" />
-                </div>
-              </div>
-            ))
-          )}
         </div>
       </section>
 

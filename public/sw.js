@@ -1,4 +1,4 @@
-const CACHE_VERSION = "bredy-pwa-v2";
+const CACHE_VERSION = "bredy-pwa-v3";
 const STATIC_CACHE = `${CACHE_VERSION}-static`;
 const IMAGE_CACHE = `${CACHE_VERSION}-image`;
 const OFFLINE_URL = "/offline";
@@ -42,6 +42,7 @@ self.addEventListener("fetch", (event) => {
   const url = new URL(request.url);
   if (url.origin !== self.location.origin) return;
   if (url.pathname.startsWith("/api/")) return;
+  if (url.pathname.startsWith("/_next/")) return;
 
   if (request.mode === "navigate") {
     event.respondWith(
@@ -72,21 +73,6 @@ self.addEventListener("fetch", (event) => {
           })
           .catch(() => cached);
       })
-    );
-    return;
-  }
-
-  if (url.pathname.startsWith("/_next/static/")) {
-    event.respondWith(
-      fetch(request)
-        .then((response) => {
-          if (response && response.ok) {
-            const copy = response.clone();
-            caches.open(STATIC_CACHE).then((cache) => cache.put(request, copy));
-          }
-          return response;
-        })
-        .catch(() => caches.match(request))
     );
     return;
   }

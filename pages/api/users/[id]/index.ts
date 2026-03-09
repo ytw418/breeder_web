@@ -14,8 +14,17 @@ type UserWithCounts = User & {
     Comments: number;
     insectRecords: number;
     receivedReviews: number;
+    createdBloodlineCards: number;
+    ownedBloodlineCards: number;
   };
   maskedEmail?: string | null;
+  badges?: Array<{
+    id: number;
+    badgeType: string;
+    rank: number;
+    label: string;
+    createdAt: string;
+  }>;
 };
 
 export interface UserResponse {
@@ -74,6 +83,8 @@ async function handler(
           Comments: true,
           insectRecords: true,
           receivedReviews: true,
+          createdBloodlineCards: true,
+          ownedBloodlineCards: true,
         },
       },
     },
@@ -103,7 +114,30 @@ async function handler(
       ? { ...user, maskedEmail: maskEmail(user.email) }
       : { ...user, email: null, maskedEmail: maskEmail(user.email) };
 
-  return res.json({ success: true, user: safeUser, isFollowing });
+  const badges = await client.userBadge.findMany({
+    where: { userId },
+    select: {
+      id: true,
+      badgeType: true,
+      rank: true,
+      label: true,
+      createdAt: true,
+    },
+    orderBy: [{ createdAt: "desc" }, { rank: "asc" }],
+    take: 3,
+  });
+
+  return res.json({
+    success: true,
+    user: {
+      ...safeUser,
+      badges: badges.map((badge) => ({
+        ...badge,
+        createdAt: badge.createdAt.toISOString(),
+      })),
+    },
+    isFollowing,
+  });
 }
 
 export default withApiSession(

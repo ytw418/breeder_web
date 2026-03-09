@@ -1,0 +1,12 @@
+{
+  "crons": [
+    {
+      "path": "/api/internal/cron/ranking-alerts",
+      "schedule": "0 0 * * *"
+    },
+    {
+      "path": "/api/internal/cron/weekly-season",
+      "schedule": "5 0 * * *"
+    }
+  ]
+}

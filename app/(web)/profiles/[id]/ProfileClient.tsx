@@ -76,7 +76,7 @@ const ProfileClient = () => {
     products: user?._count?.products ?? 0,
     posts: user?._count?.posts ?? 0,
     auctions: 0,
-    bloodlines: 0,
+    bloodlines: user?._count?.ownedBloodlineCards ?? 0,
   };
 
   return (
@@ -148,6 +148,26 @@ const ProfileClient = () => {
             {!isMyProfile && user?.maskedEmail && (
               <p className="text-sm text-gray-500 mt-0.5">{user.maskedEmail}</p>
             )}
+            {user?.badges?.length ? (
+              <div className="mt-2 flex flex-wrap gap-2">
+                {user.badges.map((badge) => (
+                  <span
+                    key={badge.id}
+                    className="rounded-full bg-amber-50 px-2.5 py-1 text-[11px] font-semibold text-amber-700"
+                  >
+                    {badge.label}
+                  </span>
+                ))}
+              </div>
+            ) : null}
+            <div className="mt-3 flex flex-wrap gap-2 text-xs text-slate-500">
+              <span className="rounded-full bg-slate-100 px-2.5 py-1">
+                검증 기록 {user?._count?.insectRecords ?? 0}
+              </span>
+              <span className="rounded-full bg-slate-100 px-2.5 py-1">
+                혈통 활동 {user?._count?.createdBloodlineCards ?? 0}
+              </span>
+            </div>
           </div>
 
           {/* 액션 버튼 */}

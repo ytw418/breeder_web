@@ -27,6 +27,8 @@ const getNotificationUrl = (targetType?: string, targetId?: number) => {
       return `/chat/${targetId}`;
     case "user":
       return `/profiles/${targetId}`;
+    case "bloodline":
+      return `/bloodline-management/card/${targetId}`;
     case "auction":
       return `/auctions/${targetId}`;
     case "record":

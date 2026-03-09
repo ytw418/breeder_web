@@ -5,6 +5,7 @@ import client from "@libs/server/client";
 import { extractPostIdFromPath } from "@libs/post-route";
 import { withApiSession } from "@libs/server/withSession";
 import { createNotification } from "@libs/server/notification";
+import { incrementUserMissionProgress } from "@libs/server/growth";
 
 async function handler(
   req: NextApiRequest,
@@ -56,6 +57,7 @@ async function handler(
       targetId: postId,
       targetType: "post",
     });
+    await incrementUserMissionProgress(user.id, "comment_write");
   }
 
   res.json({
