@@ -1,5 +1,6 @@
 import type { BloodlineCardVisualStyle } from "@libs/shared/bloodline-card";
 import { makeImageUrl } from "@libs/client/utils";
+import Image from "@components/atoms/Image";
 
 export type BloodlineVisualCardVariant = BloodlineCardVisualStyle;
 export const bloodlineVisualCardVariants: BloodlineVisualCardVariant[] = [
@@ -100,14 +101,17 @@ export function BloodlineVisualCard({
   image,
   imageUrl,
 }: BloodlineVisualCardProps) {
-  void ownerName;
-  void subtitle;
-
   const serialText = makeFallbackCardSerial(cardId, name);
   const activeVariant = CARD_VARIANTS[variant];
+  const metaCardClass =
+    variant === "noir"
+      ? "border-white/10 bg-black/10 text-white"
+      : "border-slate-200/80 bg-white/80 text-slate-900";
+  const metaLabelClass = variant === "noir" ? "text-white/65" : "text-slate-500";
+  const metaDescriptionClass = variant === "noir" ? "text-white/72" : "text-slate-600";
   const aspectClass = compact
-    ? "aspect-[3/4] min-h-[176px] p-2.5"
-    : "aspect-[3/4] min-h-[300px] p-4";
+    ? "aspect-[4/5] min-h-[188px] p-3"
+    : "aspect-[4/5] min-h-[320px] p-4";
   const resolvedImageUrl = imageUrl
     ? imageUrl
     : image
@@ -117,59 +121,69 @@ export function BloodlineVisualCard({
   return (
     <article className={`relative ${compact ? "w-full" : "mx-auto w-full max-w-[360px]"}`}>
       <div
-        className={`relative ${aspectClass} overflow-hidden rounded-lg border ${activeVariant.cardClass}`}
+        className={`relative ${aspectClass} overflow-hidden rounded-[22px] border ${activeVariant.cardClass}`}
       >
         {resolvedImageUrl ? (
           <div className="pointer-events-none absolute inset-0">
-            <img
+            <Image
               src={resolvedImageUrl}
               alt=""
-              className="h-full w-full object-cover object-center opacity-70"
+              fill
+              sizes={compact ? "240px" : "360px"}
+              className="object-cover object-center opacity-75"
+              unoptimized
             />
             <div className={`absolute inset-0 ${activeVariant.imageOverlayClass}`} />
           </div>
-        ) : null}
+        ) : (
+          <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top_left,rgba(255,255,255,0.14),transparent_32%),radial-gradient(circle_at_82%_18%,rgba(245,137,66,0.18),transparent_28%),linear-gradient(145deg,rgba(255,255,255,0.06),rgba(15,23,42,0)_48%)]" />
+        )}
         <div className={`pointer-events-none absolute inset-0 ${activeVariant.glowClass}`} />
-        <div
-          className={`pointer-events-none absolute -left-8 -top-7 h-20 w-20 ${activeVariant.decoClass}`}
-        />
-        <div
-          className={`pointer-events-none absolute -right-8 top-8 h-24 w-24 ${activeVariant.decoClass}`}
-        />
+        <div className={`pointer-events-none absolute -left-8 -top-7 h-20 w-20 ${activeVariant.decoClass}`} />
+        <div className={`pointer-events-none absolute -right-8 top-8 h-24 w-24 ${activeVariant.decoClass}`} />
+        <div className="pointer-events-none absolute inset-x-4 top-[56%] h-px bg-white/10" />
 
         <div className="relative z-10 flex h-full flex-col justify-between">
           <span
-            className={`inline-flex w-fit items-center rounded-full border px-2 py-1 text-[13px] font-semibold tracking-[0.22em] ${activeVariant.markClass}`}
+            className={`inline-flex w-fit items-center rounded-full border px-2 py-1 text-[10px] font-semibold tracking-[0.18em] ${activeVariant.markClass}`}
           >
             BLOODLINE SERIES
           </span>
-          <div>
+          <div className="space-y-3">
             <p
-              className={`${compact ? "text-[13px]" : "text-[16px]"} font-semibold tracking-[0.16em] ${activeVariant.titleClass}`}
+              className={`${compact ? "text-[11px]" : "text-[13px]"} font-semibold tracking-[0.16em] ${activeVariant.titleClass}`}
             >
               BLOODLINE CARD
             </p>
             <p
-              className={`mt-1 ${compact ? "text-[24px]" : "text-[30px]"} line-clamp-2 font-semibold leading-[1.04] tracking-tight ${activeVariant.nameClass}`}
+              className={`mt-1 ${compact ? "text-[21px]" : "text-[26px]"} line-clamp-2 font-semibold leading-[1.06] tracking-[-0.03em] ${activeVariant.nameClass}`}
               title={name}
             >
               {name}
             </p>
-          </div>
-        </div>
-
-        <div className="pointer-events-none absolute right-2.5 bottom-2.5 left-2.5 flex justify-end">
-          <div
-            className={`relative inline-flex max-w-[88%] flex-col rounded-md border px-2.5 py-1.5 ${activeVariant.serialClass}`}
-          >
-            <span className="absolute inset-x-0 top-[4px] h-px bg-current/22" />
-            <span className="absolute inset-x-0 bottom-[4px] h-px bg-current/8" />
-            <p className="text-[8px] leading-none tracking-[0.28em] text-current/65">
-              BLOODLINE CODE
-            </p>
-            <p className="mt-0.5 text-[11px] leading-none tracking-[0.22em] font-semibold uppercase font-mono text-current">
-              {serialText}
-            </p>
+            <div className={`mt-3 max-w-[88%] rounded-2xl border px-3 py-2 backdrop-blur-[6px] ${metaCardClass}`}>
+              <p className={`text-[10px] font-semibold uppercase tracking-[0.18em] ${metaLabelClass}`}>
+                Owner
+              </p>
+              <p className="mt-1 text-sm font-semibold">{ownerName}</p>
+              <p className={`mt-1 line-clamp-2 text-[11px] leading-relaxed ${metaDescriptionClass}`}>
+                {subtitle || "브리더가 만든 혈통카드"}
+              </p>
+            </div>
+            <div className="flex justify-start">
+              <div
+                className={`relative inline-flex max-w-full flex-col rounded-xl border px-3 py-2 ${activeVariant.serialClass}`}
+              >
+                <span className="absolute inset-x-0 top-[4px] h-px bg-current/22" />
+                <span className="absolute inset-x-0 bottom-[4px] h-px bg-current/8" />
+                <p className="text-[8px] leading-none tracking-[0.28em] text-current/65">
+                  BLOODLINE CODE
+                </p>
+                <p className="mt-1 text-[11px] leading-none tracking-[0.18em] font-semibold uppercase font-mono text-current">
+                  {serialText}
+                </p>
+              </div>
+            </div>
           </div>
         </div>
       </div>

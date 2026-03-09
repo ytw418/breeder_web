@@ -87,3 +87,11 @@ export interface BloodlineCardEventsResponse {
   events: BloodlineCardEventItem[];
   error?: string;
 }
+
+export interface BloodlineCardDetailResponse {
+  success: boolean;
+  card: BloodlineCardItem | null;
+  bloodlineSourceCard: BloodlineCardItem | null;
+  parentLineCard: BloodlineCardItem | null;
+  error?: string;
+}
