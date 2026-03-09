@@ -57,8 +57,13 @@ async function handler(
       }
     }
 
-    // 실시간 집계 기반이지만 홈 체감 속도를 위해 짧은 CDN 캐시를 둔다.
-    res.setHeader("Cache-Control", "public, s-maxage=60, stale-while-revalidate=120");
+    // 게스트 홈만 CDN 캐시하고, 로그인 사용자의 개인화 응답은 공유 캐시에 올리지 않는다.
+    res.setHeader(
+      "Cache-Control",
+      userId
+        ? "private, no-store, max-age=0"
+        : "public, s-maxage=60, stale-while-revalidate=120"
+    );
     return res.json({
       success: true,
       heroBreeder: breeders[0] ?? null,

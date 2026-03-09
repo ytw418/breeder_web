@@ -14,7 +14,7 @@ import {
   TOP_LEVEL_CATEGORIES,
 } from "@libs/categoryTaxonomy";
 import { getKstWeekWindow, getMonthWindow, getPreviousKstWeekWindow } from "@libs/server/season";
-import { ensureAlertSubscription, ensureCurrentWeeklySeason, getUserMissionSummary } from "@libs/server/growth";
+import { ensureAlertSubscription, ensureCurrentWeeklySeason } from "@libs/server/growth";
 
 type CountRow = { key: number; count: number };
 
@@ -589,10 +589,9 @@ export const getBloodlineRanking = async ({
 };
 
 export const getMyRankingSummary = async (userId: number): Promise<RankingMeSummary | null> => {
-  const [season, ranking, missionSummary] = await Promise.all([
+  const [season, ranking] = await Promise.all([
     ensureCurrentWeeklySeason(),
     getBreederRanking({ limit: 100 }),
-    getUserMissionSummary(userId),
   ]);
 
   const me = ranking.find((item) => item.user.id === userId);
@@ -622,9 +621,6 @@ export const getMyRankingSummary = async (userId: number): Promise<RankingMeSumm
       entityId: userId,
     });
   }
-
-  void missionSummary;
-
   return {
     currentSeasonId: season.id,
     currentRank: me.rank,

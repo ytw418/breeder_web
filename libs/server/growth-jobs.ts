@@ -12,6 +12,35 @@ const pickTopSellerIds = (items: Awaited<ReturnType<typeof getAuctionRanking>>) 
   }));
 };
 
+const updateAlertState = async ({
+  subscriptionId,
+  lastObservedRank,
+  lastObservedValue,
+  notified,
+  previousNotifiedAt,
+}: {
+  subscriptionId: number;
+  lastObservedRank: number | null;
+  lastObservedValue: number | null;
+  notified: boolean;
+  previousNotifiedAt?: Date | null;
+}) => {
+  return client.alertState.upsert({
+    where: { subscriptionId },
+    update: {
+      lastObservedRank,
+      lastObservedValue,
+      lastNotifiedAt: notified ? new Date() : previousNotifiedAt ?? null,
+    },
+    create: {
+      subscriptionId,
+      lastObservedRank,
+      lastObservedValue,
+      lastNotifiedAt: notified ? new Date() : previousNotifiedAt ?? null,
+    },
+  });
+};
+
 export const finalizeClosedWeeklySeasons = async () => {
   const now = new Date();
   const targetSeasons = await client.season.findMany({
@@ -112,6 +141,7 @@ export const processRankingAlerts = async () => {
       const previousRank = subscription.state?.lastObservedRank ?? null;
       const currentRank = current?.rank ?? null;
       const currentScore = current?.score ?? null;
+      let notified = false;
 
       if (
         subscription.alertType === "BREEDER_RANK_DROP" &&
@@ -128,6 +158,7 @@ export const processRankingAlerts = async () => {
           targetType: "user",
           allowSelf: true,
         });
+        notified = true;
       }
 
       if (
@@ -145,21 +176,15 @@ export const processRankingAlerts = async () => {
           targetType: "user",
           allowSelf: true,
         });
+        notified = true;
       }
 
-      await client.alertState.upsert({
-        where: { subscriptionId: subscription.id },
-        update: {
-          lastObservedRank: currentRank,
-          lastObservedValue: currentScore,
-          lastNotifiedAt: new Date(),
-        },
-        create: {
-          subscriptionId: subscription.id,
-          lastObservedRank: currentRank,
-          lastObservedValue: currentScore,
-          lastNotifiedAt: new Date(),
-        },
+      await updateAlertState({
+        subscriptionId: subscription.id,
+        lastObservedRank: currentRank,
+        lastObservedValue: currentScore,
+        notified,
+        previousNotifiedAt: subscription.state?.lastNotifiedAt,
       });
       continue;
     }
@@ -169,6 +194,7 @@ export const processRankingAlerts = async () => {
       const previousRank = subscription.state?.lastObservedRank ?? null;
       const currentRank = current?.rank ?? null;
       const currentScore = current?.score ?? null;
+      let notified = false;
 
       if (
         subscription.alertType === "BLOODLINE_OVERTAKEN" &&
@@ -182,24 +208,18 @@ export const processRankingAlerts = async () => {
           senderId: subscription.userId,
           message: `"${current?.name || "혈통"}" 순위가 내려갔습니다. 현재 #${currentRank}입니다.`,
           targetId: subscription.entityId,
-          targetType: "user",
+          targetType: "bloodline",
           allowSelf: true,
         });
+        notified = true;
       }
 
-      await client.alertState.upsert({
-        where: { subscriptionId: subscription.id },
-        update: {
-          lastObservedRank: currentRank,
-          lastObservedValue: currentScore,
-          lastNotifiedAt: new Date(),
-        },
-        create: {
-          subscriptionId: subscription.id,
-          lastObservedRank: currentRank,
-          lastObservedValue: currentScore,
-          lastNotifiedAt: new Date(),
-        },
+      await updateAlertState({
+        subscriptionId: subscription.id,
+        lastObservedRank: currentRank,
+        lastObservedValue: currentScore,
+        notified,
+        previousNotifiedAt: subscription.state?.lastNotifiedAt,
       });
       continue;
     }
@@ -213,9 +233,15 @@ export const processRankingAlerts = async () => {
 
       const categoryTop = auctionRanking.find(
         (item) => item.topLevelCategory === sourceAuction.category || item.category === sourceAuction.category
-      ); 
+      );
+      const previousTopAuctionId = subscription.state?.lastObservedValue ?? null;
+      const currentTopAuctionId = categoryTop?.auctionId ?? null;
+      const notified = categoryTop
+        ? categoryTop.auctionId !== subscription.entityId &&
+          currentTopAuctionId !== previousTopAuctionId
+        : false;
 
-      if (categoryTop && categoryTop.auctionId !== subscription.entityId) {
+      if (notified && categoryTop) {
         await createNotification({
           type: "AUCTION_RECORD_BROKEN",
           userId: subscription.userId,
@@ -227,19 +253,12 @@ export const processRankingAlerts = async () => {
         });
       }
 
-      await client.alertState.upsert({
-        where: { subscriptionId: subscription.id },
-        update: {
-          lastObservedRank: categoryTop?.rank ?? null,
-          lastObservedValue: categoryTop?.currentPrice ?? null,
-          lastNotifiedAt: new Date(),
-        },
-        create: {
-          subscriptionId: subscription.id,
-          lastObservedRank: categoryTop?.rank ?? null,
-          lastObservedValue: categoryTop?.currentPrice ?? null,
-          lastNotifiedAt: new Date(),
-        },
+      await updateAlertState({
+        subscriptionId: subscription.id,
+        lastObservedRank: categoryTop?.rank ?? null,
+        lastObservedValue: currentTopAuctionId,
+        notified,
+        previousNotifiedAt: subscription.state?.lastNotifiedAt,
       });
     }
   }

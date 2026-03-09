@@ -221,13 +221,23 @@ async function handler(
             cardType: "BLOODLINE",
             status: "ACTIVE",
           },
-          select: { id: true },
+          select: { id: true, creatorId: true, currentOwnerId: true },
         });
         if (!linkedBloodline) {
           return res.status(400).json({
             success: false,
             error: "연결할 원본 혈통카드를 찾을 수 없습니다.",
             errorCode: "AUCTION_INVALID_BLOODLINE_ROOT",
+          });
+        }
+        if (
+          linkedBloodline.creatorId !== user.id &&
+          linkedBloodline.currentOwnerId !== user.id
+        ) {
+          return res.status(403).json({
+            success: false,
+            error: "내가 생성하거나 보유한 혈통카드만 경매에 연결할 수 있습니다.",
+            errorCode: "AUCTION_BLOODLINE_FORBIDDEN",
           });
         }
       }

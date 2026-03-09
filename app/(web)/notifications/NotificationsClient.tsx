@@ -51,6 +51,8 @@ const getNotificationLink = (
       return `/chat/${targetId}`;
     case "user":
       return `/profiles/${targetId}`;
+    case "bloodline":
+      return `/bloodline-management/card/${targetId}`;
     case "auction":
       return toAuctionPath(targetId);
     case "record":
