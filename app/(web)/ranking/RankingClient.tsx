@@ -282,7 +282,7 @@ const RankingClient = () => {
                   <Link
                     key={item.auctionId}
                     href={toAuctionPath(item.auctionId, item.title)}
-                    className="app-card app-card-interactive p-4"
+                    className="app-card app-card-interactive block p-4"
                   >
                     <div className="flex items-start justify-between gap-3">
                       <div>
@@ -307,7 +307,7 @@ const RankingClient = () => {
                   <Link
                     key={item.bloodlineRootId}
                     href={`/bloodline-management/card/${item.bloodlineRootId}`}
-                    className="app-card app-card-interactive p-4"
+                    className="app-card app-card-interactive block p-4"
                   >
                     <div className="flex items-center gap-3">
                       <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-amber-100 text-sm font-black text-amber-700">
@@ -345,7 +345,7 @@ const RankingClient = () => {
                   <Link
                     key={item.post.id}
                     href={toPostPath(item.post.id, item.post.title)}
-                    className="app-card app-card-interactive p-4"
+                    className="app-card app-card-interactive block p-4"
                   >
                     <div className="flex items-start gap-3">
                       <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-rose-100 text-sm font-black text-rose-700">

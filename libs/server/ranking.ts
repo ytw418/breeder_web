@@ -415,6 +415,7 @@ export const getAuctionRanking = async ({
     select: {
       id: true,
       title: true,
+      photos: true,
       category: true,
       currentPrice: true,
       endAt: true,
@@ -443,6 +444,7 @@ export const getAuctionRanking = async ({
     title: auction.title,
     category: auction.category,
     topLevelCategory: findCategoryBranch(auction.category).parent || auction.category || "기타",
+    photo: auction.photos[0] ?? null,
     currentPrice: auction.currentPrice,
     endAt: auction.endAt.toISOString(),
     bloodlineRootId: auction.bloodlineRootId,

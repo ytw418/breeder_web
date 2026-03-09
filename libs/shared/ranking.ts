@@ -56,6 +56,7 @@ export interface AuctionRankingItem {
   title: string;
   category: string | null;
   topLevelCategory: string;
+  photo: string | null;
   currentPrice: number;
   endAt: string;
   bloodlineRootId: number | null;

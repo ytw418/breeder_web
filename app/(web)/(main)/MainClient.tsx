@@ -315,34 +315,52 @@ const MainClient = () => {
         <div className="mt-1 px-5">
           {homeFeedData?.heroBreeder ? (
             // 첫 스크린은 주간 1위 브리더와 즉시 행동 CTA에 집중해 홈 방향성을 명확히 준다.
-            <div className="relative overflow-hidden rounded-3xl bg-[radial-gradient(circle_at_top_left,_rgba(29,78,216,0.22),_transparent_38%),linear-gradient(135deg,#0f172a,#111827_55%,#1d4ed8)] p-5 text-white shadow-xl">
-              <p className="app-kicker text-white/70">
+            <div className="relative overflow-hidden rounded-3xl bg-[radial-gradient(circle_at_top_left,_rgba(29,78,216,0.22),_transparent_38%),linear-gradient(135deg,#0f172a,#111827_55%,#1d4ed8)] p-4 text-white shadow-xl">
+              <p className="app-kicker text-white/70 text-[10px]">
                 {heroBreederPeriod === "weekly" ? "Weekly Hero" : "All-time Leader"}
               </p>
               <div className="mt-3 flex items-start justify-between gap-3">
-                <div>
-                  <h3 className="text-2xl font-black tracking-tight">
-                    {homeFeedData.heroBreeder.user.name}
-                  </h3>
-                  <p className="mt-1 text-sm text-white/75">
+                <div className="min-w-0 flex-1">
+                  <div className="flex items-center gap-2.5">
+                    <div className="h-10 w-10 overflow-hidden rounded-2xl bg-white/10 ring-1 ring-white/15">
+                      {homeFeedData.heroBreeder.user.avatar ? (
+                        <Image
+                          src={makeImageUrl(homeFeedData.heroBreeder.user.avatar, "avatar")}
+                          alt={homeFeedData.heroBreeder.user.name}
+                          width={40}
+                          height={40}
+                          className="h-full w-full object-cover"
+                        />
+                      ) : null}
+                    </div>
+                    <div className="min-w-0">
+                      <h3 className="truncate text-xl font-black tracking-tight">
+                        {homeFeedData.heroBreeder.user.name}
+                      </h3>
+                      <p className="mt-0.5 text-xs text-white/75">
+                        브리더 랭킹 {homeFeedData.heroBreeder.rank}위
+                      </p>
+                    </div>
+                  </div>
+                  <p className="mt-2 text-sm text-white/75">
                     점수 {homeFeedData.heroBreeder.score.toLocaleString()} · {formatRankDelta(homeFeedData.heroBreeder.rankDelta)}
                   </p>
-                  <div className="mt-3 flex flex-wrap gap-2 text-[11px]">
-                    <span className="rounded-full bg-white/10 px-2.5 py-1">게시 {homeFeedData.heroBreeder.postsCount}</span>
-                    <span className="rounded-full bg-white/10 px-2.5 py-1">댓글 {homeFeedData.heroBreeder.commentsCount}</span>
-                    <span className="rounded-full bg-white/10 px-2.5 py-1">입찰 {homeFeedData.heroBreeder.bidsCount}</span>
-                    <span className="rounded-full bg-white/10 px-2.5 py-1">낙찰 {homeFeedData.heroBreeder.auctionWinsCount}</span>
+                  <div className="mt-3 flex flex-wrap gap-1.5 text-[10px]">
+                    <span className="rounded-full bg-white/10 px-2 py-1">게시 {homeFeedData.heroBreeder.postsCount}</span>
+                    <span className="rounded-full bg-white/10 px-2 py-1">댓글 {homeFeedData.heroBreeder.commentsCount}</span>
+                    <span className="rounded-full bg-white/10 px-2 py-1">입찰 {homeFeedData.heroBreeder.bidsCount}</span>
+                    <span className="rounded-full bg-white/10 px-2 py-1">낙찰 {homeFeedData.heroBreeder.auctionWinsCount}</span>
                   </div>
                 </div>
-                <div className="rounded-2xl bg-white/10 px-4 py-3 text-right backdrop-blur-sm">
-                  <p className="text-[11px] text-white/70">현재 순위</p>
-                  <p className="text-3xl font-black">#{homeFeedData.heroBreeder.rank}</p>
+                <div className="rounded-2xl bg-white/10 px-3 py-2 text-right backdrop-blur-sm">
+                  <p className="text-[10px] text-white/70">현재 순위</p>
+                  <p className="text-2xl font-black">#{homeFeedData.heroBreeder.rank}</p>
                 </div>
               </div>
-              <div className="mt-4 flex items-center justify-between gap-3">
-                <div className="flex flex-wrap gap-2">
+              <div className="mt-3 flex items-center justify-between gap-3">
+                <div className="flex flex-wrap gap-1.5">
                   {(homeFeedData.heroBreeder.badges || []).slice(0, 2).map((badge) => (
-                    <span key={badge.id} className="rounded-full border border-white/15 bg-white/10 px-2.5 py-1 text-[11px] font-semibold">
+                    <span key={badge.id} className="rounded-full border border-white/15 bg-white/10 px-2 py-1 text-[10px] font-semibold">
                       {badge.label}
                     </span>
                   ))}
@@ -360,7 +378,7 @@ const MainClient = () => {
                         : "/auth/login?next=%2Franking%3Ftab%3Dbreeders%26period%3Dweekly"
                     );
                   }}
-                  className="inline-flex h-9 items-center rounded-full bg-white px-4 text-sm font-semibold text-slate-900"
+                  className="inline-flex h-8 items-center rounded-full bg-white px-3.5 text-xs font-semibold text-slate-900"
                 >
                   내 순위 올리기
                 </button>
@@ -400,16 +418,47 @@ const MainClient = () => {
                       user_id: user?.id || null,
                     });
                   }}
-                  className="snap-start shrink-0 w-60 app-card app-card-interactive p-4"
+                  className="snap-start shrink-0 w-64 app-card app-card-interactive p-3.5"
                 >
-                  <p className="app-kicker">{auction.topLevelCategory}</p>
-                  <h3 className="mt-2 line-clamp-2 text-sm font-semibold text-slate-900">{auction.title}</h3>
-                  <p className="mt-3 text-xl font-black tracking-tight text-primary">
-                    {auction.currentPrice.toLocaleString()}원
-                  </p>
-                  <p className="mt-1 text-xs text-slate-500">
-                    판매자 {auction.seller.name} · {new Date(auction.endAt).toLocaleDateString("ko-KR")}
-                  </p>
+                  <div className="flex gap-3">
+                    <div className="h-16 w-16 shrink-0 overflow-hidden rounded-2xl bg-slate-100">
+                      {auction.photo ? (
+                        <Image
+                          src={makeImageUrl(auction.photo, "public")}
+                          alt={auction.title}
+                          width={64}
+                          height={64}
+                          className="h-full w-full object-cover"
+                        />
+                      ) : null}
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <p className="app-kicker">{auction.topLevelCategory}</p>
+                      <h3 className="mt-1.5 line-clamp-2 text-sm font-semibold text-slate-900">{auction.title}</h3>
+                      <p className="mt-2 text-lg font-black tracking-tight text-primary">
+                        {auction.currentPrice.toLocaleString()}원
+                      </p>
+                    </div>
+                  </div>
+                  <div className="mt-3 flex items-center gap-2.5">
+                    <div className="h-8 w-8 overflow-hidden rounded-full bg-slate-100">
+                      {auction.seller.avatar ? (
+                        <Image
+                          src={makeImageUrl(auction.seller.avatar, "avatar")}
+                          alt={auction.seller.name}
+                          width={32}
+                          height={32}
+                          className="h-full w-full object-cover"
+                        />
+                      ) : null}
+                    </div>
+                    <div className="min-w-0">
+                      <p className="truncate text-xs font-medium text-slate-700">{auction.seller.name}</p>
+                      <p className="text-[11px] text-slate-500">
+                        {new Date(auction.endAt).toLocaleDateString("ko-KR")}
+                      </p>
+                    </div>
+                  </div>
                 </Link>
               ))
             ) : (
