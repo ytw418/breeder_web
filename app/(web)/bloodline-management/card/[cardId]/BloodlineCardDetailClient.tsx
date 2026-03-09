@@ -9,10 +9,9 @@ import { Input } from "@components/ui/input";
 import { Spinner } from "@components/atoms/Spinner";
 import useUser from "hooks/useUser";
 import {
+  BloodlineCardDetailResponse,
   BloodlineCardIssueLineResponse,
-  BloodlineCardItem,
   BloodlineCardEventsResponse,
-  BloodlineCardsResponse,
 } from "@libs/shared/bloodline-card";
 import { BloodlineVisualCard } from "@components/features/bloodline/BloodlineVisualCard";
 
@@ -78,10 +77,10 @@ export default function BloodlineCardDetailClient({ cardId }: BloodlineCardDetai
   const searchParams = useSearchParams();
 
   const {
-    data: bloodlineData,
+    data: detailData,
     isLoading,
-    mutate: mutateBloodline,
-  } = useSWR<BloodlineCardsResponse>(user?.id ? "/api/bloodline-cards" : null);
+    mutate: mutateCard,
+  } = useSWR<BloodlineCardDetailResponse>(`/api/bloodline-cards/${cardId}`);
 
   const [activeAction, setActiveAction] = useState<ActiveAction>(null);
   const [transferDraft, setTransferDraft] = useState<Drafts>({});
@@ -100,34 +99,15 @@ export default function BloodlineCardDetailClient({ cardId }: BloodlineCardDetai
   const searchDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const searchAbortRef = useRef<AbortController | null>(null);
 
-  const cards = useMemo(() => {
-    if (!bloodlineData) return [] as BloodlineCardItem[];
-    const allCards = [
-      ...(bloodlineData.myBloodlines || []),
-      ...(bloodlineData.receivedBloodlines || []),
-      ...(bloodlineData.createdLines || []),
-      ...(bloodlineData.receivedLines || []),
-      ...(bloodlineData.ownedCards || []),
-    ];
-    return Array.from(new Map(allCards.map((card) => [card.id, card])).values());
-  }, [bloodlineData]);
-
-  const card = useMemo(() => cards.find((item) => item.id === cardId), [cards, cardId]);
+  const card = detailData?.card || null;
 
   const isOwnedByMe = card?.isOwnedByMe ?? card?.currentOwner.id === user?.id;
   const isBloodline = card?.cardType === "BLOODLINE";
   const canTransfer = Boolean(card && isOwnedByMe);
   const canIssue = Boolean(card && isOwnedByMe && isBloodline);
 
-  const bloodlineSourceCard = useMemo(() => {
-    if (!card?.bloodlineReferenceId) return null;
-    return cards.find((item) => item.id === card.bloodlineReferenceId) || null;
-  }, [cards, card]);
-
-  const parentLineCard = useMemo(() => {
-    if (!card?.parentCardId) return null;
-    return cards.find((item) => item.id === card.parentCardId) || null;
-  }, [cards, card]);
+  const bloodlineSourceCard = detailData?.bloodlineSourceCard || null;
+  const parentLineCard = detailData?.parentLineCard || null;
 
   const lineageTransferHint = useMemo(() => {
     if (!card || card.cardType !== "LINE" || !user?.id) {
@@ -148,7 +128,7 @@ export default function BloodlineCardDetailClient({ cardId }: BloodlineCardDetai
   }, [card, events, user?.id]);
 
   useEffect(() => {
-    if (!user?.id || !card) {
+    if (!card) {
       setEvents([]);
       return;
     }
@@ -170,7 +150,7 @@ export default function BloodlineCardDetailClient({ cardId }: BloodlineCardDetai
     return () => {
       active = false;
     };
-  }, [cardId, card, user?.id]);
+  }, [cardId, card]);
 
   useEffect(() => {
     const requested = searchParams?.get("action") as ActiveAction;
@@ -203,7 +183,7 @@ export default function BloodlineCardDetailClient({ cardId }: BloodlineCardDetai
   };
 
   useEffect(() => {
-    if (!user?.id || isLoading) {
+    if (isLoading) {
       return;
     }
 
@@ -217,12 +197,12 @@ export default function BloodlineCardDetailClient({ cardId }: BloodlineCardDetai
     }
 
     const timeoutId = setTimeout(async () => {
-      await mutateBloodline();
+      await mutateCard();
       setMissingCardRetryCount((prev) => prev + 1);
     }, 600);
 
     return () => clearTimeout(timeoutId);
-  }, [card, isLoading, missingCardRetryCount, mutateBloodline, user?.id]);
+  }, [card, isLoading, missingCardRetryCount, mutateCard]);
 
   const handleTransferSubmit = async (event: FormEvent) => {
     event.preventDefault();
@@ -258,7 +238,7 @@ export default function BloodlineCardDetailClient({ cardId }: BloodlineCardDetai
         [card.id]: { toUserName: "", toUserId: undefined, note: "" },
       }));
       setTransferCandidates([]);
-      await mutateBloodline();
+      await mutateCard();
     } catch (transferError) {
       setError(
         transferError instanceof Error ? transferError.message : "카드 보내기 중 오류가 발생했습니다."
@@ -375,7 +355,7 @@ export default function BloodlineCardDetailClient({ cardId }: BloodlineCardDetai
       setMessage(`라인 카드 발급 완료: ${payload.card?.name || "요청한 라인"}`);
       setActiveAction(null);
       setIssueDraft((prev) => ({ ...prev, [card.id]: { lineName: "" } }));
-      await mutateBloodline();
+      await mutateCard();
     } catch (issueError) {
       setError(
         issueError instanceof Error ? issueError.message : "라인 만들기 처리 중 오류가 발생했습니다."
@@ -411,7 +391,7 @@ export default function BloodlineCardDetailClient({ cardId }: BloodlineCardDetai
         <div className="mx-auto w-full max-w-[680px] rounded-xl border border-slate-200 bg-white p-5">
           <h1 className="text-lg font-black text-slate-900">카드를 찾을 수 없습니다.</h1>
           <p className="mt-1 text-sm text-slate-600">
-            카드 ID가 없거나 열람 권한이 없을 수 있습니다.
+            카드 ID가 없거나 비활성화된 카드일 수 있습니다.
           </p>
           <Link
             href="/bloodline-management"
@@ -500,9 +480,27 @@ export default function BloodlineCardDetailClient({ cardId }: BloodlineCardDetai
           <div className={panelHeaderClass}>
             <h2 className="text-sm font-bold text-slate-900">기본 정보</h2>
           </div>
-            <div className="grid gap-2">
-            <p className={chipClass}>제작자: {card.creator.name}</p>
-            <p className={chipClass}>현재 보유자: {card.currentOwner.name}</p>
+          <div className="grid gap-2">
+            <p className={chipClass}>
+              제작자:
+              {" "}
+              <Link
+                href={`/profiles/${card.creator.id}`}
+                className="font-semibold text-slate-900 underline underline-offset-4"
+              >
+                {card.creator.name}
+              </Link>
+            </p>
+            <p className={chipClass}>
+              현재 보유자:
+              {" "}
+              <Link
+                href={`/profiles/${card.currentOwner.id}`}
+                className="font-semibold text-slate-900 underline underline-offset-4"
+              >
+                {card.currentOwner.name}
+              </Link>
+            </p>
             {card.cardType === "LINE" ? (
               <>
                 <div className={chipClass}>
@@ -538,7 +536,9 @@ export default function BloodlineCardDetailClient({ cardId }: BloodlineCardDetai
 
         <article className={sectionClass}>
           <div className={panelHeaderClass}>
-            <h2 className="text-sm font-bold text-slate-900">카드 발급/전송</h2>
+            <h2 className="text-sm font-bold text-slate-900">
+              {canTransfer || canIssue ? "카드 발급/전송" : "열람 정보"}
+            </h2>
           </div>
 
           {canTransfer || canIssue ? (
@@ -672,7 +672,14 @@ export default function BloodlineCardDetailClient({ cardId }: BloodlineCardDetai
               )}
             </div>
           ) : (
-            <p className="text-sm text-slate-600">현재 내가 바로 진행할 수 있는 액션이 없습니다.</p>
+            <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-600">
+              <p className="font-medium text-slate-800">
+                이 카드는 현재 {card.currentOwner.name}님이 보유 중입니다.
+              </p>
+              <p className="mt-1 leading-relaxed">
+                상세 정보와 기록은 열람할 수 있고, 보내기나 라인 만들기는 보유자만 진행할 수 있습니다.
+              </p>
+            </div>
           )}
         </article>
 

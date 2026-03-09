@@ -310,17 +310,23 @@ const RankingClient = () => {
                       <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-amber-100 text-sm font-black text-amber-700">
                         {item.rank}
                       </div>
-                      <div className="h-14 w-14 overflow-hidden rounded-2xl bg-slate-100">
-                        {item.image ? (
-                          <Image
-                            src={makeImageUrl(item.image, "public")}
-                            alt={item.name}
+                    <div className="h-14 w-14 overflow-hidden rounded-2xl bg-slate-100">
+                      {item.image ? (
+                        <Image
+                          src={makeImageUrl(item.image, "public")}
+                          alt={item.name}
                             width={56}
-                            height={56}
-                            className="h-full w-full object-cover"
-                          />
-                        ) : null}
-                      </div>
+                          height={56}
+                          className="h-full w-full object-cover"
+                        />
+                      ) : (
+                        <div className="flex h-full w-full items-end bg-[radial-gradient(circle_at_top_left,rgba(255,255,255,0.88),transparent_35%),linear-gradient(145deg,#0f172a,#1e293b_60%,#f59e0b)] p-2">
+                          <span className="text-[9px] font-semibold tracking-[0.2em] text-white/80">
+                            BLOODLINE
+                          </span>
+                        </div>
+                      )}
+                    </div>
                       <div className="min-w-0 flex-1">
                         <h3 className="truncate text-sm font-semibold text-slate-900">{item.name}</h3>
                         <p className="mt-1 text-xs text-slate-500">

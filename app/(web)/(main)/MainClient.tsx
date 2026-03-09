@@ -502,7 +502,13 @@ const MainClient = () => {
                           height={56}
                           className="h-full w-full object-cover"
                         />
-                      ) : null}
+                      ) : (
+                        <div className="flex h-full w-full items-end bg-[radial-gradient(circle_at_top_left,rgba(255,255,255,0.85),transparent_35%),linear-gradient(145deg,#111827,#1f2937_58%,#f59e0b)] p-2">
+                          <span className="text-[9px] font-semibold tracking-[0.2em] text-white/80">
+                            BLOODLINE
+                          </span>
+                        </div>
+                      )}
                     </div>
                     <div className="min-w-0 flex-1">
                       <p className="text-xs font-bold text-amber-500">#{bloodline.rank}</p>

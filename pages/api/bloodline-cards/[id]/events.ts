@@ -5,17 +5,11 @@ import client from "@libs/server/client";
 import { BloodlineCardEventsResponse } from "@libs/shared/bloodline-card";
 import { resolveBloodlineApiError } from "@libs/server/bloodline-error";
 import { ensureBloodlineSchema } from "@libs/server/bloodline-schema";
-import { isCardOwner } from "@libs/server/bloodline-ownership";
 
 async function handler(
   req: NextApiRequest,
   res: NextApiResponse<BloodlineCardEventsResponse>
 ) {
-  const userId = req.session.user?.id;
-  if (!userId) {
-    return res.status(401).json({ success: false, events: [], error: "로그인이 필요합니다." });
-  }
-
   const parsedCardId = Number(req.query.id);
   if (!parsedCardId || Number.isNaN(parsedCardId)) {
     return res
@@ -38,15 +32,6 @@ async function handler(
         success: false,
         events: [],
         error: "카드를 찾을 수 없거나 비활성 상태입니다.",
-      });
-    }
-
-    const isOwner = await isCardOwner(parsedCardId, userId);
-    if (card.creatorId !== userId && !isOwner) {
-      return res.status(403).json({
-        success: false,
-        events: [],
-        error: "이 카드의 타임라인 조회 권한이 없습니다.",
       });
     }
 
@@ -109,6 +94,6 @@ export default withApiSession(
   withHandler({
     methods: ["GET"],
     handler,
-    isPrivate: true,
+    isPrivate: false,
   })
 );
