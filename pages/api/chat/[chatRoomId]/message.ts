@@ -3,7 +3,7 @@ import { withApiSession } from "@libs/server/withSession";
 import withHandler from "@libs/server/withHandler";
 import client from "@libs/server/client";
 import { MessageType } from "@prisma/client";
-import { sendPushToUsers } from "@libs/server/push";
+import { sendAllPushToUsers } from "@libs/server/pushGateway";
 
 interface MessageRequest {
   type?: MessageType;
@@ -117,7 +117,7 @@ async function handler(
         : `${newMessage.user.name}: ${newMessage.message}`;
 
     // 푸시 전송은 부가 기능이므로 응답 지연을 막기 위해 비동기로 분리한다.
-    sendPushToUsers(pushRecipientIds, {
+    sendAllPushToUsers(pushRecipientIds, {
       title: "새 채팅 메시지",
       body: pushBody,
       url: `/chat/${chatRoomId}`,

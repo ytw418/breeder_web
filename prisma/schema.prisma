@@ -83,6 +83,7 @@ model User {
   notifications     Notification[]  @relation(name: "notifications")
   sentNotifications Notification[]  @relation(name: "sentNotifications")
   fcmTokens         FcmToken[]
+  mobilePushTokens  MobilePushToken[]
   auctions        Auction[]
   bids            Bid[]
   badges          UserBadge[]
@@ -502,6 +503,21 @@ model FcmToken {
   userId    Int
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+
+  @@index([userId])
+  @@index([userId, updatedAt])
+}
+
+model MobilePushToken {
+  id          Int      @id @default(autoincrement())
+  token       String   @unique
+  platform    String   @default("android")
+  appVersion  String?
+  userAgent   String?
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId      Int
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
 
   @@index([userId])
   @@index([userId, updatedAt])
