@@ -214,7 +214,7 @@ cache-control: public, s-maxage=60, stale-while-revalidate=120
 ## 도움말
 
 더 자세한 내용은 다음 문서를 참조하세요:
-- `docs/CACHING_STRATEGY.md` - 전체 캐싱 전략
+- `docs/current/CACHING_STRATEGY.md` - 전체 캐싱 전략
 - [Next.js ISR 문서](https://nextjs.org/docs/app/building-your-application/data-fetching/incremental-static-regeneration)
 - [HTTP 캐싱 가이드](https://web.dev/http-cache/)
 
