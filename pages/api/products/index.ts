@@ -4,7 +4,7 @@ import withHandler, { ResponseType } from "@libs/server/withHandler";
 import client from "@libs/server/client";
 import { withApiSession } from "@libs/server/withSession";
 import { notifyFollowers } from "@libs/server/notification";
-import { getCategoryFilterValues } from "@libs/categoryTaxonomy";
+import { getProductsResponse } from "@libs/server/home";
 
 const handler = async (
   req: NextApiRequest,
@@ -73,56 +73,15 @@ const handler = async (
       `public, s-maxage=${cacheTime}, stale-while-revalidate=${cacheTime * 2}`
     );
 
-    const pageNumber = Number(page);
-    const sizeNumber = Number(size);
-    const normalizedPage = Number.isInteger(pageNumber) && pageNumber > 0 ? pageNumber : 1;
-    const normalizedSize = Number.isInteger(sizeNumber) && sizeNumber > 0
-      ? Math.min(sizeNumber, 50)
-      : 10;
-
-    // 카테고리/타입/상태 필터 조건
-    const where: any = {};
-    if (category && category !== "전체") {
-      where.category = { in: getCategoryFilterValues(String(category)) };
-    }
-    if (productType && productType !== "전체") {
-      where.productType = productType as string;
-    }
-    if (status && status !== "전체") {
-      where.status = status as string;
-    }
-
-    const [products, productCount] = await Promise.all([
-      client.product.findMany({
-        where,
-        include: {
-          user: {
-            select: {
-              id: true,
-              name: true,
-              avatar: true,
-            },
-          },
-          _count: {
-            select: {
-              favs: true,
-            },
-          },
-        },
-        orderBy: {
-          createdAt: "desc",
-        },
-        take: normalizedSize,
-        skip: (normalizedPage - 1) * normalizedSize,
-      }),
-      client.product.count({ where }),
-    ]);
-
-    return res.json({
-      success: true,
-      products,
-      pages: Math.ceil(productCount / normalizedSize),
+    const response = await getProductsResponse({
+      page: Number(page),
+      size: Number(size),
+      category: typeof category === "string" ? category : undefined,
+      productType: typeof productType === "string" ? productType : undefined,
+      status: typeof status === "string" ? status : undefined,
     });
+
+    return res.json(response);
   }
 };
 

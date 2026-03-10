@@ -4,7 +4,6 @@ export function useInfiniteScroll(threshold = 0.8) {
   const [page, setPage] = useState(1);
 
   const handleScroll = useCallback(() => {
-    console.log("page :>> ", page);
     const scrollTop =
       document.documentElement.scrollTop || document.body.scrollTop;
     const scrollHeight =
@@ -31,7 +30,7 @@ export function useInfiniteScroll(threshold = 0.8) {
       }
     };
 
-    window.addEventListener("scroll", throttledScroll);
+    window.addEventListener("scroll", throttledScroll, { passive: true });
     return () => {
       window.removeEventListener("scroll", throttledScroll);
       if (timeoutId) clearTimeout(timeoutId);

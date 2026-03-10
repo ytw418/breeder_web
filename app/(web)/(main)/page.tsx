@@ -1,6 +1,7 @@
 import React from "react";
 import MainClient from "./MainClient";
 import type { Metadata } from "next";
+import { getHomeBanners, getHomeFeed, getProductsResponse } from "@libs/server/home";
 
 export const metadata: Metadata = {
   title: "브리디 | 반려동물 경매 플랫폼",
@@ -39,10 +40,22 @@ export const metadata: Metadata = {
  * - 60초마다 페이지 재생성
  * - 자주 변경되는 인기 콘텐츠를 적절한 주기로 업데이트
  */
-export const revalidate = 60;
+export const revalidate = 60 * 60; // 1시간
 
-const page = () => {
-  return <MainClient />;
+const page = async () => {
+  const [initialHomeFeed, initialProducts, initialBanners] = await Promise.all([
+    getHomeFeed({ includePersonalized: false }),
+    getProductsResponse({ page: 1, size: 10 }),
+    getHomeBanners(),
+  ]);
+
+  return (
+    <MainClient
+      initialHomeFeed={initialHomeFeed}
+      initialProducts={initialProducts}
+      initialBanners={initialBanners}
+    />
+  );
 };
 
 export default page;

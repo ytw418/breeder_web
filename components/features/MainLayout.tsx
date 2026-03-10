@@ -8,6 +8,7 @@ import Image from "@components/atoms/Image";
 import logo from "@images/logo.png";
 import useSWR from "swr";
 import { cn } from "@libs/client/utils";
+import useUser from "hooks/useUser";
 
 interface LayoutProps {
   title?: string;
@@ -180,29 +181,16 @@ export default function MainLayout({
   const [deferredInstallPrompt, setDeferredInstallPrompt] =
     useState<BeforeInstallPromptEvent | null>(null);
   const [installLoading, setInstallLoading] = useState(false);
-  const [shouldFetchChatUnread, setShouldFetchChatUnread] = useState(true);
-  const [shouldFetchNotificationUnread, setShouldFetchNotificationUnread] =
-    useState(true);
+  const { user } = useUser();
   const { data: unreadData } = useSWR<UnreadCountResponse>(
-    shouldFetchChatUnread ? "/api/chat/unread-count" : null,
+    user ? "/api/chat/unread-count" : null,
     {
-      onError: (swrError: Error & { status?: number }) => {
-        // 비로그인 상태에서는 동일 401 요청을 반복하지 않는다.
-        if (swrError?.status === 401 || swrError?.status === 403) {
-          setShouldFetchChatUnread(false);
-        }
-      },
       revalidateOnFocus: false,
     }
   );
   const { data: notificationUnreadData } = useSWR<NotificationUnreadCountResponse>(
-    shouldFetchNotificationUnread ? "/api/notifications/unread-count" : null,
+    user ? "/api/notifications/unread-count" : null,
     {
-      onError: (swrError: Error & { status?: number }) => {
-        if (swrError?.status === 401 || swrError?.status === 403) {
-          setShouldFetchNotificationUnread(false);
-        }
-      },
       revalidateOnFocus: false,
     }
   );
