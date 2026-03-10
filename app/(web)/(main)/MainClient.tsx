@@ -12,8 +12,6 @@ import useSWRInfinite from "swr/infinite";
 
 import { useInfiniteScroll } from "hooks/useInfiniteScroll";
 
-import { Product } from "@prisma/client";
-
 import SkeletonItem from "@components/atoms/SkeletonItem";
 import { cn, makeImageUrl } from "@libs/client/utils";
 import { CATEGORIES } from "@libs/constants";
@@ -22,16 +20,7 @@ import useUser from "hooks/useUser";
 import { toAuctionPath } from "@libs/auction-route";
 import { toPostPath } from "@libs/post-route";
 import { HomeFeedResponse } from "@libs/shared/ranking";
-
-export interface ProductWithCount extends Product {
-  _count: { favs: number };
-}
-
-interface ProductsResponse {
-  success: boolean;
-  products: ProductWithCount[];
-  pages: number;
-}
+import { HomeBanner, ProductsResponse } from "@libs/shared/home";
 
 interface BeforeInstallPromptEvent extends Event {
   prompt: () => Promise<void>;
@@ -84,7 +73,15 @@ const formatGrowthRate = (growthRate: number) => {
 const toRankingHref = (tab: "breeders" | "auctions" | "bloodlines" | "community", period: "weekly" | "all") =>
   `/ranking?tab=${tab}&period=${period}`;
 
-const MainClient = () => {
+const MainClient = ({
+  initialHomeFeed,
+  initialProducts,
+  initialBanners,
+}: {
+  initialHomeFeed: HomeFeedResponse;
+  initialProducts: ProductsResponse;
+  initialBanners: HomeBanner[];
+}) => {
   const router = useRouter();
   const { user, isLoading: isUserLoading } = useUser();
   const [selectedCategory, setSelectedCategory] = useState("전체");
@@ -105,12 +102,25 @@ const MainClient = () => {
     return `/api/products?page=${pageIndex + 1}${categoryParam}`;
   };
 
-  const { data, setSize, mutate } = useSWRInfinite<ProductsResponse>(getKey);
+  const hasInitializedCategory = useRef(false);
+  const { data, setSize } = useSWRInfinite<ProductsResponse>(getKey, {
+    fallbackData: [initialProducts],
+    revalidateFirstPage: false,
+    revalidateOnFocus: false,
+    revalidateOnMount: false,
+    revalidateIfStale: false,
+  });
   // 상단 홈 경험은 단일 피드 API로 묶고, 상품 리스트만 기존 무한스크롤 구조를 유지한다.
-  const { data: homeFeedData } = useSWR<HomeFeedResponse>("/api/home/feed?period=weekly");
-  // 배너 데이터 호출
-  const { data: bannerData } = useSWR("/api/admin/banners");
-  const banners = bannerData?.banners && bannerData.banners.length > 0 ? bannerData.banners : [];
+  const { data: homeFeedData } = useSWR<HomeFeedResponse>(
+    "/api/home/feed?scope=public",
+    {
+      fallbackData: initialHomeFeed,
+      revalidateOnFocus: false,
+      revalidateOnMount: false,
+      revalidateIfStale: false,
+    }
+  );
+  const banners = initialBanners;
 
   const page = useInfiniteScroll();
 
@@ -130,8 +140,13 @@ const MainClient = () => {
 
   // 카테고리 변경 시 데이터 리셋
   useEffect(() => {
-    mutate();
-  }, [selectedCategory, mutate]);
+    if (!hasInitializedCategory.current) {
+      hasInitializedCategory.current = true;
+      return;
+    }
+
+    void setSize(1);
+  }, [selectedCategory, setSize]);
 
   useEffect(() => {
     const onBeforeInstallPrompt = (event: Event) => {
