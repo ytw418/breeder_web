@@ -8,10 +8,10 @@
 - 코드/JSON 수정 없이 서비스 운영에 기여한다.
 
 ## 문서 순서
-1. `docs/mobile-ops/00_당신은_관리자로_임명_받았습니다.md`
-2. `docs/mobile-ops/01_운영구조.md`
-3. `docs/mobile-ops/02_실행매뉴얼.md`
-4. `docs/mobile-ops/03_메시지템플릿.md`
+1. `00_당신은_관리자로_임명_받았습니다.md`
+2. `01_운영구조.md`
+3. `02_실행매뉴얼.md`
+4. `03_메시지템플릿.md`
 
 ## 공유 링크
 - 앱에서 바로 공유할 페이지: `/content/admin-appointed`
