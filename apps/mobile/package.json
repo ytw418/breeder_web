@@ -13,9 +13,12 @@
   "dependencies": {
     "expo": "~55.0.5",
     "expo-constants": "~55.0.7",
+    "expo-dev-client": "~55.0.13",
     "expo-device": "~55.0.9",
+    "expo-navigation-bar": "~5.0.10",
     "expo-notifications": "~55.0.11",
     "expo-status-bar": "~55.0.4",
+    "expo-system-ui": "~6.0.9",
     "react": "19.2.0",
     "react-native": "0.83.2",
     "react-native-webview": "13.16.0"

@@ -8,6 +8,7 @@ import {
   Platform,
   Pressable,
   StyleSheet,
+  StatusBar as NativeStatusBar,
   Text,
   View,
 } from "react-native";
@@ -47,6 +48,15 @@ const APP_USER_AGENT = `BredyMobileApp/${APP_VERSION}`;
 const DEFAULT_WEB_URL = process.env.EXPO_PUBLIC_WEB_APP_URL || "https://bredy.app";
 const APP_BASE_URL = DEFAULT_WEB_URL.replace(/\/$/, "");
 const WEB_PUSH_DEVICE_STORAGE_KEY = "bredy:mobile-push-device";
+const ANDROID_STATUS_BAR_HEIGHT =
+  Platform.OS === "android" ? NativeStatusBar.currentHeight || 0 : 0;
+const IN_APP_AUTH_HOSTS = new Set([
+  "kauth.kakao.com",
+  "kapi.kakao.com",
+  "t1.kakaocdn.net",
+  "accounts.google.com",
+  "apis.google.com",
+]);
 
 const isSafeInternalPath = (value: string | null | undefined) =>
   Boolean(value && value.startsWith("/") && !value.startsWith("//"));
@@ -54,6 +64,25 @@ const isSafeInternalPath = (value: string | null | undefined) =>
 const buildAppUrl = (path = "/") => {
   const normalizedPath = isSafeInternalPath(path) ? path : "/";
   return `${APP_BASE_URL}${normalizedPath}`;
+};
+
+const shouldOpenInsideWebView = (targetUrl: string) => {
+  try {
+    const nextUrl = new URL(targetUrl);
+    const appUrl = new URL(APP_BASE_URL);
+
+    if (nextUrl.host === appUrl.host) {
+      return true;
+    }
+
+    if (IN_APP_AUTH_HOSTS.has(nextUrl.host)) {
+      return true;
+    }
+
+    return false;
+  } catch {
+    return false;
+  }
 };
 
 const parseBridgeMessage = (raw: string): BridgeMessage | null => {
@@ -275,14 +304,8 @@ export default function App() {
       return true;
     }
 
-    try {
-      const nextUrl = new URL(request.url);
-      const appUrl = new URL(APP_BASE_URL);
-      if (nextUrl.host === appUrl.host) {
-        return true;
-      }
-    } catch {
-      // URL 파싱 실패 시 외부 링크로 처리한다.
+    if (shouldOpenInsideWebView(request.url)) {
+      return true;
     }
 
     void Linking.openURL(request.url);
@@ -291,8 +314,8 @@ export default function App() {
 
   if (isBooting || !currentPath) {
     return (
-      <View style={styles.bootContainer}>
-        <StatusBar style="dark" />
+      <View style={[styles.bootContainer, styles.statusBarInset]}>
+        <StatusBar style="dark" translucent={false} backgroundColor="#ffffff" />
         <Text style={styles.bootEyebrow}>BREDY APP</Text>
         <Text style={styles.bootTitle}>웹을 그대로 불러오는 중</Text>
         <Text style={styles.bootBody}>안드로이드 앱 셸과 알림 브리지를 먼저 준비합니다.</Text>
@@ -301,8 +324,8 @@ export default function App() {
   }
 
   return (
-    <View style={styles.container}>
-      <StatusBar style="dark" />
+    <View style={[styles.container, styles.statusBarInset]}>
+      <StatusBar style="dark" translucent={false} backgroundColor="#ffffff" />
       {loadError ? (
         <View style={styles.errorContainer}>
           <Text style={styles.errorTitle}>페이지를 불러오지 못했습니다.</Text>
@@ -339,10 +362,10 @@ export default function App() {
           )}
         />
       )}
-      <View style={styles.footerBar}>
+      {/* <View style={styles.footerBar}>
         <Text style={styles.footerText}>{canGoBack ? "뒤로가기 가능" : "홈 고정 상태"}</Text>
         <Text style={styles.footerText}>v{APP_VERSION}</Text>
-      </View>
+      </View> */}
     </View>
   );
 }
@@ -351,6 +374,9 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: "#F8FAFC",
+  },
+  statusBarInset: {
+    paddingTop: ANDROID_STATUS_BAR_HEIGHT,
   },
   bootContainer: {
     flex: 1,
