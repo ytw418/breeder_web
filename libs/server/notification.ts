@@ -1,6 +1,6 @@
 import client from "@libs/server/client";
 import { NotificationType } from "@prisma/client";
-import { sendPushToUsers } from "@libs/server/push";
+import { sendAllPushToUsers } from "@libs/server/pushGateway";
 import { getProductPath } from "@libs/product-route";
 
 interface CreateNotificationParams {
@@ -91,7 +91,7 @@ export const createNotification = async ({
     });
 
     if (sendPush) {
-      await sendPushToUsers([userId], {
+      await sendAllPushToUsers([userId], {
         title: getPushTitle(type),
         body: message,
         url: getNotificationUrl(targetType, targetId),

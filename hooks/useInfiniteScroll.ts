@@ -19,7 +19,7 @@ export function useInfiniteScroll(threshold = 0.8) {
 
   useEffect(() => {
     // 쓰로틀링 구현 (200ms)
-    let timeoutId: NodeJS.Timeout | null = null;
+    let timeoutId: ReturnType<typeof setTimeout> | null = null;
 
     const throttledScroll = () => {
       if (!timeoutId) {

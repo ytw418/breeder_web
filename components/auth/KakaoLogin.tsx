@@ -7,6 +7,7 @@ import useMutation from "hooks/useMutation";
 import { LoginReqBody, LoginResponseType } from "pages/api/auth/login";
 import { USER_INFO } from "@libs/constants";
 import { Spinner } from "@components/atoms/Spinner";
+import { notifySessionReady } from "@libs/client/mobile/bridge";
 
 const getSafeRedirectPath = (rawPath: string | null) => {
   if (!rawPath) return "/";
@@ -54,6 +55,7 @@ const navigateAfterSessionReady = async (nextPath: string) => {
         cache: "no-store",
       });
       if (meRes.ok) {
+        notifySessionReady();
         window.location.assign(nextPath);
         return;
       }
@@ -63,6 +65,7 @@ const navigateAfterSessionReady = async (nextPath: string) => {
     await wait(100);
   }
 
+  notifySessionReady();
   window.location.assign(nextPath);
 };
 

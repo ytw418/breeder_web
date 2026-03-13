@@ -13,6 +13,7 @@ import {
   TERMS_OF_SERVICE_URL,
   USER_INFO,
 } from "@libs/constants";
+import { notifySessionReady } from "@libs/client/mobile/bridge";
 
 const getSafeNextPath = (rawPath: string | null) => {
   if (!rawPath) return "/";
@@ -60,6 +61,7 @@ const navigateAfterSessionReady = async (nextPath: string) => {
         cache: "no-store",
       });
       if (meRes.ok) {
+        notifySessionReady();
         window.location.assign(nextPath);
         return;
       }
@@ -69,6 +71,7 @@ const navigateAfterSessionReady = async (nextPath: string) => {
     await wait(100);
   }
 
+  notifySessionReady();
   window.location.assign(nextPath);
 };
 
