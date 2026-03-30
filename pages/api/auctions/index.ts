@@ -13,10 +13,17 @@ import {
 import { settleExpiredAuctions } from "@libs/server/auctionSettlement";
 import { normalizeOptionalText, normalizeOptionalUrl } from "@libs/shared/normalize";
 import { getCategoryFilterValues } from "@libs/categoryTaxonomy";
+import {
+  breederProgramSummarySelect,
+  getSortedActiveBreederProgramSummaries,
+} from "@libs/server/breeder-programs";
+import type { BreederProgramSummary } from "@libs/shared/breeder-program";
 
 /** 경매 목록 응답 타입 */
 export interface AuctionWithUser extends Auction {
-  user: Pick<User, "id" | "name" | "avatar">;
+  user: Pick<User, "id" | "name" | "avatar"> & {
+    breederPrograms: BreederProgramSummary[];
+  };
   _count: { bids: number };
 }
 
@@ -78,7 +85,17 @@ async function handler(
       client.auction.findMany({
         where,
         include: {
-          user: { select: { id: true, name: true, avatar: true } },
+          user: {
+            select: {
+              id: true,
+              name: true,
+              avatar: true,
+              breederPrograms: {
+                where: { status: "ACTIVE" as const },
+                select: breederProgramSummarySelect,
+              },
+            },
+          },
           _count: { select: { bids: true } },
         },
         orderBy: { createdAt: "desc" },
@@ -88,9 +105,19 @@ async function handler(
       client.auction.count({ where }),
     ]);
 
+    const serializedAuctions = auctions.map((auction) => ({
+      ...auction,
+      user: {
+        ...auction.user,
+        breederPrograms: getSortedActiveBreederProgramSummaries(
+          auction.user.breederPrograms
+        ),
+      },
+    }));
+
     return res.json({
       success: true,
-      auctions,
+      auctions: serializedAuctions,
       pages: Math.ceil(auctionCount / 10),
     });
   }

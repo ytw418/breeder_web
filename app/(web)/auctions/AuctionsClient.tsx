@@ -3,6 +3,11 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import Image from "@components/atoms/Image";
+import {
+  BreederProgramBadgeList,
+  getBreederProgramFrameClassName,
+  hasBreederProgramFrame,
+} from "@components/features/breeder/BreederProgramDecorators";
 
 import Layout from "@components/features/MainLayout";
 import FloatingButton from "@components/atoms/floating-button";
@@ -281,21 +286,46 @@ export default function AuctionsClient() {
                           <p className="text-[10px] text-gray-400 dark:text-slate-500">
                             입찰 {auction._count.bids}회
                           </p>
-                          <div className="flex items-center justify-end gap-1 mt-1">
-                            {auction.user?.avatar ? (
-                              <Image
-                                src={makeImageUrl(auction.user.avatar, "avatar")}
-                                className="w-4 h-4 rounded-full object-cover"
-                                width={16}
-                                height={16}
-                                alt=""
+                          <div className="mt-1 flex items-center justify-end gap-1">
+                            <div
+                              className={cn(
+                                hasBreederProgramFrame(auction.user?.breederPrograms)
+                                  ? "rounded-full p-0.5"
+                                  : "",
+                                hasBreederProgramFrame(auction.user?.breederPrograms)
+                                  ? getBreederProgramFrameClassName(
+                                      auction.user?.breederPrograms
+                                    )
+                                  : ""
+                              )}
+                            >
+                              {auction.user?.avatar ? (
+                                <Image
+                                  src={makeImageUrl(auction.user.avatar, "avatar")}
+                                  className={cn(
+                                    "h-4 w-4 rounded-full object-cover",
+                                    hasBreederProgramFrame(auction.user?.breederPrograms)
+                                      ? "ring-1 ring-white/70"
+                                      : ""
+                                  )}
+                                  width={16}
+                                  height={16}
+                                  alt=""
+                                />
+                              ) : (
+                                <div className="h-4 w-4 rounded-full bg-gray-200 dark:bg-slate-700" />
+                              )}
+                            </div>
+                            <div className="min-w-0 text-right">
+                              <span className="block max-w-[72px] truncate text-[10px] text-gray-500 dark:text-slate-400">
+                                {auction.user?.name}
+                              </span>
+                              <BreederProgramBadgeList
+                                programs={auction.user?.breederPrograms}
+                                compact
+                                className="mt-1 justify-end"
                               />
-                            ) : (
-                              <div className="h-4 w-4 rounded-full bg-gray-200 dark:bg-slate-700" />
-                            )}
-                            <span className="max-w-[56px] truncate text-[10px] text-gray-500 dark:text-slate-400">
-                              {auction.user?.name}
-                            </span>
+                            </div>
                           </div>
                         </div>
                       </div>

@@ -35,7 +35,7 @@ type TransactionClient = Prisma.TransactionClient;
 
 const MAX_FOUNDING_ASSIGN_RETRIES = 3;
 
-const foundingSelect = {
+export const breederProgramSummarySelect = {
   id: true,
   programType: true,
   status: true,
@@ -49,7 +49,7 @@ const foundingSelect = {
   revokedAt: true,
   createdAt: true,
   updatedAt: true,
-} as const;
+ } as const;
 
 export const toBreederProgramSummary = (
   record: BreederProgramRecord
@@ -150,7 +150,7 @@ const assignFoundingBreederMembership = async (
       foundingNo: nextFoundingNo,
       feeBenefitType: BREEDER_PROGRAM_DEFAULT_FEE_BENEFITS.FOUNDING_BREEDER,
     },
-    select: foundingSelect,
+    select: breederProgramSummarySelect,
   });
 };
 
@@ -211,7 +211,7 @@ export const getActiveBreederProgramsByUserId = async (userId: number) => {
         userId,
         status: "ACTIVE",
       },
-      select: foundingSelect,
+      select: breederProgramSummarySelect,
     });
   } catch (error) {
     if (isBreederProgramMembershipTableMissing(error)) {

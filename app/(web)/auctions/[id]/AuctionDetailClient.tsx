@@ -21,6 +21,11 @@ import { getAuctionErrorMessage } from "@libs/client/auctionErrorMessage";
 import { ANALYTICS_EVENTS, trackEvent } from "@libs/client/analytics";
 import { extractAuctionIdFromPath, toAuctionPath } from "@libs/auction-route";
 import ImageLightbox from "@components/features/image/ImageLightbox";
+import {
+  BreederProgramBadgeList,
+  getBreederProgramFrameClassName,
+  hasBreederProgramFrame,
+} from "@components/features/breeder/BreederProgramDecorators";
 
 const DETAIL_FALLBACK_IMAGE = "/images/placeholders/minimal-gray-blur.svg";
 
@@ -623,20 +628,41 @@ const AuctionDetailClient = () => {
           {/* 판매자 정보 */}
           {isToolRoute ? (
             <div className="flex items-center gap-3 border-b border-gray-100 py-4 dark:border-slate-800">
-              {auction.user?.avatar ? (
-                <Image
-                  src={makeImageUrl(auction.user.avatar, "avatar")}
-                  className="w-10 h-10 rounded-full object-cover"
-                  width={40}
-                  height={40}
-                  alt=""
-                />
-              ) : (
-                <div className="h-10 w-10 rounded-full bg-gray-200 dark:bg-slate-700" />
-              )}
+              <div
+                className={cn(
+                  hasBreederProgramFrame(auction.user?.breederPrograms)
+                    ? "rounded-[18px] p-1"
+                    : "",
+                  hasBreederProgramFrame(auction.user?.breederPrograms)
+                    ? getBreederProgramFrameClassName(auction.user?.breederPrograms)
+                    : ""
+                )}
+              >
+                {auction.user?.avatar ? (
+                  <Image
+                    src={makeImageUrl(auction.user.avatar, "avatar")}
+                    className={cn(
+                      "h-10 w-10 rounded-full object-cover",
+                      hasBreederProgramFrame(auction.user?.breederPrograms)
+                        ? "ring-2 ring-white/70"
+                        : ""
+                    )}
+                    width={40}
+                    height={40}
+                    alt=""
+                  />
+                ) : (
+                  <div className="h-10 w-10 rounded-full bg-gray-200 dark:bg-slate-700" />
+                )}
+              </div>
               <div>
                 <p className="text-sm font-semibold text-gray-900 dark:text-slate-100">{auction.user?.name}</p>
                 <p className="text-xs text-gray-400 dark:text-slate-500">경매 등록자</p>
+                <BreederProgramBadgeList
+                  programs={auction.user?.breederPrograms}
+                  compact
+                  className="mt-1"
+                />
               </div>
             </div>
           ) : (
@@ -644,20 +670,41 @@ const AuctionDetailClient = () => {
               href={`/profiles/${auction.user?.id}`}
               className="flex items-center gap-3 border-b border-gray-100 py-4 dark:border-slate-800"
             >
-              {auction.user?.avatar ? (
-                <Image
-                  src={makeImageUrl(auction.user.avatar, "avatar")}
-                  className="w-10 h-10 rounded-full object-cover"
-                  width={40}
-                  height={40}
-                  alt=""
-                />
-              ) : (
-                <div className="h-10 w-10 rounded-full bg-gray-200 dark:bg-slate-700" />
-              )}
+              <div
+                className={cn(
+                  hasBreederProgramFrame(auction.user?.breederPrograms)
+                    ? "rounded-[18px] p-1"
+                    : "",
+                  hasBreederProgramFrame(auction.user?.breederPrograms)
+                    ? getBreederProgramFrameClassName(auction.user?.breederPrograms)
+                    : ""
+                )}
+              >
+                {auction.user?.avatar ? (
+                  <Image
+                    src={makeImageUrl(auction.user.avatar, "avatar")}
+                    className={cn(
+                      "h-10 w-10 rounded-full object-cover",
+                      hasBreederProgramFrame(auction.user?.breederPrograms)
+                        ? "ring-2 ring-white/70"
+                        : ""
+                    )}
+                    width={40}
+                    height={40}
+                    alt=""
+                  />
+                ) : (
+                  <div className="h-10 w-10 rounded-full bg-gray-200 dark:bg-slate-700" />
+                )}
+              </div>
               <div>
                 <p className="text-sm font-semibold text-gray-900 dark:text-slate-100">{auction.user?.name}</p>
                 <p className="text-xs text-gray-400 dark:text-slate-500">경매 등록자</p>
+                <BreederProgramBadgeList
+                  programs={auction.user?.breederPrograms}
+                  compact
+                  className="mt-1"
+                />
               </div>
             </Link>
           )}

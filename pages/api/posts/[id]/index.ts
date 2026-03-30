@@ -4,12 +4,18 @@ import withHandler, { ResponseType } from "@libs/server/withHandler";
 import client from "@libs/server/client";
 import { extractPostIdFromPath } from "@libs/post-route";
 import { withApiSession } from "@libs/server/withSession";
+import {
+  breederProgramSummarySelect,
+  getSortedActiveBreederProgramSummaries,
+} from "@libs/server/breeder-programs";
+import type { BreederProgramSummary } from "@libs/shared/breeder-program";
 
 interface PostDetail {
   user: {
     id: number;
     name: string;
     avatar: string | null;
+    breederPrograms: BreederProgramSummary[];
   };
   comments: {
     id: number;
@@ -17,6 +23,7 @@ interface PostDetail {
       id: number;
       name: string;
       avatar: string | null;
+      breederPrograms: BreederProgramSummary[];
     };
     comment: string;
     createdAt: Date;
@@ -73,6 +80,10 @@ async function handler(
           id: true,
           name: true,
           avatar: true,
+          breederPrograms: {
+            where: { status: "ACTIVE" as const },
+            select: breederProgramSummarySelect,
+          },
         },
       },
       comments: {
@@ -85,6 +96,10 @@ async function handler(
               id: true,
               name: true,
               avatar: true,
+              breederPrograms: {
+                where: { status: "ACTIVE" as const },
+                select: breederProgramSummarySelect,
+              },
             },
           },
         },
@@ -175,9 +190,28 @@ async function handler(
     })
   );
 
+  const serializedPost: PostDetail = {
+    ...post,
+    user: {
+      ...post.user,
+      breederPrograms: getSortedActiveBreederProgramSummaries(
+        post.user.breederPrograms
+      ),
+    },
+    comments: post.comments.map((comment) => ({
+      ...comment,
+      user: {
+        ...comment.user,
+        breederPrograms: getSortedActiveBreederProgramSummaries(
+          comment.user.breederPrograms
+        ),
+      },
+    })),
+  };
+
   res.json({
     success: true,
-    post,
+    post: serializedPost,
     isLiked,
     prevNotice,
     nextNotice,
