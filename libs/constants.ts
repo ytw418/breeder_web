@@ -79,12 +79,6 @@ export const TERMS_OF_SERVICE_URL =
 export const PRIVACY_POLICY_URL =
   "https://breeder.notion.site/be44680c8d5b43848d0aff25c7c2edba?pvs=74";
 
-export const OS = {
-  IOS: "ios",
-  ANDROID: "android",
-  WEB: "web",
-};
-
 export const Provider = {
   APPLE: "apple",
   GOOGLE: "google",

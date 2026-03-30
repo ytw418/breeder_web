@@ -1,7 +1,6 @@
 "use client";
 
 import Layout from "@components/features/MainLayout";
-import { isMobileApp } from "@libs/client/mobile/bridge";
 import { cn } from "@libs/client/utils";
 import { PRIVACY_POLICY_URL, TERMS_OF_SERVICE_URL } from "@libs/constants";
 import useUser from "hooks/useUser";
@@ -73,7 +72,6 @@ const SettingsClient = () => {
   const handleLogout = useLogout();
   const { theme, resolvedTheme, setTheme } = useTheme();
   const [themeMounted, setThemeMounted] = useState(false);
-  const [isMobileAppClient, setIsMobileAppClient] = useState<boolean | null>(null);
   const [pushLoading, setPushLoading] = useState(false);
   const [pushTestLoading, setPushTestLoading] = useState(false);
   const [pushErrorMessage, setPushErrorMessage] = useState("");
@@ -84,13 +82,10 @@ const SettingsClient = () => {
     mutate: mutatePushStatus,
     error: pushStatusError,
     isLoading: isPushStatusLoading,
-  } = useSWR<PushSubscriptionStatusResponse>(
-    isMobileAppClient === false ? "/api/push/subscription" : null
-  );
+  } = useSWR<PushSubscriptionStatusResponse>("/api/push/subscription");
 
   useEffect(() => {
     setThemeMounted(true);
-    setIsMobileAppClient(isMobileApp());
   }, []);
 
   const currentThemeLabel = useMemo(() => {
@@ -102,21 +97,18 @@ const SettingsClient = () => {
   }, [themeMounted, theme, resolvedTheme]);
 
   const pushStatusLabel = useMemo(() => {
-    if (isMobileAppClient) return "앱에서 자동 관리";
-    if (isMobileAppClient === null) return "설정 확인 중";
     if (isPushStatusLoading) return "설정 확인 중";
     if (pushStatusError) return "설정 확인 실패";
     if (!pushStatus) return "설정 확인 중";
     if (!pushStatus.configured) return "서버 설정 필요";
     return pushStatus.subscribed ? "켜짐" : "꺼짐";
-  }, [isMobileAppClient, isPushStatusLoading, pushStatusError, pushStatus]);
+  }, [isPushStatusLoading, pushStatusError, pushStatus]);
 
   // 현재 단말 기준으로 알림 권한 복구 경로를 가볍게 안내한다.
   const permissionGuide = useMemo(() => {
     const userAgent =
       typeof navigator === "undefined" ? "" : navigator.userAgent.toLowerCase();
     const isIOS = /iphone|ipad|ipod/.test(userAgent);
-    const isAndroid = /android/.test(userAgent);
 
     if (isIOS) {
       return {
@@ -124,17 +116,6 @@ const SettingsClient = () => {
         steps: [
           "설정 앱 > Safari > 알림으로 이동",
           "Bredy 사이트 알림을 '허용'으로 변경",
-          "설정 화면으로 돌아와 '알림 켜기'를 다시 눌러주세요.",
-        ],
-      };
-    }
-
-    if (isAndroid) {
-      return {
-        title: "Android 알림 다시 켜기",
-        steps: [
-          "브라우저 주소창 왼쪽 자물쇠(또는 사이트 정보)를 누르세요.",
-          "권한 > 알림을 '허용'으로 변경하세요.",
           "설정 화면으로 돌아와 '알림 켜기'를 다시 눌러주세요.",
         ],
       };
@@ -400,7 +381,7 @@ const SettingsClient = () => {
           ),
         },
         {
-          label: "앱 버전",
+          label: "서비스 버전",
           description: "1.0.0",
           icon: (
             <path
@@ -482,72 +463,61 @@ const SettingsClient = () => {
                   푸시 알림
                 </p>
                 <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
-                  {isMobileAppClient
-                    ? "앱 알림은 Android 시스템 권한과 Expo 푸시로 관리됩니다."
-                    : "채팅과 주요 이벤트를 브라우저 알림으로 받을 수 있습니다."}
+                  채팅과 주요 이벤트를 브라우저 알림으로 받을 수 있습니다.
                 </p>
               </div>
-              {!isMobileAppClient && (
-                <button
-                  type="button"
-                  onClick={handleTogglePush}
-                  disabled={pushLoading || isPushStatusLoading}
-                  className={cn(
-                    "h-9 min-w-[88px] shrink-0 whitespace-nowrap rounded-full px-3 text-xs font-semibold leading-9 transition-colors",
-                    pushStatus?.subscribed
-                      ? "bg-emerald-600 text-white hover:bg-emerald-700"
-                      : "bg-slate-900 text-white hover:bg-slate-800 dark:bg-slate-100 dark:text-slate-900 dark:hover:bg-slate-200",
-                    pushLoading && "cursor-not-allowed opacity-60"
-                  )}
-                >
-                  {pushLoading
-                    ? "처리 중..."
-                    : pushStatus?.subscribed
-                      ? "알림 끄기"
-                      : "알림 켜기"}
-                </button>
-              )}
+              <button
+                type="button"
+                onClick={handleTogglePush}
+                disabled={pushLoading || isPushStatusLoading}
+                className={cn(
+                  "h-9 min-w-[88px] shrink-0 whitespace-nowrap rounded-full px-3 text-xs font-semibold leading-9 transition-colors",
+                  pushStatus?.subscribed
+                    ? "bg-emerald-600 text-white hover:bg-emerald-700"
+                    : "bg-slate-900 text-white hover:bg-slate-800 dark:bg-slate-100 dark:text-slate-900 dark:hover:bg-slate-200",
+                  pushLoading && "cursor-not-allowed opacity-60"
+                )}
+              >
+                {pushLoading
+                  ? "처리 중..."
+                  : pushStatus?.subscribed
+                    ? "알림 끄기"
+                    : "알림 켜기"}
+              </button>
             </div>
             <div className="mt-2 flex items-center gap-2 text-xs">
               <span className="rounded-full bg-slate-100 px-2 py-1 text-slate-600 dark:bg-slate-800 dark:text-slate-300">
                 상태: {pushStatusLabel}
               </span>
-              {!isMobileAppClient && pushStatus && !pushStatus.configured && (
+              {pushStatus && !pushStatus.configured && (
                 <span className="text-amber-600 dark:text-amber-400">
                   Firebase Admin 서비스계정 + 웹 푸시 키 환경변수가 필요합니다.
                 </span>
               )}
             </div>
-            {!isMobileAppClient && (
-              <div className="mt-2">
-                <button
-                  type="button"
-                  onClick={handleSendPushTest}
-                  disabled={pushTestLoading || !pushStatus?.subscribed}
-                  className={cn(
-                    "h-8 rounded-md border px-2.5 text-xs font-semibold transition-colors",
-                    "border-slate-200 bg-white text-slate-700 hover:bg-slate-50",
-                    "disabled:cursor-not-allowed disabled:opacity-60 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200 dark:hover:bg-slate-800"
-                  )}
-                >
-                  {pushTestLoading ? "전송 중..." : "테스트 알림 보내기"}
-                </button>
-              </div>
-            )}
-            {isMobileAppClient && (
-              <p className="mt-2 text-xs text-slate-500 dark:text-slate-400">
-                앱 알림이 보이지 않으면 Android 설정에서 브리디 알림 권한을 확인해 주세요.
-              </p>
-            )}
+            <div className="mt-2">
+              <button
+                type="button"
+                onClick={handleSendPushTest}
+                disabled={pushTestLoading || !pushStatus?.subscribed}
+                className={cn(
+                  "h-8 rounded-md border px-2.5 text-xs font-semibold transition-colors",
+                  "border-slate-200 bg-white text-slate-700 hover:bg-slate-50",
+                  "disabled:cursor-not-allowed disabled:opacity-60 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200 dark:hover:bg-slate-800"
+                )}
+              >
+                {pushTestLoading ? "전송 중..." : "테스트 알림 보내기"}
+              </button>
+            </div>
             {pushErrorMessage && (
               <p className="mt-2 text-xs text-rose-500">{pushErrorMessage}</p>
             )}
-            {!isMobileAppClient && !pushErrorMessage && pushStatusError && (
+            {!pushErrorMessage && pushStatusError && (
               <p className="mt-2 text-xs text-rose-500">
                 {pushStatusError.message || "푸시 설정 상태를 불러오지 못했습니다."}
               </p>
             )}
-            {!isMobileAppClient && showPermissionGuide && (
+            {showPermissionGuide && (
               <div className="mt-3 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2.5 dark:border-amber-700/40 dark:bg-amber-950/30">
                 <p className="text-xs font-semibold text-amber-900 dark:text-amber-200">
                   {permissionGuide.title}
