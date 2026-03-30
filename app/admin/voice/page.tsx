@@ -5,7 +5,7 @@ import useSWR from "swr";
 import { VoiceInquiryStatus, VoiceInquiryType } from "@prisma/client";
 import { Button } from "@components/ui/button";
 import { Textarea } from "@components/ui/textarea";
-import { toast } from "react-toastify";
+import { toast } from "@libs/client/toast";
 
 interface VoiceInquiryItem {
   id: number;

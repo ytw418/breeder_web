@@ -9,7 +9,7 @@ import { cn, makeImageUrl, getTimeAgoString } from "@libs/client/utils";
 import useMutation from "hooks/useMutation";
 import useUser from "hooks/useUser";
 import { useParams, usePathname, useRouter } from "next/navigation";
-import { toast } from "react-toastify";
+import { toast } from "@libs/client/toast";
 import { AuctionDetailResponse } from "pages/api/auctions/[id]";
 import { BidResponse } from "pages/api/auctions/[id]/bid";
 import {

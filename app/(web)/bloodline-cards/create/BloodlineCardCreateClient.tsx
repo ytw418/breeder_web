@@ -3,7 +3,7 @@
 import { ChangeEvent, FormEvent, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { toast } from "react-toastify";
+import { toast } from "@libs/client/toast";
 import Layout from "@components/features/MainLayout";
 import { Spinner } from "@components/atoms/Spinner";
 import { Button } from "@components/ui/button";

@@ -11,7 +11,7 @@ import { Input } from "@components/ui/input";
 import { Textarea } from "@components/ui/textarea";
 import useMutation from "hooks/useMutation";
 import { cn, makeImageUrl } from "@libs/client/utils";
-import { toast } from "react-toastify";
+import { toast } from "@libs/client/toast";
 import { AuctionDetailResponse } from "pages/api/auctions/[id]";
 import { AUCTION_MIN_START_PRICE, getBidIncrement } from "@libs/auctionRules";
 import { getAuctionErrorMessage } from "@libs/client/auctionErrorMessage";

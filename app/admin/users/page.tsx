@@ -1,7 +1,7 @@
 "use client";
 
 import useSWR from "swr";
-import { toast } from "react-toastify";
+import { toast } from "@libs/client/toast";
 import { Button } from "@components/ui/button";
 import useConfirmDialog from "hooks/useConfirmDialog";
 

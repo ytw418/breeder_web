@@ -14,7 +14,7 @@ import useMutation from "hooks/useMutation";
 import useUser from "hooks/useUser";
 import { cn, makeImageUrl } from "@libs/client/utils";
 import { toAuctionPath } from "@libs/auction-route";
-import { toast } from "react-toastify";
+import { toast } from "@libs/client/toast";
 import {
   AUCTION_EXTENSION_MS,
   AUCTION_EXTENSION_WINDOW_MS,
