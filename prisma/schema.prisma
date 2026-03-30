@@ -54,6 +54,29 @@ enum GuinnessRejectionReasonCode {
   other
 }
 
+enum BreederProgramType {
+  FOUNDING_BREEDER
+  PARTNER_BREEDER
+  VERIFIED_BREEDER
+}
+
+enum BreederProgramStatus {
+  ACTIVE
+  REVOKED
+}
+
+enum BreederProgramSource {
+  AUTO_SIGNUP
+  MANUAL_ADMIN
+  SELF_VERIFICATION
+}
+
+enum BreederProgramFeeBenefitType {
+  NONE
+  LIFETIME_AUCTION_FEE_FREE
+  AUCTION_FEE_PERCENT_DISCOUNT
+}
+
 model User {
   id              Int         @id @default(autoincrement())
   role            role        @default(USER)
@@ -86,6 +109,7 @@ model User {
   auctions        Auction[]
   bids            Bid[]
   badges          UserBadge[]
+  breederPrograms BreederProgramMembership[]
   missionProgress UserMissionProgress[]
   alertSubscriptions AlertSubscription[]
   bloodlineFollows BloodlineFollow[]
@@ -403,6 +427,30 @@ model Season {
 
   @@unique([kind, startAt, endAt])
   @@index([kind, status, startAt, endAt])
+}
+
+model BreederProgramMembership {
+  id                 Int                    @id @default(autoincrement())
+  userId             Int
+  programType        BreederProgramType
+  status             BreederProgramStatus   @default(ACTIVE)
+  source             BreederProgramSource
+  badgeLabel         String
+  frameVariant       String
+  foundingNo         Int?
+  feeBenefitType     BreederProgramFeeBenefitType @default(NONE)
+  feeDiscountPercent Int?
+  grantedAt          DateTime               @default(now())
+  revokedAt          DateTime?
+  createdAt          DateTime               @default(now())
+  updatedAt          DateTime               @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, programType])
+  @@unique([programType, foundingNo])
+  @@index([userId, status])
+  @@index([programType, status, grantedAt])
 }
 
 model UserBadge {

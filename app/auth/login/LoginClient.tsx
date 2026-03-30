@@ -7,7 +7,9 @@ import GoogleRound from "@images/GoogleRound.svg";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import useMutation from "hooks/useMutation";
+import useSWR from "swr";
 import { LoginReqBody, LoginResponseType } from "pages/api/auth/login";
+import type { FoundingCountResponseType } from "pages/api/breeder-programs/founding-count";
 import {
   PRIVACY_POLICY_URL,
   TERMS_OF_SERVICE_URL,
@@ -98,6 +100,12 @@ type LoginClientProps = {
 const LoginClient = ({ shouldShowTestLogin }: LoginClientProps) => {
   const searchParams = useSearchParams();
   const [login] = useMutation<LoginResponseType>("/api/auth/login");
+  const { data: foundingData } = useSWR<FoundingCountResponseType>(
+    "/api/breeder-programs/founding-count"
+  );
+  const foundingRemaining = foundingData?.remaining ?? null;
+  const isFoundingSoldOut =
+    foundingRemaining !== null && foundingRemaining <= 0;
   const [testAccounts, setTestAccounts] = useState<TestAccountItem[]>([]);
   const [isLoadingTestAccounts, setIsLoadingTestAccounts] = useState(false);
   const [testLoginError, setTestLoginError] = useState("");
@@ -286,15 +294,16 @@ const LoginClient = ({ shouldShowTestLogin }: LoginClientProps) => {
   };
 
   return (
-    <div className="flex h-screen w-full items-center justify-center p-5 flex-col">
-      <div className="flex flex-col items-center mb-[80px]">
-        <h1 className="title-10 text-Primary">브리디</h1>
-        <span className="body-3">애완동물 서비스는 브리디에서</span>
-        <span className="body-3">
-          생물인들과 소통하고 브리디에서 안전거래하세요
-        </span>
-      </div>
-      <div className="flex h-auto w-full flex-col items-center justify-center gap-y-4">
+    <div className="min-h-screen w-full overflow-y-auto px-5 py-8 sm:py-10">
+      <div className="mx-auto flex w-full max-w-md flex-col">
+        <div className="mb-10 flex flex-col items-center text-center sm:mb-12">
+          <h1 className="title-10 text-Primary">브리디</h1>
+          <span className="body-3">애완동물 서비스는 브리디에서</span>
+          <span className="body-3">
+            생물인들과 소통하고 브리디에서 안전거래하세요
+          </span>
+        </div>
+        <div className="flex h-auto w-full flex-col items-center justify-center gap-y-4">
         <button
           onClick={() => loginWithKakao()}
           className="button relative flex h-[54px] w-full items-center bg-[#FAE100] justify-center rounded-lg border border-Gray-300 px-7 py-[14px]"
@@ -328,7 +337,7 @@ const LoginClient = ({ shouldShowTestLogin }: LoginClientProps) => {
                 사용 가능한 테스트 계정이 없습니다.
               </p>
             ) : (
-              <div className="mt-2 space-y-1">
+              <div className="mt-2 max-h-64 space-y-1 overflow-y-auto pr-1">
                 {testAccounts.map((account) => (
                   <button
                     key={account.id}
@@ -355,6 +364,47 @@ const LoginClient = ({ shouldShowTestLogin }: LoginClientProps) => {
         >
           <span className="title-3">{"서비스 둘러보기"}</span>
         </Link>
+        <Link
+          href="/content/breeder-program"
+          className="w-full rounded-2xl border border-amber-200 bg-gradient-to-br from-amber-50 via-white to-slate-50 p-4 text-left shadow-sm transition-transform hover:-translate-y-0.5"
+        >
+          <div className="flex items-start justify-between gap-3">
+            <div>
+              <p className="text-[11px] font-black uppercase tracking-[0.18em] text-amber-700">
+                Founding Breeder 100
+              </p>
+              <h2 className="mt-1 text-lg font-bold text-slate-900">
+                {isFoundingSoldOut
+                  ? "창립 브리더 100인 마감"
+                  : "창립 브리더 100인 한정"}
+              </h2>
+              <p className="mt-1 text-sm leading-relaxed text-slate-600">
+                {isFoundingSoldOut
+                  ? "창립 브리더 100인이 모두 선정되었습니다. 프로그램 소개를 확인해보세요."
+                  : "브리디를 처음 시작한 100명은 평생 경매 수수료 무료, 전용 프레임과 전용 뱃지 혜택을 받습니다."}
+              </p>
+            </div>
+            <span className="shrink-0 rounded-full bg-slate-900 px-2.5 py-1 text-[11px] font-semibold text-white">
+              자세히
+            </span>
+          </div>
+          <div className="mt-3 flex flex-wrap gap-2">
+            {foundingRemaining !== null && !isFoundingSoldOut ? (
+              <span className="rounded-full border border-rose-200 bg-rose-50 px-2.5 py-1 text-[11px] font-semibold text-rose-700">
+                잔여 {foundingRemaining}석
+              </span>
+            ) : null}
+            <span className="rounded-full border border-amber-200 bg-amber-50 px-2.5 py-1 text-[11px] font-semibold text-amber-800">
+              평생 경매 수수료 무료
+            </span>
+            <span className="rounded-full border border-slate-200 bg-white px-2.5 py-1 text-[11px] font-semibold text-slate-700">
+              전용 프레임
+            </span>
+            <span className="rounded-full border border-slate-200 bg-white px-2.5 py-1 text-[11px] font-semibold text-slate-700">
+              전용 뱃지
+            </span>
+          </div>
+        </Link>
         {/* <div
           onClick={() => loginWithApple()}
           className="relative flex h-[54px] w-full cursor-pointer items-center justify-center rounded-lg border border-Gray-300 px-7 py-[14px]"
@@ -362,30 +412,29 @@ const LoginClient = ({ shouldShowTestLogin }: LoginClientProps) => {
           <AppleSquare className="absolute left-7" width={26} height={26} />
           <span className="title-3">{"애플로 회원가입"}</span>
         </div> */}
-      </div>
-      <div className="border-t-[1px] border-Gray-300 w-full mt-[100px] mb-2">
-        {" "}
-      </div>
-      <div className="body-1 text-Gray-400">
-        <span>
-          서비스 이용시 브리디의{" "}
-          <Link
-            target="_blank"
-            className="text-Primary"
-            href={TERMS_OF_SERVICE_URL}
-          >
-            이용약관
-          </Link>{" "}
-          및{" "}
-          <Link
-            target="_blank"
-            className="text-Primary"
-            href={PRIVACY_POLICY_URL}
-          >
-            개인정보처리동의서
-          </Link>{" "}
-          동의로 간주합니다.
-        </span>
+        </div>
+        <div className="mb-2 mt-10 w-full border-t-[1px] border-Gray-300" />
+        <div className="body-1 text-Gray-400">
+          <span>
+            서비스 이용시 브리디의{" "}
+            <Link
+              target="_blank"
+              className="text-Primary"
+              href={TERMS_OF_SERVICE_URL}
+            >
+              이용약관
+            </Link>{" "}
+            및{" "}
+            <Link
+              target="_blank"
+              className="text-Primary"
+              href={PRIVACY_POLICY_URL}
+            >
+              개인정보처리동의서
+            </Link>{" "}
+            동의로 간주합니다.
+          </span>
+        </div>
       </div>
     </div>
   );
