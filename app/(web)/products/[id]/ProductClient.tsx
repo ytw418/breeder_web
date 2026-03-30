@@ -12,7 +12,7 @@ import { useEffect, useRef, useState } from "react";
 import useSWR, { useSWRConfig } from "swr";
 
 import { ChatResponseType } from "pages/api/chat";
-import { toast } from "react-toastify";
+import { toast } from "@libs/client/toast";
 import useConfirmDialog from "hooks/useConfirmDialog";
 import { ANALYTICS_EVENTS, trackEvent } from "@libs/client/analytics";
 import { extractProductId, getProductPath } from "@libs/product-route";

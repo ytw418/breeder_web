@@ -8,7 +8,7 @@ import { useRouter } from "next/navigation";
 
 import { Input } from "@components/ui/input";
 import { Button } from "@components/ui/button";
-import { toast } from "react-toastify";
+import { toast } from "@libs/client/toast";
 import { useSWRConfig } from "swr";
 import { UserResponse } from "pages/api/users/[id]";
 

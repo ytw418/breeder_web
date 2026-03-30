@@ -15,7 +15,7 @@ import { cn } from "@libs/client/utils";
 import { POST_CATEGORIES } from "@libs/constants";
 import { TOP_LEVEL_CATEGORIES } from "@libs/categoryTaxonomy";
 import { toPostPath } from "@libs/post-route";
-import { toast } from "react-toastify";
+import { toast } from "@libs/client/toast";
 
 interface UploadPostForm {
   title: string;

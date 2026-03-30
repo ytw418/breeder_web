@@ -9,7 +9,7 @@ import Layout from "@components/features/MainLayout";
 import useMutation from "hooks/useMutation";
 import { Product } from "@prisma/client";
 import Image from "@components/atoms/Image";
-import { toast } from "react-toastify";
+import { toast } from "@libs/client/toast";
 import { Label } from "@components/ui/label";
 import { cn } from "@libs/client/utils";
 import { PRODUCT_TYPES } from "@libs/constants";

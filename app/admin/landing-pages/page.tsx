@@ -3,7 +3,7 @@
 import { useMemo, useState } from "react";
 import Link from "next/link";
 import useSWR from "swr";
-import { toast } from "react-toastify";
+import { toast } from "@libs/client/toast";
 import { Input } from "@components/ui/input";
 import { Button } from "@components/ui/button";
 import MarkdownEditor from "@components/features/product/MarkdownEditor";

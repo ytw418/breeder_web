@@ -14,7 +14,7 @@ import { useForm } from "react-hook-form";
 
 import { PostDetailResponse } from "pages/api/posts/[id]";
 import { extractPostIdFromPath, toPostPath } from "@libs/post-route";
-import { toast } from "react-toastify";
+import { toast } from "@libs/client/toast";
 
 interface CommentForm {
   comment: string;

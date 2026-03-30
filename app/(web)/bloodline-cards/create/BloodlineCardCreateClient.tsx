@@ -3,7 +3,6 @@
 import { ChangeEvent, FormEvent, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { toast } from "react-toastify";
 import Layout from "@components/features/MainLayout";
 import { Spinner } from "@components/atoms/Spinner";
 import { Button } from "@components/ui/button";
@@ -16,6 +15,7 @@ import {
   bloodlineVisualCardVariants,
   type BloodlineVisualCardVariant,
 } from "@components/features/bloodline/BloodlineVisualCard";
+import { cn } from "@libs/client/utils";
 
 const CARD_VARIANT_LABELS: { value: BloodlineVisualCardVariant; label: string }[] = [
   { value: "noir", label: "모던" },
@@ -47,7 +47,10 @@ export default function BloodlineCardCreateClient() {
   const [cardName, setCardName] = useState("");
   const [cardDescription, setCardDescription] = useState("");
   const [message, setMessage] = useState("");
-  const [error, setError] = useState("");
+  const [formError, setFormError] = useState("");
+  const [nameError, setNameError] = useState("");
+  const [descriptionError, setDescriptionError] = useState("");
+  const [imageError, setImageError] = useState("");
   const [creatingCard, setCreatingCard] = useState(false);
   const [cardVisualVariant, setCardVisualVariant] =
     useState<BloodlineVisualCardVariant>("noir");
@@ -160,17 +163,20 @@ export default function BloodlineCardCreateClient() {
       ALLOWED_IMAGE_EXTENSIONS.includes(nextExt as (typeof ALLOWED_IMAGE_EXTENSIONS)[number]);
 
     if (!isImageTypeAllowed) {
-      setError("이미지 파일만 업로드할 수 있습니다.");
+      setImageError("이미지 파일만 업로드할 수 있습니다.");
+      setFormError("");
       event.target.value = "";
       return;
     }
     if (nextFile.size > MAX_IMAGE_SIZE) {
-      setError("이미지는 최대 10MB까지 등록할 수 있습니다.");
+      setImageError("이미지는 최대 10MB까지 등록할 수 있습니다.");
+      setFormError("");
       event.target.value = "";
       return;
     }
 
-    setError("");
+    setImageError("");
+    setFormError("");
     setMessage("");
     setCardImageFile(nextFile);
     // 이미 선택된 파일을 다시 동일 파일로 다시 선택할 수 있게 input 값 초기화
@@ -182,6 +188,7 @@ export default function BloodlineCardCreateClient() {
   const handleRemoveImage = () => {
     setCardImageFile(null);
     setCardImagePreview("");
+    setImageError("");
     if (imageInputRef.current) {
       imageInputRef.current.value = "";
     }
@@ -190,25 +197,27 @@ export default function BloodlineCardCreateClient() {
   const handleCreateBloodlineCard = async (event: FormEvent) => {
     event.preventDefault();
     setMessage("");
-    setError("");
+    setFormError("");
+    setNameError("");
+    setDescriptionError("");
 
     const nextName = cardName.trim().slice(0, 40);
     const nextDescription = cardDescription.trim().slice(0, 300);
 
     if (!nextName) {
-      setError("이름은 필수 항목입니다.");
+      setNameError("이름은 필수 항목입니다.");
       return;
     }
     if (nextName.length < 2) {
-      setError("이름은 2자 이상 입력해주세요.");
+      setNameError("이름은 2자 이상 입력해주세요.");
       return;
     }
     if (!allowedNamePattern.test(nextName)) {
-      setError("이름은 영문, 숫자, 한글만 입력 가능하며 공백/특수문자는 허용되지 않습니다.");
+      setNameError("이름은 영문, 숫자, 한글만 입력 가능하며 공백/특수문자는 허용되지 않습니다.");
       return;
     }
     if (!nextDescription) {
-      setError("설명은 필수 항목입니다.");
+      setDescriptionError("설명은 필수 항목입니다.");
       return;
     }
 
@@ -267,9 +276,10 @@ export default function BloodlineCardCreateClient() {
         createError instanceof Error
           ? createError.message
           : "요청 처리 중 오류가 발생했습니다.";
-      setError(errorMessage);
       if (isDuplicatedBloodlineNameError(errorMessage)) {
-        toast.error(errorMessage);
+        setNameError(errorMessage);
+      } else {
+        setFormError(errorMessage);
       }
     } finally {
       setCreatingCard(false);
@@ -364,9 +374,9 @@ export default function BloodlineCardCreateClient() {
                 {message}
               </p>
             ) : null}
-            {error ? (
-              <p className="rounded-md border border-slate-200 bg-slate-50 px-3 py-2 text-sm font-semibold text-slate-700">
-                {error}
+            {formError ? (
+              <p className="rounded-md border border-rose-200 bg-rose-50 px-3 py-2 text-sm font-semibold text-rose-700">
+                {formError}
               </p>
             ) : null}
 
@@ -375,41 +385,85 @@ export default function BloodlineCardCreateClient() {
               className="app-reveal app-reveal-2 space-y-3 rounded-2xl border border-slate-200/80 bg-white/90 p-4 shadow-[0_12px_34px_rgba(15, 23, 42,0.14)] transition duration-300 hover:-translate-y-0.5 hover:shadow-[0_16px_40px_rgba(15, 23, 42,0.22)]"
             >
               <h2 className="text-base font-black tracking-tight text-slate-900">혈통카드 생성</h2>
-              <Input
-                value={cardName}
-                onChange={(event) => setCardName(event.target.value)}
-                placeholder="혈통 이름을 입력해주세요 (필수)"
-                className="h-11 border-slate-200/70"
-                disabled={creatingCard}
-              />
-              <Textarea
-                rows={4}
-                value={cardDescription}
-                onChange={(event) => setCardDescription(event.target.value)}
-                placeholder="이 혈통카드의 소개를 적어주세요 (필수)"
-                className="leading-relaxed"
-                disabled={creatingCard}
-              />
+              <div className="space-y-1">
+                <Input
+                  value={cardName}
+                  onChange={(event) => {
+                    setCardName(event.target.value);
+                    if (nameError) {
+                      setNameError("");
+                    }
+                  }}
+                  placeholder="혈통 이름을 입력해주세요 (필수)"
+                  className={cn(
+                    "h-11 border-slate-200/70",
+                    nameError && "border-rose-300 focus-visible:ring-rose-200"
+                  )}
+                  disabled={creatingCard}
+                  aria-invalid={Boolean(nameError)}
+                  aria-describedby={nameError ? "bloodline-card-name-error" : undefined}
+                />
+                {nameError ? (
+                  <p id="bloodline-card-name-error" className="text-xs font-medium text-rose-600">
+                    {nameError}
+                  </p>
+                ) : null}
+              </div>
+              <div className="space-y-1">
+                <Textarea
+                  rows={4}
+                  value={cardDescription}
+                  onChange={(event) => {
+                    setCardDescription(event.target.value);
+                    if (descriptionError) {
+                      setDescriptionError("");
+                    }
+                  }}
+                  placeholder="이 혈통카드의 소개를 적어주세요 (필수)"
+                  className={cn(
+                    "leading-relaxed",
+                    descriptionError && "border-rose-300 focus-visible:ring-rose-200"
+                  )}
+                  disabled={creatingCard}
+                  aria-invalid={Boolean(descriptionError)}
+                  aria-describedby={descriptionError ? "bloodline-card-description-error" : undefined}
+                />
+                {descriptionError ? (
+                  <p
+                    id="bloodline-card-description-error"
+                    className="text-xs font-medium text-rose-600"
+                  >
+                    {descriptionError}
+                  </p>
+                ) : null}
+              </div>
               <div className="space-y-2">
                 <p className="text-xs font-bold text-slate-700">카드 이미지</p>
-                <div className="rounded-lg border border-slate-200 bg-slate-50 p-3">
-                <label
-                  htmlFor="bloodline-card-image"
-                  className={`inline-flex h-11 w-full cursor-pointer items-center justify-center rounded-lg border border-dashed border-slate-300 bg-white text-sm font-semibold text-slate-700 transition hover:bg-slate-50 ${
-                    creatingCard ? "pointer-events-none opacity-60" : ""
-                  }`}
+                <div
+                  className={cn(
+                    "rounded-lg border border-slate-200 bg-slate-50 p-3",
+                    imageError && "border-rose-200 bg-rose-50/40"
+                  )}
                 >
-                  {cardImageFile ? "다른 이미지로 바꾸기" : "이미지 선택"}
-                </label>
-                <input
-                  id="bloodline-card-image"
-                  ref={imageInputRef}
-                  type="file"
-                  accept="image/*"
-                  className="sr-only"
-                  onChange={handleImageChange}
-                  disabled={creatingCard}
-                />
+                  <label
+                    htmlFor="bloodline-card-image"
+                    className={cn(
+                      "inline-flex h-11 w-full cursor-pointer items-center justify-center rounded-lg border border-dashed border-slate-300 bg-white text-sm font-semibold text-slate-700 transition hover:bg-slate-50",
+                      creatingCard && "pointer-events-none opacity-60",
+                      imageError && "border-rose-300"
+                    )}
+                  >
+                    {cardImageFile ? "다른 이미지로 바꾸기" : "이미지 선택"}
+                  </label>
+                  <input
+                    id="bloodline-card-image"
+                    ref={imageInputRef}
+                    type="file"
+                    accept="image/*"
+                    className="sr-only"
+                    onChange={handleImageChange}
+                    disabled={creatingCard}
+                  />
                   {previewImageUrl ? (
                     <div className="mt-3 flex items-center gap-2">
                       <div className="h-16 w-16 overflow-hidden rounded-lg border border-slate-200 bg-white">
@@ -430,6 +484,9 @@ export default function BloodlineCardCreateClient() {
                     </div>
                   ) : null}
                 </div>
+                {imageError ? (
+                  <p className="mt-1 text-xs font-medium text-rose-600">{imageError}</p>
+                ) : null}
                 <p className="text-[11px] text-slate-500">
                   JPG / PNG / WEBP, 최대 10MB. 이미지 첨부는 선택 항목입니다.
                 </p>

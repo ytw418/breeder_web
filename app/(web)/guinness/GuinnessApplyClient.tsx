@@ -9,7 +9,7 @@ import { makeImageUrl } from "@libs/client/utils";
 import { Button } from "@components/ui/button";
 import { Input } from "@components/ui/input";
 import { Textarea } from "@components/ui/textarea";
-import { toast } from "react-toastify";
+import { toast } from "@libs/client/toast";
 import { RankingResponse } from "pages/api/ranking";
 import {
   GuinnessSubmission,

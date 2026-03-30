@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from "react";
 import useSWR from "swr";
-import { toast } from "react-toastify";
+import { toast } from "@libs/client/toast";
 import Image from "@components/atoms/Image";
 import { makeImageUrl } from "@libs/client/utils";
 import { Button } from "@components/ui/button";

@@ -1,6 +1,5 @@
 @import url("https://fonts.googleapis.com/css2?family=Poppins:wght@600&display=swap&text=0123456789");
 @import url("https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.6/dist/web/variable/pretendardvariable-dynamic-subset.css");
-@import "react-toastify/dist/ReactToastify.css";
 
 @tailwind base;
 @tailwind components;
@@ -442,51 +441,188 @@ textarea {
   }
 }
 
-/* Toast (react-toastify) */
-.Toastify__toast-container--bottom-center.app-toast-container {
-  left: 50%;
-  transform: translateX(-50%);
-  width: min(420px, calc(100% - 20px));
-  bottom: calc(14px + env(safe-area-inset-bottom));
-  padding: 0;
+/* Toast (sonner) */
+.app-sonner-toaster {
+  --toast-surface: #ffffff;
+  --toast-border: rgba(226, 232, 240, 0.92);
+  --toast-title: #0f172a;
+  --toast-description: #475569;
+  --toast-icon-bg: #f8fafc;
+  --toast-icon-fg: #475569;
 }
 
-.app-toast {
-  min-height: 48px;
-  margin: 0 0 8px;
-  border-radius: 12px;
-  border: 1px solid #e2e8f0;
-  background: #fff;
-  color: #0f172a;
-  box-shadow: 0 6px 18px rgba(15, 23, 42, 0.08);
-  padding: 11px 13px;
+.app-sonner-toast {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: min(380px, calc(100vw - 20px));
+  margin: 0 auto;
+  border: 1px solid var(--toast-border);
+  border-radius: 16px;
+  background: var(--toast-surface);
+  box-shadow: 0 10px 26px rgba(15, 23, 42, 0.1);
+  padding: 12px 40px 12px 12px;
+  white-space: normal;
 }
 
-.app-toast .Toastify__toast-body {
-  margin: 0;
-  padding: 0;
+.app-sonner-icon {
+  flex-shrink: 0;
+}
+
+.app-sonner-glyph {
+  display: grid;
+  place-items: center;
+  width: 30px;
+  height: 30px;
+  border-radius: 9999px;
+  background: var(--toast-icon-bg);
+  color: var(--toast-icon-fg);
+}
+
+.app-sonner-content {
+  display: flex;
+  flex: 1;
+  justify-content: center;
+  min-width: 0;
+  min-height: 30px;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.app-sonner-toast:has([data-description]) {
+  align-items: flex-start;
+}
+
+.app-sonner-toast:has([data-description]) .app-sonner-content {
+  justify-content: flex-start;
+  min-height: 0;
+  padding-top: 1px;
+}
+
+.app-sonner-title {
+  color: var(--toast-title);
   font-size: 14px;
-  font-weight: 500;
+  font-weight: 600;
   line-height: 1.4;
   letter-spacing: -0.01em;
   white-space: normal;
 }
 
-.app-toast .Toastify__toast-icon {
-  width: 16px;
-  margin-inline-end: 8px;
-  color: #475569;
+.app-sonner-description {
+  color: var(--toast-description);
+  font-size: 12px;
+  font-weight: 400;
+  line-height: 1.45;
+  letter-spacing: -0.01em;
+  white-space: normal;
 }
 
-.dark .app-toast {
-  border-color: #334155;
+.app-sonner-close {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  display: grid;
+  place-items: center;
+  width: 24px;
+  height: 24px;
+  border: 0;
+  border-radius: 9999px;
+  background: transparent;
+  color: #64748b;
+  transition:
+    background-color 0.2s ease,
+    color 0.2s ease,
+    transform 0.2s ease;
+}
+
+.app-sonner-close:hover {
+  background: rgba(241, 245, 249, 0.9);
+  color: #0f172a;
+}
+
+.app-sonner-close:active {
+  transform: scale(0.94);
+}
+
+.app-sonner-action,
+.app-sonner-cancel {
+  border-radius: 10px;
+  padding: 7px 10px;
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+}
+
+.app-sonner-action {
   background: #0f172a;
-  color: #f8fafc;
-  box-shadow: 0 10px 24px rgba(2, 6, 23, 0.45);
+  color: #ffffff;
 }
 
-.dark .app-toast .Toastify__toast-icon {
+.app-sonner-cancel {
+  background: #f8fafc;
+  color: #334155;
+}
+
+.app-sonner-success {
+  --toast-icon-bg: #ecfdf5;
+  --toast-icon-fg: #059669;
+}
+
+.app-sonner-error {
+  --toast-icon-bg: #fff1f2;
+  --toast-icon-fg: #e11d48;
+}
+
+.app-sonner-info {
+  --toast-icon-bg: #eff6ff;
+  --toast-icon-fg: #2563eb;
+}
+
+.app-sonner-warning {
+  --toast-icon-bg: #fff7ed;
+  --toast-icon-fg: #ea580c;
+}
+
+.app-sonner-loading {
+  --toast-icon-bg: #f8fafc;
+  --toast-icon-fg: #475569;
+}
+
+.dark .app-sonner-toaster {
+  --toast-surface: #0f172a;
+  --toast-border: rgba(51, 65, 85, 0.92);
+  --toast-title: #f8fafc;
+  --toast-description: #cbd5e1;
+  --toast-icon-bg: #1e293b;
+  --toast-icon-fg: #cbd5e1;
+}
+
+.dark .app-sonner-toast {
+  box-shadow: 0 14px 32px rgba(2, 6, 23, 0.32);
+}
+
+.dark .app-sonner-close {
+  background: transparent;
   color: #cbd5e1;
+}
+
+.dark .app-sonner-close:hover {
+  background: rgba(30, 41, 59, 0.95);
+  color: #f8fafc;
+}
+
+@media (max-width: 640px) {
+  .app-sonner-toast {
+    width: min(100vw - 16px, 380px);
+    border-radius: 14px;
+    padding: 11px 36px 11px 11px;
+  }
+
+  .app-sonner-glyph {
+    width: 28px;
+    height: 28px;
+  }
 }
 
 /* Legacy utility fallback for dark mode */
