@@ -3,6 +3,11 @@
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import Image from "@components/atoms/Image";
+import {
+  BreederProgramBadgeList,
+  getBreederProgramFrameClassName,
+  hasBreederProgramFrame,
+} from "@components/features/breeder/BreederProgramDecorators";
 import useSWR from "swr";
 
 import Layout from "@components/features/MainLayout";
@@ -420,18 +425,40 @@ export default function PostsClient() {
                       <div className="mt-2.5 flex items-center gap-2 text-xs text-slate-400">
                         {/* 프로필 */}
                         <div className="flex items-center gap-1">
-                          {post.user?.avatar ? (
-                            <Image
-                              src={makeImageUrl(post.user.avatar, "avatar")}
-                              className="w-4 h-4 rounded-full object-cover"
-                              width={16}
-                              height={16}
-                              alt=""
-                            />
-                          ) : (
-                            <div className="w-4 h-4 rounded-full bg-slate-200" />
-                          )}
-                          <span>{post.user?.name}</span>
+                          <div
+                            className={cn(
+                              hasBreederProgramFrame(post.user?.breederPrograms)
+                                ? "rounded-full p-0.5"
+                                : "",
+                              hasBreederProgramFrame(post.user?.breederPrograms)
+                                ? getBreederProgramFrameClassName(
+                                    post.user?.breederPrograms
+                                  )
+                                : ""
+                            )}
+                          >
+                            {post.user?.avatar ? (
+                              <Image
+                                src={makeImageUrl(post.user.avatar, "avatar")}
+                                className={cn(
+                                  "h-4 w-4 rounded-full object-cover",
+                                  hasBreederProgramFrame(post.user?.breederPrograms)
+                                    ? "ring-1 ring-white/70"
+                                    : ""
+                                )}
+                                width={16}
+                                height={16}
+                                alt=""
+                              />
+                            ) : (
+                              <div className="w-4 h-4 rounded-full bg-slate-200" />
+                            )}
+                          </div>
+                          <span className="truncate">{post.user?.name}</span>
+                          <BreederProgramBadgeList
+                            programs={post.user?.breederPrograms}
+                            compact
+                          />
                         </div>
 
                         <span className="text-slate-300">·</span>

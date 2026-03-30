@@ -5,6 +5,11 @@ import useSWR from "swr";
 import Layout from "@components/features/MainLayout";
 import Image from "@components/atoms/Image";
 import Link from "next/link";
+import {
+  BreederProgramBadgeList,
+  getBreederProgramFrameClassName,
+  hasBreederProgramFrame,
+} from "@components/features/breeder/BreederProgramDecorators";
 
 import { cn, getTimeAgoString, makeImageUrl } from "@libs/client/utils";
 import useMutation from "hooks/useMutation";
@@ -106,17 +111,33 @@ const PostClient = ({
               </div>
             ) : (
               <Link href={`/profiles/${post.user?.id}`}>
-                {post.user?.avatar ? (
-                  <Image
-                    src={makeImageUrl(post.user.avatar, "avatar")}
-                    className="w-10 h-10 rounded-full object-cover"
-                    width={40}
-                    height={40}
-                    alt="avatar"
-                  />
-                ) : (
-                  <div className="w-10 h-10 rounded-full bg-gray-200" />
-                )}
+                <div
+                  className={cn(
+                    hasBreederProgramFrame(post.user?.breederPrograms)
+                      ? "rounded-[18px] p-1"
+                      : "",
+                    hasBreederProgramFrame(post.user?.breederPrograms)
+                      ? getBreederProgramFrameClassName(post.user?.breederPrograms)
+                      : ""
+                  )}
+                >
+                  {post.user?.avatar ? (
+                    <Image
+                      src={makeImageUrl(post.user.avatar, "avatar")}
+                      className={cn(
+                        "h-10 w-10 rounded-full object-cover",
+                        hasBreederProgramFrame(post.user?.breederPrograms)
+                          ? "ring-2 ring-white/70"
+                          : ""
+                      )}
+                      width={40}
+                      height={40}
+                      alt="avatar"
+                    />
+                  ) : (
+                    <div className="w-10 h-10 rounded-full bg-gray-200" />
+                  )}
+                </div>
               </Link>
             )}
             <div className="flex-1">
@@ -130,6 +151,13 @@ const PostClient = ({
                   {post.user?.name}
                 </Link>
               )}
+              {!isNoticePost ? (
+                <BreederProgramBadgeList
+                  programs={post.user?.breederPrograms}
+                  compact
+                  className="mt-1"
+                />
+              ) : null}
               <div className="flex items-center gap-1.5 text-xs text-gray-400 mt-0.5">
                 {post.category && (
                   <>
@@ -265,26 +293,48 @@ const PostClient = ({
                 <div key={comment.id} className="border-b border-slate-100 py-3">
                   <div className="flex gap-2.5">
                     <Link href={`/profiles/${comment.user?.id}`} className="flex-shrink-0">
-                      {comment.user?.avatar ? (
-                        <Image
-                          src={makeImageUrl(comment.user.avatar, "avatar")}
-                          className="w-8 h-8 rounded-full object-cover"
-                          width={32}
-                          height={32}
-                          alt=""
-                        />
-                      ) : (
-                        <div className="w-8 h-8 rounded-full bg-gray-200" />
-                      )}
+                      <div
+                        className={cn(
+                          hasBreederProgramFrame(comment.user?.breederPrograms)
+                            ? "rounded-[14px] p-0.5"
+                            : "",
+                          hasBreederProgramFrame(comment.user?.breederPrograms)
+                            ? getBreederProgramFrameClassName(
+                                comment.user?.breederPrograms
+                              )
+                            : ""
+                        )}
+                      >
+                        {comment.user?.avatar ? (
+                          <Image
+                            src={makeImageUrl(comment.user.avatar, "avatar")}
+                            className={cn(
+                              "h-8 w-8 rounded-full object-cover",
+                              hasBreederProgramFrame(comment.user?.breederPrograms)
+                                ? "ring-1 ring-white/70"
+                                : ""
+                            )}
+                            width={32}
+                            height={32}
+                            alt=""
+                          />
+                        ) : (
+                          <div className="w-8 h-8 rounded-full bg-gray-200" />
+                        )}
+                      </div>
                     </Link>
                     <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-2">
+                      <div className="flex flex-wrap items-center gap-2">
                         <Link
                           href={`/profiles/${comment.user?.id}`}
                           className="text-sm font-semibold text-gray-900 hover:text-primary transition-colors"
                         >
                           {comment.user?.name}
                         </Link>
+                        <BreederProgramBadgeList
+                          programs={comment.user?.breederPrograms}
+                          compact
+                        />
                         <span className="text-xs text-gray-400">
                           {getTimeAgoString(new Date(comment.createdAt))}
                         </span>

@@ -4,13 +4,20 @@ import withHandler, { ResponseType } from "@libs/server/withHandler";
 import client from "@libs/server/client";
 import { withApiSession } from "@libs/server/withSession";
 import { notifyFollowers } from "@libs/server/notification";
-import { Post, User } from "@prisma/client";
+import { Post, Prisma, User } from "@prisma/client";
 import { getCategoryFilterValues } from "@libs/categoryTaxonomy";
 import { incrementUserMissionProgress } from "@libs/server/growth";
+import {
+  breederProgramSummarySelect,
+  getSortedActiveBreederProgramSummaries,
+} from "@libs/server/breeder-programs";
+import type { BreederProgramSummary } from "@libs/shared/breeder-program";
 
 /** 게시글 목록 응답 타입 */
 export interface PostWithUser extends Post {
-  user: Pick<User, "id" | "name" | "avatar">;
+  user: Pick<User, "id" | "name" | "avatar"> & {
+    breederPrograms: BreederProgramSummary[];
+  };
   _count: {
     comments: number;
     Likes: number;
@@ -62,7 +69,7 @@ const handler = async (
     const normalizedPage = Number.isInteger(pageNumber) && pageNumber > 0 ? pageNumber : 1;
     const skip = (normalizedPage - 1) * 10;
 
-    const basePostQuery = {
+    const basePostQuery = Prisma.validator<Prisma.PostFindManyArgs>()({
       where,
       include: {
         user: {
@@ -70,6 +77,10 @@ const handler = async (
             id: true,
             name: true,
             avatar: true,
+            breederPrograms: {
+              where: { status: "ACTIVE" as const },
+              select: breederProgramSummarySelect,
+            },
           },
         },
         _count: {
@@ -80,7 +91,7 @@ const handler = async (
         },
       },
       orderBy: { createdAt: "desc" as const },
-    };
+    });
 
     const [allPosts, postCount] = await Promise.all([
       client.post.findMany(basePostQuery),
@@ -102,7 +113,15 @@ const handler = async (
             return b.createdAt.getTime() - a.createdAt.getTime();
           });
 
-    const posts = sortedPosts.slice(skip, skip + 10);
+    const posts = sortedPosts.slice(skip, skip + 10).map((post) => ({
+      ...post,
+      user: {
+        ...post.user,
+        breederPrograms: getSortedActiveBreederProgramSummaries(
+          post.user.breederPrograms
+        ),
+      },
+    }));
 
     res.json({
       success: true,

@@ -6,6 +6,12 @@ import MyCommentList from "@components/features/profile/MyCommentList";
 import MyCommunityPostList from "@components/features/profile/MyCommunityPostList";
 import MySaleHistoryMenu from "@components/features/profile/MySaleHistoryMenu";
 import MyPostList from "@components/features/profile/MyPostList";
+import {
+  BreederProgramBadgeList,
+  getBreederProgramFrameClassName,
+  getPrimaryBreederBenefitLabel,
+  hasBreederProgramFrame,
+} from "@components/features/breeder/BreederProgramDecorators";
 import { Button } from "@components/ui/button";
 import { cn } from "@libs/client/utils";
 import { USER_INFO } from "@libs/constants";
@@ -187,6 +193,14 @@ const MyPageClient = () => {
       : `https://imagedelivery.net/OvWZrAz6J6K7n9LKUH5pKw/${user.avatar}/avatar`);
 
   const profileUser = data?.user;
+  const profileBreederPrograms = profileUser?.breederPrograms ?? [];
+  const hasProfileBreederFrame = hasBreederProgramFrame(profileBreederPrograms);
+  const profileBreederFrameClassName = getBreederProgramFrameClassName(
+    profileBreederPrograms
+  );
+  const profileBreederBenefitLabel = getPrimaryBreederBenefitLabel(
+    profileBreederPrograms
+  );
   const mySubmissions = useMemo(
     () =>
       [...(guinnessData?.submissions || [])]
@@ -367,17 +381,32 @@ const MyPageClient = () => {
       <div className="px-6 pt-6 pb-4">
         <div className="flex items-center gap-5">
           {/* 아바타 */}
-          <div className="flex-shrink-0">
+          <div
+            className={cn(
+              "flex-shrink-0",
+              hasProfileBreederFrame
+                ? cn("rounded-[28px] p-1", profileBreederFrameClassName)
+                : ""
+            )}
+          >
             {avatarUrl ? (
               <Image
                 src={avatarUrl}
-                alt={user?.name || "프로필"}
+                alt={profileUser?.name || user?.name || "프로필"}
                 width={80}
                 height={80}
-                className="w-20 h-20 rounded-full bg-slate-200 dark:bg-slate-700 object-cover"
+                className={cn(
+                  "h-20 w-20 rounded-full bg-slate-200 object-cover dark:bg-slate-700",
+                  hasProfileBreederFrame ? "ring-2 ring-white/70" : ""
+                )}
               />
             ) : (
-              <div className="w-20 h-20 rounded-full bg-slate-200 dark:bg-slate-700 flex items-center justify-center">
+              <div
+                className={cn(
+                  "flex h-20 w-20 items-center justify-center rounded-full bg-slate-200 dark:bg-slate-700",
+                  hasProfileBreederFrame ? "ring-2 ring-white/70" : ""
+                )}
+              >
                 <svg
                   className="w-10 h-10 text-slate-400"
                   fill="none"
@@ -421,11 +450,17 @@ const MyPageClient = () => {
         {/* 이름 + 이메일 */}
         <div className="mt-4">
           <h2 className="text-lg font-bold text-slate-900">
-            {user?.name || ""}
+            {profileUser?.name || user?.name || ""}
           </h2>
           {user?.email && (
             <p className="text-sm text-slate-500 dark:text-slate-400 mt-0.5">{user.email}</p>
           )}
+          <BreederProgramBadgeList className="mt-2" programs={profileBreederPrograms} />
+          {profileBreederBenefitLabel ? (
+            <p className="mt-2 text-xs font-semibold text-slate-700 dark:text-slate-200">
+              {profileBreederBenefitLabel}
+            </p>
+          ) : null}
         </div>
 
         {/* 액션 버튼 */}

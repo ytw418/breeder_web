@@ -2,6 +2,7 @@ import { NextApiRequest, NextApiResponse } from "next";
 import withHandler, { ResponseType } from "@libs/server/withHandler";
 
 import client from "@libs/server/client";
+import { createUserWithAutomaticBreederPrograms } from "@libs/server/breeder-programs";
 import { withApiSession } from "@libs/server/withSession";
 import { UniqueName } from "@libs/server/UniqueName";
 
@@ -67,14 +68,12 @@ async function handler(
     if (!user) {
       // 해당 이메일의 사용자가 존재하지 않는 경우 새로운 사용자 생성
       const uniqueName = await UniqueName();
-      user = await client.user.create({
-        data: {
-          snsId,
-          email: normalizedEmail,
-          name: uniqueName,
-          provider,
-          avatar: normalizedAvatar,
-        },
+      user = await createUserWithAutomaticBreederPrograms({
+        snsId,
+        email: normalizedEmail,
+        name: uniqueName,
+        provider,
+        avatar: normalizedAvatar,
       });
     } else {
       const updateData: {

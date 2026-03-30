@@ -14,6 +14,11 @@ import {
 } from "@libs/auctionRules";
 import { settleExpiredAuctions } from "@libs/server/auctionSettlement";
 import { normalizeOptionalText, normalizeOptionalUrl } from "@libs/shared/normalize";
+import {
+  breederProgramSummarySelect,
+  getSortedActiveBreederProgramSummaries,
+} from "@libs/server/breeder-programs";
+import type { BreederProgramSummary } from "@libs/shared/breeder-program";
 
 /** 경매 상세 응답 타입 */
 export interface AuctionDetailResponse {
@@ -21,7 +26,9 @@ export interface AuctionDetailResponse {
   error?: string;
   errorCode?: string;
   auction?: Auction & {
-    user: Pick<User, "id" | "name" | "avatar">;
+    user: Pick<User, "id" | "name" | "avatar"> & {
+      breederPrograms: BreederProgramSummary[];
+    };
     bids: (Bid & { user: Pick<User, "id" | "name" | "avatar"> })[];
     _count: { bids: number };
   };
@@ -55,7 +62,17 @@ async function handler(
     const auction = await client.auction.findUnique({
       where: { id: auctionId },
       include: {
-        user: { select: { id: true, name: true, avatar: true } },
+        user: {
+          select: {
+            id: true,
+            name: true,
+            avatar: true,
+            breederPrograms: {
+              where: { status: "ACTIVE" as const },
+              select: breederProgramSummarySelect,
+            },
+          },
+        },
         bids: {
           include: {
             user: { select: { id: true, name: true, avatar: true } },
@@ -83,9 +100,19 @@ async function handler(
       bidCount: auction._count.bids,
     });
 
+    const serializedAuction = {
+      ...auction,
+      user: {
+        ...auction.user,
+        breederPrograms: getSortedActiveBreederProgramSummaries(
+          auction.user.breederPrograms
+        ),
+      },
+    };
+
     return res.json({
       success: true,
-      auction,
+      auction: serializedAuction,
       isOwner,
       canEdit,
       editAvailableUntil: getAuctionEditDeadline(auction.createdAt).toISOString(),

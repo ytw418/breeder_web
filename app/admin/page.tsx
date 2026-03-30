@@ -78,6 +78,11 @@ type CreateTestUsersResponse = {
 
 const DASHBOARD_MENUS = [
   {
+    title: "브리더 프로그램",
+    description: "창립/파트너/인증 브리더 자격과 혜택을 관리합니다.",
+    href: "/admin/breeder-programs",
+  },
+  {
     title: "경매 관리",
     description: "경매 상태 제어 및 내부 룰/제약조건을 점검합니다.",
     href: "/admin/auctions",

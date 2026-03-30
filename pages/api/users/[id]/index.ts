@@ -2,6 +2,11 @@ import { NextApiRequest, NextApiResponse } from "next";
 import withHandler, { ResponseType } from "@libs/server/withHandler";
 
 import client from "@libs/server/client";
+import {
+  getActiveBreederProgramsByUserId,
+  getSortedActiveBreederProgramSummaries,
+} from "@libs/server/breeder-programs";
+import type { BreederProgramSummary } from "@libs/shared/breeder-program";
 import { withApiSession } from "@libs/server/withSession";
 import { User } from "@prisma/client";
 
@@ -25,6 +30,7 @@ type UserWithCounts = User & {
     label: string;
     createdAt: string;
   }>;
+  breederPrograms?: BreederProgramSummary[];
 };
 
 export interface UserResponse {
@@ -114,18 +120,21 @@ async function handler(
       ? { ...user, maskedEmail: maskEmail(user.email) }
       : { ...user, email: null, maskedEmail: maskEmail(user.email) };
 
-  const badges = await client.userBadge.findMany({
-    where: { userId },
-    select: {
-      id: true,
-      badgeType: true,
-      rank: true,
-      label: true,
-      createdAt: true,
-    },
-    orderBy: [{ createdAt: "desc" }, { rank: "asc" }],
-    take: 3,
-  });
+  const [badges, breederPrograms] = await Promise.all([
+    client.userBadge.findMany({
+      where: { userId },
+      select: {
+        id: true,
+        badgeType: true,
+        rank: true,
+        label: true,
+        createdAt: true,
+      },
+      orderBy: [{ createdAt: "desc" }, { rank: "asc" }],
+      take: 3,
+    }),
+    getActiveBreederProgramsByUserId(userId),
+  ]);
 
   return res.json({
     success: true,
@@ -135,6 +144,7 @@ async function handler(
         ...badge,
         createdAt: badge.createdAt.toISOString(),
       })),
+      breederPrograms: getSortedActiveBreederProgramSummaries(breederPrograms),
     },
     isFollowing,
   });
