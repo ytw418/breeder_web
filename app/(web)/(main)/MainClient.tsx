@@ -261,8 +261,6 @@ const MainClient = ({
   const auctionPeriod = homeFeedData?.topAuctionsMode === "all" ? "all" : "weekly";
   const bloodlinePeriod = homeFeedData?.topBloodlinesMode ?? "weekly";
   const communityPeriod = homeFeedData?.trendingPostsMode === "all" ? "all" : "weekly";
-  const heroSubtitle = "게시, 댓글, 입찰, 낙찰 활동을 합산한 브리더 리더보드";
-  const auctionSubtitle = "카테고리별 최고 낙찰가를 기록한 경매";
   const bloodlineSubtitle = "가장 많은 사용자가 보유한 혈통카드를 기준으로 집계한 랭킹";
   const communitySubtitle = "좋아요와 댓글 반응이 높은 커뮤니티 글";
 
@@ -323,7 +321,6 @@ const MainClient = ({
       <section className="app-section app-reveal app-reveal-1 py-2">
         <SectionHeader
           title="이번 주 TOP 브리더"
-          subtitle={heroSubtitle}
           href={toRankingHref("breeders", heroBreederPeriod)}
           actionLabel="랭킹 보기"
         />
@@ -408,7 +405,6 @@ const MainClient = ({
       <section className="app-section app-reveal app-reveal-1 py-2">
         <SectionHeader
           title="카테고리별 최고가 경매"
-          subtitle={auctionSubtitle}
           href={toRankingHref("auctions", auctionPeriod)}
         />
         <div className="mt-1 px-5">
