@@ -223,6 +223,10 @@ export const getActiveBreederProgramsByUserId = async (userId: number) => {
 };
 
 export const getFoundingBreederCount = async () => {
+  if (!process.env.DATABASE_URL) {
+    return 0;
+  }
+
   try {
     const latestFounding = await client.breederProgramMembership.findFirst({
       where: { programType: "FOUNDING_BREEDER" },
@@ -232,7 +236,10 @@ export const getFoundingBreederCount = async () => {
 
     return Math.min(FOUNDING_BREEDER_LIMIT, latestFounding?.foundingNo ?? 0);
   } catch (error) {
-    if (isBreederProgramMembershipTableMissing(error)) {
+    if (
+      isBreederProgramMembershipTableMissing(error) ||
+      error instanceof Prisma.PrismaClientInitializationError
+    ) {
       return 0;
     }
 

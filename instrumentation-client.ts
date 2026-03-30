@@ -7,3 +7,5 @@ Sentry.init({
   replaysOnErrorSampleRate: 1,
   debug: false,
 });
+
+export const onRouterTransitionStart = Sentry.captureRouterTransitionStart;

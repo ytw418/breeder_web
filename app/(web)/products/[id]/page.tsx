@@ -20,9 +20,9 @@ const toPublicImageUrl = (imageId: string | null | undefined) => {
 };
 
 interface Props {
-  params: {
+  params: Promise<{
     id: string;
-  };
+  }>;
 }
 
 /**
@@ -66,7 +66,8 @@ export const revalidate = 60;
  * - robots 메타 태그로 검색 엔진 크롤링 제어
  */
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
-  const productId = extractProductId(params.id);
+  const { id } = await params;
+  const productId = extractProductId(id);
   const data = await getProduct(productId, { mode: "isr", revalidateSeconds: 60 });
 
   if (!data.success || !data.product) {
@@ -209,7 +210,8 @@ function generateBreadcrumbJsonLd(product: any) {
  * - 브레드크럼 네비게이션 제공
  */
 export default async function ProductPage({ params }: Props) {
-  const productId = extractProductId(params.id);
+  const { id } = await params;
+  const productId = extractProductId(id);
   const data = await getProduct(productId, { mode: "isr", revalidateSeconds: 60 });
 
   if (!data.success || !data.product) {

@@ -3,7 +3,7 @@ import { SESSION_COOKIE_NAME } from "@libs/constants";
 
 const TOOL_MODE_COOKIE = "bredy_tool_mode";
 
-export function middleware(req: NextRequest, ev: NextFetchEvent) {
+export function proxy(req: NextRequest, ev: NextFetchEvent) {
   const { pathname, search } = req.nextUrl;
   const isPrefetchRequest =
     req.headers.get("purpose") === "prefetch" ||

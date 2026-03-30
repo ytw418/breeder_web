@@ -3,7 +3,7 @@ import { Prisma, UserStatus, role as UserRole } from "@prisma/client";
 import withHandler, { ResponseType } from "@libs/server/withHandler";
 import { withApiSession } from "@libs/server/withSession";
 import client from "@libs/server/client";
-import { canRunSensitiveAdminAction, hasAdminAccess } from "./_utils";
+import { canRunSensitiveAdminAction, hasAdminAccess } from "@libs/server/adminAccess";
 import seedPayload from "data/service-initial-data.json";
 
 type TxClient = Prisma.TransactionClient;

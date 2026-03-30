@@ -44,6 +44,27 @@ const SAMPLE_BANNERS: HomeBanner[] = [
   },
 ];
 
+const SAMPLE_PRODUCTS_RESPONSE: ProductsResponse = {
+  success: true,
+  products: [],
+  pages: 0,
+};
+
+const SAMPLE_HOME_FEED: HomeFeedResponse = {
+  success: true,
+  heroBreeder: null,
+  heroBreederMode: "weekly",
+  topAuctionsByCategory: [],
+  topAuctionsMode: "week",
+  topBloodlines: [],
+  topBloodlinesMode: "weekly",
+  trendingPosts: [],
+  trendingPostsMode: "24h",
+  myRanking: null,
+  myMissionSummary: [],
+  currentSeasonId: null,
+};
+
 type HomeFeedOptions = {
   userId?: number;
   includePersonalized?: boolean;
@@ -59,6 +80,10 @@ type ProductQueryOptions = {
 
 const getCachedHomeBanners = unstable_cache(
   async () => {
+    if (!process.env.DATABASE_URL) {
+      return SAMPLE_BANNERS;
+    }
+
     const banners = await client.adminBanner.findMany({
       orderBy: { order: "asc" },
     });
@@ -71,96 +96,106 @@ const getCachedHomeBanners = unstable_cache(
   }
 );
 
+const buildHomeFeedFallback = () => SAMPLE_HOME_FEED;
+
 const buildHomeFeed = async ({
   userId,
   includePersonalized = true,
 }: HomeFeedOptions = {}): Promise<HomeFeedResponse> => {
-  const resolvedUserId = includePersonalized ? userId : undefined;
-  const season = await ensureCurrentWeeklySeason();
-
-  const [
-    weeklyBreeders,
-    weeklyAuctions,
-    weeklyBloodlines,
-    recentTrendingPosts,
-    myRanking,
-    myMissionSummary,
-  ] = await Promise.all([
-    getBreederRanking({ limit: 10, period: "weekly", userId: resolvedUserId }),
-    getAuctionRanking({ periodScope: "week", limit: 20 }),
-    getBloodlineRanking({ limit: 10, period: "weekly" }),
-    getTrendingCommunityPosts({ limit: 6, window: "24h" }),
-    resolvedUserId ? getMyRankingSummary(resolvedUserId) : Promise.resolve(null),
-    resolvedUserId ? getUserMissionSummary(resolvedUserId) : Promise.resolve([]),
-  ]);
-
-  const [
-    fallbackBreeders,
-    fallbackAuctions,
-    fallbackBloodlines,
-    fallbackTrendingPosts,
-  ] = await Promise.all([
-    weeklyBreeders.length > 0
-      ? Promise.resolve(weeklyBreeders)
-      : getBreederRanking({ limit: 10, period: "all", userId: resolvedUserId }),
-    weeklyAuctions.length > 0
-      ? Promise.resolve(weeklyAuctions)
-      : getAuctionRanking({ periodScope: "all", limit: 20 }),
-    weeklyBloodlines.length > 0
-      ? Promise.resolve(weeklyBloodlines)
-      : getBloodlineRanking({ limit: 10, period: "all" }),
-    recentTrendingPosts.length > 0
-      ? Promise.resolve(recentTrendingPosts)
-      : getTrendingCommunityPosts({ limit: 6, window: "all" }),
-  ]);
-
-  const heroBreederMode = weeklyBreeders.length > 0 ? "weekly" : "all";
-  const topAuctionsMode = weeklyAuctions.length > 0 ? "week" : "all";
-  const topBloodlinesMode = weeklyBloodlines.length > 0 ? "weekly" : "all";
-  const trendingPostsMode = recentTrendingPosts.length > 0 ? "24h" : "all";
-  const topBloodlines = fallbackBloodlines;
-  const topAuctionsByCategory = fallbackAuctions;
-
-  if (resolvedUserId) {
-    const ownedBloodline = topBloodlines.find(
-      (item) => item.creator.id === resolvedUserId
-    );
-    if (ownedBloodline) {
-      await ensureAlertSubscription({
-        userId: resolvedUserId,
-        alertType: "BLOODLINE_OVERTAKEN",
-        entityType: "BLOODLINE",
-        entityId: ownedBloodline.bloodlineRootId,
-      });
-    }
-
-    const ownedAuction = topAuctionsByCategory.find(
-      (item) => item.seller.id === resolvedUserId
-    );
-    if (ownedAuction) {
-      await ensureAlertSubscription({
-        userId: resolvedUserId,
-        alertType: "AUCTION_RECORD_BROKEN",
-        entityType: "AUCTION",
-        entityId: ownedAuction.auctionId,
-      });
-    }
+  if (!process.env.DATABASE_URL) {
+    return buildHomeFeedFallback();
   }
 
-  return {
-    success: true,
-    heroBreeder: fallbackBreeders[0] ?? null,
-    heroBreederMode,
-    topAuctionsByCategory: topAuctionsByCategory.slice(0, 6),
-    topAuctionsMode,
-    topBloodlines: topBloodlines.slice(0, 6),
-    topBloodlinesMode,
-    trendingPosts: fallbackTrendingPosts.slice(0, 5),
-    trendingPostsMode,
-    myRanking,
-    myMissionSummary,
-    currentSeasonId: season.id,
-  };
+  const resolvedUserId = includePersonalized ? userId : undefined;
+  try {
+    const season = await ensureCurrentWeeklySeason();
+
+    const [
+      weeklyBreeders,
+      weeklyAuctions,
+      weeklyBloodlines,
+      recentTrendingPosts,
+      myRanking,
+      myMissionSummary,
+    ] = await Promise.all([
+      getBreederRanking({ limit: 10, period: "weekly", userId: resolvedUserId }),
+      getAuctionRanking({ periodScope: "week", limit: 20 }),
+      getBloodlineRanking({ limit: 10, period: "weekly" }),
+      getTrendingCommunityPosts({ limit: 6, window: "24h" }),
+      resolvedUserId ? getMyRankingSummary(resolvedUserId) : Promise.resolve(null),
+      resolvedUserId ? getUserMissionSummary(resolvedUserId) : Promise.resolve([]),
+    ]);
+
+    const [
+      fallbackBreeders,
+      fallbackAuctions,
+      fallbackBloodlines,
+      fallbackTrendingPosts,
+    ] = await Promise.all([
+      weeklyBreeders.length > 0
+        ? Promise.resolve(weeklyBreeders)
+        : getBreederRanking({ limit: 10, period: "all", userId: resolvedUserId }),
+      weeklyAuctions.length > 0
+        ? Promise.resolve(weeklyAuctions)
+        : getAuctionRanking({ periodScope: "all", limit: 20 }),
+      weeklyBloodlines.length > 0
+        ? Promise.resolve(weeklyBloodlines)
+        : getBloodlineRanking({ limit: 10, period: "all" }),
+      recentTrendingPosts.length > 0
+        ? Promise.resolve(recentTrendingPosts)
+        : getTrendingCommunityPosts({ limit: 6, window: "all" }),
+    ]);
+
+    const heroBreederMode = weeklyBreeders.length > 0 ? "weekly" : "all";
+    const topAuctionsMode = weeklyAuctions.length > 0 ? "week" : "all";
+    const topBloodlinesMode = weeklyBloodlines.length > 0 ? "weekly" : "all";
+    const trendingPostsMode = recentTrendingPosts.length > 0 ? "24h" : "all";
+    const topBloodlines = fallbackBloodlines;
+    const topAuctionsByCategory = fallbackAuctions;
+
+    if (resolvedUserId) {
+      const ownedBloodline = topBloodlines.find(
+        (item) => item.creator.id === resolvedUserId
+      );
+      if (ownedBloodline) {
+        await ensureAlertSubscription({
+          userId: resolvedUserId,
+          alertType: "BLOODLINE_OVERTAKEN",
+          entityType: "BLOODLINE",
+          entityId: ownedBloodline.bloodlineRootId,
+        });
+      }
+
+      const ownedAuction = topAuctionsByCategory.find(
+        (item) => item.seller.id === resolvedUserId
+      );
+      if (ownedAuction) {
+        await ensureAlertSubscription({
+          userId: resolvedUserId,
+          alertType: "AUCTION_RECORD_BROKEN",
+          entityType: "AUCTION",
+          entityId: ownedAuction.auctionId,
+        });
+      }
+    }
+
+    return {
+      success: true,
+      heroBreeder: fallbackBreeders[0] ?? null,
+      heroBreederMode,
+      topAuctionsByCategory: topAuctionsByCategory.slice(0, 6),
+      topAuctionsMode,
+      topBloodlines: topBloodlines.slice(0, 6),
+      topBloodlinesMode,
+      trendingPosts: fallbackTrendingPosts.slice(0, 5),
+      trendingPostsMode,
+      myRanking,
+      myMissionSummary,
+      currentSeasonId: season.id,
+    };
+  } catch {
+    return buildHomeFeedFallback();
+  }
 };
 
 const getCachedPublicHomeFeed = unstable_cache(
@@ -232,7 +267,17 @@ const buildProductsResponse = async ({
 };
 
 const getCachedDefaultProducts = unstable_cache(
-  async () => buildProductsResponse({ page: 1, size: 10 }),
+  async () => {
+    if (!process.env.DATABASE_URL) {
+      return SAMPLE_PRODUCTS_RESPONSE;
+    }
+
+    try {
+      return await buildProductsResponse({ page: 1, size: 10 });
+    } catch {
+      return SAMPLE_PRODUCTS_RESPONSE;
+    }
+  },
   ["home-products-default"],
   {
     revalidate: 60 * 60, // 1시간
@@ -263,5 +308,13 @@ export async function getProductsResponse(options: ProductQueryOptions = {}) {
     return getCachedDefaultProducts();
   }
 
-  return buildProductsResponse(options);
+  if (!process.env.DATABASE_URL) {
+    return SAMPLE_PRODUCTS_RESPONSE;
+  }
+
+  try {
+    return await buildProductsResponse(options);
+  } catch {
+    return SAMPLE_PRODUCTS_RESPONSE;
+  }
 }

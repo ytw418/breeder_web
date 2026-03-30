@@ -10,9 +10,9 @@ import {
 } from "@libs/auction-route";
 
 interface Props {
-  params: {
+  params: Promise<{
     id: string;
-  };
+  }>;
 }
 
 const CLOUDFLARE_IMAGE_BASE = "https://imagedelivery.net/OvWZrAz6J6K7n9LKUH5pKw";
@@ -65,7 +65,8 @@ const getAuctionCanonicalUrl = (auctionId: number, title?: string | null) =>
 export const revalidate = 15;
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
-  const auctionId = extractAuctionIdFromPath(params.id);
+  const { id } = await params;
+  const auctionId = extractAuctionIdFromPath(id);
 
   if (Number.isNaN(auctionId)) {
     return {
@@ -225,7 +226,8 @@ const generateBreadcrumbJsonLd = (auction: Awaited<ReturnType<typeof getAuctionF
 };
 
 const page = async ({ params }: Props) => {
-  const auctionId = extractAuctionIdFromPath(params.id);
+  const { id } = await params;
+  const auctionId = extractAuctionIdFromPath(id);
   if (Number.isNaN(auctionId)) {
     notFound();
   }
