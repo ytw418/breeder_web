@@ -10,7 +10,7 @@ import { SESSION_COOKIE_NAME } from "@libs/constants";
  * @returns 세션에 저장된 유저 정보
  */
 export async function getSessionUser(): Promise<SessionUser | null> {
-  const nextCookies = cookies();
+  const nextCookies = await cookies();
   const found = nextCookies.get(SESSION_COOKIE_NAME);
 
   if (!found) return null;

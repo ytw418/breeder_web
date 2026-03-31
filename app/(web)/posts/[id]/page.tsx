@@ -20,9 +20,10 @@ const getPostCanonical = (id: number, title?: string | null) =>
 export async function generateMetadata({
   params,
 }: {
-  params: { id: string };
+  params: Promise<{ id: string }>;
 }): Promise<Metadata> {
-  const postId = extractPostIdFromPath(params.id);
+  const { id } = await params;
+  const postId = extractPostIdFromPath(id);
   if (Number.isNaN(postId)) {
     return {
       title: "게시글을 찾을 수 없습니다 | 브리디",
@@ -111,7 +112,8 @@ export async function generateMetadata({
   };
 }
 
-const page = async ({ params: { id } }: { params: { id: string } }) => {
+const page = async ({ params }: { params: Promise<{ id: string }> }) => {
+  const { id } = await params;
   const postId = extractPostIdFromPath(id);
   if (Number.isNaN(postId)) {
     notFound();

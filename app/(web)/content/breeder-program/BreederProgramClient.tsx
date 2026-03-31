@@ -36,17 +36,17 @@ const PROGRAM_CARDS = [
 ];
 
 type BreederProgramClientProps = {
-  foundingBreederCount: number;
+  foundingBreederCount: number | null;
 };
 
 const BreederProgramClient = ({
   foundingBreederCount,
 }: BreederProgramClientProps) => {
-  const remainingSlots = Math.max(
-    0,
-    FOUNDING_BREEDER_LIMIT - foundingBreederCount
-  );
-  const isSoldOut = remainingSlots <= 0;
+  const hasFoundingBreederCount = foundingBreederCount !== null;
+  const remainingSlots = hasFoundingBreederCount
+    ? Math.max(0, FOUNDING_BREEDER_LIMIT - foundingBreederCount)
+    : null;
+  const isSoldOut = remainingSlots === 0;
 
   return (
     <Layout canGoBack title="브리더 프로그램" seoTitle="브리더 프로그램">
@@ -67,9 +67,11 @@ const BreederProgramClient = ({
 
             <div className="mt-4 flex flex-wrap gap-2">
               <span className="rounded-full bg-white/10 px-3 py-1 text-[11px] font-semibold text-white">
-                {isSoldOut
-                  ? "창립 브리더 100인 마감"
-                  : `창립 브리더 잔여 ${remainingSlots}석`}
+                {hasFoundingBreederCount
+                  ? isSoldOut
+                    ? "창립 브리더 100인 마감"
+                    : `창립 브리더 잔여 ${remainingSlots}석`
+                  : "창립 브리더 현황 집계 중"}
               </span>
               <span className="rounded-full bg-white/10 px-3 py-1 text-[11px] font-semibold text-white">
                 평생 경매 수수료 무료
@@ -144,9 +146,11 @@ const BreederProgramClient = ({
                 강한 프레임과 뱃지를 받습니다.
               </p>
               <p className="mt-2 text-sm font-semibold text-amber-900">
-                {isSoldOut
-                  ? "현재 100인 모집이 마감되었습니다."
-                  : `현재 ${foundingBreederCount}명 선정 · 잔여 ${remainingSlots}석`}
+                {hasFoundingBreederCount
+                  ? isSoldOut
+                    ? "현재 100인 모집이 마감되었습니다."
+                    : `현재 ${foundingBreederCount}명 선정 · 잔여 ${remainingSlots}석`
+                  : "현재 창립 브리더 현황을 확인하는 중입니다."}
               </p>
             </section>
 

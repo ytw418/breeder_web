@@ -3,7 +3,7 @@ import withHandler, { ResponseType } from "@libs/server/withHandler";
 import { withApiSession } from "@libs/server/withSession";
 import client from "@libs/server/client";
 import { role as UserRole, UserStatus } from "@prisma/client";
-import { canRunSensitiveAdminAction, hasAdminAccess } from "./_utils";
+import { canRunSensitiveAdminAction, hasAdminAccess } from "@libs/server/adminAccess";
 import { randomUUID } from "crypto";
 
 const ROLE_OPTIONS: UserRole[] = ["USER", "FAKE_USER", "ADMIN", "SUPER_USER"];

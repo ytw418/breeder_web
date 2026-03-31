@@ -3,7 +3,7 @@ import withHandler, { ResponseType } from "@libs/server/withHandler";
 
 import client from "@libs/server/client";
 import { withApiSession } from "@libs/server/withSession";
-import { hasAdminAccess } from "../../admin/_utils";
+import { hasAdminAccess } from "@libs/server/adminAccess";
 
 async function handler(
   req: NextApiRequest,
