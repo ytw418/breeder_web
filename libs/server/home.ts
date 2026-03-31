@@ -44,6 +44,27 @@ const SAMPLE_BANNERS: HomeBanner[] = [
   },
 ];
 
+const SAMPLE_PRODUCTS_RESPONSE: ProductsResponse = {
+  success: true,
+  products: [],
+  pages: 0,
+};
+
+const SAMPLE_HOME_FEED: HomeFeedResponse = {
+  success: true,
+  heroBreeder: null,
+  heroBreederMode: "weekly",
+  topAuctionsByCategory: [],
+  topAuctionsMode: "week",
+  topBloodlines: [],
+  topBloodlinesMode: "weekly",
+  trendingPosts: [],
+  trendingPostsMode: "24h",
+  myRanking: null,
+  myMissionSummary: [],
+  currentSeasonId: null,
+};
+
 type HomeFeedOptions = {
   userId?: number;
   includePersonalized?: boolean;
@@ -59,6 +80,10 @@ type ProductQueryOptions = {
 
 const getCachedHomeBanners = unstable_cache(
   async () => {
+    if (!process.env.DATABASE_URL) {
+      return SAMPLE_BANNERS;
+    }
+
     const banners = await client.adminBanner.findMany({
       orderBy: { order: "asc" },
     });
@@ -75,6 +100,10 @@ const buildHomeFeed = async ({
   userId,
   includePersonalized = true,
 }: HomeFeedOptions = {}): Promise<HomeFeedResponse> => {
+  if (!process.env.DATABASE_URL) {
+    return SAMPLE_HOME_FEED;
+  }
+
   const resolvedUserId = includePersonalized ? userId : undefined;
   const season = await ensureCurrentWeeklySeason();
 
@@ -232,7 +261,13 @@ const buildProductsResponse = async ({
 };
 
 const getCachedDefaultProducts = unstable_cache(
-  async () => buildProductsResponse({ page: 1, size: 10 }),
+  async () => {
+    if (!process.env.DATABASE_URL) {
+      return SAMPLE_PRODUCTS_RESPONSE;
+    }
+
+    return buildProductsResponse({ page: 1, size: 10 });
+  },
   ["home-products-default"],
   {
     revalidate: 60 * 60, // 1시간
@@ -261,6 +296,10 @@ export async function getProductsResponse(options: ProductQueryOptions = {}) {
 
   if (isDefaultFirstPage) {
     return getCachedDefaultProducts();
+  }
+
+  if (!process.env.DATABASE_URL) {
+    return SAMPLE_PRODUCTS_RESPONSE;
   }
 
   return buildProductsResponse(options);

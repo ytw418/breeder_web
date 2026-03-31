@@ -352,6 +352,7 @@ export default function MainLayout({
                 alt="로고"
                 width={32}
                 height={32}
+                priority
                 className="rounded-lg ring-1 ring-slate-200 dark:ring-slate-700"
               />
             </Link>

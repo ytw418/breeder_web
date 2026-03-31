@@ -21,18 +21,26 @@ declare module "iron-session" {
   }
 }
 
-const sessionOptions: IronSessionOptions = {
-  cookieName: SESSION_COOKIE_NAME,
-  password: process.env.COOKIE_PASSWORD!,
-  cookieOptions: {
-    secure: process.env.NODE_ENV === "production",
-    maxAge: 60 * 60 * 24, // "1d"; Indicates the number of seconds until the cookie expires. A zero or negative number will expire the cookie immediately. If both Expires and Max-Age are set, Max-Age has precedence.
-  },
-};
+function getSessionOptions(): IronSessionOptions {
+  const password = process.env.COOKIE_PASSWORD;
+
+  if (!password) {
+    throw new Error("COOKIE_PASSWORD 환경변수가 설정되어 있지 않습니다.");
+  }
+
+  return {
+    cookieName: SESSION_COOKIE_NAME,
+    password,
+    cookieOptions: {
+      secure: process.env.NODE_ENV === "production",
+      maxAge: 60 * 60 * 24, // "1d"; Indicates the number of seconds until the cookie expires. A zero or negative number will expire the cookie immediately. If both Expires and Max-Age are set, Max-Age has precedence.
+    },
+  };
+}
 
 // https://github.com/vvo/iron-session#nextjs-withironsessionapiroutehandler-ironoptions
 export function withApiSession(fn: any) {
-  return withIronSessionApiRoute(fn, sessionOptions);
+  return withIronSessionApiRoute(fn, () => getSessionOptions());
 }
 
 // Theses types are compatible with InferGetStaticPropsType https://nextjs.org/docs/basic-features/data-fetching#typescript-use-getstaticprops
@@ -43,5 +51,5 @@ export function withSessionSsr<
     context: GetServerSidePropsContext
   ) => GetServerSidePropsResult<P> | Promise<GetServerSidePropsResult<P>>
 ) {
-  return withIronSessionSsr(handler, sessionOptions);
+  return withIronSessionSsr(handler, () => getSessionOptions());
 }

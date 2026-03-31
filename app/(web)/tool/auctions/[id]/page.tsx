@@ -3,13 +3,14 @@ import AuctionDetailClient from "../../../auctions/[id]/AuctionDetailClient";
 import { extractAuctionIdFromPath, toAuctionPath } from "@libs/auction-route";
 
 interface Props {
-  params: {
+  params: Promise<{
     id: string;
-  };
+  }>;
 }
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
-  const auctionId = extractAuctionIdFromPath(params.id);
+  const { id } = await params;
+  const auctionId = extractAuctionIdFromPath(id);
   const canonical = Number.isNaN(auctionId)
     ? "https://bredy.app/auctions"
     : `https://bredy.app${toAuctionPath(auctionId)}`;

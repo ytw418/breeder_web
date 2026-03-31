@@ -41,10 +41,11 @@ const loadPayload = async (type: string, id: number) => {
 
 export async function GET(
   _: Request,
-  { params }: { params: { type: string; id: string } }
+  { params }: { params: Promise<{ type: string; id: string }> }
 ) {
-  const id = Number(params.id);
-  const payload = await loadPayload(params.type, id);
+  const { type, id: rawId } = await params;
+  const id = Number(rawId);
+  const payload = await loadPayload(type, id);
 
   return new ImageResponse(
     (

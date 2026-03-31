@@ -1,7 +1,7 @@
 import { NextApiRequest, NextApiResponse } from "next";
 import withHandler, { ResponseType } from "@libs/server/withHandler";
 import { withApiSession } from "@libs/server/withSession";
-import { hasAdminAccess } from "./_utils";
+import { hasAdminAccess } from "@libs/server/adminAccess";
 import client from "@libs/server/client";
 import { getHomeBanners } from "@libs/server/home";
 import { HomeBanner } from "@libs/shared/home";

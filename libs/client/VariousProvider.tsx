@@ -3,6 +3,8 @@ import { useRouter } from "next/navigation";
 import {
   createContext,
   Dispatch,
+  ReactElement,
+  ReactNode,
   SetStateAction,
   useContext,
   useEffect,
@@ -18,8 +20,8 @@ export interface VariousContextValues {
   setOpenModal: Dispatch<SetStateAction<boolean>>;
   openLinkModal: boolean;
   setOpenLinkModal: Dispatch<SetStateAction<boolean>>;
-  modalContent: null | JSX.Element;
-  setModalContent: Dispatch<SetStateAction<null | JSX.Element>>;
+  modalContent: null | ReactElement;
+  setModalContent: Dispatch<SetStateAction<null | ReactElement>>;
   modalLink: string;
   setModalLink: Dispatch<SetStateAction<string>>;
   confirmCloseModal: boolean;
@@ -33,14 +35,14 @@ export const VariousContext = createContext({} as VariousContextValues);
 export const VariousProvider = ({
   children,
 }: {
-  children: React.ReactNode;
+  children: ReactNode;
 }) => {
   const [hasInput, setHasInput] = useState(false);
   const [openModal, setOpenModal] = useState(false);
   const [openLinkModal, setOpenLinkModal] = useState(false);
   const [confirmCloseModal, setConfirmCloseModal] = useState(false);
   const [modalLink, setModalLink] = useState("");
-  const [modalContent, setModalContent] = useState<null | JSX.Element>(null);
+  const [modalContent, setModalContent] = useState<null | ReactElement>(null);
   const [backgroundCloseModal, setBackgroundCloseModal] = useState(true);
   const router = useRouter();
 
