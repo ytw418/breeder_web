@@ -3,7 +3,6 @@ import { notFound } from "next/navigation";
 import { getProduct } from "@libs/server/apis";
 import { extractProductId, getProductPath } from "@libs/product-route";
 import ProductClient from "./ProductClient";
-import client from "@libs/server/client";
 import Script from "next/script";
 import Image from "@components/atoms/Image";
 
@@ -25,39 +24,7 @@ interface Props {
   }>;
 }
 
-/**
- * 정적 페이지 생성을 위한 함수
- * - 빌드 시점에 모든 상품 페이지의 경로를 미리 생성
- * - SEO에 유리하며 페이지 로딩 속도 향상
- */
-export async function generateStaticParams() {
-  if (!process.env.DATABASE_URL) {
-    return [];
-  }
-
-  try {
-    const products = await client.product.findMany({
-      select: {
-        id: true,
-        name: true,
-      },
-    });
-
-    return products.map((product) => ({
-      id: `${product.id}_${product.name}`,
-    }));
-  } catch {
-    return [];
-  }
-}
-
-/**
- * 정적 페이지 재생성 주기 설정
- * - 60초마다 페이지 재생성
- * - ISR(Incremental Static Regeneration) 사용
- * - 실시간성과 성능의 균형 유지
- */
-export const revalidate = 60;
+export const dynamic = "force-dynamic";
 
 /**
  * 동적 메타데이터 생성
@@ -68,7 +35,7 @@ export const revalidate = 60;
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { id } = await params;
   const productId = extractProductId(id);
-  const data = await getProduct(productId, { mode: "isr", revalidateSeconds: 60 });
+  const data = await getProduct(productId);
 
   if (!data.success || !data.product) {
     return {
@@ -212,7 +179,7 @@ function generateBreadcrumbJsonLd(product: any) {
 export default async function ProductPage({ params }: Props) {
   const { id } = await params;
   const productId = extractProductId(id);
-  const data = await getProduct(productId, { mode: "isr", revalidateSeconds: 60 });
+  const data = await getProduct(productId);
 
   if (!data.success || !data.product) {
     notFound();
