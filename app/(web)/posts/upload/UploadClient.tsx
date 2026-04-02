@@ -113,6 +113,12 @@ const UploadClient = () => {
         },
       });
 
+      if ((result as any).status === 401) {
+        toast.error("로그인이 필요합니다.");
+        router.push(`/auth/login?next=${encodeURIComponent("/posts/upload")}`);
+        return;
+      }
+
       if (result.success && result.post?.id) {
         toast.success("게시글이 등록되었습니다.");
         router.push(toPostPath(result.post.id, result.post.title));
