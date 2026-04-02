@@ -33,7 +33,7 @@ function getSessionOptions(): IronSessionOptions {
     password,
     cookieOptions: {
       secure: process.env.NODE_ENV === "production",
-      maxAge: 60 * 60 * 24, // "1d"; Indicates the number of seconds until the cookie expires. A zero or negative number will expire the cookie immediately. If both Expires and Max-Age are set, Max-Age has precedence.
+      maxAge: 60 * 60 * 24 * 365,
     },
   };
 }

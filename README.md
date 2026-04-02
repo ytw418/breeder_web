@@ -1,6 +1,6 @@
 # Bredy Web
 
-[![Next.js](https://img.shields.io/badge/Next.js-14-000000?logo=nextdotjs&logoColor=white)](https://nextjs.org/)
+[![Next.js](https://img.shields.io/badge/Next.js-16-000000?logo=nextdotjs&logoColor=white)](https://nextjs.org/)
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.1-3178C6?logo=typescript&logoColor=white)](https://www.typescriptlang.org/)
 [![Prisma](https://img.shields.io/badge/Prisma-ORM-2D3748?logo=prisma&logoColor=white)](https://www.prisma.io/)
 [![Playwright](https://img.shields.io/badge/E2E-Playwright-45ba63?logo=playwright&logoColor=white)](https://playwright.dev/)
@@ -21,7 +21,7 @@
 - [Development Rules](#development-rules)
 
 ## Overview
-- Framework: Next.js(App Router + API Routes)
+- Framework: Next.js 16(App Router + Pages API Routes)
 - Language: TypeScript
 - ORM: Prisma + PostgreSQL
 - Auth: `iron-session`
@@ -35,10 +35,11 @@
 - 관리자 페이지(유저/게시글/상품/배너/경매 운영)
 
 ## Tech Stack
-- Frontend: React 18, Next.js 14, Tailwind CSS
+- Frontend: React 18, Next.js 16, Tailwind CSS
 - Backend: Next.js API Routes, Prisma Client
 - Database: PostgreSQL
-- Infra/Integration: Vercel Analytics, Cloudflare Images, Web Push
+- Infra/Integration: Vercel Analytics, Sentry, Cloudflare Images, Web Push
+- Build/Dev: Turbopack, ESLint 9 Flat Config
 - Test: Jest(Unit), Playwright(E2E)
 
 ## Getting Started
@@ -55,6 +56,9 @@ npm install
 
 ### 3) Configure env
 `.env` 파일을 생성하고 아래 값을 설정합니다.
+
+`git worktree`로 별도 작업 디렉터리를 만들었다면 `.env`는 자동으로 복제되지 않습니다.
+필요하면 원본 워크스페이스의 `.env`를 복사하거나 심볼릭 링크로 연결해야 합니다.
 
 ### 4) Prisma
 ```bash
@@ -86,11 +90,13 @@ npm run dev
 
 | Script | Description |
 | --- | --- |
-| `npm run dev` | Next 개발 서버 실행 (`next dev && next lint && tsc --noEmit`) |
-| `npm run build` | 프로덕션 빌드 |
+| `npm run dev` | Next 16 개발 서버 실행 (`next dev`, Turbopack 기본 사용) |
+| `npm run build` | ESLint + 타입 체크 + 프로덕션 빌드 |
 | `npm run start` | 프로덕션 서버 시작 |
-| `npm run lint` | ESLint 실행 |
+| `npm run lint` | ESLint 9 Flat Config 기준 검사 (`eslint .`) |
 | `npm run typecheck` | 타입 체크 |
+| `npm run verify:ci` | 기본 품질 게이트 (`lint + typecheck + test`) |
+| `npm run verify:full` | 전체 검증 (`verify:ci + build`) |
 | `npm test` | Jest 테스트 실행 |
 | `npm run test:e2e:help` | E2E 실행 가이드 출력 |
 | `npm run test:e2e:install` | Playwright Chromium 설치(최초 1회) |
@@ -127,6 +133,14 @@ npm run test:e2e:ui
 - Playwright 리포트는 `playwright-report/`에 생성됩니다.
 - `package.json`은 JSON 형식이라 script 항목에 주석을 직접 달 수 없어 `test:e2e:help`를 제공합니다.
 
+## Runtime Conventions
+- 라우팅 가드는 `middleware.ts` 대신 `proxy.ts`를 사용합니다.
+- Sentry 클라이언트 초기화는 `sentry.client.config.ts` 대신 `instrumentation-client.ts`를 사용합니다.
+- App Router 전역 렌더링 오류는 `app/global-error.tsx`에서 처리합니다.
+- `robots.txt` 정적 파일 대신 `app/robots.ts`를 사용합니다.
+- SVG 컴포넌트 import는 `next.config.js`의 `turbopack.rules`와 `@svgr/webpack` 기준으로 동작합니다.
+- `next lint`는 사용하지 않고 `npm run lint`로 검사합니다.
+
 ## Project Structure
 ```text
 app/                App Router pages and layouts
@@ -141,11 +155,11 @@ docs/               Internal project docs
 ```
 
 ## API Docs
-- 상품 API 문서: `pages/api/products.md`
-- 유저 API 문서: `pages/api/users.md`
+- 상품 API 문서: [pages/api/products.md](/Users/yoonseongjun/Desktop/pro/breeder_web/pages/api/products.md)
+- 유저 API 문서: [pages/api/users.md](/Users/yoonseongjun/Desktop/pro/breeder_web/pages/api/users.md)
 
 ## Development Rules
-- 프로젝트 룰: `.cursor/rules/`
+- 프로젝트 룰: [AGENTS.md](/Users/yoonseongjun/Desktop/pro/breeder_web/AGENTS.md), `.cursor/rules/`
 - API 룰: `.cursor/rules/api-rule.mdc`
 - 페이지 룰: `.cursor/rules/page-rule.mdc`
 - DB 접근은 `libs/server/client.ts`를 통해 수행
