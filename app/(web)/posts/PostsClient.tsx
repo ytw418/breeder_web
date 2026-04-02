@@ -18,6 +18,7 @@ import { useInfiniteScroll } from "hooks/useInfiniteScroll";
 import { cn, getTimeAgoString, makeImageUrl } from "@libs/client/utils";
 import { toPostPath } from "@libs/post-route";
 import { POST_CATEGORIES } from "@libs/constants";
+import { ANALYTICS_EVENTS, trackEvent } from "@libs/client/analytics";
 import { PostsListResponse } from "pages/api/posts";
 import { TOP_LEVEL_CATEGORIES } from "@libs/categoryTaxonomy";
 import { NoticePostsResponse } from "pages/api/posts/notices";
@@ -129,16 +130,28 @@ export default function PostsClient() {
 
   // 카테고리 변경 시 데이터 리셋
   const handleCategoryChange = (categoryId: string) => {
+    trackEvent(ANALYTICS_EVENTS.postsCategorySelected, {
+      selected_category: categoryId,
+      previous_category: selectedCategory,
+    });
     setSelectedCategory(categoryId);
     setSize(1);
   };
   const handleSortChange = (sortType: SortType) => {
     if (selectedSort === sortType) return;
+    trackEvent(ANALYTICS_EVENTS.postsSortChanged, {
+      selected_sort: sortType,
+      previous_sort: selectedSort,
+    });
     setSelectedSort(sortType);
     setSize(1);
   };
 
   const handleSpeciesChange = (species: string) => {
+    trackEvent(ANALYTICS_EVENTS.postsSpeciesChanged, {
+      selected_species: species,
+      previous_species: selectedSpecies,
+    });
     setSelectedSpecies(species);
     setSize(1);
   };
@@ -147,13 +160,13 @@ export default function PostsClient() {
   const noticePosts = noticeData?.posts ?? [];
   const displayNotices =
     noticePosts.length > 0
-      ? noticePosts.slice(0, 2).map((post) => ({
+      ? noticePosts.slice(0, 1).map((post) => ({
           id: `notice-${post.id}`,
           label: "공지",
           title: post.title,
           href: toPostPath(post.id, post.title),
         }))
-      : NOTICE_BANNERS.map((notice) => ({
+      : NOTICE_BANNERS.slice(0, 1).map((notice) => ({
           id: notice.id,
           label: notice.label,
           title: notice.title,
@@ -199,10 +212,12 @@ export default function PostsClient() {
         </section>
 
         {/* 2. 글 카테고리 탭 (primary - scrollable) */}
-        <div className="app-rail flex gap-1.5 px-4 py-2">
+        <div className="app-rail flex gap-1.5 px-4 py-2" role="tablist" aria-label="글 카테고리">
           {TABS.map((tab) => (
             <button
               key={tab.id}
+              role="tab"
+              aria-selected={selectedCategory === tab.id}
               onClick={() => handleCategoryChange(tab.id)}
               className={cn(
                 "shrink-0 rounded-full px-3 py-1.5 text-sm font-medium transition-colors",
@@ -222,6 +237,7 @@ export default function PostsClient() {
           <select
             value={selectedSpecies}
             onChange={(e) => handleSpeciesChange(e.target.value)}
+            aria-label="종 필터"
             className="h-8 rounded-lg border border-slate-200 bg-white px-2.5 text-xs font-medium text-slate-600"
           >
             <option value="전체">전체 종</option>
@@ -232,6 +248,7 @@ export default function PostsClient() {
           <select
             value={selectedSort}
             onChange={(e) => handleSortChange(e.target.value as SortType)}
+            aria-label="정렬 기준"
             className="h-8 rounded-lg border border-slate-200 bg-white px-2.5 text-xs font-medium text-slate-600"
           >
             {SORT_TABS.map((s) => (
@@ -242,9 +259,15 @@ export default function PostsClient() {
 
         {/* 4. Tabbed section: HOT 토론 / TOP 브리디 */}
         <section className="app-section py-2">
-          <div className="flex items-center gap-1 px-4">
+          <div className="flex items-center gap-1 px-4" role="tablist" aria-label="하이라이트 탭">
             <button
-              onClick={() => setActiveHighlightTab("hot")}
+              role="tab"
+              aria-selected={activeHighlightTab === "hot"}
+              aria-controls="highlight-panel-hot"
+              onClick={() => {
+                trackEvent(ANALYTICS_EVENTS.postsHighlightTabChanged, { tab: "hot" });
+                setActiveHighlightTab("hot");
+              }}
               className={cn(
                 "rounded-full px-3 py-1.5 text-sm font-semibold transition-colors",
                 activeHighlightTab === "hot"
@@ -255,7 +278,13 @@ export default function PostsClient() {
               🔥 HOT 토론
             </button>
             <button
-              onClick={() => setActiveHighlightTab("breeder")}
+              role="tab"
+              aria-selected={activeHighlightTab === "breeder"}
+              aria-controls="highlight-panel-breeder"
+              onClick={() => {
+                trackEvent(ANALYTICS_EVENTS.postsHighlightTabChanged, { tab: "breeder" });
+                setActiveHighlightTab("breeder");
+              }}
               className={cn(
                 "rounded-full px-3 py-1.5 text-sm font-semibold transition-colors",
                 activeHighlightTab === "breeder"
@@ -270,11 +299,20 @@ export default function PostsClient() {
             {activeHighlightTab === "hot" ? (
               /* HOT 토론 content */
               homeFeedData?.hotDiscussions?.length ? (
-                <div className="px-4 flex flex-col gap-2.5">
+                <div id="highlight-panel-hot" role="tabpanel" className="px-4 flex flex-col gap-2.5">
                   {homeFeedData.hotDiscussions.map((item: HotDiscussionItem, index: number) => (
                     <Link
                       key={item.id}
                       href={toPostPath(item.id, item.title)}
+                      onClick={() =>
+                        trackEvent(ANALYTICS_EVENTS.postsHotDiscussionClicked, {
+                          post_id: item.id,
+                          post_title: item.title,
+                          rank_index: index + 1,
+                          comments_count: item.commentsCount,
+                          wonder_count: item.wonderCount,
+                        })
+                      }
                       className="app-card app-card-interactive flex items-start gap-3 p-3.5"
                     >
                       <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-rose-50 text-sm font-black text-rose-500">
@@ -313,19 +351,42 @@ export default function PostsClient() {
                   ))}
                 </div>
               ) : (
-                <div className="app-body-sm text-slate-400 px-5 py-4">
-                  실시간 HOT 토론이 없습니다.
+                <div id="highlight-panel-hot" role="tabpanel" className="mx-4 rounded-2xl border-2 border-dashed border-slate-200 bg-slate-50/60 px-5 py-6 text-center dark:border-slate-700 dark:bg-slate-800/40">
+                  <p className="text-2xl">💬</p>
+                  <p className="mt-2 text-sm font-semibold text-slate-700 dark:text-slate-200">
+                    아직 실시간 HOT 토론이 없어요
+                  </p>
+                  <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
+                    첫 번째 토론의 주인공이 되어보세요!
+                  </p>
+                  <Link
+                    href="/posts/upload"
+                    className="mt-3 inline-flex items-center gap-1 rounded-full bg-rose-500 px-4 py-2 text-xs font-semibold text-white shadow-sm transition-colors hover:bg-rose-600"
+                  >
+                    <svg className="h-3.5 w-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 4v16m8-8H4" />
+                    </svg>
+                    토론 만들기
+                  </Link>
                 </div>
               )
             ) : (
               /* TOP 브리디 content */
-              <div className="app-rail flex gap-2.5 px-4">
+              <div id="highlight-panel-breeder" role="tabpanel" className="app-rail flex gap-2.5 px-4">
                 {bredyData ? (
                   bredyRanking.length > 0 ? (
                     bredyRanking.map((bredy, index) => (
                       <Link
                         key={bredy.user.id}
                         href={`/profiles/${bredy.user.id}`}
+                        onClick={() =>
+                          trackEvent(ANALYTICS_EVENTS.postsBreederTabClicked, {
+                            breeder_id: bredy.user.id,
+                            breeder_name: bredy.user.name,
+                            rank_index: index + 1,
+                            score: bredy.score,
+                          })
+                        }
                         className="snap-start shrink-0 w-72 app-card app-card-interactive px-2.5 py-2"
                       >
                         <div className="flex items-center justify-between">

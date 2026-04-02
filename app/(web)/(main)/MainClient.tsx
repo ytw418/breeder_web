@@ -17,8 +17,6 @@ import { cn, makeImageUrl } from "@libs/client/utils";
 import { CATEGORIES } from "@libs/constants";
 import { ANALYTICS_EVENTS, trackEvent } from "@libs/client/analytics";
 import useUser from "hooks/useUser";
-import { toAuctionPath } from "@libs/auction-route";
-import { toPostPath } from "@libs/post-route";
 import { FreeProductItem, HomeFeedResponse } from "@libs/shared/ranking";
 import { HomeBanner, ProductsResponse } from "@libs/shared/home";
 
@@ -66,9 +64,6 @@ const formatRankDelta = (rankDelta: number) => {
   return "유지";
 };
 
-const formatGrowthRate = (growthRate: number) => {
-  return `${growthRate >= 0 ? "+" : ""}${Math.round(growthRate * 100)}%`;
-};
 
 const toRankingHref = (tab: "breeders" | "auctions" | "bloodlines" | "community", period: "weekly" | "all") =>
   `/ranking?tab=${tab}&period=${period}`;
@@ -275,7 +270,7 @@ const MainClient = ({
           onScroll={handleBannerScroll}
           className="app-rail flex gap-0"
         >
-            {banners.map((banner: any) => (
+            {banners.map((banner) => (
               <Link
                 key={banner.id}
                 href={banner.href}
@@ -306,7 +301,7 @@ const MainClient = ({
 
         </div>
         <div className="mt-3 flex items-center justify-center gap-1.5">
-          {banners.map((banner: any, index: number) => (
+          {banners.map((banner, index: number) => (
             <button
               key={banner.id}
               onClick={() => scrollToBanner(index)}
