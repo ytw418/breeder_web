@@ -315,7 +315,47 @@ const MainClient = ({
         </div>
       </section>
 
-      {/* Section 2: TOP 브리더 hero card */}
+      {/* Section 2: 혈통카드 공유 챌린지 (compact) */}
+      <section className="app-section app-reveal app-reveal-1 py-2">
+        <div className="relative mx-5 overflow-hidden rounded-2xl bg-gradient-to-br from-amber-400 via-orange-400 to-rose-500 p-3 text-white shadow-lg">
+          <div className="pointer-events-none absolute -right-4 -top-4 h-16 w-16 rounded-full bg-white/15 blur-xl" />
+          <div className="flex items-center justify-between gap-3">
+            <div className="min-w-0 flex-1">
+              <div className="flex items-center gap-2">
+                <span className="inline-flex items-center rounded-full bg-white/25 px-2 py-0.5 text-[9px] font-bold uppercase tracking-widest">
+                  이벤트
+                </span>
+                <h3 className="text-sm font-black leading-tight">혈통카드 공유 챌린지</h3>
+              </div>
+              <p className="mt-1 text-[11px] leading-snug text-white/90">
+                내 혈통카드를 공유하고 특별 배지를 받으세요!
+              </p>
+            </div>
+            <div className="flex shrink-0 gap-1.5">
+              <Link
+                href="/bloodline-management"
+                onClick={() =>
+                  trackEvent(ANALYTICS_EVENTS.challengeJoin, {
+                    challenge_id: "bloodline_card_share",
+                    entry_type: user ? "member" : "guest",
+                  })
+                }
+                className="inline-flex h-7 items-center rounded-full bg-white px-3 text-[11px] font-bold text-orange-600"
+              >
+                보기
+              </Link>
+              <Link
+                href="/bloodline-cards/create"
+                className="inline-flex h-7 items-center rounded-full border border-white/40 bg-white/20 px-3 text-[11px] font-semibold text-white backdrop-blur-sm"
+              >
+                만들기
+              </Link>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* Section 3: TOP 브리더 hero card */}
       <section className="app-section app-reveal app-reveal-1 py-2">
         <SectionHeader
           title="이번 주 TOP 브리더"
@@ -414,7 +454,7 @@ const MainClient = ({
                 section_id: "auction_ranking",
               })
             }
-            className="app-card app-card-interactive flex flex-col justify-between p-3 min-h-[160px]"
+            className="app-card app-card-interactive flex flex-col gap-2 p-3"
           >
             <div>
               <div className="flex items-center justify-between">
@@ -425,7 +465,7 @@ const MainClient = ({
             </div>
             <div className="mt-2 space-y-1.5">
               {homeFeedData?.topAuctionsByCategory?.length ? (
-                homeFeedData.topAuctionsByCategory.slice(0, 1).map((auction) => (
+                homeFeedData.topAuctionsByCategory.slice(0, 2).map((auction) => (
                   <div key={auction.auctionId} className="flex items-center gap-2">
                     <div className="h-8 w-8 shrink-0 overflow-hidden rounded-lg bg-slate-100">
                       {auction.photo ? (
@@ -463,7 +503,7 @@ const MainClient = ({
                 section_id: "bloodline_ranking",
               })
             }
-            className="app-card app-card-interactive flex flex-col justify-between p-3 min-h-[160px]"
+            className="app-card app-card-interactive flex flex-col gap-2 p-3"
           >
             <div>
               <div className="flex items-center justify-between">
@@ -474,7 +514,7 @@ const MainClient = ({
             </div>
             <div className="mt-2 space-y-1.5">
               {homeFeedData?.topBloodlines?.length ? (
-                homeFeedData.topBloodlines.slice(0, 1).map((bloodline) => (
+                homeFeedData.topBloodlines.slice(0, 2).map((bloodline) => (
                   <div key={bloodline.bloodlineRootId} className="flex items-center gap-2">
                     <div className="h-8 w-8 shrink-0 overflow-hidden rounded-lg bg-slate-100">
                       {bloodline.image ? (
@@ -514,7 +554,7 @@ const MainClient = ({
                 section_id: "trending_community",
               })
             }
-            className="app-card app-card-interactive flex flex-col justify-between p-3 min-h-[160px]"
+            className="app-card app-card-interactive flex flex-col gap-2 p-3"
           >
             <div>
               <div className="flex items-center justify-between">
@@ -551,7 +591,7 @@ const MainClient = ({
                   section_id: "free_giveaway",
                 })
               }
-              className="app-card app-card-interactive flex flex-col justify-between p-3 min-h-[160px]"
+              className="app-card app-card-interactive flex flex-col gap-2 p-3"
             >
               <div>
                 <div className="flex items-center justify-between">
@@ -585,53 +625,13 @@ const MainClient = ({
           ) : (
             <Link
               href="/products/upload"
-              className="app-card app-card-interactive flex flex-col items-center justify-center p-3 min-h-[160px] text-center"
+              className="app-card app-card-interactive flex flex-col items-center justify-center p-3 text-center"
             >
               <h3 className="text-sm font-bold text-slate-900">무료나눔</h3>
               <p className="mt-2 text-xs text-slate-500">아직 무료나눔이 없어요</p>
               <p className="mt-1 text-[10px] font-semibold text-primary">첫 번째로 등록해보세요 ›</p>
             </Link>
           )}
-        </div>
-      </section>
-
-      {/* Section 4: 혈통카드 공유 챌린지 (compact) */}
-      <section className="app-section app-reveal app-reveal-2 py-2">
-        <div className="relative mx-5 overflow-hidden rounded-2xl bg-gradient-to-br from-amber-400 via-orange-400 to-rose-500 p-3 text-white shadow-lg">
-          <div className="pointer-events-none absolute -right-4 -top-4 h-16 w-16 rounded-full bg-white/15 blur-xl" />
-          <div className="flex items-center justify-between gap-3">
-            <div className="min-w-0 flex-1">
-              <div className="flex items-center gap-2">
-                <span className="inline-flex items-center rounded-full bg-white/25 px-2 py-0.5 text-[9px] font-bold uppercase tracking-widest">
-                  이벤트
-                </span>
-                <h3 className="text-sm font-black leading-tight">혈통카드 공유 챌린지</h3>
-              </div>
-              <p className="mt-1 text-[11px] leading-snug text-white/90">
-                내 혈통카드를 공유하고 특별 배지를 받으세요!
-              </p>
-            </div>
-            <div className="flex shrink-0 gap-1.5">
-              <Link
-                href="/bloodline-management"
-                onClick={() =>
-                  trackEvent(ANALYTICS_EVENTS.challengeJoin, {
-                    challenge_id: "bloodline_card_share",
-                    entry_type: user ? "member" : "guest",
-                  })
-                }
-                className="inline-flex h-7 items-center rounded-full bg-white px-3 text-[11px] font-bold text-orange-600"
-              >
-                보기
-              </Link>
-              <Link
-                href="/bloodline-cards/create"
-                className="inline-flex h-7 items-center rounded-full border border-white/40 bg-white/20 px-3 text-[11px] font-semibold text-white backdrop-blur-sm"
-              >
-                만들기
-              </Link>
-            </div>
-          </div>
         </div>
       </section>
 
