@@ -22,6 +22,7 @@ import { PostsListResponse } from "pages/api/posts";
 import { TOP_LEVEL_CATEGORIES } from "@libs/categoryTaxonomy";
 import { NoticePostsResponse } from "pages/api/posts/notices";
 import { RankingResponse } from "pages/api/ranking";
+import { HotDiscussionItem } from "@libs/shared/ranking";
 
 /** 카테고리 탭 목록 */
 const TABS = [{ id: "전체", name: "전체" }, ...POST_CATEGORIES];
@@ -122,6 +123,10 @@ export default function PostsClient() {
     "/api/ranking?tab=bredy"
   );
   const { data: noticeData } = useSWR<NoticePostsResponse>("/api/posts/notices");
+  const { data: homeFeedData } = useSWR<{ hotDiscussions: HotDiscussionItem[] }>(
+    "/api/home/feed?scope=public",
+    { revalidateOnFocus: false }
+  );
   const page = useInfiniteScroll();
 
   useEffect(() => {
@@ -219,6 +224,55 @@ export default function PostsClient() {
             ))}
           </div>
         </section>
+        {/* 실시간 HOT 토론 */}
+        {homeFeedData?.hotDiscussions?.length ? (
+          <section className="app-section app-reveal app-reveal-1 py-2">
+            <SectionHeader title="실시간 HOT 토론" href="/posts" />
+            <div className="mt-1 px-4 flex flex-col gap-2.5">
+              {homeFeedData.hotDiscussions.map((item: HotDiscussionItem, index: number) => (
+                <Link
+                  key={item.id}
+                  href={toPostPath(item.id, item.title)}
+                  className="app-card app-card-interactive flex items-start gap-3 p-3.5"
+                >
+                  <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-rose-50 text-sm font-black text-rose-500">
+                    {index + 1}
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-center gap-1.5">
+                      {item.category ? (
+                        <span className="rounded-full bg-slate-100 px-1.5 py-0.5 text-[10px] font-medium text-slate-500">
+                          {item.category}
+                        </span>
+                      ) : null}
+                      <span className="inline-flex items-center gap-0.5 rounded-full bg-rose-100 px-1.5 py-0.5 text-[10px] font-bold text-rose-600">
+                        HOT
+                      </span>
+                    </div>
+                    <h3 className="mt-1 line-clamp-2 text-sm font-semibold text-slate-900">{item.title}</h3>
+                    <div className="mt-1.5 flex items-center gap-3 text-[11px] text-slate-500">
+                      <span>{item.user.name}</span>
+                      <span>댓글 {item.commentsCount}</span>
+                      <span>좋아요 {item.wonderCount}</span>
+                    </div>
+                  </div>
+                  {item.image ? (
+                    <div className="h-14 w-14 shrink-0 overflow-hidden rounded-xl bg-slate-100">
+                      <Image
+                        src={makeImageUrl(item.image, "public")}
+                        alt={item.title}
+                        width={56}
+                        height={56}
+                        className="h-full w-full object-cover"
+                      />
+                    </div>
+                  ) : null}
+                </Link>
+              ))}
+            </div>
+          </section>
+        ) : null}
+
         {/* TOP 브리디 */}
         <section className="app-section app-reveal app-reveal-3 py-2">
           <SectionHeader title="TOP 브리디" href="/ranking" />

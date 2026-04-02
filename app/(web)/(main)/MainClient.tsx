@@ -19,7 +19,7 @@ import { ANALYTICS_EVENTS, trackEvent } from "@libs/client/analytics";
 import useUser from "hooks/useUser";
 import { toAuctionPath } from "@libs/auction-route";
 import { toPostPath } from "@libs/post-route";
-import { FreeProductItem, HotDiscussionItem, HomeFeedResponse } from "@libs/shared/ranking";
+import { FreeProductItem, HomeFeedResponse } from "@libs/shared/ranking";
 import { HomeBanner, ProductsResponse } from "@libs/shared/home";
 
 interface BeforeInstallPromptEvent extends Event {
@@ -181,9 +181,8 @@ const MainClient = ({
       "auction_ranking",
       "bloodline_ranking",
       "trending_community",
-      "bloodline_card_share",
+      "bloodline_card",
       "free_giveaway",
-      "hot_discussion",
       "personalized_home",
     ];
     sectionIds.forEach((sectionId, index) => {
@@ -604,7 +603,7 @@ const MainClient = ({
         </div>
       </section>
 
-      {/* 혈통카드 */}
+      {/* 혈통카드 (CTA + 공유 챌린지 통합) */}
       <section className="app-section app-reveal app-reveal-2 py-2">
         <SectionHeader
           title="혈통카드"
@@ -612,7 +611,7 @@ const MainClient = ({
           href="/bloodline-cards/create"
           actionLabel="만들기"
         />
-        <div className="mt-1 px-5">
+        <div className="mt-1 px-5 flex flex-col gap-3">
           <Link
             href="/bloodline-cards/create"
             className="relative overflow-hidden app-card app-card-interactive block border border-white/15 bg-gradient-to-r from-slate-900 via-violet-900 to-indigo-900 p-4 text-white transition duration-200 hover:-translate-y-0.5"
@@ -626,50 +625,46 @@ const MainClient = ({
               대표 혈통을 공개하고 거래/보유 이력을 신뢰 레이어로 연결하세요.
             </p>
           </Link>
-        </div>
-      </section>
-
-      {/* 혈통카드 공유 챌린지 */}
-      <section className="app-section app-reveal app-reveal-2 py-2">
-        <div className="relative mx-5 overflow-hidden rounded-3xl bg-gradient-to-br from-amber-400 via-orange-400 to-rose-500 p-4 text-white shadow-lg">
-          <div className="pointer-events-none absolute -right-4 -top-4 h-20 w-20 rounded-full bg-white/15 blur-xl" />
-          <div className="flex items-start justify-between gap-3">
-            <div className="min-w-0 flex-1">
-              <span className="inline-flex items-center gap-1 rounded-full bg-white/25 px-2 py-0.5 text-[10px] font-bold uppercase tracking-widest">
-                🎁 이벤트
-              </span>
-              <h3 className="mt-2 text-base font-black leading-tight">혈통카드 공유 챌린지</h3>
-              <p className="mt-1 text-xs leading-snug text-white/90">
-                내 혈통카드를 지인에게 선물하거나 커뮤니티에 공유해보세요.
-                활발한 공유자에게 특별 배지가 지급됩니다!
-              </p>
+          <div className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-amber-400 via-orange-400 to-rose-500 p-4 text-white shadow-lg">
+            <div className="pointer-events-none absolute -right-4 -top-4 h-20 w-20 rounded-full bg-white/15 blur-xl" />
+            <div className="flex items-start justify-between gap-3">
+              <div className="min-w-0 flex-1">
+                <span className="inline-flex items-center gap-1 rounded-full bg-white/25 px-2 py-0.5 text-[10px] font-bold uppercase tracking-widest">
+                  이벤트
+                </span>
+                <h3 className="mt-2 text-base font-black leading-tight">혈통카드 공유 챌린지</h3>
+                <p className="mt-1 text-xs leading-snug text-white/90">
+                  내 혈통카드를 지인에게 선물하거나 커뮤니티에 공유해보세요.
+                  활발한 공유자에게 특별 배지가 지급됩니다!
+                </p>
+              </div>
             </div>
-          </div>
-          <div className="mt-3 flex gap-2">
-            <Link
-              href="/bloodline-management"
-              onClick={() =>
-                trackEvent(ANALYTICS_EVENTS.challengeJoin, {
-                  challenge_id: "bloodline_card_share",
-                  entry_type: user ? "member" : "guest",
-                })
-              }
-              className="inline-flex h-8 items-center rounded-full bg-white px-4 text-xs font-bold text-orange-600"
-            >
-              내 혈통카드 보기
-            </Link>
-            <Link
-              href="/bloodline-cards/create"
-              className="inline-flex h-8 items-center rounded-full border border-white/40 bg-white/20 px-4 text-xs font-semibold text-white backdrop-blur-sm"
-            >
-              카드 만들기
-            </Link>
+            <div className="mt-3 flex gap-2">
+              <Link
+                href="/bloodline-management"
+                onClick={() =>
+                  trackEvent(ANALYTICS_EVENTS.challengeJoin, {
+                    challenge_id: "bloodline_card_share",
+                    entry_type: user ? "member" : "guest",
+                  })
+                }
+                className="inline-flex h-8 items-center rounded-full bg-white px-4 text-xs font-bold text-orange-600"
+              >
+                내 혈통카드 보기
+              </Link>
+              <Link
+                href="/bloodline-cards/create"
+                className="inline-flex h-8 items-center rounded-full border border-white/40 bg-white/20 px-4 text-xs font-semibold text-white backdrop-blur-sm"
+              >
+                카드 만들기
+              </Link>
+            </div>
           </div>
         </div>
       </section>
 
       {/* 오늘의 무료나눔 */}
-      <section className="app-section app-reveal app-reveal-2 py-2">
+      <section className="app-section app-reveal app-reveal-3 py-2">
         <SectionHeader
           title="오늘의 무료나눔"
           subtitle="가격 0원 · 지금 바로 연락해보세요"
@@ -718,75 +713,13 @@ const MainClient = ({
               ))}
             </div>
           ) : (
-            <div className="app-card p-4 text-sm text-slate-400">
-              현재 무료나눔 상품이 없습니다. 나중에 다시 확인해보세요!
-            </div>
-          )}
-        </div>
-      </section>
-
-      {/* 실시간 HOT 토론 */}
-      <section className="app-section app-reveal app-reveal-2 py-2">
-        <SectionHeader
-          title="실시간 HOT 토론"
-          subtitle="지금 가장 뜨거운 대화 · 48시간 기준"
-          href="/posts"
-          actionLabel="더보기"
-        />
-        <div className="mt-1 px-5 flex flex-col gap-2.5">
-          {homeFeedData?.hotDiscussions?.length ? (
-            homeFeedData.hotDiscussions.map((item: HotDiscussionItem, index: number) => (
-              <Link
-                key={item.id}
-                href={toPostPath(item.id, item.title)}
-                onClick={() =>
-                  trackEvent(ANALYTICS_EVENTS.rankingCardClick, {
-                    ranking_type: "community",
-                    rank: index + 1,
-                    entity_id: item.id,
-                    section_id: "hot_discussion",
-                  })
-                }
-                className="app-card app-card-interactive flex items-start gap-3 p-3.5"
-              >
-                <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-rose-50 text-sm font-black text-rose-500">
-                  {index + 1}
-                </div>
-                <div className="min-w-0 flex-1">
-                  <div className="flex items-center gap-1.5">
-                    {item.category ? (
-                      <span className="rounded-full bg-slate-100 px-1.5 py-0.5 text-[10px] font-medium text-slate-500">
-                        {item.category}
-                      </span>
-                    ) : null}
-                    <span className="inline-flex items-center gap-0.5 rounded-full bg-rose-100 px-1.5 py-0.5 text-[10px] font-bold text-rose-600">
-                      🔥 HOT
-                    </span>
-                  </div>
-                  <h3 className="mt-1 line-clamp-2 text-sm font-semibold text-slate-900">{item.title}</h3>
-                  <div className="mt-1.5 flex items-center gap-3 text-[11px] text-slate-500">
-                    <span>{item.user.name}</span>
-                    <span>💬 댓글 {item.commentsCount}</span>
-                    <span>👍 {item.wonderCount}</span>
-                  </div>
-                </div>
-                {item.image ? (
-                  <div className="h-14 w-14 shrink-0 overflow-hidden rounded-xl bg-slate-100">
-                    <Image
-                      src={makeImageUrl(item.image, "public")}
-                      alt={item.title}
-                      width={56}
-                      height={56}
-                      className="h-full w-full object-cover"
-                    />
-                  </div>
-                ) : null}
-              </Link>
-            ))
-          ) : (
-            <div className="app-card p-4 text-sm text-slate-400">
-              뜨거운 토론이 시작되면 여기에 표시됩니다. 먼저 글을 올려보세요!
-            </div>
+            <Link
+              href="/products/upload"
+              className="app-card app-card-interactive block p-4 text-center"
+            >
+              <p className="text-sm text-slate-500">아직 무료나눔이 없어요</p>
+              <p className="mt-1 text-xs font-semibold text-primary">첫 번째로 등록해보세요 ›</p>
+            </Link>
           )}
         </div>
       </section>
