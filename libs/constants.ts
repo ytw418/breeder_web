@@ -24,6 +24,7 @@ export const POST_CATEGORIES = [
   { id: "자유", name: "자유" },
   { id: "질문", name: "질문" },
   { id: "정보", name: "정보" },
+  { id: "토론", name: "토론" },
   { id: "자랑", name: "자랑" },
   { id: "후기", name: "후기" },
   { id: "사진", name: "사진" },

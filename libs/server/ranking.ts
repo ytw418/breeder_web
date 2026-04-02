@@ -638,48 +638,74 @@ export const getHotDiscussions = async ({
 }: { limit?: number } = {}): Promise<HotDiscussionItem[]> => {
   const windowStart = new Date(Date.now() - 48 * 60 * 60 * 1000);
 
-  const posts = await client.post.findMany({
-    where: {
-      category: { in: ["질문", "자유", "정보"] },
-      createdAt: { gte: windowStart },
-      user: { status: "ACTIVE" },
+  const selectFields = {
+    id: true,
+    title: true,
+    description: true,
+    image: true,
+    category: true,
+    createdAt: true,
+    _count: {
+      select: { comments: true, Likes: true },
     },
-    select: {
-      id: true,
-      title: true,
-      description: true,
-      image: true,
-      category: true,
-      createdAt: true,
-      _count: {
-        select: { comments: true, Likes: true },
-      },
-      user: {
-        select: { id: true, name: true, avatar: true },
-      },
+    user: {
+      select: { id: true, name: true, avatar: true },
     },
-    orderBy: [{ comments: { _count: "desc" } }, { createdAt: "desc" }],
-    take: limit * 3,
+  } as const;
+
+  // 1) "토론" 카테고리 우선 조회
+  const [discussionPosts, otherPosts] = await Promise.all([
+    client.post.findMany({
+      where: {
+        category: "토론",
+        createdAt: { gte: windowStart },
+        user: { status: "ACTIVE" },
+      },
+      select: selectFields,
+      orderBy: [{ comments: { _count: "desc" } }, { createdAt: "desc" }],
+      take: limit,
+    }),
+    // 2) 나머지 카테고리에서 보충
+    client.post.findMany({
+      where: {
+        category: { in: ["질문", "자유", "정보"] },
+        createdAt: { gte: windowStart },
+        user: { status: "ACTIVE" },
+      },
+      select: selectFields,
+      orderBy: [{ comments: { _count: "desc" } }, { createdAt: "desc" }],
+      take: limit * 3,
+    }),
+  ]);
+
+  const scorePost = (p: { _count: { comments: number; Likes: number } }) =>
+    p._count.comments * 2 + p._count.Likes;
+
+  // "토론" 글은 활동 여부 상관없이 포함, 나머지는 댓글/좋아요 있는 것만
+  const scored = [
+    ...discussionPosts,
+    ...otherPosts.filter(
+      (p) =>
+        (p._count.comments > 0 || p._count.Likes > 0) &&
+        !discussionPosts.some((d) => d.id === p.id)
+    ),
+  ].sort((a, b) => {
+    // "토론" 카테고리 우선
+    const aIsDiscussion = a.category === "토론" ? 1 : 0;
+    const bIsDiscussion = b.category === "토론" ? 1 : 0;
+    if (aIsDiscussion !== bIsDiscussion) return bIsDiscussion - aIsDiscussion;
+    return scorePost(b) - scorePost(a);
   });
 
-  return posts
-    .filter((p) => p._count.comments > 0 || p._count.Likes > 0)
-    .sort(
-      (a, b) =>
-        b._count.comments * 2 +
-        b._count.Likes -
-        (a._count.comments * 2 + a._count.Likes)
-    )
-    .slice(0, limit)
-    .map((p) => ({
-      id: p.id,
-      title: p.title,
-      description: p.description,
-      image: p.image,
-      category: p.category,
-      createdAt: p.createdAt.toISOString(),
-      commentsCount: p._count.comments,
-      wonderCount: p._count.Likes,
-      user: p.user,
-    }));
+  return scored.slice(0, limit).map((p) => ({
+    id: p.id,
+    title: p.title,
+    description: p.description,
+    image: p.image,
+    category: p.category,
+    createdAt: p.createdAt.toISOString(),
+    commentsCount: p._count.comments,
+    wonderCount: p._count.Likes,
+    user: p.user,
+  }));
 };
