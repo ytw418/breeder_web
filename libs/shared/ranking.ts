@@ -123,7 +123,7 @@ export interface HotDiscussionItem {
   id: number;
   title: string;
   description: string;
-  image: string | null;
+  image: string;
   category: string | null;
   createdAt: string;
   commentsCount: number;

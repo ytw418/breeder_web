@@ -181,6 +181,9 @@ const MainClient = ({
       "auction_ranking",
       "bloodline_ranking",
       "trending_community",
+      "bloodline_card_share",
+      "free_giveaway",
+      "hot_discussion",
       "personalized_home",
     ];
     sectionIds.forEach((sectionId, index) => {
@@ -676,10 +679,18 @@ const MainClient = ({
         <div className="mt-1 px-5">
           {homeFeedData?.freeGiveawayProducts?.length ? (
             <div className="app-rail flex gap-3">
-              {homeFeedData.freeGiveawayProducts.map((item: FreeProductItem) => (
+              {homeFeedData.freeGiveawayProducts.map((item: FreeProductItem, index: number) => (
                 <Link
                   key={item.id}
                   href={`/products/${item.id}`}
+                  onClick={() =>
+                    trackEvent(ANALYTICS_EVENTS.rankingCardClick, {
+                      ranking_type: "free_giveaway",
+                      rank: index + 1,
+                      entity_id: item.id,
+                      section_id: "free_giveaway",
+                    })
+                  }
                   className="snap-start shrink-0 w-44 app-card app-card-interactive p-3"
                 >
                   <div className="relative h-28 w-full overflow-hidden rounded-2xl bg-slate-100">
