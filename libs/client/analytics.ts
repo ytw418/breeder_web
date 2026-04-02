@@ -38,6 +38,13 @@ export const ANALYTICS_EVENTS = {
   rankingCardClick: "ranking_card_click",
   challengeJoin: "challenge_join",
   shareCardExport: "share_card_export",
+  // 반려생활 (PostsClient) 이벤트
+  postsCategorySelected: "posts_category_selected",
+  postsSortChanged: "posts_sort_changed",
+  postsSpeciesChanged: "posts_species_changed",
+  postsHotDiscussionClicked: "posts_hot_discussion_clicked",
+  postsBreederTabClicked: "posts_breeder_tab_clicked",
+  postsHighlightTabChanged: "posts_highlight_tab_changed",
   sentryExampleClientErrorClicked: "sentry_example_client_error_clicked",
   sentryExampleApiErrorClicked: "sentry_example_api_error_clicked",
   sentryExampleApiErrorReceived: "sentry_example_api_error_received",

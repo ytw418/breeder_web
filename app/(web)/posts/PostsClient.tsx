@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import Image from "@components/atoms/Image";
 import {
@@ -18,10 +18,12 @@ import { useInfiniteScroll } from "hooks/useInfiniteScroll";
 import { cn, getTimeAgoString, makeImageUrl } from "@libs/client/utils";
 import { toPostPath } from "@libs/post-route";
 import { POST_CATEGORIES } from "@libs/constants";
+import { ANALYTICS_EVENTS, trackEvent } from "@libs/client/analytics";
 import { PostsListResponse } from "pages/api/posts";
 import { TOP_LEVEL_CATEGORIES } from "@libs/categoryTaxonomy";
 import { NoticePostsResponse } from "pages/api/posts/notices";
 import { RankingResponse } from "pages/api/ranking";
+import { HotDiscussionItem } from "@libs/shared/ranking";
 
 /** 카테고리 탭 목록 */
 const TABS = [{ id: "전체", name: "전체" }, ...POST_CATEGORIES];
@@ -32,13 +34,147 @@ const SORT_TABS = [
 ];
 type SortType = (typeof SORT_TABS)[number]["id"];
 
+/** 커스텀 드롭다운 셀렉트 */
+const DropdownSelect = ({
+  value,
+  onChange,
+  options,
+  ariaLabel,
+}: {
+  value: string;
+  onChange: (value: string) => void;
+  options: { value: string; label: string }[];
+  ariaLabel: string;
+}) => {
+  const [open, setOpen] = useState(false);
+  const [focusedIndex, setFocusedIndex] = useState(-1);
+  const ref = useRef<HTMLDivElement>(null);
+  const listRef = useRef<HTMLDivElement>(null);
+  const selectedLabel = options.find((o) => o.value === value)?.label ?? value;
+
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
+    };
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
+
+  useEffect(() => {
+    if (open) {
+      setFocusedIndex(options.findIndex((o) => o.value === value));
+    }
+  }, [open, options, value]);
+
+  useEffect(() => {
+    if (open && focusedIndex >= 0 && listRef.current) {
+      const items = listRef.current.querySelectorAll("[role='option']");
+      (items[focusedIndex] as HTMLElement)?.scrollIntoView({ block: "nearest" });
+    }
+  }, [focusedIndex, open]);
+
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (!open) {
+      if (e.key === "ArrowDown" || e.key === "ArrowUp" || e.key === "Enter" || e.key === " ") {
+        e.preventDefault();
+        setOpen(true);
+      }
+      return;
+    }
+    switch (e.key) {
+      case "Escape":
+        e.preventDefault();
+        setOpen(false);
+        break;
+      case "ArrowDown":
+        e.preventDefault();
+        setFocusedIndex((prev) => (prev + 1) % options.length);
+        break;
+      case "ArrowUp":
+        e.preventDefault();
+        setFocusedIndex((prev) => (prev - 1 + options.length) % options.length);
+        break;
+      case "Enter":
+      case " ":
+        e.preventDefault();
+        if (focusedIndex >= 0) {
+          onChange(options[focusedIndex].value);
+          setOpen(false);
+        }
+        break;
+    }
+  };
+
+  return (
+    <div ref={ref} className="relative">
+      <button
+        type="button"
+        aria-label={ariaLabel}
+        aria-expanded={open}
+        aria-haspopup="listbox"
+        onKeyDown={handleKeyDown}
+        onClick={() => setOpen((prev) => !prev)}
+        className={cn(
+          "flex h-8 items-center gap-1 rounded-full border px-3 text-xs font-medium transition-colors",
+          open
+            ? "border-slate-900 bg-slate-900 text-white"
+            : "border-slate-200 bg-white text-slate-600 hover:border-slate-300"
+        )}
+      >
+        {selectedLabel}
+        <svg className={cn("h-3 w-3 transition-transform", open && "rotate-180")} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7" />
+        </svg>
+      </button>
+      {open && (
+        <div
+          ref={listRef}
+          role="listbox"
+          aria-label={ariaLabel}
+          className="absolute left-0 top-full z-30 mt-1 min-w-[120px] max-h-[240px] overflow-y-auto overflow-hidden rounded-xl border border-slate-200 bg-white py-1 shadow-lg"
+        >
+          {options.map((option, index) => (
+            <button
+              key={option.value}
+              type="button"
+              role="option"
+              aria-selected={value === option.value}
+              onClick={() => {
+                onChange(option.value);
+                setOpen(false);
+              }}
+              onMouseEnter={() => setFocusedIndex(index)}
+              className={cn(
+                "flex w-full items-center px-3 py-2 text-left text-xs transition-colors",
+                value === option.value
+                  ? "bg-slate-50 font-semibold text-slate-900"
+                  : "text-slate-600",
+                focusedIndex === index && value !== option.value && "bg-slate-50"
+              )}
+            >
+              {value === option.value && (
+                <svg className="mr-1.5 h-3 w-3 text-slate-900" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M5 13l4 4L19 7" />
+                </svg>
+              )}
+              {option.label}
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+};
+
 const CATEGORY_ACCENT: Record<string, string> = {
   전체: "bg-slate-500",
-  사진: "bg-slate-500",
-  변이: "bg-slate-500",
-  사육: "bg-slate-500",
-  질문: "bg-slate-500",
-  자유: "bg-slate-500",
+  자유: "bg-emerald-500",
+  질문: "bg-blue-500",
+  정보: "bg-amber-500",
+  자랑: "bg-pink-500",
+  후기: "bg-violet-500",
+  사진: "bg-cyan-500",
+  변이: "bg-rose-500",
 };
 
 const NOTICE_BANNERS = [
@@ -84,26 +220,11 @@ const BACKUP_COMMUNITY_CONTENT: BackupCommunityContent[] = [
   },
 ];
 
-const SectionHeader = ({
-  title,
-  href,
-}: {
-  title: string;
-  href: string;
-}) => (
-  <div className="px-4 flex items-center justify-between">
-    <h2 className="app-section-title">{title}</h2>
-    <Link href={href} className="app-section-link">
-      더보기
-      <span aria-hidden="true">›</span>
-    </Link>
-  </div>
-);
-
 export default function PostsClient() {
   const [selectedCategory, setSelectedCategory] = useState("전체");
   const [selectedSort, setSelectedSort] = useState<SortType>("latest");
   const [selectedSpecies, setSelectedSpecies] = useState("전체");
+  const [activeHighlightTab, setActiveHighlightTab] = useState<"hot" | "breeder">("hot");
 
   const getKey = (
     pageIndex: number,
@@ -122,24 +243,47 @@ export default function PostsClient() {
     "/api/ranking?tab=bredy"
   );
   const { data: noticeData } = useSWR<NoticePostsResponse>("/api/posts/notices");
+  const { data: homeFeedData } = useSWR<{ hotDiscussions: HotDiscussionItem[] }>(
+    "/api/home/feed?scope=public",
+    { revalidateOnFocus: false }
+  );
   const page = useInfiniteScroll();
 
   useEffect(() => {
     setSize(page);
   }, [setSize, page]);
 
+  // Default to "breeder" tab if hotDiscussions is empty
+  useEffect(() => {
+    if (homeFeedData && (!homeFeedData.hotDiscussions || homeFeedData.hotDiscussions.length === 0)) {
+      setActiveHighlightTab("breeder");
+    }
+  }, [homeFeedData]);
+
   // 카테고리 변경 시 데이터 리셋
   const handleCategoryChange = (categoryId: string) => {
+    trackEvent(ANALYTICS_EVENTS.postsCategorySelected, {
+      selected_category: categoryId,
+      previous_category: selectedCategory,
+    });
     setSelectedCategory(categoryId);
     setSize(1);
   };
   const handleSortChange = (sortType: SortType) => {
     if (selectedSort === sortType) return;
+    trackEvent(ANALYTICS_EVENTS.postsSortChanged, {
+      selected_sort: sortType,
+      previous_sort: selectedSort,
+    });
     setSelectedSort(sortType);
     setSize(1);
   };
 
   const handleSpeciesChange = (species: string) => {
+    trackEvent(ANALYTICS_EVENTS.postsSpeciesChanged, {
+      selected_species: species,
+      previous_species: selectedSpecies,
+    });
     setSelectedSpecies(species);
     setSize(1);
   };
@@ -148,13 +292,13 @@ export default function PostsClient() {
   const noticePosts = noticeData?.posts ?? [];
   const displayNotices =
     noticePosts.length > 0
-      ? noticePosts.slice(0, 2).map((post) => ({
+      ? noticePosts.slice(0, 1).map((post) => ({
           id: `notice-${post.id}`,
           label: "공지",
           title: post.title,
           href: toPostPath(post.id, post.title),
         }))
-      : NOTICE_BANNERS.map((notice) => ({
+      : NOTICE_BANNERS.slice(0, 1).map((notice) => ({
           id: notice.id,
           label: notice.label,
           title: notice.title,
@@ -172,7 +316,7 @@ export default function PostsClient() {
   return (
     <Layout icon hasTabBar seoTitle="반려생활" showSearch>
       <div className="app-page flex flex-col h-full">
-        {/* 공지/고정 게시글 */}
+        {/* 1. 공지사항 */}
         <section className="px-4 py-3 space-y-2 app-reveal">
           <div className="flex items-center justify-between pb-1">
             <h2 className="app-section-title">공지사항</h2>
@@ -199,150 +343,255 @@ export default function PostsClient() {
           ))}
         </section>
 
+        {/* 2. 글 카테고리 탭 (primary - scrollable) */}
+        <div className="app-rail flex gap-1.5 px-4 py-2" role="tablist" aria-label="글 카테고리">
+          {TABS.map((tab) => (
+            <button
+              key={tab.id}
+              role="tab"
+              aria-selected={selectedCategory === tab.id}
+              onClick={() => handleCategoryChange(tab.id)}
+              className={cn(
+                "shrink-0 rounded-full px-3 py-1.5 text-sm font-medium transition-colors",
+                selectedCategory === tab.id
+                  ? "bg-slate-900 text-white"
+                  : "bg-slate-100 text-slate-500"
+              )}
+            >
+              <span className={cn("mr-1 inline-block h-2 w-2 rounded-full", CATEGORY_ACCENT[tab.id] ?? "bg-slate-400")} />
+              {tab.name}
+            </button>
+          ))}
+        </div>
 
-        <section className="px-4 pb-2 app-reveal">
-          <div className="flex items-center gap-2 overflow-x-auto pb-1">
-            {[{ id: "전체", name: "전체" }, ...TOP_LEVEL_CATEGORIES].map((species) => (
-              <button
-                key={species.id}
-                type="button"
-                onClick={() => handleSpeciesChange(species.id)}
-                className={cn(
-                  "shrink-0 rounded-full border px-3 py-1 text-xs font-medium transition-colors",
-                  selectedSpecies === species.id
-                    ? "border-primary bg-primary text-white"
-                    : "border-slate-200 bg-white text-slate-500"
-                )}
-              >
-                {species.name}
-              </button>
-            ))}
+        {/* 3. 종 필터 + 정렬 드롭다운 (secondary - compact row) */}
+        <div className="flex items-center gap-2 px-4 py-1.5">
+          <DropdownSelect
+            value={selectedSpecies}
+            onChange={handleSpeciesChange}
+            ariaLabel="종 필터"
+            options={[
+              { value: "전체", label: "전체 종" },
+              ...TOP_LEVEL_CATEGORIES.map((s) => ({ value: s.id, label: s.name })),
+            ]}
+          />
+          <DropdownSelect
+            value={selectedSort}
+            onChange={(v) => handleSortChange(v as SortType)}
+            ariaLabel="정렬 기준"
+            options={SORT_TABS.map((s) => ({ value: s.id, label: s.name }))}
+          />
+        </div>
+
+        {/* 4. Tabbed section: HOT 토론 / TOP 브리디 */}
+        <section className="app-section py-2">
+          <div className="flex items-center gap-1 px-4" role="tablist" aria-label="하이라이트 탭">
+            <button
+              role="tab"
+              aria-selected={activeHighlightTab === "hot"}
+              aria-controls="highlight-panel-hot"
+              onClick={() => {
+                trackEvent(ANALYTICS_EVENTS.postsHighlightTabChanged, { tab: "hot" });
+                setActiveHighlightTab("hot");
+              }}
+              className={cn(
+                "rounded-full px-3 py-1.5 text-sm font-semibold transition-colors",
+                activeHighlightTab === "hot"
+                  ? "bg-rose-500 text-white"
+                  : "bg-slate-100 text-slate-500"
+              )}
+            >
+              <span aria-hidden="true">🔥</span> HOT 토론
+            </button>
+            <button
+              role="tab"
+              aria-selected={activeHighlightTab === "breeder"}
+              aria-controls="highlight-panel-breeder"
+              onClick={() => {
+                trackEvent(ANALYTICS_EVENTS.postsHighlightTabChanged, { tab: "breeder" });
+                setActiveHighlightTab("breeder");
+              }}
+              className={cn(
+                "rounded-full px-3 py-1.5 text-sm font-semibold transition-colors",
+                activeHighlightTab === "breeder"
+                  ? "bg-amber-500 text-white"
+                  : "bg-slate-100 text-slate-500"
+              )}
+            >
+              <span aria-hidden="true">🏆</span> TOP 브리디
+            </button>
           </div>
-        </section>
-        {/* TOP 브리디 */}
-        <section className="app-section app-reveal app-reveal-3 py-2">
-          <SectionHeader title="TOP 브리디" href="/ranking" />
-          <div className="app-rail mt-2 flex gap-2.5 px-4">
-            {bredyData ? (
-              bredyRanking.length > 0 ? (
-                bredyRanking.map((bredy, index) => (
-                  <Link
-                    key={bredy.user.id}
-                    href={`/profiles/${bredy.user.id}`}
-                    className="snap-start shrink-0 w-40 app-card app-card-interactive px-2.5 py-2"
-                  >
-                    <div className="flex items-center justify-between">
-                      {index < 3 ? (
-                        <span className="text-xs leading-none">
-                          {index === 0 ? "🥇" : index === 1 ? "🥈" : "🥉"}
-                        </span>
-                      ) : (
-                        <span className="app-caption text-[11px] font-semibold text-slate-500">
-                          {index + 1}위
-                        </span>
-                      )}
-                      <span className="app-caption text-[11px]">점수</span>
-                    </div>
-                    <div className="mt-2 flex items-center gap-2">
-                      {bredy.user.avatar ? (
-                        <Image
-                          src={makeImageUrl(bredy.user.avatar, "avatar")}
-                          className="w-7 h-7 rounded-full object-cover"
-                          width={36}
-                          height={36}
-                          alt=""
-                        />
-                      ) : (
-                        <div className="w-7 h-7 rounded-full bg-slate-200" />
-                      )}
-                      <div className="min-w-0">
-                        <p className="text-sm font-semibold tracking-tight text-slate-900 truncate">
-                          {bredy.user.name}
-                        </p>
-                        <p className="app-caption text-[11px]">
-                          ❤️ {bredy.totalLikes}
-                        </p>
+          <div className="mt-2">
+            {/* HOT 토론 panel */}
+            <div
+              id="highlight-panel-hot"
+              role="tabpanel"
+              hidden={activeHighlightTab !== "hot"}
+            >
+              {homeFeedData?.hotDiscussions?.length ? (
+                <div className="px-4 flex flex-col gap-2.5">
+                  {homeFeedData.hotDiscussions.map((item: HotDiscussionItem, index: number) => (
+                    <Link
+                      key={item.id}
+                      href={toPostPath(item.id, item.title)}
+                      onClick={() =>
+                        trackEvent(ANALYTICS_EVENTS.postsHotDiscussionClicked, {
+                          post_id: item.id,
+                          post_title: item.title,
+                          rank_index: index + 1,
+                          comments_count: item.commentsCount,
+                          wonder_count: item.wonderCount,
+                        })
+                      }
+                      className="app-card app-card-interactive flex items-start gap-3 p-3.5"
+                    >
+                      <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-rose-50 text-sm font-black text-rose-500">
+                        {index + 1}
                       </div>
-                    </div>
-                    <p className="mt-2 text-sm font-bold text-primary">
-                      {bredy.score.toLocaleString()}
-                    </p>
-                  </Link>
-                ))
+                      <div className="min-w-0 flex-1">
+                        <div className="flex items-center gap-1.5">
+                          {item.category ? (
+                            <span className="rounded-full bg-slate-100 px-1.5 py-0.5 text-[10px] font-medium text-slate-500">
+                              {item.category}
+                            </span>
+                          ) : null}
+                          <span className="inline-flex items-center gap-0.5 rounded-full bg-rose-100 px-1.5 py-0.5 text-[10px] font-bold text-rose-600">
+                            HOT
+                          </span>
+                        </div>
+                        <h3 className="mt-1 line-clamp-2 text-sm font-semibold text-slate-900">{item.title}</h3>
+                        <div className="mt-1.5 flex items-center gap-3 text-[11px] text-slate-500">
+                          <span>{item.user.name}</span>
+                          <span>댓글 {item.commentsCount}</span>
+                          <span>좋아요 {item.wonderCount}</span>
+                        </div>
+                      </div>
+                      {item.image ? (
+                        <div className="h-14 w-14 shrink-0 overflow-hidden rounded-xl bg-slate-100">
+                          <Image
+                            src={makeImageUrl(item.image, "public")}
+                            alt={item.title}
+                            width={56}
+                            height={56}
+                            className="h-full w-full object-cover"
+                          />
+                        </div>
+                      ) : null}
+                    </Link>
+                  ))}
+                </div>
               ) : (
-                <div className="app-body-sm text-slate-400 px-1 py-2">
-                  표시할 브리디 랭킹이 없습니다.
+                <div className="mx-4 rounded-2xl border-2 border-dashed border-slate-200 bg-slate-50/60 px-5 py-6 text-center dark:border-slate-700 dark:bg-slate-800/40">
+                  <p className="text-2xl"><span role="img" aria-label="말풍선">💬</span></p>
+                  <p className="mt-2 text-sm font-semibold text-slate-700 dark:text-slate-200">
+                    아직 실시간 HOT 토론이 없어요
+                  </p>
+                  <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
+                    첫 번째 토론의 주인공이 되어보세요!
+                  </p>
+                  <Link
+                    href="/posts/upload"
+                    className="mt-3 inline-flex items-center gap-1 rounded-full bg-rose-500 px-4 py-2 text-xs font-semibold text-white shadow-sm transition-colors hover:bg-rose-600"
+                  >
+                    <svg className="h-3.5 w-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 4v16m8-8H4" />
+                    </svg>
+                    토론 만들기
+                  </Link>
                 </div>
-              )
-            ) : (
-              [...Array(3)].map((_, i) => (
-                <div
-                  key={i}
-                  className="snap-start shrink-0 w-40 app-card px-2.5 py-2 animate-pulse"
-                >
-                  <div className="h-4 bg-slate-200 rounded w-1/4" />
-                  <div className="mt-2 flex items-center gap-2">
-                    <div className="w-7 h-7 rounded-full bg-slate-200" />
-                    <div className="space-y-1 flex-1">
-                      <div className="h-3 bg-slate-200 rounded w-2/3" />
-                      <div className="h-3 bg-slate-200 rounded w-1/3" />
-                    </div>
-                  </div>
-                  <div className="mt-2 h-4 bg-slate-200 rounded w-1/2" />
-                </div>
-              ))
-            )}
-          </div>
-        </section>
+              )}
+            </div>
 
-        {/* 카테고리 탭 */}
-        <div className="app-sticky-rail app-reveal-fade">
-          <div className="px-4 py-3">
-            <div className="app-card p-2">
-              <div className="app-rail flex gap-2 snap-none">
-                {SORT_TABS.map((tab) => (
-                  <button
-                    key={tab.id}
-                    onClick={() => handleSortChange(tab.id)}
-                    className={cn(
-                      "app-chip",
-                      selectedSort === tab.id
-                        ? "app-chip-active"
-                        : "app-chip-muted"
-                    )}
-                  >
-                    {tab.name}
-                  </button>
-                ))}
-              </div>
-              <div className="app-rail flex gap-2 snap-none mt-2">
-                {TABS.map((tab) => (
-                  <button
-                    key={tab.id}
-                    onClick={() => handleCategoryChange(tab.id)}
-                    className={cn(
-                      "app-chip",
-                      selectedCategory === tab.id
-                        ? "app-chip-active"
-                        : "app-chip-muted"
-                    )}
-                  >
-                    <span
-                      className={cn(
-                        "w-2 h-2 rounded-full",
-                        selectedCategory === tab.id
-                          ? "bg-white/90"
-                          : CATEGORY_ACCENT[tab.id] ?? "bg-slate-400"
-                      )}
-                    />
-                    {tab.name}
-                  </button>
-                ))}
+            {/* TOP 브리디 panel */}
+            <div
+              id="highlight-panel-breeder"
+              role="tabpanel"
+              hidden={activeHighlightTab !== "breeder"}
+            >
+              <div className="app-rail flex gap-2.5 px-4">
+                {bredyData ? (
+                  bredyRanking.length > 0 ? (
+                    bredyRanking.map((bredy, index) => (
+                      <Link
+                        key={bredy.user.id}
+                        href={`/profiles/${bredy.user.id}`}
+                        onClick={() =>
+                          trackEvent(ANALYTICS_EVENTS.postsBreederTabClicked, {
+                            breeder_id: bredy.user.id,
+                            breeder_name: bredy.user.name,
+                            rank_index: index + 1,
+                            score: bredy.score,
+                          })
+                        }
+                        className="snap-start shrink-0 w-72 app-card app-card-interactive px-2.5 py-2"
+                      >
+                        <div className="flex items-center justify-between">
+                          {index < 3 ? (
+                            <span className="text-xs leading-none">
+                              {index === 0 ? "🥇" : index === 1 ? "🥈" : "🥉"}
+                            </span>
+                          ) : (
+                            <span className="app-caption text-[11px] font-semibold text-slate-500">
+                              {index + 1}위
+                            </span>
+                          )}
+                          <span className="app-caption text-[11px]">점수</span>
+                        </div>
+                        <div className="mt-2 flex items-center gap-2">
+                          {bredy.user.avatar ? (
+                            <Image
+                              src={makeImageUrl(bredy.user.avatar, "avatar")}
+                              className="w-7 h-7 rounded-full object-cover"
+                              width={36}
+                              height={36}
+                              alt=""
+                            />
+                          ) : (
+                            <div className="w-7 h-7 rounded-full bg-slate-200" />
+                          )}
+                          <div className="min-w-0">
+                            <p className="text-sm font-semibold tracking-tight text-slate-900 truncate">
+                              {bredy.user.name}
+                            </p>
+                            <p className="app-caption text-[11px]">
+                              ❤️ {bredy.totalLikes}
+                            </p>
+                          </div>
+                        </div>
+                        <p className="mt-2 text-sm font-bold text-primary">
+                          {bredy.score.toLocaleString()}
+                        </p>
+                      </Link>
+                    ))
+                  ) : (
+                    <div className="app-body-sm text-slate-400 px-1 py-2">
+                      표시할 브리디 랭킹이 없습니다.
+                    </div>
+                  )
+                ) : (
+                  [...Array(3)].map((_, i) => (
+                    <div
+                      key={i}
+                      className="snap-start shrink-0 w-72 app-card px-2.5 py-2 animate-pulse"
+                    >
+                      <div className="h-4 bg-slate-200 rounded w-1/4" />
+                      <div className="mt-2 flex items-center gap-2">
+                        <div className="w-7 h-7 rounded-full bg-slate-200" />
+                        <div className="space-y-1 flex-1">
+                          <div className="h-3 bg-slate-200 rounded w-2/3" />
+                          <div className="h-3 bg-slate-200 rounded w-1/3" />
+                        </div>
+                      </div>
+                      <div className="mt-2 h-4 bg-slate-200 rounded w-1/2" />
+                    </div>
+                  ))
+                )}
               </div>
             </div>
           </div>
-        </div>
+        </section>
 
+        {/* 5. 게시글 목록 title + count */}
         <section id="all-posts" className="px-4 pt-6 pb-2">
           <div className="flex items-end justify-between">
             <div>
@@ -357,7 +606,7 @@ export default function PostsClient() {
           </div>
         </section>
 
-        {/* 게시글 목록 */}
+        {/* 6. 게시글 목록 (infinite scroll) */}
         <div className="border-y border-slate-100 bg-white pb-4">
           {data ? (
             sortedPosts.map((post) => (
@@ -538,7 +787,7 @@ export default function PostsClient() {
           )}
         </div>
 
-        {/* 글쓰기 버튼 */}
+        {/* 7. 글쓰기 버튼 */}
         <FloatingButton href="/posts/upload">
           <svg
             className="w-6 h-6"
