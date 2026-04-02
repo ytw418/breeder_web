@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import Image from "@components/atoms/Image";
 import {
@@ -33,6 +33,80 @@ const SORT_TABS = [
   { id: "comments", name: "댓글순" },
 ];
 type SortType = (typeof SORT_TABS)[number]["id"];
+
+/** 커스텀 드롭다운 셀렉트 */
+const DropdownSelect = ({
+  value,
+  onChange,
+  options,
+  ariaLabel,
+}: {
+  value: string;
+  onChange: (value: string) => void;
+  options: { value: string; label: string }[];
+  ariaLabel: string;
+}) => {
+  const [open, setOpen] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+  const selectedLabel = options.find((o) => o.value === value)?.label ?? value;
+
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
+    };
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
+
+  return (
+    <div ref={ref} className="relative">
+      <button
+        type="button"
+        aria-label={ariaLabel}
+        aria-expanded={open}
+        onClick={() => setOpen((prev) => !prev)}
+        className={cn(
+          "flex h-8 items-center gap-1 rounded-full border px-3 text-xs font-medium transition-colors",
+          open
+            ? "border-slate-900 bg-slate-900 text-white"
+            : "border-slate-200 bg-white text-slate-600 hover:border-slate-300"
+        )}
+      >
+        {selectedLabel}
+        <svg className={cn("h-3 w-3 transition-transform", open && "rotate-180")} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7" />
+        </svg>
+      </button>
+      {open && (
+        <div className="absolute left-0 top-full z-30 mt-1 min-w-[120px] overflow-hidden rounded-xl border border-slate-200 bg-white py-1 shadow-lg">
+          {options.map((option) => (
+            <button
+              key={option.value}
+              type="button"
+              onClick={() => {
+                onChange(option.value);
+                setOpen(false);
+              }}
+              className={cn(
+                "flex w-full items-center px-3 py-2 text-left text-xs transition-colors",
+                value === option.value
+                  ? "bg-slate-50 font-semibold text-slate-900"
+                  : "text-slate-600 hover:bg-slate-50"
+              )}
+            >
+              {value === option.value && (
+                <svg className="mr-1.5 h-3 w-3 text-slate-900" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M5 13l4 4L19 7" />
+                </svg>
+              )}
+              {option.label}
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+};
 
 const CATEGORY_ACCENT: Record<string, string> = {
   전체: "bg-slate-500",
@@ -234,27 +308,21 @@ export default function PostsClient() {
 
         {/* 3. 종 필터 + 정렬 드롭다운 (secondary - compact row) */}
         <div className="flex items-center gap-2 px-4 py-1.5">
-          <select
+          <DropdownSelect
             value={selectedSpecies}
-            onChange={(e) => handleSpeciesChange(e.target.value)}
-            aria-label="종 필터"
-            className="h-8 rounded-lg border border-slate-200 bg-white px-2.5 text-xs font-medium text-slate-600"
-          >
-            <option value="전체">전체 종</option>
-            {TOP_LEVEL_CATEGORIES.map((s) => (
-              <option key={s.id} value={s.id}>{s.name}</option>
-            ))}
-          </select>
-          <select
+            onChange={handleSpeciesChange}
+            ariaLabel="종 필터"
+            options={[
+              { value: "전체", label: "전체 종" },
+              ...TOP_LEVEL_CATEGORIES.map((s) => ({ value: s.id, label: s.name })),
+            ]}
+          />
+          <DropdownSelect
             value={selectedSort}
-            onChange={(e) => handleSortChange(e.target.value as SortType)}
-            aria-label="정렬 기준"
-            className="h-8 rounded-lg border border-slate-200 bg-white px-2.5 text-xs font-medium text-slate-600"
-          >
-            {SORT_TABS.map((s) => (
-              <option key={s.id} value={s.id}>{s.name}</option>
-            ))}
-          </select>
+            onChange={(v) => handleSortChange(v as SortType)}
+            ariaLabel="정렬 기준"
+            options={SORT_TABS.map((s) => ({ value: s.id, label: s.name }))}
+          />
         </div>
 
         {/* 4. Tabbed section: HOT 토론 / TOP 브리디 */}
