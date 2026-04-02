@@ -105,6 +105,36 @@ export interface RankingMeSummary {
   badges: SeasonBadgeItem[];
 }
 
+export interface FreeProductItem {
+  id: number;
+  name: string;
+  photos: string[];
+  category: string | null;
+  createdAt: string;
+  user: {
+    id: number;
+    name: string;
+    avatar: string | null;
+  };
+  _count: { favs: number };
+}
+
+export interface HotDiscussionItem {
+  id: number;
+  title: string;
+  description: string;
+  image: string | null;
+  category: string | null;
+  createdAt: string;
+  commentsCount: number;
+  wonderCount: number;
+  user: {
+    id: number;
+    name: string;
+    avatar: string | null;
+  };
+}
+
 export interface HomeFeedResponse {
   success: boolean;
   heroBreeder: BreederRankingItem | null;
@@ -118,4 +148,6 @@ export interface HomeFeedResponse {
   myRanking: RankingMeSummary | null;
   myMissionSummary: MissionProgressItem[];
   currentSeasonId: number | null;
+  freeGiveawayProducts: FreeProductItem[];
+  hotDiscussions: HotDiscussionItem[];
 }

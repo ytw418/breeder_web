@@ -8,6 +8,8 @@ import {
   getAuctionRanking,
   getBloodlineRanking,
   getBreederRanking,
+  getFreeGiveawayProducts,
+  getHotDiscussions,
   getMyRankingSummary,
   getTrendingCommunityPosts,
 } from "@libs/server/ranking";
@@ -63,6 +65,8 @@ const SAMPLE_HOME_FEED: HomeFeedResponse = {
   myRanking: null,
   myMissionSummary: [],
   currentSeasonId: null,
+  freeGiveawayProducts: [],
+  hotDiscussions: [],
 };
 
 type HomeFeedOptions = {
@@ -114,6 +118,8 @@ const buildHomeFeed = async ({
     recentTrendingPosts,
     myRanking,
     myMissionSummary,
+    freeGiveawayProducts,
+    hotDiscussions,
   ] = await Promise.all([
     getBreederRanking({ limit: 10, period: "weekly", userId: resolvedUserId }),
     getAuctionRanking({ periodScope: "week", limit: 20 }),
@@ -121,6 +127,8 @@ const buildHomeFeed = async ({
     getTrendingCommunityPosts({ limit: 6, window: "24h" }),
     resolvedUserId ? getMyRankingSummary(resolvedUserId) : Promise.resolve(null),
     resolvedUserId ? getUserMissionSummary(resolvedUserId) : Promise.resolve([]),
+    getFreeGiveawayProducts({ limit: 6 }),
+    getHotDiscussions({ limit: 5 }),
   ]);
 
   const [
@@ -189,6 +197,8 @@ const buildHomeFeed = async ({
     myRanking,
     myMissionSummary,
     currentSeasonId: season.id,
+    freeGiveawayProducts,
+    hotDiscussions,
   };
 };
 
