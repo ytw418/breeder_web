@@ -355,7 +355,7 @@ const MainClient = ({
         </div>
       </section>
 
-      {/* Section 3: TOP 브리더 hero card */}
+      {/* Section 3: TOP 브리더 */}
       <section className="app-section app-reveal app-reveal-1 py-2">
         <SectionHeader
           title="이번 주 TOP 브리더"
@@ -364,56 +364,43 @@ const MainClient = ({
         />
         <div className="mt-1 px-5">
           {homeFeedData?.heroBreeder ? (
-            // 첫 스크린은 주간 1위 브리더와 즉시 행동 CTA에 집중해 홈 방향성을 명확히 준다.
-            <div className="relative overflow-hidden rounded-3xl bg-[radial-gradient(circle_at_top_left,_rgba(29,78,216,0.22),_transparent_38%),linear-gradient(135deg,#0f172a,#111827_55%,#1d4ed8)] p-4 text-white shadow-xl">
-              <p className="app-kicker text-white/70 text-[10px]">
-                {heroBreederPeriod === "weekly" ? "Weekly Hero" : "All-time Leader"}
-              </p>
-              <div className="mt-3 flex items-start justify-between gap-3">
+            <div className="app-card overflow-hidden border border-slate-200/80 p-0">
+              {/* 상단: 프로필 + 순위 */}
+              <div className="flex items-center gap-3 px-4 pt-3.5 pb-3">
+                <div className="relative">
+                  <div className="h-11 w-11 overflow-hidden rounded-full bg-slate-100 ring-2 ring-amber-400/60">
+                    {homeFeedData.heroBreeder.user.avatar ? (
+                      <Image
+                        src={makeImageUrl(homeFeedData.heroBreeder.user.avatar, "avatar")}
+                        alt={homeFeedData.heroBreeder.user.name}
+                        width={44}
+                        height={44}
+                        className="h-full w-full object-cover"
+                      />
+                    ) : (
+                      <div className="flex h-full w-full items-center justify-center bg-slate-200 text-sm font-bold text-slate-500">
+                        {homeFeedData.heroBreeder.user.name.charAt(0)}
+                      </div>
+                    )}
+                  </div>
+                  <span className="absolute -bottom-0.5 -right-0.5 flex h-5 w-5 items-center justify-center rounded-full bg-amber-400 text-[9px] font-black text-white shadow-sm">
+                    {homeFeedData.heroBreeder.rank}
+                  </span>
+                </div>
                 <div className="min-w-0 flex-1">
-                  <div className="flex items-center gap-2.5">
-                    <div className="h-10 w-10 overflow-hidden rounded-2xl bg-white/10 ring-1 ring-white/15">
-                      {homeFeedData.heroBreeder.user.avatar ? (
-                        <Image
-                          src={makeImageUrl(homeFeedData.heroBreeder.user.avatar, "avatar")}
-                          alt={homeFeedData.heroBreeder.user.name}
-                          width={40}
-                          height={40}
-                          className="h-full w-full object-cover"
-                        />
-                      ) : null}
-                    </div>
-                    <div className="min-w-0">
-                      <h3 className="truncate text-xl font-black tracking-tight">
-                        {homeFeedData.heroBreeder.user.name}
-                      </h3>
-                      <p className="mt-0.5 text-xs text-white/75">
-                        브리더 랭킹 {homeFeedData.heroBreeder.rank}위
-                      </p>
-                    </div>
+                  <div className="flex items-center gap-1.5">
+                    <h3 className="truncate text-sm font-bold text-slate-900">
+                      {homeFeedData.heroBreeder.user.name}
+                    </h3>
+                    {(homeFeedData.heroBreeder.badges || []).slice(0, 1).map((badge) => (
+                      <span key={badge.id} className="shrink-0 rounded bg-amber-50 px-1.5 py-0.5 text-[9px] font-semibold text-amber-600">
+                        {badge.label}
+                      </span>
+                    ))}
                   </div>
-                  <p className="mt-2 text-sm text-white/75">
-                    점수 {homeFeedData.heroBreeder.score.toLocaleString()} · {formatRankDelta(homeFeedData.heroBreeder.rankDelta)}
+                  <p className="mt-0.5 text-xs text-slate-500">
+                    {homeFeedData.heroBreeder.score.toLocaleString()}점 · {formatRankDelta(homeFeedData.heroBreeder.rankDelta)}
                   </p>
-                  <div className="mt-3 flex flex-wrap gap-1.5 text-[10px]">
-                    <span className="rounded-full bg-white/10 px-2 py-1">게시 {homeFeedData.heroBreeder.postsCount}</span>
-                    <span className="rounded-full bg-white/10 px-2 py-1">댓글 {homeFeedData.heroBreeder.commentsCount}</span>
-                    <span className="rounded-full bg-white/10 px-2 py-1">입찰 {homeFeedData.heroBreeder.bidsCount}</span>
-                    <span className="rounded-full bg-white/10 px-2 py-1">낙찰 {homeFeedData.heroBreeder.auctionWinsCount}</span>
-                  </div>
-                </div>
-                <div className="rounded-2xl bg-white/10 px-3 py-2 text-right backdrop-blur-sm">
-                  <p className="text-[10px] text-white/70">현재 순위</p>
-                  <p className="text-2xl font-black">#{homeFeedData.heroBreeder.rank}</p>
-                </div>
-              </div>
-              <div className="mt-3 flex items-center justify-between gap-3">
-                <div className="flex flex-wrap gap-1.5">
-                  {(homeFeedData.heroBreeder.badges || []).slice(0, 2).map((badge) => (
-                    <span key={badge.id} className="rounded-full border border-white/15 bg-white/10 px-2 py-1 text-[10px] font-semibold">
-                      {badge.label}
-                    </span>
-                  ))}
                 </div>
                 <button
                   type="button"
@@ -428,10 +415,24 @@ const MainClient = ({
                         : "/auth/login?next=%2Franking%3Ftab%3Dbreeders%26period%3Dweekly"
                     );
                   }}
-                  className="inline-flex h-8 items-center rounded-full bg-white px-3.5 text-xs font-semibold text-slate-900"
+                  className="shrink-0 rounded-full bg-slate-900 px-3 py-1.5 text-[11px] font-semibold text-white transition-colors hover:bg-slate-800"
                 >
-                  내 순위 올리기
+                  도전하기
                 </button>
+              </div>
+              {/* 하단: 활동 스탯 바 */}
+              <div className="flex border-t border-slate-100 divide-x divide-slate-100">
+                {[
+                  { label: "게시", value: homeFeedData.heroBreeder.postsCount },
+                  { label: "댓글", value: homeFeedData.heroBreeder.commentsCount },
+                  { label: "입찰", value: homeFeedData.heroBreeder.bidsCount },
+                  { label: "낙찰", value: homeFeedData.heroBreeder.auctionWinsCount },
+                ].map((stat) => (
+                  <div key={stat.label} className="flex-1 py-2.5 text-center">
+                    <p className="text-sm font-bold text-slate-900">{stat.value}</p>
+                    <p className="text-[10px] text-slate-400">{stat.label}</p>
+                  </div>
+                ))}
               </div>
             </div>
           ) : (
