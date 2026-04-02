@@ -41,6 +41,8 @@ async function handler(
       myRanking: null,
       myMissionSummary: [],
       currentSeasonId: null,
+      freeGiveawayProducts: [],
+      hotDiscussions: [],
     });
   }
 }

@@ -1,0 +1,12 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "Next.js Dev Server",
+      "runtimeExecutable": "/Users/yoonseongjun/.nvm/versions/node/v20.19.3/bin/node",
+      "runtimeArgs": ["/Users/yoonseongjun/Desktop/pro/breeder_web/node_modules/.bin/next", "dev", "--webpack"],
+      "port": 3000,
+      "autoPort": false
+    }
+  ]
+}
