@@ -118,6 +118,8 @@ const buildHomeFeed = async ({
     recentTrendingPosts,
     myRanking,
     myMissionSummary,
+    freeGiveawayProducts,
+    hotDiscussions,
   ] = await Promise.all([
     getBreederRanking({ limit: 10, period: "weekly", userId: resolvedUserId }),
     getAuctionRanking({ periodScope: "week", limit: 20 }),
@@ -125,6 +127,8 @@ const buildHomeFeed = async ({
     getTrendingCommunityPosts({ limit: 6, window: "24h" }),
     resolvedUserId ? getMyRankingSummary(resolvedUserId) : Promise.resolve(null),
     resolvedUserId ? getUserMissionSummary(resolvedUserId) : Promise.resolve([]),
+    getFreeGiveawayProducts({ limit: 6 }),
+    getHotDiscussions({ limit: 5 }),
   ]);
 
   const [
@@ -145,12 +149,6 @@ const buildHomeFeed = async ({
     recentTrendingPosts.length > 0
       ? Promise.resolve(recentTrendingPosts)
       : getTrendingCommunityPosts({ limit: 6, window: "all" }),
-  ]);
-
-  // 보조 콘텐츠는 핵심 랭킹과 별도 배치로 실행
-  const [freeGiveawayProducts, hotDiscussions] = await Promise.all([
-    getFreeGiveawayProducts({ limit: 6 }),
-    getHotDiscussions({ limit: 5 }),
   ]);
 
   const heroBreederMode = weeklyBreeders.length > 0 ? "weekly" : "all";

@@ -27,6 +27,7 @@ interface UploadPostMutation {
   post: Post;
   error?: string;
   message?: string;
+  status?: number;
 }
 
 type SubmitStep = "idle" | "image" | "submit";
@@ -113,7 +114,7 @@ const UploadClient = () => {
         },
       });
 
-      if ((result as any).status === 401) {
+      if (result.status === 401) {
         toast.error("로그인이 필요합니다.");
         router.push(`/auth/login?next=${encodeURIComponent("/posts/upload")}`);
         return;

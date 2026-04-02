@@ -47,7 +47,9 @@ const DropdownSelect = ({
   ariaLabel: string;
 }) => {
   const [open, setOpen] = useState(false);
+  const [focusedIndex, setFocusedIndex] = useState(-1);
   const ref = useRef<HTMLDivElement>(null);
+  const listRef = useRef<HTMLDivElement>(null);
   const selectedLabel = options.find((o) => o.value === value)?.label ?? value;
 
   useEffect(() => {
@@ -58,12 +60,59 @@ const DropdownSelect = ({
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
+  useEffect(() => {
+    if (open) {
+      setFocusedIndex(options.findIndex((o) => o.value === value));
+    }
+  }, [open, options, value]);
+
+  useEffect(() => {
+    if (open && focusedIndex >= 0 && listRef.current) {
+      const items = listRef.current.querySelectorAll("[role='option']");
+      (items[focusedIndex] as HTMLElement)?.scrollIntoView({ block: "nearest" });
+    }
+  }, [focusedIndex, open]);
+
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (!open) {
+      if (e.key === "ArrowDown" || e.key === "ArrowUp" || e.key === "Enter" || e.key === " ") {
+        e.preventDefault();
+        setOpen(true);
+      }
+      return;
+    }
+    switch (e.key) {
+      case "Escape":
+        e.preventDefault();
+        setOpen(false);
+        break;
+      case "ArrowDown":
+        e.preventDefault();
+        setFocusedIndex((prev) => (prev + 1) % options.length);
+        break;
+      case "ArrowUp":
+        e.preventDefault();
+        setFocusedIndex((prev) => (prev - 1 + options.length) % options.length);
+        break;
+      case "Enter":
+      case " ":
+        e.preventDefault();
+        if (focusedIndex >= 0) {
+          onChange(options[focusedIndex].value);
+          setOpen(false);
+        }
+        break;
+    }
+  };
+
   return (
     <div ref={ref} className="relative">
       <button
         type="button"
         aria-label={ariaLabel}
         aria-expanded={open}
+        aria-haspopup="listbox"
+        onKeyDown={handleKeyDown}
         onClick={() => setOpen((prev) => !prev)}
         className={cn(
           "flex h-8 items-center gap-1 rounded-full border px-3 text-xs font-medium transition-colors",
@@ -78,20 +127,29 @@ const DropdownSelect = ({
         </svg>
       </button>
       {open && (
-        <div className="absolute left-0 top-full z-30 mt-1 min-w-[120px] overflow-hidden rounded-xl border border-slate-200 bg-white py-1 shadow-lg">
-          {options.map((option) => (
+        <div
+          ref={listRef}
+          role="listbox"
+          aria-label={ariaLabel}
+          className="absolute left-0 top-full z-30 mt-1 min-w-[120px] max-h-[240px] overflow-y-auto overflow-hidden rounded-xl border border-slate-200 bg-white py-1 shadow-lg"
+        >
+          {options.map((option, index) => (
             <button
               key={option.value}
               type="button"
+              role="option"
+              aria-selected={value === option.value}
               onClick={() => {
                 onChange(option.value);
                 setOpen(false);
               }}
+              onMouseEnter={() => setFocusedIndex(index)}
               className={cn(
                 "flex w-full items-center px-3 py-2 text-left text-xs transition-colors",
                 value === option.value
                   ? "bg-slate-50 font-semibold text-slate-900"
-                  : "text-slate-600 hover:bg-slate-50"
+                  : "text-slate-600",
+                focusedIndex === index && value !== option.value && "bg-slate-50"
               )}
             >
               {value === option.value && (
@@ -343,7 +401,7 @@ export default function PostsClient() {
                   : "bg-slate-100 text-slate-500"
               )}
             >
-              🔥 HOT 토론
+              <span aria-hidden="true">🔥</span> HOT 토론
             </button>
             <button
               role="tab"
@@ -360,14 +418,18 @@ export default function PostsClient() {
                   : "bg-slate-100 text-slate-500"
               )}
             >
-              🏆 TOP 브리디
+              <span aria-hidden="true">🏆</span> TOP 브리디
             </button>
           </div>
           <div className="mt-2">
-            {activeHighlightTab === "hot" ? (
-              /* HOT 토론 content */
-              homeFeedData?.hotDiscussions?.length ? (
-                <div id="highlight-panel-hot" role="tabpanel" className="px-4 flex flex-col gap-2.5">
+            {/* HOT 토론 panel */}
+            <div
+              id="highlight-panel-hot"
+              role="tabpanel"
+              hidden={activeHighlightTab !== "hot"}
+            >
+              {homeFeedData?.hotDiscussions?.length ? (
+                <div className="px-4 flex flex-col gap-2.5">
                   {homeFeedData.hotDiscussions.map((item: HotDiscussionItem, index: number) => (
                     <Link
                       key={item.id}
@@ -419,8 +481,8 @@ export default function PostsClient() {
                   ))}
                 </div>
               ) : (
-                <div id="highlight-panel-hot" role="tabpanel" className="mx-4 rounded-2xl border-2 border-dashed border-slate-200 bg-slate-50/60 px-5 py-6 text-center dark:border-slate-700 dark:bg-slate-800/40">
-                  <p className="text-2xl">💬</p>
+                <div className="mx-4 rounded-2xl border-2 border-dashed border-slate-200 bg-slate-50/60 px-5 py-6 text-center dark:border-slate-700 dark:bg-slate-800/40">
+                  <p className="text-2xl"><span role="img" aria-label="말풍선">💬</span></p>
                   <p className="mt-2 text-sm font-semibold text-slate-700 dark:text-slate-200">
                     아직 실시간 HOT 토론이 없어요
                   </p>
@@ -437,10 +499,16 @@ export default function PostsClient() {
                     토론 만들기
                   </Link>
                 </div>
-              )
-            ) : (
-              /* TOP 브리디 content */
-              <div id="highlight-panel-breeder" role="tabpanel" className="app-rail flex gap-2.5 px-4">
+              )}
+            </div>
+
+            {/* TOP 브리디 panel */}
+            <div
+              id="highlight-panel-breeder"
+              role="tabpanel"
+              hidden={activeHighlightTab !== "breeder"}
+            >
+              <div className="app-rail flex gap-2.5 px-4">
                 {bredyData ? (
                   bredyRanking.length > 0 ? (
                     bredyRanking.map((bredy, index) => (
@@ -519,7 +587,7 @@ export default function PostsClient() {
                   ))
                 )}
               </div>
-            )}
+            </div>
           </div>
         </section>
 
