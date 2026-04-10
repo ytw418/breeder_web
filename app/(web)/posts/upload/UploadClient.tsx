@@ -27,6 +27,7 @@ interface UploadPostMutation {
   post: Post;
   error?: string;
   message?: string;
+  status?: number;
 }
 
 type SubmitStep = "idle" | "image" | "submit";
@@ -112,6 +113,12 @@ const UploadClient = () => {
           species: selectedSpecies,
         },
       });
+
+      if (result.status === 401) {
+        toast.error("로그인이 필요합니다.");
+        router.push(`/auth/login?next=${encodeURIComponent("/posts/upload")}`);
+        return;
+      }
 
       if (result.success && result.post?.id) {
         toast.success("게시글이 등록되었습니다.");

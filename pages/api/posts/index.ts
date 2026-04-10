@@ -136,6 +136,12 @@ const handler = async (
       session: { user },
     } = req;
 
+    if (!user?.id) {
+      return res
+        .status(401)
+        .json({ success: false, error: "로그인이 필요합니다." });
+    }
+
     if (String(category) === "공지") {
       const dbUser = user?.id
         ? await client.user.findUnique({

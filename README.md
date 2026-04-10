@@ -155,11 +155,11 @@ docs/               Internal project docs
 ```
 
 ## API Docs
-- 상품 API 문서: [pages/api/products.md](/Users/yoonseongjun/Desktop/pro/breeder_web/pages/api/products.md)
-- 유저 API 문서: [pages/api/users.md](/Users/yoonseongjun/Desktop/pro/breeder_web/pages/api/users.md)
+- 상품 API 문서: [pages/api/products.md](./pages/api/products.md)
+- 유저 API 문서: [pages/api/users.md](./pages/api/users.md)
 
 ## Development Rules
-- 프로젝트 룰: [AGENTS.md](/Users/yoonseongjun/Desktop/pro/breeder_web/AGENTS.md), `.cursor/rules/`
+- 프로젝트 룰: [AGENTS.md](./AGENTS.md), `.cursor/rules/`
 - API 룰: `.cursor/rules/api-rule.mdc`
 - 페이지 룰: `.cursor/rules/page-rule.mdc`
 - DB 접근은 `libs/server/client.ts`를 통해 수행
