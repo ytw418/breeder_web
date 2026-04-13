@@ -484,7 +484,7 @@ export default function PostsClient() {
                 <div className="mx-4 rounded-2xl border-2 border-dashed border-slate-200 bg-slate-50/60 px-5 py-6 text-center dark:border-slate-700 dark:bg-slate-800/40">
                   <p className="text-2xl"><span role="img" aria-label="말풍선">💬</span></p>
                   <p className="mt-2 text-sm font-semibold text-slate-700 dark:text-slate-200">
-                    아직 실시간 HOT 토론이 없어요
+                    아직 HOT 토론이 없어요
                   </p>
                   <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
                     첫 번째 토론의 주인공이 되어보세요!

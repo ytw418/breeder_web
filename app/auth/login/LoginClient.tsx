@@ -97,6 +97,20 @@ type LoginClientProps = {
   shouldShowTestLogin: boolean;
 };
 
+const isReactNativeWebViewWindow = () => {
+  if (typeof window === "undefined") return false;
+
+  const reactNativeWebView = (
+    window as typeof window & {
+      ReactNativeWebView?: {
+        postMessage?: (message: string) => void;
+      };
+    }
+  ).ReactNativeWebView;
+
+  return typeof reactNativeWebView?.postMessage === "function";
+};
+
 const LoginClient = ({ shouldShowTestLogin }: LoginClientProps) => {
   const searchParams = useSearchParams();
   const [login] = useMutation<LoginResponseType>("/api/auth/login");
@@ -110,9 +124,12 @@ const LoginClient = ({ shouldShowTestLogin }: LoginClientProps) => {
   const [isLoadingTestAccounts, setIsLoadingTestAccounts] = useState(false);
   const [testLoginError, setTestLoginError] = useState("");
   const [switchingTestUserId, setSwitchingTestUserId] = useState<number | null>(null);
+  const [isReactNativeWebView, setIsReactNativeWebView] = useState(false);
   // 기본값은 노출(true). 추후 숨길 때 NEXT_PUBLIC_ENABLE_GOOGLE_LOGIN=false로 설정.
   const shouldShowGoogleLogin =
     process.env.NEXT_PUBLIC_ENABLE_GOOGLE_LOGIN !== "false";
+  const canShowGoogleLogin =
+    shouldShowGoogleLogin && !isReactNativeWebView;
 
   /**카카오로그인 */
   const loginWithKakao = () => {
@@ -175,6 +192,10 @@ const LoginClient = ({ shouldShowTestLogin }: LoginClientProps) => {
       "https://t1.kakaocdn.net/kakao_js_sdk/2.7.2/kakao.min.js",
       "kakao"
     );
+  }, []);
+
+  useEffect(() => {
+    setIsReactNativeWebView(isReactNativeWebViewWindow());
   }, []);
 
   useEffect(() => {
@@ -312,7 +333,7 @@ const LoginClient = ({ shouldShowTestLogin }: LoginClientProps) => {
           {/* <KakaoLogin className="absolute left-7" width={26} height={26} /> */}
           <span className="title-3">{"카카오로 계속하기"}</span>
         </button>
-        {shouldShowGoogleLogin ? (
+        {canShowGoogleLogin ? (
           <button
             onClick={() => loginWithGoogle()}
             className="button relative flex h-[54px] w-full items-center justify-center rounded-lg border border-Gray-300 bg-white px-7 py-[14px]"
@@ -320,11 +341,11 @@ const LoginClient = ({ shouldShowTestLogin }: LoginClientProps) => {
             <GoogleRound className="absolute left-7" width={26} height={26} />
             <span className="title-3">{"구글로 계속하기"}</span>
           </button>
-        ) : (
+        ) : !isReactNativeWebView ? (
           <p className="mt-1 text-[11px] text-Gray-500">
             현재는 카카오 로그인만 지원합니다.
           </p>
-        )}
+        ) : null}
         {shouldShowTestLogin ? (
           <div className="w-full rounded-lg border border-Gray-200 bg-Gray-50 p-3">
             <p className="text-[11px] text-Gray-500">테스트 로그인 (개발/테스트 환경 전용)</p>

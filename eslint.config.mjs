@@ -13,6 +13,7 @@ export default defineConfig([
   },
   globalIgnores([
     ".next/**",
+    ".claude/worktrees/**",
     "out/**",
     "build/**",
     "next-env.d.ts",
