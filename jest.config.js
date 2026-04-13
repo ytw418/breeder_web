@@ -71,6 +71,12 @@ module.exports = {
   ],
 
   // 로컬 worktree 복제본은 테스트 스캔에서 제외
-  modulePathIgnorePatterns: ["<rootDir>/.worktrees/"],
-  testPathIgnorePatterns: ["<rootDir>/.worktrees/"],
+  modulePathIgnorePatterns: [
+    "<rootDir>/.worktrees/",
+    "<rootDir>/.claude/worktrees/",
+  ],
+  testPathIgnorePatterns: [
+    "<rootDir>/.worktrees/",
+    "<rootDir>/.claude/worktrees/",
+  ],
 };

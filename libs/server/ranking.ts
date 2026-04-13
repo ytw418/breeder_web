@@ -636,12 +636,9 @@ export const getFreeGiveawayProducts = async ({
 export const getHotDiscussions = async ({
   limit = 5,
 }: { limit?: number } = {}): Promise<HotDiscussionItem[]> => {
-  const windowStart = new Date(Date.now() - 48 * 60 * 60 * 1000);
-
   const posts = await client.post.findMany({
     where: {
       category: { in: ["질문", "자유", "정보"] },
-      createdAt: { gte: windowStart },
       user: { status: "ACTIVE" },
     },
     select: {
