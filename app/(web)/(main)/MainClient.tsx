@@ -327,40 +327,39 @@ const MainClient = ({
 
       {/* Section 2: 혈통카드 공유 챌린지 (compact) */}
       <section className="app-section app-reveal app-reveal-1 py-2">
-        <div className="relative mx-5 overflow-hidden rounded-2xl bg-gradient-to-br from-amber-400 via-orange-400 to-rose-500 p-3 text-white shadow-lg">
-          <div className="pointer-events-none absolute -right-4 -top-4 h-16 w-16 rounded-full bg-white/15 blur-xl" />
-          <div className="flex items-center justify-between gap-3">
-            <div className="min-w-0 flex-1">
-              <div className="flex items-center gap-2">
-                <span className="inline-flex items-center rounded-full bg-white/25 px-2 py-0.5 text-[9px] font-bold uppercase tracking-widest">
-                  이벤트
-                </span>
-                <h3 className="text-sm font-black leading-tight">혈통카드 공유 챌린지</h3>
-              </div>
-              <p className="mt-1 text-[11px] leading-snug text-white/90">
-                내 혈통카드를 공유하고 특별 배지를 받으세요!
-              </p>
+        <div className="mx-5 rounded-sm border border-slate-200 bg-white px-4 py-3">
+          <div className="min-w-0">
+            <div className="flex items-center gap-2">
+              <span className="inline-flex h-5 items-center rounded bg-primary/10 px-1.5 text-[10px] font-bold text-primary">
+                이벤트
+              </span>
+              <h3 className="text-sm font-extrabold tracking-normal text-slate-950">
+                혈통카드 공유 챌린지
+              </h3>
             </div>
-            <div className="flex shrink-0 gap-1.5">
-              <Link
-                href="/bloodline-management"
-                onClick={() =>
-                  trackEvent(ANALYTICS_EVENTS.challengeJoin, {
-                    challenge_id: "bloodline_card_share",
-                    entry_type: user ? "member" : "guest",
-                  })
-                }
-                className="inline-flex h-7 items-center rounded-full bg-white px-3 text-[11px] font-bold text-orange-600"
-              >
-                보기
-              </Link>
-              <Link
-                href="/bloodline-cards/create"
-                className="inline-flex h-7 items-center rounded-full border border-white/40 bg-white/20 px-3 text-[11px] font-semibold text-white backdrop-blur-sm"
-              >
-                만들기
-              </Link>
-            </div>
+            <p className="mt-1.5 text-xs font-medium tracking-normal text-slate-500">
+              내 혈통카드를 공유하고 특별 배지를 받아보세요.
+            </p>
+          </div>
+          <div className="mt-3 grid grid-cols-2 gap-2">
+            <Link
+              href="/bloodline-management"
+              onClick={() =>
+                trackEvent(ANALYTICS_EVENTS.challengeJoin, {
+                  challenge_id: "bloodline_card_share",
+                  entry_type: user ? "member" : "guest",
+                })
+              }
+              className="inline-flex h-9 items-center justify-center rounded-sm bg-slate-950 px-3 text-xs font-bold text-white transition hover:bg-slate-800"
+            >
+              보기
+            </Link>
+            <Link
+              href="/bloodline-cards/create"
+              className="inline-flex h-9 items-center justify-center rounded-sm border border-slate-200 bg-white px-3 text-xs font-bold text-slate-700 transition hover:bg-slate-50"
+            >
+              만들기
+            </Link>
           </div>
         </div>
       </section>
