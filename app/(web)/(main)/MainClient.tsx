@@ -264,54 +264,64 @@ const MainClient = ({
   return (
     <div className="app-page flex flex-col h-full">
       {/* Section 1: 상단 배너/히어로 */}
-      <section className="app-reveal">
+      <section className="app-reveal bg-white pb-1 pt-3">
         <div
           ref={bannerRef}
           onScroll={handleBannerScroll}
-          className="app-rail flex gap-0"
+          className="app-rail flex snap-x snap-mandatory gap-3 scroll-px-5 px-5"
         >
-            {banners.map((banner) => (
-              <Link
-                key={banner.id}
-                href={banner.href}
-                onClick={() =>
-                  trackEvent(ANALYTICS_EVENTS.homeBannerClicked, {
-                    banner_id: banner.id,
-                    banner_title: banner.title,
-                    banner_href: banner.href,
-                    user_id: user?.id || null,
-                  })
-                }
-                className={cn(
-                  "snap-start shrink-0 w-full app-card-interactive rounded-none border-0 shadow-none px-5 py-5 text-white bg-gradient-to-r relative overflow-hidden from-emerald-500 to-teal-500",
-                  banner.bgClass
-                )}
-              >
-                <span className="app-kicker text-white/75 relative z-10">Bredy</span>
-                <h2 className="mt-2 app-title-lg text-white relative z-10">{banner.title}</h2>
-                <p className="mt-1 app-body-sm text-white/90 line-clamp-2 relative z-10">
+          {banners.map((banner) => (
+            <Link
+              key={banner.id}
+              href={banner.href}
+              onClick={() =>
+                trackEvent(ANALYTICS_EVENTS.homeBannerClicked, {
+                  banner_id: banner.id,
+                  banner_title: banner.title,
+                  banner_href: banner.href,
+                  user_id: user?.id || null,
+                })
+              }
+              className={cn(
+                "app-card-interactive relative flex min-h-[132px] w-[calc(100vw-40px)] max-w-[calc(36rem-40px)] shrink-0 snap-start flex-col justify-between overflow-hidden rounded-xl border border-white/20 bg-gradient-to-br from-emerald-500 to-teal-500 px-4 py-4 text-white shadow-none",
+                banner.bgClass
+              )}
+            >
+              <div>
+                <span className="text-[11px] font-semibold leading-none text-white/70">
+                  Bredy
+                </span>
+                <h2 className="mt-2 text-[20px] font-extrabold leading-tight tracking-normal text-white">
+                  {banner.title}
+                </h2>
+                <p className="mt-1 line-clamp-2 text-[13px] font-medium leading-[1.45] tracking-normal text-white/85">
                   {banner.description}
                 </p>
-                <span className="mt-4 inline-flex h-7 items-center rounded-full bg-white/20 px-2.5 text-[11px] font-semibold text-white/95 backdrop-blur-sm relative z-10">
-                  자세히 보기
-                </span>
-                <div className="pointer-events-none absolute -right-8 -top-10 h-28 w-28 rounded-full bg-white/12" />
-              </Link>
-            ))}
-
-        </div>
-        <div className="mt-3 flex items-center justify-center gap-1.5">
-          {banners.map((banner, index: number) => (
-            <button
-              key={banner.id}
-              onClick={() => scrollToBanner(index)}
-              aria-label={`${index + 1}번 배너로 이동`}
-              className={cn(
-                "h-1.5 rounded-full transition-all",
-                activeBannerIndex === index ? "w-6 bg-slate-900" : "w-2 bg-slate-300"
-              )}
-            />
+              </div>
+              <span className="mt-4 inline-flex h-7 w-fit items-center rounded-md bg-white/15 px-2.5 text-[11px] font-bold text-white backdrop-blur-sm">
+                자세히 보기
+              </span>
+            </Link>
           ))}
+        </div>
+        <div className="mt-2 flex items-center justify-center">
+          <div className="inline-flex h-5 items-center gap-1 rounded-full border border-slate-200 bg-white px-2">
+            {banners.map((banner, index: number) => (
+              <button
+                key={banner.id}
+                type="button"
+                onClick={() => scrollToBanner(index)}
+                aria-label={`${index + 1}번 배너로 이동`}
+                aria-current={activeBannerIndex === index ? "true" : undefined}
+                className={cn(
+                  "h-1.5 rounded-full transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/30",
+                  activeBannerIndex === index
+                    ? "w-4 bg-primary"
+                    : "w-1.5 bg-slate-200 hover:bg-slate-300"
+                )}
+              />
+            ))}
+          </div>
         </div>
       </section>
 
