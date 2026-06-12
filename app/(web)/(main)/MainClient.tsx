@@ -366,13 +366,13 @@ const MainClient = ({
       </section>
 
       {/* Section 3: TOP 브리더 */}
-      <section className="app-section app-reveal app-reveal-1 py-2">
+      <section className="app-section app-reveal app-reveal-1 pt-4 pb-2">
         <SectionHeader
           title="이번 주 TOP 브리더"
           href={toRankingHref("breeders", heroBreederPeriod)}
           actionLabel="랭킹 보기"
         />
-        <div className="mt-1 px-5">
+        <div className="mt-3 px-5">
           {homeFeedData?.heroBreeder ? (
             <div className="app-card overflow-hidden border border-slate-200/80 p-0">
               {/* 상단: 프로필 + 순위 */}
