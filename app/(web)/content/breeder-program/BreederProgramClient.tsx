@@ -11,8 +11,9 @@ const PROGRAM_CARDS = [
     summary: "출시 후 신규 가입 선착순 100명 자동 부여",
     badge: "평생 경매 수수료 무료",
     frame: "골드 프레임",
-    tone: "from-amber-50 via-white to-slate-50",
-    border: "border-amber-200",
+    panel: "border-orange-100 bg-orange-50/40",
+    kicker: "text-orange-700",
+    chip: "border-orange-100 bg-white text-orange-700",
     text: "창립 멤버만 받을 수 있는 가장 높은 프레스티지 자격입니다.",
   },
   {
@@ -20,8 +21,9 @@ const PROGRAM_CARDS = [
     summary: "DM 섭외나 외부 협의를 거쳐 어드민에서 수동 설정",
     badge: "협업 할인",
     frame: "프리미엄 프레임",
-    tone: "from-cyan-50 via-white to-slate-50",
-    border: "border-cyan-200",
+    panel: "border-blue-100 bg-blue-50/40",
+    kicker: "text-blue-700",
+    chip: "border-blue-100 bg-white text-blue-700",
     text: "브랜드/브리더 협업용 등급으로, 개별 할인율을 운영자가 지정합니다.",
   },
   {
@@ -29,8 +31,9 @@ const PROGRAM_CARDS = [
     summary: "나중에 본인 인증 플로우가 생기면 부여",
     badge: "신뢰 배지",
     frame: "실버 프레임",
-    tone: "from-slate-50 via-white to-white",
-    border: "border-slate-200",
+    panel: "border-slate-200 bg-slate-50",
+    kicker: "text-slate-600",
+    chip: "border-slate-200 bg-white text-slate-700",
     text: "본인 인증 기반의 신뢰 등급으로, 프로필 신뢰도를 올려줍니다.",
   },
 ];
@@ -52,31 +55,31 @@ const BreederProgramClient = ({
     <Layout canGoBack title="브리더 프로그램" seoTitle="브리더 프로그램">
       <div className="mx-auto max-w-3xl px-4 py-6">
         <article className="overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-sm">
-          <div className="relative overflow-hidden bg-[radial-gradient(circle_at_top_left,_rgba(245,158,11,0.24),_transparent_34%),linear-gradient(135deg,#0f172a,#111827_56%,#1f2937)] px-5 py-6 text-white">
-            <p className="text-[11px] font-black uppercase tracking-[0.22em] text-amber-300">
+          <div className="relative overflow-hidden border-b border-slate-200 bg-slate-50 px-5 py-6 text-slate-950">
+            <p className="text-[11px] font-black uppercase tracking-[0.22em] text-slate-500">
               breeder program
             </p>
             <h1 className="mt-2 text-2xl font-black tracking-tight">
               브리디의 브리더 프레스티지 프로그램
             </h1>
-            <p className="mt-2 max-w-2xl text-sm leading-relaxed text-white/75">
+            <p className="mt-2 max-w-2xl text-sm leading-relaxed text-slate-600">
               창립 브리더 100인, 파트너 브리더, 인증 브리더를 각각 다른 방식으로
               운영합니다. 프로필에는 프레임과 배지를 더해 신뢰와 희소성을 함께
               보여줍니다.
             </p>
 
             <div className="mt-4 flex flex-wrap gap-2">
-              <span className="rounded-full bg-white/10 px-3 py-1 text-[11px] font-semibold text-white">
+              <span className="rounded-full border border-orange-100 bg-white px-3 py-1 text-[11px] font-semibold text-orange-700">
                 {hasFoundingBreederCount
                   ? isSoldOut
                     ? "창립 브리더 100인 마감"
                     : `창립 브리더 잔여 ${remainingSlots}석`
                   : "창립 브리더 현황 집계 중"}
               </span>
-              <span className="rounded-full bg-white/10 px-3 py-1 text-[11px] font-semibold text-white">
+              <span className="rounded-full border border-slate-200 bg-white px-3 py-1 text-[11px] font-semibold text-slate-700">
                 평생 경매 수수료 무료
               </span>
-              <span className="rounded-full bg-white/10 px-3 py-1 text-[11px] font-semibold text-white">
+              <span className="rounded-full border border-slate-200 bg-white px-3 py-1 text-[11px] font-semibold text-slate-700">
                 프로필 전용 프레임
               </span>
             </div>
@@ -84,13 +87,13 @@ const BreederProgramClient = ({
             <div className="mt-5 flex flex-wrap gap-3">
               <Link
                 href="/auth/login"
-                className="inline-flex h-10 items-center justify-center rounded-full bg-white px-4 text-sm font-semibold text-slate-900 transition hover:bg-slate-100"
+                className="inline-flex h-10 items-center justify-center rounded-full bg-slate-950 px-4 text-sm font-semibold text-white transition hover:bg-slate-800"
               >
                 로그인하러 가기
               </Link>
               <Link
                 href="/support"
-                className="inline-flex h-10 items-center justify-center rounded-full border border-white/20 px-4 text-sm font-semibold text-white transition hover:bg-white/10"
+                className="inline-flex h-10 items-center justify-center rounded-full border border-slate-300 bg-white px-4 text-sm font-semibold text-slate-700 transition hover:border-slate-400 hover:bg-slate-100"
               >
                 문의 남기기
               </Link>
@@ -105,7 +108,8 @@ const BreederProgramClient = ({
               <p className="mt-2 text-sm leading-relaxed text-slate-700">
                 브리더 자격이 있으면 프로필 사진에 전용 프레임이 붙고, 이름
                 아래에 전용 뱃지가 노출됩니다. 창립 브리더는 번호까지 표시해
-                희소성을 더하고, 파트너와 인증 브리더는 다른 색감으로 구분합니다.
+                희소성을 더하고, 파트너와 인증 브리더는 다른 색감으로
+                구분합니다.
               </p>
             </section>
 
@@ -113,9 +117,11 @@ const BreederProgramClient = ({
               {PROGRAM_CARDS.map((card) => (
                 <section
                   key={card.title}
-                  className={`rounded-2xl border ${card.border} bg-gradient-to-br ${card.tone} p-4 shadow-sm`}
+                  className={`rounded-2xl border ${card.panel} p-4`}
                 >
-                  <p className="text-xs font-black uppercase tracking-[0.18em] text-slate-500">
+                  <p
+                    className={`text-xs font-black uppercase tracking-[0.18em] ${card.kicker}`}
+                  >
                     {card.title}
                   </p>
                   <h3 className="mt-1 text-lg font-bold text-slate-900">
@@ -128,7 +134,9 @@ const BreederProgramClient = ({
                     {card.text}
                   </p>
                   <div className="mt-4 flex flex-wrap gap-2">
-                    <span className="rounded-full bg-white px-2.5 py-1 text-[11px] font-semibold text-slate-700 shadow-sm">
+                    <span
+                      className={`rounded-full border px-2.5 py-1 text-[11px] font-semibold ${card.chip}`}
+                    >
                       {card.frame}
                     </span>
                   </div>
@@ -136,16 +144,16 @@ const BreederProgramClient = ({
               ))}
             </div>
 
-            <section className="rounded-2xl border border-amber-200 bg-amber-50 p-4">
-              <p className="text-sm font-bold text-amber-900">
+            <section className="rounded-2xl border border-orange-100 bg-orange-50/50 p-4">
+              <p className="text-sm font-bold text-orange-900">
                 창립 브리더 100인
               </p>
-              <p className="mt-2 text-sm leading-relaxed text-amber-800">
+              <p className="mt-2 text-sm leading-relaxed text-orange-800">
                 출시 이후 새로 가입한 유저 중 처음 100명만 자동 선정됩니다.
                 선정된 계정은 평생 경매 수수료 무료 혜택을 받고, 프로필에서 가장
                 강한 프레임과 뱃지를 받습니다.
               </p>
-              <p className="mt-2 text-sm font-semibold text-amber-900">
+              <p className="mt-2 text-sm font-semibold text-orange-900">
                 {hasFoundingBreederCount
                   ? isSoldOut
                     ? "현재 100인 모집이 마감되었습니다."
@@ -158,9 +166,9 @@ const BreederProgramClient = ({
               <p className="text-sm font-bold text-slate-900">다음 단계</p>
               <p className="mt-2 text-sm leading-relaxed text-slate-700">
                 창립 브리더는 자동 100명, 파트너 브리더는 어드민 수동 설정, 인증
-                브리더는 추후 본인 인증 기능과 연결됩니다. 지금은 프로필과 로그인
-                흐름에서 먼저 노출하고, 이후 수수료 시스템이 생기면 혜택만
-                연결하면 됩니다.
+                브리더는 추후 본인 인증 기능과 연결됩니다. 지금은 프로필과
+                로그인 흐름에서 먼저 노출하고, 이후 수수료 시스템이 생기면
+                혜택만 연결하면 됩니다.
               </p>
             </section>
           </div>
