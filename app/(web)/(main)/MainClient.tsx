@@ -64,42 +64,9 @@ const formatRankDelta = (rankDelta: number) => {
   return "유지";
 };
 
-const getBannerTone = (bgClass: string) => {
-  if (bgClass.includes("orange") || bgClass.includes("amber")) {
-    return {
-      card: "border-orange-100 bg-orange-50/45",
-      chip: "border-orange-100 bg-white text-orange-700",
-      visual: "border-orange-100 bg-orange-100 text-orange-700",
-    };
-  }
 
-  if (bgClass.includes("sky") || bgClass.includes("cyan")) {
-    return {
-      card: "border-blue-100 bg-blue-50/45",
-      chip: "border-blue-100 bg-white text-blue-700",
-      visual: "border-blue-100 bg-blue-100 text-blue-700",
-    };
-  }
-
-  if (bgClass.includes("emerald") || bgClass.includes("teal")) {
-    return {
-      card: "border-emerald-100 bg-emerald-50/45",
-      chip: "border-emerald-100 bg-white text-emerald-700",
-      visual: "border-emerald-100 bg-emerald-100 text-emerald-700",
-    };
-  }
-
-  return {
-    card: "border-slate-200 bg-white",
-    chip: "border-slate-200 bg-slate-50 text-slate-700",
-    visual: "border-slate-200 bg-slate-100 text-slate-700",
-  };
-};
-
-const toRankingHref = (
-  tab: "breeders" | "auctions" | "bloodlines" | "community",
-  period: "weekly" | "all",
-) => `/ranking?tab=${tab}&period=${period}`;
+const toRankingHref = (tab: "breeders" | "auctions" | "bloodlines" | "community", period: "weekly" | "all") =>
+  `/ranking?tab=${tab}&period=${period}`;
 
 const MainClient = ({
   initialHomeFeed,
@@ -122,7 +89,7 @@ const MainClient = ({
 
   const getKey = (
     pageIndex: number,
-    previousPageData: ProductsResponse | null,
+    previousPageData: ProductsResponse | null
   ) => {
     if (previousPageData && !previousPageData.products.length) return null;
     const categoryParam =
@@ -146,7 +113,7 @@ const MainClient = ({
       revalidateOnFocus: false,
       revalidateOnMount: false,
       revalidateIfStale: false,
-    },
+    }
   );
   const banners = initialBanners;
 
@@ -286,18 +253,12 @@ const MainClient = ({
   };
 
   const loadedProductCount =
-    data?.reduce(
-      (count, pageData) => count + (pageData?.products?.length ?? 0),
-      0,
-    ) ?? 0;
+    data?.reduce((count, pageData) => count + (pageData?.products?.length ?? 0), 0) ?? 0;
   const heroBreederPeriod = homeFeedData?.heroBreederMode ?? "weekly";
-  const auctionPeriod =
-    homeFeedData?.topAuctionsMode === "all" ? "all" : "weekly";
+  const auctionPeriod = homeFeedData?.topAuctionsMode === "all" ? "all" : "weekly";
   const bloodlinePeriod = homeFeedData?.topBloodlinesMode ?? "weekly";
-  const communityPeriod =
-    homeFeedData?.trendingPostsMode === "all" ? "all" : "weekly";
-  const bloodlineSubtitle =
-    "가장 많은 사용자가 보유한 혈통카드를 기준으로 집계한 랭킹";
+  const communityPeriod = homeFeedData?.trendingPostsMode === "all" ? "all" : "weekly";
+  const bloodlineSubtitle = "가장 많은 사용자가 보유한 혈통카드를 기준으로 집계한 랭킹";
   const communitySubtitle = "좋아요와 댓글 반응이 높은 커뮤니티 글";
 
   return (
@@ -307,11 +268,9 @@ const MainClient = ({
         <div
           ref={bannerRef}
           onScroll={handleBannerScroll}
-          className="app-rail flex gap-3 px-4 py-1"
+          className="app-rail flex gap-0"
         >
-          {banners.map((banner) => {
-            const tone = getBannerTone(banner.bgClass);
-            return (
+            {banners.map((banner) => (
               <Link
                 key={banner.id}
                 href={banner.href}
@@ -324,64 +283,32 @@ const MainClient = ({
                   })
                 }
                 className={cn(
-                  "snap-start flex min-h-[128px] w-[calc(100%-28px)] shrink-0 items-stretch justify-between gap-4 overflow-hidden rounded-xl border p-4 text-slate-950 shadow-none transition-colors",
-                  "sm:w-[calc(100%-40px)]",
-                  tone.card,
+                  "snap-start shrink-0 w-full app-card-interactive rounded-none border-0 shadow-none px-5 py-5 text-white bg-gradient-to-r relative overflow-hidden from-emerald-500 to-teal-500",
+                  banner.bgClass
                 )}
               >
-                <div className="min-w-0 flex-1 self-center">
-                  <span
-                    className={cn(
-                      "inline-flex h-6 items-center rounded-full border px-2 text-[11px] font-semibold",
-                      tone.chip,
-                    )}
-                  >
-                    Bredy
-                  </span>
-                  <h2 className="mt-2 line-clamp-1 text-[18px] font-bold text-slate-950">
-                    {banner.title}
-                  </h2>
-                  <p className="mt-1 line-clamp-2 text-[13px] font-medium text-slate-500">
-                    {banner.description}
-                  </p>
-                  <span className="mt-3 inline-flex text-[13px] font-semibold text-slate-900">
-                    자세히 보기 ›
-                  </span>
-                </div>
-                <div
-                  className={cn(
-                    "relative flex h-24 w-24 shrink-0 items-center justify-center overflow-hidden rounded-lg border",
-                    tone.visual,
-                  )}
-                >
-                  {banner.image ? (
-                    <Image
-                      src={makeImageUrl(banner.image, "public")}
-                      alt=""
-                      width={96}
-                      height={96}
-                      className="h-full w-full object-cover"
-                    />
-                  ) : (
-                    <span className="text-xl font-black">B</span>
-                  )}
-                </div>
+                <span className="app-kicker text-white/75 relative z-10">Bredy</span>
+                <h2 className="mt-2 app-title-lg text-white relative z-10">{banner.title}</h2>
+                <p className="mt-1 app-body-sm text-white/90 line-clamp-2 relative z-10">
+                  {banner.description}
+                </p>
+                <span className="mt-4 inline-flex h-7 items-center rounded-full bg-white/20 px-2.5 text-[11px] font-semibold text-white/95 backdrop-blur-sm relative z-10">
+                  자세히 보기
+                </span>
+                <div className="pointer-events-none absolute -right-8 -top-10 h-28 w-28 rounded-full bg-white/12" />
               </Link>
-            );
-          })}
+            ))}
+
         </div>
-        <div className="mt-2 flex items-center gap-1 px-5">
+        <div className="mt-3 flex items-center justify-center gap-1.5">
           {banners.map((banner, index: number) => (
             <button
               key={banner.id}
               onClick={() => scrollToBanner(index)}
               aria-label={`${index + 1}번 배너로 이동`}
-              aria-current={activeBannerIndex === index ? "true" : undefined}
               className={cn(
-                "h-1 rounded-full transition-all",
-                activeBannerIndex === index
-                  ? "w-5 bg-slate-900"
-                  : "w-2 bg-slate-300",
+                "h-1.5 rounded-full transition-all",
+                activeBannerIndex === index ? "w-6 bg-slate-900" : "w-2 bg-slate-300"
               )}
             />
           ))}
@@ -398,9 +325,7 @@ const MainClient = ({
                 <span className="inline-flex items-center rounded-full bg-white/25 px-2 py-0.5 text-[9px] font-bold uppercase tracking-widest">
                   이벤트
                 </span>
-                <h3 className="text-sm font-black leading-tight">
-                  혈통카드 공유 챌린지
-                </h3>
+                <h3 className="text-sm font-black leading-tight">혈통카드 공유 챌린지</h3>
               </div>
               <p className="mt-1 text-[11px] leading-snug text-white/90">
                 내 혈통카드를 공유하고 특별 배지를 받으세요!
@@ -446,10 +371,7 @@ const MainClient = ({
                   <div className="h-11 w-11 overflow-hidden rounded-full bg-slate-100 ring-2 ring-amber-400/60">
                     {homeFeedData.heroBreeder.user.avatar ? (
                       <Image
-                        src={makeImageUrl(
-                          homeFeedData.heroBreeder.user.avatar,
-                          "avatar",
-                        )}
+                        src={makeImageUrl(homeFeedData.heroBreeder.user.avatar, "avatar")}
                         alt={homeFeedData.heroBreeder.user.name}
                         width={44}
                         height={44}
@@ -470,20 +392,14 @@ const MainClient = ({
                     <h3 className="truncate text-sm font-bold text-slate-900">
                       {homeFeedData.heroBreeder.user.name}
                     </h3>
-                    {(homeFeedData.heroBreeder.badges || [])
-                      .slice(0, 1)
-                      .map((badge) => (
-                        <span
-                          key={badge.id}
-                          className="shrink-0 rounded bg-amber-50 px-1.5 py-0.5 text-[9px] font-semibold text-amber-600"
-                        >
-                          {badge.label}
-                        </span>
-                      ))}
+                    {(homeFeedData.heroBreeder.badges || []).slice(0, 1).map((badge) => (
+                      <span key={badge.id} className="shrink-0 rounded bg-amber-50 px-1.5 py-0.5 text-[9px] font-semibold text-amber-600">
+                        {badge.label}
+                      </span>
+                    ))}
                   </div>
                   <p className="mt-0.5 text-xs text-slate-500">
-                    {homeFeedData.heroBreeder.score.toLocaleString()}점 ·{" "}
-                    {formatRankDelta(homeFeedData.heroBreeder.rankDelta)}
+                    {homeFeedData.heroBreeder.score.toLocaleString()}점 · {formatRankDelta(homeFeedData.heroBreeder.rankDelta)}
                   </p>
                 </div>
                 <button
@@ -496,7 +412,7 @@ const MainClient = ({
                     router.push(
                       user
                         ? toRankingHref("breeders", "weekly")
-                        : "/auth/login?next=%2Franking%3Ftab%3Dbreeders%26period%3Dweekly",
+                        : "/auth/login?next=%2Franking%3Ftab%3Dbreeders%26period%3Dweekly"
                     );
                   }}
                   className="shrink-0 rounded-full bg-slate-900 px-3 py-1.5 text-[11px] font-semibold text-white transition-colors hover:bg-slate-800"
@@ -508,29 +424,19 @@ const MainClient = ({
               <div className="flex border-t border-slate-100 divide-x divide-slate-100">
                 {[
                   { label: "게시", value: homeFeedData.heroBreeder.postsCount },
-                  {
-                    label: "댓글",
-                    value: homeFeedData.heroBreeder.commentsCount,
-                  },
+                  { label: "댓글", value: homeFeedData.heroBreeder.commentsCount },
                   { label: "입찰", value: homeFeedData.heroBreeder.bidsCount },
-                  {
-                    label: "낙찰",
-                    value: homeFeedData.heroBreeder.auctionWinsCount,
-                  },
+                  { label: "낙찰", value: homeFeedData.heroBreeder.auctionWinsCount },
                 ].map((stat) => (
                   <div key={stat.label} className="flex-1 py-2.5 text-center">
-                    <p className="text-sm font-bold text-slate-900">
-                      {stat.value}
-                    </p>
+                    <p className="text-sm font-bold text-slate-900">{stat.value}</p>
                     <p className="text-[10px] text-slate-400">{stat.label}</p>
                   </div>
                 ))}
               </div>
             </div>
           ) : (
-            <div className="app-card p-4 text-sm text-slate-400">
-              이번 주 브리더 집계가 준비 중입니다.
-            </div>
+            <div className="app-card p-4 text-sm text-slate-400">이번 주 브리더 집계가 준비 중입니다.</div>
           )}
         </div>
       </section>
@@ -545,8 +451,7 @@ const MainClient = ({
               trackEvent(ANALYTICS_EVENTS.rankingCardClick, {
                 ranking_type: "auction",
                 rank: 1,
-                entity_id:
-                  homeFeedData?.topAuctionsByCategory?.[0]?.auctionId ?? "",
+                entity_id: homeFeedData?.topAuctionsByCategory?.[0]?.auctionId ?? "",
                 section_id: "auction_ranking",
               })
             }
@@ -554,45 +459,34 @@ const MainClient = ({
           >
             <div>
               <div className="flex items-center justify-between">
-                <h3 className="text-sm font-bold text-slate-900">
-                  최고가 경매
-                </h3>
+                <h3 className="text-sm font-bold text-slate-900">최고가 경매</h3>
                 <span className="text-[10px] text-slate-400">더보기 ›</span>
               </div>
-              <p className="mt-0.5 text-[10px] text-slate-400">
-                카테고리별 최고 낙찰가
-              </p>
+              <p className="mt-0.5 text-[10px] text-slate-400">카테고리별 최고 낙찰가</p>
             </div>
             <div className="mt-2 space-y-1.5">
               {homeFeedData?.topAuctionsByCategory?.length ? (
-                homeFeedData.topAuctionsByCategory
-                  .slice(0, 2)
-                  .map((auction) => (
-                    <div
-                      key={auction.auctionId}
-                      className="flex items-center gap-2"
-                    >
-                      <div className="h-8 w-8 shrink-0 overflow-hidden rounded-lg bg-slate-100">
-                        {auction.photo ? (
-                          <Image
-                            src={makeImageUrl(auction.photo, "public")}
-                            alt={auction.title}
-                            width={32}
-                            height={32}
-                            className="h-full w-full object-cover"
-                          />
-                        ) : null}
-                      </div>
-                      <div className="min-w-0 flex-1">
-                        <p className="truncate text-xs font-medium text-slate-700">
-                          {auction.title}
-                        </p>
-                        <p className="text-[10px] text-primary font-semibold">
-                          {auction.currentPrice.toLocaleString()}원
-                        </p>
-                      </div>
+                homeFeedData.topAuctionsByCategory.slice(0, 2).map((auction) => (
+                  <div key={auction.auctionId} className="flex items-center gap-2">
+                    <div className="h-8 w-8 shrink-0 overflow-hidden rounded-lg bg-slate-100">
+                      {auction.photo ? (
+                        <Image
+                          src={makeImageUrl(auction.photo, "public")}
+                          alt={auction.title}
+                          width={32}
+                          height={32}
+                          className="h-full w-full object-cover"
+                        />
+                      ) : null}
                     </div>
-                  ))
+                    <div className="min-w-0 flex-1">
+                      <p className="truncate text-xs font-medium text-slate-700">{auction.title}</p>
+                      <p className="text-[10px] text-primary font-semibold">
+                        {auction.currentPrice.toLocaleString()}원
+                      </p>
+                    </div>
+                  </div>
+                ))
               ) : (
                 <p className="text-[10px] text-slate-400">집계 준비 중</p>
               )}
@@ -606,8 +500,7 @@ const MainClient = ({
               trackEvent(ANALYTICS_EVENTS.rankingCardClick, {
                 ranking_type: "bloodline",
                 rank: 1,
-                entity_id:
-                  homeFeedData?.topBloodlines?.[0]?.bloodlineRootId ?? "",
+                entity_id: homeFeedData?.topBloodlines?.[0]?.bloodlineRootId ?? "",
                 section_id: "bloodline_ranking",
               })
             }
@@ -615,22 +508,15 @@ const MainClient = ({
           >
             <div>
               <div className="flex items-center justify-between">
-                <h3 className="text-sm font-bold text-slate-900">
-                  인기 혈통 TOP
-                </h3>
+                <h3 className="text-sm font-bold text-slate-900">인기 혈통 TOP</h3>
                 <span className="text-[10px] text-slate-400">더보기 ›</span>
               </div>
-              <p className="mt-0.5 text-[10px] text-slate-400">
-                보유자 수 기준 랭킹
-              </p>
+              <p className="mt-0.5 text-[10px] text-slate-400">보유자 수 기준 랭킹</p>
             </div>
             <div className="mt-2 space-y-1.5">
               {homeFeedData?.topBloodlines?.length ? (
                 homeFeedData.topBloodlines.slice(0, 2).map((bloodline) => (
-                  <div
-                    key={bloodline.bloodlineRootId}
-                    className="flex items-center gap-2"
-                  >
+                  <div key={bloodline.bloodlineRootId} className="flex items-center gap-2">
                     <div className="h-8 w-8 shrink-0 overflow-hidden rounded-lg bg-slate-100">
                       {bloodline.image ? (
                         <Image
@@ -642,19 +528,13 @@ const MainClient = ({
                         />
                       ) : (
                         <div className="flex h-full w-full items-end bg-[linear-gradient(145deg,#111827,#1f2937_58%,#f59e0b)] p-1">
-                          <span className="text-[6px] font-semibold tracking-wider text-white/80">
-                            BL
-                          </span>
+                          <span className="text-[6px] font-semibold tracking-wider text-white/80">BL</span>
                         </div>
                       )}
                     </div>
                     <div className="min-w-0 flex-1">
-                      <p className="truncate text-xs font-medium text-slate-700">
-                        {bloodline.name}
-                      </p>
-                      <p className="text-[10px] text-slate-400">
-                        보유자 {bloodline.ownerCount}명
-                      </p>
+                      <p className="truncate text-xs font-medium text-slate-700">{bloodline.name}</p>
+                      <p className="text-[10px] text-slate-400">보유자 {bloodline.ownerCount}명</p>
                     </div>
                   </div>
                 ))
@@ -679,26 +559,18 @@ const MainClient = ({
           >
             <div>
               <div className="flex items-center justify-between">
-                <h3 className="text-sm font-bold text-slate-900">
-                  급상승 커뮤니티
-                </h3>
+                <h3 className="text-sm font-bold text-slate-900">급상승 커뮤니티</h3>
                 <span className="text-[10px] text-slate-400">더보기 ›</span>
               </div>
-              <p className="mt-0.5 text-[10px] text-slate-400">
-                {communitySubtitle}
-              </p>
+              <p className="mt-0.5 text-[10px] text-slate-400">{communitySubtitle}</p>
             </div>
             <div className="mt-2 space-y-1.5">
               {homeFeedData?.trendingPosts?.length ? (
                 homeFeedData.trendingPosts.slice(0, 2).map((item) => (
                   <div key={item.post.id} className="flex items-center gap-2">
                     <div className="min-w-0 flex-1">
-                      <p className="truncate text-xs font-medium text-slate-700">
-                        {item.post.title}
-                      </p>
-                      <p className="text-[10px] text-slate-400">
-                        #{item.rank} 상승중
-                      </p>
+                      <p className="truncate text-xs font-medium text-slate-700">{item.post.title}</p>
+                      <p className="text-[10px] text-slate-400">#{item.rank} 상승중</p>
                     </div>
                   </div>
                 ))
@@ -727,36 +599,28 @@ const MainClient = ({
                   <h3 className="text-sm font-bold text-slate-900">무료나눔</h3>
                   <span className="text-[10px] text-slate-400">더보기 ›</span>
                 </div>
-                <p className="mt-0.5 text-[10px] text-slate-400">
-                  가격 0원 · 지금 연락하세요
-                </p>
+                <p className="mt-0.5 text-[10px] text-slate-400">가격 0원 · 지금 연락하세요</p>
               </div>
               <div className="mt-2 space-y-1.5">
-                {homeFeedData.freeGiveawayProducts
-                  .slice(0, 2)
-                  .map((item: FreeProductItem) => (
-                    <div key={item.id} className="flex items-center gap-2">
-                      <div className="h-8 w-8 shrink-0 overflow-hidden rounded-lg bg-slate-100">
-                        {item.photos[0] ? (
-                          <Image
-                            src={makeImageUrl(item.photos[0], "public")}
-                            alt={item.name}
-                            width={32}
-                            height={32}
-                            className="h-full w-full object-cover"
-                          />
-                        ) : null}
-                      </div>
-                      <div className="min-w-0 flex-1">
-                        <p className="truncate text-xs font-medium text-slate-700">
-                          {item.name}
-                        </p>
-                        <p className="text-[10px] text-slate-400">
-                          {item.user.name}
-                        </p>
-                      </div>
+                {homeFeedData.freeGiveawayProducts.slice(0, 2).map((item: FreeProductItem) => (
+                  <div key={item.id} className="flex items-center gap-2">
+                    <div className="h-8 w-8 shrink-0 overflow-hidden rounded-lg bg-slate-100">
+                      {item.photos[0] ? (
+                        <Image
+                          src={makeImageUrl(item.photos[0], "public")}
+                          alt={item.name}
+                          width={32}
+                          height={32}
+                          className="h-full w-full object-cover"
+                        />
+                      ) : null}
                     </div>
-                  ))}
+                    <div className="min-w-0 flex-1">
+                      <p className="truncate text-xs font-medium text-slate-700">{item.name}</p>
+                      <p className="text-[10px] text-slate-400">{item.user.name}</p>
+                    </div>
+                  </div>
+                ))}
               </div>
             </Link>
           ) : (
@@ -765,12 +629,8 @@ const MainClient = ({
               className="app-card app-card-interactive flex flex-col items-center justify-center p-3 text-center"
             >
               <h3 className="text-sm font-bold text-slate-900">무료나눔</h3>
-              <p className="mt-2 text-xs text-slate-500">
-                아직 무료나눔이 없어요
-              </p>
-              <p className="mt-1 text-[10px] font-semibold text-primary">
-                첫 번째로 등록해보세요 ›
-              </p>
+              <p className="mt-2 text-xs text-slate-500">아직 무료나눔이 없어요</p>
+              <p className="mt-1 text-[10px] font-semibold text-primary">첫 번째로 등록해보세요 ›</p>
             </Link>
           )}
         </div>
@@ -790,7 +650,7 @@ const MainClient = ({
                     "flex-shrink-0 rounded-md px-3 py-1.5 text-sm transition-colors",
                     isActive
                       ? "bg-slate-900 font-semibold text-white"
-                      : "bg-slate-100 font-medium text-slate-600 hover:bg-slate-200",
+                      : "bg-slate-100 font-medium text-slate-600 hover:bg-slate-200"
                   )}
                 >
                   {tab.name}
@@ -805,11 +665,11 @@ const MainClient = ({
         <div className="flex items-end justify-between">
           <div>
             <h2 className="app-section-title">
-              {selectedCategory === "전체"
-                ? "전체 상품"
-                : `${selectedCategory} 상품`}
+              {selectedCategory === "전체" ? "전체 상품" : `${selectedCategory} 상품`}
             </h2>
-            <p className="mt-1 app-caption">최신 등록 순으로 노출됩니다.</p>
+            <p className="mt-1 app-caption">
+              최신 등록 순으로 노출됩니다.
+            </p>
           </div>
           <span className="app-count-chip">{loadedProductCount}개</span>
         </div>
@@ -845,22 +705,24 @@ const MainClient = ({
         )}
 
         {/* 결과 없을 때 */}
-        {data && data.length > 0 && data[0].products.length === 0 && (
-          <div className="flex flex-col items-center justify-center py-20 text-slate-400">
-            <p className="app-title-md text-slate-500">
-              상품 피드가 활발해질 준비 중이에요
-            </p>
-            <p className="app-body-sm mt-1">
-              지금 개체를 등록해 첫 상품을 올려보세요.
-            </p>
-            <Link
-              href="/products/upload"
-              className="mt-3 inline-flex h-9 items-center rounded-md bg-slate-900 px-3 text-xs font-semibold text-white"
-            >
-              상품 등록하러 가기
-            </Link>
-          </div>
-        )}
+        {data &&
+          data.length > 0 &&
+          data[0].products.length === 0 && (
+            <div className="flex flex-col items-center justify-center py-20 text-slate-400">
+              <p className="app-title-md text-slate-500">
+                상품 피드가 활발해질 준비 중이에요
+              </p>
+              <p className="app-body-sm mt-1">
+                지금 개체를 등록해 첫 상품을 올려보세요.
+              </p>
+              <Link
+                href="/products/upload"
+                className="mt-3 inline-flex h-9 items-center rounded-md bg-slate-900 px-3 text-xs font-semibold text-white"
+              >
+                상품 등록하러 가기
+              </Link>
+            </div>
+          )}
       </div>
 
       <FloatingButton href="/products/upload">
@@ -884,12 +746,9 @@ const MainClient = ({
       {showPostLoginGuide && (
         <div className="fixed inset-0 z-50 bg-black/50 px-4 py-8">
           <div className="mx-auto mt-16 w-full max-w-sm rounded-2xl border border-slate-200 bg-white p-5 shadow-2xl">
-            <h3 className="text-base font-semibold text-slate-900">
-              시작 설정
-            </h3>
+            <h3 className="text-base font-semibold text-slate-900">시작 설정</h3>
             <p className="mt-1 text-sm text-slate-600">
-              홈 화면 설치와 푸시 알림을 설정하면 새 소식을 빠르게 확인할 수
-              있습니다.
+              홈 화면 설치와 푸시 알림을 설정하면 새 소식을 빠르게 확인할 수 있습니다.
             </p>
             <div className="mt-4 flex flex-col gap-2.5">
               <button
@@ -899,7 +758,7 @@ const MainClient = ({
                   "h-11 rounded-xl text-sm font-semibold transition-colors",
                   deferredInstallPrompt
                     ? "bg-slate-900 text-white hover:bg-slate-800"
-                    : "bg-slate-100 text-slate-500",
+                    : "bg-slate-100 text-slate-500"
                 )}
                 disabled={!deferredInstallPrompt || installLoading}
               >
