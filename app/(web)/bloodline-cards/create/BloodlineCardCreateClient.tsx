@@ -1,6 +1,13 @@
 "use client";
 
-import { ChangeEvent, FormEvent, useEffect, useMemo, useRef, useState } from "react";
+import {
+  ChangeEvent,
+  FormEvent,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import Layout from "@components/features/MainLayout";
@@ -17,7 +24,10 @@ import {
 } from "@components/features/bloodline/BloodlineVisualCard";
 import { cn } from "@libs/client/utils";
 
-const CARD_VARIANT_LABELS: { value: BloodlineVisualCardVariant; label: string }[] = [
+const CARD_VARIANT_LABELS: {
+  value: BloodlineVisualCardVariant;
+  label: string;
+}[] = [
   { value: "noir", label: "모던" },
   { value: "clean", label: "클린" },
   { value: "editorial", label: "에디토리얼" },
@@ -27,7 +37,14 @@ const allowedNamePattern = /^[A-Za-z0-9가-힣]+$/;
 
 const CARD_VARIANT_STORAGE_KEY = "bloodline.visual.card.variant";
 const MAX_IMAGE_SIZE = 10 * 1024 * 1024;
-const ALLOWED_IMAGE_EXTENSIONS = [".jpg", ".jpeg", ".png", ".webp", ".heic", ".heif"] as const;
+const ALLOWED_IMAGE_EXTENSIONS = [
+  ".jpg",
+  ".jpeg",
+  ".png",
+  ".webp",
+  ".heic",
+  ".heif",
+] as const;
 
 const getFileExtension = (name: string) => {
   const pointIndex = name.lastIndexOf(".");
@@ -59,10 +76,13 @@ export default function BloodlineCardCreateClient() {
 
   const previewName = useMemo(
     () => (cardName.trim() || "새 혈통").slice(0, 40),
-    [cardName]
+    [cardName],
   );
 
-  const previewImageUrl = useMemo(() => cardImagePreview || "", [cardImagePreview]);
+  const previewImageUrl = useMemo(
+    () => cardImagePreview || "",
+    [cardImagePreview],
+  );
 
   useEffect(() => {
     if (!cardImageFile) {
@@ -79,7 +99,9 @@ export default function BloodlineCardCreateClient() {
       const saved = localStorage.getItem(CARD_VARIANT_STORAGE_KEY);
       if (
         saved &&
-        bloodlineVisualCardVariants.includes(saved as BloodlineVisualCardVariant)
+        bloodlineVisualCardVariants.includes(
+          saved as BloodlineVisualCardVariant,
+        )
       ) {
         setCardVisualVariant(saved as BloodlineVisualCardVariant);
       }
@@ -160,7 +182,9 @@ export default function BloodlineCardCreateClient() {
     const nextExt = getFileExtension(nextFile.name || "").toLowerCase();
     const isImageTypeAllowed =
       nextType.startsWith("image/") ||
-      ALLOWED_IMAGE_EXTENSIONS.includes(nextExt as (typeof ALLOWED_IMAGE_EXTENSIONS)[number]);
+      ALLOWED_IMAGE_EXTENSIONS.includes(
+        nextExt as (typeof ALLOWED_IMAGE_EXTENSIONS)[number],
+      );
 
     if (!isImageTypeAllowed) {
       setImageError("이미지 파일만 업로드할 수 있습니다.");
@@ -213,7 +237,9 @@ export default function BloodlineCardCreateClient() {
       return;
     }
     if (!allowedNamePattern.test(nextName)) {
-      setNameError("이름은 영문, 숫자, 한글만 입력 가능하며 공백/특수문자는 허용되지 않습니다.");
+      setNameError(
+        "이름은 영문, 숫자, 한글만 입력 가능하며 공백/특수문자는 허용되지 않습니다.",
+      );
       return;
     }
     if (!nextDescription) {
@@ -221,7 +247,9 @@ export default function BloodlineCardCreateClient() {
       return;
     }
 
-    const isConfirmed = window.confirm(`"${nextName}" 혈통카드를 정말로 만드시겠어요?`);
+    const isConfirmed = window.confirm(
+      `"${nextName}" 혈통카드를 정말로 만드시겠어요?`,
+    );
     if (!isConfirmed) {
       return;
     }
@@ -232,7 +260,11 @@ export default function BloodlineCardCreateClient() {
         setMessage("카드 이미지 업로드 중...");
       }
       const image = cardImageFile ? await uploadCardImage(cardImageFile) : "";
-      setMessage(cardImageFile ? "이미지 업로드 완료. 카드 생성 중..." : "카드 생성 중...");
+      setMessage(
+        cardImageFile
+          ? "이미지 업로드 완료. 카드 생성 중..."
+          : "카드 생성 중...",
+      );
 
       const res = await fetch("/api/bloodline-cards", {
         method: "POST",
@@ -250,7 +282,9 @@ export default function BloodlineCardCreateClient() {
         throw new Error(errorMessage);
       }
       if (!payload.success) {
-        throw new Error(errorMessage || payload.error || "혈통카드 생성에 실패했습니다.");
+        throw new Error(
+          errorMessage || payload.error || "혈통카드 생성에 실패했습니다.",
+        );
       }
 
       const createdCardId =
@@ -270,7 +304,9 @@ export default function BloodlineCardCreateClient() {
       }
       setMessage("");
       const encodedCardName = encodeURIComponent(nextName);
-      router.push(`/bloodline-management/card/${createdCardId}?celebration=card-created&name=${encodedCardName}`);
+      router.push(
+        `/bloodline-management/card/${createdCardId}?celebration=card-created&name=${encodedCardName}`,
+      );
     } catch (createError) {
       const errorMessage =
         createError instanceof Error
@@ -287,11 +323,20 @@ export default function BloodlineCardCreateClient() {
   };
 
   return (
-    <Layout canGoBack showHome title="혈통카드 만들기" seoTitle="혈통카드 만들기">
-      <div className={`relative space-y-4 px-4 py-4 pb-12 ${creatingCard ? "pointer-events-none" : ""}`}>
+    <Layout
+      canGoBack
+      showHome
+      title="혈통카드 만들기"
+      seoTitle="혈통카드 만들기"
+    >
+      <div
+        className={`relative space-y-4 px-4 py-4 pb-12 ${
+          creatingCard ? "pointer-events-none" : ""
+        }`}
+      >
         {creatingCard ? (
           <div className="fixed inset-0 z-40 grid place-items-center bg-white/80">
-            <div className="rounded-xl border border-slate-200 bg-white px-5 py-4 shadow-md">
+            <div className="rounded-lg border border-slate-200 bg-white px-5 py-4 shadow-sm">
               <div className="flex flex-col items-center gap-3">
                 <Spinner />
                 <p className="text-center text-sm font-semibold text-slate-800">
@@ -301,20 +346,25 @@ export default function BloodlineCardCreateClient() {
             </div>
           </div>
         ) : null}
-        <section className="app-reveal app-reveal-1 relative overflow-hidden rounded-2xl border border-slate-200/80 bg-gradient-to-br from-white/90 via-slate-50 to-slate-50 p-4 shadow-[0_15px_40px_rgba(15, 23, 42,0.18)] transition duration-300 hover:-translate-y-0.5 hover:shadow-[0_18px_40px_rgba(15, 23, 42,0.24)]">
-          <div className="pointer-events-none absolute -left-20 -bottom-16 h-36 w-36 rounded-full bg-slate-200/45 blur-2xl" />
+        <section className="app-reveal app-reveal-1 rounded-lg border border-slate-200 bg-white p-4">
           <div className="mb-3 flex items-start justify-between gap-3">
             <div>
-              <p className="text-xs font-black uppercase tracking-[0.16em] text-slate-500">대표 카드 미리보기</p>
-              <p className="mt-1 text-[13px] font-semibold text-slate-900">내가 상상한 혈통의 정수</p>
+              <p className="text-xs font-semibold text-primary">
+                대표 카드 미리보기
+              </p>
+              <p className="mt-1 text-[13px] font-semibold text-slate-900">
+                생성 전 카드 형태를 확인하세요
+              </p>
             </div>
-            <span className="shrink-0 rounded-full border border-slate-200 bg-white/80 px-2.5 py-1 text-[11px] font-semibold text-slate-700">
+            <span className="shrink-0 rounded-md border border-slate-200 bg-slate-50 px-2.5 py-1 text-[11px] font-semibold text-slate-700">
               LIVE
             </span>
           </div>
           <div className="mb-3">
             <div className="mb-2 flex items-center justify-between gap-2">
-              <p className="text-xs font-semibold text-slate-700">카드 스타일</p>
+              <p className="text-xs font-semibold text-slate-700">
+                카드 스타일
+              </p>
               <span className="text-[11px] text-slate-500">원클릭 적용</span>
             </div>
             <div className="grid grid-cols-3 gap-2">
@@ -323,7 +373,7 @@ export default function BloodlineCardCreateClient() {
                   key={item.value}
                   type="button"
                   onClick={() => setCardVisualVariant(item.value)}
-                  className={`h-9 rounded-full border px-3 text-[11px] font-semibold transition ${
+                  className={`h-9 rounded-lg border px-3 text-[11px] font-semibold transition ${
                     cardVisualVariant === item.value
                       ? "bg-slate-900 text-white"
                       : "bg-white text-slate-700 hover:border-slate-300 hover:bg-slate-50"
@@ -357,7 +407,9 @@ export default function BloodlineCardCreateClient() {
 
         {!isUserLoading && !user ? (
           <section className="rounded-xl border border-slate-200 bg-white p-5 text-center">
-            <p className="text-sm text-slate-700">혈통카드는 로그인 후 생성할 수 있습니다.</p>
+            <p className="text-sm text-slate-700">
+              혈통카드는 로그인 후 생성할 수 있습니다.
+            </p>
             <Link
               href="/auth/login?next=%2Fbloodline-cards%2Fcreate"
               className="mt-3 inline-flex h-10 items-center justify-center rounded-lg bg-slate-900 px-4 text-sm font-semibold text-white"
@@ -382,9 +434,11 @@ export default function BloodlineCardCreateClient() {
 
             <form
               onSubmit={handleCreateBloodlineCard}
-              className="app-reveal app-reveal-2 space-y-3 rounded-2xl border border-slate-200/80 bg-white/90 p-4 shadow-[0_12px_34px_rgba(15, 23, 42,0.14)] transition duration-300 hover:-translate-y-0.5 hover:shadow-[0_16px_40px_rgba(15, 23, 42,0.22)]"
+              className="app-reveal app-reveal-2 space-y-3 rounded-lg border border-slate-200 bg-white p-4"
             >
-              <h2 className="text-base font-black tracking-tight text-slate-900">혈통카드 생성</h2>
+              <h2 className="text-base font-black tracking-tight text-slate-900">
+                혈통카드 생성
+              </h2>
               <div className="space-y-1">
                 <Input
                   value={cardName}
@@ -397,14 +451,19 @@ export default function BloodlineCardCreateClient() {
                   placeholder="혈통 이름을 입력해주세요 (필수)"
                   className={cn(
                     "h-11 border-slate-200/70",
-                    nameError && "border-rose-300 focus-visible:ring-rose-200"
+                    nameError && "border-rose-300 focus-visible:ring-rose-200",
                   )}
                   disabled={creatingCard}
                   aria-invalid={Boolean(nameError)}
-                  aria-describedby={nameError ? "bloodline-card-name-error" : undefined}
+                  aria-describedby={
+                    nameError ? "bloodline-card-name-error" : undefined
+                  }
                 />
                 {nameError ? (
-                  <p id="bloodline-card-name-error" className="text-xs font-medium text-rose-600">
+                  <p
+                    id="bloodline-card-name-error"
+                    className="text-xs font-medium text-rose-600"
+                  >
                     {nameError}
                   </p>
                 ) : null}
@@ -422,11 +481,16 @@ export default function BloodlineCardCreateClient() {
                   placeholder="이 혈통카드의 소개를 적어주세요 (필수)"
                   className={cn(
                     "leading-relaxed",
-                    descriptionError && "border-rose-300 focus-visible:ring-rose-200"
+                    descriptionError &&
+                      "border-rose-300 focus-visible:ring-rose-200",
                   )}
                   disabled={creatingCard}
                   aria-invalid={Boolean(descriptionError)}
-                  aria-describedby={descriptionError ? "bloodline-card-description-error" : undefined}
+                  aria-describedby={
+                    descriptionError
+                      ? "bloodline-card-description-error"
+                      : undefined
+                  }
                 />
                 {descriptionError ? (
                   <p
@@ -442,7 +506,7 @@ export default function BloodlineCardCreateClient() {
                 <div
                   className={cn(
                     "rounded-lg border border-slate-200 bg-slate-50 p-3",
-                    imageError && "border-rose-200 bg-rose-50/40"
+                    imageError && "border-rose-200 bg-rose-50/40",
                   )}
                 >
                   <label
@@ -450,7 +514,7 @@ export default function BloodlineCardCreateClient() {
                     className={cn(
                       "inline-flex h-11 w-full cursor-pointer items-center justify-center rounded-lg border border-dashed border-slate-300 bg-white text-sm font-semibold text-slate-700 transition hover:bg-slate-50",
                       creatingCard && "pointer-events-none opacity-60",
-                      imageError && "border-rose-300"
+                      imageError && "border-rose-300",
                     )}
                   >
                     {cardImageFile ? "다른 이미지로 바꾸기" : "이미지 선택"}
@@ -476,7 +540,7 @@ export default function BloodlineCardCreateClient() {
                       <button
                         type="button"
                         onClick={handleRemoveImage}
-                        className="inline-flex h-8 items-center rounded-full bg-white px-3 text-xs font-semibold text-slate-700 transition hover:bg-slate-100"
+                        className="inline-flex h-8 items-center rounded-lg border border-slate-200 bg-white px-3 text-xs font-semibold text-slate-700 transition hover:bg-slate-50"
                         disabled={creatingCard}
                       >
                         삭제
@@ -485,7 +549,9 @@ export default function BloodlineCardCreateClient() {
                   ) : null}
                 </div>
                 {imageError ? (
-                  <p className="mt-1 text-xs font-medium text-rose-600">{imageError}</p>
+                  <p className="mt-1 text-xs font-medium text-rose-600">
+                    {imageError}
+                  </p>
                 ) : null}
                 <p className="text-[11px] text-slate-500">
                   JPG / PNG / WEBP, 최대 10MB. 이미지 첨부는 선택 항목입니다.

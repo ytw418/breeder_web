@@ -36,20 +36,25 @@ const getSectionId = (key: SectionKey) => {
 };
 
 const cardTypeBadgeClass =
-  "inline-flex rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.1em]";
+  "inline-flex rounded-md bg-slate-100 px-2 py-0.5 text-[10px] font-semibold";
 
-const SECTION_KEYS: SectionKey[] = ["myBloodlines", "createdLines", "receivedCards"];
+const SECTION_KEYS: SectionKey[] = [
+  "myBloodlines",
+  "createdLines",
+  "receivedCards",
+];
 
 export default function BloodlineManagementClient() {
   const { user } = useUser();
   const searchParams = useSearchParams();
   const router = useRouter();
 
-  const { data: bloodlineData, isLoading: isBloodlineLoading } = useSWR<BloodlineCardsResponse>(
-    user?.id ? "/api/bloodline-cards" : null
-  );
+  const { data: bloodlineData, isLoading: isBloodlineLoading } =
+    useSWR<BloodlineCardsResponse>(user?.id ? "/api/bloodline-cards" : null);
 
-  const [expandedSections, setExpandedSections] = useState<Record<SectionKey, boolean>>({
+  const [expandedSections, setExpandedSections] = useState<
+    Record<SectionKey, boolean>
+  >({
     myBloodlines: false,
     createdLines: false,
     receivedCards: false,
@@ -59,10 +64,12 @@ export default function BloodlineManagementClient() {
     if (!bloodlineData) return [];
     if (bloodlineData.myBloodlines?.length) return bloodlineData.myBloodlines;
     if (bloodlineData.myCreatedCards?.length) {
-      return bloodlineData.myCreatedCards.filter((card) => card.cardType === "BLOODLINE");
+      return bloodlineData.myCreatedCards.filter(
+        (card) => card.cardType === "BLOODLINE",
+      );
     }
     return (bloodlineData.ownedCards || []).filter(
-      (card) => card.creator.id === user?.id && card.cardType === "BLOODLINE"
+      (card) => card.creator.id === user?.id && card.cardType === "BLOODLINE",
     );
   }, [bloodlineData, user?.id]);
 
@@ -70,21 +77,26 @@ export default function BloodlineManagementClient() {
     if (!bloodlineData) return [];
     if (bloodlineData.createdLines?.length) return bloodlineData.createdLines;
     if (bloodlineData.myCreatedCards?.length) {
-      return bloodlineData.myCreatedCards.filter((card) => card.cardType === "LINE");
+      return bloodlineData.myCreatedCards.filter(
+        (card) => card.cardType === "LINE",
+      );
     }
     return (bloodlineData.ownedCards || []).filter(
-      (card) => card.creator.id === user?.id && card.cardType === "LINE"
+      (card) => card.creator.id === user?.id && card.cardType === "LINE",
     );
   }, [bloodlineData, user?.id]);
 
   const receivedBloodlines = useMemo(() => {
     if (!bloodlineData) return [];
-    if (bloodlineData.receivedBloodlines?.length) return bloodlineData.receivedBloodlines;
+    if (bloodlineData.receivedBloodlines?.length)
+      return bloodlineData.receivedBloodlines;
     if (bloodlineData.receivedCards?.length) {
-      return bloodlineData.receivedCards.filter((card) => card.cardType === "BLOODLINE");
+      return bloodlineData.receivedCards.filter(
+        (card) => card.cardType === "BLOODLINE",
+      );
     }
     return (bloodlineData.ownedCards || []).filter(
-      (card) => card.creator.id !== user?.id && card.cardType === "BLOODLINE"
+      (card) => card.creator.id !== user?.id && card.cardType === "BLOODLINE",
     );
   }, [bloodlineData, user?.id]);
 
@@ -92,16 +104,18 @@ export default function BloodlineManagementClient() {
     if (!bloodlineData) return [];
     if (bloodlineData.receivedLines?.length) return bloodlineData.receivedLines;
     if (bloodlineData.receivedCards?.length) {
-      return bloodlineData.receivedCards.filter((card) => card.cardType === "LINE");
+      return bloodlineData.receivedCards.filter(
+        (card) => card.cardType === "LINE",
+      );
     }
     return (bloodlineData.ownedCards || []).filter(
-      (card) => card.creator.id !== user?.id && card.cardType === "LINE"
+      (card) => card.creator.id !== user?.id && card.cardType === "LINE",
     );
   }, [bloodlineData, user?.id]);
 
   const receivedCards = useMemo(
     () => [...receivedBloodlines, ...receivedLines],
-    [receivedBloodlines, receivedLines]
+    [receivedBloodlines, receivedLines],
   );
 
   const directCards = myBloodlines.length + createdLines.length;
@@ -139,7 +153,10 @@ export default function BloodlineManagementClient() {
     router.push(`/bloodline-management/card/${cardId}`);
   };
 
-  const handleCardKeyDown = (event: KeyboardEvent<HTMLElement>, cardId: number) => {
+  const handleCardKeyDown = (
+    event: KeyboardEvent<HTMLElement>,
+    cardId: number,
+  ) => {
     if (event.key === "Enter" || event.key === " ") {
       event.preventDefault();
       handleCardClick(cardId);
@@ -148,21 +165,27 @@ export default function BloodlineManagementClient() {
 
   const renderSection = (key: SectionKey, cards: BloodlineCardItem[]) => {
     const open = expandedSections[key];
-    const previewLimit = key === "receivedCards" ? RECEIVED_PREVIEW_LIMIT : PREVIEW_LIMIT;
+    const previewLimit =
+      key === "receivedCards" ? RECEIVED_PREVIEW_LIMIT : PREVIEW_LIMIT;
     const visibleCards = open ? cards : cards.slice(0, previewLimit);
     const hasMore = cards.length > previewLimit;
 
     return (
-      <section id={getSectionId(key)} className="space-y-3 rounded-xl bg-white p-4">
+      <section
+        id={getSectionId(key)}
+        className="space-y-3 rounded-lg border border-slate-200 bg-white p-4"
+      >
         <div className="flex items-center justify-between gap-2">
           <div>
             <h2 className="app-title-md">{sectionTitle[key]}</h2>
-            <p className="mt-1 text-xs font-semibold text-slate-500">총 {cards.length}개</p>
+            <p className="mt-1 text-xs font-semibold text-slate-500">
+              총 {cards.length}개
+            </p>
           </div>
           <div className="flex items-center gap-2">
             <Link
               href={sectionPagePath[key]}
-              className="inline-flex h-8 items-center rounded-full bg-slate-100 px-3 text-xs font-semibold text-slate-700 transition hover:bg-slate-200"
+              className="inline-flex h-8 items-center rounded-lg border border-slate-200 bg-white px-3 text-xs font-semibold text-slate-700 transition hover:bg-slate-50"
             >
               목록 이동
             </Link>
@@ -170,7 +193,7 @@ export default function BloodlineManagementClient() {
               <button
                 type="button"
                 onClick={() => toggleSection(key)}
-                className="inline-flex h-8 items-center rounded-full bg-white px-3 text-xs font-semibold text-slate-700 transition hover:bg-slate-50"
+                className="inline-flex h-8 items-center rounded-lg border border-slate-200 bg-white px-3 text-xs font-semibold text-slate-700 transition hover:bg-slate-50"
               >
                 {open ? "접기" : "모두 보기"}
               </button>
@@ -187,7 +210,7 @@ export default function BloodlineManagementClient() {
                 tabIndex={0}
                 onClick={() => handleCardClick(card.id)}
                 onKeyDown={(event) => handleCardKeyDown(event, card.id)}
-                className="cursor-pointer rounded-lg border border-slate-200 bg-white p-3 transition duration-150 hover:shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-300"
+                className="cursor-pointer rounded-lg border border-slate-200 bg-white p-3 transition duration-150 hover:border-slate-300 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-300"
               >
                 <BloodlineVisualCard
                   cardId={card.id}
@@ -200,10 +223,14 @@ export default function BloodlineManagementClient() {
                 />
                 <div className="mt-2 space-y-1">
                   <div className="flex items-start justify-between gap-2">
-                    <p className="line-clamp-1 text-sm font-bold text-slate-900">{card.name}</p>
+                    <p className="line-clamp-1 text-sm font-bold text-slate-900">
+                      {card.name}
+                    </p>
                     <span
                       className={`${cardTypeBadgeClass} ${
-                        card.cardType === "BLOODLINE" ? "bg-blue-50 text-blue-700" : "bg-emerald-50 text-emerald-700"
+                        card.cardType === "BLOODLINE"
+                          ? "bg-blue-50 text-blue-700"
+                          : "bg-emerald-50 text-emerald-700"
                       }`}
                     >
                       {card.cardType === "BLOODLINE" ? "혈통" : "라인"}
@@ -220,7 +247,9 @@ export default function BloodlineManagementClient() {
             ))}
           </div>
         ) : (
-          <p className="rounded-none bg-slate-50 p-4 text-sm text-slate-600">해당 항목의 카드가 없습니다.</p>
+          <p className="rounded-none bg-slate-50 p-4 text-sm text-slate-600">
+            해당 항목의 카드가 없습니다.
+          </p>
         )}
       </section>
     );
@@ -230,30 +259,39 @@ export default function BloodlineManagementClient() {
     <div className="app-page min-h-screen">
       <div className="mx-auto flex w-full max-w-[680px] flex-col gap-4">
         <header className="space-y-3">
-          <div className="rounded-xl border border-slate-200 bg-white p-4">
-            <p className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-500">
+          <div className="rounded-lg border border-slate-200 bg-white p-4">
+            <p className="text-xs font-semibold text-primary">
               BLOODLINE MANAGEMENT
             </p>
             <div className="mt-2 flex items-center justify-between gap-2">
               <h1 className="app-title-lg">혈통관리</h1>
               <Link
                 href="/bloodline-cards/create"
-                className="inline-flex h-9 items-center justify-center rounded-full bg-orange-500 px-3 text-xs font-semibold text-white shadow-sm transition hover:bg-orange-600"
+                className="inline-flex h-9 items-center justify-center rounded-lg bg-slate-900 px-3 text-xs font-semibold text-white transition hover:bg-slate-800"
               >
                 새 혈통 만들기
               </Link>
             </div>
             <p className="mt-1 text-sm text-slate-600">
-              카드를 선택하면 상세에서 보내기와 라인 만들기를 바로 이어서 진행할 수 있습니다.
+              카드를 선택하면 상세에서 보내기와 라인 만들기를 바로 이어서 진행할
+              수 있습니다.
             </p>
             <div className="mt-3 grid grid-cols-2 gap-2 text-sm">
               <div className="rounded-lg bg-slate-50 px-3 py-2">
-                <p className="text-[11px] font-semibold text-slate-500">총 자산</p>
-                <p className="mt-1 text-lg font-bold text-slate-900">{totalCards}개</p>
+                <p className="text-[11px] font-semibold text-slate-500">
+                  총 자산
+                </p>
+                <p className="mt-1 text-lg font-bold text-slate-900">
+                  {totalCards}개
+                </p>
               </div>
               <div className="rounded-lg bg-slate-50 px-3 py-2">
-                <p className="text-[11px] font-semibold text-slate-500">내 구성</p>
-                <p className="mt-1 text-lg font-bold text-slate-900">{directCards}개</p>
+                <p className="text-[11px] font-semibold text-slate-500">
+                  내 구성
+                </p>
+                <p className="mt-1 text-lg font-bold text-slate-900">
+                  {directCards}개
+                </p>
               </div>
             </div>
           </div>
