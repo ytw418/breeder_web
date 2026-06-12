@@ -35,7 +35,7 @@ interface TransferUserItem {
   name: string;
 }
 
-const sectionClass = "rounded-xl border border-slate-200/80 bg-white p-4";
+const sectionClass = "rounded-lg border border-slate-200 bg-white p-4";
 const panelHeaderClass = "mb-3 flex items-center justify-between gap-2";
 const actionButtonClass =
   "inline-flex h-11 w-full items-center justify-center rounded-lg bg-slate-900 px-4 text-sm font-semibold text-white transition hover:bg-slate-800";
@@ -43,7 +43,7 @@ const accentButtonClass =
   "inline-flex h-11 w-full items-center justify-center rounded-lg bg-[hsl(var(--accent))] px-4 text-sm font-semibold text-[hsl(var(--accent-foreground))] transition hover:opacity-95";
 const cancelButtonClass =
   "inline-flex h-10 w-full items-center justify-center rounded-lg bg-white border border-slate-200 text-sm font-semibold text-slate-700 transition hover:bg-slate-50";
-const chipClass = "rounded-full bg-slate-100 px-2 py-1 text-xs text-slate-600";
+const chipClass = "rounded-md bg-slate-100 px-2 py-1 text-xs text-slate-600";
 const formatDate = (value: string) =>
   new Date(value).toLocaleString("ko-KR", {
     month: "short",
@@ -70,7 +70,9 @@ const eventToneByAction: Record<string, string> = {
   CARD_REVOKED: "border-rose-100 bg-rose-50 text-rose-700",
 };
 
-export default function BloodlineCardDetailClient({ cardId }: BloodlineCardDetailClientProps) {
+export default function BloodlineCardDetailClient({
+  cardId,
+}: BloodlineCardDetailClientProps) {
   const { user } = useUser();
   const router = useRouter();
   const pathname = usePathname();
@@ -89,10 +91,14 @@ export default function BloodlineCardDetailClient({ cardId }: BloodlineCardDetai
   const [issueLoading, setIssueLoading] = useState(false);
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
-  const [events, setEvents] = useState<BloodlineCardEventsResponse["events"]>([]);
+  const [events, setEvents] = useState<BloodlineCardEventsResponse["events"]>(
+    [],
+  );
   const [eventsLoading, setEventsLoading] = useState(false);
   const [missingCardRetryCount, setMissingCardRetryCount] = useState(0);
-  const [transferCandidates, setTransferCandidates] = useState<TransferUserItem[]>([]);
+  const [transferCandidates, setTransferCandidates] = useState<
+    TransferUserItem[]
+  >([]);
   const [transferSearchLoading, setTransferSearchLoading] = useState(false);
   const [showCelebrationModal, setShowCelebrationModal] = useState(false);
   const [celebrationCardName, setCelebrationCardName] = useState("");
@@ -117,7 +123,7 @@ export default function BloodlineCardDetailClient({ cardId }: BloodlineCardDetai
     const incoming = events.find(
       (event) =>
         (event.action === "LINE_ISSUED" || event.action === "LINE_TRANSFER") &&
-        event.toUser?.id === user.id
+        event.toUser?.id === user.id,
     );
 
     if (!incoming) return null;
@@ -137,7 +143,9 @@ export default function BloodlineCardDetailClient({ cardId }: BloodlineCardDetai
     const load = async () => {
       setEventsLoading(true);
       try {
-        const response = await fetch(`/api/bloodline-cards/${cardId}/events?limit=12`);
+        const response = await fetch(
+          `/api/bloodline-cards/${cardId}/events?limit=12`,
+        );
         const payload = (await response.json()) as BloodlineCardEventsResponse;
         if (!active) return;
         setEvents(payload.success ? payload.events : []);
@@ -154,7 +162,8 @@ export default function BloodlineCardDetailClient({ cardId }: BloodlineCardDetai
 
   useEffect(() => {
     const requested = searchParams?.get("action") as ActiveAction;
-    if (!requested || requested !== "transfer" && requested !== "issue") return;
+    if (!requested || (requested !== "transfer" && requested !== "issue"))
+      return;
     if (requested === "transfer" && !canTransfer) return;
     if (requested === "issue" && !canIssue) return;
     setActiveAction(requested);
@@ -175,11 +184,15 @@ export default function BloodlineCardDetailClient({ cardId }: BloodlineCardDetai
   const handleCloseCelebrationModal = () => {
     const resolvedPathname = pathname ?? "/";
     setShowCelebrationModal(false);
-    const nextSearchParams = new URLSearchParams(searchParams?.toString() || "");
+    const nextSearchParams = new URLSearchParams(
+      searchParams?.toString() || "",
+    );
     nextSearchParams.delete("celebration");
     nextSearchParams.delete("name");
     const nextQuery = nextSearchParams.toString();
-    router.replace(nextQuery ? `${resolvedPathname}?${nextQuery}` : resolvedPathname);
+    router.replace(
+      nextQuery ? `${resolvedPathname}?${nextQuery}` : resolvedPathname,
+    );
   };
 
   useEffect(() => {
@@ -241,7 +254,9 @@ export default function BloodlineCardDetailClient({ cardId }: BloodlineCardDetai
       await mutateCard();
     } catch (transferError) {
       setError(
-        transferError instanceof Error ? transferError.message : "카드 보내기 중 오류가 발생했습니다."
+        transferError instanceof Error
+          ? transferError.message
+          : "카드 보내기 중 오류가 발생했습니다.",
       );
     } finally {
       setTransferLoading(false);
@@ -263,7 +278,9 @@ export default function BloodlineCardDetailClient({ cardId }: BloodlineCardDetai
   };
 
   useEffect(() => {
-    const inputKeyword = String(transferDraft[card?.id || 0]?.toUserName || "").trim();
+    const inputKeyword = String(
+      transferDraft[card?.id || 0]?.toUserName || "",
+    ).trim();
     const selectedUserId = transferDraft[card?.id || 0]?.toUserId;
 
     if (activeAction !== "transfer" || !card) {
@@ -299,14 +316,15 @@ export default function BloodlineCardDetailClient({ cardId }: BloodlineCardDetai
       try {
         const response = await fetch(
           `/api/users/search?q=${encodeURIComponent(keyword)}&limit=8`,
-          { signal: controller.signal }
+          { signal: controller.signal },
         );
         const payload = (await response.json()) as {
           success: boolean;
           users?: TransferUserItem[];
         };
         if (!activeAction || !card) return;
-        if (keyword !== String(transferDraft[card.id]?.toUserName || "").trim()) return;
+        if (keyword !== String(transferDraft[card.id]?.toUserName || "").trim())
+          return;
         if (transferDraft[card.id]?.toUserId) return;
         if (response.ok && payload.success) {
           setTransferCandidates(payload.users || []);
@@ -329,7 +347,12 @@ export default function BloodlineCardDetailClient({ cardId }: BloodlineCardDetai
       }
       searchAbortRef.current?.abort();
     };
-  }, [activeAction, card?.id, transferDraft[card?.id || 0]?.toUserName, transferDraft[card?.id || 0]?.toUserId]);
+  }, [
+    activeAction,
+    card?.id,
+    transferDraft[card?.id || 0]?.toUserName,
+    transferDraft[card?.id || 0]?.toUserId,
+  ]);
 
   const handleIssueSubmit = async (event: FormEvent) => {
     event.preventDefault();
@@ -342,11 +365,14 @@ export default function BloodlineCardDetailClient({ cardId }: BloodlineCardDetai
     setIssueLoading(true);
 
     try {
-      const response = await fetch(`/api/bloodline-cards/${card.id}/issue-line`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name: lineName }),
-      });
+      const response = await fetch(
+        `/api/bloodline-cards/${card.id}/issue-line`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ name: lineName }),
+        },
+      );
       const payload = (await response.json()) as BloodlineCardIssueLineResponse;
       if (!response.ok || !payload.success) {
         throw new Error(payload.error || "라인 만들기에 실패했습니다.");
@@ -358,7 +384,9 @@ export default function BloodlineCardDetailClient({ cardId }: BloodlineCardDetai
       await mutateCard();
     } catch (issueError) {
       setError(
-        issueError instanceof Error ? issueError.message : "라인 만들기 처리 중 오류가 발생했습니다."
+        issueError instanceof Error
+          ? issueError.message
+          : "라인 만들기 처리 중 오류가 발생했습니다.",
       );
     } finally {
       setIssueLoading(false);
@@ -389,7 +417,9 @@ export default function BloodlineCardDetailClient({ cardId }: BloodlineCardDetai
     return (
       <section className="app-page">
         <div className="mx-auto w-full max-w-[680px] rounded-xl border border-slate-200 bg-white p-5">
-          <h1 className="text-lg font-black text-slate-900">카드를 찾을 수 없습니다.</h1>
+          <h1 className="text-lg font-black text-slate-900">
+            카드를 찾을 수 없습니다.
+          </h1>
           <p className="mt-1 text-sm text-slate-600">
             카드 ID가 없거나 비활성화된 카드일 수 있습니다.
           </p>
@@ -409,21 +439,20 @@ export default function BloodlineCardDetailClient({ cardId }: BloodlineCardDetai
       <div className="mx-auto flex w-full max-w-[680px] flex-col gap-3">
         {showCelebrationModal ? (
           <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/55 px-4">
-            <div className="relative overflow-hidden rounded-3xl border-2 border-sky-300/90 bg-white/95 p-6 shadow-[0_28px_80px_rgba(2,132,199,0.35)] backdrop-blur">
-              <div className="pointer-events-none absolute -left-10 -top-16 h-40 w-40 rounded-full bg-cyan-200/50 blur-2xl" />
-              <div className="pointer-events-none absolute -right-8 -bottom-12 h-36 w-36 rounded-full bg-yellow-200/45 blur-2xl" />
-              <div className="absolute inset-x-0 top-0 flex justify-center">
-                <div className="mt-1 h-1.5 w-2/3 rounded-full bg-gradient-to-r from-yellow-300 via-sky-300 to-rose-300 animate-pulse" />
-              </div>
+            <div className="relative w-full max-w-sm rounded-lg border border-slate-200 bg-white p-5 shadow-xl">
               <div className="relative text-center">
-                <p className="text-sm font-black tracking-wide text-cyan-700">
-                  {celebrationCardName ? `"${celebrationCardName}"` : "혈통카드"}
+                <p className="text-sm font-bold text-slate-900">
+                  {celebrationCardName
+                    ? `"${celebrationCardName}"`
+                    : "혈통카드"}
                   가 완성됐습니다!
                 </p>
-                <p className="mt-2 text-base font-semibold text-slate-900">화면을 캡쳐해서 친구들에게 자랑하세요</p>
+                <p className="mt-2 text-sm leading-relaxed text-slate-500">
+                  화면을 캡쳐해서 친구들에게 공유해보세요.
+                </p>
                 <Button
                   type="button"
-                  className="mt-6 h-11 w-full bg-slate-900 text-sm font-black text-white hover:bg-slate-800"
+                  className="mt-5 h-11 w-full rounded-lg bg-slate-900 text-sm font-semibold text-white hover:bg-slate-800"
                   onClick={handleCloseCelebrationModal}
                 >
                   닫기
@@ -436,11 +465,11 @@ export default function BloodlineCardDetailClient({ cardId }: BloodlineCardDetai
           <div className={panelHeaderClass}>
             <Link
               href="/bloodline-management"
-              className="inline-flex h-8 items-center justify-center rounded-full border border-slate-200 bg-white px-3 text-xs font-medium text-slate-700 transition hover:bg-slate-50"
+              className="inline-flex h-8 items-center justify-center rounded-lg border border-slate-200 bg-white px-3 text-xs font-medium text-slate-700 transition hover:bg-slate-50"
             >
               목록으로
             </Link>
-            <span className="rounded-full bg-slate-100 px-2.5 py-1 text-[11px] font-semibold uppercase tracking-[0.12em] text-slate-700">
+            <span className="rounded-md bg-slate-100 px-2.5 py-1 text-[11px] font-semibold text-slate-700">
               {isBloodline ? "혈통카드" : "라인카드"}
             </span>
           </div>
@@ -456,7 +485,7 @@ export default function BloodlineCardDetailClient({ cardId }: BloodlineCardDetai
             <span className={chipClass}>ID #{card.id}</span>
           </div>
           {lineageTransferHint ? (
-            <p className="mt-2 inline-flex rounded-full bg-amber-50 px-3 py-1 text-xs text-amber-700">
+            <p className="mt-2 inline-flex rounded-md bg-amber-50 px-3 py-1 text-xs text-amber-700">
               {lineageTransferHint}
             </p>
           ) : null}
@@ -482,8 +511,7 @@ export default function BloodlineCardDetailClient({ cardId }: BloodlineCardDetai
           </div>
           <div className="grid gap-2">
             <p className={chipClass}>
-              제작자:
-              {" "}
+              제작자:{" "}
               <Link
                 href={`/profiles/${card.creator.id}`}
                 className="font-semibold text-slate-900 underline underline-offset-4"
@@ -492,8 +520,7 @@ export default function BloodlineCardDetailClient({ cardId }: BloodlineCardDetai
               </Link>
             </p>
             <p className={chipClass}>
-              현재 보유자:
-              {" "}
+              현재 보유자:{" "}
               <Link
                 href={`/profiles/${card.currentOwner.id}`}
                 className="font-semibold text-slate-900 underline underline-offset-4"
@@ -504,7 +531,8 @@ export default function BloodlineCardDetailClient({ cardId }: BloodlineCardDetai
             {card.cardType === "LINE" ? (
               <>
                 <div className={chipClass}>
-                  원본 혈통: {bloodlineSourceCard ? (
+                  원본 혈통:{" "}
+                  {bloodlineSourceCard ? (
                     <Link
                       href={`/bloodline-management/card/${bloodlineSourceCard.id}`}
                       className="font-semibold text-slate-900 underline underline-offset-4"
@@ -516,7 +544,8 @@ export default function BloodlineCardDetailClient({ cardId }: BloodlineCardDetai
                   )}
                 </div>
                 <div className={chipClass}>
-                  상위 라인: {parentLineCard ? (
+                  상위 라인:{" "}
+                  {parentLineCard ? (
                     <Link
                       href={`/bloodline-management/card/${parentLineCard.id}`}
                       className="font-semibold text-slate-900 underline underline-offset-4"
@@ -571,16 +600,20 @@ export default function BloodlineCardDetailClient({ cardId }: BloodlineCardDetai
                       placeholder="보내는 상대 닉네임(필수)"
                       className="h-11 rounded-lg"
                     />
-                    {(transferSearchLoading || transferCandidates.length > 0) ? (
+                    {transferSearchLoading || transferCandidates.length > 0 ? (
                       <div className="absolute left-0 right-0 z-20 mt-1 max-h-56 overflow-y-auto rounded-lg border border-slate-200 bg-white shadow-md">
                         {transferSearchLoading ? (
-                          <p className="px-3 py-2 text-sm text-slate-500">검색 중...</p>
+                          <p className="px-3 py-2 text-sm text-slate-500">
+                            검색 중...
+                          </p>
                         ) : transferCandidates.length ? (
                           transferCandidates.map((item) => (
                             <button
                               key={item.id}
                               type="button"
-                              onClick={() => handleTransferCandidateSelect(item)}
+                              onClick={() =>
+                                handleTransferCandidateSelect(item)
+                              }
                               className="w-full px-3 py-2 text-left text-sm text-slate-900 transition hover:bg-slate-50"
                             >
                               {item.name}
@@ -605,7 +638,11 @@ export default function BloodlineCardDetailClient({ cardId }: BloodlineCardDetai
                     className="h-11 rounded-lg"
                   />
                   <div className="grid gap-2">
-                    <Button type="submit" className={actionButtonClass} disabled={transferLoading}>
+                    <Button
+                      type="submit"
+                      className={actionButtonClass}
+                      disabled={transferLoading}
+                    >
                       {transferLoading ? "처리 중..." : "확인"}
                     </Button>
                     <Button
@@ -635,7 +672,11 @@ export default function BloodlineCardDetailClient({ cardId }: BloodlineCardDetai
                     className="h-11 rounded-lg"
                   />
                   <div className="grid gap-2">
-                    <Button type="submit" className={accentButtonClass} disabled={issueLoading}>
+                    <Button
+                      type="submit"
+                      className={accentButtonClass}
+                      disabled={issueLoading}
+                    >
                       {issueLoading ? "처리 중..." : "확인"}
                     </Button>
                     <Button
@@ -672,12 +713,13 @@ export default function BloodlineCardDetailClient({ cardId }: BloodlineCardDetai
               )}
             </div>
           ) : (
-            <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-600">
+            <div className="rounded-lg border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-600">
               <p className="font-medium text-slate-800">
                 이 카드는 현재 {card.currentOwner.name}님이 보유 중입니다.
               </p>
               <p className="mt-1 leading-relaxed">
-                상세 정보와 기록은 열람할 수 있고, 보내기나 라인 만들기는 보유자만 진행할 수 있습니다.
+                상세 정보와 기록은 열람할 수 있고, 보내기나 라인 만들기는
+                보유자만 진행할 수 있습니다.
               </p>
             </div>
           )}
@@ -698,20 +740,35 @@ export default function BloodlineCardDetailClient({ cardId }: BloodlineCardDetai
               {events.slice(0, 5).map((record) => (
                 <div
                   key={record.id}
-                  className={`rounded-lg border p-3 ${eventToneByAction[record.action] || "border-slate-200 bg-slate-50"} text-sm`}
+                  className={`rounded-lg border p-3 ${
+                    eventToneByAction[record.action] ||
+                    "border-slate-200 bg-slate-50"
+                  } text-sm`}
                 >
                   <div className="flex items-start justify-between gap-2">
-                    <p className="font-semibold text-slate-900">{actionLabel[record.action] || record.action}</p>
-                    <span className="text-[10px] font-semibold text-slate-700">{record.action}</span>
+                    <p className="font-semibold text-slate-900">
+                      {actionLabel[record.action] || record.action}
+                    </p>
+                    <span className="text-[10px] font-semibold text-slate-700">
+                      {record.action}
+                    </span>
                   </div>
                   <p className="mt-1 text-xs text-slate-700">
                     {record.actorUser?.name || "시스템"}
-                    {record.fromUser ? ` · ${record.fromUser.name} → ${record.toUser?.name || "시스템"}` : ""}
+                    {record.fromUser
+                      ? ` · ${record.fromUser.name} → ${
+                          record.toUser?.name || "시스템"
+                        }`
+                      : ""}
                   </p>
                   {record.note ? (
-                    <p className="mt-1 text-xs text-slate-500">메모: {record.note}</p>
+                    <p className="mt-1 text-xs text-slate-500">
+                      메모: {record.note}
+                    </p>
                   ) : null}
-                  <p className="mt-1 text-xs text-slate-500">{formatDate(record.createdAt)}</p>
+                  <p className="mt-1 text-xs text-slate-500">
+                    {formatDate(record.createdAt)}
+                  </p>
                 </div>
               ))}
             </div>

@@ -24,53 +24,48 @@ const CARD_VARIANTS: Record<
   BloodlineVisualCardVariant,
   {
     cardClass: string;
-    glowClass: string;
-    decoClass: string;
-    imageOverlayClass: string;
-    titleClass: string;
+    imageFrameClass: string;
+    placeholderClass: string;
+    badgeClass: string;
+    labelClass: string;
     nameClass: string;
-    markClass: string;
+    metaClass: string;
+    subtleClass: string;
     serialClass: string;
   }
 > = {
   noir: {
-    cardClass:
-      "bg-slate-950 text-white border-slate-900/20 shadow-[0_18px_36px_rgba(15,23,42,0.28)]",
-    glowClass:
-      "bg-[radial-gradient(circle_at_24%_22%,rgba(255,255,255,0.22),transparent_30%),radial-gradient(circle_at_80%_2%,rgba(245,137,66,0.24),transparent_33%),linear-gradient(125deg,rgba(255,255,255,0.14),rgba(255,255,255,0)_50%)]",
-    decoClass: "rounded-full border border-white/10",
-    imageOverlayClass: "bg-slate-900/45",
-    titleClass: "text-white/75 uppercase tracking-[0.16em]",
+    cardClass: "border-slate-800 bg-slate-950 text-white",
+    imageFrameClass: "border-slate-800 bg-slate-900",
+    placeholderClass: "bg-slate-900 text-slate-500",
+    badgeClass: "border-white/20 bg-white/10 text-white/80",
+    labelClass: "text-white/50",
     nameClass: "text-white",
-    markClass: "text-white/85 border-white/30 bg-white/10",
-    serialClass:
-      "text-white border-white/35 bg-slate-900/78 shadow-[inset_0_0_0_1px_rgba(255,255,255,0.08),0_8px_24px_rgba(15,23,42,0.45)]",
+    metaClass: "border-white/10 bg-white/[0.04] text-white",
+    subtleClass: "text-white/60",
+    serialClass: "border-white/10 bg-white/[0.05] text-white",
   },
   clean: {
-    cardClass:
-      "bg-white text-slate-900 border-slate-200/80 shadow-[0_12px_26px_rgba(15,23,42,0.12)]",
-    glowClass:
-      "bg-[radial-gradient(circle_at_88%_4%,rgba(245,137,66,0.16),transparent_42%)]",
-    decoClass: "rounded-full border border-slate-200/85",
-    imageOverlayClass: "bg-slate-50/45",
-    titleClass: "text-slate-700 uppercase tracking-[0.18em]",
-    nameClass: "text-slate-900",
-    markClass: "text-slate-700 border-slate-300 bg-white/75",
-    serialClass:
-      "text-slate-900 border-slate-200/75 bg-white/95 shadow-[inset_0_0_0_1px_rgba(15,23,42,0.05),0_6px_18px_rgba(15,23,42,0.16)]",
+    cardClass: "border-slate-200 bg-white text-slate-900",
+    imageFrameClass: "border-slate-200 bg-slate-100",
+    placeholderClass: "bg-slate-100 text-slate-400",
+    badgeClass: "border-slate-200 bg-white/90 text-slate-700",
+    labelClass: "text-slate-400",
+    nameClass: "text-slate-950",
+    metaClass: "border-slate-200 bg-slate-50 text-slate-900",
+    subtleClass: "text-slate-500",
+    serialClass: "border-slate-200 bg-white text-slate-900",
   },
   editorial: {
-    cardClass:
-      "bg-gradient-to-br from-slate-50 via-white to-slate-100 text-slate-900 border-slate-300/70 shadow-[0_10px_26px_rgba(15,23,42,0.15)]",
-    glowClass:
-      "bg-[linear-gradient(145deg,rgba(15,23,42,0.06),rgba(245,137,66,0.12),rgba(15,23,42,0)_70%)]",
-    decoClass: "rounded-full border border-slate-300/65",
-    imageOverlayClass: "bg-slate-900/38",
-    titleClass: "text-slate-700 uppercase tracking-[0.18em]",
-    nameClass: "text-slate-900",
-    markClass: "text-slate-700 border-slate-300 bg-white/80",
-    serialClass:
-      "text-slate-900 border-slate-400/80 bg-slate-100/90 shadow-[inset_0_0_0_1px_rgba(15,23,42,0.08),0_6px_18px_rgba(15,23,42,0.16)]",
+    cardClass: "border-zinc-200 bg-zinc-50 text-slate-900",
+    imageFrameClass: "border-zinc-200 bg-zinc-100",
+    placeholderClass: "bg-zinc-100 text-zinc-400",
+    badgeClass: "border-zinc-200 bg-zinc-50/90 text-zinc-700",
+    labelClass: "text-zinc-500",
+    nameClass: "text-slate-950",
+    metaClass: "border-zinc-200 bg-white text-slate-900",
+    subtleClass: "text-zinc-600",
+    serialClass: "border-zinc-300 bg-zinc-50 text-slate-900",
   },
 };
 
@@ -103,15 +98,9 @@ export function BloodlineVisualCard({
 }: BloodlineVisualCardProps) {
   const serialText = makeFallbackCardSerial(cardId, name);
   const activeVariant = CARD_VARIANTS[variant];
-  const metaCardClass =
-    variant === "noir"
-      ? "border-white/10 bg-black/10 text-white"
-      : "border-slate-200/80 bg-white/80 text-slate-900";
-  const metaLabelClass = variant === "noir" ? "text-white/65" : "text-slate-500";
-  const metaDescriptionClass = variant === "noir" ? "text-white/72" : "text-slate-600";
   const aspectClass = compact
-    ? "aspect-[4/5] min-h-[188px] p-3"
-    : "aspect-[4/5] min-h-[320px] p-4";
+    ? "aspect-[4/5] min-h-[188px]"
+    : "aspect-[4/5] min-h-[320px]";
   const resolvedImageUrl = imageUrl
     ? imageUrl
     : image
@@ -119,67 +108,98 @@ export function BloodlineVisualCard({
     : "";
 
   return (
-    <article className={`relative ${compact ? "w-full" : "mx-auto w-full max-w-[360px]"}`}>
+    <article
+      className={`relative ${
+        compact ? "w-full" : "mx-auto w-full max-w-[360px]"
+      }`}
+    >
       <div
-        className={`relative ${aspectClass} overflow-hidden rounded-[22px] border ${activeVariant.cardClass}`}
+        className={`relative ${aspectClass} overflow-hidden rounded-xl border shadow-sm ${activeVariant.cardClass}`}
       >
-        {resolvedImageUrl ? (
-          <div className="pointer-events-none absolute inset-0">
-            <Image
-              src={resolvedImageUrl}
-              alt=""
-              fill
-              sizes={compact ? "240px" : "360px"}
-              className="object-cover object-center opacity-75"
-              unoptimized
-            />
-            <div className={`absolute inset-0 ${activeVariant.imageOverlayClass}`} />
-          </div>
-        ) : (
-          <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top_left,rgba(255,255,255,0.14),transparent_32%),radial-gradient(circle_at_82%_18%,rgba(245,137,66,0.18),transparent_28%),linear-gradient(145deg,rgba(255,255,255,0.06),rgba(15,23,42,0)_48%)]" />
-        )}
-        <div className={`pointer-events-none absolute inset-0 ${activeVariant.glowClass}`} />
-        <div className={`pointer-events-none absolute -left-8 -top-7 h-20 w-20 ${activeVariant.decoClass}`} />
-        <div className={`pointer-events-none absolute -right-8 top-8 h-24 w-24 ${activeVariant.decoClass}`} />
-        <div className="pointer-events-none absolute inset-x-4 top-[56%] h-px bg-white/10" />
-
-        <div className="relative z-10 flex h-full flex-col justify-between">
-          <span
-            className={`inline-flex w-fit items-center rounded-full border px-2 py-1 text-[10px] font-semibold tracking-[0.18em] ${activeVariant.markClass}`}
+        <div className="flex h-full flex-col">
+          <div
+            className={`relative h-[52%] overflow-hidden border-b ${activeVariant.imageFrameClass}`}
           >
-            BLOODLINE SERIES
-          </span>
-          <div className="space-y-3">
-            <p
-              className={`${compact ? "text-[11px]" : "text-[13px]"} font-semibold tracking-[0.16em] ${activeVariant.titleClass}`}
+            {resolvedImageUrl ? (
+              <Image
+                src={resolvedImageUrl}
+                alt=""
+                fill
+                sizes={compact ? "240px" : "360px"}
+                className="object-cover object-center"
+                unoptimized
+              />
+            ) : (
+              <div
+                className={`flex h-full w-full items-center justify-center px-3 py-2 ${activeVariant.placeholderClass}`}
+              >
+                <div className="text-center">
+                  <p className="text-[10px] font-semibold tracking-[0.14em]">
+                    BREDY
+                  </p>
+                  <p className="mt-1 text-[11px] font-semibold">BLOODLINE</p>
+                </div>
+              </div>
+            )}
+            <span
+              className={`absolute left-2.5 top-2.5 inline-flex h-6 items-center rounded-md border px-2 text-[10px] font-semibold ${activeVariant.badgeClass}`}
             >
-              BLOODLINE CARD
-            </p>
-            <p
-              className={`mt-1 ${compact ? "text-[21px]" : "text-[26px]"} line-clamp-2 font-semibold leading-[1.06] tracking-[-0.03em] ${activeVariant.nameClass}`}
-              title={name}
-            >
-              {name}
-            </p>
-            <div className={`mt-3 max-w-[88%] rounded-2xl border px-3 py-2 backdrop-blur-[6px] ${metaCardClass}`}>
-              <p className={`text-[10px] font-semibold uppercase tracking-[0.18em] ${metaLabelClass}`}>
-                Owner
+              {cardId ? `#${cardId}` : "DRAFT"}
+            </span>
+          </div>
+
+          <div
+            className={`${
+              compact ? "p-3" : "p-4"
+            } flex flex-1 flex-col justify-between`}
+          >
+            <div>
+              <p
+                className={`${
+                  compact ? "text-[10px]" : "text-[11px]"
+                } font-semibold ${activeVariant.labelClass}`}
+              >
+                혈통카드
               </p>
-              <p className="mt-1 text-sm font-semibold">{ownerName}</p>
-              <p className={`mt-1 line-clamp-2 text-[11px] leading-relaxed ${metaDescriptionClass}`}>
-                {subtitle || "브리더가 만든 혈통카드"}
+              <p
+                className={`mt-1 ${
+                  compact ? "text-[20px]" : "text-[25px]"
+                } line-clamp-2 font-bold leading-[1.08] tracking-[-0.02em] ${
+                  activeVariant.nameClass
+                }`}
+                title={name}
+              >
+                {name}
               </p>
             </div>
-            <div className="flex justify-start">
+
+            <div className="mt-3 grid gap-2">
               <div
-                className={`relative inline-flex max-w-full flex-col rounded-xl border px-3 py-2 ${activeVariant.serialClass}`}
+                className={`rounded-lg border px-3 py-2 ${activeVariant.metaClass}`}
               >
-                <span className="absolute inset-x-0 top-[4px] h-px bg-current/22" />
-                <span className="absolute inset-x-0 bottom-[4px] h-px bg-current/8" />
-                <p className="text-[8px] leading-none tracking-[0.28em] text-current/65">
-                  BLOODLINE CODE
+                <p
+                  className={`text-[10px] font-semibold ${activeVariant.labelClass}`}
+                >
+                  보유자
                 </p>
-                <p className="mt-1 text-[11px] leading-none tracking-[0.18em] font-semibold uppercase font-mono text-current">
+                <p className="mt-0.5 truncate text-sm font-semibold">
+                  {ownerName}
+                </p>
+                <p
+                  className={`mt-1 line-clamp-2 text-[11px] leading-relaxed ${activeVariant.subtleClass}`}
+                >
+                  {subtitle || "브리더가 만든 혈통카드"}
+                </p>
+              </div>
+              <div
+                className={`inline-flex max-w-full flex-col rounded-lg border px-3 py-2 ${activeVariant.serialClass}`}
+              >
+                <p
+                  className={`text-[9px] leading-none ${activeVariant.labelClass}`}
+                >
+                  카드 코드
+                </p>
+                <p className="mt-1 text-[11px] font-semibold leading-none tracking-[0.12em] text-current">
                   {serialText}
                 </p>
               </div>

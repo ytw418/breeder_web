@@ -138,37 +138,51 @@ const CreateAuctionClient = () => {
   const [shareModalOpen, setShareModalOpen] = useState(false);
   const [createdAuctionId, setCreatedAuctionId] = useState<number | null>(null);
   const [createdAuctionTitle, setCreatedAuctionTitle] = useState<string>("");
-  const [lastCreatedSignature, setLastCreatedSignature] = useState<string | null>(null);
+  const [lastCreatedSignature, setLastCreatedSignature] = useState<
+    string | null
+  >(null);
   const [confirmModalOpen, setConfirmModalOpen] = useState(false);
   const [pendingSubmission, setPendingSubmission] =
     useState<PendingCreateSubmission | null>(null);
-  const [customFieldErrors, setCustomFieldErrors] = useState<CustomFieldErrors>({});
-  const [selectedBloodlineRootId, setSelectedBloodlineRootId] = useState<string>("");
+  const [customFieldErrors, setCustomFieldErrors] = useState<CustomFieldErrors>(
+    {},
+  );
+  const [selectedBloodlineRootId, setSelectedBloodlineRootId] =
+    useState<string>("");
 
   const photosSectionRef = useRef<HTMLDivElement | null>(null);
   const categorySectionRef = useRef<HTMLDivElement | null>(null);
   const agreementSectionRef = useRef<HTMLDivElement | null>(null);
   const durationSectionRef = useRef<HTMLDivElement | null>(null);
 
-  const { register, handleSubmit, setValue, watch, formState: { errors } } = useForm<AuctionForm>();
+  const {
+    register,
+    handleSubmit,
+    setValue,
+    watch,
+    formState: { errors },
+  } = useForm<AuctionForm>();
   const { data: bloodlineData } = useSWR<BloodlineCardsResponse>(
-    user?.id ? "/api/bloodline-cards" : null
+    user?.id ? "/api/bloodline-cards" : null,
   );
 
-  const [createAuction, { loading }] = useMutation<CreateAuctionResponse>("/api/auctions");
+  const [createAuction, { loading }] =
+    useMutation<CreateAuctionResponse>("/api/auctions");
   const watchedStartPrice = Number(watch("startPrice") || 0);
   const watchedEndAt = watch("endAt");
   const currentBidIncrement = getBidIncrement(watchedStartPrice);
   const extensionMinutes = Math.floor(AUCTION_EXTENSION_MS / (60 * 1000));
   const extensionWindowMinutes = Math.floor(
-    AUCTION_EXTENSION_WINDOW_MS / (60 * 1000)
+    AUCTION_EXTENSION_WINDOW_MS / (60 * 1000),
   );
-  const subcategories = selectedCategory ? getSubcategories(selectedCategory) : [];
-  const bloodlineOptions =
-    (bloodlineData?.myBloodlines?.length
+  const subcategories = selectedCategory
+    ? getSubcategories(selectedCategory)
+    : [];
+  const bloodlineOptions = (
+    bloodlineData?.myBloodlines?.length
       ? bloodlineData.myBloodlines
       : bloodlineData?.ownedCards || []
-    ).filter((card) => card.cardType === "BLOODLINE");
+  ).filter((card) => card.cardType === "BLOODLINE");
 
   const customErrorMessages = [
     customFieldErrors.photos,
@@ -178,19 +192,19 @@ const CreateAuctionClient = () => {
   ].filter((message): message is string => Boolean(message));
 
   const isToolRoute = pathname?.startsWith("/tool");
-  const withBasePath = (path: string) =>
-    isToolRoute ? `/tool${path}` : path;
+  const withBasePath = (path: string) => (isToolRoute ? `/tool${path}` : path);
   const categoryForSubmit = isToolRoute
     ? TOOL_FIXED_CATEGORY
     : selectedSubcategory || selectedCategory;
   const loginPath = isToolRoute ? "/tool/login" : "/auth/login";
   const loginHref = `${loginPath}?next=${encodeURIComponent(
-    withBasePath("/auctions/create")
+    withBasePath("/auctions/create"),
   )}`;
 
   useEffect(() => {
     if (!isToolRoute) return;
-    if (selectedCategory === TOOL_FIXED_CATEGORY && !selectedSubcategory) return;
+    if (selectedCategory === TOOL_FIXED_CATEGORY && !selectedSubcategory)
+      return;
     setSelectedCategory(TOOL_FIXED_CATEGORY);
     setSelectedSubcategory("");
     setCustomFieldErrors((prev) => ({ ...prev, category: undefined }));
@@ -210,33 +224,39 @@ const CreateAuctionClient = () => {
     return (
       <Layout canGoBack title="경매 생성하기" seoTitle="경매 생성하기">
         <div className="relative min-h-[68vh] px-4 pt-6">
-          <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
-            <p className="text-sm font-semibold text-slate-900">경매 등록 안내</p>
+          <div className="rounded-lg border border-slate-200 bg-white p-4">
+            <p className="text-sm font-semibold text-slate-900">
+              경매 등록 안내
+            </p>
             <p className="mt-1.5 text-sm leading-relaxed text-slate-600">
-              경매 등록은 카카오 로그인 사용자만 가능합니다.
-              로그인 후 바로 등록 화면으로 이동합니다.
+              경매 등록은 카카오 로그인 사용자만 가능합니다. 로그인 후 바로 등록
+              화면으로 이동합니다.
             </p>
           </div>
         </div>
         <div className="fixed inset-0 z-[80] flex items-center justify-center p-4">
           <div className="absolute inset-0 bg-black/45" />
-          <div className="relative w-full max-w-sm rounded-2xl border border-slate-200 bg-white p-5 shadow-2xl">
-            <h2 className="text-lg font-bold text-slate-900">로그인이 필요합니다</h2>
+          <div className="relative w-full max-w-sm rounded-lg border border-slate-200 bg-white p-5 shadow-xl">
+            <h2 className="text-lg font-bold text-slate-900">
+              로그인이 필요합니다
+            </h2>
             <p className="mt-2 text-sm leading-relaxed text-slate-600">
-              경매 등록은 카카오 계정으로만 진행할 수 있습니다.
-              지금 로그인하면 경매 등록 화면으로 바로 이동합니다.
+              경매 등록은 카카오 계정으로만 진행할 수 있습니다. 지금 로그인하면
+              경매 등록 화면으로 바로 이동합니다.
             </p>
             <div className="mt-4 grid gap-2">
               <Link
                 href={loginHref}
-                className="inline-flex h-11 items-center justify-center rounded-xl bg-[#fee500] text-sm font-bold text-[#191919]"
+                className="inline-flex h-11 items-center justify-center rounded-lg bg-[#fee500] text-sm font-bold text-[#191919]"
               >
                 카카오 로그인하기
               </Link>
               <button
                 type="button"
-                onClick={() => router.push(isToolRoute ? "/tool" : withBasePath("/auctions"))}
-                className="h-11 rounded-xl border border-slate-200 bg-white text-sm font-semibold text-slate-700"
+                onClick={() =>
+                  router.push(isToolRoute ? "/tool" : withBasePath("/auctions"))
+                }
+                className="h-11 rounded-lg border border-slate-200 bg-white text-sm font-semibold text-slate-700"
               >
                 {isToolRoute ? "도구 홈으로 가기" : "경매 목록으로 가기"}
               </button>
@@ -289,7 +309,9 @@ const CreateAuctionClient = () => {
     setPhotos((prev) => prev.filter((_, i) => i !== index));
   };
 
-  const handleTrustProofUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleTrustProofUpload = async (
+    e: React.ChangeEvent<HTMLInputElement>,
+  ) => {
     const file = e.target.files?.[0];
     if (!file) return;
 
@@ -328,23 +350,39 @@ const CreateAuctionClient = () => {
   /** 제출 */
   const scrollToFirstCustomError = (errors: CustomFieldErrors) => {
     if (errors.photos) {
-      photosSectionRef.current?.scrollIntoView({ behavior: "smooth", block: "center" });
+      photosSectionRef.current?.scrollIntoView({
+        behavior: "smooth",
+        block: "center",
+      });
       return;
     }
     if (errors.category) {
-      categorySectionRef.current?.scrollIntoView({ behavior: "smooth", block: "center" });
+      categorySectionRef.current?.scrollIntoView({
+        behavior: "smooth",
+        block: "center",
+      });
       return;
     }
     if (errors.agreement) {
-      agreementSectionRef.current?.scrollIntoView({ behavior: "smooth", block: "center" });
+      agreementSectionRef.current?.scrollIntoView({
+        behavior: "smooth",
+        block: "center",
+      });
       return;
     }
     if (errors.duration) {
-      durationSectionRef.current?.scrollIntoView({ behavior: "smooth", block: "center" });
+      durationSectionRef.current?.scrollIntoView({
+        behavior: "smooth",
+        block: "center",
+      });
     }
   };
 
-  const validateCustomRequiredFields = ({ showToast }: { showToast: boolean }) => {
+  const validateCustomRequiredFields = ({
+    showToast,
+  }: {
+    showToast: boolean;
+  }) => {
     const nextErrors: CustomFieldErrors = {};
 
     if (photos.length === 0) {
@@ -388,7 +426,9 @@ const CreateAuctionClient = () => {
       return;
     }
 
-    const normalizedEndAt = toIsoDateTimeValue(getPresetEndAtValue(selectedDuration));
+    const normalizedEndAt = toIsoDateTimeValue(
+      getPresetEndAtValue(selectedDuration),
+    );
     if (!normalizedEndAt) return;
 
     const requestData = {
@@ -397,7 +437,9 @@ const CreateAuctionClient = () => {
       description: normalizeSignatureText(data.description),
       endAt: normalizedEndAt,
       category: categoryForSubmit,
-      bloodlineRootId: selectedBloodlineRootId ? Number(selectedBloodlineRootId) : null,
+      bloodlineRootId: selectedBloodlineRootId
+        ? Number(selectedBloodlineRootId)
+        : null,
       photos,
       sellerProofImage,
       startPrice: Number(data.startPrice),
@@ -406,7 +448,9 @@ const CreateAuctionClient = () => {
     const signature = buildSubmissionSignature(requestData);
 
     if (lastCreatedSignature === signature) {
-      toast.error("동일한 내용의 경매는 다시 등록할 수 없습니다. 기존 경매를 공유하거나 수정해주세요.");
+      toast.error(
+        "동일한 내용의 경매는 다시 등록할 수 없습니다. 기존 경매를 공유하거나 수정해주세요.",
+      );
       if (createdAuctionId) {
         setShareModalOpen(true);
       }
@@ -442,7 +486,9 @@ const CreateAuctionClient = () => {
     const refreshedSignature = buildSubmissionSignature(refreshedRequestData);
 
     if (lastCreatedSignature === refreshedSignature) {
-      toast.error("동일한 내용의 경매는 다시 등록할 수 없습니다. 기존 경매를 공유하거나 수정해주세요.");
+      toast.error(
+        "동일한 내용의 경매는 다시 등록할 수 없습니다. 기존 경매를 공유하거나 수정해주세요.",
+      );
       return;
     }
 
@@ -458,7 +504,12 @@ const CreateAuctionClient = () => {
           setShareModalOpen(true);
           toast.success("경매가 등록되었습니다. SNS에 공유해보세요!");
         } else {
-          toast.error(getAuctionErrorMessage(result.errorCode, result.error || "등록에 실패했습니다."));
+          toast.error(
+            getAuctionErrorMessage(
+              result.errorCode,
+              result.error || "등록에 실패했습니다.",
+            ),
+          );
         }
       },
       onError() {
@@ -533,7 +584,9 @@ const CreateAuctionClient = () => {
         return;
       }
       await copyToClipboard(url);
-      toast.info("이 기기에서는 바로 공유를 지원하지 않아 링크를 복사했습니다.");
+      toast.info(
+        "이 기기에서는 바로 공유를 지원하지 않아 링크를 복사했습니다.",
+      );
     } catch (error) {
       if (error instanceof Error && error.name === "AbortError") return;
       toast.error("공유에 실패했습니다.");
@@ -549,12 +602,17 @@ const CreateAuctionClient = () => {
 
   return (
     <Layout canGoBack title="경매 생성하기" seoTitle="경매 생성하기">
-      <form onSubmit={handleSubmit(onSubmit, onInvalid)} className="px-4 py-4 space-y-6 pb-28">
+      <form
+        onSubmit={handleSubmit(onSubmit, onInvalid)}
+        className="px-4 py-4 space-y-6 pb-28"
+      >
         {/* 이미지 업로드 */}
         <div ref={photosSectionRef}>
           <label className="block text-sm font-semibold text-gray-900 mb-2">
             사진 등록 <span className="text-red-500">*</span>
-            <span className="text-xs font-normal text-gray-400 ml-1">({photos.length}/5)</span>
+            <span className="text-xs font-normal text-gray-400 ml-1">
+              ({photos.length}/5)
+            </span>
           </label>
           <div className="flex gap-2 overflow-x-auto pb-2">
             {/* 추가 버튼 */}
@@ -570,15 +628,28 @@ const CreateAuctionClient = () => {
                 {uploading ? (
                   <div className="w-5 h-5 border-2 border-primary border-t-transparent rounded-full animate-spin" />
                 ) : (
-                  <svg className="w-6 h-6 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
+                  <svg
+                    className="w-6 h-6 text-gray-400"
+                    fill="none"
+                    viewBox="0 0 24 24"
+                    stroke="currentColor"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth="2"
+                      d="M12 6v6m0 0v6m0-6h6m-6 0H6"
+                    />
                   </svg>
                 )}
               </label>
             )}
             {/* 미리보기 */}
             {photos.map((photo, i) => (
-              <div key={photo} className="relative flex-shrink-0 w-20 h-20 rounded-lg overflow-hidden">
+              <div
+                key={photo}
+                className="relative flex-shrink-0 w-20 h-20 rounded-lg overflow-hidden"
+              >
                 <Image
                   src={makeImageUrl(photo, "avatar")}
                   className="w-full h-full object-cover"
@@ -591,15 +662,27 @@ const CreateAuctionClient = () => {
                   onClick={() => handleRemoveImage(i)}
                   className="absolute top-1 right-1 w-5 h-5 bg-black/60 rounded-full flex items-center justify-center"
                 >
-                  <svg className="w-3 h-3 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" />
+                  <svg
+                    className="w-3 h-3 text-white"
+                    fill="none"
+                    viewBox="0 0 24 24"
+                    stroke="currentColor"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth="2"
+                      d="M6 18L18 6M6 6l12 12"
+                    />
                   </svg>
                 </button>
               </div>
             ))}
           </div>
           {customFieldErrors.photos ? (
-            <p className="mt-1 text-xs text-red-500">{customFieldErrors.photos}</p>
+            <p className="mt-1 text-xs text-red-500">
+              {customFieldErrors.photos}
+            </p>
           ) : null}
         </div>
 
@@ -609,64 +692,73 @@ const CreateAuctionClient = () => {
             카테고리 <span className="text-red-500">*</span>
           </label>
           {isToolRoute ? (
-            <div className="inline-flex rounded-full bg-gray-900 px-3 py-1.5 text-sm font-medium text-white">
+            <div className="inline-flex rounded-lg bg-gray-900 px-3 py-1.5 text-sm font-medium text-white">
               {TOOL_FIXED_CATEGORY}
             </div>
           ) : (
             <>
-            <div className="flex flex-wrap gap-2">
-              {TOP_LEVEL_CATEGORIES.map((cat) => (
-                <button
-                  key={cat.id}
-                  type="button"
-                  onClick={() => {
-                    setSelectedCategory(cat.id);
-                    setSelectedSubcategory("");
-                    setCustomFieldErrors((prev) => ({ ...prev, category: undefined }));
-                  }}
-                  className={cn(
-                    "px-3 py-1.5 rounded-full text-sm font-medium transition-colors",
-                    selectedCategory === cat.id
-                      ? "bg-gray-900 text-white"
-                      : "bg-gray-100 text-gray-600 hover:bg-gray-200"
-                  )}
-                >
-                  {cat.name}
-                </button>
-              ))}
-            </div>
-            {subcategories.length > 0 ? (
-              <div className="mt-2 flex flex-wrap gap-2">
-                {subcategories.map((subcategory) => (
+              <div className="flex flex-wrap gap-2">
+                {TOP_LEVEL_CATEGORIES.map((cat) => (
                   <button
-                    key={subcategory}
+                    key={cat.id}
                     type="button"
                     onClick={() => {
-                      setSelectedSubcategory(subcategory);
-                      setCustomFieldErrors((prev) => ({ ...prev, category: undefined }));
+                      setSelectedCategory(cat.id);
+                      setSelectedSubcategory("");
+                      setCustomFieldErrors((prev) => ({
+                        ...prev,
+                        category: undefined,
+                      }));
                     }}
                     className={cn(
-                      "rounded-full border px-3 py-1 text-xs font-medium transition-colors",
-                      selectedSubcategory === subcategory
-                        ? "border-primary bg-primary text-white"
-                        : "border-slate-200 bg-white text-slate-500 hover:bg-slate-50"
+                      "rounded-lg border px-3 py-1.5 text-sm font-semibold transition-colors",
+                      selectedCategory === cat.id
+                        ? "border-gray-900 bg-gray-900 text-white"
+                        : "border-gray-200 bg-white text-gray-600 hover:bg-gray-50",
                     )}
                   >
-                    {subcategory}
+                    {cat.name}
                   </button>
                 ))}
               </div>
-            ) : null}
+              {subcategories.length > 0 ? (
+                <div className="mt-2 flex flex-wrap gap-2">
+                  {subcategories.map((subcategory) => (
+                    <button
+                      key={subcategory}
+                      type="button"
+                      onClick={() => {
+                        setSelectedSubcategory(subcategory);
+                        setCustomFieldErrors((prev) => ({
+                          ...prev,
+                          category: undefined,
+                        }));
+                      }}
+                      className={cn(
+                        "rounded-lg border px-3 py-1 text-xs font-semibold transition-colors",
+                        selectedSubcategory === subcategory
+                          ? "border-primary bg-primary text-white"
+                          : "border-slate-200 bg-white text-slate-500 hover:bg-slate-50",
+                      )}
+                    >
+                      {subcategory}
+                    </button>
+                  ))}
+                </div>
+              ) : null}
             </>
           )}
           {customFieldErrors.category ? (
-            <p className="mt-1 text-xs text-red-500">{customFieldErrors.category}</p>
+            <p className="mt-1 text-xs text-red-500">
+              {customFieldErrors.category}
+            </p>
           ) : null}
         </div>
 
         <div>
           <label className="mb-2 block text-sm font-semibold text-gray-900">
-            연결 혈통카드 <span className="text-xs font-normal text-gray-400">(선택)</span>
+            연결 혈통카드{" "}
+            <span className="text-xs font-normal text-gray-400">(선택)</span>
           </label>
           <select
             value={selectedBloodlineRootId}
@@ -711,7 +803,9 @@ const CreateAuctionClient = () => {
             rows={5}
           />
           {errors.description && (
-            <p className="text-xs text-red-500 mt-1">{errors.description.message}</p>
+            <p className="text-xs text-red-500 mt-1">
+              {errors.description.message}
+            </p>
           )}
         </div>
 
@@ -740,10 +834,14 @@ const CreateAuctionClient = () => {
               placeholder="10000"
               className="pr-8"
             />
-            <span className="absolute right-3 top-1/2 -translate-y-1/2 text-sm text-gray-400">원</span>
+            <span className="absolute right-3 top-1/2 -translate-y-1/2 text-sm text-gray-400">
+              원
+            </span>
           </div>
           {errors.startPrice && (
-            <p className="text-xs text-red-500 mt-1">{errors.startPrice.message}</p>
+            <p className="text-xs text-red-500 mt-1">
+              {errors.startPrice.message}
+            </p>
           )}
           <p className="text-xs text-gray-500 mt-1">
             자동 입찰 단위: {currentBidIncrement.toLocaleString()}원
@@ -752,10 +850,12 @@ const CreateAuctionClient = () => {
 
         <div
           ref={agreementSectionRef}
-          className="rounded-xl border border-slate-200 bg-slate-50 px-3.5 py-3"
+          className="rounded-lg border border-slate-200 bg-white px-3.5 py-3"
         >
           <div className="flex items-center justify-between gap-3">
-            <p className="text-sm font-semibold text-slate-800">경매 규칙 안내</p>
+            <p className="text-sm font-semibold text-slate-800">
+              경매 규칙 안내
+            </p>
             {!isToolRoute ? (
               <Link
                 href="/auctions/rules"
@@ -767,17 +867,26 @@ const CreateAuctionClient = () => {
           </div>
           <ul className="mt-2 space-y-1 text-xs text-slate-600">
             <li>• 입찰 단위는 현재가에 따라 자동 계산됩니다.</li>
-            <li>• 마감 {extensionWindowMinutes}분 이내 입찰 시 경매 시간이 {extensionMinutes}분 연장됩니다.</li>
+            <li>
+              • 마감 {extensionWindowMinutes}분 이내 입찰 시 경매 시간이{" "}
+              {extensionMinutes}분 연장됩니다.
+            </li>
             <li>• 본인 경매에는 입찰할 수 없습니다.</li>
-            <li>• 진행중 상태에서 등록 후 10분 이내, 입찰이 없을 때만 수정할 수 있습니다.</li>
+            <li>
+              • 진행중 상태에서 등록 후 10분 이내, 입찰이 없을 때만 수정할 수
+              있습니다.
+            </li>
             <li>• 동시 진행 경매는 계정당 최대 3개까지 등록 가능합니다.</li>
-            <li>• 시작가 50만원 이상 경매는 연락처(전화/이메일) 정보가 필요합니다.</li>
+            <li>
+              • 시작가 50만원 이상 경매는 연락처(전화/이메일) 정보가 필요합니다.
+            </li>
           </ul>
           <div className="mt-3 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2.5 text-xs text-amber-900">
             <p className="font-semibold">거래/분쟁 안내</p>
             <p className="mt-1 leading-relaxed">
-              본 서비스는 경매 중개 플랫폼이며, 거래 당사자 간 분쟁(허위 매물, 미발송, 환불 등)에 대해 법적 책임을 지지 않습니다.
-              다만 문제 발생 시 신고를 접수하여 운영정책에 따라 계정/콘텐츠 조치를 진행합니다.
+              본 서비스는 경매 중개 플랫폼이며, 거래 당사자 간 분쟁(허위 매물,
+              미발송, 환불 등)에 대해 법적 책임을 지지 않습니다. 다만 문제 발생
+              시 신고를 접수하여 운영정책에 따라 계정/콘텐츠 조치를 진행합니다.
             </p>
             <p className="mt-1 leading-relaxed font-semibold">
               카카오 로그인 기반 계정은 위반 시 영구 참여 제한됩니다.
@@ -800,12 +909,17 @@ const CreateAuctionClient = () => {
                   const checked = event.target.checked;
                   setAgreedAuctionNotice(checked);
                   if (checked && agreedDisputePolicy) {
-                    setCustomFieldErrors((prev) => ({ ...prev, agreement: undefined }));
+                    setCustomFieldErrors((prev) => ({
+                      ...prev,
+                      agreement: undefined,
+                    }));
                   }
                 }}
                 className="mt-0.5"
               />
-              <span>경매 규칙(입찰 단위, 연장, 수정 가능 조건)을 확인했습니다.</span>
+              <span>
+                경매 규칙(입찰 단위, 연장, 수정 가능 조건)을 확인했습니다.
+              </span>
             </label>
             <label className="flex items-start gap-2 text-xs text-slate-700">
               <input
@@ -815,7 +929,10 @@ const CreateAuctionClient = () => {
                   const checked = event.target.checked;
                   setAgreedDisputePolicy(checked);
                   if (agreedAuctionNotice && checked) {
-                    setCustomFieldErrors((prev) => ({ ...prev, agreement: undefined }));
+                    setCustomFieldErrors((prev) => ({
+                      ...prev,
+                      agreement: undefined,
+                    }));
                   }
                 }}
                 className="mt-0.5"
@@ -824,43 +941,41 @@ const CreateAuctionClient = () => {
             </label>
           </div>
           {customFieldErrors.agreement ? (
-            <p className="mt-2 text-xs text-red-500">{customFieldErrors.agreement}</p>
+            <p className="mt-2 text-xs text-red-500">
+              {customFieldErrors.agreement}
+            </p>
           ) : null}
         </div>
 
-        <div className="rounded-xl border border-slate-200 bg-white p-3.5">
-          <h3 className="text-sm font-semibold text-slate-900">판매자 신뢰 정보 (선택)</h3>
+        <div className="rounded-lg border border-slate-200 bg-white p-3.5">
+          <h3 className="text-sm font-semibold text-slate-900">
+            판매자 신뢰 정보 (선택)
+          </h3>
           <p className="mt-1 text-xs text-slate-500">
-            카페/밴드/블로그에서 신뢰 확인할 수 있는 정보를 함께 올리면 입찰 전환율이 높아집니다.
+            카페/밴드/블로그에서 신뢰 확인할 수 있는 정보를 함께 올리면 입찰
+            전환율이 높아집니다.
           </p>
           <div className="mt-3 grid grid-cols-1 gap-2.5">
             <Input
               {...register("sellerPhone")}
               placeholder="연락처(전화번호)"
             />
-            <Input
-              {...register("sellerEmail")}
-              placeholder="연락 이메일"
-            />
+            <Input {...register("sellerEmail")} placeholder="연락 이메일" />
             <Input
               {...register("sellerBlogUrl")}
               placeholder="블로그/프로필 URL"
             />
-            <Input
-              {...register("sellerCafeNick")}
-              placeholder="카페 닉네임"
-            />
-            <Input
-              {...register("sellerBandNick")}
-              placeholder="밴드 닉네임"
-            />
+            <Input {...register("sellerCafeNick")} placeholder="카페 닉네임" />
+            <Input {...register("sellerBandNick")} placeholder="밴드 닉네임" />
             <Textarea
               {...register("sellerTrustNote")}
               rows={3}
               placeholder="예: OO카페 활동 4년, 최근 3개월 거래 20건 무분쟁"
             />
             <div className="rounded-lg border border-slate-200 p-2.5">
-              <p className="text-xs font-medium text-slate-700">커뮤니티 프로필 캡처 (선택)</p>
+              <p className="text-xs font-medium text-slate-700">
+                커뮤니티 프로필 캡처 (선택)
+              </p>
               <p className="mt-0.5 text-[11px] text-slate-500">
                 카페/밴드 프로필 캡처를 올리면 신뢰도 안내에 표시됩니다.
               </p>
@@ -910,10 +1025,10 @@ const CreateAuctionClient = () => {
                 type="button"
                 onClick={() => handleDurationPreset(preset.hours)}
                 className={cn(
-                  "px-3 py-1.5 rounded-full text-sm font-medium transition-colors",
+                  "rounded-lg border px-3 py-1.5 text-sm font-semibold transition-colors",
                   selectedDuration === preset.hours
-                    ? "bg-gray-900 text-white"
-                    : "bg-gray-100 text-gray-600 hover:bg-gray-200"
+                    ? "border-gray-900 bg-gray-900 text-white"
+                    : "border-gray-200 bg-white text-gray-600 hover:bg-gray-50",
                 )}
               >
                 {preset.label}
@@ -938,7 +1053,9 @@ const CreateAuctionClient = () => {
             경매 종료 시간은 프리셋 버튼으로만 설정할 수 있습니다.
           </p>
           {customFieldErrors.duration ? (
-            <p className="mt-1 text-xs text-red-500">{customFieldErrors.duration}</p>
+            <p className="mt-1 text-xs text-red-500">
+              {customFieldErrors.duration}
+            </p>
           ) : null}
         </div>
 
@@ -953,7 +1070,7 @@ const CreateAuctionClient = () => {
             <Button
               type="submit"
               disabled={loading || uploading || proofUploading}
-              className="w-full h-12 text-base font-semibold rounded-xl"
+              className="h-12 w-full rounded-lg text-base font-semibold"
             >
               {loading ? "등록 중..." : "경매 등록하기"}
             </Button>
@@ -969,21 +1086,31 @@ const CreateAuctionClient = () => {
             onClick={handleCancelConfirm}
             aria-label="등록 확인 팝업 닫기"
           />
-          <div className="relative w-full max-w-sm rounded-2xl border border-slate-200 bg-white p-5 shadow-2xl">
-            <h2 className="text-lg font-bold text-slate-900">정말 이 내용으로 등록하시겠습니까?</h2>
+          <div className="relative w-full max-w-sm rounded-lg border border-slate-200 bg-white p-5 shadow-xl">
+            <h2 className="text-lg font-bold text-slate-900">
+              정말 이 내용으로 등록하시겠습니까?
+            </h2>
             <p className="mt-2 text-sm leading-relaxed text-slate-600">
-              등록 후에는 동일 내용 재등록이 제한될 수 있습니다. 가격과 시간을 다시 확인해주세요.
+              등록 후에는 동일 내용 재등록이 제한될 수 있습니다. 가격과 시간을
+              다시 확인해주세요.
             </p>
 
-            <div className="mt-4 space-y-2 rounded-xl border border-slate-200 bg-slate-50 p-3">
+            <div className="mt-4 space-y-2 rounded-lg border border-slate-200 bg-slate-50 p-3">
               <div className="flex items-center justify-between">
-                <span className="text-xs font-medium text-slate-500">시작가</span>
+                <span className="text-xs font-medium text-slate-500">
+                  시작가
+                </span>
                 <span className="text-base font-bold text-slate-900">
-                  {Number(pendingSubmission.requestData.startPrice).toLocaleString()}원
+                  {Number(
+                    pendingSubmission.requestData.startPrice,
+                  ).toLocaleString()}
+                  원
                 </span>
               </div>
               <div className="flex items-center justify-between">
-                <span className="text-xs font-medium text-slate-500">종료 시간</span>
+                <span className="text-xs font-medium text-slate-500">
+                  종료 시간
+                </span>
                 <span className="text-sm font-semibold text-slate-800">
                   {formatConfirmDateTime(pendingSubmission.requestData.endAt)}
                 </span>
@@ -995,7 +1122,7 @@ const CreateAuctionClient = () => {
                 type="button"
                 onClick={handleCancelConfirm}
                 disabled={loading}
-                className="h-11 rounded-xl border border-slate-200 bg-white text-sm font-semibold text-slate-700 transition-colors hover:bg-slate-50 disabled:opacity-60"
+                className="h-11 rounded-lg border border-slate-200 bg-white text-sm font-semibold text-slate-700 transition-colors hover:bg-slate-50 disabled:opacity-60"
               >
                 다시 확인
               </button>
@@ -1003,7 +1130,7 @@ const CreateAuctionClient = () => {
                 type="button"
                 onClick={handleConfirmCreate}
                 disabled={loading}
-                className="h-11 rounded-xl bg-slate-900 text-sm font-semibold text-white transition-colors hover:bg-slate-800 disabled:opacity-60"
+                className="h-11 rounded-lg bg-slate-900 text-sm font-semibold text-white transition-colors hover:bg-slate-800 disabled:opacity-60"
               >
                 {loading ? "등록 중..." : "이대로 등록"}
               </button>
@@ -1020,8 +1147,10 @@ const CreateAuctionClient = () => {
             onClick={() => setShareModalOpen(false)}
             aria-label="공유 팝업 닫기"
           />
-          <div className="relative w-full max-w-sm rounded-2xl border border-slate-200 bg-white p-5 shadow-2xl">
-            <h2 className="text-lg font-bold text-slate-900">생성한 경매를 SNS에 공유해보세요!</h2>
+          <div className="relative w-full max-w-sm rounded-lg border border-slate-200 bg-white p-5 shadow-xl">
+            <h2 className="text-lg font-bold text-slate-900">
+              생성한 경매를 SNS에 공유해보세요!
+            </h2>
             <p className="mt-2 text-sm leading-relaxed text-slate-600">
               지금 공유하면 더 빠르게 입찰자를 모을 수 있어요.
             </p>
@@ -1029,21 +1158,21 @@ const CreateAuctionClient = () => {
               <button
                 type="button"
                 onClick={handleCopyAuctionLink}
-                className="h-11 rounded-xl border border-slate-200 bg-white text-sm font-semibold text-slate-700 transition-colors hover:bg-slate-50"
+                className="h-11 rounded-lg border border-slate-200 bg-white text-sm font-semibold text-slate-700 transition-colors hover:bg-slate-50"
               >
                 링크 복사하기
               </button>
               <button
                 type="button"
                 onClick={handleShareAuction}
-                className="h-11 rounded-xl bg-slate-900 text-sm font-semibold text-white transition-colors hover:bg-slate-800"
+                className="h-11 rounded-lg bg-slate-900 text-sm font-semibold text-white transition-colors hover:bg-slate-800"
               >
                 바로 공유하기
               </button>
               <button
                 type="button"
                 onClick={handleMoveToAuction}
-                className="h-11 rounded-xl bg-[#fee500] text-sm font-bold text-[#191919] transition-colors hover:brightness-95"
+                className="h-11 rounded-lg bg-[#fee500] text-sm font-bold text-[#191919] transition-colors hover:brightness-95"
               >
                 경매 상세로 이동
               </button>
