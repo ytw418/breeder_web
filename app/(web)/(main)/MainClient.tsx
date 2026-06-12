@@ -264,7 +264,7 @@ const MainClient = ({
   return (
     <div className="app-page flex flex-col h-full">
       {/* Section 1: 상단 배너/히어로 */}
-      <section className="app-reveal bg-white pb-1 pt-3">
+      <section className="app-reveal relative bg-white pb-1 pt-3">
         <div
           ref={bannerRef}
           onScroll={handleBannerScroll}
@@ -304,8 +304,8 @@ const MainClient = ({
             </Link>
           ))}
         </div>
-        <div className="mt-2 flex items-center justify-center">
-          <div className="inline-flex h-5 items-center gap-1 rounded-full border border-slate-200 bg-white px-2">
+        {banners.length > 1 ? (
+          <div className="pointer-events-none absolute inset-x-0 bottom-4 flex items-center justify-center">
             {banners.map((banner, index: number) => (
               <button
                 key={banner.id}
@@ -313,16 +313,18 @@ const MainClient = ({
                 onClick={() => scrollToBanner(index)}
                 aria-label={`${index + 1}번 배너로 이동`}
                 aria-current={activeBannerIndex === index ? "true" : undefined}
-                className={cn(
-                  "h-1.5 rounded-full transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/30",
-                  activeBannerIndex === index
-                    ? "w-4 bg-primary"
-                    : "w-1.5 bg-slate-200 hover:bg-slate-300"
-                )}
-              />
+                className="pointer-events-auto grid h-4 w-4 place-items-center rounded-full focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-black/30"
+              >
+                <span
+                  className={cn(
+                    "h-1.5 w-1.5 rounded-full transition-colors",
+                    activeBannerIndex === index ? "bg-black" : "bg-black/25"
+                  )}
+                />
+              </button>
             ))}
           </div>
-        </div>
+        ) : null}
       </section>
 
       {/* Section 2: 혈통카드 공유 챌린지 (compact) */}
