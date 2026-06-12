@@ -264,105 +264,116 @@ const MainClient = ({
   return (
     <div className="app-page flex flex-col h-full">
       {/* Section 1: 상단 배너/히어로 */}
-      <section className="app-reveal">
+      <section className="app-reveal relative bg-white pb-1 pt-3">
         <div
           ref={bannerRef}
           onScroll={handleBannerScroll}
-          className="app-rail flex gap-0"
+          className="app-rail flex snap-x snap-mandatory gap-3 scroll-px-5 px-5"
         >
-            {banners.map((banner) => (
-              <Link
-                key={banner.id}
-                href={banner.href}
-                onClick={() =>
-                  trackEvent(ANALYTICS_EVENTS.homeBannerClicked, {
-                    banner_id: banner.id,
-                    banner_title: banner.title,
-                    banner_href: banner.href,
-                    user_id: user?.id || null,
-                  })
-                }
-                className={cn(
-                  "snap-start shrink-0 w-full app-card-interactive rounded-none border-0 shadow-none px-5 py-5 text-white bg-gradient-to-r relative overflow-hidden from-emerald-500 to-teal-500",
-                  banner.bgClass
-                )}
-              >
-                <span className="app-kicker text-white/75 relative z-10">Bredy</span>
-                <h2 className="mt-2 app-title-lg text-white relative z-10">{banner.title}</h2>
-                <p className="mt-1 app-body-sm text-white/90 line-clamp-2 relative z-10">
+          {banners.map((banner) => (
+            <Link
+              key={banner.id}
+              href={banner.href}
+              onClick={() =>
+                trackEvent(ANALYTICS_EVENTS.homeBannerClicked, {
+                  banner_id: banner.id,
+                  banner_title: banner.title,
+                  banner_href: banner.href,
+                  user_id: user?.id || null,
+                })
+              }
+              className={cn(
+                "app-card-interactive relative flex min-h-[132px] w-[calc(100vw-40px)] max-w-[calc(36rem-40px)] shrink-0 snap-start flex-col justify-between overflow-hidden rounded-xl border border-white/20 bg-gradient-to-br from-emerald-500 to-teal-500 px-4 py-4 text-white shadow-none",
+                banner.bgClass
+              )}
+            >
+              <div>
+                <span className="text-[11px] font-semibold leading-none text-white/70">
+                  Bredy
+                </span>
+                <h2 className="mt-2 text-[20px] font-extrabold leading-tight tracking-normal text-white">
+                  {banner.title}
+                </h2>
+                <p className="mt-1 line-clamp-2 text-[13px] font-medium leading-[1.45] tracking-normal text-white/85">
                   {banner.description}
                 </p>
-                <span className="mt-4 inline-flex h-7 items-center rounded-full bg-white/20 px-2.5 text-[11px] font-semibold text-white/95 backdrop-blur-sm relative z-10">
-                  자세히 보기
-                </span>
-                <div className="pointer-events-none absolute -right-8 -top-10 h-28 w-28 rounded-full bg-white/12" />
-              </Link>
-            ))}
-
-        </div>
-        <div className="mt-3 flex items-center justify-center gap-1.5">
-          {banners.map((banner, index: number) => (
-            <button
-              key={banner.id}
-              onClick={() => scrollToBanner(index)}
-              aria-label={`${index + 1}번 배너로 이동`}
-              className={cn(
-                "h-1.5 rounded-full transition-all",
-                activeBannerIndex === index ? "w-6 bg-slate-900" : "w-2 bg-slate-300"
-              )}
-            />
+              </div>
+              <span className="mt-4 inline-flex h-7 w-fit items-center rounded-md bg-white/15 px-2.5 text-[11px] font-bold text-white backdrop-blur-sm">
+                자세히 보기
+              </span>
+            </Link>
           ))}
         </div>
+        {banners.length > 1 ? (
+          <div className="pointer-events-none absolute inset-x-0 bottom-4 flex items-center justify-center">
+            {banners.map((banner, index: number) => (
+              <button
+                key={banner.id}
+                type="button"
+                onClick={() => scrollToBanner(index)}
+                aria-label={`${index + 1}번 배너로 이동`}
+                aria-current={activeBannerIndex === index ? "true" : undefined}
+                className="pointer-events-auto grid h-4 w-4 place-items-center rounded-full focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-black/30"
+              >
+                <span
+                  className={cn(
+                    "h-1.5 w-1.5 rounded-full transition-colors",
+                    activeBannerIndex === index ? "bg-black" : "bg-black/25"
+                  )}
+                />
+              </button>
+            ))}
+          </div>
+        ) : null}
       </section>
 
       {/* Section 2: 혈통카드 공유 챌린지 (compact) */}
       <section className="app-section app-reveal app-reveal-1 py-2">
-        <div className="relative mx-5 overflow-hidden rounded-2xl bg-gradient-to-br from-amber-400 via-orange-400 to-rose-500 p-3 text-white shadow-lg">
-          <div className="pointer-events-none absolute -right-4 -top-4 h-16 w-16 rounded-full bg-white/15 blur-xl" />
-          <div className="flex items-center justify-between gap-3">
-            <div className="min-w-0 flex-1">
-              <div className="flex items-center gap-2">
-                <span className="inline-flex items-center rounded-full bg-white/25 px-2 py-0.5 text-[9px] font-bold uppercase tracking-widest">
-                  이벤트
-                </span>
-                <h3 className="text-sm font-black leading-tight">혈통카드 공유 챌린지</h3>
-              </div>
-              <p className="mt-1 text-[11px] leading-snug text-white/90">
-                내 혈통카드를 공유하고 특별 배지를 받으세요!
-              </p>
+        <div className="mx-5 rounded-sm border border-slate-200 bg-white px-4 py-3">
+          <div className="min-w-0">
+            <div className="flex items-center gap-2">
+              <span className="inline-flex h-5 items-center rounded bg-primary/10 px-1.5 text-[10px] font-bold text-primary">
+                이벤트
+              </span>
+              <h3 className="text-sm font-extrabold tracking-normal text-slate-950">
+                혈통카드 공유 챌린지
+              </h3>
             </div>
-            <div className="flex shrink-0 gap-1.5">
-              <Link
-                href="/bloodline-management"
-                onClick={() =>
-                  trackEvent(ANALYTICS_EVENTS.challengeJoin, {
-                    challenge_id: "bloodline_card_share",
-                    entry_type: user ? "member" : "guest",
-                  })
-                }
-                className="inline-flex h-7 items-center rounded-full bg-white px-3 text-[11px] font-bold text-orange-600"
-              >
-                보기
-              </Link>
-              <Link
-                href="/bloodline-cards/create"
-                className="inline-flex h-7 items-center rounded-full border border-white/40 bg-white/20 px-3 text-[11px] font-semibold text-white backdrop-blur-sm"
-              >
-                만들기
-              </Link>
-            </div>
+            <p className="mt-1.5 text-xs font-medium tracking-normal text-slate-500">
+              내 혈통카드를 공유하고 특별 배지를 받아보세요.
+            </p>
+          </div>
+          <div className="mt-3 grid grid-cols-2 gap-2">
+            <Link
+              href="/bloodline-management"
+              onClick={() =>
+                trackEvent(ANALYTICS_EVENTS.challengeJoin, {
+                  challenge_id: "bloodline_card_share",
+                  entry_type: user ? "member" : "guest",
+                })
+              }
+              className="inline-flex h-9 items-center justify-center rounded-sm bg-slate-950 px-3 text-xs font-bold text-white transition hover:bg-slate-800"
+            >
+              보기
+            </Link>
+            <Link
+              href="/bloodline-cards/create"
+              className="inline-flex h-9 items-center justify-center rounded-sm border border-slate-200 bg-white px-3 text-xs font-bold text-slate-700 transition hover:bg-slate-50"
+            >
+              만들기
+            </Link>
           </div>
         </div>
       </section>
 
       {/* Section 3: TOP 브리더 */}
-      <section className="app-section app-reveal app-reveal-1 py-2">
+      <section className="app-section app-reveal app-reveal-1 pt-4 pb-2">
         <SectionHeader
           title="이번 주 TOP 브리더"
           href={toRankingHref("breeders", heroBreederPeriod)}
           actionLabel="랭킹 보기"
         />
-        <div className="mt-1 px-5">
+        <div className="mt-3 px-5">
           {homeFeedData?.heroBreeder ? (
             <div className="app-card overflow-hidden border border-slate-200/80 p-0">
               {/* 상단: 프로필 + 순위 */}

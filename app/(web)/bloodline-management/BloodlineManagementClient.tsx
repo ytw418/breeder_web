@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import useSWR from "swr";
 import { Spinner } from "@components/atoms/Spinner";
+import Layout from "@components/features/MainLayout";
 import useUser from "hooks/useUser";
 import {
   BloodlineCardItem,
@@ -256,59 +257,61 @@ export default function BloodlineManagementClient() {
   };
 
   return (
-    <div className="app-page min-h-screen">
-      <div className="mx-auto flex w-full max-w-[680px] flex-col gap-4">
-        <header className="space-y-3">
-          <div className="rounded-lg border border-slate-200 bg-white p-4">
-            <p className="text-xs font-semibold text-primary">
-              BLOODLINE MANAGEMENT
-            </p>
-            <div className="mt-2 flex items-center justify-between gap-2">
-              <h1 className="app-title-lg">혈통관리</h1>
-              <Link
-                href="/bloodline-cards/create"
-                className="inline-flex h-9 items-center justify-center rounded-lg bg-slate-900 px-3 text-xs font-semibold text-white transition hover:bg-slate-800"
-              >
-                새 혈통 만들기
-              </Link>
-            </div>
-            <p className="mt-1 text-sm text-slate-600">
-              카드를 선택하면 상세에서 보내기와 라인 만들기를 바로 이어서 진행할
-              수 있습니다.
-            </p>
-            <div className="mt-3 grid grid-cols-2 gap-2 text-sm">
-              <div className="rounded-lg bg-slate-50 px-3 py-2">
-                <p className="text-[11px] font-semibold text-slate-500">
-                  총 자산
-                </p>
-                <p className="mt-1 text-lg font-bold text-slate-900">
-                  {totalCards}개
-                </p>
+    <Layout canGoBack hasTabBar showHome title="혈통관리" seoTitle="혈통관리">
+      <div className="px-4 py-4">
+        <div className="mx-auto flex w-full max-w-[680px] flex-col gap-4">
+          <header className="space-y-3">
+            <div className="rounded-lg border border-slate-200 bg-white p-4">
+              <p className="text-xs font-semibold text-primary">
+                BLOODLINE MANAGEMENT
+              </p>
+              <div className="mt-2 flex items-center justify-between gap-2">
+                <h1 className="app-title-lg">혈통관리</h1>
+                <Link
+                  href="/bloodline-cards/create"
+                  className="inline-flex h-9 items-center justify-center rounded-lg bg-slate-900 px-3 text-xs font-semibold text-white transition hover:bg-slate-800"
+                >
+                  새 혈통 만들기
+                </Link>
               </div>
-              <div className="rounded-lg bg-slate-50 px-3 py-2">
-                <p className="text-[11px] font-semibold text-slate-500">
-                  내 구성
-                </p>
-                <p className="mt-1 text-lg font-bold text-slate-900">
-                  {directCards}개
-                </p>
+              <p className="mt-1 text-sm text-slate-600">
+                카드를 선택하면 상세에서 보내기와 라인 만들기를 바로 이어서
+                진행할 수 있습니다.
+              </p>
+              <div className="mt-3 grid grid-cols-2 gap-2 text-sm">
+                <div className="rounded-lg bg-slate-50 px-3 py-2">
+                  <p className="text-[11px] font-semibold text-slate-500">
+                    총 자산
+                  </p>
+                  <p className="mt-1 text-lg font-bold text-slate-900">
+                    {totalCards}개
+                  </p>
+                </div>
+                <div className="rounded-lg bg-slate-50 px-3 py-2">
+                  <p className="text-[11px] font-semibold text-slate-500">
+                    내 구성
+                  </p>
+                  <p className="mt-1 text-lg font-bold text-slate-900">
+                    {directCards}개
+                  </p>
+                </div>
               </div>
             </div>
-          </div>
-        </header>
+          </header>
 
-        {isBloodlineLoading ? (
-          <div className="flex h-20 items-center justify-center">
-            <Spinner />
-          </div>
-        ) : (
-          <>
-            {renderSection("myBloodlines", myBloodlines)}
-            {renderSection("createdLines", createdLines)}
-            {renderSection("receivedCards", receivedCards)}
-          </>
-        )}
+          {isBloodlineLoading ? (
+            <div className="flex h-20 items-center justify-center">
+              <Spinner />
+            </div>
+          ) : (
+            <>
+              {renderSection("myBloodlines", myBloodlines)}
+              {renderSection("createdLines", createdLines)}
+              {renderSection("receivedCards", receivedCards)}
+            </>
+          )}
+        </div>
       </div>
-    </div>
+    </Layout>
   );
 }

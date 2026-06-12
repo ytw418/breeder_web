@@ -7,6 +7,7 @@ import useSWR from "swr";
 import { Button } from "@components/ui/button";
 import { Input } from "@components/ui/input";
 import { Spinner } from "@components/atoms/Spinner";
+import Layout from "@components/features/MainLayout";
 import useUser from "hooks/useUser";
 import {
   BloodlineCardDetailResponse,
@@ -395,9 +396,11 @@ export default function BloodlineCardDetailClient({
 
   if (isLoading) {
     return (
-      <div className="app-page flex min-h-screen items-center justify-center">
-        <Spinner />
-      </div>
+      <Layout canGoBack hasTabBar showHome title="혈통카드" seoTitle="혈통카드">
+        <div className="flex min-h-[60vh] items-center justify-center px-4 py-4">
+          <Spinner />
+        </div>
+      </Layout>
     );
   }
 
@@ -405,380 +408,403 @@ export default function BloodlineCardDetailClient({
     const isWaitingForSync = missingCardRetryCount < 2;
     if (isWaitingForSync) {
       return (
-        <div className="app-page flex min-h-screen items-center justify-center">
-          <div className="rounded-xl border border-slate-200 bg-white px-4 py-4 text-sm text-slate-700 shadow-sm">
-            <Spinner />
-            <p className="mt-2">카드 정보를 불러오는 중입니다.</p>
+        <Layout
+          canGoBack
+          hasTabBar
+          showHome
+          title="혈통카드"
+          seoTitle="혈통카드"
+        >
+          <div className="flex min-h-[60vh] items-center justify-center px-4 py-4">
+            <div className="rounded-xl border border-slate-200 bg-white px-4 py-4 text-sm text-slate-700 shadow-sm">
+              <Spinner />
+              <p className="mt-2">카드 정보를 불러오는 중입니다.</p>
+            </div>
           </div>
-        </div>
+        </Layout>
       );
     }
 
     return (
-      <section className="app-page">
-        <div className="mx-auto w-full max-w-[680px] rounded-xl border border-slate-200 bg-white p-5">
-          <h1 className="text-lg font-black text-slate-900">
-            카드를 찾을 수 없습니다.
-          </h1>
-          <p className="mt-1 text-sm text-slate-600">
-            카드 ID가 없거나 비활성화된 카드일 수 있습니다.
-          </p>
-          <Link
-            href="/bloodline-management"
-            className="mt-4 inline-flex h-10 items-center justify-center rounded-lg bg-slate-900 px-4 text-sm font-medium text-white transition hover:bg-slate-800"
-          >
-            혈통관리로 이동
-          </Link>
-        </div>
-      </section>
+      <Layout canGoBack hasTabBar showHome title="혈통카드" seoTitle="혈통카드">
+        <section className="px-4 py-4">
+          <div className="mx-auto w-full max-w-[680px] rounded-xl border border-slate-200 bg-white p-5">
+            <h1 className="text-lg font-black text-slate-900">
+              카드를 찾을 수 없습니다.
+            </h1>
+            <p className="mt-1 text-sm text-slate-600">
+              카드 ID가 없거나 비활성화된 카드일 수 있습니다.
+            </p>
+            <Link
+              href="/bloodline-management"
+              className="mt-4 inline-flex h-10 items-center justify-center rounded-lg bg-slate-900 px-4 text-sm font-medium text-white transition hover:bg-slate-800"
+            >
+              혈통관리로 이동
+            </Link>
+          </div>
+        </section>
+      </Layout>
     );
   }
 
   return (
-    <section className="app-page min-h-screen">
-      <div className="mx-auto flex w-full max-w-[680px] flex-col gap-3">
-        {showCelebrationModal ? (
-          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/55 px-4">
-            <div className="relative w-full max-w-sm rounded-lg border border-slate-200 bg-white p-5 shadow-xl">
-              <div className="relative text-center">
-                <p className="text-sm font-bold text-slate-900">
-                  {celebrationCardName
-                    ? `"${celebrationCardName}"`
-                    : "혈통카드"}
-                  가 완성됐습니다!
-                </p>
-                <p className="mt-2 text-sm leading-relaxed text-slate-500">
-                  화면을 캡쳐해서 친구들에게 공유해보세요.
-                </p>
-                <Button
-                  type="button"
-                  className="mt-5 h-11 w-full rounded-lg bg-slate-900 text-sm font-semibold text-white hover:bg-slate-800"
-                  onClick={handleCloseCelebrationModal}
-                >
-                  닫기
-                </Button>
+    <Layout
+      canGoBack
+      hasTabBar
+      showHome
+      title={isBloodline ? "혈통카드" : "라인카드"}
+      seoTitle={card.name}
+    >
+      <section className="px-4 py-4">
+        <div className="mx-auto flex w-full max-w-[680px] flex-col gap-3">
+          {showCelebrationModal ? (
+            <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/55 px-4">
+              <div className="relative w-full max-w-sm rounded-lg border border-slate-200 bg-white p-5 shadow-xl">
+                <div className="relative text-center">
+                  <p className="text-sm font-bold text-slate-900">
+                    {celebrationCardName
+                      ? `"${celebrationCardName}"`
+                      : "혈통카드"}
+                    가 완성됐습니다!
+                  </p>
+                  <p className="mt-2 text-sm leading-relaxed text-slate-500">
+                    화면을 캡쳐해서 친구들에게 공유해보세요.
+                  </p>
+                  <Button
+                    type="button"
+                    className="mt-5 h-11 w-full rounded-lg bg-slate-900 text-sm font-semibold text-white hover:bg-slate-800"
+                    onClick={handleCloseCelebrationModal}
+                  >
+                    닫기
+                  </Button>
+                </div>
               </div>
             </div>
-          </div>
-        ) : null}
-        <div className={sectionClass}>
-          <div className={panelHeaderClass}>
-            <Link
-              href="/bloodline-management"
-              className="inline-flex h-8 items-center justify-center rounded-lg border border-slate-200 bg-white px-3 text-xs font-medium text-slate-700 transition hover:bg-slate-50"
-            >
-              목록으로
-            </Link>
-            <span className="rounded-md bg-slate-100 px-2.5 py-1 text-[11px] font-semibold text-slate-700">
-              {isBloodline ? "혈통카드" : "라인카드"}
-            </span>
-          </div>
-
-          <h1 className="app-title-lg text-slate-900">{card.name}</h1>
-          <p className="mt-1.5 text-sm leading-relaxed text-slate-600">
-            {card.description || "설명이 없습니다."}
-          </p>
-
-          <div className="mt-3 flex flex-wrap gap-2">
-            <span className={chipClass}>현재 상태 {card.status}</span>
-            <span className={chipClass}>발급 {card.transfers.length}회</span>
-            <span className={chipClass}>ID #{card.id}</span>
-          </div>
-          {lineageTransferHint ? (
-            <p className="mt-2 inline-flex rounded-md bg-amber-50 px-3 py-1 text-xs text-amber-700">
-              {lineageTransferHint}
-            </p>
           ) : null}
-        </div>
-
-        <article className={sectionClass}>
-          <div className={panelHeaderClass}>
-            <h2 className="text-sm font-bold text-slate-900">카드 미리보기</h2>
-          </div>
-          <BloodlineVisualCard
-            cardId={card.id}
-            name={card.name}
-            ownerName={card.currentOwner.name}
-            subtitle={card.description || "설명이 없습니다."}
-            image={card.image}
-            variant={card.visualStyle}
-          />
-        </article>
-
-        <article className={sectionClass}>
-          <div className={panelHeaderClass}>
-            <h2 className="text-sm font-bold text-slate-900">기본 정보</h2>
-          </div>
-          <div className="grid gap-2">
-            <p className={chipClass}>
-              제작자:{" "}
+          <div className={sectionClass}>
+            <div className={panelHeaderClass}>
               <Link
-                href={`/profiles/${card.creator.id}`}
-                className="font-semibold text-slate-900 underline underline-offset-4"
+                href="/bloodline-management"
+                className="inline-flex h-8 items-center justify-center rounded-lg border border-slate-200 bg-white px-3 text-xs font-medium text-slate-700 transition hover:bg-slate-50"
               >
-                {card.creator.name}
+                목록으로
               </Link>
+              <span className="rounded-md bg-slate-100 px-2.5 py-1 text-[11px] font-semibold text-slate-700">
+                {isBloodline ? "혈통카드" : "라인카드"}
+              </span>
+            </div>
+
+            <h1 className="app-title-lg text-slate-900">{card.name}</h1>
+            <p className="mt-1.5 text-sm leading-relaxed text-slate-600">
+              {card.description || "설명이 없습니다."}
             </p>
-            <p className={chipClass}>
-              현재 보유자:{" "}
-              <Link
-                href={`/profiles/${card.currentOwner.id}`}
-                className="font-semibold text-slate-900 underline underline-offset-4"
-              >
-                {card.currentOwner.name}
-              </Link>
-            </p>
-            {card.cardType === "LINE" ? (
-              <>
-                <div className={chipClass}>
-                  원본 혈통:{" "}
-                  {bloodlineSourceCard ? (
-                    <Link
-                      href={`/bloodline-management/card/${bloodlineSourceCard.id}`}
-                      className="font-semibold text-slate-900 underline underline-offset-4"
-                    >
-                      #{bloodlineSourceCard.id} {bloodlineSourceCard.name}
-                    </Link>
-                  ) : (
-                    `#${card.bloodlineReferenceId}`
-                  )}
-                </div>
-                <div className={chipClass}>
-                  상위 라인:{" "}
-                  {parentLineCard ? (
-                    <Link
-                      href={`/bloodline-management/card/${parentLineCard.id}`}
-                      className="font-semibold text-slate-900 underline underline-offset-4"
-                    >
-                      #{parentLineCard.id} {parentLineCard.name}
-                    </Link>
-                  ) : card.parentCardId ? (
-                    `#${card.parentCardId}`
-                  ) : (
-                    "직접 파생 없음"
-                  )}
-                </div>
-              </>
+
+            <div className="mt-3 flex flex-wrap gap-2">
+              <span className={chipClass}>현재 상태 {card.status}</span>
+              <span className={chipClass}>발급 {card.transfers.length}회</span>
+              <span className={chipClass}>ID #{card.id}</span>
+            </div>
+            {lineageTransferHint ? (
+              <p className="mt-2 inline-flex rounded-md bg-amber-50 px-3 py-1 text-xs text-amber-700">
+                {lineageTransferHint}
+              </p>
             ) : null}
           </div>
-        </article>
 
-        <article className={sectionClass}>
-          <div className={panelHeaderClass}>
-            <h2 className="text-sm font-bold text-slate-900">
-              {canTransfer || canIssue ? "카드 발급/전송" : "열람 정보"}
-            </h2>
-          </div>
+          <article className={sectionClass}>
+            <div className={panelHeaderClass}>
+              <h2 className="text-sm font-bold text-slate-900">
+                카드 미리보기
+              </h2>
+            </div>
+            <BloodlineVisualCard
+              cardId={card.id}
+              name={card.name}
+              ownerName={card.currentOwner.name}
+              subtitle={card.description || "설명이 없습니다."}
+              image={card.image}
+              variant={card.visualStyle}
+            />
+          </article>
 
-          {canTransfer || canIssue ? (
-            <div className="space-y-2">
-              {error ? (
-                <p className="rounded-lg border border-rose-200 bg-rose-50 px-3 py-2 text-sm font-medium text-rose-700">
-                  {error}
-                </p>
+          <article className={sectionClass}>
+            <div className={panelHeaderClass}>
+              <h2 className="text-sm font-bold text-slate-900">기본 정보</h2>
+            </div>
+            <div className="grid gap-2">
+              <p className={chipClass}>
+                제작자:{" "}
+                <Link
+                  href={`/profiles/${card.creator.id}`}
+                  className="font-semibold text-slate-900 underline underline-offset-4"
+                >
+                  {card.creator.name}
+                </Link>
+              </p>
+              <p className={chipClass}>
+                현재 보유자:{" "}
+                <Link
+                  href={`/profiles/${card.currentOwner.id}`}
+                  className="font-semibold text-slate-900 underline underline-offset-4"
+                >
+                  {card.currentOwner.name}
+                </Link>
+              </p>
+              {card.cardType === "LINE" ? (
+                <>
+                  <div className={chipClass}>
+                    원본 혈통:{" "}
+                    {bloodlineSourceCard ? (
+                      <Link
+                        href={`/bloodline-management/card/${bloodlineSourceCard.id}`}
+                        className="font-semibold text-slate-900 underline underline-offset-4"
+                      >
+                        #{bloodlineSourceCard.id} {bloodlineSourceCard.name}
+                      </Link>
+                    ) : (
+                      `#${card.bloodlineReferenceId}`
+                    )}
+                  </div>
+                  <div className={chipClass}>
+                    상위 라인:{" "}
+                    {parentLineCard ? (
+                      <Link
+                        href={`/bloodline-management/card/${parentLineCard.id}`}
+                        className="font-semibold text-slate-900 underline underline-offset-4"
+                      >
+                        #{parentLineCard.id} {parentLineCard.name}
+                      </Link>
+                    ) : card.parentCardId ? (
+                      `#${card.parentCardId}`
+                    ) : (
+                      "직접 파생 없음"
+                    )}
+                  </div>
+                </>
               ) : null}
-              {message ? (
-                <p className="rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm font-medium text-emerald-700">
-                  {message}
-                </p>
-              ) : null}
-              {activeAction === "transfer" ? (
-                <form className="space-y-2" onSubmit={handleTransferSubmit}>
-                  <div className="relative">
+            </div>
+          </article>
+
+          <article className={sectionClass}>
+            <div className={panelHeaderClass}>
+              <h2 className="text-sm font-bold text-slate-900">
+                {canTransfer || canIssue ? "카드 발급/전송" : "열람 정보"}
+              </h2>
+            </div>
+
+            {canTransfer || canIssue ? (
+              <div className="space-y-2">
+                {error ? (
+                  <p className="rounded-lg border border-rose-200 bg-rose-50 px-3 py-2 text-sm font-medium text-rose-700">
+                    {error}
+                  </p>
+                ) : null}
+                {message ? (
+                  <p className="rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm font-medium text-emerald-700">
+                    {message}
+                  </p>
+                ) : null}
+                {activeAction === "transfer" ? (
+                  <form className="space-y-2" onSubmit={handleTransferSubmit}>
+                    <div className="relative">
+                      <Input
+                        value={transferDraft[card.id]?.toUserName || ""}
+                        onChange={(event) =>
+                          setTransferDraft((prev) => ({
+                            ...prev,
+                            [card.id]: {
+                              ...prev[card.id],
+                              toUserName: event.target.value,
+                              toUserId: undefined,
+                            },
+                          }))
+                        }
+                        placeholder="보내는 상대 닉네임(필수)"
+                        className="h-11 rounded-lg"
+                      />
+                      {transferSearchLoading ||
+                      transferCandidates.length > 0 ? (
+                        <div className="absolute left-0 right-0 z-20 mt-1 max-h-56 overflow-y-auto rounded-lg border border-slate-200 bg-white shadow-md">
+                          {transferSearchLoading ? (
+                            <p className="px-3 py-2 text-sm text-slate-500">
+                              검색 중...
+                            </p>
+                          ) : transferCandidates.length ? (
+                            transferCandidates.map((item) => (
+                              <button
+                                key={item.id}
+                                type="button"
+                                onClick={() =>
+                                  handleTransferCandidateSelect(item)
+                                }
+                                className="w-full px-3 py-2 text-left text-sm text-slate-900 transition hover:bg-slate-50"
+                              >
+                                {item.name}
+                              </button>
+                            ))
+                          ) : null}
+                        </div>
+                      ) : null}
+                    </div>
                     <Input
-                      value={transferDraft[card.id]?.toUserName || ""}
+                      value={transferDraft[card.id]?.note || ""}
                       onChange={(event) =>
                         setTransferDraft((prev) => ({
                           ...prev,
                           [card.id]: {
                             ...prev[card.id],
-                            toUserName: event.target.value,
-                            toUserId: undefined,
+                            note: event.target.value,
                           },
                         }))
                       }
-                      placeholder="보내는 상대 닉네임(필수)"
+                      placeholder="메모 (선택)"
                       className="h-11 rounded-lg"
                     />
-                    {transferSearchLoading || transferCandidates.length > 0 ? (
-                      <div className="absolute left-0 right-0 z-20 mt-1 max-h-56 overflow-y-auto rounded-lg border border-slate-200 bg-white shadow-md">
-                        {transferSearchLoading ? (
-                          <p className="px-3 py-2 text-sm text-slate-500">
-                            검색 중...
-                          </p>
-                        ) : transferCandidates.length ? (
-                          transferCandidates.map((item) => (
-                            <button
-                              key={item.id}
-                              type="button"
-                              onClick={() =>
-                                handleTransferCandidateSelect(item)
-                              }
-                              className="w-full px-3 py-2 text-left text-sm text-slate-900 transition hover:bg-slate-50"
-                            >
-                              {item.name}
-                            </button>
-                          ))
-                        ) : null}
-                      </div>
+                    <div className="grid gap-2">
+                      <Button
+                        type="submit"
+                        className={actionButtonClass}
+                        disabled={transferLoading}
+                      >
+                        {transferLoading ? "처리 중..." : "확인"}
+                      </Button>
+                      <Button
+                        type="button"
+                        className={cancelButtonClass}
+                        onClick={() => setActiveAction(null)}
+                        disabled={transferLoading}
+                      >
+                        취소
+                      </Button>
+                    </div>
+                  </form>
+                ) : activeAction === "issue" ? (
+                  <form className="space-y-2" onSubmit={handleIssueSubmit}>
+                    <Input
+                      value={issueDraft[card.id]?.lineName || ""}
+                      onChange={(event) =>
+                        setIssueDraft((prev) => ({
+                          ...prev,
+                          [card.id]: {
+                            ...prev[card.id],
+                            lineName: event.target.value,
+                          },
+                        }))
+                      }
+                      placeholder="라인 이름(선택)"
+                      className="h-11 rounded-lg"
+                    />
+                    <div className="grid gap-2">
+                      <Button
+                        type="submit"
+                        className={accentButtonClass}
+                        disabled={issueLoading}
+                      >
+                        {issueLoading ? "처리 중..." : "확인"}
+                      </Button>
+                      <Button
+                        type="button"
+                        className={cancelButtonClass}
+                        onClick={() => setActiveAction(null)}
+                        disabled={issueLoading}
+                      >
+                        취소
+                      </Button>
+                    </div>
+                  </form>
+                ) : (
+                  <div className="grid gap-2">
+                    {canTransfer ? (
+                      <Button
+                        type="button"
+                        className={actionButtonClass}
+                        onClick={() => setActiveAction("transfer")}
+                      >
+                        보내기
+                      </Button>
+                    ) : null}
+                    {canIssue ? (
+                      <Button
+                        type="button"
+                        className={accentButtonClass}
+                        onClick={() => setActiveAction("issue")}
+                      >
+                        라인 만들기
+                      </Button>
                     ) : null}
                   </div>
-                  <Input
-                    value={transferDraft[card.id]?.note || ""}
-                    onChange={(event) =>
-                      setTransferDraft((prev) => ({
-                        ...prev,
-                        [card.id]: {
-                          ...prev[card.id],
-                          note: event.target.value,
-                        },
-                      }))
-                    }
-                    placeholder="메모 (선택)"
-                    className="h-11 rounded-lg"
-                  />
-                  <div className="grid gap-2">
-                    <Button
-                      type="submit"
-                      className={actionButtonClass}
-                      disabled={transferLoading}
-                    >
-                      {transferLoading ? "처리 중..." : "확인"}
-                    </Button>
-                    <Button
-                      type="button"
-                      className={cancelButtonClass}
-                      onClick={() => setActiveAction(null)}
-                      disabled={transferLoading}
-                    >
-                      취소
-                    </Button>
-                  </div>
-                </form>
-              ) : activeAction === "issue" ? (
-                <form className="space-y-2" onSubmit={handleIssueSubmit}>
-                  <Input
-                    value={issueDraft[card.id]?.lineName || ""}
-                    onChange={(event) =>
-                      setIssueDraft((prev) => ({
-                        ...prev,
-                        [card.id]: {
-                          ...prev[card.id],
-                          lineName: event.target.value,
-                        },
-                      }))
-                    }
-                    placeholder="라인 이름(선택)"
-                    className="h-11 rounded-lg"
-                  />
-                  <div className="grid gap-2">
-                    <Button
-                      type="submit"
-                      className={accentButtonClass}
-                      disabled={issueLoading}
-                    >
-                      {issueLoading ? "처리 중..." : "확인"}
-                    </Button>
-                    <Button
-                      type="button"
-                      className={cancelButtonClass}
-                      onClick={() => setActiveAction(null)}
-                      disabled={issueLoading}
-                    >
-                      취소
-                    </Button>
-                  </div>
-                </form>
-              ) : (
-                <div className="grid gap-2">
-                  {canTransfer ? (
-                    <Button
-                      type="button"
-                      className={actionButtonClass}
-                      onClick={() => setActiveAction("transfer")}
-                    >
-                      보내기
-                    </Button>
-                  ) : null}
-                  {canIssue ? (
-                    <Button
-                      type="button"
-                      className={accentButtonClass}
-                      onClick={() => setActiveAction("issue")}
-                    >
-                      라인 만들기
-                    </Button>
-                  ) : null}
-                </div>
-              )}
-            </div>
-          ) : (
-            <div className="rounded-lg border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-600">
-              <p className="font-medium text-slate-800">
-                이 카드는 현재 {card.currentOwner.name}님이 보유 중입니다.
-              </p>
-              <p className="mt-1 leading-relaxed">
-                상세 정보와 기록은 열람할 수 있고, 보내기나 라인 만들기는
-                보유자만 진행할 수 있습니다.
-              </p>
-            </div>
-          )}
-        </article>
+                )}
+              </div>
+            ) : (
+              <div className="rounded-lg border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-600">
+                <p className="font-medium text-slate-800">
+                  이 카드는 현재 {card.currentOwner.name}님이 보유 중입니다.
+                </p>
+                <p className="mt-1 leading-relaxed">
+                  상세 정보와 기록은 열람할 수 있고, 보내기나 라인 만들기는
+                  보유자만 진행할 수 있습니다.
+                </p>
+              </div>
+            )}
+          </article>
 
-        <article className={sectionClass}>
-          <div className={panelHeaderClass}>
-            <h2 className="text-sm font-bold text-slate-900">최근 기록</h2>
-            <span className="text-xs text-slate-500">총 {events.length}건</span>
-          </div>
-
-          {eventsLoading ? (
-            <div className="flex h-16 items-center justify-center">
-              <Spinner />
+          <article className={sectionClass}>
+            <div className={panelHeaderClass}>
+              <h2 className="text-sm font-bold text-slate-900">최근 기록</h2>
+              <span className="text-xs text-slate-500">
+                총 {events.length}건
+              </span>
             </div>
-          ) : events.length ? (
-            <div className="space-y-2">
-              {events.slice(0, 5).map((record) => (
-                <div
-                  key={record.id}
-                  className={`rounded-lg border p-3 ${
-                    eventToneByAction[record.action] ||
-                    "border-slate-200 bg-slate-50"
-                  } text-sm`}
-                >
-                  <div className="flex items-start justify-between gap-2">
-                    <p className="font-semibold text-slate-900">
-                      {actionLabel[record.action] || record.action}
+
+            {eventsLoading ? (
+              <div className="flex h-16 items-center justify-center">
+                <Spinner />
+              </div>
+            ) : events.length ? (
+              <div className="space-y-2">
+                {events.slice(0, 5).map((record) => (
+                  <div
+                    key={record.id}
+                    className={`rounded-lg border p-3 ${
+                      eventToneByAction[record.action] ||
+                      "border-slate-200 bg-slate-50"
+                    } text-sm`}
+                  >
+                    <div className="flex items-start justify-between gap-2">
+                      <p className="font-semibold text-slate-900">
+                        {actionLabel[record.action] || record.action}
+                      </p>
+                      <span className="text-[10px] font-semibold text-slate-700">
+                        {record.action}
+                      </span>
+                    </div>
+                    <p className="mt-1 text-xs text-slate-700">
+                      {record.actorUser?.name || "시스템"}
+                      {record.fromUser
+                        ? ` · ${record.fromUser.name} → ${
+                            record.toUser?.name || "시스템"
+                          }`
+                        : ""}
                     </p>
-                    <span className="text-[10px] font-semibold text-slate-700">
-                      {record.action}
-                    </span>
-                  </div>
-                  <p className="mt-1 text-xs text-slate-700">
-                    {record.actorUser?.name || "시스템"}
-                    {record.fromUser
-                      ? ` · ${record.fromUser.name} → ${
-                          record.toUser?.name || "시스템"
-                        }`
-                      : ""}
-                  </p>
-                  {record.note ? (
+                    {record.note ? (
+                      <p className="mt-1 text-xs text-slate-500">
+                        메모: {record.note}
+                      </p>
+                    ) : null}
                     <p className="mt-1 text-xs text-slate-500">
-                      메모: {record.note}
+                      {formatDate(record.createdAt)}
                     </p>
-                  ) : null}
-                  <p className="mt-1 text-xs text-slate-500">
-                    {formatDate(record.createdAt)}
-                  </p>
-                </div>
-              ))}
-            </div>
-          ) : (
-            <p className="rounded-lg border border-slate-200 bg-slate-50 p-3 text-sm text-slate-600">
-              기록이 없습니다.
-            </p>
-          )}
-        </article>
-      </div>
-    </section>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <p className="rounded-lg border border-slate-200 bg-slate-50 p-3 text-sm text-slate-600">
+                기록이 없습니다.
+              </p>
+            )}
+          </article>
+        </div>
+      </section>
+    </Layout>
   );
 }
