@@ -1,6 +1,6 @@
 import { NextApiRequest, NextApiResponse } from "next";
 import withHandler, { ResponseType } from "@libs/server/withHandler";
-import { withApiSession } from "@libs/server/withSession";
+import { withAuth } from "@libs/server/auth";
 import client from "@libs/server/client";
 import { hasAdminAccess } from "@libs/server/adminAccess";
 import {
@@ -79,7 +79,7 @@ async function handler(
   req: NextApiRequest,
   res: NextApiResponse<AdminAuctionReportsResponse>
 ) {
-  const adminUserId = req.session.user?.id;
+  const adminUserId = req.user?.id;
   const isAdmin = await hasAdminAccess(adminUserId);
   if (!isAdmin) {
     return res
@@ -293,7 +293,7 @@ async function handler(
   });
 }
 
-export default withApiSession(
+export default withAuth(
   withHandler({
     methods: ["GET", "POST"],
     isPrivate: false,

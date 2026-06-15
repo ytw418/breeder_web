@@ -1,7 +1,6 @@
 import React from "react";
 import UploadClient from "./UploadClient";
-import { getSessionUser } from "@libs/server/getUser";
-import { redirect } from "next/navigation";
+import AuthGuard from "@components/auth/AuthGuard";
 import type { Metadata } from "next";
 
 export const metadata: Metadata = {
@@ -17,12 +16,12 @@ export const metadata: Metadata = {
   description: "로그인 사용자 전용 게시글 업로드 페이지입니다.",
 };
 
-const page = async () => {
-  const user = await getSessionUser();
-  if (!user) {
-    redirect("/auth/login?next=/posts/upload");
-  }
-  return <UploadClient />;
+const page = () => {
+  return (
+    <AuthGuard>
+      <UploadClient />
+    </AuthGuard>
+  );
 };
 
 export default page;

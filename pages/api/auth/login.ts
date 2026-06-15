@@ -3,7 +3,8 @@ import withHandler, { ResponseType } from "@libs/server/withHandler";
 
 import client from "@libs/server/client";
 import { createUserWithAutomaticBreederPrograms } from "@libs/server/breeder-programs";
-import { withApiSession } from "@libs/server/withSession";
+import { withAuth } from "@libs/server/auth";
+import { issueTokens, AuthUser } from "@libs/server/jwt";
 import { UniqueName } from "@libs/server/UniqueName";
 
 export interface LoginReqBody {
@@ -17,16 +18,37 @@ export interface LoginReqBody {
 export interface LoginResponseType {
   success: boolean;
   error?: string;
-  user: {
-    id: number;
-    snsId: string;
-    provider: string;
-    phone: string | null;
-    email: string | null;
-    name: string;
-    avatar: string | null;
-    createdAt: Date;
-    updatedAt: Date;
+  user: AuthUser;
+  /** Bearer access 토큰 (Authorization 헤더에 사용) */
+  accessToken: string;
+  /** access 토큰 만료 시 재발급에 사용하는 refresh 토큰 */
+  refreshToken: string;
+  /** access 토큰 만료까지 남은 초 */
+  expiresIn: number;
+}
+
+/** prisma User 에서 토큰/응답에 담을 필드만 추린다. */
+function toAuthUser(user: {
+  id: number;
+  snsId: string;
+  provider: string;
+  phone: string | null;
+  email: string | null;
+  name: string;
+  avatar: string | null;
+  createdAt: Date;
+  updatedAt: Date;
+}): AuthUser {
+  return {
+    id: user.id,
+    snsId: user.snsId,
+    provider: user.provider,
+    phone: user.phone,
+    email: user.email,
+    name: user.name,
+    avatar: user.avatar,
+    createdAt: user.createdAt,
+    updatedAt: user.updatedAt,
   };
 }
 
@@ -101,9 +123,18 @@ async function handler(
       }
     }
 
-    req.session.user = user;
-    await req.session.save();
-    res.status(200).json({ success: true, user });
+    const authUser = toAuthUser(user);
+    const { accessToken, refreshToken, expiresIn } = await issueTokens(
+      authUser
+    );
+
+    res.status(200).json({
+      success: true,
+      user: authUser,
+      accessToken,
+      refreshToken,
+      expiresIn,
+    });
   } catch (error) {
     console.error("로그인 중 오류 발생:", error);
     res
@@ -111,6 +142,6 @@ async function handler(
       .json({ success: false, error: "로그인 중 오류가 발생했습니다." });
   }
 }
-export default withApiSession(
+export default withAuth(
   withHandler({ methods: ["POST"], handler, isPrivate: false })
 );

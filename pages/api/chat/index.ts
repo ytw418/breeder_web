@@ -1,7 +1,7 @@
 import client from "@libs/server/client";
 import withHandler from "@libs/server/withHandler";
 import { NextApiRequest, NextApiResponse } from "next";
-import { withApiSession } from "@libs/server/withSession";
+import { withAuth } from "@libs/server/auth";
 
 export interface ChatRequestType {
   otherId: number;
@@ -19,7 +19,7 @@ async function handler(
 ) {
   try {
     const {
-      session: { user },
+      user,
       body: { otherId },
     } = req;
 
@@ -87,7 +87,7 @@ async function handler(
   }
 }
 
-export default withApiSession(
+export default withAuth(
   withHandler({
     methods: ["POST"],
     handler,

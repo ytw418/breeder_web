@@ -1,6 +1,7 @@
 import { useCallback, useState } from "react";
 import { ApiResponseBase } from "@libs/client/apiResponse";
 import { capturePosthogError } from "@libs/client/posthog";
+import { authFetch } from "@libs/client/authFetch";
 
 interface useMutationState<T> {
   loading: boolean;
@@ -41,7 +42,7 @@ export default function useMutation<T = any>(
     }: MutationOption<T>): Promise<T> => {
       setState((prev) => ({ ...prev, loading: true }));
       try {
-        const response = await fetch(url + endpoint, {
+        const response = await authFetch(url + endpoint, {
           method: "POST",
           headers: {
             "Content-Type": contentType ? contentType : "application/json",

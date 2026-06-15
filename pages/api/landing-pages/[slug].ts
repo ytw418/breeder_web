@@ -1,6 +1,6 @@
 import { NextApiRequest, NextApiResponse } from "next";
 import withHandler, { ResponseType } from "@libs/server/withHandler";
-import { withApiSession } from "@libs/server/withSession";
+import { withAuth } from "@libs/server/auth";
 import type { LandingPageRecord } from "pages/api/admin/landing-pages";
 import client from "@libs/server/client";
 
@@ -29,7 +29,7 @@ async function handler(
   return res.json({ success: true, page });
 }
 
-export default withApiSession(
+export default withAuth(
   withHandler({
     methods: ["GET"],
     isPrivate: false,

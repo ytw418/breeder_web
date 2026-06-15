@@ -1,5 +1,6 @@
 "use client";
 
+import { authFetch } from "@libs/client/authFetch";
 import { FormEvent, useEffect, useMemo, useState } from "react";
 import useSWR from "swr";
 import Link from "next/link";
@@ -229,7 +230,7 @@ export default function GuinnessApplyClient() {
   const uploadProofPhotos = async () => {
     const ids = await Promise.all(
       proofFiles.map(async (file) => {
-        const uploadUrlResponse = await fetch("/api/files");
+        const uploadUrlResponse = await authFetch("/api/files");
         const { uploadURL } = await uploadUrlResponse.json();
         const form = new FormData();
         form.append("file", file, file.name);
@@ -337,7 +338,7 @@ export default function GuinnessApplyClient() {
         throw new Error("증빙 사진 업로드에 실패했습니다.");
       }
 
-      const res = await fetch("/api/guinness/submissions", {
+      const res = await authFetch("/api/guinness/submissions", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({

@@ -1,7 +1,7 @@
 import { NextApiRequest, NextApiResponse } from "next";
 
 import withHandler from "@libs/server/withHandler";
-import { withApiSession } from "@libs/server/withSession";
+import { withAuth } from "@libs/server/auth";
 import { getHomeFeed } from "@libs/server/home";
 import { HomeFeedResponse } from "@libs/shared/ranking";
 
@@ -11,7 +11,7 @@ async function handler(
 ) {
   try {
     const isPublicScope = req.query.scope === "public";
-    const userId = isPublicScope ? undefined : req.session.user?.id;
+    const userId = isPublicScope ? undefined : req.user?.id;
 
     const payload = await getHomeFeed({
       userId,
@@ -47,7 +47,7 @@ async function handler(
   }
 }
 
-export default withApiSession(
+export default withAuth(
   withHandler({
     methods: ["GET"],
     handler,

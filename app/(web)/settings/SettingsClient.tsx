@@ -1,5 +1,6 @@
 "use client";
 
+import { authFetch } from "@libs/client/authFetch";
 import Layout from "@components/features/MainLayout";
 import { cn } from "@libs/client/utils";
 import { PRIVACY_POLICY_URL, TERMS_OF_SERVICE_URL } from "@libs/constants";
@@ -148,7 +149,7 @@ const SettingsClient = () => {
 
   // 푸시 구독 API 응답을 공통 처리한다. HTTP 오류/업무 오류를 모두 에러로 승격한다.
   const requestPushApi = async (body: PushSubscriptionUpsertBody) => {
-    const res = await fetch("/api/push/subscription", {
+    const res = await authFetch("/api/push/subscription", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(body),
@@ -278,7 +279,7 @@ const SettingsClient = () => {
     setPushErrorMessage("");
 
     try {
-      const res = await fetch("/api/push/test", { method: "POST" });
+      const res = await authFetch("/api/push/test", { method: "POST" });
       const result = (await res.json().catch(() => null)) as PushTestResponse | null;
       if (!res.ok || !result?.success) {
         throw new Error(result?.error || "테스트 알림 전송에 실패했습니다.");

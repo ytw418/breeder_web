@@ -2,7 +2,7 @@ import { NextApiRequest, NextApiResponse } from "next";
 import withHandler, { ResponseType } from "@libs/server/withHandler";
 
 import client from "@libs/server/client";
-import { withApiSession } from "@libs/server/withSession";
+import { withAuth } from "@libs/server/auth";
 import { notifyFollowers } from "@libs/server/notification";
 import { getProductsResponse } from "@libs/server/home";
 
@@ -13,7 +13,7 @@ const handler = async (
   if (req.method === "POST") {
     const {
       body: { name, price, description, photos, category, productType },
-      session: { user },
+      user,
     } = req;
 
     if (!user?.id) {
@@ -85,7 +85,7 @@ const handler = async (
   }
 };
 
-export default withApiSession(
+export default withAuth(
   withHandler({
     methods: ["GET", "POST"],
     isPrivate: false,

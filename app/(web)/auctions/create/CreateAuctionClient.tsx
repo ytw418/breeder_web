@@ -1,5 +1,6 @@
 "use client";
 
+import { authFetch } from "@libs/client/authFetch";
 import { useEffect, useRef, useState } from "react";
 import { useForm } from "react-hook-form";
 import { usePathname, useRouter } from "next/navigation";
@@ -280,7 +281,7 @@ const CreateAuctionClient = () => {
     try {
       for (const file of Array.from(files)) {
         // Cloudflare Image upload
-        const urlRes = await fetch("/api/files");
+        const urlRes = await authFetch("/api/files");
         const urlData = await urlRes.json();
 
         const form = new FormData();
@@ -317,7 +318,7 @@ const CreateAuctionClient = () => {
 
     setProofUploading(true);
     try {
-      const urlRes = await fetch("/api/files");
+      const urlRes = await authFetch("/api/files");
       const urlData = await urlRes.json();
 
       const form = new FormData();

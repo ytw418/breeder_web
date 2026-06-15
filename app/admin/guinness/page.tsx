@@ -1,5 +1,6 @@
 "use client";
 
+import { authFetch } from "@libs/client/authFetch";
 import { useMemo, useState } from "react";
 import useSWR from "swr";
 import { toast } from "@libs/client/toast";
@@ -166,7 +167,7 @@ export default function AdminGuinnessPage() {
 
     try {
       setProcessingId(submission.id);
-      const res = await fetch("/api/admin/guinness-submissions", {
+      const res = await authFetch("/api/admin/guinness-submissions", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -199,7 +200,7 @@ export default function AdminGuinnessPage() {
 
     try {
       setSpeciesProcessingId(-1);
-      const res = await fetch("/api/admin/guinness-species", {
+      const res = await authFetch("/api/admin/guinness-species", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -248,7 +249,7 @@ export default function AdminGuinnessPage() {
 
     try {
       setSpeciesProcessingId(species.id);
-      const res = await fetch("/api/admin/guinness-species", {
+      const res = await authFetch("/api/admin/guinness-species", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ action, id: species.id }),

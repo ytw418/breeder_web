@@ -1,12 +1,12 @@
 import { NextApiRequest, NextApiResponse } from "next";
 import withHandler, { ResponseType } from "@libs/server/withHandler";
-import { withApiSession } from "@libs/server/withSession";
+import { withAuth } from "@libs/server/auth";
 import client from "@libs/server/client";
 import { hasAdminAccess } from "@libs/server/adminAccess";
 
 async function handler(req: NextApiRequest, res: NextApiResponse<ResponseType>) {
   const {
-    session: { user },
+    user,
   } = req;
 
   const isAdmin = await hasAdminAccess(user?.id);
@@ -76,7 +76,7 @@ async function handler(req: NextApiRequest, res: NextApiResponse<ResponseType>) 
   }
 }
 
-export default withApiSession(
+export default withAuth(
   withHandler({
     methods: ["GET", "DELETE"],
     isPrivate: false,

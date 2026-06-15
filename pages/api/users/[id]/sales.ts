@@ -2,7 +2,7 @@ import { NextApiRequest, NextApiResponse } from "next";
 import withHandler, { ResponseType } from "@libs/server/withHandler";
 
 import client from "@libs/server/client";
-import { withApiSession } from "@libs/server/withSession";
+import { withAuth } from "@libs/server/auth";
 
 interface Sale {
   id: number;
@@ -57,7 +57,7 @@ async function handler(
   });
 }
 
-export default withApiSession(
+export default withAuth(
   withHandler({
     methods: ["GET"],
     handler,

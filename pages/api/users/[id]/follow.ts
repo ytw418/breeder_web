@@ -1,7 +1,7 @@
 import { NextApiRequest, NextApiResponse } from "next";
 import withHandler, { ResponseType } from "@libs/server/withHandler";
 import client from "@libs/server/client";
-import { withApiSession } from "@libs/server/withSession";
+import { withAuth } from "@libs/server/auth";
 import { createNotification } from "@libs/server/notification";
 
 export interface FollowResponse {
@@ -15,7 +15,7 @@ async function handler(
 ) {
   try {
     const targetUserId = +req.query.id!;
-    const myId = req.session.user?.id;
+    const myId = req.user?.id;
 
     if (!myId) {
       return res.status(401).json({ success: false, error: "로그인이 필요합니다." });
@@ -71,7 +71,7 @@ async function handler(
   }
 }
 
-export default withApiSession(
+export default withAuth(
   withHandler({
     methods: ["POST"],
     handler,

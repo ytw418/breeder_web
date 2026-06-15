@@ -1,5 +1,5 @@
 import { NextApiRequest, NextApiResponse } from "next";
-import { withApiSession } from "@libs/server/withSession";
+import { withAuth } from "@libs/server/auth";
 import withHandler from "@libs/server/withHandler";
 import client from "@libs/server/client";
 import { MessageType } from "@prisma/client";
@@ -34,7 +34,7 @@ async function handler(
   res: NextApiResponse<ChatListResponse>
 ) {
   try {
-    const userId = req.session.user?.id;
+    const userId = req.user?.id;
 
     if (!userId) {
       return res
@@ -125,7 +125,7 @@ async function handler(
   }
 }
 
-export default withApiSession(
+export default withAuth(
   withHandler({
     methods: ["GET"],
     handler,

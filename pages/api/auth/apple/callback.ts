@@ -3,7 +3,7 @@ import { NextApiRequest, NextApiResponse } from "next";
 
 import { DEFAULT_THUMBNAIL_CDN, Provider, Role } from "@libs/constants";
 
-import { withApiSession } from "@libs/server/withSession";
+import { withAuth } from "@libs/server/auth";
 import withHandler, { ResponseType } from "@libs/server/withHandler";
 
 interface Decoded {
@@ -67,6 +67,6 @@ async function handler(
   }
 }
 
-export default withApiSession(
+export default withAuth(
   withHandler({ methods: ["POST"], handler, isPrivate: false })
 );

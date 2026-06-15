@@ -1,5 +1,6 @@
 "use client";
 
+import { authFetch } from "@libs/client/authFetch";
 import { useState } from "react";
 import useSWR from "swr";
 import { VoiceInquiryStatus, VoiceInquiryType } from "@prisma/client";
@@ -62,7 +63,7 @@ export default function AdminVoicePage() {
   const handleUpdateStatus = async (inquiry: VoiceInquiryItem, nextStatus: VoiceInquiryStatus) => {
     try {
       setUpdatingId(inquiry.id);
-      const res = await fetch("/api/admin/voice-inquiries", {
+      const res = await authFetch("/api/admin/voice-inquiries", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({

@@ -1,7 +1,7 @@
 import { NextApiRequest, NextApiResponse } from "next";
 import { Prisma } from "@prisma/client";
 import withHandler from "@libs/server/withHandler";
-import { withApiSession } from "@libs/server/withSession";
+import { withAuth } from "@libs/server/auth";
 import client from "@libs/server/client";
 import { ensureBloodlineSchema } from "@libs/server/bloodline-schema";
 import {
@@ -131,7 +131,7 @@ async function handler(
 
   try {
     await ensureBloodlineSchema();
-    const userId = req.session.user?.id;
+    const userId = req.user?.id;
     const card = await client.bloodlineCard.findFirst({
       where: { id: cardId, status: "ACTIVE" },
       include: includeWithTransfers,
@@ -189,7 +189,7 @@ async function handler(
   }
 }
 
-export default withApiSession(
+export default withAuth(
   withHandler({
     methods: ["GET"],
     handler,
