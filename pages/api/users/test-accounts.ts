@@ -1,7 +1,8 @@
 import { NextApiRequest, NextApiResponse } from "next";
 import { randomUUID } from "crypto";
 import withHandler from "@libs/server/withHandler";
-import { withApiSession } from "@libs/server/withSession";
+import { withAuth } from "@libs/server/auth";
+import { issueTokens } from "@libs/server/jwt";
 import client from "@libs/server/client";
 import { role as UserRole, UserStatus } from "@prisma/client";
 
@@ -24,6 +25,9 @@ interface TestAccountsResponse {
 interface TestAccountSwitchResponse {
   success: boolean;
   error?: string;
+  accessToken?: string;
+  refreshToken?: string;
+  expiresIn?: number;
 }
 
 type TestAccountCreateResponse = TestAccountSwitchResponse & {
@@ -174,7 +178,7 @@ async function handler(
 
     const switchableUser = targetUser;
 
-    req.session.user = {
+    const { accessToken, refreshToken, expiresIn } = await issueTokens({
       id: switchableUser.id,
       snsId: switchableUser.snsId,
       provider: switchableUser.provider,
@@ -184,11 +188,13 @@ async function handler(
       avatar: switchableUser.avatar,
       createdAt: switchableUser.createdAt,
       updatedAt: switchableUser.updatedAt,
-    };
-    await req.session.save();
+    });
 
     return res.json({
       success: true,
+      accessToken,
+      refreshToken,
+      expiresIn,
     } satisfies TestAccountSwitchResponse);
   }
 
@@ -199,7 +205,7 @@ async function handler(
   } satisfies TestAccountsResponse);
 }
 
-export default withApiSession(
+export default withAuth(
   withHandler({
     methods: ["GET", "POST"],
     handler,

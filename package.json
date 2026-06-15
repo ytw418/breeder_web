@@ -54,7 +54,7 @@
     "firebase": "^9.15.0",
     "firebase-admin": "^13.0.0",
     "immer": "^10.0.3",
-    "iron-session": "^6.3.1",
+    "jose": "^6.2.3",
     "jwt-decode": "^3.1.2",
     "logrocket": "^5.0.1",
     "lucide-react": "^0.439.0",

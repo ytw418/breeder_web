@@ -1,5 +1,6 @@
 "use client";
 
+import { authFetch } from "@libs/client/authFetch";
 import { useEffect, useMemo, useRef, useState } from "react";
 import useSWR from "swr";
 
@@ -136,7 +137,7 @@ const AdminBreederProgramsClient = () => {
 
     try {
       setSubmittingUserId(user.id);
-      const response = await fetch("/api/admin/breeder-programs", {
+      const response = await authFetch("/api/admin/breeder-programs", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -171,7 +172,7 @@ const AdminBreederProgramsClient = () => {
 
     try {
       setRevokingKey(`${membership.userId}:${membership.programType}`);
-      const response = await fetch("/api/admin/breeder-programs", {
+      const response = await authFetch("/api/admin/breeder-programs", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({

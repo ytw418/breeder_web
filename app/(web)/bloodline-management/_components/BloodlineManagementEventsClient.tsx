@@ -1,5 +1,6 @@
 "use client";
 
+import { authFetch } from "@libs/client/authFetch";
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import useSWR from "swr";
@@ -69,7 +70,7 @@ export default function BloodlineManagementEventsClient() {
     const load = async () => {
       const loaded = await Promise.all(
         cardIds.map((cardId) =>
-          fetch(`/api/bloodline-cards/${cardId}/events?limit=10`)
+          authFetch(`/api/bloodline-cards/${cardId}/events?limit=10`)
             .then(
               (response) =>
                 response.json() as Promise<BloodlineCardEventsResponse>,

@@ -1,14 +1,9 @@
 import { NextFetchEvent, NextRequest, NextResponse } from "next/server";
-import { SESSION_COOKIE_NAME } from "@libs/constants";
 
 const TOOL_MODE_COOKIE = "bredy_tool_mode";
 
 export function proxy(req: NextRequest, ev: NextFetchEvent) {
   const { pathname, search } = req.nextUrl;
-  const isPrefetchRequest =
-    req.headers.get("purpose") === "prefetch" ||
-    req.headers.has("next-router-prefetch") ||
-    req.headers.get("x-middleware-prefetch") === "1";
   if (pathname.startsWith("/products/")) {
     console.info("[middleware][products]", {
       pathname,
@@ -52,30 +47,9 @@ export function proxy(req: NextRequest, ev: NextFetchEvent) {
     });
   }
 
-  if (pathname.startsWith("/admin")) {
-    if (pathname === "/admin/login") {
-      return response ?? NextResponse.next();
-    }
-
-    const found = req.cookies.get(SESSION_COOKIE_NAME);
-    if (!found) {
-      const next = encodeURIComponent(`${pathname}${search}`);
-      return NextResponse.redirect(new URL(`/admin/login?next=${next}`, req.url));
-    }
-  }
-
-  // 비로그인 접근 제한
-  if (pathname.includes("myPage")) {
-    const found = req.cookies.get(SESSION_COOKIE_NAME);
-    if (!found) {
-      // 로그인 전 프리패치에서 생성된 리다이렉트 캐시가
-      // 로그인 후에도 재사용되는 문제를 막기 위해 프리패치는 통과시킨다.
-      if (isPrefetchRequest) {
-        return response ?? NextResponse.next();
-      }
-      return NextResponse.redirect(new URL("/auth/login", req.url));
-    }
-  }
+  // 순수 Bearer 토큰 방식에서는 미들웨어가 인증 토큰(Authorization 헤더/
+  // localStorage)을 읽을 수 없으므로, 로그인 가드는 클라이언트의 <AuthGuard>
+  // 와 각 API 라우트의 withHandler(isPrivate) 에서 처리한다.
 
   return response ?? NextResponse.next();
 }

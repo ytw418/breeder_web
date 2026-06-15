@@ -1,6 +1,6 @@
 import { NextApiRequest, NextApiResponse } from "next";
 import withHandler, { ResponseType } from "@libs/server/withHandler";
-import { withApiSession } from "@libs/server/withSession";
+import { withAuth } from "@libs/server/auth";
 import client from "@libs/server/client";
 import { hasAdminAccess } from "@libs/server/adminAccess";
 import { VoiceInquiryStatus, VoiceInquiryType } from "@prisma/client";
@@ -59,7 +59,7 @@ async function handler(
   req: NextApiRequest,
   res: NextApiResponse<VoiceInquiryAdminResponse>
 ) {
-  const adminId = req.session.user?.id;
+  const adminId = req.user?.id;
   const isAdmin = await hasAdminAccess(adminId);
   if (!isAdmin) {
     return res.status(403).json({
@@ -160,7 +160,7 @@ async function handler(
   });
 }
 
-export default withApiSession(
+export default withAuth(
   withHandler({
     methods: ["GET", "POST"],
     isPrivate: false,

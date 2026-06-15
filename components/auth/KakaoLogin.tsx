@@ -7,6 +7,8 @@ import useMutation from "hooks/useMutation";
 import { LoginReqBody, LoginResponseType } from "pages/api/auth/login";
 import { USER_INFO } from "@libs/constants";
 import { Spinner } from "@components/atoms/Spinner";
+import { setTokens } from "@libs/client/authToken";
+import { authFetch } from "@libs/client/authFetch";
 
 const getSafeRedirectPath = (rawPath: string | null) => {
   if (!rawPath) return "/";
@@ -49,7 +51,7 @@ const wait = (ms: number) =>
 const navigateAfterSessionReady = async (nextPath: string) => {
   for (let attempt = 0; attempt < 4; attempt += 1) {
     try {
-      const meRes = await fetch("/api/users/me", {
+      const meRes = await authFetch("/api/users/me", {
         method: "GET",
         cache: "no-store",
       });
@@ -150,6 +152,12 @@ export const KakaoLogin = () => {
         onCompleted(result) {
           console.log("result :>> ", result);
           if (result.success) {
+            if (result.accessToken && result.refreshToken) {
+              setTokens({
+                accessToken: result.accessToken,
+                refreshToken: result.refreshToken,
+              });
+            }
             markPostLoginGuide();
             const redirectPath = getSafeRedirectPath(
               searchParams.get("state") || searchParams.get("next")

@@ -26,7 +26,7 @@ export default function withHandler({
     if (req.method && !methods.includes(req.method as any)) {
       return res.status(405).json({ message: "요청 method가 일치하지 않음." });
     }
-    if (isPrivate && !req.session.user) {
+    if (isPrivate && !req.user) {
       return res.status(401).json({
         success: false,
         message: "로그인이 필요한 요청입니다!",

@@ -7,6 +7,8 @@ import { Input } from "@components/ui/input";
 import { Textarea } from "@components/ui/textarea";
 import useUser from "hooks/useUser";
 import useSWR from "swr";
+import { authFetch } from "@libs/client/authFetch";
+import { setTokens } from "@libs/client/authToken";
 
 type CountStat = {
   created: number;
@@ -64,6 +66,9 @@ type AdminUsersResponse = {
 type SwitchUserResponse = {
   success?: boolean;
   error?: string;
+  accessToken?: string;
+  refreshToken?: string;
+  expiresIn?: number;
 };
 
 type CreateTestUsersResponse = {
@@ -251,7 +256,7 @@ export default function AdminDashboardPage() {
     setBootstrapMessage("");
 
     try {
-      const res = await fetch("/api/admin/bootstrap-service-data", {
+      const res = await authFetch("/api/admin/bootstrap-service-data", {
         method: "POST",
       });
       const data = (await res.json()) as BootstrapResponse;
@@ -280,7 +285,7 @@ export default function AdminDashboardPage() {
 
     try {
       setCreatingNotice(true);
-      const res = await fetch("/api/admin/posts", {
+      const res = await authFetch("/api/admin/posts", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -332,7 +337,7 @@ export default function AdminDashboardPage() {
 
     try {
       setGrantingAdmin(true);
-      const res = await fetch("/api/admin/users", {
+      const res = await authFetch("/api/admin/users", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -368,7 +373,7 @@ export default function AdminDashboardPage() {
 
     try {
       setSwitchingUserId(targetUser.id);
-      const res = await fetch("/api/admin/users", {
+      const res = await authFetch("/api/admin/users", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -379,6 +384,12 @@ export default function AdminDashboardPage() {
       const data = (await res.json()) as SwitchUserResponse;
       if (!res.ok || !data.success) {
         throw new Error(data.error || "계정 전환에 실패했습니다.");
+      }
+      if (data.accessToken && data.refreshToken) {
+        setTokens({
+          accessToken: data.accessToken,
+          refreshToken: data.refreshToken,
+        });
       }
       window.location.assign("/myPage");
     } catch (error) {
@@ -398,7 +409,7 @@ export default function AdminDashboardPage() {
 
     try {
       setCreatingTestUsers(true);
-      const res = await fetch("/api/admin/users", {
+      const res = await authFetch("/api/admin/users", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({

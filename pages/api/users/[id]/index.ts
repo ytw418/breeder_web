@@ -7,7 +7,7 @@ import {
   getSortedActiveBreederProgramSummaries,
 } from "@libs/server/breeder-programs";
 import type { BreederProgramSummary } from "@libs/shared/breeder-program";
-import { withApiSession } from "@libs/server/withSession";
+import { withAuth } from "@libs/server/auth";
 import { User } from "@prisma/client";
 
 type UserWithCounts = User & {
@@ -75,7 +75,7 @@ async function handler(
   }
 
   const userId = +req.query.id;
-  const myId = req.session.user?.id;
+  const myId = req.user?.id;
 
   const user = await client.user.findUnique({
     where: { id: userId },
@@ -150,7 +150,7 @@ async function handler(
   });
 }
 
-export default withApiSession(
+export default withAuth(
   withHandler({
     methods: ["GET"],
     handler,

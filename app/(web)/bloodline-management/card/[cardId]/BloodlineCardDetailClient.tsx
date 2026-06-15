@@ -1,5 +1,6 @@
 "use client";
 
+import { authFetch } from "@libs/client/authFetch";
 import { FormEvent, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { usePathname, useSearchParams, useRouter } from "next/navigation";
@@ -235,7 +236,7 @@ export default function BloodlineCardDetailClient({
     setTransferLoading(true);
 
     try {
-      const response = await fetch(`/api/bloodline-cards/${card.id}/transfer`, {
+      const response = await authFetch(`/api/bloodline-cards/${card.id}/transfer`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ cardId: card.id, toUserName, toUserId, note }),

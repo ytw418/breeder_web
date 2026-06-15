@@ -2,7 +2,7 @@ import { NextApiRequest, NextApiResponse } from "next";
 import withHandler, { ResponseType } from "@libs/server/withHandler";
 
 import client from "@libs/server/client";
-import { withApiSession } from "@libs/server/withSession";
+import { withAuth } from "@libs/server/auth";
 import { createNotification } from "@libs/server/notification";
 
 async function handler(
@@ -11,7 +11,7 @@ async function handler(
 ) {
   const {
     query: { id = "" },
-    session: { user },
+    user,
   } = req;
 
   if (!user?.id) {
@@ -84,7 +84,7 @@ async function handler(
   }
 }
 
-export default withApiSession(
+export default withAuth(
   withHandler({
     methods: ["POST"],
     handler,

@@ -1,10 +1,11 @@
 import { capturePosthogError } from "@libs/client/posthog";
+import { authFetch } from "@libs/client/authFetch";
 
 export const fetcher = async <ReqBody = any, ResData = any>(
   url: string,
   { arg, init }: { arg?: ReqBody; init?: RequestInit }
 ): Promise<ResData> => {
-  return fetch(
+  return authFetch(
     url,
     init
       ? init

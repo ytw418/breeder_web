@@ -1,6 +1,6 @@
 import { NextApiRequest, NextApiResponse } from "next";
 import withHandler from "@libs/server/withHandler";
-import { withApiSession } from "@libs/server/withSession";
+import { withAuth } from "@libs/server/auth";
 import { getPushSubscriptionsByUserIds } from "@libs/server/pushStore";
 import { isWebPushConfigured, sendPushToUsers } from "@libs/server/push";
 
@@ -13,7 +13,7 @@ interface PushTestResponse {
 
 async function handler(req: NextApiRequest, res: NextApiResponse<PushTestResponse>) {
   try {
-    const userId = req.session.user?.id;
+    const userId = req.user?.id;
     if (!userId) {
       return res.status(401).json({
         success: false,
@@ -68,7 +68,7 @@ async function handler(req: NextApiRequest, res: NextApiResponse<PushTestRespons
   }
 }
 
-export default withApiSession(
+export default withAuth(
   withHandler({
     methods: ["POST"],
     handler,

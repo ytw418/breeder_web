@@ -1,5 +1,6 @@
 "use client";
 
+import { authFetch } from "@libs/client/authFetch";
 import { useMemo, useState } from "react";
 import useSWR from "swr";
 import Link from "next/link";
@@ -78,7 +79,7 @@ export default function AdminAuctionsPage() {
 
     try {
       setUpdatingId(auctionId);
-      const res = await fetch("/api/admin/auctions", {
+      const res = await authFetch("/api/admin/auctions", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -117,7 +118,7 @@ export default function AdminAuctionsPage() {
 
     try {
       setUpdatingId(auctionId);
-      const res = await fetch("/api/admin/auctions", {
+      const res = await authFetch("/api/admin/auctions", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -205,7 +206,7 @@ export default function AdminAuctionsPage() {
 
     try {
       setReportUpdatingId(report.id);
-      const res = await fetch("/api/admin/auction-reports", {
+      const res = await authFetch("/api/admin/auction-reports", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({

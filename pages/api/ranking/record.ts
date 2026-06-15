@@ -1,6 +1,6 @@
 import { NextApiRequest, NextApiResponse } from "next";
 import withHandler, { ResponseType } from "@libs/server/withHandler";
-import { withApiSession } from "@libs/server/withSession";
+import { withAuth } from "@libs/server/auth";
 
 /** 기존 기록 등록 응답 타입 (하위호환 유지) */
 export interface CreateRecordResponse {
@@ -19,6 +19,6 @@ async function handler(req: NextApiRequest, res: NextApiResponse<ResponseType>) 
   }
 }
 
-export default withApiSession(
+export default withAuth(
   withHandler({ methods: ["POST"], handler, isPrivate: true })
 );

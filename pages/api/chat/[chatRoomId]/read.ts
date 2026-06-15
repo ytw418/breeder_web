@@ -1,5 +1,5 @@
 import { NextApiRequest, NextApiResponse } from "next";
-import { withApiSession } from "@libs/server/withSession";
+import { withAuth } from "@libs/server/auth";
 import withHandler from "@libs/server/withHandler";
 import client from "@libs/server/client";
 
@@ -15,7 +15,7 @@ async function handler(
   try {
     const {
       query: { chatRoomId },
-      session: { user },
+      user,
     } = req;
 
     if (!user?.id) {
@@ -45,7 +45,7 @@ async function handler(
   }
 }
 
-export default withApiSession(
+export default withAuth(
   withHandler({
     methods: ["POST"],
     handler,

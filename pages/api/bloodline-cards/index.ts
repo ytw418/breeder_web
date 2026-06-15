@@ -1,7 +1,7 @@
 import { NextApiRequest, NextApiResponse } from "next";
 import { Prisma } from "@prisma/client";
 import withHandler from "@libs/server/withHandler";
-import { withApiSession } from "@libs/server/withSession";
+import { withAuth } from "@libs/server/auth";
 import client from "@libs/server/client";
 import {
   addCardOwner,
@@ -256,8 +256,8 @@ async function handler(
   req: NextApiRequest,
   res: NextApiResponse<BloodlineCardsResponse>
 ) {
-  const userId = req.session.user?.id;
-  const userName = String(req.session.user?.name || "").trim();
+  const userId = req.user?.id;
+  const userName = String(req.user?.name || "").trim();
 
   if (!userId) {
     return res.status(401).json({
@@ -316,7 +316,7 @@ async function handler(
   }
 
   if (req.method === "POST") {
-    const fallbackNameSource = String(req.session.user?.name || "브리더").replace(
+    const fallbackNameSource = String(req.user?.name || "브리더").replace(
       /[^A-Za-z0-9가-힣]+/g,
       ""
     );
@@ -539,7 +539,7 @@ async function handler(
   });
 }
 
-export default withApiSession(
+export default withAuth(
   withHandler({
     methods: ["GET", "POST"],
     handler,

@@ -1,7 +1,7 @@
 import { NextApiRequest, NextApiResponse } from "next";
 import { Prisma, UserStatus, role as UserRole } from "@prisma/client";
 import withHandler, { ResponseType } from "@libs/server/withHandler";
-import { withApiSession } from "@libs/server/withSession";
+import { withAuth } from "@libs/server/auth";
 import client from "@libs/server/client";
 import { canRunSensitiveAdminAction, hasAdminAccess } from "@libs/server/adminAccess";
 import seedPayload from "data/service-initial-data.json";
@@ -180,7 +180,7 @@ async function getUniqueOptionalPhone(tx: TxClient, phone?: string | null) {
 
 async function handler(req: NextApiRequest, res: NextApiResponse<ResponseType>) {
   const {
-    session: { user },
+    user,
   } = req;
 
   const isAdmin = await hasAdminAccess(user?.id);
@@ -547,7 +547,7 @@ async function handler(req: NextApiRequest, res: NextApiResponse<ResponseType>) 
   });
 }
 
-export default withApiSession(
+export default withAuth(
   withHandler({
     methods: ["POST"],
     isPrivate: false,

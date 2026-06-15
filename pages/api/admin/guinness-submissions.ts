@@ -1,6 +1,6 @@
 import { NextApiRequest, NextApiResponse } from "next";
 import withHandler, { ResponseType } from "@libs/server/withHandler";
-import { withApiSession } from "@libs/server/withSession";
+import { withAuth } from "@libs/server/auth";
 import client from "@libs/server/client";
 import { createNotification } from "@libs/server/notification";
 import { hasAdminAccess } from "@libs/server/adminAccess";
@@ -38,7 +38,7 @@ async function handler(
   res: NextApiResponse<AdminGuinnessSubmissionsResponse>
 ) {
   const {
-    session: { user },
+    user,
   } = req;
 
   const isAdmin = await hasAdminAccess(user?.id);
@@ -199,7 +199,7 @@ async function handler(
   }
 }
 
-export default withApiSession(
+export default withAuth(
   withHandler({
     methods: ["GET", "POST"],
     isPrivate: false,

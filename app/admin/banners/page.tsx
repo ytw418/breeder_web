@@ -1,5 +1,6 @@
 "use client";
 
+import { authFetch } from "@libs/client/authFetch";
 import { useState } from "react";
 import Link from "next/link";
 import useSWR from "swr";
@@ -138,7 +139,7 @@ export default function AdminBannersPage() {
     }
 
     try {
-      const res = await fetch("/api/admin/banners", {
+      const res = await authFetch("/api/admin/banners", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -178,7 +179,7 @@ export default function AdminBannersPage() {
     if (!confirmed) return;
 
     try {
-      const res = await fetch(`/api/admin/banners?id=${id}`, { method: "DELETE" });
+      const res = await authFetch(`/api/admin/banners?id=${id}`, { method: "DELETE" });
       const result = await res.json();
       if (!result.success) {
         return toast.error(result.error || "삭제 실패");
@@ -193,7 +194,7 @@ export default function AdminBannersPage() {
   const handleMove = async (id: number, direction: "up" | "down") => {
     try {
       setMovingId(id);
-      const res = await fetch("/api/admin/banners", {
+      const res = await authFetch("/api/admin/banners", {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ id, direction }),

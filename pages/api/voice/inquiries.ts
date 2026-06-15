@@ -1,6 +1,6 @@
 import { NextApiRequest, NextApiResponse } from "next";
 import withHandler, { ResponseType } from "@libs/server/withHandler";
-import { withApiSession } from "@libs/server/withSession";
+import { withAuth } from "@libs/server/auth";
 import client from "@libs/server/client";
 import { VoiceInquiryType } from "@prisma/client";
 
@@ -55,8 +55,8 @@ async function handler(
     });
   }
 
-  const requesterId = req.session.user?.id || null;
-  const requesterName = String(req.session.user?.name || "").trim() || null;
+  const requesterId = req.user?.id || null;
+  const requesterName = String(req.user?.name || "").trim() || null;
 
   const created = await client.voiceInquiry.create({
     data: {
@@ -76,7 +76,7 @@ async function handler(
   });
 }
 
-export default withApiSession(
+export default withAuth(
   withHandler({
     methods: ["POST"],
     isPrivate: false,

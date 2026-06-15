@@ -1,5 +1,6 @@
 "use client";
 
+import { authFetch } from "@libs/client/authFetch";
 import { useState } from "react";
 import useSWR from "swr";
 import Link from "next/link";
@@ -33,7 +34,7 @@ export default function AdminPostsPage() {
 
     try {
       setCreatingNotice(true);
-      const res = await fetch("/api/admin/posts", {
+      const res = await authFetch("/api/admin/posts", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -68,7 +69,7 @@ export default function AdminPostsPage() {
     if (!confirmed) return;
 
     try {
-      const res = await fetch(`/api/admin/posts?id=${id}`, { method: "DELETE" });
+      const res = await authFetch(`/api/admin/posts?id=${id}`, { method: "DELETE" });
       const result = await res.json();
       if (result.success) {
         toast.success("게시글이 삭제되었습니다.");
