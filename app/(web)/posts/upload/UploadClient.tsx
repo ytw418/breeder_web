@@ -1,5 +1,6 @@
 "use client";
 
+import { authFetch } from "@libs/client/authFetch";
 import Layout from "@components/features/MainLayout";
 import { Button } from "@components/ui/button";
 import { Input } from "@components/ui/input";
@@ -84,7 +85,7 @@ const UploadClient = () => {
 
       if (imageFile) {
         setSubmitStep("image");
-        const fileApiResponse = await fetch("/api/files");
+        const fileApiResponse = await authFetch("/api/files");
         const fileApiResult = await fileApiResponse.json();
         if (!fileApiResponse.ok || !fileApiResult?.uploadURL) {
           throw new Error("이미지 업로드 URL 발급에 실패했습니다.");

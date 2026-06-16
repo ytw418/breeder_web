@@ -1,7 +1,7 @@
 import { NextApiRequest, NextApiResponse } from "next";
 import withHandler, { ResponseType } from "@libs/server/withHandler";
 import client from "@libs/server/client";
-import { withApiSession } from "@libs/server/withSession";
+import { withAuth } from "@libs/server/auth";
 import { Auction, User } from "@prisma/client";
 import {
   AUCTION_HIGH_PRICE_REQUIRE_CONTACT,
@@ -125,7 +125,7 @@ async function handler(
   // 경매 등록
   if (req.method === "POST") {
     const {
-      session: { user },
+      user,
     } = req;
 
     if (!user?.id) {
@@ -357,6 +357,6 @@ async function handler(
   }
 }
 
-export default withApiSession(
+export default withAuth(
   withHandler({ methods: ["GET", "POST"], handler, isPrivate: false })
 );

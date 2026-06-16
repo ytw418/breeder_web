@@ -1,5 +1,7 @@
 "use client";
 
+import { authFetch } from "@libs/client/authFetch";
+import { setTokens } from "@libs/client/authToken";
 import Image from "@components/atoms/Image";
 import { Spinner } from "@components/atoms/Spinner";
 import MyCommentList from "@components/features/profile/MyCommentList";
@@ -70,6 +72,9 @@ type TestAccountListResponse = {
 type TestAccountSwitchResponse = {
   success: boolean;
   error?: string;
+  accessToken?: string;
+  refreshToken?: string;
+  expiresIn?: number;
 };
 
 const isTestEnvAvailable = () => {
@@ -246,7 +251,7 @@ const MyPageClient = () => {
 
     const fetchFakeUsers = async () => {
       try {
-        const res = await fetch("/api/users/test-accounts", {
+        const res = await authFetch("/api/users/test-accounts", {
           method: "GET",
           cache: "no-store",
         });
@@ -348,7 +353,7 @@ const MyPageClient = () => {
     setSwitchingFakeUserId(targetUserId);
 
     try {
-      const res = await fetch("/api/users/test-accounts", {
+      const res = await authFetch("/api/users/test-accounts", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -361,9 +366,15 @@ const MyPageClient = () => {
         throw new Error(data.error || "fake user 전환에 실패했습니다.");
       }
 
-      await mutateUser();
-      setSwitchMessage("다른 fake user로 전환되었습니다.");
-      router.refresh();
+      if (data.accessToken && data.refreshToken) {
+        setTokens({
+          accessToken: data.accessToken,
+          refreshToken: data.refreshToken,
+        });
+      }
+
+      // 전환된 계정으로 모든 캐시(SWR 등)를 새로 읽도록 전체 새로고침으로 이동한다.
+      window.location.assign("/myPage");
     } catch (error) {
       setSwitchError(
         error instanceof Error

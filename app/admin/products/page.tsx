@@ -1,5 +1,6 @@
 "use client";
 
+import { authFetch } from "@libs/client/authFetch";
 import { useState } from "react";
 import useSWR from "swr";
 import Link from "next/link";
@@ -31,7 +32,7 @@ export default function AdminProductsPage() {
     if (!confirmed) return;
 
     try {
-      const res = await fetch(`/api/admin/products?id=${id}`, { method: "DELETE" });
+      const res = await authFetch(`/api/admin/products?id=${id}`, { method: "DELETE" });
       const result = await res.json();
       if (result.success) {
         toast.success("상품이 삭제되었습니다.");

@@ -12,6 +12,7 @@ import {
 } from "react";
 import { SWRConfig } from "swr";
 import { capturePosthogError, capturePosthogEvent } from "@libs/client/posthog";
+import { authFetch } from "@libs/client/authFetch";
 
 export interface VariousContextValues {
   hasInput: boolean;
@@ -63,7 +64,7 @@ export const VariousProvider = ({
     <SWRConfig
       value={{
         fetcher: (url: string) =>
-          fetch(url).then(async (res) => {
+          authFetch(url).then(async (res) => {
             if (!res.ok) {
               let message = "요청 처리 중 오류가 발생했습니다.";
               const raw = await res.text().catch(() => "");

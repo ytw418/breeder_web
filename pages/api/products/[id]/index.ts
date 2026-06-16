@@ -1,7 +1,7 @@
 import { NextApiRequest, NextApiResponse } from "next";
 import withHandler, { ResponseType } from "@libs/server/withHandler";
 import client from "@libs/server/client";
-import { withApiSession } from "@libs/server/withSession";
+import { withAuth } from "@libs/server/auth";
 import { Product, User } from "@prisma/client";
 
 export interface ProductWithUser extends Product {
@@ -23,7 +23,7 @@ async function handler(
 ) {
   const {
     query: { id },
-    session: { user },
+    user,
   } = req;
 
   // GET 요청에서는 body가 없으므로 안전하게 처리
@@ -235,7 +235,7 @@ async function handler(
   }
 }
 
-export default withApiSession(
+export default withAuth(
   withHandler({
     methods: ["GET", "POST"],
     handler,

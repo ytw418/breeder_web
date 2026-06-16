@@ -1,5 +1,7 @@
 "use client";
 
+import { authFetch } from "@libs/client/authFetch";
+import { setTokens } from "@libs/client/authToken";
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 
@@ -22,6 +24,9 @@ type TestAccountListResponse = {
 type TestAccountSwitchResponse = {
   success: boolean;
   error?: string;
+  accessToken?: string;
+  refreshToken?: string;
+  expiresIn?: number;
 };
 
 const FakePageClient = () => {
@@ -39,7 +44,7 @@ const FakePageClient = () => {
     setError("");
 
     try {
-      const res = await fetch("/api/users/test-accounts", {
+      const res = await authFetch("/api/users/test-accounts", {
         method: "GET",
         cache: "no-store",
       });
@@ -71,7 +76,7 @@ const FakePageClient = () => {
 
     setIsCreatingUsers(true);
     try {
-      const res = await fetch("/api/users/test-accounts", {
+      const res = await authFetch("/api/users/test-accounts", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -108,7 +113,7 @@ const FakePageClient = () => {
     setSwitchingUserId(targetUserId);
 
     try {
-      const res = await fetch("/api/users/test-accounts", {
+      const res = await authFetch("/api/users/test-accounts", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -121,7 +126,15 @@ const FakePageClient = () => {
         throw new Error(data.error || "해당 계정으로 전환하지 못했습니다.");
       }
 
-      router.push("/myPage");
+      if (data.accessToken && data.refreshToken) {
+        setTokens({
+          accessToken: data.accessToken,
+          refreshToken: data.refreshToken,
+        });
+      }
+
+      // 전환된 계정으로 모든 캐시(SWR 등)를 새로 읽도록 전체 새로고침으로 이동한다.
+      window.location.assign("/myPage");
     } catch (e) {
       setError(
         e instanceof Error ? e.message : "테스트 계정 전환 중 오류가 발생했습니다."

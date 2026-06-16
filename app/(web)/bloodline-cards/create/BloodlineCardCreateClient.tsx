@@ -1,5 +1,6 @@
 "use client";
 
+import { authFetch } from "@libs/client/authFetch";
 import {
   ChangeEvent,
   FormEvent,
@@ -136,7 +137,7 @@ export default function BloodlineCardCreateClient() {
   };
 
   const uploadCardImage = async (file: File) => {
-    const fileApiResponse = await fetch("/api/files");
+    const fileApiResponse = await authFetch("/api/files");
     if (!fileApiResponse.ok) {
       throw new Error("이미지 업로드 URL을 가져오지 못했습니다.");
     }
@@ -266,7 +267,7 @@ export default function BloodlineCardCreateClient() {
           : "카드 생성 중...",
       );
 
-      const res = await fetch("/api/bloodline-cards", {
+      const res = await authFetch("/api/bloodline-cards", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({

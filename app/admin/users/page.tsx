@@ -1,5 +1,6 @@
 "use client";
 
+import { authFetch } from "@libs/client/authFetch";
 import useSWR from "swr";
 import { toast } from "@libs/client/toast";
 import { Button } from "@components/ui/button";
@@ -27,7 +28,7 @@ export default function AdminUsersPage() {
     if (!confirmed) return;
 
     try {
-      const res = await fetch("/api/admin/users", {
+      const res = await authFetch("/api/admin/users", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ userId, action: "update_role", role }),
@@ -53,7 +54,7 @@ export default function AdminUsersPage() {
     if (!confirmed) return;
 
     try {
-      const res = await fetch("/api/admin/users", {
+      const res = await authFetch("/api/admin/users", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ userId, action: "delete" }),
@@ -79,7 +80,7 @@ export default function AdminUsersPage() {
     if (!confirmed) return;
 
     try {
-      const res = await fetch("/api/admin/users", {
+      const res = await authFetch("/api/admin/users", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ userId, action: "update_status", status }),

@@ -1,6 +1,6 @@
 import { NextApiRequest, NextApiResponse } from "next";
 import withHandler from "@libs/server/withHandler";
-import { withApiSession } from "@libs/server/withSession";
+import { withAuth } from "@libs/server/auth";
 import client from "@libs/server/client";
 
 export interface BloodlineFollowResponse {
@@ -16,7 +16,7 @@ async function handler(
   res: NextApiResponse<BloodlineFollowResponse>
 ) {
   try {
-    const userId = req.session.user?.id;
+    const userId = req.user?.id;
     if (!userId) {
       return res.status(401).json({
         success: false,
@@ -125,7 +125,7 @@ async function handler(
   }
 }
 
-export default withApiSession(
+export default withAuth(
   withHandler({
     methods: ["GET", "POST"],
     handler,

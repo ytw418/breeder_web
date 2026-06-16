@@ -1,4 +1,5 @@
 "use client";
+import { authFetch } from "@libs/client/authFetch";
 import { ChangeEvent, FormEvent, useEffect, useState } from "react";
 
 import useMutation from "hooks/useMutation";
@@ -90,7 +91,7 @@ const EditProfileClient = () => {
 
     try {
       if (avatarFile && user) {
-        const fileApiRes = await fetch(`/api/files`);
+        const fileApiRes = await authFetch(`/api/files`);
         if (!fileApiRes.ok) {
           throw new Error("이미지 업로드 URL을 가져오지 못했습니다.");
         }

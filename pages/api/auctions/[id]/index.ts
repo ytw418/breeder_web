@@ -1,7 +1,7 @@
 import { NextApiRequest, NextApiResponse } from "next";
 import withHandler, { ResponseType } from "@libs/server/withHandler";
 import client from "@libs/server/client";
-import { withApiSession } from "@libs/server/withSession";
+import { withAuth } from "@libs/server/auth";
 import { Auction, Bid, User } from "@prisma/client";
 import { extractAuctionIdFromPath } from "@libs/auction-route";
 import {
@@ -43,7 +43,7 @@ async function handler(
 ) {
   const {
     query: { id },
-    session: { user },
+    user,
   } = req;
 
   const auctionId = extractAuctionIdFromPath(id);
@@ -317,6 +317,6 @@ async function handler(
   }
 }
 
-export default withApiSession(
+export default withAuth(
   withHandler({ methods: ["GET", "POST"], handler, isPrivate: false })
 );

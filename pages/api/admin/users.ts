@@ -1,6 +1,7 @@
 import { NextApiRequest, NextApiResponse } from "next";
 import withHandler, { ResponseType } from "@libs/server/withHandler";
-import { withApiSession } from "@libs/server/withSession";
+import { withAuth } from "@libs/server/auth";
+import { issueTokens } from "@libs/server/jwt";
 import client from "@libs/server/client";
 import { role as UserRole, UserStatus } from "@prisma/client";
 import { canRunSensitiveAdminAction, hasAdminAccess } from "@libs/server/adminAccess";
@@ -17,7 +18,7 @@ const STATUS_OPTIONS: UserStatus[] = [
 
 async function handler(req: NextApiRequest, res: NextApiResponse<ResponseType>) {
   const {
-    session: { user },
+    user,
   } = req;
 
   const isAdmin = await hasAdminAccess(user?.id);
@@ -136,10 +137,22 @@ async function handler(req: NextApiRequest, res: NextApiResponse<ResponseType>) 
         });
       }
 
-      req.session.user = targetUser;
-      await req.session.save();
+      const switchTokens = await issueTokens({
+        id: targetUser.id,
+        snsId: targetUser.snsId,
+        provider: targetUser.provider,
+        phone: targetUser.phone,
+        email: targetUser.email,
+        name: targetUser.name,
+        avatar: targetUser.avatar,
+        createdAt: targetUser.createdAt,
+        updatedAt: targetUser.updatedAt,
+      });
       return res.json({
         success: true,
+        accessToken: switchTokens.accessToken,
+        refreshToken: switchTokens.refreshToken,
+        expiresIn: switchTokens.expiresIn,
         switchedUser: {
           id: targetUser.id,
           name: targetUser.name,
@@ -263,7 +276,7 @@ async function handler(req: NextApiRequest, res: NextApiResponse<ResponseType>) 
   }
 }
 
-export default withApiSession(
+export default withAuth(
   withHandler({
     methods: ["GET", "POST"],
     isPrivate: false,

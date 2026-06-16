@@ -1,6 +1,6 @@
 import { NextApiRequest, NextApiResponse } from "next";
 import withHandler from "@libs/server/withHandler";
-import { withApiSession } from "@libs/server/withSession";
+import { withAuth } from "@libs/server/auth";
 import client from "@libs/server/client";
 import { BloodlineCardEventsResponse } from "@libs/shared/bloodline-card";
 import { resolveBloodlineApiError } from "@libs/server/bloodline-error";
@@ -90,7 +90,7 @@ async function handler(
   }
 }
 
-export default withApiSession(
+export default withAuth(
   withHandler({
     methods: ["GET"],
     handler,

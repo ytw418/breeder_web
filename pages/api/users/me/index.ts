@@ -2,7 +2,7 @@ import { NextApiRequest, NextApiResponse } from "next";
 import withHandler, { ResponseType } from "@libs/server/withHandler";
 
 import client from "@libs/server/client";
-import { withApiSession } from "@libs/server/withSession";
+import { withAuth } from "@libs/server/auth";
 import { hasAdminAccess } from "@libs/server/adminAccess";
 
 async function handler(
@@ -12,7 +12,7 @@ async function handler(
   try {
     if (req.method === "GET") {
       const profile = await client.user.findUnique({
-        where: { id: req.session.user?.id },
+        where: { id: req.user?.id },
       });
       const isAdmin = profile ? await hasAdminAccess(profile.id) : false;
 
@@ -25,7 +25,7 @@ async function handler(
     }
     if (req.method === "POST") {
       const {
-        session: { user },
+        user,
         body: { name, avatarId },
       } = req;
 
@@ -67,7 +67,7 @@ async function handler(
   }
 }
 
-export default withApiSession(
+export default withAuth(
   withHandler({
     methods: ["GET", "POST"],
     handler,

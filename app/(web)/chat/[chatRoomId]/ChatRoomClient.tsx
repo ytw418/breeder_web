@@ -1,5 +1,6 @@
 "use client";
 
+import { authFetch } from "@libs/client/authFetch";
 import Layout from "@components/features/MainLayout";
 import useMutation from "hooks/useMutation";
 import useUser from "hooks/useUser";
@@ -191,7 +192,7 @@ const ChatRoomClient = () => {
 
     try {
       // 1. Cloudflare direct upload URL 발급
-      const uploadUrlRes = await fetch("/api/files");
+      const uploadUrlRes = await authFetch("/api/files");
       const fileUploadInfo: FileUploadUrlResponse = await uploadUrlRes.json();
       const uploadURL = fileUploadInfo.uploadURL;
       const preIssuedImageId = fileUploadInfo.id;

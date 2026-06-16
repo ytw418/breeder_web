@@ -1,5 +1,6 @@
 "use client";
 
+import { authFetch } from "@libs/client/authFetch";
 import { useMemo, useState } from "react";
 import Link from "next/link";
 import useSWR from "swr";
@@ -93,7 +94,7 @@ export default function AdminLandingPagesPage() {
             isPublished,
           };
 
-      const res = await fetch("/api/admin/landing-pages", {
+      const res = await authFetch("/api/admin/landing-pages", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),
@@ -127,7 +128,7 @@ export default function AdminLandingPagesPage() {
     if (!confirmed) return;
 
     try {
-      const res = await fetch(`/api/admin/landing-pages?id=${id}`, {
+      const res = await authFetch(`/api/admin/landing-pages?id=${id}`, {
         method: "DELETE",
       });
       const result = await res.json();

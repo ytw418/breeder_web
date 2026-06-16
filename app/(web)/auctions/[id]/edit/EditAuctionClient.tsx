@@ -1,5 +1,6 @@
 "use client";
 
+import { authFetch } from "@libs/client/authFetch";
 import { useEffect, useMemo, useState } from "react";
 import { useForm } from "react-hook-form";
 import { useParams, useRouter } from "next/navigation";
@@ -137,7 +138,7 @@ const EditAuctionClient = () => {
     setUploading(true);
     try {
       for (const file of Array.from(files)) {
-        const urlRes = await fetch("/api/files");
+        const urlRes = await authFetch("/api/files");
         const urlData = await urlRes.json();
 
         const form = new FormData();
@@ -169,7 +170,7 @@ const EditAuctionClient = () => {
 
     setProofUploading(true);
     try {
-      const urlRes = await fetch("/api/files");
+      const urlRes = await authFetch("/api/files");
       const urlData = await urlRes.json();
 
       const form = new FormData();

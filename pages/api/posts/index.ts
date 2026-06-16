@@ -2,7 +2,7 @@ import { NextApiRequest, NextApiResponse } from "next";
 import withHandler, { ResponseType } from "@libs/server/withHandler";
 
 import client from "@libs/server/client";
-import { withApiSession } from "@libs/server/withSession";
+import { withAuth } from "@libs/server/auth";
 import { notifyFollowers } from "@libs/server/notification";
 import { Post, Prisma, User } from "@prisma/client";
 import { getCategoryFilterValues } from "@libs/categoryTaxonomy";
@@ -133,7 +133,7 @@ const handler = async (
   if (req.method === "POST") {
     const {
       body: { description, title, image, category, species },
-      session: { user },
+      user,
     } = req;
 
     if (!user?.id) {
@@ -195,6 +195,6 @@ const handler = async (
   }
 };
 
-export default withApiSession(
+export default withAuth(
   withHandler({ methods: ["POST", "GET"], isPrivate: false, handler })
 );

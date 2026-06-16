@@ -1,7 +1,7 @@
 import { NextApiRequest, NextApiResponse } from "next";
 import withHandler, { ResponseType } from "@libs/server/withHandler";
 import client from "@libs/server/client";
-import { withApiSession } from "@libs/server/withSession";
+import { withAuth } from "@libs/server/auth";
 import { InsectRecord, Like, Post, User } from "@prisma/client";
 
 /** 기네스북 기록 응답 */
@@ -212,6 +212,6 @@ async function handler(
   }
 }
 
-export default withApiSession(
+export default withAuth(
   withHandler({ methods: ["GET"], handler, isPrivate: false })
 );

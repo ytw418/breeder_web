@@ -1,6 +1,6 @@
 import { NextApiRequest, NextApiResponse } from "next";
 import withHandler from "@libs/server/withHandler";
-import { withApiSession } from "@libs/server/withSession";
+import { withAuth } from "@libs/server/auth";
 import client from "@libs/server/client";
 import { Prisma } from "@prisma/client";
 import {
@@ -75,7 +75,7 @@ async function handler(
   req: NextApiRequest,
   res: NextApiResponse<BloodlineCardIssueLineResponse>
 ) {
-  const userId = req.session.user?.id;
+  const userId = req.user?.id;
   if (!userId) {
     return res.status(401).json({ success: false, card: null, error: "로그인이 필요합니다." });
   }
@@ -101,7 +101,7 @@ async function handler(
       error: "유효한 혈통카드 ID가 필요합니다.",
     });
   }
-  const fallbackUserName = String(req.session.user?.name || "브리더").replace(
+  const fallbackUserName = String(req.user?.name || "브리더").replace(
     /[^A-Za-z0-9가-힣]+/g,
     ""
   );
@@ -347,7 +347,7 @@ async function handler(
   }
 }
 
-export default withApiSession(
+export default withAuth(
   withHandler({
     methods: ["POST"],
     handler,

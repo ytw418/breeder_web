@@ -1,5 +1,6 @@
 "use client";
 
+import { authFetch } from "@libs/client/authFetch";
 import { FormEvent, useMemo, useState } from "react";
 import Link from "next/link";
 import Layout from "@components/features/MainLayout";
@@ -59,7 +60,7 @@ export default function SupportClient() {
 
     try {
       setSubmitting(true);
-      const res = await fetch("/api/voice/inquiries", {
+      const res = await authFetch("/api/voice/inquiries", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({

@@ -1,5 +1,6 @@
 "use client";
 
+import { authFetch } from "@libs/client/authFetch";
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Controller, useForm } from "react-hook-form";
@@ -113,7 +114,7 @@ const UploadClient = () => {
   };
 
   const uploadSingleImage = async (file: File, name: string) => {
-    const fileApiResponse = await fetch("/api/files");
+    const fileApiResponse = await authFetch("/api/files");
     const fileApiResult = await fileApiResponse.json();
     if (!fileApiResponse.ok || !fileApiResult?.uploadURL) {
       throw new Error("이미지 업로드 URL 발급에 실패했습니다.");

@@ -15,6 +15,8 @@ import {
   TERMS_OF_SERVICE_URL,
   USER_INFO,
 } from "@libs/constants";
+import { setTokens } from "@libs/client/authToken";
+import { authFetch } from "@libs/client/authFetch";
 
 const getSafeNextPath = (rawPath: string | null) => {
   if (!rawPath) return "/";
@@ -57,7 +59,7 @@ const wait = (ms: number) =>
 const navigateAfterSessionReady = async (nextPath: string) => {
   for (let attempt = 0; attempt < 4; attempt += 1) {
     try {
-      const meRes = await fetch("/api/users/me", {
+      const meRes = await authFetch("/api/users/me", {
         method: "GET",
         cache: "no-store",
       });
@@ -91,6 +93,9 @@ type TestAccountListResponse = {
 type TestAccountSwitchResponse = {
   success: boolean;
   error?: string;
+  accessToken?: string;
+  refreshToken?: string;
+  expiresIn?: number;
 };
 
 type LoginClientProps = {
@@ -212,7 +217,7 @@ const LoginClient = ({ shouldShowTestLogin }: LoginClientProps) => {
 
     const fetchTestAccounts = async () => {
       try {
-        const res = await fetch("/api/users/test-accounts", {
+        const res = await authFetch("/api/users/test-accounts", {
           method: "GET",
           cache: "no-store",
         });
@@ -274,6 +279,12 @@ const LoginClient = ({ shouldShowTestLogin }: LoginClientProps) => {
         data: body,
         onCompleted(result) {
           if (result.success) {
+            if (result.accessToken && result.refreshToken) {
+              setTokens({
+                accessToken: result.accessToken,
+                refreshToken: result.refreshToken,
+              });
+            }
             markPostLoginGuide();
             void navigateAfterSessionReady(nextPath);
             return;
@@ -298,7 +309,7 @@ const LoginClient = ({ shouldShowTestLogin }: LoginClientProps) => {
     setTestLoginError("");
 
     try {
-      const res = await fetch("/api/users/test-accounts", {
+      const res = await authFetch("/api/users/test-accounts", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -309,6 +320,13 @@ const LoginClient = ({ shouldShowTestLogin }: LoginClientProps) => {
 
       if (!res.ok || !data.success) {
         throw new Error(data.error || "테스트 계정 전환에 실패했습니다.");
+      }
+
+      if (data.accessToken && data.refreshToken) {
+        setTokens({
+          accessToken: data.accessToken,
+          refreshToken: data.refreshToken,
+        });
       }
 
       markPostLoginGuide();
