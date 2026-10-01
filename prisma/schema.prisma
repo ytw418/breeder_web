@@ -87,6 +87,8 @@ model User {
   email           String?     @unique
   name            String      @unique
   avatar          String?
+  /// 탈퇴 시각. status=DELETED 와 함께 설정한다.
+  deletedAt       DateTime?
   createdAt       DateTime    @default(now())
   updatedAt       DateTime    @updatedAt
   products        Product[]
@@ -125,6 +127,8 @@ model User {
   bloodlineCardTransfersTo   BloodlineCardTransfer[] @relation("BloodlineCardTransferTo")
   insectRecords   InsectRecord[]
   guinnessSubmissions GuinnessSubmission[]
+
+  @@index([status, deletedAt])
 }
 model ChatRoom {
   id              Int               @id @default(autoincrement())
@@ -872,4 +876,27 @@ model LandingPage {
   updatedAt   DateTime @updatedAt
 
   @@index([isPublished])
+}
+
+/// 탈퇴자 개인정보 분리 보관. 30일 뒤 원문은 파기하고 행(userId, snsIdHash)만 남긴다.
+model UserDeletionRecord {
+  id          Int       @id @default(autoincrement())
+  userId      Int       @unique
+  provider    String
+  /// 보관 기간 중 원문. 파기 시 null
+  snsId       String?
+  /// HMAC-SHA256(snsId). 파기 후에도 탈퇴 이력 확인용으로 유지
+  snsIdHash   String
+  email       String?
+  phone       String?
+  /// 탈퇴 전 닉네임 (CS 식별용)
+  name        String?
+  reason      String?
+  requestedAt DateTime  @default(now())
+  purgeAt     DateTime
+  purgedAt    DateTime?
+
+  @@index([snsId])
+  @@index([snsIdHash])
+  @@index([purgeAt, purgedAt])
 }
