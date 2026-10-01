@@ -47,7 +47,7 @@ async function handler(req: NextApiRequest, res: NextApiResponse<PushTestRespons
 
     await sendPushToUsers([userId], {
       title: "브리디 테스트 알림",
-      body: "FCM 웹 푸시 연결이 정상 동작합니다.",
+      body: "푸시 알림 연결이 정상 동작합니다.",
       url: "/notifications",
       tag: `push-test-${Date.now()}`,
     });
