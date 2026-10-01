@@ -8,6 +8,20 @@ export interface FcmPushContent {
   tag: string;
 }
 
+const DEFAULT_CLICK_BASE_URL = "https://bredy.app";
+
+// 알림 클릭 URL은 절대 경로여야 한다. 환경변수에 프로토콜이 빠진 값(예: Preview 도메인)이
+// 들어와도 new URL이 throw 하지 않도록 https를 붙여 보정한다.
+export const toAbsoluteClickUrl = (url: string | undefined, baseUrl: string | undefined) => {
+  const normalized = typeof url === "string" && url.trim().length > 0 ? url.trim() : "/";
+  if (normalized.startsWith("http://") || normalized.startsWith("https://")) {
+    return normalized;
+  }
+  const rawBase = (baseUrl || "").trim() || DEFAULT_CLICK_BASE_URL;
+  const base = /^https?:\/\//.test(rawBase) ? rawBase : `https://${rawBase}`;
+  return new URL(normalized, base).toString();
+};
+
 export type PushClientPlatform = "web" | "android" | "ios";
 
 // 모바일 앱(bredy_app)은 토큰 등록 시 userAgent를 `BredyApp/{version} ({os})`로 보낸다.
