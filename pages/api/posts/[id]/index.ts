@@ -10,11 +10,8 @@ import {
 } from "@libs/server/breeder-programs";
 import type { BreederProgramSummary } from "@libs/shared/breeder-program";
 import { resolvePostImagesInput, withPostImages } from "@libs/postImages";
-import {
-  NOTICE_POST_CATEGORY,
-  canWriteNoticePost,
-} from "@libs/server/postNotice";
-import type { Post } from "@prisma/client";
+import { canWriteNoticePost, isNoticePostInput } from "@libs/server/postNotice";
+import { Prisma, type Post } from "@prisma/client";
 
 interface PostDetail {
   user: {
@@ -72,6 +69,9 @@ export interface PostUpdateResponse {
 }
 
 const INVALID_POST_ID_MESSAGE = "유효하지 않은 게시글 ID입니다.";
+/** Post.id 는 Int(32bit). 범위를 넘거나 정수가 아니면 Prisma 가 500 을 낸다. */
+const MAX_POST_ID = 2_147_483_647;
+const NOT_FOUND_MESSAGE = "게시글을 찾을 수 없습니다.";
 
 function sendPostError(
   res: NextApiResponse<ResponseType>,
@@ -105,7 +105,7 @@ async function mutatePost(
   }
 
   const postId = extractPostIdFromPath(id);
-  if (Number.isNaN(postId)) {
+  if (!Number.isInteger(postId) || postId <= 0 || postId > MAX_POST_ID) {
     return sendPostError(res, 400, "POST_INVALID_ID", INVALID_POST_ID_MESSAGE);
   }
 
@@ -114,7 +114,7 @@ async function mutatePost(
     select: { id: true, userId: true },
   });
   if (!post) {
-    return sendPostError(res, 404, "POST_NOT_FOUND", "게시글을 찾을 수 없습니다.");
+    return sendPostError(res, 404, "POST_NOT_FOUND", NOT_FOUND_MESSAGE);
   }
   if (post.userId !== user.id) {
     return sendPostError(
@@ -129,7 +129,18 @@ async function mutatePost(
 
   if (action === "delete") {
     // Comment/Like 는 onDelete: Cascade. 알림은 정리하지 않는다(상품 삭제와 동일).
-    await client.post.delete({ where: { id: postId } });
+    try {
+      await client.post.delete({ where: { id: postId } });
+    } catch (error) {
+      // 동시에 들어온 다른 삭제 요청이 먼저 지운 경우
+      if (
+        error instanceof Prisma.PrismaClientKnownRequestError &&
+        error.code === "P2025"
+      ) {
+        return sendPostError(res, 404, "POST_NOT_FOUND", NOT_FOUND_MESSAGE);
+      }
+      throw error;
+    }
     return res.json({ success: true });
   }
 
@@ -152,8 +163,12 @@ async function mutatePost(
     );
   }
 
-  const resolvedImages = resolvePostImagesInput({ image, images });
-  if (!resolvedImages.ok) {
+  // 사진 필드를 아예 보내지 않으면 기존 사진을 그대로 둔다(글만 고치는 요청이 사진을 지우지 않게).
+  const keepImages = image === undefined && images === undefined;
+  const resolvedImages = keepImages
+    ? null
+    : resolvePostImagesInput({ image, images });
+  if (resolvedImages && !resolvedImages.ok) {
     return sendPostError(
       res,
       400,
@@ -163,7 +178,7 @@ async function mutatePost(
   }
 
   if (
-    String(category) === NOTICE_POST_CATEGORY &&
+    isNoticePostInput({ category, title }) &&
     !(await canWriteNoticePost(user.id))
   ) {
     return sendPostError(
@@ -182,8 +197,9 @@ async function mutatePost(
       description,
       category: category || null,
       type: species || null,
-      image: resolvedImages.image,
-      images: resolvedImages.images,
+      ...(resolvedImages
+        ? { image: resolvedImages.image, images: resolvedImages.images }
+        : {}),
     },
   });
 

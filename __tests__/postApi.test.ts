@@ -1,4 +1,8 @@
+/**
+ * @jest-environment node
+ */
 import type { NextApiRequest, NextApiResponse } from "next";
+import { Prisma } from "@prisma/client";
 
 const mockClient = {
   post: {
@@ -136,14 +140,14 @@ describe("POST /api/posts/:id 공통 검사", () => {
     expect(mockClient.post.update).not.toHaveBeenCalled();
   });
 
-  it("잘못된 id 는 400 (기존 문구)", async () => {
-    const res = await mutate({ action: "delete" }, { id: "abc" });
-    expect(res.statusCode).toBe(400);
-    expect(res.body.success).toBe(false);
-    expect(res.body.message).toBe("유효하지 않은 게시글 ID입니다.");
-    expect(res.body.error).toBe("유효하지 않은 게시글 ID입니다.");
-    expect(mockClient.post.findUnique).not.toHaveBeenCalled();
-  });
+  it.each([["abc"], ["1.5"], ["0"], ["-3"], ["99999999999"]])(
+    "잘못된 id(%p)는 400 POST_INVALID_ID (기존 문구)",
+    async (id) => {
+      const res = await mutate({ action: "delete" }, { id });
+      expectError(res, 400, "POST_INVALID_ID", "유효하지 않은 게시글 ID입니다.");
+      expect(mockClient.post.findUnique).not.toHaveBeenCalled();
+    }
+  );
 
   it("slug 포함 경로의 id 를 파싱한다", async () => {
     await mutate({ action: "delete" }, { id: "1-원래-제목" });
@@ -245,13 +249,32 @@ describe("POST /api/posts/:id action=update", () => {
 
   it("관리자가 아니면 공지로 바꿀 수 없다 (403)", async () => {
     const res = await mutate({ ...updateBody, category: "공지" });
-    expect(res.statusCode).toBe(403);
-    expect(res.body.success).toBe(false);
-    expect(res.body.message).toBe("공지 작성 권한이 없습니다.");
-    expect(res.body.error).toBe("공지 작성 권한이 없습니다.");
-    expect(typeof res.body.errorCode).toBe("string");
+    expectError(res, 403, "POST_NOTICE_FORBIDDEN", "공지 작성 권한이 없습니다.");
     expect(mockClient.user.findUnique.mock.calls[0][0].where).toEqual({ id: 7 });
     expect(mockClient.post.update).not.toHaveBeenCalled();
+  });
+
+  it("관리자가 아니면 제목을 [공지]로 시작하게 바꿀 수 없다 (403)", async () => {
+    const res = await mutate({ ...updateBody, title: " [공지] 점검 안내", category: "자유" });
+    expectError(res, 403, "POST_NOTICE_FORBIDDEN", "공지 작성 권한이 없습니다.");
+    expect(mockClient.post.update).not.toHaveBeenCalled();
+  });
+
+  it("관리자는 제목을 [공지]로 시작하게 바꿀 수 있다", async () => {
+    mockClient.user.findUnique.mockResolvedValue({ role: "ADMIN" });
+    const res = await mutate({ ...updateBody, title: "[공지] 점검 안내" });
+    expect(res.statusCode).toBe(200);
+    expect(mockClient.post.update.mock.calls[0][0].data.title).toBe("[공지] 점검 안내");
+  });
+
+  it("images·image 를 둘 다 보내지 않으면 기존 사진을 그대로 둔다", async () => {
+    const { images: _omit, ...textOnly } = updateBody;
+    const res = await mutate(textOnly);
+    expect(res.statusCode).toBe(200);
+    const { data } = mockClient.post.update.mock.calls[0][0];
+    expect(data).not.toHaveProperty("image");
+    expect(data).not.toHaveProperty("images");
+    expect(res.body.post.images).toEqual(["cf-old"]);
   });
 
   it.each([["ADMIN"], ["SUPER_USER"]])("관리자(%s)는 공지로 바꿀 수 있다", async (role) => {
@@ -274,6 +297,46 @@ describe("POST /api/posts/:id action=delete", () => {
     expect(res.body).toEqual({ success: true });
     expect(mockClient.post.delete).toHaveBeenCalledWith({ where: { id: 1 } });
     expect(mockClient.post.update).not.toHaveBeenCalled();
+  });
+
+  it("동시에 먼저 지워져 P2025 가 나면 404 POST_NOT_FOUND", async () => {
+    mockClient.post.delete.mockRejectedValue(
+      new Prisma.PrismaClientKnownRequestError("Record to delete does not exist.", {
+        code: "P2025",
+        clientVersion: "test",
+      })
+    );
+    const res = await mutate({ action: "delete" });
+    expectError(res, 404, "POST_NOT_FOUND", "게시글을 찾을 수 없습니다.");
+  });
+});
+
+describe("POST /api/posts/:id 검사 순서", () => {
+  it("비로그인 + 잘못된 id 는 401 이 먼저", async () => {
+    const res = await mutate({ action: "delete" }, { user: null, id: "abc" });
+    expectError(res, 401, "POST_AUTH_REQUIRED");
+  });
+
+  it("남의 글 + 빈 제목은 403 이 먼저 (입력 검증으로 남의 글을 떠보지 못한다)", async () => {
+    const res = await mutate({ ...updateBody, title: "" }, { user: other });
+    expectError(res, 403, "POST_FORBIDDEN");
+  });
+
+  it("남의 글 + 알 수 없는 action 은 403 이 먼저", async () => {
+    const res = await mutate({ action: "remove" }, { user: other });
+    expectError(res, 403, "POST_FORBIDDEN");
+  });
+
+  it("제목·내용이 둘 다 비면 제목 오류가 먼저", async () => {
+    const res = await mutate({ ...updateBody, title: "", description: "" });
+    expectError(res, 400, "POST_TITLE_REQUIRED");
+  });
+
+  it("사진 오류가 공지 권한 오류보다 먼저", async () => {
+    const images = Array.from({ length: 11 }, (_, i) => `cf-${i}`);
+    const res = await mutate({ ...updateBody, images, category: "공지" });
+    expectError(res, 400, "POST_TOO_MANY_IMAGES");
+    expect(mockClient.user.findUnique).not.toHaveBeenCalled();
   });
 });
 
@@ -309,6 +372,17 @@ describe("기존 동작 회귀", () => {
       method: "POST",
       user: me,
       body: { title: "공지", description: "내용", category: "공지" },
+    });
+    expect(res.statusCode).toBe(403);
+    expect(res.body).toEqual({ success: false, error: "공지 작성 권한이 없습니다." });
+    expect(mockClient.post.create).not.toHaveBeenCalled();
+  });
+
+  it("POST /api/posts [공지] 제목 작성: 비관리자 403 (같은 응답 형태)", async () => {
+    const res = await call(postsHandler, {
+      method: "POST",
+      user: me,
+      body: { title: "[공지] 이벤트", description: "내용", category: "자유" },
     });
     expect(res.statusCode).toBe(403);
     expect(res.body).toEqual({ success: false, error: "공지 작성 권한이 없습니다." });

@@ -13,10 +13,7 @@ import {
 } from "@libs/server/breeder-programs";
 import type { BreederProgramSummary } from "@libs/shared/breeder-program";
 import { resolvePostImagesInput, withPostImages } from "@libs/postImages";
-import {
-  NOTICE_POST_CATEGORY,
-  canWriteNoticePost,
-} from "@libs/server/postNotice";
+import { canWriteNoticePost, isNoticePostInput } from "@libs/server/postNotice";
 
 /** 게시글 목록 응답 타입 */
 export interface PostWithUser extends Post {
@@ -158,7 +155,7 @@ const handler = async (
     }
 
     if (
-      String(category) === NOTICE_POST_CATEGORY &&
+      isNoticePostInput({ category, title }) &&
       !(await canWriteNoticePost(user.id))
     ) {
       return res
