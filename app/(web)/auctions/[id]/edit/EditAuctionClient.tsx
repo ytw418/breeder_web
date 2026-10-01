@@ -208,7 +208,15 @@ const EditAuctionClient = () => {
       toast.error("최소 1장의 사진을 등록해주세요.");
       return;
     }
-    const normalizedEndAt = toIsoDateTimeValue(form.endAt);
+    // 종료 시각 입력값을 건드리지 않았으면 서버에서 받은 원래 값을 그대로 보낸다.
+    // (datetime-local 은 분 단위라 그대로 변환하면 초가 잘려 "변경"으로 판정되고,
+    // 남은 시간이 1시간 미만인 경매는 수정이 막힌다 — #140)
+    const originalEndAt = data?.auction?.endAt;
+    const isEndAtUntouched =
+      Boolean(originalEndAt) && form.endAt === toDateTimeLocalValue(originalEndAt!);
+    const normalizedEndAt = isEndAtUntouched
+      ? new Date(originalEndAt!).toISOString()
+      : toIsoDateTimeValue(form.endAt);
     if (!normalizedEndAt) {
       toast.error("유효한 종료 시간을 입력해주세요.");
       return;
