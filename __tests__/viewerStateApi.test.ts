@@ -229,6 +229,24 @@ describe("GET /api/users/{id} 내부 필드", () => {
   });
 });
 
+describe("GET /api/users/{id} 잘못된 id", () => {
+  it.each(["check-name", "1abc", "0", "-1", "99999999999"])(
+    "id=%s 는 DB 를 조회하지 않고 404 를 준다(Prisma 오류 원문 비노출)",
+    async (id) => {
+      mockClient.user.findUnique.mockClear();
+
+      const res = await call(userDetailHandler, { query: { id } });
+
+      expect(res.statusCode).toBe(404);
+      expect(res.body).toEqual({
+        success: false,
+        message: "유저를 찾을 수 없습니다.",
+      });
+      expect(mockClient.user.findUnique).not.toHaveBeenCalled();
+    }
+  );
+});
+
 describe("GET /api/users/{id} 로그인 식별자 비노출", () => {
   const profileRow = () => ({
     id: 1,

@@ -8,6 +8,7 @@ import {
 } from "@libs/server/breeder-programs";
 import type { BreederProgramSummary } from "@libs/shared/breeder-program";
 import { withAuth } from "@libs/server/auth";
+import { parsePositiveIntId } from "@libs/shared/normalize";
 import { User } from "@prisma/client";
 
 type UserWithCounts = Omit<User, "tokenVersion" | "suspendedUntil" | "snsId" | "phone"> & {
@@ -79,7 +80,14 @@ async function handler(
     });
   }
 
-  const userId = +req.query.id;
+  // 숫자가 아닌 id(예: 정적 라우트가 없는 배포에서 /api/users/check-name)는 Prisma 오류 대신 404.
+  const userId = parsePositiveIntId(req.query.id);
+  if (!userId) {
+    return res.status(404).json({
+      success: false,
+      message: "유저를 찾을 수 없습니다.",
+    });
+  }
   const myId = req.user?.id;
 
   const user = await client.user.findUnique({
