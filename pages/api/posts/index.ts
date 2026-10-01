@@ -13,6 +13,10 @@ import {
 } from "@libs/server/breeder-programs";
 import type { BreederProgramSummary } from "@libs/shared/breeder-program";
 import { resolvePostImagesInput, withPostImages } from "@libs/postImages";
+import {
+  NOTICE_POST_CATEGORY,
+  canWriteNoticePost,
+} from "@libs/server/postNotice";
 
 /** 게시글 목록 응답 타입 */
 export interface PostWithUser extends Post {
@@ -153,19 +157,13 @@ const handler = async (
       });
     }
 
-    if (String(category) === "공지") {
-      const dbUser = user?.id
-        ? await client.user.findUnique({
-            where: { id: user.id },
-            select: { role: true },
-          })
-        : null;
-
-      if (!dbUser || !["ADMIN", "SUPER_USER"].includes(dbUser.role)) {
-        return res
-          .status(403)
-          .json({ success: false, error: "공지 작성 권한이 없습니다." });
-      }
+    if (
+      String(category) === NOTICE_POST_CATEGORY &&
+      !(await canWriteNoticePost(user.id))
+    ) {
+      return res
+        .status(403)
+        .json({ success: false, error: "공지 작성 권한이 없습니다." });
     }
 
     const post = await client.post.create({
