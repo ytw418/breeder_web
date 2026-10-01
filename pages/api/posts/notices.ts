@@ -2,6 +2,7 @@ import { NextApiRequest, NextApiResponse } from "next";
 import withHandler, { ResponseType } from "@libs/server/withHandler";
 import { withAuth } from "@libs/server/auth";
 import client from "@libs/server/client";
+import { withPostImages } from "@libs/postImages";
 import { Post, User } from "@prisma/client";
 
 export interface NoticePost extends Post {
@@ -65,7 +66,7 @@ const handler = async (
 
   return res.json({
     success: true,
-    posts,
+    posts: posts.map(withPostImages),
     pages: Math.ceil(totalNoticeCount / pageSize),
   });
 };

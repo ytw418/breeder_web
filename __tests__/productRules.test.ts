@@ -3,6 +3,7 @@ import {
   PRODUCT_DESCRIPTION_MIN_LENGTH,
   PRODUCT_NAME_MAX_LENGTH,
   PRODUCT_NAME_MIN_LENGTH,
+  PRODUCT_PHOTOS_MAX,
   PRODUCT_PRICE_MAX,
   PRODUCT_PRICE_MIN,
   validateProductInput,
@@ -81,5 +82,42 @@ describe("productRules", () => {
       value: { name: "새 이름" },
     });
     expect(validateProductInput({ price: 1 }, { partial: true }).ok).toBe(false);
+  });
+
+  describe("사진 장수", () => {
+    const photos = (n: number) => Array.from({ length: n }, (_, i) => `img-${i + 1}`);
+
+    it("최대 10장", () => {
+      expect(PRODUCT_PHOTOS_MAX).toBe(10);
+    });
+
+    it.each([
+      [0, true],
+      [1, true],
+      [10, true],
+      [11, false],
+    ])("%p장 → 통과 %p", (count, ok) => {
+      const result = validateProductInput({ ...valid, photos: photos(count) });
+      expect(result.ok).toBe(ok);
+      if (result.ok) expect(result.value.photos).toEqual(photos(count));
+      else expect(result.errorCode).toBe("PRODUCT_TOO_MANY_PHOTOS");
+    });
+
+    it("사진을 보내지 않으면 검사하지 않고 결과에서 뺀다", () => {
+      const result = validateProductInput(valid);
+      expect(result.ok).toBe(true);
+      if (result.ok) expect(result.value).not.toHaveProperty("photos");
+    });
+
+    it.each([["img-1"], [[1, 2]], [[""]]])("배열이 아니거나 문자열 id 가 아니면 거절 %#", (bad) => {
+      const result = validateProductInput({ ...valid, photos: bad });
+      expect(result.ok).toBe(false);
+      if (!result.ok) expect(result.errorCode).toBe("PRODUCT_INVALID_PHOTOS");
+    });
+
+    it("partial 모드에서도 11장은 거절한다", () => {
+      const result = validateProductInput({ photos: photos(11) }, { partial: true });
+      expect(result.ok).toBe(false);
+    });
   });
 });

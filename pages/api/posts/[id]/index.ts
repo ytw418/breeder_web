@@ -9,6 +9,7 @@ import {
   getSortedActiveBreederProgramSummaries,
 } from "@libs/server/breeder-programs";
 import type { BreederProgramSummary } from "@libs/shared/breeder-program";
+import { withPostImages } from "@libs/postImages";
 
 interface PostDetail {
   user: {
@@ -40,6 +41,8 @@ interface PostDetail {
   description: string;
   category: string | null;
   image: string;
+  /** 게시글 사진 id 목록. 구 데이터는 [image] 로 채운다. */
+  images: string[];
 }
 
 interface AdjacentNotice {
@@ -195,7 +198,7 @@ async function handler(
     : false;
 
   const serializedPost: PostDetail = {
-    ...post,
+    ...withPostImages(post),
     user: {
       ...post.user,
       breederPrograms: getSortedActiveBreederProgramSummaries(

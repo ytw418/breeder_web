@@ -14,7 +14,11 @@ import useMutation from "hooks/useMutation";
 import { cn, makeImageUrl } from "@libs/client/utils";
 import { toast } from "@libs/client/toast";
 import { AuctionDetailResponse } from "pages/api/auctions/[id]";
-import { AUCTION_MIN_START_PRICE, getBidIncrement } from "@libs/auctionRules";
+import {
+  AUCTION_MIN_START_PRICE,
+  AUCTION_PHOTOS_MAX,
+  getBidIncrement,
+} from "@libs/auctionRules";
 import { getAuctionErrorMessage } from "@libs/client/auctionErrorMessage";
 import { extractAuctionIdFromPath, toAuctionPath } from "@libs/auction-route";
 import { TOP_LEVEL_CATEGORIES, findCategoryBranch, getSubcategories } from "@libs/categoryTaxonomy";
@@ -130,8 +134,8 @@ const EditAuctionClient = () => {
   const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;
     if (!files || files.length === 0) return;
-    if (photos.length + files.length > 5) {
-      toast.error("이미지는 최대 5장까지 등록 가능합니다.");
+    if (photos.length + files.length > AUCTION_PHOTOS_MAX) {
+      toast.error(`이미지는 최대 ${AUCTION_PHOTOS_MAX}장까지 등록 가능합니다.`);
       return;
     }
 
@@ -308,10 +312,10 @@ const EditAuctionClient = () => {
         <div>
           <label className="block text-sm font-semibold text-gray-900 mb-2">
             사진 등록 <span className="text-red-500">*</span>
-            <span className="text-xs font-normal text-gray-400 ml-1">({photos.length}/5)</span>
+            <span className="text-xs font-normal text-gray-400 ml-1">({photos.length}/{AUCTION_PHOTOS_MAX})</span>
           </label>
           <div className="flex gap-2 overflow-x-auto pb-2">
-            {photos.length < 5 && (
+            {photos.length < AUCTION_PHOTOS_MAX && (
               <label className="flex-shrink-0 w-20 h-20 rounded-lg border-2 border-dashed border-gray-300 flex items-center justify-center cursor-pointer hover:border-primary transition-colors">
                 <input
                   type="file"

@@ -17,6 +17,7 @@ import { PRODUCT_TYPES } from "@libs/constants";
 import { TOP_LEVEL_CATEGORIES, getSubcategories } from "@libs/categoryTaxonomy";
 import MarkdownEditor from "@components/features/product/MarkdownEditor";
 import { getProductPath } from "@libs/product-route";
+import { PRODUCT_PHOTOS_MAX } from "@libs/productRules";
 
 interface UploadProductForm {
   name: string;
@@ -32,7 +33,7 @@ interface UploadProductMutation {
 }
 
 type SubmitStep = "idle" | "images" | "submit";
-const MAX_IMAGE_COUNT = 5;
+const MAX_IMAGE_COUNT = PRODUCT_PHOTOS_MAX;
 const MAX_IMAGE_SIZE = 10 * 1024 * 1024;
 const ALLOWED_IMAGE_TYPES = ["image/jpeg", "image/png", "image/webp", "image/jpg"];
 

@@ -2,6 +2,7 @@ import { NextApiRequest, NextApiResponse } from "next";
 import withHandler, { ResponseType } from "@libs/server/withHandler";
 import client from "@libs/server/client";
 import { withAuth } from "@libs/server/auth";
+import { withPostImages } from "@libs/postImages";
 
 export interface UserPostsQuery {
   id?: string | string[];
@@ -17,6 +18,7 @@ export interface UserPostListResponse {
     title: string;
     description: string;
     image: string;
+    images: string[];
     category: string | null;
     createdAt: Date;
     _count: {
@@ -68,6 +70,7 @@ async function handler(
         title: true,
         description: true,
         image: true,
+        images: true,
         category: true,
         createdAt: true,
         _count: {
@@ -88,7 +91,7 @@ async function handler(
 
   return res.json({
     success: true,
-    posts,
+    posts: posts.map(withPostImages),
     pages: Math.ceil(postCount / pageSize),
   });
 }

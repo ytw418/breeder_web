@@ -28,6 +28,7 @@ jest.mock("@libs/server/breeder-programs", () => ({
 
 import createHandler from "../pages/api/auctions/index";
 import detailHandler from "../pages/api/auctions/[id]/index";
+import { AUCTION_PHOTOS_MAX, AUCTION_PHOTOS_MIN } from "@libs/auctionRules";
 
 function createRes() {
   const res = {
@@ -201,5 +202,61 @@ describe("POST /api/auctions/:id (update) 기간 검사", () => {
     const res = await update({ endAt: "not-a-date" });
     expect(res.statusCode).toBe(400);
     expect(res.body.errorCode).toBe("AUCTION_INVALID_END_AT");
+  });
+});
+
+describe("경매 사진 장수(최소 1, 최대 10)", () => {
+  const photos = (n: number) => Array.from({ length: n }, (_, i) => `img-${i + 1}`);
+  const endAt = () => new Date(NOW.getTime() + 2 * HOUR).toISOString();
+  const create = (count: number) =>
+    call(createHandler, {
+      method: "POST",
+      user: me,
+      body: { ...baseBody, photos: photos(count), endAt: endAt() },
+    });
+  const update = (count: number) =>
+    call(detailHandler, {
+      method: "POST",
+      user: me,
+      query: { id: "5" },
+      body: { action: "update", ...baseBody, photos: photos(count) },
+    });
+
+  beforeEach(() => {
+    const createdAt = new Date(NOW.getTime() - 5 * 60 * 1000);
+    mockClient.auction.findUnique.mockResolvedValue({
+      id: 5,
+      userId: 7,
+      status: "진행중",
+      createdAt,
+      endAt: new Date(createdAt.getTime() + HOUR),
+      _count: { bids: 0 },
+    });
+  });
+
+  it("상수: 최소 1장, 최대 10장", () => {
+    expect(AUCTION_PHOTOS_MIN).toBe(1);
+    expect(AUCTION_PHOTOS_MAX).toBe(10);
+  });
+
+  it.each([
+    [0, 400],
+    [1, 200],
+    [10, 200],
+    [11, 400],
+  ])("등록 %p장 → %p", async (count, status) => {
+    const res = await create(count);
+    expect(res.statusCode).toBe(status);
+    if (status === 400) expect(res.body.errorCode).toBe("AUCTION_INVALID_PHOTO_COUNT");
+  });
+
+  it.each([
+    [0, 400],
+    [10, 200],
+    [11, 400],
+  ])("수정 %p장 → %p", async (count, status) => {
+    const res = await update(count);
+    expect(res.statusCode).toBe(status);
+    if (status === 400) expect(res.body.errorCode).toBe("AUCTION_INVALID_PHOTO_COUNT");
   });
 });

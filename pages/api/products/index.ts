@@ -21,7 +21,7 @@ const handler = async (
       return res.status(401).json({ success: false, error: "Unauthorized" });
     }
 
-    const validation = validateProductInput({ name, price, description });
+    const validation = validateProductInput({ name, price, description, photos });
     if (!validation.ok) {
       return res.status(400).json({
         success: false,
@@ -36,10 +36,10 @@ const handler = async (
         name: validation.value.name!,
         price: validation.value.price!,
         description: validation.value.description!,
-        photos: photos || [],
+        photos: validation.value.photos ?? [],
         category: category || null,
         productType: productType || null,
-        mainImage: photos?.[0] || null,
+        mainImage: validation.value.photos?.[0] || null,
         user: {
           connect: {
             id: user.id,
