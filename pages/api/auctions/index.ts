@@ -300,7 +300,8 @@ async function handler(
           photos: { equals: normalizedPhotos },
           category: normalizedCategory,
           startPrice: normalizedStartPrice,
-          endAt: endDate,
+          // 종료 시각은 비교하지 않는다. 등록 화면의 기간 프리셋은 "지금+N시간"이라
+          // 같은 경매를 다시 보내면 종료 시각만 달라진다(#140).
           sellerPhone: normalizedSellerPhone,
           sellerEmail: normalizedSellerEmail,
           sellerBlogUrl: normalizedSellerBlogUrl,

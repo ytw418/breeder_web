@@ -3,6 +3,7 @@ import withHandler, { ResponseType } from "@libs/server/withHandler";
 import client from "@libs/server/client";
 import { withAuth } from "@libs/server/auth";
 import { Product, User } from "@prisma/client";
+import { validateProductInput } from "@libs/productRules";
 
 export interface ProductWithUser extends Product {
   user: User;
@@ -183,17 +184,35 @@ async function handler(
         });
         return res.json({ success: true });
 
-      case "update":
+      case "update": {
+        if (!data || typeof data !== "object") {
+          return res.status(400).json({
+            success: false,
+            message: "수정할 내용이 없습니다.",
+            errorCode: "PRODUCT_UPDATE_EMPTY",
+          });
+        }
+        // 등록과 같은 규칙. 보내지 않은 필드는 기존 값을 유지한다.
+        const validation = validateProductInput(data, { partial: true });
+        if (!validation.ok) {
+          return res.status(400).json({
+            success: false,
+            error: validation.message,
+            message: validation.message,
+            errorCode: validation.errorCode,
+          });
+        }
         const updatedProduct = await client.product.update({
           where: { id: Number(productId) },
           data: {
-            name: data.name,
-            price: data.price,
-            description: data.description,
+            name: validation.value.name,
+            price: validation.value.price,
+            description: validation.value.description,
             photos: data.photos,
           },
         });
         return res.json({ success: true, product: updatedProduct });
+      }
 
       // 상태 변경 (판매중/예약중)
       case "status_change": {

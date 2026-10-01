@@ -5,6 +5,7 @@ import client from "@libs/server/client";
 import { withAuth } from "@libs/server/auth";
 import { notifyFollowers } from "@libs/server/notification";
 import { fetchProductsResponse } from "@libs/server/home";
+import { validateProductInput } from "@libs/productRules";
 
 const handler = async (
   req: NextApiRequest,
@@ -20,11 +21,21 @@ const handler = async (
       return res.status(401).json({ success: false, error: "Unauthorized" });
     }
 
+    const validation = validateProductInput({ name, price, description });
+    if (!validation.ok) {
+      return res.status(400).json({
+        success: false,
+        error: validation.message,
+        message: validation.message,
+        errorCode: validation.errorCode,
+      });
+    }
+
     const product = await client.product.create({
       data: {
-        name,
-        price: +price,
-        description,
+        name: validation.value.name!,
+        price: validation.value.price!,
+        description: validation.value.description!,
         photos: photos || [],
         category: category || null,
         productType: productType || null,
@@ -47,7 +58,7 @@ const handler = async (
       notifyFollowers({
         senderId: user.id,
         type: "NEW_PRODUCT",
-        message: `${seller.name}님이 새 상품을 등록했습니다: ${name}`,
+        message: `${seller.name}님이 새 상품을 등록했습니다: ${product.name}`,
         targetId: product.id,
         targetType: "product",
       });

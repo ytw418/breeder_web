@@ -194,7 +194,7 @@ async function handler(
         });
       }
 
-      if (!title || !description || !startPrice || !endAt) {
+      if (!title || !description || !startPrice) {
         return res.status(400).json({
           success: false,
           error: "필수 항목을 모두 입력해주세요.",
@@ -211,7 +211,10 @@ async function handler(
         });
       }
 
-      const endDate = new Date(endAt);
+      // endAt 을 생략하거나 기존 값과 같은 시각(밀리초 timestamp 비교)을 보내면
+      // 종료 시각을 바꾸지 않는 수정으로 보고 기간 검사를 건너뛴다(#140).
+      const isEndAtOmitted = endAt === undefined || endAt === null || endAt === "";
+      const endDate = isEndAtOmitted ? new Date(auction.endAt) : new Date(endAt);
       if (Number.isNaN(endDate.getTime())) {
         return res.status(400).json({
           success: false,
@@ -219,7 +222,9 @@ async function handler(
           errorCode: "AUCTION_INVALID_END_AT",
         });
       }
-      if (!isAuctionDurationValid(endDate)) {
+      const isEndAtUnchanged =
+        endDate.getTime() === new Date(auction.endAt).getTime();
+      if (!isEndAtUnchanged && !isAuctionDurationValid(endDate)) {
         return res.status(400).json({
           success: false,
           error: "경매 기간은 수정 시점 기준 1시간~72시간 사이여야 합니다.",
