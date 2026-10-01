@@ -10,7 +10,10 @@ import type { BreederProgramSummary } from "@libs/shared/breeder-program";
 import { withAuth } from "@libs/server/auth";
 import { User } from "@prisma/client";
 
-type UserWithCounts = User & {
+type UserWithCounts = Omit<User, "tokenVersion" | "suspendedUntil" | "snsId" | "phone"> & {
+  /** 본인 조회일 때만 내려준다(로그인 식별자·연락처). */
+  snsId?: string;
+  phone?: string | null;
   _count: {
     followers: number;
     following: number;
@@ -81,6 +84,8 @@ async function handler(
 
   const user = await client.user.findUnique({
     where: { id: userId },
+    // 토큰 무효화·정지 만료 같은 서버 내부 필드는 내려주지 않는다.
+    omit: { tokenVersion: true, suspendedUntil: true },
     include: {
       _count: {
         select: {
@@ -137,10 +142,12 @@ async function handler(
     },
   };
 
+  // 다른 사람에게는 로그인 식별자(snsId)·연락처(phone)·이메일 원문을 내려주지 않는다.
+  const { snsId: _snsId, phone: _phone, ...publicUser } = userWithCounts;
   const safeUser: UserWithCounts =
     myId === userId
       ? { ...userWithCounts, maskedEmail: maskEmail(user.email) }
-      : { ...userWithCounts, email: null, maskedEmail: maskEmail(user.email) };
+      : { ...publicUser, email: null, maskedEmail: maskEmail(user.email) };
 
   const [badges, breederPrograms] = await Promise.all([
     client.userBadge.findMany({

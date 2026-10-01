@@ -3,6 +3,7 @@ import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import AuctionDetailClient from "./AuctionDetailClient";
 import client from "@libs/server/client";
+import { displayUserName } from "@libs/shared/deletedUser";
 import Script from "next/script";
 import {
   extractAuctionIdFromPath,
@@ -191,7 +192,7 @@ const generateAuctionJsonLd = (auction: Awaited<ReturnType<typeof getAuctionForS
     },
     seller: {
       "@type": "Person",
-      name: auction.user?.name || "브리디 사용자",
+      name: displayUserName(auction.user?.name) || "브리디 사용자",
     },
   };
 };

@@ -20,6 +20,8 @@ import {
 export { DELETED_USER_PREFIX, buildDeletedUserName, isDeletedUserName };
 
 export const ACCOUNT_DELETION_RETENTION_DAYS = 30;
+/** 탈퇴 처리된 User.snsId 접두사. 원문 대신 해시를 둔다. */
+const ANONYMIZED_SNS_ID_PREFIX = "deleted:";
 const DAY_MS = 24 * 60 * 60 * 1000;
 
 type Db = typeof client | Prisma.TransactionClient;
@@ -149,7 +151,8 @@ export async function deleteAccount(
   return client.$transaction(async (tx) => {
     const user = await tx.user.findUnique({ where: { id: userId } });
     if (!user) return { ok: false, code: "USER_NOT_FOUND" } as const;
-    if (user.status === "DELETED") {
+    // 예전 관리자 상태 변경은 status 만 DELETED 로 바꿔 개인정보가 남아 있다. snsId 가 해시로 바뀐 행만 탈퇴 완료로 본다.
+    if (user.status === "DELETED" && user.snsId.startsWith(ANONYMIZED_SNS_ID_PREFIX)) {
       return { ok: false, code: "ACCOUNT_ALREADY_DELETED" } as const;
     }
 
@@ -179,6 +182,7 @@ export async function deleteAccount(
     });
 
     // unique 컬럼(snsId/email/phone/name)은 즉시 비워 같은 이메일·전화의 다른 계정 가입을 막지 않는다.
+    // tokenVersion 을 올려 모든 기기의 access/refresh 토큰을 즉시 무효화한다.
     await tx.user.update({
       where: { id: userId },
       data: {
@@ -188,7 +192,9 @@ export async function deleteAccount(
         email: null,
         phone: null,
         avatar: null,
-        snsId: `deleted:${snsIdHash}`,
+        snsId: `${ANONYMIZED_SNS_ID_PREFIX}${snsIdHash}`,
+        tokenVersion: { increment: 1 },
+        suspendedUntil: null,
       },
     });
 
@@ -201,6 +207,12 @@ export async function deleteAccount(
     await tx.alertSubscription.deleteMany({ where: { userId } });
     await tx.bloodlineFollow.deleteMany({ where: { userId } });
     await tx.notification.deleteMany({ where: { userId } });
+    // 보낸 알림 문구("<닉네임>님이 회원님을 팔로우했습니다." 등)에 박힌 원래 닉네임도 남기지 않는다.
+    if (user.name) {
+      await tx.notification.deleteMany({
+        where: { senderId: userId, message: { contains: user.name } },
+      });
+    }
 
     // 판매중 상품은 기록은 두고 목록에서만 내린다.
     await tx.product.updateMany({

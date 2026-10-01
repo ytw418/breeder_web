@@ -22,3 +22,11 @@ export const canUseTestAccountSwitcher = (
 export const shouldShowTestLoginForEnv = (rawEnv?: string | null) => {
   return !isProductionLikeEnv(rawEnv);
 };
+
+/** 실행 환경 이름(Vercel → 앱 지정 → NODE_ENV 순). 테스트 로그인 노출·API 허용 판단에 같이 쓴다. */
+export const getAppRuntimeEnv = () =>
+  process.env.NEXT_PUBLIC_VERCEL_ENV ||
+  process.env.VERCEL_ENV ||
+  process.env.NEXT_PUBLIC_APP_ENV ||
+  process.env.NODE_ENV ||
+  "development";

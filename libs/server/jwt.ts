@@ -1,4 +1,5 @@
 import { SignJWT, jwtVerify, type JWTPayload } from "jose";
+import type { User } from "@prisma/client";
 
 /**
  * Bearer 토큰(access/refresh) 서명·검증 유틸.
@@ -7,6 +8,8 @@ import { SignJWT, jwtVerify, type JWTPayload } from "jose";
  * - refresh : 긴 수명(기본 30일). access 만료 시 재발급에 사용.
  *
  * 사용자 선택에 따라 stateless JWT 방식이며 서버 DB에 토큰을 저장하지 않는다.
+ * 대신 두 토큰 모두 User.tokenVersion 을 tv 클레임으로 담고, 정지·차단·탈퇴 시
+ * tokenVersion 을 올려 모든 기기의 토큰을 한 번에 무효화한다(withAuth·refresh 에서 비교).
  */
 
 export type TokenType = "access" | "refresh";
@@ -27,11 +30,43 @@ export interface AuthUser {
 export interface AccessTokenPayload extends JWTPayload {
   type: "access";
   user: AuthUser;
+  /** 발급 시점의 User.tokenVersion. 없으면(구 토큰) 0 으로 본다. */
+  tv?: number;
 }
 
 export interface RefreshTokenPayload extends JWTPayload {
   type: "refresh";
   sub: string; // userId
+  /** 발급 시점의 User.tokenVersion. 없으면(구 토큰) 0 으로 본다. */
+  tv?: number;
+}
+
+/** prisma User 에서 토큰/응답에 담을 필드만 추린다(status·role·tokenVersion 등은 담지 않는다). */
+export function toAuthUser(
+  user: Pick<
+    User,
+    | "id"
+    | "snsId"
+    | "provider"
+    | "phone"
+    | "email"
+    | "name"
+    | "avatar"
+    | "createdAt"
+    | "updatedAt"
+  >
+): AuthUser {
+  return {
+    id: user.id,
+    snsId: user.snsId,
+    provider: user.provider,
+    phone: user.phone,
+    email: user.email,
+    name: user.name,
+    avatar: user.avatar,
+    createdAt: user.createdAt,
+    updatedAt: user.updatedAt,
+  };
 }
 
 function getSecret(type: TokenType): Uint8Array {
@@ -68,11 +103,15 @@ function getTtlSeconds(type: TokenType): number {
 export const ACCESS_TOKEN_TTL_SECONDS = getTtlSeconds("access");
 
 /**
- * access 토큰 발급. 유저 정보를 그대로 담아 라우트에서 추가 DB 조회 없이 사용한다.
+ * access 토큰 발급. 유저 정보를 담아 라우트에서 프로필 조회 없이 사용한다.
+ * tv(tokenVersion) 는 withAuth 가 DB 값과 비교해 정지·차단·탈퇴된 토큰을 막는 데 쓴다.
  */
-export async function signAccessToken(user: AuthUser): Promise<string> {
+export async function signAccessToken(
+  user: AuthUser,
+  tokenVersion: number
+): Promise<string> {
   const ttl = getTtlSeconds("access");
-  return new SignJWT({ type: "access", user })
+  return new SignJWT({ type: "access", user, tv: tokenVersion })
     .setProtectedHeader({ alg: "HS256" })
     .setSubject(String(user.id))
     .setIssuedAt()
@@ -80,10 +119,13 @@ export async function signAccessToken(user: AuthUser): Promise<string> {
     .sign(getSecret("access"));
 }
 
-/** refresh 토큰 발급. userId만 담는다. */
-export async function signRefreshToken(userId: number): Promise<string> {
+/** refresh 토큰 발급. userId 와 tv(tokenVersion) 만 담는다. */
+export async function signRefreshToken(
+  userId: number,
+  tokenVersion: number
+): Promise<string> {
   const ttl = getTtlSeconds("refresh");
-  return new SignJWT({ type: "refresh" })
+  return new SignJWT({ type: "refresh", tv: tokenVersion })
     .setProtectedHeader({ alg: "HS256" })
     .setSubject(String(userId))
     .setIssuedAt()
@@ -91,15 +133,18 @@ export async function signRefreshToken(userId: number): Promise<string> {
     .sign(getSecret("refresh"));
 }
 
-/** access/refresh 토큰을 한 번에 발급 */
-export async function issueTokens(user: AuthUser): Promise<{
+/** access/refresh 토큰을 한 번에 발급. tokenVersion 은 발급 시점의 User.tokenVersion. */
+export async function issueTokens(
+  user: AuthUser,
+  tokenVersion: number
+): Promise<{
   accessToken: string;
   refreshToken: string;
   expiresIn: number;
 }> {
   const [accessToken, refreshToken] = await Promise.all([
-    signAccessToken(user),
-    signRefreshToken(user.id),
+    signAccessToken(user, tokenVersion),
+    signRefreshToken(user.id, tokenVersion),
   ]);
   return { accessToken, refreshToken, expiresIn: getTtlSeconds("access") };
 }

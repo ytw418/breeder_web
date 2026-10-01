@@ -1,5 +1,6 @@
 import type { Report, ReportAction, ReportTargetType } from "@prisma/client";
 import client from "@libs/server/client";
+import { setUserStatus } from "@libs/server/accountStatus";
 import { toPostPath } from "@libs/post-route";
 import { getProductPath } from "@libs/product-route";
 import { displayUserName } from "@libs/shared/deletedUser";
@@ -285,9 +286,7 @@ export async function applyReportAction(
     await removeReportedContent(report.targetType, report.targetId);
   }
   if (action === "BAN_USER" || action === "REMOVE_CONTENT_AND_BAN") {
-    await client.user.update({
-      where: { id: report.reportedUserId },
-      data: { status: "BANNED" },
-    });
+    // tokenVersion 을 올려 피신고자의 모든 토큰을 즉시 끊는다.
+    await setUserStatus(client, report.reportedUserId, "BANNED");
   }
 }

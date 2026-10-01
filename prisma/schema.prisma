@@ -89,6 +89,10 @@ model User {
   avatar          String?
   /// 탈퇴 시각. status=DELETED 와 함께 설정한다.
   deletedAt       DateTime?
+  /// 정지·차단·탈퇴 시 +1. access/refresh 의 tv 클레임과 비교
+  tokenVersion    Int         @default(0)
+  /// SUSPENDED_* 만료 시각. 로그인 시 지났으면 ACTIVE 로 복귀
+  suspendedUntil  DateTime?
   createdAt       DateTime    @default(now())
   updatedAt       DateTime    @updatedAt
   products        Product[]

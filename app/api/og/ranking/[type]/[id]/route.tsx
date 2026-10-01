@@ -1,5 +1,6 @@
 import { ImageResponse } from "next/og";
 import client from "@libs/server/client";
+import { displayUserName } from "@libs/shared/deletedUser";
 
 export const runtime = "nodejs";
 
@@ -11,7 +12,8 @@ const loadPayload = async (type: string, id: number) => {
     });
     return {
       eyebrow: "Weekly Top Breeder",
-      title: user?.name || "브리더",
+      // 탈퇴한 브리더는 "탈퇴한 사용자#<id>" 대신 표시용 라벨로 그린다.
+      title: displayUserName(user?.name) || "브리더",
       subtitle: "실력은 기록되고, 신뢰는 거래로 증명됩니다.",
     };
   }

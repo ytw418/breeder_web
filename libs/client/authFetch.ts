@@ -27,7 +27,11 @@ async function runRefresh(): Promise<string | null> {
     });
 
     if (!res.ok) {
-      clearTokens();
+      // refresh 토큰이 거절된 경우(만료·정지·차단·탈퇴)만 로그아웃한다.
+      // DB 일시 장애 등 5xx 는 토큰을 남겨 다음 요청에서 다시 시도한다.
+      if (res.status === 401 || res.status === 403) {
+        clearTokens();
+      }
       return null;
     }
 

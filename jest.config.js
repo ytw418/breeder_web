@@ -65,9 +65,9 @@ module.exports = {
     ],
   ],
 
-  // node_modules 변환 제외 패턴
+  // node_modules 변환 제외 패턴 (jose 는 ESM 전용이라 변환 대상에 넣는다)
   transformIgnorePatterns: [
-    "/node_modules/(?!(@babel|@testing-library|@emotion|@mui|@prisma|@svgr)/)",
+    "/node_modules/(?!(@babel|@testing-library|@emotion|@mui|@prisma|@svgr|jose)/)",
   ],
 
   // 로컬 worktree 복제본은 테스트 스캔에서 제외

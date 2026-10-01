@@ -4,9 +4,16 @@ import withHandler, { ResponseType } from "@libs/server/withHandler";
 import client from "@libs/server/client";
 import { createUserWithAutomaticBreederPrograms } from "@libs/server/breeder-programs";
 import { withAuth } from "@libs/server/auth";
-import { issueTokens, AuthUser } from "@libs/server/jwt";
+import { issueTokens, toAuthUser, AuthUser } from "@libs/server/jwt";
 import { UniqueName } from "@libs/server/UniqueName";
 import { findPendingDeletion } from "@libs/server/accountDeletion";
+import {
+  formatKstDate,
+  getLoginBlock,
+  liftExpiredSuspension,
+  type LoginBlock,
+} from "@libs/server/accountStatus";
+import type { User } from "@prisma/client";
 
 export interface LoginReqBody {
   snsId: string;
@@ -28,29 +35,16 @@ export interface LoginResponseType {
   expiresIn: number;
 }
 
-/** prisma User 에서 토큰/응답에 담을 필드만 추린다. */
-function toAuthUser(user: {
-  id: number;
-  snsId: string;
-  provider: string;
-  phone: string | null;
-  email: string | null;
-  name: string;
-  avatar: string | null;
-  createdAt: Date;
-  updatedAt: Date;
-}): AuthUser {
-  return {
-    id: user.id,
-    snsId: user.snsId,
-    provider: user.provider,
-    phone: user.phone,
-    email: user.email,
-    name: user.name,
-    avatar: user.avatar,
-    createdAt: user.createdAt,
-    updatedAt: user.updatedAt,
-  };
+/**
+ * 정지 해제가 경합으로 실패한 뒤 다시 읽은 계정의 차단 응답. ACTIVE 면 null.
+ * 그 사이 계정이 없어졌거나 다시 만료 상태로 읽히면 토큰을 내주지 않도록 보수적으로 막는다.
+ */
+function blockAfterLiftRace(fresh: User | null): LoginBlock | null {
+  const block = getLoginBlock(fresh ?? { status: "DELETED", suspendedUntil: null });
+  if (block && "lift" in block) {
+    return getLoginBlock({ status: fresh!.status, suspendedUntil: null }) as LoginBlock;
+  }
+  return block;
 }
 
 async function handler(
@@ -92,16 +86,13 @@ async function handler(
       // 탈퇴 후 보관 기간(30일) 중인 소셜 계정은 재가입을 막는다.
       const pending = await findPendingDeletion(snsId);
       if (pending) {
-        const KST_OFFSET_MS = 9 * 60 * 60 * 1000;
-        const until = new Date(pending.purgeAt.getTime() + KST_OFFSET_MS)
-          .toISOString()
-          .slice(0, 10)
-          .replace(/-/g, ".");
+        const message = `탈퇴 처리 중인 계정입니다. ${formatKstDate(pending.purgeAt)} 이후 다시 가입할 수 있어요.`;
         return res.status(403).json({
           success: false,
           errorCode: "ACCOUNT_PENDING_DELETION",
           purgeAt: pending.purgeAt.toISOString(),
-          message: `탈퇴 처리 중인 계정입니다. ${until} 이후 다시 가입할 수 있어요.`,
+          error: message,
+          message,
         });
       }
 
@@ -115,6 +106,26 @@ async function handler(
         avatar: normalizedAvatar,
       });
     } else {
+      // 정지·차단·탈퇴 계정은 토큰을 발급하지 않는다. 기간 정지가 끝났으면 여기서 해제한다.
+      const loginBlock = getLoginBlock(user);
+      let block: LoginBlock | null = null;
+      if (loginBlock && "lift" in loginBlock) {
+        if (await liftExpiredSuspension(client, user)) {
+          user = { ...user, status: "ACTIVE", suspendedUntil: null };
+        } else {
+          // 읽은 뒤 상태가 바뀌었다(차단·탈퇴·재정지, 또는 다른 요청이 먼저 해제). 다시 읽어 판정한다.
+          const fresh = await client.user.findUnique({ where: { id: user.id } });
+          block = blockAfterLiftRace(fresh);
+          if (fresh && !block) user = fresh;
+        }
+      } else {
+        block = loginBlock;
+      }
+      if (block) {
+        const { status, ...body } = block;
+        return res.status(status).json({ success: false, ...body });
+      }
+
       const updateData: {
         email?: string | null;
         avatar?: string | null;
@@ -142,7 +153,8 @@ async function handler(
 
     const authUser = toAuthUser(user);
     const { accessToken, refreshToken, expiresIn } = await issueTokens(
-      authUser
+      authUser,
+      user.tokenVersion
     );
 
     res.status(200).json({

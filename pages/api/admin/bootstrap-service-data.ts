@@ -4,6 +4,7 @@ import withHandler, { ResponseType } from "@libs/server/withHandler";
 import { withAuth } from "@libs/server/auth";
 import client from "@libs/server/client";
 import { canRunSensitiveAdminAction, hasAdminAccess } from "@libs/server/adminAccess";
+import { setUserStatus } from "@libs/server/accountStatus";
 import seedPayload from "data/service-initial-data.json";
 
 type TxClient = Prisma.TransactionClient;
@@ -150,6 +151,20 @@ const getBidIncrement = (price: number) => {
 
 const emptyCount = (): CountStat => ({ created: 0, updated: 0, skipped: 0 });
 
+/**
+ * 시드의 계정 상태를 반영한다. 정지·차단은 setUserStatus 로 기록해 정지 만료 시각과
+ * tokenVersion(기존 토큰 무효화)을 관리자 변경과 똑같이 맞춘다.
+ */
+async function applySeedStatus(
+  tx: TxClient,
+  userId: number,
+  currentStatus: UserStatus,
+  seedStatus?: UserStatus
+) {
+  if (!seedStatus || seedStatus === "DELETED" || seedStatus === currentStatus) return;
+  await setUserStatus(tx, userId, seedStatus);
+}
+
 async function getUniqueUserName(tx: TxClient, preferredName: string, seedKey: string) {
   let candidate = preferredName.trim() || `user_${seedKey}`;
   let attempt = 0;
@@ -200,6 +215,15 @@ async function handler(req: NextApiRequest, res: NextApiResponse<ResponseType>) 
     });
   }
 
+  // 탈퇴(DELETED)는 개인정보 분리 보관이 필요해 탈퇴 처리로만 만든다. 시드로는 만들지 않는다.
+  const deletedSeed = seedData.users.find((seedUser) => seedUser.status === "DELETED");
+  if (deletedSeed) {
+    return res.status(400).json({
+      success: false,
+      error: `시드 데이터로 탈퇴(DELETED) 상태를 만들 수 없습니다. (${deletedSeed.seedKey})`,
+    });
+  }
+
   const result: SeedResult = {
     users: emptyCount(),
     follows: emptyCount(),
@@ -230,10 +254,10 @@ async function handler(req: NextApiRequest, res: NextApiResponse<ResponseType>) 
               provider: seedUser.provider || existingUser.provider || "seed",
               avatar: seedUser.avatar || existingUser.avatar,
               role: seedUser.role || existingUser.role,
-              status: seedUser.status || existingUser.status,
             },
             select: { id: true },
           });
+          await applySeedStatus(tx, updatedUser.id, existingUser.status, seedUser.status);
           userMap.set(seedUser.seedKey, updatedUser);
           result.users.updated += 1;
           continue;
@@ -252,10 +276,11 @@ async function handler(req: NextApiRequest, res: NextApiResponse<ResponseType>) 
             phone: safePhone,
             avatar: seedUser.avatar || null,
             role: seedUser.role || "USER",
-            status: seedUser.status || "ACTIVE",
+            status: "ACTIVE",
           },
           select: { id: true },
         });
+        await applySeedStatus(tx, createdUser.id, "ACTIVE", seedUser.status);
         userMap.set(seedUser.seedKey, createdUser);
         result.users.created += 1;
       }

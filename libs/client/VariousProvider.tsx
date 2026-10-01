@@ -13,6 +13,7 @@ import {
 import { SWRConfig } from "swr";
 import { capturePosthogError, capturePosthogEvent } from "@libs/client/posthog";
 import { authFetch } from "@libs/client/authFetch";
+import { normalizeDeletedUserNames } from "@libs/shared/deletedUser";
 
 export interface VariousContextValues {
   hasInput: boolean;
@@ -88,7 +89,8 @@ export const VariousProvider = ({
               });
               throw swrError;
             }
-            return res.json();
+            // 탈퇴 유저 이름("탈퇴한 사용자#<id>")을 표시용 라벨로 바꾼다.
+            return res.json().then(normalizeDeletedUserNames);
           }),
         onErrorRetry: (error, _key, _config, revalidate, context) => {
           const status = (error as Error & { status?: number }).status;

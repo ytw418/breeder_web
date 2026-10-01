@@ -9,6 +9,7 @@ import {
   UserStatus,
 } from "@prisma/client";
 import { createNotification } from "@libs/server/notification";
+import { setUserStatus } from "@libs/server/accountStatus";
 
 const REPORT_STATUS = new Set<AuctionReportStatus>(["OPEN", "RESOLVED", "REJECTED"]);
 const REPORT_ACTION = new Set<AuctionReportAction>([
@@ -208,10 +209,8 @@ async function handler(
       parsedAction === "STOP_AUCTION" || parsedAction === "STOP_AUCTION_AND_BAN";
 
     if (shouldBanUser) {
-      await client.user.update({
-        where: { id: target.reportedUserId },
-        data: { status: "BANNED" },
-      });
+      // tokenVersion 을 올려 피신고자의 모든 토큰을 즉시 끊는다.
+      await setUserStatus(client, target.reportedUserId, "BANNED");
     }
 
     if (shouldStopAuction) {

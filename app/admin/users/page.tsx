@@ -71,11 +71,14 @@ export default function AdminUsersPage() {
   };
 
   const handleStatusChange = async (userId: number, status: string) => {
+    const isDeletion = status === "DELETED";
     const confirmed = await confirm({
       title: "계정 상태를 변경할까요?",
-      description: "상태 변경은 즉시 반영됩니다.",
+      description: isDeletion
+        ? "탈퇴 처리와 동일하게 개인정보를 분리 보관하며 되돌릴 수 없어요."
+        : "상태 변경은 즉시 반영됩니다.",
       confirmText: "변경",
-      tone: status === "BANNED" ? "danger" : "default",
+      tone: status === "BANNED" || isDeletion ? "danger" : "default",
     });
     if (!confirmed) return;
 
@@ -147,10 +150,11 @@ export default function AdminUsersPage() {
                   <td className="px-6 py-4 text-sm">
                     <select
                       value={user.status}
+                      disabled={user.status === "DELETED"}
                       onChange={(event) =>
                         handleStatusChange(user.id, event.target.value)
                       }
-                      className="rounded-md border border-gray-300 px-2 py-1 text-sm"
+                      className="rounded-md border border-gray-300 px-2 py-1 text-sm disabled:cursor-not-allowed disabled:bg-gray-100 disabled:text-gray-400"
                     >
                       {STATUS_OPTIONS.map((status) => (
                         <option key={status} value={status}>

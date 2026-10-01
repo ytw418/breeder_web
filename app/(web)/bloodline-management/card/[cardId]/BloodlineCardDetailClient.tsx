@@ -1,6 +1,7 @@
 "use client";
 
 import { authFetch } from "@libs/client/authFetch";
+import { fetchBloodlineCardEvents } from "@libs/client/bloodlineCardEvents";
 import { FormEvent, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { usePathname, useSearchParams, useRouter } from "next/navigation";
@@ -145,12 +146,9 @@ export default function BloodlineCardDetailClient({
     const load = async () => {
       setEventsLoading(true);
       try {
-        const response = await fetch(
-          `/api/bloodline-cards/${cardId}/events?limit=12`,
-        );
-        const payload = (await response.json()) as BloodlineCardEventsResponse;
+        const loaded = await fetchBloodlineCardEvents(cardId, 12);
         if (!active) return;
-        setEvents(payload.success ? payload.events : []);
+        setEvents(loaded);
       } finally {
         if (active) setEventsLoading(false);
       }

@@ -10,7 +10,7 @@ const mockClient = {
   post: { findMany: jest.fn(), delete: jest.fn() },
   comment: { findMany: jest.fn(), delete: jest.fn() },
   product: { findMany: jest.fn(), update: jest.fn() },
-  user: { findMany: jest.fn(), update: jest.fn() },
+  user: { findMany: jest.fn(), update: jest.fn(), updateMany: jest.fn() },
   chatRoom: { findMany: jest.fn() },
   message: { findMany: jest.fn() },
 };
@@ -110,6 +110,7 @@ beforeEach(() => {
   mockClient.product.update.mockResolvedValue({ id: 40 });
   mockClient.user.findMany.mockResolvedValue([{ id: 9, name: "피신고자", status: "ACTIVE" }]);
   mockClient.user.update.mockResolvedValue({ id: 9 });
+  mockClient.user.updateMany.mockResolvedValue({ count: 1 });
   mockClient.chatRoom.findMany.mockResolvedValue([{ id: 55 }]);
   mockClient.message.findMany.mockResolvedValue([]);
 });
@@ -125,7 +126,7 @@ describe("/api/admin/reports 권한", () => {
     expect(res.statusCode).toBe(403);
     expect(res.body.success).toBe(false);
     expect(mockClient.report.findMany).not.toHaveBeenCalled();
-    expect(mockClient.user.update).not.toHaveBeenCalled();
+    expect(mockClient.user.updateMany).not.toHaveBeenCalled();
   });
 });
 
@@ -296,7 +297,7 @@ describe("POST /api/admin/reports 처리", () => {
     openReport("POST", 30);
     const res = await decide({ reportId: 5, decision: "REJECTED", action: "BAN_USER" });
     expect(res.statusCode).toBe(400);
-    expect(mockClient.user.update).not.toHaveBeenCalled();
+    expect(mockClient.user.updateMany).not.toHaveBeenCalled();
     expect(mockClient.report.update).not.toHaveBeenCalled();
   });
 
@@ -309,7 +310,7 @@ describe("POST /api/admin/reports 처리", () => {
     openReport(targetType, 55);
     const res = await decide({ reportId: 5, decision: "RESOLVED", action });
     expect(res.statusCode).toBe(400);
-    expect(mockClient.user.update).not.toHaveBeenCalled();
+    expect(mockClient.user.updateMany).not.toHaveBeenCalled();
     expect(mockClient.report.update).not.toHaveBeenCalled();
   });
 
@@ -342,7 +343,7 @@ describe("POST /api/admin/reports 처리", () => {
     });
     expect(res.statusCode).toBe(200);
     expect(mockClient.post.delete).toHaveBeenCalledWith({ where: { id: 30 } });
-    expect(mockClient.user.update).not.toHaveBeenCalled();
+    expect(mockClient.user.updateMany).not.toHaveBeenCalled();
     const update = mockClient.report.update.mock.calls[0][0];
     expect(update.where).toEqual({ id: 5 });
     expect(update.data).toEqual({
@@ -376,13 +377,13 @@ describe("POST /api/admin/reports 처리", () => {
     });
   });
 
-  it("유저 영구정지 → user.update BANNED", async () => {
+  it("유저 영구정지 → setUserStatus 로 BANNED + tokenVersion 증가", async () => {
     openReport("CHAT_ROOM", 55);
     const res = await decide({ reportId: 5, decision: "RESOLVED", action: "BAN_USER" });
     expect(res.statusCode).toBe(200);
-    expect(mockClient.user.update).toHaveBeenCalledWith({
-      where: { id: 9 },
-      data: { status: "BANNED" },
+    expect(mockClient.user.updateMany).toHaveBeenCalledWith({
+      where: { id: 9, status: { not: "DELETED" } },
+      data: { status: "BANNED", suspendedUntil: null, tokenVersion: { increment: 1 } },
     });
     expect(mockClient.post.delete).not.toHaveBeenCalled();
   });
@@ -396,9 +397,9 @@ describe("POST /api/admin/reports 처리", () => {
     });
     expect(res.statusCode).toBe(200);
     expect(mockClient.post.delete).toHaveBeenCalledWith({ where: { id: 30 } });
-    expect(mockClient.user.update).toHaveBeenCalledWith({
-      where: { id: 9 },
-      data: { status: "BANNED" },
+    expect(mockClient.user.updateMany).toHaveBeenCalledWith({
+      where: { id: 9, status: { not: "DELETED" } },
+      data: { status: "BANNED", suspendedUntil: null, tokenVersion: { increment: 1 } },
     });
   });
 
@@ -414,7 +415,7 @@ describe("POST /api/admin/reports 처리", () => {
     openReport("USER", 9);
     const res = await decide({ reportId: 5, decision: "RESOLVED" });
     expect(res.statusCode).toBe(200);
-    expect(mockClient.user.update).not.toHaveBeenCalled();
+    expect(mockClient.user.updateMany).not.toHaveBeenCalled();
     expect(mockClient.report.update.mock.calls[0][0].data).toEqual(
       expect.objectContaining({ status: "RESOLVED", resolutionAction: "NONE", resolutionNote: null })
     );

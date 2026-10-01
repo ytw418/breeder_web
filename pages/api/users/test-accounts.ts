@@ -2,9 +2,15 @@ import { NextApiRequest, NextApiResponse } from "next";
 import { randomUUID } from "crypto";
 import withHandler from "@libs/server/withHandler";
 import { withAuth } from "@libs/server/auth";
-import { issueTokens } from "@libs/server/jwt";
+import { issueTokens, toAuthUser } from "@libs/server/jwt";
 import client from "@libs/server/client";
+import { hasAdminAccess } from "@libs/server/adminAccess";
 import { role as UserRole, UserStatus } from "@prisma/client";
+import {
+  getAppRuntimeEnv,
+  isProductionLikeEnv,
+  isTestAccountUser,
+} from "@libs/shared/test-accounts";
 
 const TEST_USER_ROLE: UserRole = "FAKE_USER";
 
@@ -53,10 +59,36 @@ const isSwitchableTestUser = (targetUser?: {
   );
 };
 
+const FORBIDDEN_MESSAGE =
+  "테스트 계정 기능은 관리자 또는 테스트 계정으로 로그인해야 사용할 수 있어요.";
+
+/**
+ * 토큰을 발급하는 경로라 운영 환경에서는 관리자·테스트 계정만 쓸 수 있다
+ * (마이페이지 전환 목록과 같은 기준). 개발·프리뷰는 로그인 화면 테스트 로그인을 위해 열어 둔다.
+ */
+async function canUseTestAccounts(viewerId?: number): Promise<boolean> {
+  if (!isProductionLikeEnv(getAppRuntimeEnv())) return true;
+  if (!viewerId) return false;
+
+  const viewer = await client.user.findUnique({
+    where: { id: viewerId },
+    select: { role: true, provider: true },
+  });
+  if (isTestAccountUser(viewer)) return true;
+  return hasAdminAccess(viewerId);
+}
+
 async function handler(
   req: NextApiRequest,
   res: NextApiResponse<TestAccountsResponse | TestAccountSwitchResponse | TestAccountCreateResponse>
 ) {
+  if (!(await canUseTestAccounts(req.user?.id))) {
+    return res.status(403).json({
+      success: false,
+      error: FORBIDDEN_MESSAGE,
+    } satisfies TestAccountSwitchResponse);
+  }
+
   if (req.method === "GET") {
     const users = await client.user.findMany({
       where: {
@@ -159,6 +191,7 @@ async function handler(
         createdAt: true,
         updatedAt: true,
         status: true,
+        tokenVersion: true,
       },
     });
 
@@ -178,17 +211,10 @@ async function handler(
 
     const switchableUser = targetUser;
 
-    const { accessToken, refreshToken, expiresIn } = await issueTokens({
-      id: switchableUser.id,
-      snsId: switchableUser.snsId,
-      provider: switchableUser.provider,
-      phone: switchableUser.phone,
-      email: switchableUser.email,
-      name: switchableUser.name,
-      avatar: switchableUser.avatar,
-      createdAt: switchableUser.createdAt,
-      updatedAt: switchableUser.updatedAt,
-    });
+    const { accessToken, refreshToken, expiresIn } = await issueTokens(
+      toAuthUser(switchableUser),
+      switchableUser.tokenVersion
+    );
 
     return res.json({
       success: true,

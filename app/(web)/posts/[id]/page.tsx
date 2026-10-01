@@ -3,6 +3,10 @@ import PostClient from "./PostClient";
 import { getPost } from "@libs/server/apis";
 import { extractPostIdFromPath, toPostPath } from "@libs/post-route";
 import { notFound } from "next/navigation";
+import {
+  displayUserName,
+  normalizeDeletedUserNames,
+} from "@libs/shared/deletedUser";
 import type { Metadata } from "next";
 
 const SITE_URL = "https://bredy.app";
@@ -59,7 +63,7 @@ export async function generateMetadata({
 
   const title = `${data.post.title} | 브리디 게시글`;
   const description = trimText(
-    `${data.post.description} ${data.post.user?.name ? `(작성자 ${data.post.user.name})` : ""}`,
+    `${data.post.description} ${data.post.user?.name ? `(작성자 ${displayUserName(data.post.user.name)})` : ""}`,
     140
   );
 
@@ -126,7 +130,7 @@ const page = async ({ params }: { params: Promise<{ id: string }> }) => {
 
   return (
     <div>
-      <PostClient {...data} />
+      <PostClient {...normalizeDeletedUserNames(data)} />
     </div>
   );
 };
