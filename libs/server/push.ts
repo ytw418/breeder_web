@@ -3,6 +3,7 @@ import {
   getPushSubscriptionsByUserIds,
   removePushSubscriptionByToken,
 } from "@libs/server/pushStore";
+import { buildFcmMessage } from "@libs/server/pushMessage";
 
 export interface PushMessagePayload {
   title: string;
@@ -173,24 +174,15 @@ const sendToSingleSubscription = async (
   const clickUrl = getAbsoluteClickUrl(payload.url);
 
   try {
-    // notification 필드 대신 data 중심으로 보내고, SW에서 통일 파싱한다.
-    await messaging.send({
-      token: subscription.token,
-      data: {
+    // 웹/Android 앱/iOS 앱마다 표시 방식이 달라 userAgent로 메시지 형태를 나눈다.
+    await messaging.send(
+      buildFcmMessage(subscription.token, subscription.userAgent, {
         title: payload.title,
         body: payload.body,
         url: clickUrl,
         tag: payload.tag || "default",
-      },
-      webpush: {
-        fcmOptions: {
-          link: clickUrl,
-        },
-        headers: {
-          Urgency: "high",
-        },
-      },
-    });
+      })
+    );
   } catch (error: any) {
     // 더 이상 유효하지 않은 토큰은 저장소에서 즉시 정리한다.
     if (isInvalidTokenError(error)) {

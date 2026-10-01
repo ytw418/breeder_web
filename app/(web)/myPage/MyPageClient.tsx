@@ -2,6 +2,10 @@
 
 import { authFetch } from "@libs/client/authFetch";
 import { setTokens } from "@libs/client/authToken";
+import {
+  canUseTestAccountSwitcher,
+  isTestAccountUser,
+} from "@libs/shared/test-accounts";
 import Image from "@components/atoms/Image";
 import { Spinner } from "@components/atoms/Spinner";
 import MyCommentList from "@components/features/profile/MyCommentList";
@@ -75,18 +79,6 @@ type TestAccountSwitchResponse = {
   accessToken?: string;
   refreshToken?: string;
   expiresIn?: number;
-};
-
-const isTestEnvAvailable = () => {
-  const rawEnv = String(
-    process.env.NEXT_PUBLIC_VERCEL_ENV ||
-      process.env.VERCEL_ENV ||
-      process.env.NEXT_PUBLIC_APP_ENV ||
-      process.env.APP_ENV ||
-      process.env.NODE_ENV ||
-      "development"
-  ).toLowerCase();
-  return rawEnv !== "production" && rawEnv !== "prod";
 };
 
 const GuinnessSubmissionList = ({
@@ -238,12 +230,12 @@ const MyPageClient = () => {
     );
   }, [bloodlineData, user?.id]);
 
-  const isTestEnv = isTestEnvAvailable();
-  const isTestUser = user?.role === "FAKE_USER" || user?.provider === "test_user";
+  const isTestUser = isTestAccountUser(user);
+  const canSwitchTestAccount = canUseTestAccountSwitcher(user, Boolean(isAdmin));
   const fakeUserListForSwitch = fakeUsers.filter((item) => item.id !== user?.id);
 
   useEffect(() => {
-    if (!isTestEnv || !isTestUser) return;
+    if (!canSwitchTestAccount) return;
 
     let mounted = true;
     setFakeUsersLoading(true);
@@ -284,7 +276,7 @@ const MyPageClient = () => {
     return () => {
       mounted = false;
     };
-  }, [isTestUser, isTestEnv]);
+  }, [canSwitchTestAccount]);
 
   const tabCountMap: Record<ActivityTab, number> = {
     posts: profileUser?._count?.posts ?? 0,
@@ -491,7 +483,7 @@ const MyPageClient = () => {
             로그아웃
           </Button>
         </div>
-        {isTestUser ? (
+        {canSwitchTestAccount ? (
           <div className="mt-4 rounded-lg border border-slate-200 bg-slate-50 p-3 dark:border-slate-700/80 dark:bg-slate-800/50">
             <p className="text-xs font-semibold text-slate-700">다른 FAKE_USER 전환</p>
             <p className="mt-1 text-[11px] text-slate-500">

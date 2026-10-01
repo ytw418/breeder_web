@@ -4,6 +4,10 @@ const TOOL_MODE_COOKIE = "bredy_tool_mode";
 
 export function proxy(req: NextRequest, ev: NextFetchEvent) {
   const { pathname, search } = req.nextUrl;
+  if (pathname === "/myPage/fake") {
+    return NextResponse.redirect(new URL("/fake", req.url));
+  }
+
   if (pathname.startsWith("/products/")) {
     console.info("[middleware][products]", {
       pathname,
