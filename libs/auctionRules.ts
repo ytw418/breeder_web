@@ -6,6 +6,8 @@ export const AUCTION_MIN_DURATION_MS = 1 * 60 * 60 * 1000; // 1시간
 export const AUCTION_MAX_DURATION_MS = 72 * 60 * 60 * 1000; // 72시간
 export const AUCTION_MAX_ACTIVE_PER_USER = 100;
 export const AUCTION_HIGH_PRICE_REQUIRE_CONTACT = 500_000;
+/** 낙찰 후 결제·배송 모델이 없어, 종료 후 이 기간을 거래 진행 중으로 본다(회원탈퇴 차단 등). */
+export const AUCTION_SETTLEMENT_GRACE_DAYS = 7;
 
 export const AUCTION_BID_INCREMENT_RULES = [
   { label: "1만원 미만", maxExclusive: 10_000, increment: 1_000 },

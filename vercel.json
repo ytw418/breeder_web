@@ -7,6 +7,10 @@
     {
       "path": "/api/internal/cron/weekly-season",
       "schedule": "5 0 * * *"
+    },
+    {
+      "path": "/api/internal/cron/purge-deleted-users",
+      "schedule": "15 0 * * *"
     }
   ]
 }

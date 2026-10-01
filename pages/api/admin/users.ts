@@ -6,6 +6,7 @@ import client from "@libs/server/client";
 import { role as UserRole, UserStatus } from "@prisma/client";
 import { canRunSensitiveAdminAction, hasAdminAccess } from "@libs/server/adminAccess";
 import { randomUUID } from "crypto";
+import { deleteAccount } from "@libs/server/accountDeletion";
 
 const ROLE_OPTIONS: UserRole[] = ["USER", "FAKE_USER", "ADMIN", "SUPER_USER"];
 const STATUS_OPTIONS: UserStatus[] = [
@@ -263,9 +264,16 @@ async function handler(req: NextApiRequest, res: NextApiResponse<ResponseType>) 
           .json({ success: false, error: "현재 로그인한 계정은 삭제할 수 없습니다." });
       }
 
-      await client.user.delete({
-        where: { id: Number(userId) },
+      // 하드 삭제는 콘텐츠를 연쇄 삭제하고 Product(Restrict) 때문에 실패하므로 탈퇴와 같은 소프트 삭제로 처리한다.
+      const result = await deleteAccount(Number(userId), {
+        reason: "관리자 삭제",
+        force: true,
       });
+      if (!result.ok && result.code !== "ACCOUNT_ALREADY_DELETED") {
+        return res
+          .status(404)
+          .json({ success: false, error: "사용자를 찾을 수 없습니다." });
+      }
 
       return res.json({ success: true });
     }
