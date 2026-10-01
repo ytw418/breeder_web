@@ -1,6 +1,7 @@
 import { unstable_cache } from "next/cache";
 
 import client from "@libs/server/client";
+import { excludedAuthorIds } from "@libs/server/blocks";
 import { getCategoryFilterValues } from "@libs/categoryTaxonomy";
 import { HomeBanner, ProductsResponse } from "@libs/shared/home";
 import { HomeFeedResponse } from "@libs/shared/ranking";
@@ -80,6 +81,11 @@ type ProductQueryOptions = {
   category?: string;
   productType?: string;
   status?: string;
+  /**
+   * 로그인한 viewer. 있으면 viewer 가 차단한 판매자의 상품을 뺀다.
+   * unstable_cache 경로(getCachedDefaultProducts)에는 넣지 않는다(공개 캐시).
+   */
+  viewerId?: number;
 };
 
 const getCachedHomeBanners = unstable_cache(
@@ -216,6 +222,7 @@ const buildProductsResponse = async ({
   category,
   productType,
   status,
+  viewerId,
 }: ProductQueryOptions = {}): Promise<ProductsResponse> => {
   const pageNumber = Number(page);
   const sizeNumber = Number(size);
@@ -226,7 +233,8 @@ const buildProductsResponse = async ({
       ? Math.min(sizeNumber, 50)
       : 10;
 
-  const where: Record<string, unknown> = {};
+  // 숨김(관리자 조치·탈퇴)·삭제 상품은 목록에 노출하지 않는다.
+  const where: Record<string, unknown> = { isHidden: false, isDeleted: false };
   if (category && category !== "전체") {
     where.category = { in: getCategoryFilterValues(String(category)) };
   }
@@ -235,6 +243,10 @@ const buildProductsResponse = async ({
   }
   if (status && status !== "전체") {
     where.status = status;
+  }
+  const excluded = await excludedAuthorIds(viewerId);
+  if (excluded.length) {
+    where.userId = { notIn: excluded };
   }
 
   const [products, productCount] = await Promise.all([
@@ -319,6 +331,7 @@ export async function getHomeFeed(options: HomeFeedOptions = {}) {
 
 export async function getProductsResponse(options: ProductQueryOptions = {}) {
   const isDefaultFirstPage =
+    !options.viewerId &&
     (!options.category || options.category === "전체") &&
     !options.productType &&
     !options.status &&

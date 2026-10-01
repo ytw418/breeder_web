@@ -3,6 +3,7 @@ import withHandler from "@libs/server/withHandler";
 import client from "@libs/server/client";
 import { withAuth } from "@libs/server/auth";
 import { getCategorySearchKeywords } from "@libs/categoryTaxonomy";
+import { excludedAuthorIds, setViewerCacheHeader } from "@libs/server/blocks";
 
 export interface SearchResponse {
   success: boolean;
@@ -67,11 +68,20 @@ async function handler(
     const keyword = (q as string).trim();
     const categoryKeywords = getCategorySearchKeywords(keyword);
 
+    // viewer 가 차단한 사람의 상품·게시글과 그 사람 자체를 결과에서 뺀다.
+    const viewerId = req.user?.id;
+    const excluded = await excludedAuthorIds(viewerId);
+    const authorFilter = excluded.length ? { userId: { notIn: excluded } } : {};
+    setViewerCacheHeader(res, viewerId);
+
     // 상품 검색
     const products =
       normalizedType === "all" || normalizedType === "products"
         ? await client.product.findMany({
             where: {
+              isHidden: false,
+              isDeleted: false,
+              ...authorFilter,
               OR: [
                 { name: { contains: keyword, mode: "insensitive" } },
                 { description: { contains: keyword, mode: "insensitive" } },
@@ -106,6 +116,7 @@ async function handler(
         ? await client.post.findMany({
             where: {
               category: { not: "공지" },
+              ...authorFilter,
               OR: [
                 { title: { contains: keyword, mode: "insensitive" } },
                 { description: { contains: keyword, mode: "insensitive" } },
@@ -138,6 +149,7 @@ async function handler(
         ? await client.user.findMany({
             where: {
               name: { contains: keyword, mode: "insensitive" },
+              ...(excluded.length ? { id: { notIn: excluded } } : {}),
             },
             select: {
               id: true,

@@ -4,6 +4,7 @@ import client from "@libs/server/client";
 import { withAuth } from "@libs/server/auth";
 import { Product, User } from "@prisma/client";
 import { validateProductInput } from "@libs/productRules";
+import { excludedAuthorIds } from "@libs/server/blocks";
 
 export interface ProductWithUser extends Product {
   user: User;
@@ -90,6 +91,17 @@ async function handler(
       name: product.name,
       status: product.status,
     });
+
+    // 숨김(관리자 조치·탈퇴)·삭제 상품은 소유자에게만 보인다.
+    // 웹 상세 페이지(SSR, libs/server/apis.ts getProduct)는 Authorization 없이 조회하므로
+    // 소유자 예외는 토큰을 보내는 클라이언트(앱, 웹 클라이언트 SWR)에만 적용된다.
+    if ((product.isHidden || product.isDeleted) && user?.id !== product.userId) {
+      return res.status(404).json({
+        success: false,
+        error: "삭제되었거나 숨겨진 상품입니다.",
+        errorCode: "PRODUCT_HIDDEN",
+      });
+    }
     const [isLikedResult, hasPurchasedResult] = await Promise.all([
       // 비로그인이면 조회하지 않는다. userId: undefined 는 Prisma 가 조건을 무시해
       // 다른 사람의 찜이 잡힌다(#139).
@@ -116,6 +128,8 @@ async function handler(
       },
     }));
 
+    // 연관 상품도 목록과 같이 숨김·삭제 상품과 viewer 가 차단한 판매자의 상품을 뺀다.
+    const excluded = await excludedAuthorIds(user?.id);
     const relatedProducts = await client.product.findMany({
       where: {
         OR: terms,
@@ -124,6 +138,9 @@ async function handler(
             not: product.id,
           },
         },
+        isHidden: false,
+        isDeleted: false,
+        ...(excluded.length ? { userId: { notIn: excluded } } : {}),
       },
       take: 20,
     });

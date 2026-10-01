@@ -4,6 +4,7 @@ import withHandler from "@libs/server/withHandler";
 import client from "@libs/server/client";
 import { MessageType } from "@prisma/client";
 import { sendAllPushToUsers } from "@libs/server/pushGateway";
+import { assertCanChat, CHAT_PARTNER_DELETED_MESSAGE } from "@libs/server/blocks";
 
 interface MessageRequest {
   type?: MessageType;
@@ -14,6 +15,7 @@ interface MessageRequest {
 export interface MessageResponse {
   success: boolean;
   error?: string;
+  errorCode?: string;
   message?: {
     id: number;
     type: MessageType;
@@ -74,6 +76,31 @@ async function handler(
         .json({ success: false, error: "채팅방을 찾을 수 없습니다." });
     }
 
+    // 1:1 채팅방의 상대 멤버. 푸시 수신자로도 쓴다.
+    const otherMembers = await client.chatRoomMember.findMany({
+      where: {
+        chatRoomId: +chatRoomId!,
+        userId: { not: user.id },
+      },
+      select: { userId: true },
+    });
+
+    // 차단(양방향)·탈퇴한 상대에게는 보내지 않는다. 저장·푸시 전에 막는다.
+    const partner = otherMembers[0];
+    if (!partner) {
+      return res.status(403).json({
+        success: false,
+        error: CHAT_PARTNER_DELETED_MESSAGE,
+        errorCode: "CHAT_PARTNER_DELETED",
+      });
+    }
+    const canChat = await assertCanChat(user.id, partner.userId);
+    if (!canChat.ok) {
+      return res
+        .status(canChat.status)
+        .json({ success: false, error: canChat.error, errorCode: canChat.errorCode });
+    }
+
     // 메시지 생성 + 채팅방 updatedAt 갱신을 트랜잭션으로 처리
     const [newMessage] = await client.$transaction([
       client.message.create({
@@ -101,15 +128,7 @@ async function handler(
       }),
     ]);
 
-    const otherMembers = await client.chatRoomMember.findMany({
-      where: {
-        chatRoomId: +chatRoomId!,
-        userId: { not: user.id },
-      },
-      select: { userId: true },
-    });
-
-    // 발신자를 제외한 채팅방 멤버에게만 알림을 보낸다.
+    // 발신자를 채팅방 멤버에게만 알림을 보낸다.
     const pushRecipientIds = otherMembers.map((member) => member.userId);
     const pushBody =
       newMessage.type === "IMAGE"

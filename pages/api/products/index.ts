@@ -6,6 +6,7 @@ import { withAuth } from "@libs/server/auth";
 import { notifyFollowers } from "@libs/server/notification";
 import { fetchProductsResponse } from "@libs/server/home";
 import { validateProductInput } from "@libs/productRules";
+import { setViewerCacheHeader } from "@libs/server/blocks";
 
 const handler = async (
   req: NextApiRequest,
@@ -83,6 +84,9 @@ const handler = async (
       'Cache-Control',
       `public, s-maxage=${cacheTime}, stale-while-revalidate=${cacheTime * 2}`
     );
+    // 로그인 viewer 는 차단한 판매자의 상품이 빠진 응답을 받으므로 공유 캐시에 남기지 않는다.
+    const viewerId = req.user?.id;
+    setViewerCacheHeader(res, viewerId);
 
     const response = await fetchProductsResponse({
       page: Number(page),
@@ -90,6 +94,7 @@ const handler = async (
       category: typeof category === "string" ? category : undefined,
       productType: typeof productType === "string" ? productType : undefined,
       status: typeof status === "string" ? status : undefined,
+      viewerId,
     });
 
     return res.json(response);

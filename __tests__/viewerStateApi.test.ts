@@ -33,6 +33,11 @@ const mockClient = {
   user: { findUnique: jest.fn() },
   follow: { findFirst: jest.fn() },
   userBadge: { findMany: jest.fn() },
+  // 차단 없음(#18 viewer 필터는 viewerFilterApi.test.ts 에서 검증)
+  userBlock: {
+    findMany: jest.fn(() => Promise.resolve([])),
+    findFirst: jest.fn(() => Promise.resolve(null)),
+  },
 };
 jest.mock("@libs/server/client", () => ({
   __esModule: true,

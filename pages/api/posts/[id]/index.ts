@@ -11,6 +11,7 @@ import {
 import type { BreederProgramSummary } from "@libs/shared/breeder-program";
 import { resolvePostImagesInput, withPostImages } from "@libs/postImages";
 import { canWriteNoticePost, isNoticePostInput } from "@libs/server/postNotice";
+import { excludedAuthorIds } from "@libs/server/blocks";
 import { Prisma, type Post } from "@prisma/client";
 
 interface PostDetail {
@@ -229,6 +230,10 @@ async function getPostDetail(
     return res.status(400).json({ success: false, error: "유효하지 않은 게시글 ID입니다." });
   }
 
+  // viewer 가 차단한 사람의 댓글과 그 수를 뺀다. 차단이 없으면 기존 쿼리 그대로.
+  const excluded = await excludedAuthorIds(user?.id);
+  const commentWhere = excluded.length ? { userId: { notIn: excluded } } : null;
+
   const post = await client.post.findUnique({
     where: {
       id: postId,
@@ -246,6 +251,7 @@ async function getPostDetail(
         },
       },
       comments: {
+        ...(commentWhere ? { where: commentWhere } : {}),
         select: {
           comment: true,
           id: true,
@@ -266,7 +272,7 @@ async function getPostDetail(
       },
       _count: {
         select: {
-          comments: true,
+          comments: commentWhere ? { where: commentWhere } : true,
           Likes: true,
         },
       },

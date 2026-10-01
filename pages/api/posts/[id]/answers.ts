@@ -6,6 +6,7 @@ import { extractPostIdFromPath } from "@libs/post-route";
 import { withAuth } from "@libs/server/auth";
 import { createNotification } from "@libs/server/notification";
 import { incrementUserMissionProgress } from "@libs/server/growth";
+import { getBlockRelation } from "@libs/server/blocks";
 
 async function handler(
   req: NextApiRequest,
@@ -49,14 +50,21 @@ async function handler(
   });
 
   if (post && user?.id && senderUser) {
-    await createNotification({
-      type: "COMMENT",
-      userId: post.userId,
-      senderId: user.id,
-      message: `${senderUser.name}님이 회원님의 게시글에 댓글을 남겼습니다.`,
-      targetId: postId,
-      targetType: "post",
-    });
+    // 게시글 작성자가 차단한 사람의 댓글은 작성자에게 숨겨지므로 알림·푸시도 보내지 않는다.
+    const { blockedByMe: authorBlockedCommenter } =
+      post.userId === user.id
+        ? { blockedByMe: false }
+        : await getBlockRelation(post.userId, user.id);
+    if (!authorBlockedCommenter) {
+      await createNotification({
+        type: "COMMENT",
+        userId: post.userId,
+        senderId: user.id,
+        message: `${senderUser.name}님이 회원님의 게시글에 댓글을 남겼습니다.`,
+        targetId: postId,
+        targetType: "post",
+      });
+    }
     await incrementUserMissionProgress(user.id, "comment_write");
   }
 

@@ -20,6 +20,7 @@ import {
   getSortedActiveBreederProgramSummaries,
 } from "@libs/server/breeder-programs";
 import type { BreederProgramSummary } from "@libs/shared/breeder-program";
+import { excludedAuthorIds, setViewerCacheHeader } from "@libs/server/blocks";
 
 /** 경매 목록 응답 타입 */
 export interface AuctionWithUser extends Auction {
@@ -82,6 +83,14 @@ async function handler(
       'Cache-Control',
       `public, s-maxage=${cacheTime}, stale-while-revalidate=${cacheTime * 2}`
     );
+
+    // viewer 가 차단한 판매자의 경매는 viewer 에게서만 뺀다(목록·페이지 수 모두).
+    const viewerId = req.user?.id;
+    const excluded = await excludedAuthorIds(viewerId);
+    if (excluded.length) {
+      where.userId = { notIn: excluded };
+    }
+    setViewerCacheHeader(res, viewerId);
 
     const [auctions, auctionCount] = await Promise.all([
       client.auction.findMany({

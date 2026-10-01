@@ -37,6 +37,8 @@ export interface UserResponse {
   success: boolean;
   user?: UserWithCounts;
   isFollowing?: boolean;
+  /** 로그인한 viewer 가 이 유저를 차단했는지(단방향). 상대가 나를 차단한 사실은 노출하지 않는다. */
+  isBlocked?: boolean;
 }
 
 function maskEmail(email?: string | null) {
@@ -103,16 +105,24 @@ async function handler(
     });
   }
 
-  // 현재 로그인한 유저가 해당 유저를 팔로우하고 있는지 확인
+  // 현재 로그인한 유저가 해당 유저를 팔로우·차단하고 있는지 확인
   let isFollowing = false;
+  let isBlocked = false;
   if (myId && myId !== userId) {
-    const follow = await client.follow.findFirst({
-      where: {
-        followerId: myId,
-        followingId: userId,
-      },
-    });
+    const [follow, block] = await Promise.all([
+      client.follow.findFirst({
+        where: {
+          followerId: myId,
+          followingId: userId,
+        },
+      }),
+      client.userBlock.findFirst({
+        where: { blockerId: myId, blockedId: userId },
+        select: { id: true },
+      }),
+    ]);
     isFollowing = !!follow;
+    isBlocked = !!block;
   }
 
   // schema.prisma 의 User.followers 는 @relation("follower")(= 이 유저가 followerId 인 Follow,
@@ -159,6 +169,7 @@ async function handler(
       breederPrograms: getSortedActiveBreederProgramSummaries(breederPrograms),
     },
     isFollowing,
+    isBlocked,
   });
 }
 

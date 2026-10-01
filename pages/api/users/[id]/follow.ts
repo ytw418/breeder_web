@@ -3,6 +3,7 @@ import withHandler, { ResponseType } from "@libs/server/withHandler";
 import client from "@libs/server/client";
 import { withAuth } from "@libs/server/auth";
 import { createNotification } from "@libs/server/notification";
+import { FOLLOW_BLOCKED_MESSAGE, getBlockRelation } from "@libs/server/blocks";
 
 export interface FollowResponse {
   success: boolean;
@@ -38,6 +39,16 @@ async function handler(
       await client.follow.delete({ where: { id: existing.id } });
       return res.json({ success: true, isFollowing: false });
     } else {
+      // 차단하면 양방향 팔로우를 지우므로, 차단 관계에서는 새 팔로우(와 그 알림)도 막는다.
+      const relation = await getBlockRelation(myId, targetUserId);
+      if (relation.blockedByMe || relation.blockedMe) {
+        return res.status(403).json({
+          success: false,
+          error: FOLLOW_BLOCKED_MESSAGE,
+          errorCode: "FOLLOW_BLOCKED",
+        });
+      }
+
       // 팔로우
       await client.follow.create({
         data: {
