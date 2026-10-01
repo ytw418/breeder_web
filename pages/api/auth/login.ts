@@ -14,9 +14,16 @@ import {
   type LoginBlock,
 } from "@libs/server/accountStatus";
 import type { User } from "@prisma/client";
+import { SocialAuthError, verifySocialLogin } from "@libs/server/socialAuth";
 
 export interface LoginReqBody {
-  snsId: string;
+  /**
+   * 서버가 검증하는 소셜 토큰. kakao=access token, google=Firebase ID 토큰,
+   * apple=identityToken. snsId·email 은 이 토큰을 검증한 결과에서만 얻는다.
+   */
+  token: string;
+  /** 보낸 경우 검증된 계정과 같아야 한다(다르면 401). */
+  snsId?: string;
   name: string;
   provider: "kakao" | "google" | "apple";
   email?: string | null;
@@ -51,19 +58,15 @@ async function handler(
   req: NextApiRequest,
   res: NextApiResponse<ResponseType>
 ) {
-  const { snsId, email, provider, name, avatar } = req.body;
+  const { token, snsId: claimedSnsId, provider, name } = req.body;
   const validProviders = ["kakao", "google", "apple"] as const;
-  const normalizedEmail =
-    typeof email === "string" && email.trim().length > 0
-      ? email.trim().toLowerCase()
-      : null;
-  const normalizedAvatar =
-    typeof avatar === "string" && avatar.trim().length > 0 ? avatar : null;
 
-  if (!snsId)
-    return res
-      .status(400)
-      .json({ success: false, message: "snsId is required for login." });
+  if (typeof token !== "string" || !token.trim())
+    return res.status(401).json({
+      success: false,
+      errorCode: "SOCIAL_TOKEN_REQUIRED",
+      message: "앱을 최신 버전으로 업데이트한 뒤 다시 로그인해 주세요.",
+    });
   if (!name)
     return res
       .status(400)
@@ -75,6 +78,29 @@ async function handler(
     return res
       .status(400)
       .json({ success: false, message: "provider is required for login." });
+
+  let verified;
+  try {
+    verified = await verifySocialLogin(provider as LoginReqBody["provider"], token);
+  } catch (error) {
+    if (error instanceof SocialAuthError) {
+      return res.status(error.status).json({ success: false, message: error.message });
+    }
+    console.error("auth.login.verify.fail", error);
+    return res
+      .status(500)
+      .json({ success: false, message: "로그인 확인 중 오류가 발생했습니다." });
+  }
+
+  if (claimedSnsId && claimedSnsId !== verified.snsId) {
+    return res
+      .status(401)
+      .json({ success: false, message: "로그인 정보가 일치하지 않습니다." });
+  }
+
+  const snsId = verified.snsId;
+  const normalizedEmail = verified.email;
+  const normalizedAvatar = verified.avatar;
 
   try {
     // Prisma를 사용하여 해당 snsId로 사용자 찾기

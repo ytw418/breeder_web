@@ -141,6 +141,7 @@ export const KakaoLogin = () => {
       console.log("카카오 로그인 요청 성공 :>> ");
 
       const body: LoginReqBody = {
+        token: data.access_token,
         snsId: id.toString(),
         name: nickname,
         provider: USER_INFO.provider.KAKAO,
