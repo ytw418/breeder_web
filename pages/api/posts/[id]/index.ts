@@ -9,7 +9,9 @@ import {
   getSortedActiveBreederProgramSummaries,
 } from "@libs/server/breeder-programs";
 import type { BreederProgramSummary } from "@libs/shared/breeder-program";
-import { withPostImages } from "@libs/postImages";
+import { resolvePostImagesInput, withPostImages } from "@libs/postImages";
+import { canWriteNoticePost, isNoticePostInput } from "@libs/server/postNotice";
+import { Prisma, type Post } from "@prisma/client";
 
 interface PostDetail {
   user: {
@@ -60,7 +62,161 @@ export interface PostDetailResponse {
   nextNotice?: AdjacentNotice | null;
 }
 
+/** 게시글 수정(action=update) 성공 응답. 실패는 { success:false, error, message, errorCode }. */
+export interface PostUpdateResponse {
+  success: true;
+  post: Post & { images: string[] };
+}
+
+const INVALID_POST_ID_MESSAGE = "유효하지 않은 게시글 ID입니다.";
+/** Post.id 는 Int(32bit). 범위를 넘거나 정수가 아니면 Prisma 가 500 을 낸다. */
+const MAX_POST_ID = 2_147_483_647;
+const NOT_FOUND_MESSAGE = "게시글을 찾을 수 없습니다.";
+
+function sendPostError(
+  res: NextApiResponse<ResponseType>,
+  status: number,
+  errorCode: string,
+  message: string
+) {
+  return res.status(status).json({
+    success: false,
+    error: message,
+    message,
+    errorCode,
+  });
+}
+
+const trimmedText = (value: unknown) =>
+  typeof value === "string" ? value.trim() : "";
+
+/** POST /api/posts/:id — 작성자 본인의 게시글 수정(update)·삭제(delete) */
+async function mutatePost(
+  req: NextApiRequest,
+  res: NextApiResponse<ResponseType>
+) {
+  const {
+    query: { id = "" },
+    user,
+  } = req;
+
+  if (!user?.id) {
+    return sendPostError(res, 401, "POST_AUTH_REQUIRED", "로그인이 필요합니다.");
+  }
+
+  const postId = extractPostIdFromPath(id);
+  if (!Number.isInteger(postId) || postId <= 0 || postId > MAX_POST_ID) {
+    return sendPostError(res, 400, "POST_INVALID_ID", INVALID_POST_ID_MESSAGE);
+  }
+
+  const post = await client.post.findUnique({
+    where: { id: postId },
+    select: { id: true, userId: true },
+  });
+  if (!post) {
+    return sendPostError(res, 404, "POST_NOT_FOUND", NOT_FOUND_MESSAGE);
+  }
+  if (post.userId !== user.id) {
+    return sendPostError(
+      res,
+      403,
+      "POST_FORBIDDEN",
+      "본인 게시글만 수정·삭제할 수 있습니다."
+    );
+  }
+
+  const { action } = req.body ?? {};
+
+  if (action === "delete") {
+    // Comment/Like 는 onDelete: Cascade. 알림은 정리하지 않는다(상품 삭제와 동일).
+    try {
+      await client.post.delete({ where: { id: postId } });
+    } catch (error) {
+      // 동시에 들어온 다른 삭제 요청이 먼저 지운 경우
+      if (
+        error instanceof Prisma.PrismaClientKnownRequestError &&
+        error.code === "P2025"
+      ) {
+        return sendPostError(res, 404, "POST_NOT_FOUND", NOT_FOUND_MESSAGE);
+      }
+      throw error;
+    }
+    return res.json({ success: true });
+  }
+
+  if (action !== "update") {
+    return sendPostError(res, 400, "POST_INVALID_ACTION", "지원하지 않는 요청입니다.");
+  }
+
+  const { image, images, category, species } = req.body;
+  const title = trimmedText(req.body.title);
+  const description = trimmedText(req.body.description);
+  if (!title) {
+    return sendPostError(res, 400, "POST_TITLE_REQUIRED", "제목을 입력해주세요.");
+  }
+  if (!description) {
+    return sendPostError(
+      res,
+      400,
+      "POST_DESCRIPTION_REQUIRED",
+      "내용을 입력해주세요."
+    );
+  }
+
+  // 사진 필드를 아예 보내지 않으면 기존 사진을 그대로 둔다(글만 고치는 요청이 사진을 지우지 않게).
+  const keepImages = image === undefined && images === undefined;
+  const resolvedImages = keepImages
+    ? null
+    : resolvePostImagesInput({ image, images });
+  if (resolvedImages && !resolvedImages.ok) {
+    return sendPostError(
+      res,
+      400,
+      resolvedImages.errorCode,
+      resolvedImages.message
+    );
+  }
+
+  if (
+    isNoticePostInput({ category, title }) &&
+    !(await canWriteNoticePost(user.id))
+  ) {
+    return sendPostError(
+      res,
+      403,
+      "POST_NOTICE_FORBIDDEN",
+      "공지 작성 권한이 없습니다."
+    );
+  }
+
+  // 저장 규칙은 작성(POST /api/posts)과 동일하다.
+  const updatedPost = await client.post.update({
+    where: { id: postId },
+    data: {
+      title,
+      description,
+      category: category || null,
+      type: species || null,
+      ...(resolvedImages
+        ? { image: resolvedImages.image, images: resolvedImages.images }
+        : {}),
+    },
+  });
+
+  return res.json({ success: true, post: withPostImages(updatedPost) });
+}
+
 async function handler(
+  req: NextApiRequest,
+  res: NextApiResponse<ResponseType>
+) {
+  if (req.method === "POST") {
+    return mutatePost(req, res);
+  }
+  return getPostDetail(req, res);
+}
+
+async function getPostDetail(
   req: NextApiRequest,
   res: NextApiResponse<ResponseType>
 ) {
@@ -227,7 +383,7 @@ async function handler(
 
 export default withAuth(
   withHandler({
-    methods: ["GET"],
+    methods: ["GET", "POST"],
     handler,
     isPrivate: false,
   })
