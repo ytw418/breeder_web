@@ -208,7 +208,7 @@ async function handler(
             name: validation.value.name,
             price: validation.value.price,
             description: validation.value.description,
-            photos: data.photos,
+            photos: validation.value.photos,
           },
         });
         return res.json({ success: true, product: updatedProduct });

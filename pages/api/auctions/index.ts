@@ -9,6 +9,8 @@ import {
   AUCTION_MIN_START_PRICE,
   isAuctionDurationValid,
   getBidIncrement,
+  AUCTION_PHOTOS_MAX,
+  AUCTION_PHOTOS_MIN,
 } from "@libs/auctionRules";
 import { settleExpiredAuctions } from "@libs/server/auctionSettlement";
 import { normalizeOptionalText, normalizeOptionalUrl } from "@libs/shared/normalize";
@@ -253,10 +255,13 @@ async function handler(
         });
       }
 
-      if (normalizedPhotos.length < 1 || normalizedPhotos.length > 5) {
+      if (
+        normalizedPhotos.length < AUCTION_PHOTOS_MIN ||
+        normalizedPhotos.length > AUCTION_PHOTOS_MAX
+      ) {
         return res.status(400).json({
           success: false,
-          error: "사진은 최소 1장, 최대 5장까지 등록할 수 있습니다.",
+          error: `사진은 최소 ${AUCTION_PHOTOS_MIN}장, 최대 ${AUCTION_PHOTOS_MAX}장까지 등록할 수 있습니다.`,
           errorCode: "AUCTION_INVALID_PHOTO_COUNT",
         });
       }

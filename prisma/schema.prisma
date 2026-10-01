@@ -241,7 +241,8 @@ model Post {
   latitude  Float?
   longitude Float?
   Likes      Like[]
-  image       String
+  image       String      // 대표 이미지(= images[0]). 웹 단일 이미지 호환용으로 유지
+  images      String[]    @default([]) // 게시글 사진(Cloudflare 이미지 id, 최대 10장)
 
   @@index([userId])
   @@index([category])

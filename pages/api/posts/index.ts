@@ -12,6 +12,7 @@ import {
   getSortedActiveBreederProgramSummaries,
 } from "@libs/server/breeder-programs";
 import type { BreederProgramSummary } from "@libs/shared/breeder-program";
+import { resolvePostImagesInput, withPostImages } from "@libs/postImages";
 
 /** 게시글 목록 응답 타입 */
 export interface PostWithUser extends Post {
@@ -114,7 +115,7 @@ const handler = async (
           });
 
     const posts = sortedPosts.slice(skip, skip + 10).map((post) => ({
-      ...post,
+      ...withPostImages(post),
       user: {
         ...post.user,
         breederPrograms: getSortedActiveBreederProgramSummaries(
@@ -132,7 +133,7 @@ const handler = async (
 
   if (req.method === "POST") {
     const {
-      body: { description, title, image, category, species },
+      body: { description, title, image, images, category, species },
       user,
     } = req;
 
@@ -140,6 +141,16 @@ const handler = async (
       return res
         .status(401)
         .json({ success: false, error: "로그인이 필요합니다." });
+    }
+
+    const resolvedImages = resolvePostImagesInput({ image, images });
+    if (!resolvedImages.ok) {
+      return res.status(400).json({
+        success: false,
+        error: resolvedImages.message,
+        message: resolvedImages.message,
+        errorCode: resolvedImages.errorCode,
+      });
     }
 
     if (String(category) === "공지") {
@@ -160,7 +171,8 @@ const handler = async (
     const post = await client.post.create({
       data: {
         title,
-        image: image || "",
+        image: resolvedImages.image,
+        images: resolvedImages.images,
         description,
         category: category || null,
         type: species || null,

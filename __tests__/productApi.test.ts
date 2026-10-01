@@ -158,3 +158,43 @@ describe("POST /api/products (create)", () => {
     expect(mockClient.product.create).toHaveBeenCalled();
   });
 });
+
+describe("상품 사진 최대 10장", () => {
+  const photos = (n: number) => Array.from({ length: n }, (_, i) => `img-${i + 1}`);
+  const create = (body: Record<string, unknown>) =>
+    call(createHandler, { method: "POST", user: me, body });
+
+  it("등록: 10장은 저장하고 대표 이미지는 첫 장", async () => {
+    const res = await create({ ...validData, photos: photos(10) });
+    expect(res.statusCode).toBe(200);
+    const data = mockClient.product.create.mock.calls[0][0].data;
+    expect(data.photos).toEqual(photos(10));
+    expect(data.mainImage).toBe("img-1");
+  });
+
+  it("등록: 11장은 400 PRODUCT_TOO_MANY_PHOTOS", async () => {
+    const res = await create({ ...validData, photos: photos(11) });
+    expect(res.statusCode).toBe(400);
+    expect(res.body.errorCode).toBe("PRODUCT_TOO_MANY_PHOTOS");
+    expect(mockClient.product.create).not.toHaveBeenCalled();
+  });
+
+  it("등록: 사진 0장도 허용", async () => {
+    const res = await create({ ...validData, photos: [] });
+    expect(res.statusCode).toBe(200);
+    const data = mockClient.product.create.mock.calls[0][0].data;
+    expect(data.photos).toEqual([]);
+    expect(data.mainImage).toBeNull();
+  });
+
+  it("수정: 10장은 저장, 11장은 400", async () => {
+    let res = await update({ ...validData, photos: photos(10) });
+    expect(res.statusCode).toBe(200);
+    expect(mockClient.product.update.mock.calls[0][0].data.photos).toEqual(photos(10));
+
+    res = await update({ ...validData, photos: photos(11) });
+    expect(res.statusCode).toBe(400);
+    expect(res.body.errorCode).toBe("PRODUCT_TOO_MANY_PHOTOS");
+    expect(mockClient.product.update).toHaveBeenCalledTimes(1);
+  });
+});
