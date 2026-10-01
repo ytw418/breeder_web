@@ -3,7 +3,7 @@ import {
   getPushSubscriptionsByUserIds,
   removePushSubscriptionByToken,
 } from "@libs/server/pushStore";
-import { buildFcmMessage } from "@libs/server/pushMessage";
+import { buildFcmMessage, toAbsoluteClickUrl } from "@libs/server/pushMessage";
 
 export interface PushMessagePayload {
   title: string;
@@ -12,14 +12,8 @@ export interface PushMessagePayload {
   tag?: string;
 }
 
-const getAbsoluteClickUrl = (url?: string) => {
-  const normalized = typeof url === "string" && url.trim().length > 0 ? url.trim() : "/";
-  if (normalized.startsWith("http://") || normalized.startsWith("https://")) {
-    return normalized;
-  }
-  const base = process.env.NEXT_PUBLIC_DOMAIN_URL || "https://bredy.app";
-  return new URL(normalized, base).toString();
-};
+const getAbsoluteClickUrl = (url?: string) =>
+  toAbsoluteClickUrl(url, process.env.NEXT_PUBLIC_DOMAIN_URL);
 
 const normalizeEnvValue = (value: string) => {
   let normalized = value.trim();
