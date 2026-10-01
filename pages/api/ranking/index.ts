@@ -163,7 +163,8 @@ async function handler(
             select: {
               insectRecords: true,
               auctions: true,
-              followers: true,
+              // 스키마의 User.followers 는 "내가 팔로우하는" 관계라서 실제 팔로워 수는 following 이다(#145)
+              following: true,
             },
           },
         },
@@ -194,7 +195,7 @@ async function handler(
               u._count.insectRecords * 30 +
               totalLikes * 5 +
               u._count.auctions * 20 +
-              u._count.followers * 10,
+              u._count.following * 10,
           };
         })
         .filter((b) => b.score > 0) // 점수 0인 유저 제외

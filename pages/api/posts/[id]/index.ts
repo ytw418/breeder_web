@@ -9,6 +9,7 @@ import {
   getSortedActiveBreederProgramSummaries,
 } from "@libs/server/breeder-programs";
 import type { BreederProgramSummary } from "@libs/shared/breeder-program";
+import { withPostImages } from "@libs/postImages";
 
 interface PostDetail {
   user: {
@@ -40,6 +41,8 @@ interface PostDetail {
   description: string;
   category: string | null;
   image: string;
+  /** 게시글 사진 id 목록. 구 데이터는 [image] 로 채운다. */
+  images: string[];
 }
 
 interface AdjacentNotice {
@@ -178,20 +181,24 @@ async function handler(
       ])
     : [null, null];
 
-  const isLiked = Boolean(
-    await client.like.findFirst({
-      where: {
-        postId,
-        userId: user?.id,
-      },
-      select: {
-        id: true,
-      },
-    })
-  );
+  // 비로그인이면 조회하지 않는다. userId: undefined 는 Prisma 가 조건을 무시해
+  // 다른 사람의 좋아요가 잡힌다(#139).
+  const isLiked = user?.id
+    ? Boolean(
+        await client.like.findFirst({
+          where: {
+            postId,
+            userId: user.id,
+          },
+          select: {
+            id: true,
+          },
+        })
+      )
+    : false;
 
   const serializedPost: PostDetail = {
-    ...post,
+    ...withPostImages(post),
     user: {
       ...post.user,
       breederPrograms: getSortedActiveBreederProgramSummaries(

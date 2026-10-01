@@ -6,6 +6,9 @@ export const AUCTION_MIN_DURATION_MS = 1 * 60 * 60 * 1000; // 1시간
 export const AUCTION_MAX_DURATION_MS = 72 * 60 * 60 * 1000; // 72시간
 export const AUCTION_MAX_ACTIVE_PER_USER = 100;
 export const AUCTION_HIGH_PRICE_REQUIRE_CONTACT = 500_000;
+/** 경매 사진 장수(등록·수정 공통). 서버 검증과 웹·앱 업로드 화면이 같은 값을 쓴다. */
+export const AUCTION_PHOTOS_MIN = 1;
+export const AUCTION_PHOTOS_MAX = 10;
 /** 낙찰 후 결제·배송 모델이 없어, 종료 후 이 기간을 거래 진행 중으로 본다(회원탈퇴 차단 등). */
 export const AUCTION_SETTLEMENT_GRACE_DAYS = 7;
 

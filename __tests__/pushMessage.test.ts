@@ -1,6 +1,7 @@
 import {
   buildFcmMessage,
   getPushClientPlatform,
+  toAbsoluteClickUrl,
 } from "@libs/server/pushMessage";
 
 const payload = {
@@ -76,5 +77,38 @@ describe("buildFcmMessage", () => {
     });
     expect(message.data).toEqual({ url: payload.url, tag: payload.tag });
     expect(message.webpush).toBeUndefined();
+  });
+});
+
+describe("toAbsoluteClickUrl", () => {
+  it("상대 경로를 기준 도메인에 붙여 절대 URL로 만들어야 함", () => {
+    expect(toAbsoluteClickUrl("/notifications", "https://bredy.app")).toBe(
+      "https://bredy.app/notifications"
+    );
+  });
+
+  it("기준 도메인에 프로토콜이 없어도 https로 보정해야 함", () => {
+    expect(
+      toAbsoluteClickUrl(
+        "/notifications",
+        "breeder-web-git-dev-holicreacts-projects.vercel.app"
+      )
+    ).toBe("https://breeder-web-git-dev-holicreacts-projects.vercel.app/notifications");
+  });
+
+  it("기준 도메인이 비어 있으면 운영 도메인을 사용해야 함", () => {
+    expect(toAbsoluteClickUrl("/notifications", "")).toBe(
+      "https://bredy.app/notifications"
+    );
+    expect(toAbsoluteClickUrl("/notifications", undefined)).toBe(
+      "https://bredy.app/notifications"
+    );
+  });
+
+  it("이미 절대 URL이면 그대로 두고, 비어 있으면 루트로 보내야 함", () => {
+    expect(toAbsoluteClickUrl("https://example.com/a", "https://bredy.app")).toBe(
+      "https://example.com/a"
+    );
+    expect(toAbsoluteClickUrl("  ", "https://bredy.app")).toBe("https://bredy.app/");
   });
 });
