@@ -202,13 +202,12 @@ describe("/api/auth/login 탈퇴 보관 기간", () => {
 });
 
 describe("/api/users/me 닉네임", () => {
-  it("탈퇴 표시용 이름으로는 바꿀 수 없다", async () => {
-    const res = await call(meHandler, {
-      method: "POST",
-      user: me,
-      body: { name: "탈퇴한 사용자#1" },
-    });
-    expect(res.body).toEqual({ success: false, error: "사용할 수 없는 닉네임입니다." });
-    expect(mockClient.user.update).not.toHaveBeenCalled();
-  });
+  it.each(["탈퇴한 사용자#1", "탈퇴한 사용자", " 탈퇴한 사용자123"])(
+    "탈퇴 표시용 이름(%s)으로는 바꿀 수 없다",
+    async (name) => {
+      const res = await call(meHandler, { method: "POST", user: me, body: { name } });
+      expect(res.body).toEqual({ success: false, error: "사용할 수 없는 닉네임입니다." });
+      expect(mockClient.user.update).not.toHaveBeenCalled();
+    }
+  );
 });

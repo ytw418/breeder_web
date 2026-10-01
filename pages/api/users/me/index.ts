@@ -4,7 +4,7 @@ import withHandler, { ResponseType } from "@libs/server/withHandler";
 import client from "@libs/server/client";
 import { withAuth } from "@libs/server/auth";
 import { hasAdminAccess } from "@libs/server/adminAccess";
-import { isDeletedUserName } from "@libs/shared/deletedUser";
+import { isReservedUserName } from "@libs/shared/deletedUser";
 
 async function handler(
   req: NextApiRequest,
@@ -32,7 +32,7 @@ async function handler(
 
       if (name) {
         // 탈퇴 유저 표시용 이름은 사칭 방지를 위해 막는다.
-        if (isDeletedUserName(name)) {
+        if (isReservedUserName(name)) {
           return res.json({ success: false, error: "사용할 수 없는 닉네임입니다." });
         }
 

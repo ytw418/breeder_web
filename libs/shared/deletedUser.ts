@@ -11,5 +11,9 @@ export const buildDeletedUserName = (userId: number) =>
 export const isDeletedUserName = (name?: string | null) =>
   Boolean(name && name.startsWith(DELETED_USER_PREFIX));
 
+/** 사칭 방지: 일반 유저는 "탈퇴한 사용자" 로 시작하는 닉네임을 쓸 수 없다. */
+export const isReservedUserName = (name?: string | null) =>
+  Boolean(name && name.trim().startsWith(DELETED_USER_LABEL));
+
 export const displayUserName = (name?: string | null) =>
   isDeletedUserName(name) ? DELETED_USER_LABEL : name ?? "";
