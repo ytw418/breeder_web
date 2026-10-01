@@ -178,17 +178,21 @@ async function handler(
       ])
     : [null, null];
 
-  const isLiked = Boolean(
-    await client.like.findFirst({
-      where: {
-        postId,
-        userId: user?.id,
-      },
-      select: {
-        id: true,
-      },
-    })
-  );
+  // 비로그인이면 조회하지 않는다. userId: undefined 는 Prisma 가 조건을 무시해
+  // 다른 사람의 좋아요가 잡힌다(#139).
+  const isLiked = user?.id
+    ? Boolean(
+        await client.like.findFirst({
+          where: {
+            postId,
+            userId: user.id,
+          },
+          select: {
+            id: true,
+          },
+        })
+      )
+    : false;
 
   const serializedPost: PostDetail = {
     ...post,
