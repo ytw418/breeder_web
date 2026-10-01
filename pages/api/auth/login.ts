@@ -6,6 +6,7 @@ import { createUserWithAutomaticBreederPrograms } from "@libs/server/breeder-pro
 import { withAuth } from "@libs/server/auth";
 import { issueTokens, AuthUser } from "@libs/server/jwt";
 import { UniqueName } from "@libs/server/UniqueName";
+import { findPendingDeletion } from "@libs/server/accountDeletion";
 
 export interface LoginReqBody {
   snsId: string;
@@ -88,6 +89,22 @@ async function handler(
     });
 
     if (!user) {
+      // 탈퇴 후 보관 기간(30일) 중인 소셜 계정은 재가입을 막는다.
+      const pending = await findPendingDeletion(snsId);
+      if (pending) {
+        const KST_OFFSET_MS = 9 * 60 * 60 * 1000;
+        const until = new Date(pending.purgeAt.getTime() + KST_OFFSET_MS)
+          .toISOString()
+          .slice(0, 10)
+          .replace(/-/g, ".");
+        return res.status(403).json({
+          success: false,
+          errorCode: "ACCOUNT_PENDING_DELETION",
+          purgeAt: pending.purgeAt.toISOString(),
+          message: `탈퇴 처리 중인 계정입니다. ${until} 이후 다시 가입할 수 있어요.`,
+        });
+      }
+
       // 해당 이메일의 사용자가 존재하지 않는 경우 새로운 사용자 생성
       const uniqueName = await UniqueName();
       user = await createUserWithAutomaticBreederPrograms({

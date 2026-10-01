@@ -3,7 +3,7 @@ import withHandler, { ResponseType } from "@libs/server/withHandler";
 import { withAuth } from "@libs/server/auth";
 import { hasAdminAccess } from "@libs/server/adminAccess";
 import client from "@libs/server/client";
-import { getHomeBanners } from "@libs/server/home";
+import { fetchHomeBanners } from "@libs/server/home";
 import { HomeBanner } from "@libs/shared/home";
 
 export interface AdminBanner extends HomeBanner {}
@@ -16,7 +16,7 @@ async function handler(
 ) {
   if (req.method === "GET") {
     const [banners, bannerCount] = await Promise.all([
-      getHomeBanners(),
+      fetchHomeBanners(),
       client.adminBanner.count(),
     ]);
 
