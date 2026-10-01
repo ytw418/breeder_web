@@ -2,7 +2,7 @@ import { NextApiRequest, NextApiResponse } from "next";
 
 import withHandler from "@libs/server/withHandler";
 import { withAuth } from "@libs/server/auth";
-import { getHomeFeed } from "@libs/server/home";
+import { fetchHomeFeed } from "@libs/server/home";
 import { HomeFeedResponse } from "@libs/shared/ranking";
 
 async function handler(
@@ -13,7 +13,7 @@ async function handler(
     const isPublicScope = req.query.scope === "public";
     const userId = isPublicScope ? undefined : req.user?.id;
 
-    const payload = await getHomeFeed({
+    const payload = await fetchHomeFeed({
       userId,
       includePersonalized: !isPublicScope,
     });

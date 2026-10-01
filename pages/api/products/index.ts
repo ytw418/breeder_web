@@ -4,7 +4,7 @@ import withHandler, { ResponseType } from "@libs/server/withHandler";
 import client from "@libs/server/client";
 import { withAuth } from "@libs/server/auth";
 import { notifyFollowers } from "@libs/server/notification";
-import { getProductsResponse } from "@libs/server/home";
+import { fetchProductsResponse } from "@libs/server/home";
 
 const handler = async (
   req: NextApiRequest,
@@ -73,7 +73,7 @@ const handler = async (
       `public, s-maxage=${cacheTime}, stale-while-revalidate=${cacheTime * 2}`
     );
 
-    const response = await getProductsResponse({
+    const response = await fetchProductsResponse({
       page: Number(page),
       size: Number(size),
       category: typeof category === "string" ? category : undefined,

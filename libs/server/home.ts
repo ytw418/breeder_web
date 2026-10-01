@@ -284,8 +284,29 @@ const getCachedDefaultProducts = unstable_cache(
   }
 );
 
+/*
+ * 캐시 경계
+ * - get* : unstable_cache 사용. App Router(서버 컴포넌트/ISR) 렌더링 전용이다.
+ * - fetch* : 캐시 없음. Pages Router API(pages/api/**) 전용이다.
+ *   unstable_cache 는 App Router 요청 컨텍스트(workStore.incrementalCache)가 있어야 동작하고,
+ *   pages/api 에는 그 컨텍스트가 없어 "Invariant: incrementalCache missing" 으로 500 이 난다.
+ *   API 응답 캐시는 각 라우트의 Cache-Control(s-maxage) 로 CDN 에서 처리한다.
+ */
+
 export async function getHomeBanners() {
   return getCachedHomeBanners();
+}
+
+export async function fetchHomeBanners(): Promise<HomeBanner[]> {
+  if (!process.env.DATABASE_URL) {
+    return SAMPLE_BANNERS;
+  }
+
+  const banners = await client.adminBanner.findMany({
+    orderBy: { order: "asc" },
+  });
+
+  return banners.length > 0 ? banners : SAMPLE_BANNERS;
 }
 
 export async function getHomeFeed(options: HomeFeedOptions = {}) {
@@ -308,6 +329,24 @@ export async function getProductsResponse(options: ProductQueryOptions = {}) {
     return getCachedDefaultProducts();
   }
 
+  if (!process.env.DATABASE_URL) {
+    return SAMPLE_PRODUCTS_RESPONSE;
+  }
+
+  return buildProductsResponse(options);
+}
+
+export async function fetchHomeFeed(options: HomeFeedOptions = {}) {
+  if (!options.includePersonalized || !options.userId) {
+    return buildHomeFeed({ includePersonalized: false });
+  }
+
+  return buildHomeFeed(options);
+}
+
+export async function fetchProductsResponse(
+  options: ProductQueryOptions = {}
+) {
   if (!process.env.DATABASE_URL) {
     return SAMPLE_PRODUCTS_RESPONSE;
   }
