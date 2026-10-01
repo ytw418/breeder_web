@@ -90,10 +90,14 @@ async function handler(
       status: product.status,
     });
     const [isLikedResult, hasPurchasedResult] = await Promise.all([
-      client.fav.findFirst({
-        where: { productId: product.id, userId: user?.id },
-        select: { id: true },
-      }),
+      // 비로그인이면 조회하지 않는다. userId: undefined 는 Prisma 가 조건을 무시해
+      // 다른 사람의 찜이 잡힌다(#139).
+      user?.id
+        ? client.fav.findFirst({
+            where: { productId: product.id, userId: user.id },
+            select: { id: true },
+          })
+        : null,
       user?.id
         ? client.purchase.findFirst({
             where: { productId: product.id, userId: user.id },

@@ -115,10 +115,22 @@ async function handler(
     isFollowing = !!follow;
   }
 
+  // schema.prisma 의 User.followers 는 @relation("follower")(= 이 유저가 followerId 인 Follow,
+  // 즉 이 유저가 팔로우하는 사람)라 Prisma _count 의 이름과 의미가 반대다.
+  // 응답에서는 followers = 이 유저를 팔로우하는 수, following = 이 유저가 팔로우하는 수로 바로잡는다(#139).
+  const userWithCounts = {
+    ...user,
+    _count: {
+      ...user._count,
+      followers: user._count.following,
+      following: user._count.followers,
+    },
+  };
+
   const safeUser: UserWithCounts =
     myId === userId
-      ? { ...user, maskedEmail: maskEmail(user.email) }
-      : { ...user, email: null, maskedEmail: maskEmail(user.email) };
+      ? { ...userWithCounts, maskedEmail: maskEmail(user.email) }
+      : { ...userWithCounts, email: null, maskedEmail: maskEmail(user.email) };
 
   const [badges, breederPrograms] = await Promise.all([
     client.userBadge.findMany({
