@@ -23,6 +23,7 @@ jest.mock("@libs/server/UniqueName", () => ({
 const mockIssueTokens = jest.fn();
 jest.mock("@libs/server/jwt", () => ({
   issueTokens: (...args: unknown[]) => mockIssueTokens(...args),
+  toAuthUser: (user: Record<string, unknown>) => ({ id: user.id, snsId: user.snsId }),
 }));
 
 class MockSocialAuthError extends Error {
@@ -74,6 +75,10 @@ const existingUser = {
   email: "victim@gmail.com",
   name: "피해자",
   avatar: null,
+  role: "USER",
+  status: "ACTIVE",
+  suspendedUntil: null,
+  tokenVersion: 0,
   createdAt: new Date(),
   updatedAt: new Date(),
 };

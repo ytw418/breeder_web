@@ -39,6 +39,12 @@ jest.mock("@libs/server/jwt", () => ({
   }),
 }));
 
+jest.mock("@libs/server/socialAuth", () => ({
+  SocialAuthError: class SocialAuthError extends Error {},
+  verifySocialLogin: () =>
+    Promise.resolve({ snsId: "kakao-123", email: "new@bredy.app", avatar: null }),
+}));
+
 import loginHandler from "../pages/api/auth/login";
 
 function createRes() {
@@ -69,6 +75,7 @@ async function login(body: Record<string, unknown>) {
 const DAY_MS = 24 * 60 * 60 * 1000;
 const CREATED_AT = new Date("2026-01-01T00:00:00.000Z");
 const body = {
+  token: "kakao-access",
   snsId: "kakao-123",
   name: "카카오이름",
   provider: "kakao",
