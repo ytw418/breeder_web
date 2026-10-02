@@ -73,12 +73,16 @@ const handler = async (
 
   if (req.method === "GET") {
     const {
-      query: { page = 1, size = 10, category, productType, status },
+      query: { page = 1, size = 10, category, productType, status, price },
     } = req;
 
     // 캐싱 전략: 필터 없는 기본 목록은 60초 캐시
     // 필터가 있는 경우 30초 캐시
-    const hasFilters = (category && category !== "전체") || productType || status;
+    // price 는 0 이상의 정수 문자열만 받는다(홈 무료나눔 카드 → price=0).
+    const priceFilter =
+      typeof price === "string" && /^\d+$/.test(price) ? Number(price) : undefined;
+    const hasFilters =
+      (category && category !== "전체") || productType || status || priceFilter !== undefined;
     const cacheTime = hasFilters ? 30 : 60;
     res.setHeader(
       'Cache-Control',
@@ -94,6 +98,7 @@ const handler = async (
       category: typeof category === "string" ? category : undefined,
       productType: typeof productType === "string" ? productType : undefined,
       status: typeof status === "string" ? status : undefined,
+      price: priceFilter,
       viewerId,
     });
 
