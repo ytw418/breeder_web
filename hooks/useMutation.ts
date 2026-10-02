@@ -2,6 +2,7 @@ import { useCallback, useState } from "react";
 import { ApiResponseBase } from "@libs/client/apiResponse";
 import { capturePosthogError } from "@libs/client/posthog";
 import { authFetch } from "@libs/client/authFetch";
+import { normalizeDeletedUserNames } from "@libs/shared/deletedUser";
 
 interface useMutationState<T> {
   loading: boolean;
@@ -51,9 +52,12 @@ export default function useMutation<T = any>(
         });
 
         const contentTypeHeader = response.headers.get("content-type") || "";
-        const parsed = contentTypeHeader.includes("application/json")
+        const raw: unknown = contentTypeHeader.includes("application/json")
           ? await response.json().catch(() => null)
           : await response.text().catch(() => "");
+        // 탈퇴 유저 이름("탈퇴한 사용자#<id>")을 표시용 라벨로 바꾼다.
+        const parsed =
+          raw && typeof raw === "object" ? normalizeDeletedUserNames(raw) : raw;
 
         // 계약:
         // 1) HTTP 실패(4xx/5xx)는 throw하지 않고 payload로 반환

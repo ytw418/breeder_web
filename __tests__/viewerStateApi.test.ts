@@ -33,6 +33,11 @@ const mockClient = {
   user: { findUnique: jest.fn() },
   follow: { findFirst: jest.fn() },
   userBadge: { findMany: jest.fn() },
+  // 차단 없음(#18 viewer 필터는 viewerFilterApi.test.ts 에서 검증)
+  userBlock: {
+    findMany: jest.fn(() => Promise.resolve([])),
+    findFirst: jest.fn(() => Promise.resolve(null)),
+  },
 };
 jest.mock("@libs/server/client", () => ({
   __esModule: true,
@@ -190,5 +195,105 @@ describe("GET /api/users/{id} 팔로워·팔로잉 수", () => {
     expect(res.statusCode).toBe(200);
     expect(res.body.user._count.followers).toBe(1);
     expect(res.body.user._count.following).toBe(0);
+  });
+});
+
+describe("GET /api/users/{id} 내부 필드", () => {
+  it("토큰 무효화·정지 만료 필드(tokenVersion·suspendedUntil)는 조회하지 않는다", async () => {
+    mockClient.user.findUnique.mockResolvedValue({
+      id: 1,
+      name: "A",
+      email: null,
+      _count: {
+        followers: 0,
+        following: 0,
+        products: 0,
+        posts: 0,
+        Comments: 0,
+        insectRecords: 0,
+        receivedReviews: 0,
+        createdBloodlineCards: 0,
+        ownedBloodlineCards: 0,
+      },
+    });
+    mockClient.userBadge.findMany.mockResolvedValue([]);
+
+    await call(userDetailHandler, { query: { id: "1" } });
+
+    expect(mockClient.user.findUnique).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        where: { id: 1 },
+        omit: { tokenVersion: true, suspendedUntil: true },
+      })
+    );
+  });
+});
+
+describe("GET /api/users/{id} 잘못된 id", () => {
+  it.each(["check-name", "1abc", "0", "-1", "99999999999"])(
+    "id=%s 는 DB 를 조회하지 않고 404 를 준다(Prisma 오류 원문 비노출)",
+    async (id) => {
+      mockClient.user.findUnique.mockClear();
+
+      const res = await call(userDetailHandler, { query: { id } });
+
+      expect(res.statusCode).toBe(404);
+      expect(res.body).toEqual({
+        success: false,
+        message: "유저를 찾을 수 없습니다.",
+      });
+      expect(mockClient.user.findUnique).not.toHaveBeenCalled();
+    }
+  );
+});
+
+describe("GET /api/users/{id} 로그인 식별자 비노출", () => {
+  const profileRow = () => ({
+    id: 1,
+    name: "A",
+    snsId: "3456789012",
+    phone: "01012345678",
+    email: "a@bredy.app",
+    _count: {
+      followers: 0,
+      following: 0,
+      products: 0,
+      posts: 0,
+      Comments: 0,
+      insectRecords: 0,
+      receivedReviews: 0,
+      createdBloodlineCards: 0,
+      ownedBloodlineCards: 0,
+    },
+  });
+
+  beforeEach(() => {
+    mockClient.userBadge.findMany.mockResolvedValue([]);
+    mockClient.follow.findFirst.mockResolvedValue(null);
+  });
+
+  it.each([
+    ["비로그인", undefined],
+    ["다른 유저", asUser(2)],
+  ])("%s 에게는 snsId·phone·email 을 내려주지 않는다", async (_label, user) => {
+    mockClient.user.findUnique.mockResolvedValue(profileRow());
+
+    const res = await call(userDetailHandler, { query: { id: "1" }, user });
+
+    expect(res.statusCode).toBe(200);
+    expect(res.body.user).not.toHaveProperty("snsId");
+    expect(res.body.user).not.toHaveProperty("phone");
+    expect(res.body.user.email).toBeNull();
+    expect(res.body.user.maskedEmail).toBe("a*@b****.app");
+  });
+
+  it("본인에게는 그대로 내려준다", async () => {
+    mockClient.user.findUnique.mockResolvedValue(profileRow());
+
+    const res = await call(userDetailHandler, { query: { id: "1" }, user: asUser(1) });
+
+    expect(res.body.user.snsId).toBe("3456789012");
+    expect(res.body.user.phone).toBe("01012345678");
+    expect(res.body.user.email).toBe("a@bredy.app");
   });
 });

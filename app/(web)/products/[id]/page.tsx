@@ -2,6 +2,10 @@ import { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { getProduct } from "@libs/server/apis";
 import { extractProductId, getProductPath } from "@libs/product-route";
+import {
+  displayUserName,
+  normalizeDeletedUserNames,
+} from "@libs/shared/deletedUser";
 import ProductClient from "./ProductClient";
 import Script from "next/script";
 import Image from "@components/atoms/Image";
@@ -136,7 +140,7 @@ function generateJsonLd(product: any, imageUrls: string[]) {
     },
     seller: {
       "@type": "Person",
-      name: product.user.name,
+      name: displayUserName(product.user?.name),
     },
   };
 }
@@ -237,8 +241,8 @@ export default async function ProductPage({ params }: Props) {
           </ol>
         </nav>
         <ProductClient
-          product={data.product}
-          relatedProducts={data.relatedProducts}
+          product={normalizeDeletedUserNames(data.product)}
+          relatedProducts={normalizeDeletedUserNames(data.relatedProducts)}
           success={data.success}
         />
       </div>

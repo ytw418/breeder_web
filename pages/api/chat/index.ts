@@ -2,6 +2,7 @@ import client from "@libs/server/client";
 import withHandler from "@libs/server/withHandler";
 import { NextApiRequest, NextApiResponse } from "next";
 import { withAuth } from "@libs/server/auth";
+import { assertCanChat } from "@libs/server/blocks";
 
 export interface ChatRequestType {
   otherId: number;
@@ -10,6 +11,7 @@ export interface ChatRequestType {
 export interface ChatResponseType {
   success: boolean;
   error?: string;
+  errorCode?: string;
   ChatRoomId?: number;
 }
 
@@ -40,6 +42,14 @@ async function handler(
       return res
         .status(400)
         .json({ success: false, error: "자기 자신과는 채팅할 수 없습니다." });
+    }
+
+    // 차단(양방향)·탈퇴한 상대와는 방을 만들거나 열지 않는다.
+    const canChat = await assertCanChat(user.id, +otherId);
+    if (!canChat.ok) {
+      return res
+        .status(canChat.status)
+        .json({ success: false, error: canChat.error, errorCode: canChat.errorCode });
     }
 
     // 기존 1:1 채팅방 찾기

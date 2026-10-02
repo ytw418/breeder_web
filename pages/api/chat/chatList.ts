@@ -3,6 +3,7 @@ import { withAuth } from "@libs/server/auth";
 import withHandler from "@libs/server/withHandler";
 import client from "@libs/server/client";
 import { MessageType } from "@prisma/client";
+import { getBlockedUserIds } from "@libs/server/blocks";
 
 export interface ChatListResponse {
   success: boolean;
@@ -42,11 +43,15 @@ async function handler(
         .json({ success: false, error: "로그인이 필요합니다.", chatRooms: [] });
     }
 
+    // 내가 차단한 사람이 있는 방은 내 목록에서 숨긴다(상대 목록에는 그대로 보인다).
+    const blockedIds = await getBlockedUserIds(userId);
+
     // 채팅방 목록 조회 (마지막 메시지 1개만 가져옴)
     const chatRooms = await client.chatRoom.findMany({
       where: {
         chatRoomMembers: {
           some: { userId },
+          ...(blockedIds.length ? { none: { userId: { in: blockedIds } } } : {}),
         },
       },
       include: {

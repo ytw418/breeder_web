@@ -2,6 +2,7 @@ import { NextApiRequest, NextApiResponse } from "next";
 import withHandler, { ResponseType } from "@libs/server/withHandler";
 import client from "@libs/server/client";
 import { withAuth } from "@libs/server/auth";
+import type { Prisma } from "@prisma/client";
 
 export interface ProductListQuery {
   id?: string | string[];
@@ -51,10 +52,15 @@ async function handler(
 
     const pageSize = Math.min(Math.max(1, +size), 50); // 최소 1, 최대 50개로 제한
 
+    // 숨김(관리자 조치·탈퇴)·삭제 상품은 본인 목록에만 보인다.
+    const sellerId = +id.toString();
+    const where: Prisma.ProductWhereInput =
+      req.user?.id === sellerId
+        ? { userId: sellerId }
+        : { userId: sellerId, isHidden: false, isDeleted: false };
+
     const products = await client.product.findMany({
-      where: {
-        userId: +id.toString(),
-      },
+      where,
       include: {
         _count: {
           select: {
@@ -69,11 +75,7 @@ async function handler(
       skip: (+page - 1) * pageSize,
     });
 
-    const productCount = await client.product.count({
-      where: {
-        userId: +id.toString(),
-      },
-    });
+    const productCount = await client.product.count({ where });
 
     res.json({
       success: true,

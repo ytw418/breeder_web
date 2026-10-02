@@ -2,6 +2,7 @@ import { NextApiRequest, NextApiResponse } from "next";
 import { withAuth } from "@libs/server/auth";
 import withHandler from "@libs/server/withHandler";
 import client from "@libs/server/client";
+import { getBlockedUserIds } from "@libs/server/blocks";
 
 export interface UnreadCountResponse {
   success: boolean;
@@ -22,9 +23,17 @@ async function handler(
         .json({ success: false, error: "로그인이 필요합니다.", unreadCount: 0 });
     }
 
+    // 내가 차단한 사람이 있는 방은 unread 에서도 뺀다(채팅 목록과 같은 기준).
+    const blockedIds = await getBlockedUserIds(userId);
+
     // 현재 유저가 속한 모든 채팅방 멤버 정보 조회
     const memberships = await client.chatRoomMember.findMany({
-      where: { userId },
+      where: {
+        userId,
+        ...(blockedIds.length
+          ? { chatRoom: { chatRoomMembers: { none: { userId: { in: blockedIds } } } } }
+          : {}),
+      },
       select: {
         chatRoomId: true,
         lastReadAt: true,

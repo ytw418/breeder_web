@@ -37,6 +37,7 @@ jest.mock("@libs/server/UniqueName", () => ({
 jest.mock("@libs/server/jwt", () => ({
   issueTokens: () =>
     Promise.resolve({ accessToken: "a", refreshToken: "r", expiresIn: 1800 }),
+  toAuthUser: (user: Record<string, unknown>) => ({ id: user.id, name: user.name }),
 }));
 
 import deletionHandler from "../pages/api/users/me/deletion";
@@ -186,12 +187,15 @@ describe("/api/auth/login 탈퇴 보관 기간", () => {
     mockFindPendingDeletion.mockResolvedValue(null);
     mockCreateUser.mockResolvedValue({
       id: 8,
+      status: "ACTIVE",
       snsId: "kakao-123",
       provider: "kakao",
       phone: null,
       email: null,
       name: "새닉네임",
       avatar: null,
+      tokenVersion: 0,
+      suspendedUntil: null,
       createdAt: new Date(),
       updatedAt: new Date(),
     });

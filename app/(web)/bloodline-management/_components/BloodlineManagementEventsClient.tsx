@@ -1,6 +1,6 @@
 "use client";
 
-import { authFetch } from "@libs/client/authFetch";
+import { fetchBloodlineCardEvents } from "@libs/client/bloodlineCardEvents";
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import useSWR from "swr";
@@ -70,22 +70,16 @@ export default function BloodlineManagementEventsClient() {
     const load = async () => {
       const loaded = await Promise.all(
         cardIds.map((cardId) =>
-          authFetch(`/api/bloodline-cards/${cardId}/events?limit=10`)
-            .then(
-              (response) =>
-                response.json() as Promise<BloodlineCardEventsResponse>,
-            )
-            .catch(
-              () =>
-                ({ success: false, events: [] }) as BloodlineCardEventsResponse,
-            ),
+          fetchBloodlineCardEvents(cardId, 10).catch(
+            () => [] as BloodlineCardEventsResponse["events"],
+          ),
         ),
       );
 
       if (!active) return;
 
       const sorted = loaded
-        .flatMap((item) => (item.success ? item.events || [] : []))
+        .flat()
         .sort(
           (left, right) =>
             new Date(right.createdAt).getTime() -

@@ -2,6 +2,7 @@ import React from "react";
 import MainClient from "./MainClient";
 import type { Metadata } from "next";
 import { getHomeBanners, getHomeFeed, getProductsResponse } from "@libs/server/home";
+import { normalizeDeletedUserNames } from "@libs/shared/deletedUser";
 
 export const metadata: Metadata = {
   title: "브리디 | 반려동물 경매 플랫폼",
@@ -49,10 +50,11 @@ const page = async () => {
     getHomeBanners(),
   ]);
 
+  // SWR fallbackData 로 그대로 쓰이므로 클라이언트 fetcher 와 같이 탈퇴 유저 이름을 정규화한다.
   return (
     <MainClient
-      initialHomeFeed={initialHomeFeed}
-      initialProducts={initialProducts}
+      initialHomeFeed={normalizeDeletedUserNames(initialHomeFeed)}
+      initialProducts={normalizeDeletedUserNames(initialProducts)}
       initialBanners={initialBanners}
     />
   );

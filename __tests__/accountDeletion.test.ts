@@ -183,9 +183,40 @@ describe("deleteAccount", () => {
   });
 
   it("이미 탈퇴한 계정이면 ALREADY_DELETED", async () => {
-    mockClient.user.findUnique.mockResolvedValue({ ...activeUser, status: "DELETED" });
+    mockClient.user.findUnique.mockResolvedValue({
+      ...activeUser,
+      status: "DELETED",
+      snsId: `deleted:${hashSnsId("kakao-123")}`,
+      name: "탈퇴한 사용자#7",
+      email: null,
+      phone: null,
+    });
     const result = await deleteAccount(USER_ID, { now: NOW });
     expect(result).toEqual({ ok: false, code: "ACCOUNT_ALREADY_DELETED" });
+    expect(mockClient.user.update).not.toHaveBeenCalled();
+    expect(mockClient.userDeletionRecord.create).not.toHaveBeenCalled();
+  });
+
+  it("상태만 DELETED 로 바뀐 예전 계정(snsId 원문)은 익명화를 마저 진행한다", async () => {
+    // 예전 관리자 상태 변경은 status 만 DELETED 로 바꿔 개인정보가 그대로 남아 있다.
+    mockClient.user.findUnique.mockResolvedValue({ ...activeUser, status: "DELETED" });
+
+    const result = await deleteAccount(USER_ID, { now: NOW, force: true });
+
+    expect(result.ok).toBe(true);
+    expect(mockClient.userDeletionRecord.create).toHaveBeenCalledWith({
+      data: expect.objectContaining({ userId: USER_ID, snsId: "kakao-123", email: "me@example.com" }),
+    });
+    expect(mockClient.user.update).toHaveBeenCalledWith({
+      where: { id: USER_ID },
+      data: expect.objectContaining({
+        status: "DELETED",
+        name: "탈퇴한 사용자#7",
+        email: null,
+        phone: null,
+        snsId: `deleted:${hashSnsId("kakao-123")}`,
+      }),
+    });
   });
 
   it("성공 시 개인정보를 User 에서 지우고 분리 보관 레코드를 만든다", async () => {
@@ -206,6 +237,9 @@ describe("deleteAccount", () => {
         phone: null,
         avatar: null,
         snsId: `deleted:${hashSnsId("kakao-123")}`,
+        // 탈퇴하면 모든 기기의 access/refresh 토큰을 즉시 무효화한다.
+        tokenVersion: { increment: 1 },
+        suspendedUntil: null,
       },
     });
     expect(mockClient.userDeletionRecord.create).toHaveBeenCalledWith({
@@ -236,6 +270,10 @@ describe("deleteAccount", () => {
     expect(mockClient.alertSubscription.deleteMany).toHaveBeenCalledWith({ where: { userId: USER_ID } });
     expect(mockClient.bloodlineFollow.deleteMany).toHaveBeenCalledWith({ where: { userId: USER_ID } });
     expect(mockClient.notification.deleteMany).toHaveBeenCalledWith({ where: { userId: USER_ID } });
+    // 보낸 알림 문구("브리더님이 회원님을 팔로우했습니다.")에 박힌 원래 닉네임도 남기지 않는다.
+    expect(mockClient.notification.deleteMany).toHaveBeenCalledWith({
+      where: { senderId: USER_ID, message: { contains: "브리더" } },
+    });
     expect(mockClient.product.updateMany).toHaveBeenCalledWith({
       where: { userId: USER_ID, status: "판매중", isDeleted: false },
       data: { isHidden: true },

@@ -13,6 +13,8 @@ import {
 } from "@libs/server/breeder-programs";
 import type { BreederProgramSummary } from "@libs/shared/breeder-program";
 import { resolvePostImagesInput, withPostImages } from "@libs/postImages";
+import { canWriteNoticePost, isNoticePostInput } from "@libs/server/postNotice";
+import { excludedAuthorIds, setViewerCacheHeader } from "@libs/server/blocks";
 
 /** 게시글 목록 응답 타입 */
 export interface PostWithUser extends Post {
@@ -65,6 +67,14 @@ const handler = async (
     if (species && species !== "전체") {
       where.type = { in: getCategoryFilterValues(String(species)) };
     }
+
+    // viewer 가 차단한 작성자의 글은 viewer 에게서만 뺀다(목록·페이지 수 모두).
+    const viewerId = req.user?.id;
+    const excluded = await excludedAuthorIds(viewerId);
+    if (excluded.length) {
+      where.userId = { notIn: excluded };
+    }
+    setViewerCacheHeader(res, viewerId);
 
     const pageNumber = Number(page);
     const normalizedPage = Number.isInteger(pageNumber) && pageNumber > 0 ? pageNumber : 1;
@@ -153,19 +163,13 @@ const handler = async (
       });
     }
 
-    if (String(category) === "공지") {
-      const dbUser = user?.id
-        ? await client.user.findUnique({
-            where: { id: user.id },
-            select: { role: true },
-          })
-        : null;
-
-      if (!dbUser || !["ADMIN", "SUPER_USER"].includes(dbUser.role)) {
-        return res
-          .status(403)
-          .json({ success: false, error: "공지 작성 권한이 없습니다." });
-      }
+    if (
+      isNoticePostInput({ category, title }) &&
+      !(await canWriteNoticePost(user.id))
+    ) {
+      return res
+        .status(403)
+        .json({ success: false, error: "공지 작성 권한이 없습니다." });
     }
 
     const post = await client.post.create({

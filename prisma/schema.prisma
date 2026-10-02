@@ -89,6 +89,10 @@ model User {
   avatar          String?
   /// 탈퇴 시각. status=DELETED 와 함께 설정한다.
   deletedAt       DateTime?
+  /// 정지·차단·탈퇴 시 +1. access/refresh 의 tv 클레임과 비교
+  tokenVersion    Int         @default(0)
+  /// SUSPENDED_* 만료 시각. 로그인 시 지났으면 ACTIVE 로 복귀
+  suspendedUntil  DateTime?
   createdAt       DateTime    @default(now())
   updatedAt       DateTime    @updatedAt
   products        Product[]
@@ -118,6 +122,11 @@ model User {
   auctionReportsSubmitted AuctionReport[] @relation("AuctionReportReporter")
   auctionReportsReceived  AuctionReport[] @relation("AuctionReportReportedUser")
   auctionReportsResolved  AuctionReport[] @relation("AuctionReportResolver")
+  reportsSubmitted        Report[]        @relation("ReportReporter")
+  reportsReceived         Report[]        @relation("ReportReportedUser")
+  reportsResolved         Report[]        @relation("ReportResolver")
+  blocksInitiated         UserBlock[]     @relation("UserBlockBlocker")
+  blocksReceived          UserBlock[]     @relation("UserBlockBlocked")
   createdBloodlineCards     BloodlineCard[]        @relation("BloodlineCardCreator")
   ownedBloodlineCards       BloodlineCard[]        @relation("BloodlineCardOwner")
   bloodlineCardEventsAsActor   BloodlineCardEvent[] @relation("BloodlineCardEventActor")
@@ -651,6 +660,73 @@ model AuctionReport {
   @@index([reportedUserId])
   @@index([status])
   @@index([createdAt])
+}
+
+// ============================================================
+// 통합 신고 · 사용자 차단
+// ============================================================
+
+enum ReportTargetType {
+  POST
+  COMMENT
+  PRODUCT
+  CHAT_ROOM
+  USER
+}
+
+enum ReportStatus {
+  OPEN
+  RESOLVED
+  REJECTED
+}
+
+enum ReportAction {
+  NONE
+  REMOVE_CONTENT
+  BAN_USER
+  REMOVE_CONTENT_AND_BAN
+}
+
+/// 게시글·댓글·상품·채팅방·사용자 통합 신고. 경매 신고는 AuctionReport 를 그대로 쓴다.
+model Report {
+  id               Int              @id @default(autoincrement())
+  targetType       ReportTargetType
+  /// 대상 id. CHAT_ROOM 이면 채팅방 id, USER 면 사용자 id.
+  targetId         Int
+  reporterId       Int
+  reportedUserId   Int
+  reason           String
+  detail           String?
+  status           ReportStatus     @default(OPEN)
+  resolutionAction ReportAction     @default(NONE)
+  resolutionNote   String?
+  resolvedBy       Int?
+  resolvedAt       DateTime?
+  createdAt        DateTime         @default(now())
+  updatedAt        DateTime         @updatedAt
+
+  reporter     User  @relation("ReportReporter", fields: [reporterId], references: [id], onDelete: Cascade)
+  reportedUser User  @relation("ReportReportedUser", fields: [reportedUserId], references: [id], onDelete: Cascade)
+  resolver     User? @relation("ReportResolver", fields: [resolvedBy], references: [id], onDelete: SetNull)
+
+  @@index([targetType, targetId])
+  @@index([reporterId])
+  @@index([reportedUserId])
+  @@index([status, createdAt])
+}
+
+/// blocker 가 blocked 를 차단. 콘텐츠 숨김은 단방향, 채팅은 양방향 금지.
+model UserBlock {
+  id        Int      @id @default(autoincrement())
+  blockerId Int
+  blockedId Int
+  createdAt DateTime @default(now())
+
+  blocker User @relation("UserBlockBlocker", fields: [blockerId], references: [id], onDelete: Cascade)
+  blocked User @relation("UserBlockBlocked", fields: [blockedId], references: [id], onDelete: Cascade)
+
+  @@unique([blockerId, blockedId])
+  @@index([blockedId])
 }
 
 // ============================================================

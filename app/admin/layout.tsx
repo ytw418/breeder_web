@@ -10,6 +10,7 @@ const ADMIN_MENUS = [
   { name: "대시보드", href: "/admin" },
   { name: "브리더 프로그램", href: "/admin/breeder-programs" },
   { name: "경매 관리", href: "/admin/auctions" },
+  { name: "신고 관리", href: "/admin/reports" },
   { name: "배너 관리", href: "/admin/banners" },
   { name: "랜딩 페이지", href: "/admin/landing-pages" },
   { name: "기네스북 심사", href: "/admin/guinness" },

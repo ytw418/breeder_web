@@ -1,5 +1,6 @@
 import { capturePosthogError } from "@libs/client/posthog";
 import { authFetch } from "@libs/client/authFetch";
+import { normalizeDeletedUserNames } from "@libs/shared/deletedUser";
 
 export const fetcher = async <ReqBody = any, ResData = any>(
   url: string,
@@ -31,7 +32,8 @@ export const fetcher = async <ReqBody = any, ResData = any>(
         fetchError.status = res.status;
         throw fetchError;
       }
-      return res.json();
+      // 탈퇴 유저 이름("탈퇴한 사용자#<id>")을 표시용 라벨로 바꾼다.
+      return res.json().then(normalizeDeletedUserNames);
     })
     .catch((error: unknown) => {
       capturePosthogError({

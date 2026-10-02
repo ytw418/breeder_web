@@ -1,12 +1,13 @@
 import { NextApiRequest, NextApiResponse } from "next";
 import withHandler, { ResponseType } from "@libs/server/withHandler";
 import { withAuth } from "@libs/server/auth";
-import { issueTokens } from "@libs/server/jwt";
+import { issueTokens, toAuthUser } from "@libs/server/jwt";
 import client from "@libs/server/client";
 import { role as UserRole, UserStatus } from "@prisma/client";
 import { canRunSensitiveAdminAction, hasAdminAccess } from "@libs/server/adminAccess";
 import { randomUUID } from "crypto";
 import { deleteAccount } from "@libs/server/accountDeletion";
+import { setUserStatus } from "@libs/server/accountStatus";
 
 const ROLE_OPTIONS: UserRole[] = ["USER", "FAKE_USER", "ADMIN", "SUPER_USER"];
 const STATUS_OPTIONS: UserStatus[] = [
@@ -16,6 +17,13 @@ const STATUS_OPTIONS: UserStatus[] = [
   "SUSPENDED_30D",
   "DELETED",
 ];
+
+/**
+ * 탈퇴 처리는 snsId 를 해시로 바꾸고 30일 뒤 원문을 파기해, 차단 계정이 같은 소셜 계정으로 재가입할 수 있게 된다.
+ * 차단을 유지하려면 차단 계정은 탈퇴 처리하지 않는다(필요하면 먼저 ACTIVE 로 바꾼 뒤 처리).
+ */
+const BANNED_DELETE_ERROR =
+  "차단된 계정은 탈퇴 처리할 수 없어요. 탈퇴 처리하면 30일 뒤 같은 소셜 계정으로 다시 가입할 수 있어요.";
 
 async function handler(req: NextApiRequest, res: NextApiResponse<ResponseType>) {
   const {
@@ -138,17 +146,10 @@ async function handler(req: NextApiRequest, res: NextApiResponse<ResponseType>) 
         });
       }
 
-      const switchTokens = await issueTokens({
-        id: targetUser.id,
-        snsId: targetUser.snsId,
-        provider: targetUser.provider,
-        phone: targetUser.phone,
-        email: targetUser.email,
-        name: targetUser.name,
-        avatar: targetUser.avatar,
-        createdAt: targetUser.createdAt,
-        updatedAt: targetUser.updatedAt,
-      });
+      const switchTokens = await issueTokens(
+        toAuthUser(targetUser),
+        targetUser.tokenVersion
+      );
       return res.json({
         success: true,
         accessToken: switchTokens.accessToken,
@@ -249,10 +250,49 @@ async function handler(req: NextApiRequest, res: NextApiResponse<ResponseType>) 
           .json({ success: false, error: "현재 로그인한 계정은 비활성화할 수 없습니다." });
       }
 
-      await client.user.update({
-        where: { id: Number(userId) },
-        data: { status },
+      const targetUserId = Number(userId);
+      const targetUser = await client.user.findUnique({
+        where: { id: targetUserId },
+        select: { id: true, status: true },
       });
+      if (!targetUser) {
+        return res
+          .status(404)
+          .json({ success: false, error: "사용자를 찾을 수 없습니다." });
+      }
+      if (targetUser.status === "DELETED") {
+        return res.status(400).json({
+          success: false,
+          error: "탈퇴한 계정의 상태는 변경할 수 없습니다.",
+        });
+      }
+
+      // DELETED 는 상태값만 바꾸면 개인정보가 남고 재로그인도 막지 못하므로 탈퇴 처리와 같게 한다.
+      if (status === "DELETED") {
+        if (targetUser.status === "BANNED") {
+          return res.status(400).json({ success: false, error: BANNED_DELETE_ERROR });
+        }
+        const result = await deleteAccount(targetUserId, {
+          reason: "관리자 상태 변경",
+          force: true,
+        });
+        if (!result.ok && result.code === "USER_NOT_FOUND") {
+          return res
+            .status(404)
+            .json({ success: false, error: "사용자를 찾을 수 없습니다." });
+        }
+        return res.json({ success: true });
+      }
+
+      // 정지·차단은 tokenVersion 을 올려 대상의 모든 토큰을 즉시 끊는다.
+      // 조회 뒤 탈퇴됐으면 setUserStatus 가 바꾸지 않는다.
+      const applied = await setUserStatus(client, targetUserId, status);
+      if (!applied) {
+        return res.status(400).json({
+          success: false,
+          error: "탈퇴한 계정의 상태는 변경할 수 없습니다.",
+        });
+      }
 
       return res.json({ success: true });
     }
@@ -262,6 +302,19 @@ async function handler(req: NextApiRequest, res: NextApiResponse<ResponseType>) 
         return res
           .status(400)
           .json({ success: false, error: "현재 로그인한 계정은 삭제할 수 없습니다." });
+      }
+
+      const deleteTarget = await client.user.findUnique({
+        where: { id: Number(userId) },
+        select: { id: true, status: true },
+      });
+      if (!deleteTarget) {
+        return res
+          .status(404)
+          .json({ success: false, error: "사용자를 찾을 수 없습니다." });
+      }
+      if (deleteTarget.status === "BANNED") {
+        return res.status(400).json({ success: false, error: BANNED_DELETE_ERROR });
       }
 
       // 하드 삭제는 콘텐츠를 연쇄 삭제하고 Product(Restrict) 때문에 실패하므로 탈퇴와 같은 소프트 삭제로 처리한다.
