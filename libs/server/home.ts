@@ -81,6 +81,8 @@ type ProductQueryOptions = {
   category?: string;
   productType?: string;
   status?: string;
+  /** 정확한 가격(원). 0 이면 무료나눔 목록. 0 이상의 정수만 쓴다. */
+  price?: number;
   /**
    * 로그인한 viewer. 있으면 viewer 가 차단한 판매자의 상품을 뺀다.
    * unstable_cache 경로(getCachedDefaultProducts)에는 넣지 않는다(공개 캐시).
@@ -222,6 +224,7 @@ const buildProductsResponse = async ({
   category,
   productType,
   status,
+  price,
   viewerId,
 }: ProductQueryOptions = {}): Promise<ProductsResponse> => {
   const pageNumber = Number(page);
@@ -243,6 +246,9 @@ const buildProductsResponse = async ({
   }
   if (status && status !== "전체") {
     where.status = status;
+  }
+  if (typeof price === "number") {
+    where.price = price;
   }
   const excluded = await excludedAuthorIds(viewerId);
   if (excluded.length) {
@@ -335,6 +341,7 @@ export async function getProductsResponse(options: ProductQueryOptions = {}) {
     (!options.category || options.category === "전체") &&
     !options.productType &&
     !options.status &&
+    options.price === undefined &&
     Number(options.page ?? 1) === 1 &&
     Number(options.size ?? 10) === 10;
 
