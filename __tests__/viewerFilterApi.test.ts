@@ -253,6 +253,34 @@ describe("GET /api/products 목록 (buildProductsResponse)", () => {
     expect(res.headers["cache-control"]).toBe(PRIVATE_NO_STORE);
   });
 
+  it("price=0 이면 가격 0원(무료나눔) 상품만 거른다", async () => {
+    const res = await call(productsHandler, {
+      query: { status: "판매중", price: "0" },
+    });
+
+    expect(res.statusCode).toBe(200);
+    const where = mockClient.product.findMany.mock.calls[0][0].where;
+    expect(where).toEqual({
+      isHidden: false,
+      isDeleted: false,
+      status: "판매중",
+      price: 0,
+    });
+    expect(mockClient.product.count.mock.calls[0][0].where).toEqual(where);
+    expect(res.headers["cache-control"]).toMatch(/s-maxage=30,/);
+  });
+
+  it("price 가 0 이상의 정수가 아니면 무시한다", async () => {
+    for (const price of ["abc", "-1", "1.5", ""]) {
+      mockClient.product.findMany.mockClear();
+      await call(productsHandler, { query: { price } });
+      expect(mockClient.product.findMany.mock.calls[0][0].where).toEqual({
+        isHidden: false,
+        isDeleted: false,
+      });
+    }
+  });
+
   it("fetchProductsResponse 는 viewerId 가 없으면 차단 목록을 조회하지 않는다", async () => {
     await fetchProductsResponse({ page: 1, size: 10 });
 

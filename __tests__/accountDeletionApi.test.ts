@@ -34,6 +34,11 @@ jest.mock("@libs/server/breeder-programs", () => ({
 jest.mock("@libs/server/UniqueName", () => ({
   UniqueName: () => Promise.resolve("새닉네임"),
 }));
+jest.mock("@libs/server/socialAuth", () => ({
+  SocialAuthError: class SocialAuthError extends Error {},
+  verifySocialLogin: () =>
+    Promise.resolve({ snsId: "kakao-123", email: null, avatar: null }),
+}));
 jest.mock("@libs/server/jwt", () => ({
   issueTokens: () =>
     Promise.resolve({ accessToken: "a", refreshToken: "r", expiresIn: 1800 }),
@@ -163,7 +168,7 @@ describe("/api/users/me/deletion", () => {
 });
 
 describe("/api/auth/login 탈퇴 보관 기간", () => {
-  const body = { snsId: "kakao-123", name: "x", provider: "kakao" };
+  const body = { token: "kakao-access", name: "x", provider: "kakao" };
 
   it("보관 기간 중인 소셜 계정은 403 ACCOUNT_PENDING_DELETION, 계정을 만들지 않는다", async () => {
     mockClient.user.findUnique.mockResolvedValue(null);

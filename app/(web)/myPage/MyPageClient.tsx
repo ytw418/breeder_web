@@ -310,6 +310,7 @@ const MyPageClient = () => {
       }
 
       const body: LoginReqBody = {
+        token: await googleUser.getIdToken(),
         snsId: googleUser.uid,
         name:
           googleUser.displayName || googleUser.email?.split("@")[0] || "Google User",
