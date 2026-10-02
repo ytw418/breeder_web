@@ -268,6 +268,7 @@ const LoginClient = ({ shouldShowTestLogin }: LoginClientProps) => {
       }
 
       const body: LoginReqBody = {
+        token: await user.getIdToken(),
         snsId: user.uid,
         name: user.displayName || user.email?.split("@")[0] || "Google User",
         provider: USER_INFO.provider.GOOGLE,
