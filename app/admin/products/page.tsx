@@ -10,6 +10,7 @@ import { Button } from "@components/ui/button";
 import { Input } from "@components/ui/input";
 import { makeImageUrl } from "@libs/client/utils";
 import { getProductPath } from "@libs/product-route";
+import { formatProductPrice } from "@libs/productRules";
 import useConfirmDialog from "hooks/useConfirmDialog";
 
 export default function AdminProductsPage() {
@@ -125,7 +126,7 @@ export default function AdminProductsPage() {
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                     <div className="flex flex-col">
                       <span className="text-xs font-semibold">{product.status}</span>
-                      <span>{product.price?.toLocaleString()}원</span>
+                      <span>{formatProductPrice(product.price)}</span>
                       <span className="text-xs text-gray-400">
                         ❤️ {product._count?.favs || 0}
                       </span>

@@ -12,6 +12,7 @@ jest.mock("@components/features/MainLayout", () => ({
 
 import Item from "@components/features/item/item";
 import MySellHistoryList from "@components/features/profile/MySellHistoryList";
+import MyPostList from "@components/features/profile/MyPostList";
 
 const baseItem = {
   title: "왕사슴 유충",
@@ -79,5 +80,29 @@ describe("MySellHistoryList 삭제·숨김 상품", () => {
     }
     expect(screen.getAllByText("삭제된 상품")).toHaveLength(2);
     expect(screen.getAllByRole("link")).toHaveLength(1);
+  });
+});
+
+describe("MyPostList 가격 표시", () => {
+  const product = (id: number, price?: number) => ({
+    id,
+    name: `상품 ${id}`,
+    price,
+    description: "설명",
+    photos: ["img-1"],
+    createdAt: new Date("2026-10-01T00:00:00.000Z"),
+    _count: { favs: 0 },
+  });
+
+  it("0원은 무료나눔, 가격이 없으면 가격 미정으로 보인다", () => {
+    mockUseSWR.mockReturnValue({
+      isLoading: false,
+      data: { success: true, products: [product(1, 0), product(2), product(3, 10000)] },
+    });
+    render(<MyPostList userId={7} />);
+
+    expect(screen.getByText("무료나눔")).toBeInTheDocument();
+    expect(screen.getByText("가격 미정")).toBeInTheDocument();
+    expect(screen.getByText("10,000원")).toBeInTheDocument();
   });
 });

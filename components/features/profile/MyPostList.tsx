@@ -5,6 +5,7 @@ import Image from "@components/atoms/Image";
 import Link from "next/link";
 import { makeImageUrl } from "@libs/client/utils";
 import { getProductPath } from "@libs/product-route";
+import { formatProductPrice } from "@libs/productRules";
 import { Spinner } from "@components/atoms/Spinner";
 
 const MyPostList = ({ userId }: { userId?: number }) => {
@@ -47,9 +48,7 @@ const MyPostList = ({ userId }: { userId?: number }) => {
                 {product.name}
               </span>
               <span className="text-sm font-semibold text-primary">
-                {product.price
-                  ? `${product.price.toLocaleString()}원`
-                  : "가격 미정"}
+                {formatProductPrice(product.price)}
               </span>
             </div>
           </div>

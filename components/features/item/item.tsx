@@ -3,6 +3,7 @@ import Image from "@components/atoms/Image";
 import Link from "next/link";
 import { cn, getTimeAgoString, makeImageUrl } from "@libs/client/utils";
 import { getProductPath } from "@libs/product-route";
+import { formatProductPrice } from "@libs/productRules";
 
 interface ItemProps {
   title: string;
@@ -78,7 +79,7 @@ export default function Item({
         </div>
         <p className="app-title-md line-clamp-1">{title}</p>
         <p className="mt-1 text-[15px] font-bold tracking-tight text-primary">
-          {price === 0 ? "무료나눔" : price ? `${price.toLocaleString()}원` : "가격 미정"}
+          {formatProductPrice(price)}
         </p>
       </div>
 

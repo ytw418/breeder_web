@@ -6,6 +6,7 @@ import {
   PRODUCT_PHOTOS_MAX,
   PRODUCT_PRICE_MAX,
   PRODUCT_PRICE_MIN,
+  formatProductPrice,
   validateProductInput,
 } from "@libs/productRules";
 
@@ -196,5 +197,19 @@ describe("productRules", () => {
       const result = validateProductInput({ photos: photos(11) }, { partial: true });
       expect(result.ok).toBe(false);
     });
+  });
+});
+
+describe("formatProductPrice", () => {
+  it("0원은 무료나눔으로 보인다", () => {
+    expect(formatProductPrice(0)).toBe("무료나눔");
+  });
+
+  it.each([[null], [undefined]])("가격이 없으면(%p) 가격 미정", (price) => {
+    expect(formatProductPrice(price)).toBe("가격 미정");
+  });
+
+  it("가격이 있으면 원 단위로 보인다", () => {
+    expect(formatProductPrice(1234)).toBe("1,234원");
   });
 });

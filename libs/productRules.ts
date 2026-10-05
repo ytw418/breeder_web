@@ -11,6 +11,10 @@ export const PRODUCT_DESCRIPTION_MAX_LENGTH = 3000;
 /** 상품 사진 최대 장수(0장 허용). 웹 업로드 화면과 앱이 같은 값을 쓴다. */
 export const PRODUCT_PHOTOS_MAX = 10;
 
+/** 상품 가격 표시: 0 → "무료나눔", null/undefined → "가격 미정", 그 외 "1,234원". */
+export const formatProductPrice = (price?: number | null) =>
+  price === 0 ? "무료나눔" : price != null ? `${price.toLocaleString()}원` : "가격 미정";
+
 export type ProductValidationErrorCode =
   | "PRODUCT_INVALID_NAME"
   | "PRODUCT_INVALID_PRICE"

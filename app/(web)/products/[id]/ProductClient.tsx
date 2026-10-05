@@ -16,6 +16,7 @@ import { toast } from "@libs/client/toast";
 import useConfirmDialog from "hooks/useConfirmDialog";
 import { ANALYTICS_EVENTS, trackEvent } from "@libs/client/analytics";
 import { extractProductId, getProductPath } from "@libs/product-route";
+import { formatProductPrice } from "@libs/productRules";
 import ImageLightbox from "@components/features/image/ImageLightbox";
 
 const DETAIL_FALLBACK_IMAGE = "/images/placeholders/minimal-gray-blur.svg";
@@ -526,7 +527,7 @@ const ProductClient = ({ product, relatedProducts }: ItemDetailResponse) => {
               {/* 가격 정보 */}
               <div className="flex items-baseline space-x-2">
                 <p className="text-2xl font-bold text-primary tracking-tight">
-                  {product?.price?.toLocaleString()}원
+                  {formatProductPrice(product?.price)}
                 </p>
               </div>
 
@@ -723,7 +724,7 @@ const ProductClient = ({ product, relatedProducts }: ItemDetailResponse) => {
                       {product.name}
                     </h3>
                     <p className="text-primary font-medium text-sm">
-                      {product.price?.toLocaleString()}원
+                      {formatProductPrice(product.price)}
                     </p>
                   </div>
                 </Link>
