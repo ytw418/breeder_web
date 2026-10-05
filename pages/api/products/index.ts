@@ -73,16 +73,27 @@ const handler = async (
 
   if (req.method === "GET") {
     const {
-      query: { page = 1, size = 10, category, productType, status, price },
+      query: { page = 1, size = 10, category, productType, status, price, minPrice, maxPrice, sort },
     } = req;
 
     // 캐싱 전략: 필터 없는 기본 목록은 60초 캐시
     // 필터가 있는 경우 30초 캐시
-    // price 는 0 이상의 정수 문자열만 받는다(홈 무료나눔 카드 → price=0).
-    const priceFilter =
-      typeof price === "string" && /^\d+$/.test(price) ? Number(price) : undefined;
+    // price·minPrice·maxPrice 는 0 이상의 정수 문자열만 받는다(홈 무료나눔 카드 → price=0).
+    // sort 는 latest(기본)·popular·priceAsc·priceDesc. 앱 상품 목록 정렬에 쓴다.
+    const toPrice = (value: unknown) =>
+      typeof value === "string" && /^\d+$/.test(value) ? Number(value) : undefined;
+    const priceFilter = toPrice(price);
+    const minPriceFilter = toPrice(minPrice);
+    const maxPriceFilter = toPrice(maxPrice);
+    const sortValue = typeof sort === "string" ? sort : undefined;
     const hasFilters =
-      (category && category !== "전체") || productType || status || priceFilter !== undefined;
+      (category && category !== "전체") ||
+      productType ||
+      status ||
+      priceFilter !== undefined ||
+      minPriceFilter !== undefined ||
+      maxPriceFilter !== undefined ||
+      (sortValue && sortValue !== "latest");
     const cacheTime = hasFilters ? 30 : 60;
     res.setHeader(
       'Cache-Control',
@@ -99,6 +110,9 @@ const handler = async (
       productType: typeof productType === "string" ? productType : undefined,
       status: typeof status === "string" ? status : undefined,
       price: priceFilter,
+      minPrice: minPriceFilter,
+      maxPrice: maxPriceFilter,
+      sort: sortValue,
       viewerId,
     });
 

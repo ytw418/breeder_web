@@ -83,6 +83,11 @@ type ProductQueryOptions = {
   status?: string;
   /** 정확한 가격(원). 0 이면 무료나눔 목록. 0 이상의 정수만 쓴다. */
   price?: number;
+  /** 가격 범위(원). 0 이상의 정수만 쓴다. price 가 있으면 무시한다. */
+  minPrice?: number;
+  maxPrice?: number;
+  /** 정렬. 없거나 모르는 값이면 최신순. */
+  sort?: string;
   /**
    * 로그인한 viewer. 있으면 viewer 가 차단한 판매자의 상품을 뺀다.
    * unstable_cache 경로(getCachedDefaultProducts)에는 넣지 않는다(공개 캐시).
@@ -218,6 +223,41 @@ const getCachedPublicHomeFeed = unstable_cache(
   }
 );
 
+export const PRODUCT_SORTS = ["latest", "popular", "priceAsc", "priceDesc"] as const;
+export type ProductSort = (typeof PRODUCT_SORTS)[number];
+
+const isProductSort = (value: unknown): value is ProductSort =>
+  typeof value === "string" && (PRODUCT_SORTS as readonly string[]).includes(value);
+
+// 같은 순위끼리는 최신순 → id 순으로 이어 붙여 페이지가 넘어가도 순서가 흔들리지 않게 한다.
+// 최신순(기본)은 기존 쿼리 그대로 둔다.
+const productOrderBy = (sort: ProductSort) => {
+  const tieBreak = [{ createdAt: "desc" as const }, { id: "desc" as const }];
+  switch (sort) {
+    case "popular":
+      return [{ favs: { _count: "desc" as const } }, ...tieBreak];
+    case "priceAsc":
+      return [{ price: { sort: "asc" as const, nulls: "last" as const } }, ...tieBreak];
+    case "priceDesc":
+      return [{ price: { sort: "desc" as const, nulls: "last" as const } }, ...tieBreak];
+    default:
+      return { createdAt: "desc" as const };
+  }
+};
+
+const priceRangeFilter = (minPrice?: number, maxPrice?: number) => {
+  const valid = (v?: number) =>
+    typeof v === "number" && Number.isInteger(v) && v >= 0 ? v : undefined;
+  let min = valid(minPrice);
+  let max = valid(maxPrice);
+  if (min === undefined && max === undefined) return undefined;
+  if (min !== undefined && max !== undefined && min > max) [min, max] = [max, min];
+  return {
+    ...(min !== undefined ? { gte: min } : {}),
+    ...(max !== undefined ? { lte: max } : {}),
+  };
+};
+
 const buildProductsResponse = async ({
   page = 1,
   size = 10,
@@ -225,6 +265,9 @@ const buildProductsResponse = async ({
   productType,
   status,
   price,
+  minPrice,
+  maxPrice,
+  sort,
   viewerId,
 }: ProductQueryOptions = {}): Promise<ProductsResponse> => {
   const pageNumber = Number(page);
@@ -249,6 +292,9 @@ const buildProductsResponse = async ({
   }
   if (typeof price === "number") {
     where.price = price;
+  } else {
+    const range = priceRangeFilter(minPrice, maxPrice);
+    if (range) where.price = range;
   }
   const excluded = await excludedAuthorIds(viewerId);
   if (excluded.length) {
@@ -272,9 +318,7 @@ const buildProductsResponse = async ({
           },
         },
       },
-      orderBy: {
-        createdAt: "desc",
-      },
+      orderBy: productOrderBy(isProductSort(sort) ? sort : "latest"),
       take: normalizedSize,
       skip: (normalizedPage - 1) * normalizedSize,
     }),
@@ -342,6 +386,9 @@ export async function getProductsResponse(options: ProductQueryOptions = {}) {
     !options.productType &&
     !options.status &&
     options.price === undefined &&
+    options.minPrice === undefined &&
+    options.maxPrice === undefined &&
+    (!options.sort || options.sort === "latest") &&
     Number(options.page ?? 1) === 1 &&
     Number(options.size ?? 10) === 10;
 
