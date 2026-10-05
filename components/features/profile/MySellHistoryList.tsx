@@ -59,6 +59,7 @@ export default function MySellHistoryList({ kind, id }: ProductListProps) {
                 hearts={record.product._count.favs}
                 image={record.product?.photos?.[0]}
                 createdAt={record.product?.createdAt}
+                removed={record.product.isDeleted || record.product.isHidden}
               />
             </ItemWrapper>
           ))}

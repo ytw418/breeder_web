@@ -156,6 +156,21 @@ describe("GET /api/products 가격 범위", () => {
     await list({ price: "0", minPrice: "1000" });
     expect(lastFindMany().where.price).toBe(0);
   });
+
+  // price 컬럼은 INT4 라 그보다 큰 값을 넘기면 Prisma 오류로 500 이 났다.
+  it("INT4 최대값보다 큰 가격은 INT4 최대값으로 잘라 건다(500 이 나지 않는다)", async () => {
+    let res = await list({ maxPrice: "9999999999" });
+    expect(res.statusCode).toBe(200);
+    expect(lastFindMany().where.price).toEqual({ lte: 2147483647 });
+
+    res = await list({ minPrice: "99999999999999999999999", maxPrice: "1000" });
+    expect(res.statusCode).toBe(200);
+    expect(lastFindMany().where.price).toEqual({ gte: 1000, lte: 2147483647 });
+
+    res = await list({ price: "9999999999" });
+    expect(res.statusCode).toBe(200);
+    expect(lastFindMany().where.price).toBe(2147483647);
+  });
 });
 
 describe("GET /api/products 전체 개수", () => {
@@ -182,5 +197,13 @@ describe("getProductsResponse 기본 첫 페이지 캐시", () => {
 
     await getProductsResponse({ page: 1, size: 10, minPrice: 1000 });
     expect(lastFindMany().where.price).toEqual({ gte: 1000 });
+  });
+
+  it("다른 호출자가 INT4 를 넘는 가격을 넘겨도 INT4 최대값으로 자른다", async () => {
+    await getProductsResponse({ maxPrice: 9_999_999_999 });
+    expect(lastFindMany().where.price).toEqual({ lte: 2147483647 });
+
+    await getProductsResponse({ price: 9_999_999_999 });
+    expect(lastFindMany().where.price).toBe(2147483647);
   });
 });

@@ -246,9 +246,14 @@ const productOrderBy = (sort: ProductSort) => {
   }
 };
 
+/** price 컬럼(INT4) 최대값. 이보다 큰 가격 조건은 Prisma 오류(500)가 나므로 이 값으로 자른다. */
+export const PRICE_FILTER_MAX = 2_147_483_647;
+
+const clampPrice = (v: number) => Math.min(v, PRICE_FILTER_MAX);
+
 const priceRangeFilter = (minPrice?: number, maxPrice?: number) => {
   const valid = (v?: number) =>
-    typeof v === "number" && Number.isInteger(v) && v >= 0 ? v : undefined;
+    typeof v === "number" && Number.isInteger(v) && v >= 0 ? clampPrice(v) : undefined;
   let min = valid(minPrice);
   let max = valid(maxPrice);
   if (min === undefined && max === undefined) return undefined;
@@ -292,7 +297,7 @@ const buildProductsResponse = async ({
     where.status = status;
   }
   if (typeof price === "number") {
-    where.price = price;
+    where.price = clampPrice(price);
   } else {
     const range = priceRangeFilter(minPrice, maxPrice);
     if (range) where.price = range;

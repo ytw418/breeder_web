@@ -3,8 +3,8 @@ import type { NextApiRequest, NextApiResponse } from "next";
 const mockClient = {
   product: { findUnique: jest.fn(), create: jest.fn(), update: jest.fn(), delete: jest.fn() },
   user: { findUnique: jest.fn() },
-  purchase: { findFirst: jest.fn(), create: jest.fn() },
-  fav: { findMany: jest.fn() },
+  purchase: { findFirst: jest.fn(), create: jest.fn(), findMany: jest.fn() },
+  fav: { findMany: jest.fn(), findFirst: jest.fn(), create: jest.fn(), delete: jest.fn() },
   sale: { findMany: jest.fn() },
 };
 jest.mock("@libs/server/client", () => ({
@@ -14,8 +14,10 @@ jest.mock("@libs/server/client", () => ({
 jest.mock("@libs/server/auth", () => ({
   withAuth: (handler: unknown) => handler,
 }));
+const mockCreateNotification = jest.fn();
 jest.mock("@libs/server/notification", () => ({
   notifyFollowers: jest.fn(),
+  createNotification: (...args: unknown[]) => mockCreateNotification(...args),
 }));
 jest.mock("@libs/server/home", () => ({
   fetchProductsResponse: jest.fn(),
@@ -25,6 +27,8 @@ import createHandler from "../pages/api/products/index";
 import detailHandler from "../pages/api/products/[id]/index";
 import favsHandler from "../pages/api/users/[id]/favs";
 import salesHandler from "../pages/api/users/[id]/sales";
+import purchasesHandler from "../pages/api/users/[id]/purchases";
+import favToggleHandler from "../pages/api/products/[id]/fav";
 
 function createRes() {
   const res = {
@@ -339,10 +343,74 @@ describe("GET /api/users/:id/favs (관심목록)", () => {
   });
 });
 
-describe("GET /api/users/:id/sales (판매내역)", () => {
-  it("삭제한 상품도 기록으로 남긴다(상품 상태로 거르지 않는다)", async () => {
-    mockClient.sale.findMany.mockResolvedValue([]);
-    await call(salesHandler, { method: "GET", query: { id: "7" } });
-    expect(mockClient.sale.findMany.mock.calls[0][0].where).toEqual({ userId: 7 });
+describe.each([
+  ["sales", "판매내역", salesHandler, mockClient.sale.findMany],
+  ["purchases", "구매내역", purchasesHandler, mockClient.purchase.findMany],
+] as const)("GET /api/users/:id/%s (%s)", (_kind, _label, handler, findMany) => {
+  beforeEach(() => {
+    findMany.mockResolvedValue([]);
+  });
+
+  it("본인에게는 삭제·숨김 상품도 기록으로 남긴다(상품 상태로 거르지 않는다)", async () => {
+    const res = await call(handler, { method: "GET", user: me, query: { id: "7" } });
+    expect(res.statusCode).toBe(200);
+    expect(findMany.mock.calls[0][0].where).toEqual({ userId: 7 });
+  });
+
+  it.each([
+    ["비로그인", undefined],
+    ["다른 사용자", { id: 99, name: "남" } as NextApiRequest["user"]],
+  ])("%s 에게는 삭제·숨김 상품을 빼고 준다", async (_who, user) => {
+    const res = await call(handler, { method: "GET", user, query: { id: "7" } });
+    expect(res.statusCode).toBe(200);
+    expect(findMany.mock.calls[0][0].where).toEqual({
+      userId: 7,
+      product: { isDeleted: false, isHidden: false },
+    });
+  });
+});
+
+describe("POST /api/products/:id/fav (찜 토글)", () => {
+  const buyer = { id: 8, name: "구매자" } as NextApiRequest["user"];
+  const toggle = () =>
+    call(favToggleHandler, { method: "POST", user: buyer, query: { id: "3" } });
+
+  it.each([
+    ["삭제된", { isDeleted: true, isHidden: false }],
+    ["숨김", { isDeleted: false, isHidden: true }],
+  ])("%s 상품은 새로 찜하지 못하고(404) 판매자에게 알림도 가지 않는다", async (_label, flags) => {
+    mockClient.product.findUnique.mockResolvedValue({ id: 3, userId: 7, ...flags });
+    mockClient.fav.findFirst.mockResolvedValue(null);
+    mockClient.user.findUnique.mockResolvedValue({ name: "구매자" });
+
+    const res = await toggle();
+    expect(res.statusCode).toBe(404);
+    expect(res.body).toMatchObject({ success: false, message: "삭제된 상품입니다." });
+    expect(mockClient.fav.create).not.toHaveBeenCalled();
+    expect(mockCreateNotification).not.toHaveBeenCalled();
+  });
+
+  it("삭제된 상품이라도 이미 찜한 것은 해제할 수 있다", async () => {
+    mockClient.product.findUnique.mockResolvedValue({ id: 3, userId: 7, isDeleted: true, isHidden: false });
+    mockClient.fav.findFirst.mockResolvedValue({ id: 55 });
+
+    const res = await toggle();
+    expect(res.statusCode).toBe(200);
+    expect(res.body).toEqual({ success: true, action: "removed" });
+    expect(mockClient.fav.delete).toHaveBeenCalledWith({ where: { id: 55 } });
+  });
+
+  it("살아 있는 상품은 찜하고 판매자에게 알린다", async () => {
+    mockClient.product.findUnique.mockResolvedValue({ id: 3, userId: 7, isDeleted: false, isHidden: false });
+    mockClient.fav.findFirst.mockResolvedValue(null);
+    mockClient.user.findUnique.mockResolvedValue({ name: "구매자" });
+
+    const res = await toggle();
+    expect(res.statusCode).toBe(200);
+    expect(res.body).toEqual({ success: true, action: "added" });
+    expect(mockClient.fav.create).toHaveBeenCalledTimes(1);
+    expect(mockCreateNotification).toHaveBeenCalledWith(
+      expect.objectContaining({ type: "FAV", userId: 7, senderId: 8, targetId: 3 })
+    );
   });
 });

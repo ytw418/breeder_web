@@ -4,7 +4,7 @@ import withHandler, { ResponseType } from "@libs/server/withHandler";
 import client from "@libs/server/client";
 import { withAuth } from "@libs/server/auth";
 import { notifyFollowers } from "@libs/server/notification";
-import { fetchProductsResponse } from "@libs/server/home";
+import { fetchProductsResponse, PRICE_FILTER_MAX } from "@libs/server/home";
 import { validateProductInput } from "@libs/productRules";
 import { setViewerCacheHeader } from "@libs/server/blocks";
 
@@ -83,9 +83,12 @@ const handler = async (
     // 캐싱 전략: 필터 없는 기본 목록은 60초 캐시
     // 필터가 있는 경우 30초 캐시
     // price·minPrice·maxPrice 는 0 이상의 정수 문자열만 받는다(홈 무료나눔 카드 → price=0).
+    // INT4 최대값보다 크면 그 값으로 자른다(그보다 비싼 상품은 DB 에 없다).
     // sort 는 latest(기본)·popular·priceAsc·priceDesc. 앱 상품 목록 정렬에 쓴다.
     const toPrice = (value: unknown) =>
-      typeof value === "string" && /^\d+$/.test(value) ? Number(value) : undefined;
+      typeof value === "string" && /^\d+$/.test(value)
+        ? Math.min(Number(value), PRICE_FILTER_MAX)
+        : undefined;
     const priceFilter = toPrice(price);
     const minPriceFilter = toPrice(minPrice);
     const maxPriceFilter = toPrice(maxPrice);

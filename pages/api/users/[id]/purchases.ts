@@ -3,7 +3,7 @@ import withHandler, { ResponseType } from "@libs/server/withHandler";
 
 import client from "@libs/server/client";
 import { withAuth } from "@libs/server/auth";
-import { MySellHistoryResponseType } from "./sales";
+import { historyWhere, MySellHistoryResponseType } from "./sales";
 
 async function handler(
   req: NextApiRequest,
@@ -13,9 +13,7 @@ async function handler(
     query: { id },
   } = req;
   const mySellHistoryData = await client.purchase.findMany({
-    where: {
-      userId: Number(id),
-    },
+    where: historyWhere(Number(id), req.user?.id),
     include: {
       product: {
         include: {
