@@ -18,6 +18,7 @@ import { ANALYTICS_EVENTS, trackEvent } from "@libs/client/analytics";
 import { extractProductId, getProductPath } from "@libs/product-route";
 import { formatProductPrice } from "@libs/productRules";
 import ImageLightbox from "@components/features/image/ImageLightbox";
+import { authFetch } from "@libs/client/authFetch";
 
 const DETAIL_FALLBACK_IMAGE = "/images/placeholders/minimal-gray-blur.svg";
 
@@ -373,6 +374,16 @@ const ProductClient = ({ product, relatedProducts }: ItemDetailResponse) => {
     product?.photos?.length,
     user?.id,
   ]);
+
+  // 상세를 열면 조회수를 한 번 올린다. 판매자 본인·삭제·숨김 상품은 서버가 거른다.
+  const viewedProductIdRef = useRef<number | null>(null);
+  useEffect(() => {
+    if (!product?.id || viewedProductIdRef.current === product.id) return;
+    viewedProductIdRef.current = product.id;
+    authFetch(`/api/products/${product.id}/view`, { method: "POST" }).catch(
+      () => {}
+    );
+  }, [product?.id]);
 
   return (
     <Layout

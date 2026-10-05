@@ -27,7 +27,6 @@ import createHandler from "../pages/api/products/index";
 import detailHandler from "../pages/api/products/[id]/index";
 import favsHandler from "../pages/api/users/[id]/favs";
 import salesHandler from "../pages/api/users/[id]/sales";
-import purchasesHandler from "../pages/api/users/[id]/purchases";
 import favToggleHandler from "../pages/api/products/[id]/fav";
 
 function createRes() {
@@ -334,7 +333,7 @@ describe("삭제한 상품에 대한 POST", () => {
 describe("GET /api/users/:id/favs (관심목록)", () => {
   it("삭제·숨김 상품은 관심목록에서 뺀다", async () => {
     mockClient.fav.findMany.mockResolvedValue([]);
-    const res = await call(favsHandler, { method: "GET", query: { id: "7" } });
+    const res = await call(favsHandler, { method: "GET", user: me, query: { id: "7" } });
     expect(res.statusCode).toBe(200);
     expect(mockClient.fav.findMany.mock.calls[0][0].where).toEqual({
       userId: 7,
@@ -343,9 +342,9 @@ describe("GET /api/users/:id/favs (관심목록)", () => {
   });
 });
 
+// 구매내역은 본인만 볼 수 있다(userHistoryAccessApi.test.ts).
 describe.each([
   ["sales", "판매내역", salesHandler, mockClient.sale.findMany],
-  ["purchases", "구매내역", purchasesHandler, mockClient.purchase.findMany],
 ] as const)("GET /api/users/:id/%s (%s)", (_kind, _label, handler, findMany) => {
   beforeEach(() => {
     findMany.mockResolvedValue([]);
