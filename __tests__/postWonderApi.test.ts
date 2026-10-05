@@ -95,6 +95,32 @@ describe("POST /api/posts/[id]/wonder", () => {
     expect(res.revalidate).not.toHaveBeenCalledWith("/community");
   });
 
+  it("좋아요 알림은 dedupe 로 만든다(같은 사람이 같은 글에 다시 눌러도 처음 한 번만 알린다)", async () => {
+    mockClient.like.findFirst.mockResolvedValue(null);
+
+    await callWonder();
+
+    expect(mockCreateNotification).toHaveBeenCalledTimes(1);
+    expect(mockCreateNotification).toHaveBeenCalledWith(
+      expect.objectContaining({
+        type: "LIKE",
+        userId: 3,
+        senderId: 7,
+        targetId: 10,
+        targetType: "post",
+        dedupe: true,
+      })
+    );
+  });
+
+  it("좋아요를 취소할 때는 알림을 만들지 않는다", async () => {
+    mockClient.like.findFirst.mockResolvedValue({ id: 5 });
+
+    await callWonder();
+
+    expect(mockCreateNotification).not.toHaveBeenCalled();
+  });
+
   it("알림 대상 조회가 실패해도 좋아요 성공 응답을 반환한다", async () => {
     mockClient.like.findFirst.mockResolvedValue(null);
     mockClient.post.findUnique.mockRejectedValue(new Error("db down"));
