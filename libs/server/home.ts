@@ -51,6 +51,7 @@ const SAMPLE_PRODUCTS_RESPONSE: ProductsResponse = {
   success: true,
   products: [],
   pages: 0,
+  total: 0,
 };
 
 const SAMPLE_HOME_FEED: HomeFeedResponse = {
@@ -329,6 +330,7 @@ const buildProductsResponse = async ({
     success: true,
     products,
     pages: Math.ceil(productCount / normalizedSize),
+    total: productCount,
   };
 };
 

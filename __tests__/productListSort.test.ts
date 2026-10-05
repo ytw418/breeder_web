@@ -158,6 +158,19 @@ describe("GET /api/products 가격 범위", () => {
   });
 });
 
+describe("GET /api/products 전체 개수", () => {
+  it("조건에 맞는 전체 상품 수를 total 로 함께 준다", async () => {
+    mockClient.product.count.mockResolvedValue(37);
+    const res = await list({ category: "어류" });
+    expect(res.body).toMatchObject({ success: true, total: 37, pages: 4 });
+  });
+
+  it("상품이 없으면 total 0", async () => {
+    const res = await list({});
+    expect(res.body).toMatchObject({ total: 0, pages: 0 });
+  });
+});
+
 describe("getProductsResponse 기본 첫 페이지 캐시", () => {
   it("정렬·가격 범위가 있으면 캐시된 기본 목록을 쓰지 않는다", async () => {
     await getProductsResponse({ page: 1, size: 10, sort: "priceAsc" });
