@@ -1,3 +1,4 @@
+/** @jest-environment node */
 import type { NextApiRequest, NextApiResponse } from "next";
 
 const mockClient = {
@@ -70,6 +71,28 @@ describe("POST /api/products/:id/view (조회수)", () => {
     expect(res.statusCode).toBe(200);
     expect(mockClient.product.findUnique.mock.calls[0][0].where).toEqual({ id: 3 });
     expect(mockClient.product.update.mock.calls[0][0].where).toEqual({ id: 3 });
+  });
+
+  it("Authorization 헤더는 있는데 user 가 없으면(만료·무효 토큰) 401 이고 올리지 않는다", async () => {
+    const res = await call({
+      user: undefined,
+      headers: { authorization: "Bearer expired-access" },
+      query: { id: "3" },
+    });
+    expect(res.statusCode).toBe(401);
+    expect(res.body.success).toBe(false);
+    expect(mockClient.product.findUnique).not.toHaveBeenCalled();
+    expect(mockClient.product.update).not.toHaveBeenCalled();
+  });
+
+  it("토큰이 유효하면(user 가 있으면) Authorization 헤더가 있어도 그대로 센다", async () => {
+    const res = await call({
+      user: viewer,
+      headers: { authorization: "Bearer valid-access" },
+      query: { id: "3" },
+    });
+    expect(res.statusCode).toBe(200);
+    expect(res.body).toEqual({ success: true, counted: true, viewCount: 5 });
   });
 
   it("판매자 본인이 보면 올리지 않고 200 으로 끝낸다", async () => {

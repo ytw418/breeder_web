@@ -1,4 +1,4 @@
-import { render, screen } from "@testing-library/react";
+import { fireEvent, render, screen } from "@testing-library/react";
 
 const mockUseSWR = jest.fn();
 jest.mock("swr", () => ({
@@ -104,5 +104,88 @@ describe("MyPostList 가격 표시", () => {
     expect(screen.getByText("무료나눔")).toBeInTheDocument();
     expect(screen.getByText("가격 미정")).toBeInTheDocument();
     expect(screen.getByText("10,000원")).toBeInTheDocument();
+  });
+});
+
+describe("MySellHistoryList 오류 처리", () => {
+  const emptyTexts = ["아직 구매 내역이 없습니다", "아직 관심 상품이 없습니다"];
+  const swrError = (status: number, message = "요청 처리 중 오류가 발생했습니다.") =>
+    Object.assign(new Error(message), { status });
+
+  const expectNoEmptyState = () => {
+    for (const text of emptyTexts) {
+      expect(screen.queryByText(text)).not.toBeInTheDocument();
+    }
+  };
+
+  it("401 이면 빈 상태 대신 로그인 안내와 로그인 링크를 보인다", () => {
+    mockUseSWR.mockReturnValue({
+      isLoading: false,
+      data: undefined,
+      error: swrError(401, "로그인이 필요합니다."),
+      mutate: jest.fn(),
+    });
+    render(<MySellHistoryList kind="purchases" id={7} />);
+
+    expect(screen.getByText("로그인이 필요합니다")).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "로그인하기" })).toHaveAttribute(
+      "href",
+      `/auth/login?next=${encodeURIComponent("/profiles/7/purchases")}`
+    );
+    expectNoEmptyState();
+  });
+
+  it("403 이면 서버 문구로 본인만 볼 수 있다고 안내한다", () => {
+    mockUseSWR.mockReturnValue({
+      isLoading: false,
+      data: undefined,
+      error: swrError(403, "본인의 관심목록만 볼 수 있습니다."),
+      mutate: jest.fn(),
+    });
+    render(<MySellHistoryList kind="favs" id={99} />);
+
+    expect(screen.getByText("본인의 관심목록만 볼 수 있습니다.")).toBeInTheDocument();
+    expectNoEmptyState();
+  });
+
+  it("403 인데 서버 문구가 없으면 기본 문구를 보인다", () => {
+    mockUseSWR.mockReturnValue({
+      isLoading: false,
+      data: undefined,
+      error: swrError(403, ""),
+      mutate: jest.fn(),
+    });
+    render(<MySellHistoryList kind="purchases" id={99} />);
+
+    expect(screen.getByText("본인의 구매내역만 볼 수 있습니다.")).toBeInTheDocument();
+    expectNoEmptyState();
+  });
+
+  it("그 밖의 오류는 불러오지 못했다고 안내하고 다시 불러오기로 재요청한다", () => {
+    const mutate = jest.fn();
+    mockUseSWR.mockReturnValue({
+      isLoading: false,
+      data: undefined,
+      error: swrError(500),
+      mutate,
+    });
+    render(<MySellHistoryList kind="purchases" id={7} />);
+
+    expect(screen.getByText("구매내역을 불러오지 못했습니다")).toBeInTheDocument();
+    expectNoEmptyState();
+    fireEvent.click(screen.getByRole("button", { name: "다시 불러오기" }));
+    expect(mutate).toHaveBeenCalledTimes(1);
+  });
+
+  it("성공 응답이 비어 있을 때만 빈 상태를 보인다", () => {
+    mockUseSWR.mockReturnValue({
+      isLoading: false,
+      data: { success: true, mySellHistoryData: [] },
+      error: undefined,
+      mutate: jest.fn(),
+    });
+    render(<MySellHistoryList kind="purchases" id={7} />);
+
+    expect(screen.getByText("아직 구매 내역이 없습니다")).toBeInTheDocument();
   });
 });
