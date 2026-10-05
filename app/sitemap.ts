@@ -68,8 +68,9 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   }
 
   try {
-    // 상품 페이지 URL
+    // 상품 페이지 URL. 숨김·삭제 상품은 상세가 404 라 넣지 않는다.
     const products = await client.product.findMany({
+      where: { isHidden: false, isDeleted: false },
       select: {
         id: true,
         name: true,

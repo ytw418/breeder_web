@@ -12,9 +12,11 @@ async function handler(
   const {
     query: { id },
   } = req;
+  // 삭제·숨김 상품은 관심목록에서 뺀다(찜 기록은 남긴다).
   const mySellHistoryData = await client.fav.findMany({
     where: {
       userId: Number(id),
+      product: { isDeleted: false, isHidden: false },
     },
     include: {
       product: {

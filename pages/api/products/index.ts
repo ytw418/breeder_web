@@ -22,7 +22,11 @@ const handler = async (
       return res.status(401).json({ success: false, error: "Unauthorized" });
     }
 
-    const validation = validateProductInput({ name, price, description, photos });
+    // 웹·앱 등록 화면 모두 카테고리·상품 타입을 필수로 보낸다.
+    const validation = validateProductInput(
+      { name, price, description, photos, category, productType },
+      { requireCategory: true }
+    );
     if (!validation.ok) {
       return res.status(400).json({
         success: false,
@@ -38,8 +42,8 @@ const handler = async (
         price: validation.value.price!,
         description: validation.value.description!,
         photos: validation.value.photos ?? [],
-        category: category || null,
-        productType: productType || null,
+        category: validation.value.category!,
+        productType: validation.value.productType!,
         mainImage: validation.value.photos?.[0] || null,
         user: {
           connect: {
