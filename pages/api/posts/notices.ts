@@ -36,6 +36,7 @@ const handler = async (
       : 10;
 
   const where = {
+    isHidden: false,
     OR: [{ category: "공지" }, { title: { startsWith: "[공지]" } }],
   };
 

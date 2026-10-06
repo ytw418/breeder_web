@@ -2,6 +2,7 @@ import { NextApiRequest, NextApiResponse } from "next";
 import withHandler, { ResponseType } from "@libs/server/withHandler";
 import client from "@libs/server/client";
 import { withAuth } from "@libs/server/auth";
+import { isModeratorUser } from "@libs/server/adminAccess";
 
 export interface UserAuctionsQuery {
   id?: string | string[];
@@ -54,9 +55,13 @@ async function handler(
   const pageNumber = Math.max(1, +page);
   const userId = +id.toString();
 
+  // 운영자가 숨긴 경매는 작성자 본인과 관리자에게만 보인다.
+  const canSeeHidden = req.user?.id === userId || isModeratorUser(req.user);
+  const where = canSeeHidden ? { userId } : { userId, isHidden: false };
+
   const [auctions, count] = await Promise.all([
     client.auction.findMany({
-      where: { userId },
+      where,
       select: {
         id: true,
         title: true,
@@ -66,6 +71,7 @@ async function handler(
         status: true,
         currentPrice: true,
         createdAt: true,
+        isHidden: true,
         _count: {
           select: { bids: true },
         },
@@ -76,7 +82,7 @@ async function handler(
       take: pageSize,
       skip: (pageNumber - 1) * pageSize,
     }),
-    client.auction.count({ where: { userId } }),
+    client.auction.count({ where }),
   ]);
 
   return res.json({

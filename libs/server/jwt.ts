@@ -1,5 +1,5 @@
 import { SignJWT, jwtVerify, type JWTPayload } from "jose";
-import type { User } from "@prisma/client";
+import type { User, role } from "@prisma/client";
 
 /**
  * Bearer 토큰(access/refresh) 서명·검증 유틸.
@@ -25,6 +25,8 @@ export interface AuthUser {
   avatar: string | null;
   createdAt: Date;
   updatedAt: Date;
+  /** 토큰에는 없고 withAuth 가 DB 에서 채운다(관리자 판별용). */
+  role?: role;
 }
 
 export interface AccessTokenPayload extends JWTPayload {

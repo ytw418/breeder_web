@@ -59,7 +59,8 @@ const handler = async (
     );
 
     // 기본 피드에서는 공지 카테고리 제외
-    const where: any = { NOT: { category: "공지" } };
+    // 운영자가 숨긴 글은 목록에서 모두에게 뺀다(작성자는 프로필에서 본다).
+    const where: any = { NOT: { category: "공지" }, isHidden: false };
     if (category && category !== "전체") {
       where.category = String(category);
       if (String(category) === "공지") {

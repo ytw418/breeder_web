@@ -332,6 +332,7 @@ export const getTrendingCommunityPosts = async ({
       where: {
         ...(window === "24h" ? { createdAt: { gte: recentBoundary, lte: now } } : {}),
         NOT: { category: "공지" },
+        isHidden: false,
         user: { status: "ACTIVE" },
       },
       select: {
@@ -397,6 +398,7 @@ export const getAuctionRanking = async ({
   const where: Record<string, unknown> = {
     status: "종료",
     winnerId: { not: null },
+    isHidden: false,
     user: { status: "ACTIVE" },
   };
 
@@ -646,6 +648,7 @@ export const getHotDiscussions = async ({
     const posts = await client.post.findMany({
       where: {
         category: { in: ["질문", "자유", "정보"] },
+        isHidden: false,
         user: { status: "ACTIVE" },
         ...(since ? { createdAt: { gte: since } } : {}),
       },

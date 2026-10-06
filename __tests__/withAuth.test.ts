@@ -96,7 +96,7 @@ describe("withAuth DB 게이트", () => {
     expect(mockVerifyAccessToken).toHaveBeenCalledWith("good");
     expect(mockClient.user.findUnique).toHaveBeenCalledWith({
       where: { id: 7 },
-      select: { status: true, tokenVersion: true },
+      select: { status: true, tokenVersion: true, role: true, email: true },
     });
   });
 
@@ -142,6 +142,20 @@ describe("withAuth DB 게이트", () => {
 });
 
 describe("resolveAuthUser", () => {
+  it("role·email 은 토큰이 아니라 DB 값을 싣는다(관리자 판별용)", async () => {
+    mockClient.user.findUnique.mockResolvedValueOnce({
+      status: "ACTIVE",
+      tokenVersion: 3,
+      role: "ADMIN",
+      email: "admin@bredy.app",
+    });
+    await expect(resolveAuthUser(payload(3))).resolves.toEqual({
+      ...tokenUser,
+      role: "ADMIN",
+      email: "admin@bredy.app",
+    });
+  });
+
   it("게이트를 통과하면 토큰의 유저를, 아니면 null 을 돌려준다", async () => {
     mockClient.user.findUnique.mockResolvedValueOnce({ status: "ACTIVE", tokenVersion: 3 });
     await expect(resolveAuthUser(payload(3))).resolves.toEqual(tokenUser);

@@ -71,7 +71,7 @@ const page = async () => {
   if (process.env.DATABASE_URL) {
     try {
       auctions = await client.auction.findMany({
-        where: { status: "진행중" },
+        where: { status: "진행중", isHidden: false },
         select: { id: true, title: true },
         orderBy: { createdAt: "desc" },
         take: 30,

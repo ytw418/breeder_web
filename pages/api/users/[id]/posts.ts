@@ -2,6 +2,7 @@ import { NextApiRequest, NextApiResponse } from "next";
 import withHandler, { ResponseType } from "@libs/server/withHandler";
 import client from "@libs/server/client";
 import { withAuth } from "@libs/server/auth";
+import { isModeratorUser } from "@libs/server/adminAccess";
 import { withPostImages } from "@libs/postImages";
 
 export interface UserPostsQuery {
@@ -38,6 +39,7 @@ async function handler(
   const {
     query: { id = "", page = 1, size = 20, order = "desc" },
   } = req as { query: UserPostsQuery };
+  const viewer = req.user;
 
   if (!id) {
     return res.status(400).json({
@@ -57,9 +59,12 @@ async function handler(
   const userId = +id.toString();
   const pageNumber = Math.max(1, +page);
 
+  // 운영자가 숨긴 글은 작성자 본인과 관리자에게만 보인다.
+  const canSeeHidden = viewer?.id === userId || isModeratorUser(viewer);
   const where = {
     userId,
     NOT: { category: "공지" as const },
+    ...(canSeeHidden ? {} : { isHidden: false }),
   };
 
   const [posts, postCount] = await Promise.all([
@@ -73,6 +78,7 @@ async function handler(
         images: true,
         category: true,
         createdAt: true,
+        isHidden: true,
         _count: {
           select: {
             comments: true,

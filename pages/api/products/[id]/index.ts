@@ -2,6 +2,7 @@ import { NextApiRequest, NextApiResponse } from "next";
 import withHandler, { ResponseType } from "@libs/server/withHandler";
 import client from "@libs/server/client";
 import { withAuth } from "@libs/server/auth";
+import { isModeratorUser } from "@libs/server/adminAccess";
 import { Product, User } from "@prisma/client";
 import { validateProductInput } from "@libs/productRules";
 import { excludedAuthorIds } from "@libs/server/blocks";
@@ -104,7 +105,12 @@ async function handler(
     // 숨김(관리자 조치·탈퇴)·삭제 상품은 소유자에게만 보인다.
     // 웹 상세 페이지(SSR, libs/server/apis.ts getProduct)는 Authorization 없이 조회하므로
     // 소유자 예외는 토큰을 보내는 클라이언트(앱, 웹 클라이언트 SWR)에만 적용된다.
-    if ((product.isHidden || product.isDeleted) && user?.id !== product.userId) {
+    // 관리자는 숨김 상품도 본다(숨김 해제 조치를 위해). 삭제 상품은 관리자에게도 404.
+    const canSeeHidden = user?.id === product.userId || isModeratorUser(user);
+    if (
+      (product.isDeleted && user?.id !== product.userId) ||
+      (product.isHidden && !canSeeHidden)
+    ) {
       return res.status(404).json({
         success: false,
         error: "삭제되었거나 숨겨진 상품입니다.",

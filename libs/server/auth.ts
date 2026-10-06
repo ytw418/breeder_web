@@ -20,11 +20,12 @@ export async function resolveAuthUser(
   try {
     const current = await client.user.findUnique({
       where: { id: payload.user.id },
-      select: { status: true, tokenVersion: true },
+      select: { status: true, tokenVersion: true, role: true, email: true },
     });
     if (!current || current.status !== "ACTIVE") return null;
     if (current.tokenVersion !== (payload.tv ?? 0)) return null;
-    return payload.user;
+    // role·email 은 토큰 발급 뒤 바뀔 수 있어 DB 값을 쓴다(isModeratorUser 판별용).
+    return { ...payload.user, role: current.role, email: current.email ?? payload.user.email };
   } catch (error) {
     console.error("[auth] 계정 상태 확인 실패", error);
     return null;

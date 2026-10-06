@@ -189,7 +189,7 @@ async function handler(req: NextApiRequest, res: NextApiResponse<AdminReportsRes
       return fail(400, "채팅·사용자 신고에는 콘텐츠 삭제를 적용할 수 없습니다.");
     }
 
-    await applyReportAction(target, parsedAction);
+    await applyReportAction(target, parsedAction, adminUserId!);
 
     const next = await client.report.update({
       where: { id: parsedReportId },

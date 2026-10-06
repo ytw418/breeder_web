@@ -43,6 +43,7 @@ const getAuctionForSeo = async (auctionId: number) => {
         photos: true,
         endAt: true,
         createdAt: true,
+        isHidden: true,
         user: {
           select: {
             name: true,
@@ -105,7 +106,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const auction = await getAuctionForSeo(auctionId);
   const canonicalUrl = auction ? getAuctionCanonicalUrl(auction.id, auction.title) : undefined;
 
-  if (!auction) {
+  if (!auction || auction.isHidden) {
     return {
       title: "경매를 찾을 수 없습니다",
       description: "요청한 경매를 찾을 수 없습니다.",
@@ -234,7 +235,8 @@ const page = async ({ params }: Props) => {
   }
 
   const auction = await getAuctionForSeo(auctionId);
-  if (!auction) {
+  // 운영자가 숨긴 경매는 웹 상세(비로그인 SSR)에서 404 로 둔다(숨김 상품과 같다).
+  if (!auction || auction.isHidden) {
     notFound();
   }
 

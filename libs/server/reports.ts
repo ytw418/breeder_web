@@ -1,6 +1,7 @@
 import type { Report, ReportAction, ReportTargetType } from "@prisma/client";
 import client from "@libs/server/client";
 import { setUserStatus } from "@libs/server/accountStatus";
+import { applyModeration, isModerationTargetNotFound } from "@libs/server/moderation";
 import { toPostPath } from "@libs/post-route";
 import { getProductPath } from "@libs/product-route";
 import { displayUserName } from "@libs/shared/deletedUser";
@@ -162,13 +163,19 @@ export async function buildTargetSnapshots(
     postIds.length
       ? client.post.findMany({
           where: { id: { in: postIds } },
-          select: { id: true, title: true, description: true },
+          select: { id: true, title: true, description: true, isHidden: true },
         })
       : [],
     commentIds.length
       ? client.comment.findMany({
           where: { id: { in: commentIds } },
-          select: { id: true, comment: true, postId: true, post: { select: { title: true } } },
+          select: {
+            id: true,
+            comment: true,
+            postId: true,
+            isHidden: true,
+            post: { select: { title: true } },
+          },
         })
       : [],
     productIds.length
@@ -196,7 +203,7 @@ export async function buildTargetSnapshots(
   for (const post of posts) {
     snapshots.set(key("POST", post.id), {
       exists: true,
-      title: post.title,
+      title: `${post.isHidden ? "[숨김] " : ""}${post.title}`,
       excerpt: toExcerpt(post.description),
       href: toPostPath(post.id, post.title),
     });
@@ -205,7 +212,9 @@ export async function buildTargetSnapshots(
     const postTitle = comment.post?.title ?? "";
     snapshots.set(key("COMMENT", comment.id), {
       exists: true,
-      title: postTitle ? `게시글 「${postTitle}」의 댓글` : "댓글",
+      title: `${comment.isHidden ? "[숨김] " : ""}${
+        postTitle ? `게시글 「${postTitle}」의 댓글` : "댓글"
+      }`,
       excerpt: toExcerpt(comment.comment),
       href: toPostPath(comment.postId, postTitle || null),
     });
@@ -251,27 +260,26 @@ export async function buildTargetSnapshot(report: SnapshotSource): Promise<Repor
   return snapshot;
 }
 
-const isRecordNotFound = (error: unknown) =>
-  typeof error === "object" &&
-  error !== null &&
-  (error as { code?: unknown }).code === "P2025";
-
-async function removeReportedContent(type: ReportTargetType, targetId: number) {
+async function removeReportedContent(
+  report: Pick<Report, "id" | "targetType" | "targetId">,
+  actorId: number
+) {
+  const { targetType } = report;
+  if (targetType !== "POST" && targetType !== "COMMENT" && targetType !== "PRODUCT") {
+    throw new Error(`콘텐츠 삭제를 적용할 수 없는 신고 대상입니다: ${targetType}`);
+  }
   try {
-    if (type === "POST") {
-      // 기존 관리자 게시글 삭제(admin/posts DELETE)와 같은 hard delete
-      await client.post.delete({ where: { id: targetId } });
-    } else if (type === "COMMENT") {
-      await client.comment.delete({ where: { id: targetId } });
-    } else if (type === "PRODUCT") {
-      // Sale/Purchase 가 Product 를 참조하고 relationMode=prisma 라 hard delete 하지 않는다.
-      await client.product.update({ where: { id: targetId }, data: { isHidden: true } });
-    } else {
-      throw new Error(`콘텐츠 삭제를 적용할 수 없는 신고 대상입니다: ${type}`);
-    }
+    await applyModeration({
+      actorId,
+      targetType,
+      targetId: report.targetId,
+      // 상품은 기존처럼 숨김으로 내린다(Sale/Purchase 참조 때문에 지우지 않음).
+      action: targetType === "PRODUCT" ? "hide" : "delete",
+      reportId: report.id,
+    });
   } catch (error) {
     // 이미 지워진 콘텐츠면 삭제는 건너뛰고 신고 처리만 이어간다.
-    if (!isRecordNotFound(error)) throw error;
+    if (!isModerationTargetNotFound(error)) throw error;
   }
 }
 
@@ -279,11 +287,12 @@ async function removeReportedContent(type: ReportTargetType, targetId: number) {
  * 관리자 신고 처리 액션을 적용한다. 대상 유형 검증(채팅방·사용자에 REMOVE_CONTENT 금지)은 호출부에서 한다.
  */
 export async function applyReportAction(
-  report: Pick<Report, "targetType" | "targetId" | "reportedUserId">,
-  action: ReportAction
+  report: Pick<Report, "id" | "targetType" | "targetId" | "reportedUserId">,
+  action: ReportAction,
+  actorId: number
 ): Promise<void> {
   if (action === "REMOVE_CONTENT" || action === "REMOVE_CONTENT_AND_BAN") {
-    await removeReportedContent(report.targetType, report.targetId);
+    await removeReportedContent(report, actorId);
   }
   if (action === "BAN_USER" || action === "REMOVE_CONTENT_AND_BAN") {
     // tokenVersion 을 올려 피신고자의 모든 토큰을 즉시 끊는다.
