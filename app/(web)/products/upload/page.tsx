@@ -1,4 +1,4 @@
-import React from "react";
+import React, { Suspense } from "react";
 import UploadClient from "./UploadClient";
 import AuthGuard from "@components/auth/AuthGuard";
 import type { Metadata } from "next";
@@ -19,7 +19,9 @@ export const metadata: Metadata = {
 const page = () => {
   return (
     <AuthGuard>
-      <UploadClient />
+      <Suspense fallback={null}>
+        <UploadClient />
+      </Suspense>
     </AuthGuard>
   );
 };

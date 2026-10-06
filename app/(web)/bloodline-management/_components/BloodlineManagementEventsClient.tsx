@@ -1,16 +1,32 @@
 "use client";
 
-import { fetchBloodlineCardEvents } from "@libs/client/bloodlineCardEvents";
-import { useEffect, useMemo, useState } from "react";
+/**
+ * 혈통 이벤트 — 당근 톤(A안) 1:1
+ * 원본: bredy_app src/app/bloodline-management/events.tsx
+ *
+ * 헤더(뒤로 + 제목 18/700) → 설명 13/muted → 검색 인풋 → 필터 칩
+ * → 플랫 이벤트 행(44 원형 아이콘 + 제목 15/600 + 보조 13 muted + 시간 13 muted, 1px line).
+ */
+import { useMemo, useState } from "react";
 import Link from "next/link";
 import useSWR from "swr";
-import { Spinner } from "@components/atoms/Spinner";
 import Layout from "@components/features/MainLayout";
-import useUser from "hooks/useUser";
+import { Input } from "@components/ui/input";
+import { FilterChip } from "@components/app/FilterChip";
+import { QueryErrorState } from "@components/app/QueryErrorState";
 import {
-  BloodlineCardEventsResponse,
-  BloodlineCardItem,
-  BloodlineCardsResponse,
+  BloodlineHeader,
+  BloodlineSpinner,
+  bloodlineInputClass,
+  useBloodlineLoginRedirect,
+} from "@components/features/bloodline/BloodlineScreenParts";
+import useUser from "hooks/useUser";
+import { loadMergedBloodlineEvents } from "@libs/client/bloodlineCardEvents";
+import {
+  formatBloodlineEventTime,
+  type BloodlineCardEventItem,
+  type BloodlineCardItem,
+  type BloodlineCardsResponse,
 } from "@libs/shared/bloodline-card";
 
 const actionLabel: Record<string, string> = {
@@ -22,174 +38,183 @@ const actionLabel: Record<string, string> = {
   CARD_REVOKED: "카드 철회",
 };
 
-const headerButtonClass =
-  "inline-flex h-9 items-center justify-center rounded-none bg-white px-3 text-sm font-medium text-slate-700 transition hover:bg-slate-50";
-const detailLinkClass =
-  "mt-2 inline-flex h-8 items-center justify-center rounded-none bg-slate-50 px-3 text-xs font-medium text-slate-700 transition hover:bg-slate-100";
+type FilterKey = "all" | "created" | "transfer" | "revoked";
+
+const FILTERS: { key: FilterKey; label: string; actions?: string[] }[] = [
+  { key: "all", label: "전체" },
+  { key: "created", label: "발급", actions: ["BLOODLINE_CREATED", "LINE_CREATED", "LINE_ISSUED"] },
+  { key: "transfer", label: "보내기", actions: ["BLOODLINE_TRANSFER", "LINE_TRANSFER"] },
+  { key: "revoked", label: "철회", actions: ["CARD_REVOKED"] },
+];
+
+function EventIcon({ action }: { action: string }) {
+  const d =
+    action === "CARD_REVOKED"
+      ? "M20 12h-15m0 0l5.5-5.5M5 12l5.5 5.5"
+      : action.endsWith("_TRANSFER")
+        ? "M4 12h15m0 0l-5.5-5.5M19 12l-5.5 5.5"
+        : "M12 5v14M5 12h14";
+  return (
+    <svg width={20} height={20} viewBox="0 0 24 24" fill="none" aria-hidden="true">
+      <path d={d} stroke="currentColor" strokeWidth={1.5} strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  );
+}
+
+function eventSubtitle(event: BloodlineCardEventItem) {
+  const who = event.actorUser?.name || "시스템";
+  const flow = event.toUser ? `${event.fromUser?.name ?? who} → ${event.toUser.name}` : null;
+  return [event.relatedCard?.name, flow ?? who, event.note].filter(Boolean).join(" · ");
+}
+
+function EventRow({ event, first }: { event: BloodlineCardEventItem; first: boolean }) {
+  const subtitle = eventSubtitle(event);
+  const body = (
+    <>
+      <span className="grid h-11 w-11 shrink-0 place-items-center rounded-full bg-app-surface text-app-text">
+        <EventIcon action={event.action} />
+      </span>
+      <span className="min-w-0 flex-1">
+        <span className="block truncate text-[15px] font-semibold tracking-[-0.2px] text-app-text">
+          {actionLabel[event.action] || event.action}
+        </span>
+        {subtitle ? (
+          <span className="mt-[3px] block truncate text-[13px] tracking-[-0.2px] text-app-muted">
+            {subtitle}
+          </span>
+        ) : null}
+      </span>
+      <span className="shrink-0 text-[13px] tracking-[-0.2px] text-app-muted">
+        {formatBloodlineEventTime(event.createdAt)}
+      </span>
+    </>
+  );
+  const rowClass = `flex items-center gap-3 bg-app-bg px-4 py-3.5 ${first ? "" : "border-t border-app-line"}`;
+  if (!event.relatedCard?.id) return <div className={rowClass}>{body}</div>;
+  return (
+    <Link
+      href={`/bloodline-management/card/${event.relatedCard.id}`}
+      aria-label={actionLabel[event.action] || event.action}
+      className={`${rowClass} transition-colors hover:bg-app-surface`}
+    >
+      {body}
+    </Link>
+  );
+}
+
+function allCards(data: BloodlineCardsResponse | undefined): BloodlineCardItem[] {
+  if (!data) return [];
+  const cards = [
+    ...(data.myBloodlines || []),
+    ...(data.createdLines || []),
+    ...(data.receivedBloodlines || []),
+    ...(data.receivedLines || []),
+  ];
+  return cards.length ? cards : data.ownedCards || [];
+}
 
 export default function BloodlineManagementEventsClient() {
-  const { user } = useUser();
-  const { data: bloodlineData, isLoading: isBloodlineLoading } =
-    useSWR<BloodlineCardsResponse>(user?.id ? "/api/bloodline-cards" : null);
-
-  const [events, setEvents] = useState<BloodlineCardEventsResponse["events"]>(
-    [],
-  );
+  const { user, isLoading: userLoading } = useUser();
   const [query, setQuery] = useState("");
+  const [filter, setFilter] = useState<FilterKey>("all");
 
-  const cards = useMemo<BloodlineCardItem[]>(() => {
-    if (!bloodlineData) return [];
+  const loggedOut = !user && !userLoading;
+  useBloodlineLoginRedirect(loggedOut, "/bloodline-management/events");
 
-    const allCards = [
-      ...(bloodlineData.myBloodlines || []),
-      ...(bloodlineData.createdLines || []),
-      ...(bloodlineData.receivedBloodlines || []),
-      ...(bloodlineData.receivedLines || []),
-    ];
-
-    if (allCards.length) {
-      return allCards;
-    }
-
-    return bloodlineData.ownedCards || [];
-  }, [bloodlineData]);
-
+  const cardsQuery = useSWR<BloodlineCardsResponse>(user?.id ? "/api/bloodline-cards" : null);
   const cardIds = useMemo(
-    () => Array.from(new Set(cards.map((card) => card.id))).slice(0, 25),
-    [cards],
+    () => Array.from(new Set(allCards(cardsQuery.data).map((card) => card.id))).slice(0, 25),
+    [cardsQuery.data]
   );
-
-  useEffect(() => {
-    if (!user?.id || cardIds.length === 0) {
-      setEvents([]);
-      return;
-    }
-
-    let active = true;
-
-    const load = async () => {
-      const loaded = await Promise.all(
-        cardIds.map((cardId) =>
-          fetchBloodlineCardEvents(cardId, 10).catch(
-            () => [] as BloodlineCardEventsResponse["events"],
-          ),
-        ),
-      );
-
-      if (!active) return;
-
-      const sorted = loaded
-        .flat()
-        .sort(
-          (left, right) =>
-            new Date(right.createdAt).getTime() -
-            new Date(left.createdAt).getTime(),
-        );
-
-      setEvents(sorted);
-    };
-
-    load();
-
-    return () => {
-      active = false;
-    };
-  }, [cardIds, user?.id]);
+  const eventsQuery = useSWR(
+    user?.id && cardIds.length > 0 ? ["bloodline-card-events", ...cardIds] : null,
+    () => loadMergedBloodlineEvents(cardIds, 10)
+  );
 
   const filteredEvents = useMemo(() => {
+    const events = eventsQuery.data ?? [];
+    const actions = FILTERS.find((item) => item.key === filter)?.actions;
+    const byAction = actions ? events.filter((event) => actions.includes(event.action)) : events;
     const normalized = query.trim().toLowerCase();
-    if (!normalized) return events;
-    return events.filter((event) =>
-      `${event.action} ${event.actorUser?.name || ""} ${
+    if (!normalized) return byAction;
+    return byAction.filter((event) =>
+      `${event.action} ${actionLabel[event.action] || ""} ${event.actorUser?.name || ""} ${
         event.fromUser?.name || ""
-      } ${event.toUser?.name || ""} ${event.relatedCard?.name || ""} ${
-        event.note || ""
-      }`
+      } ${event.toUser?.name || ""} ${event.relatedCard?.name || ""} ${event.note || ""}`
         .toLowerCase()
-        .includes(normalized),
+        .includes(normalized)
     );
-  }, [events, query]);
+  }, [eventsQuery.data, filter, query]);
+
+  if (userLoading || loggedOut) {
+    return (
+      <Layout headerVariant="none" seoTitle="혈통 이벤트">
+        <BloodlineHeader title="혈통 이벤트" />
+        <div className="flex min-h-[60vh] items-center justify-center">
+          <BloodlineSpinner />
+        </div>
+      </Layout>
+    );
+  }
+
+  const isBusy = cardsQuery.isLoading || eventsQuery.isLoading;
+  const cardsError = Boolean(cardsQuery.error) && !cardsQuery.data;
+  const eventsError = Boolean(eventsQuery.error) && !eventsQuery.data;
 
   return (
-    <Layout
-      canGoBack
-      hasTabBar
-      showHome
-      title="이벤트 타임라인"
-      seoTitle="혈통 이벤트"
-    >
-      <section className="px-4 py-4">
-        <div className="mx-auto flex w-full max-w-[900px] flex-col space-y-4">
-          <header className="space-y-2 rounded-none bg-white p-4">
-            <p className="app-kicker">BLOODLINE MANAGEMENT</p>
-            <div className="mt-1 flex flex-wrap items-center justify-between gap-2">
-              <div>
-                <h1 className="app-title-xl">이벤트 타임라인</h1>
-                <p className="app-body-sm mt-1 text-slate-600">
-                  보유 카드 기준으로 활동 이력을 통합 정렬했습니다.
-                </p>
-              </div>
-              <Link href="/bloodline-management" className={headerButtonClass}>
-                혈통관리 돌아가기
-              </Link>
-            </div>
-          </header>
+    <Layout headerVariant="none" seoTitle="혈통 이벤트">
+      <BloodlineHeader title="혈통 이벤트" />
 
-          <input
-            value={query}
-            onChange={(event) => setQuery(event.target.value)}
-            placeholder="이벤트 검색 (액션/닉네임/카드명)"
-            className="h-11 w-full rounded-none bg-white px-4 text-sm outline-none ring-0 transition focus:outline-none focus:ring-0"
+      <p className="truncate px-4 pt-3 text-[13px] tracking-[-0.2px] text-app-muted">
+        보유 카드의 활동 이력을 최신순으로 모았어요.
+      </p>
+
+      <div className="px-4 pt-3">
+        <Input
+          value={query}
+          onChange={(event) => setQuery(event.target.value)}
+          placeholder="액션 · 닉네임 · 카드명 검색"
+          aria-label="액션 · 닉네임 · 카드명 검색"
+          autoComplete="off"
+          className={bloodlineInputClass}
+        />
+      </div>
+
+      <div className="flex gap-1.5 px-4 pt-3">
+        {FILTERS.map((item) => (
+          <FilterChip
+            key={item.key}
+            label={item.label}
+            selected={item.key === filter}
+            onClick={() => setFilter(item.key)}
+            className="px-3"
           />
+        ))}
+      </div>
 
-          {isBloodlineLoading ? (
-            <div className="flex h-24 items-center justify-center">
-              <Spinner />
-            </div>
-          ) : null}
-
-          {filteredEvents.length ? (
-            <div className="space-y-3">
-              {filteredEvents.map((event) => (
-                <article key={event.id} className="rounded-none bg-white p-3">
-                  <div className="flex items-start justify-between gap-2">
-                    <div>
-                      <p className="text-sm font-black text-slate-900">
-                        {actionLabel[event.action] || event.action}
-                      </p>
-                      <p className="mt-1 text-xs text-slate-500">
-                        {event.actorUser?.name || "시스템"}
-                        {event.fromUser ? ` · ${event.fromUser.name}` : ""}
-                        {event.toUser ? ` → ${event.toUser.name}` : ""}
-                      </p>
-                      {event.note ? (
-                        <p className="mt-1 text-xs text-slate-600">
-                          {event.note}
-                        </p>
-                      ) : null}
-                    </div>
-                    <span className="text-xs text-slate-500">
-                      {new Date(event.createdAt).toLocaleString("ko-KR")}
-                    </span>
-                  </div>
-                  {event.relatedCard ? (
-                    <Link
-                      href={`/bloodline-management/card/${event.relatedCard.id}`}
-                      className={detailLinkClass}
-                    >
-                      카드 상세로 이동
-                    </Link>
-                  ) : null}
-                </article>
-              ))}
-            </div>
-          ) : (
-            <p className="rounded-none bg-slate-50 p-4 text-sm text-slate-600">
-              표시할 이벤트가 없습니다.
-            </p>
-          )}
-        </div>
-      </section>
+      <div className="mt-3">
+        {isBusy ? (
+          <div className="flex justify-center py-12">
+            <BloodlineSpinner />
+          </div>
+        ) : cardsError || eventsError ? (
+          <QueryErrorState
+            title="혈통 이벤트를 불러오지 못했어요"
+            onRetry={() => {
+              if (cardsError) void cardsQuery.mutate();
+              else void eventsQuery.mutate();
+            }}
+          />
+        ) : filteredEvents.length ? (
+          filteredEvents.map((event, index) => (
+            <EventRow key={event.id} event={event} first={index === 0} />
+          ))
+        ) : (
+          <p className="py-12 text-center text-[14px] tracking-[-0.2px] text-app-muted">
+            표시할 이벤트가 없어요.
+          </p>
+        )}
+      </div>
     </Layout>
   );
 }

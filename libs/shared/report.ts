@@ -93,3 +93,12 @@ export const REPORT_ACTION_LABEL: Record<ReportAction, string> = {
   BAN_USER: "유저 영구정지",
   REMOVE_CONTENT_AND_BAN: "콘텐츠 삭제 + 영구정지",
 };
+
+/** 신고 시트 제목(앱 report-reasons.ts REPORT_SHEET_TITLE 과 같은 문구). */
+export const REPORT_SHEET_TITLE: Record<ReportTargetType, string> = {
+  POST: "게시글 신고",
+  COMMENT: "댓글 신고",
+  PRODUCT: "상품 신고",
+  CHAT_ROOM: "채팅 신고",
+  USER: "사용자 신고",
+};

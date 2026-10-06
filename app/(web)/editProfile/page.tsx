@@ -1,5 +1,6 @@
 import React from "react";
 import EditProfileClient from "./EditProfileClient";
+import AuthGuard from "@components/auth/AuthGuard";
 import type { Metadata } from "next";
 
 export const metadata: Metadata = {
@@ -16,7 +17,11 @@ export const metadata: Metadata = {
 };
 
 const page = () => {
-  return <EditProfileClient />;
+  return (
+    <AuthGuard>
+      <EditProfileClient />
+    </AuthGuard>
+  );
 };
 
 export default page;

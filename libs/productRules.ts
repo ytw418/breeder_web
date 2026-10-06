@@ -148,3 +148,59 @@ export const validateProductInput = (
 
   return { ok: true, value };
 };
+
+export type ProductFormErrors = {
+  name?: string;
+  category?: string;
+  productType?: string;
+  price?: string;
+  description?: string;
+};
+
+/**
+ * 등록·수정 화면 입력 검사(앱 validateProductFields + 카테고리·타입 필수). 오류가 없으면 빈 객체.
+ * price 는 화면 입력값(숫자, 비어 있으면 null). 0 은 무료나눔이다.
+ */
+export const validateProductForm = ({
+  name,
+  price,
+  description,
+  category,
+  productType,
+}: {
+  name: string;
+  price: number | null;
+  description: string;
+  category: string;
+  productType: string;
+}): ProductFormErrors => {
+  const errors: ProductFormErrors = {};
+  const trimmedName = name.trim();
+  const trimmedDescription = description.trim();
+
+  if (!trimmedName) errors.name = "상품명을 입력해주세요.";
+  else if (trimmedName.length < PRODUCT_NAME_MIN_LENGTH)
+    errors.name = `상품명은 ${PRODUCT_NAME_MIN_LENGTH}자 이상 입력해주세요.`;
+  else if (trimmedName.length > PRODUCT_NAME_MAX_LENGTH)
+    errors.name = `상품명은 ${PRODUCT_NAME_MAX_LENGTH}자 이하로 입력해주세요.`;
+
+  if (!category) errors.category = "카테고리를 선택해주세요.";
+  if (!productType) errors.productType = "상품 타입을 선택해주세요.";
+
+  if (price === null) errors.price = "가격을 입력해주세요.";
+  else if (!Number.isInteger(price) || price < PRODUCT_PRICE_MIN)
+    errors.price = `가격은 ${PRODUCT_PRICE_MIN}원 이상 정수로 입력해주세요.`;
+  else if (price > PRODUCT_PRICE_MAX) errors.price = "가격이 너무 큽니다.";
+
+  if (!trimmedDescription) errors.description = "상품 설명을 입력해주세요.";
+  else if (trimmedDescription.length < PRODUCT_DESCRIPTION_MIN_LENGTH)
+    errors.description = `설명을 ${PRODUCT_DESCRIPTION_MIN_LENGTH}자 이상 입력해주세요.`;
+  else if (trimmedDescription.length > PRODUCT_DESCRIPTION_MAX_LENGTH)
+    errors.description = `설명은 ${PRODUCT_DESCRIPTION_MAX_LENGTH}자 이하로 입력해주세요.`;
+
+  return errors;
+};
+
+/** 화면 위에서부터 첫 오류(상품명 → 카테고리 → 타입 → 가격 → 설명). */
+export const firstProductFormError = (errors: ProductFormErrors) =>
+  errors.name || errors.category || errors.productType || errors.price || errors.description;

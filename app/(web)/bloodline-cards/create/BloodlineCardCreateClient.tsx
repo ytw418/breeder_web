@@ -1,570 +1,389 @@
 "use client";
 
-import { authFetch } from "@libs/client/authFetch";
-import {
-  ChangeEvent,
-  FormEvent,
-  useEffect,
-  useMemo,
-  useRef,
-  useState,
-} from "react";
-import Link from "next/link";
+/**
+ * 혈통카드 만들기 — 당근 톤(A안)
+ * 원본: bredy_app src/app/bloodline-cards/create.tsx
+ *
+ * 헤더(뒤로 + 제목 18/700) → 단일 폼(라벨 15/600 + 글자 수, 입력 h48 r8, 소개 textarea,
+ * 사진 행 80px) → 하단 고정 52 주황 CTA "혈통카드 만들기".
+ * 사진 행 아래 카드 스타일 32px 칩 1줄(앱과 같음, 기본 noir) → visualStyle 로 보낸다. 미리보기 카드는 두지 않는다.
+ */
+import { ChangeEvent, FormEvent, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
+import { authFetch } from "@libs/client/authFetch";
 import Layout from "@components/features/MainLayout";
-import { Spinner } from "@components/atoms/Spinner";
-import { Button } from "@components/ui/button";
 import { Input } from "@components/ui/input";
 import { Textarea } from "@components/ui/textarea";
+import {
+  BloodlineBottomBar,
+  BloodlineBottomBarSpacer,
+  BloodlineHeader,
+  BloodlinePrimaryButton,
+  BloodlineSpinner,
+  bloodlineInputClass,
+  bloodlineTextareaClass,
+  useBloodlineLoginRedirect,
+} from "@components/features/bloodline/BloodlineScreenParts";
+import useConfirmDialog from "hooks/useConfirmDialog";
 import useUser from "hooks/useUser";
 import type { BloodlineCardsResponse } from "@libs/shared/bloodline-card";
-import {
-  BloodlineVisualCard,
-  bloodlineVisualCardVariants,
-  type BloodlineVisualCardVariant,
-} from "@components/features/bloodline/BloodlineVisualCard";
 import { cn } from "@libs/client/utils";
+import { FilterChip } from "@components/app/FilterChip";
+import type { BloodlineCardVisualStyle } from "@libs/shared/bloodline-card";
 
-const CARD_VARIANT_LABELS: {
-  value: BloodlineVisualCardVariant;
-  label: string;
-}[] = [
+/** 앱 create.tsx CARD_VARIANT_LABELS 와 같은 라벨·순서. 기본값 noir. */
+const CARD_VARIANT_LABELS: { value: BloodlineCardVisualStyle; label: string }[] = [
   { value: "noir", label: "모던" },
   { value: "clean", label: "클린" },
   { value: "editorial", label: "에디토리얼" },
 ];
 
 const allowedNamePattern = /^[A-Za-z0-9가-힣]+$/;
-
-const CARD_VARIANT_STORAGE_KEY = "bloodline.visual.card.variant";
+const NAME_MAX_LENGTH = 40;
+const DESCRIPTION_MAX_LENGTH = 300;
 const MAX_IMAGE_SIZE = 10 * 1024 * 1024;
-const ALLOWED_IMAGE_EXTENSIONS = [
-  ".jpg",
-  ".jpeg",
-  ".png",
-  ".webp",
-  ".heic",
-  ".heif",
-] as const;
+const ALLOWED_IMAGE_EXTENSIONS = [".jpg", ".jpeg", ".png", ".webp", ".heic", ".heif"] as const;
+const DUPLICATED_NAME_MESSAGE = "이미 사용 중인 혈통 카드 이름입니다.";
 
 const getFileExtension = (name: string) => {
   const pointIndex = name.lastIndexOf(".");
-  if (pointIndex === -1) return "";
-  return name.slice(pointIndex).toLowerCase();
+  return pointIndex === -1 ? "" : name.slice(pointIndex).toLowerCase();
 };
 
-const isDuplicatedBloodlineNameError = (message: string) => {
-  return message.includes("이미 사용 중인 혈통 카드 이름입니다.");
-};
+function FieldLabel({ label, count, htmlFor }: { label: string; count?: string; htmlFor?: string }) {
+  return (
+    <div className="mb-2 flex items-center justify-between">
+      <label htmlFor={htmlFor} className="text-[15px] font-semibold tracking-[-0.2px] text-app-text">
+        {label}
+      </label>
+      {count ? <span className="text-[13px] text-app-muted">{count}</span> : null}
+    </div>
+  );
+}
+
+function FieldError({ id, message }: { id?: string; message: string }) {
+  return (
+    <p id={id} role="alert" className="mt-1.5 text-[13px] tracking-[-0.2px] text-app-brand">
+      {message}
+    </p>
+  );
+}
+
+function CameraIcon() {
+  return (
+    <svg width={22} height={22} viewBox="0 0 24 24" fill="none" aria-hidden="true" className="text-app-muted">
+      <path
+        d="M4 8.5A1.5 1.5 0 015.5 7h1.8l1.1-1.8h5.2L14.7 7h3.8A1.5 1.5 0 0120 8.5v9A1.5 1.5 0 0118.5 19h-13A1.5 1.5 0 014 17.5v-9z"
+        stroke="currentColor"
+        strokeWidth={1.5}
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+      <path
+        d="M12 15.5a2.8 2.8 0 100-5.6 2.8 2.8 0 000 5.6z"
+        stroke="currentColor"
+        strokeWidth={1.5}
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </svg>
+  );
+}
+
+async function uploadCardImage(file: File) {
+  const fileApiResponse = await authFetch("/api/files");
+  if (!fileApiResponse.ok) throw new Error("이미지 업로드 URL을 가져오지 못했습니다.");
+  const fileApiResult = (await fileApiResponse.json().catch(() => null)) as {
+    uploadURL?: string;
+    id?: string;
+  } | null;
+  if (!fileApiResult?.uploadURL) throw new Error("이미지 업로드 URL을 확인하지 못했습니다.");
+
+  const formData = new FormData();
+  formData.append("file", file, file.name || "bloodline-card-image");
+  const uploadResponse = await fetch(fileApiResult.uploadURL, { method: "POST", body: formData });
+  const uploadResult = (await uploadResponse.json().catch(() => null)) as {
+    success?: boolean;
+    result?: { id?: string };
+  } | null;
+  const uploadedImage = uploadResult?.result?.id || fileApiResult.id;
+  if (!uploadResponse.ok || !uploadedImage || uploadResult?.success === false) {
+    throw new Error("이미지 업로드에 실패했습니다.");
+  }
+  return uploadedImage;
+}
 
 export default function BloodlineCardCreateClient() {
-  const { user, isLoading: isUserLoading } = useUser();
+  const { user, isLoading: userLoading } = useUser();
   const router = useRouter();
+  const { confirm, confirmDialog } = useConfirmDialog();
   const imageInputRef = useRef<HTMLInputElement | null>(null);
 
   const [cardName, setCardName] = useState("");
   const [cardDescription, setCardDescription] = useState("");
-  const [message, setMessage] = useState("");
-  const [formError, setFormError] = useState("");
+  const [variant, setVariant] = useState<BloodlineCardVisualStyle>("noir");
+  const [imageFile, setImageFile] = useState<File | null>(null);
+  const [imagePreview, setImagePreview] = useState("");
   const [nameError, setNameError] = useState("");
   const [descriptionError, setDescriptionError] = useState("");
   const [imageError, setImageError] = useState("");
-  const [creatingCard, setCreatingCard] = useState(false);
-  const [cardVisualVariant, setCardVisualVariant] =
-    useState<BloodlineVisualCardVariant>("noir");
-  const [cardImageFile, setCardImageFile] = useState<File | null>(null);
-  const [cardImagePreview, setCardImagePreview] = useState("");
+  const [formError, setFormError] = useState("");
+  const [creating, setCreating] = useState(false);
 
-  const previewName = useMemo(
-    () => (cardName.trim() || "새 혈통").slice(0, 40),
-    [cardName],
-  );
-
-  const previewImageUrl = useMemo(
-    () => cardImagePreview || "",
-    [cardImagePreview],
-  );
+  const loggedOut = !user && !userLoading;
+  useBloodlineLoginRedirect(loggedOut, "/bloodline-cards/create");
 
   useEffect(() => {
-    if (!cardImageFile) {
-      setCardImagePreview("");
+    if (!imageFile) {
+      setImagePreview("");
       return;
     }
-    const nextImage = URL.createObjectURL(cardImageFile);
-    setCardImagePreview(nextImage);
-    return () => URL.revokeObjectURL(nextImage);
-  }, [cardImageFile]);
-
-  useEffect(() => {
-    try {
-      const saved = localStorage.getItem(CARD_VARIANT_STORAGE_KEY);
-      if (
-        saved &&
-        bloodlineVisualCardVariants.includes(
-          saved as BloodlineVisualCardVariant,
-        )
-      ) {
-        setCardVisualVariant(saved as BloodlineVisualCardVariant);
-      }
-    } catch {
-      // localStorage unavailable
-    }
-  }, []);
-
-  useEffect(() => {
-    try {
-      localStorage.setItem(CARD_VARIANT_STORAGE_KEY, cardVisualVariant);
-    } catch {
-      // localStorage unavailable
-    }
-  }, [cardVisualVariant]);
-
-  const parseCreateResponse = async (response: Response) => {
-    const payload = (await response.json().catch(() => null)) as
-      | (BloodlineCardsResponse & { error?: string })
-      | null;
-    if (response.ok && payload?.success) {
-      return { payload, errorMessage: "" };
-    }
-    const reason =
-      payload?.error ||
-      (response.status === 401
-        ? "로그인이 필요합니다."
-        : response.status === 400
-        ? "입력 값을 확인해주세요."
-        : "혈통카드 생성에 실패했습니다.");
-    return { payload, errorMessage: reason };
-  };
-
-  const uploadCardImage = async (file: File) => {
-    const fileApiResponse = await authFetch("/api/files");
-    if (!fileApiResponse.ok) {
-      throw new Error("이미지 업로드 URL을 가져오지 못했습니다.");
-    }
-
-    const fileApiResult = (await fileApiResponse.json().catch(() => null)) as {
-      uploadURL?: string;
-      id?: string;
-    } | null;
-    const uploadURL = fileApiResult?.uploadURL;
-    if (!uploadURL) {
-      throw new Error("이미지 업로드 URL을 확인하지 못했습니다.");
-    }
-
-    const formData = new FormData();
-    formData.append("file", file, file.name || "bloodline-card-image");
-    const uploadResponse = await fetch(uploadURL, {
-      method: "POST",
-      body: formData,
-    });
-
-    const uploadResult = (await uploadResponse.json().catch(() => null)) as {
-      success?: boolean;
-      result?: { id?: string };
-    } | null;
-    const uploadedImage = uploadResult?.result?.id || fileApiResult?.id;
-
-    if (!uploadResponse.ok || !uploadedImage) {
-      throw new Error("이미지 업로드에 실패했습니다.");
-    }
-
-    if (uploadResult?.success === false) {
-      throw new Error("이미지 업로드에 실패했습니다.");
-    }
-
-    return uploadedImage;
-  };
+    const url = URL.createObjectURL(imageFile);
+    setImagePreview(url);
+    return () => URL.revokeObjectURL(url);
+  }, [imageFile]);
 
   const handleImageChange = (event: ChangeEvent<HTMLInputElement>) => {
-    const nextFile = event.target.files?.[0];
-    if (!nextFile) return;
-
-    const nextType = nextFile.type?.toLowerCase() || "";
-    const nextExt = getFileExtension(nextFile.name || "").toLowerCase();
-    const isImageTypeAllowed =
-      nextType.startsWith("image/") ||
-      ALLOWED_IMAGE_EXTENSIONS.includes(
-        nextExt as (typeof ALLOWED_IMAGE_EXTENSIONS)[number],
-      );
-
-    if (!isImageTypeAllowed) {
+    const file = event.target.files?.[0];
+    event.target.value = "";
+    if (!file) return;
+    const type = file.type?.toLowerCase() || "";
+    const ext = getFileExtension(file.name || "");
+    const isImage =
+      type.startsWith("image/") ||
+      ALLOWED_IMAGE_EXTENSIONS.includes(ext as (typeof ALLOWED_IMAGE_EXTENSIONS)[number]);
+    if (!isImage) {
       setImageError("이미지 파일만 업로드할 수 있습니다.");
-      setFormError("");
-      event.target.value = "";
       return;
     }
-    if (nextFile.size > MAX_IMAGE_SIZE) {
+    if (file.size > MAX_IMAGE_SIZE) {
       setImageError("이미지는 최대 10MB까지 등록할 수 있습니다.");
-      setFormError("");
-      event.target.value = "";
       return;
     }
-
     setImageError("");
-    setFormError("");
-    setMessage("");
-    setCardImageFile(nextFile);
-    // 이미 선택된 파일을 다시 동일 파일로 다시 선택할 수 있게 input 값 초기화
-    if (event.target.value) {
-      event.target.value = "";
-    }
+    setImageFile(file);
   };
 
-  const handleRemoveImage = () => {
-    setCardImageFile(null);
-    setCardImagePreview("");
+  const removeImage = () => {
+    setImageFile(null);
     setImageError("");
-    if (imageInputRef.current) {
-      imageInputRef.current.value = "";
-    }
   };
 
-  const handleCreateBloodlineCard = async (event: FormEvent) => {
-    event.preventDefault();
-    setMessage("");
+  const handleSubmit = async (event?: FormEvent) => {
+    event?.preventDefault();
+    if (creating) return;
     setFormError("");
     setNameError("");
     setDescriptionError("");
 
-    const nextName = cardName.trim().slice(0, 40);
-    const nextDescription = cardDescription.trim().slice(0, 300);
-
-    if (!nextName) {
-      setNameError("이름은 필수 항목입니다.");
-      return;
-    }
-    if (nextName.length < 2) {
-      setNameError("이름은 2자 이상 입력해주세요.");
-      return;
-    }
+    const nextName = cardName.trim();
+    const nextDescription = cardDescription.trim();
+    if (!nextName) return setNameError("이름은 필수 항목입니다.");
+    if (nextName.length < 2) return setNameError("이름은 2자 이상 입력해주세요.");
     if (!allowedNamePattern.test(nextName)) {
-      setNameError(
-        "이름은 영문, 숫자, 한글만 입력 가능하며 공백/특수문자는 허용되지 않습니다.",
+      return setNameError(
+        "이름은 영문, 숫자, 한글만 입력 가능하며 공백/특수문자는 허용되지 않습니다."
       );
-      return;
     }
-    if (!nextDescription) {
-      setDescriptionError("설명은 필수 항목입니다.");
-      return;
-    }
+    if (!nextDescription) return setDescriptionError("설명은 필수 항목입니다.");
 
-    const isConfirmed = window.confirm(
-      `"${nextName}" 혈통카드를 정말로 만드시겠어요?`,
-    );
-    if (!isConfirmed) {
-      return;
-    }
+    const ok = await confirm({
+      title: "혈통카드 생성",
+      description: `"${nextName}" 혈통카드를 정말로 만드시겠어요?`,
+      confirmText: "생성",
+    });
+    if (!ok) return;
 
+    setCreating(true);
     try {
-      setCreatingCard(true);
-      if (cardImageFile) {
-        setMessage("카드 이미지 업로드 중...");
-      }
-      const image = cardImageFile ? await uploadCardImage(cardImageFile) : "";
-      setMessage(
-        cardImageFile
-          ? "이미지 업로드 완료. 카드 생성 중..."
-          : "카드 생성 중...",
-      );
-
-      const res = await authFetch("/api/bloodline-cards", {
+      const image = imageFile ? await uploadCardImage(imageFile) : "";
+      const response = await authFetch("/api/bloodline-cards", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           name: nextName,
           description: nextDescription,
-          visualStyle: cardVisualVariant,
+          visualStyle: variant,
           ...(image ? { image } : {}),
         }),
       });
-
-      const { payload, errorMessage } = await parseCreateResponse(res);
-      if (!payload) {
-        throw new Error(errorMessage);
-      }
-      if (!payload.success) {
+      const payload = (await response.json().catch(() => null)) as BloodlineCardsResponse | null;
+      if (!response.ok || !payload?.success) {
         throw new Error(
-          errorMessage || payload.error || "혈통카드 생성에 실패했습니다.",
+          payload?.error ||
+            (response.status === 401
+              ? "로그인이 필요합니다."
+              : response.status === 400
+                ? "입력 값을 확인해주세요."
+                : "혈통카드 생성에 실패했습니다.")
         );
       }
-
-      const createdCardId =
-        payload.myBloodlines?.[0]?.id ||
-        payload.myCreatedCards?.[0]?.id ||
-        payload.ownedCards?.[0]?.id;
-      if (!createdCardId) {
-        throw new Error("생성된 카드 정보를 확인할 수 없습니다.");
-      }
+      const createdId =
+        payload.myBloodlines?.[0]?.id || payload.myCreatedCards?.[0]?.id || payload.ownedCards?.[0]?.id;
+      if (!createdId) throw new Error("생성된 카드 정보를 확인할 수 없습니다.");
 
       setCardName("");
       setCardDescription("");
-      setCardImageFile(null);
-      setCardImagePreview("");
-      if (imageInputRef.current) {
-        imageInputRef.current.value = "";
-      }
-      setMessage("");
-      const encodedCardName = encodeURIComponent(nextName);
-      router.push(
-        `/bloodline-management/card/${createdCardId}?celebration=card-created&name=${encodedCardName}`,
+      setImageFile(null);
+      router.replace(
+        `/bloodline-management/card/${createdId}?celebration=card-created&name=${encodeURIComponent(nextName)}`
       );
-    } catch (createError) {
-      const errorMessage =
-        createError instanceof Error
-          ? createError.message
-          : "요청 처리 중 오류가 발생했습니다.";
-      if (isDuplicatedBloodlineNameError(errorMessage)) {
-        setNameError(errorMessage);
-      } else {
-        setFormError(errorMessage);
-      }
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "요청 처리 중 오류가 발생했습니다.";
+      if (message.includes(DUPLICATED_NAME_MESSAGE)) setNameError(message);
+      else setFormError(message);
     } finally {
-      setCreatingCard(false);
+      setCreating(false);
     }
   };
 
+  if (userLoading || loggedOut) {
+    return (
+      <Layout headerVariant="none" seoTitle="혈통카드 만들기">
+        <BloodlineHeader title="혈통카드 만들기" />
+        <div className="flex min-h-[60vh] items-center justify-center">
+          <BloodlineSpinner />
+        </div>
+      </Layout>
+    );
+  }
+
   return (
-    <Layout
-      canGoBack
-      showHome
-      title="혈통카드 만들기"
-      seoTitle="혈통카드 만들기"
-    >
-      <div
-        className={`relative space-y-4 px-4 py-4 pb-12 ${
-          creatingCard ? "pointer-events-none" : ""
-        }`}
-      >
-        {creatingCard ? (
-          <div className="fixed inset-0 z-40 grid place-items-center bg-white/80">
-            <div className="rounded-lg border border-slate-200 bg-white px-5 py-4 shadow-sm">
-              <div className="flex flex-col items-center gap-3">
-                <Spinner />
-                <p className="text-center text-sm font-semibold text-slate-800">
-                  혈통카드를 생성하고 있습니다.
-                </p>
-              </div>
-            </div>
+    <Layout headerVariant="none" seoTitle="혈통카드 만들기">
+      <BloodlineHeader title="혈통카드 만들기" />
+
+      <form id="bloodline-card-create" onSubmit={handleSubmit} className="px-4 pb-8 pt-4" noValidate>
+        {formError ? (
+          <div className="mb-4">
+            <FieldError message={formError} />
           </div>
         ) : null}
-        <section className="app-reveal app-reveal-1 rounded-lg border border-slate-200 bg-white p-4">
-          <div className="mb-3 flex items-start justify-between gap-3">
-            <div>
-              <p className="text-xs font-semibold text-primary">
-                대표 카드 미리보기
-              </p>
-              <p className="mt-1 text-[13px] font-semibold text-slate-900">
-                생성 전 카드 형태를 확인하세요
-              </p>
-            </div>
-            <span className="shrink-0 rounded-md border border-slate-200 bg-slate-50 px-2.5 py-1 text-[11px] font-semibold text-slate-700">
-              LIVE
-            </span>
-          </div>
-          <div className="mb-3">
-            <div className="mb-2 flex items-center justify-between gap-2">
-              <p className="text-xs font-semibold text-slate-700">
-                카드 스타일
-              </p>
-              <span className="text-[11px] text-slate-500">원클릭 적용</span>
-            </div>
-            <div className="grid grid-cols-3 gap-2">
-              {CARD_VARIANT_LABELS.map((item) => (
-                <button
-                  key={item.value}
-                  type="button"
-                  onClick={() => setCardVisualVariant(item.value)}
-                  className={`h-9 rounded-lg border px-3 text-[11px] font-semibold transition ${
-                    cardVisualVariant === item.value
-                      ? "bg-slate-900 text-white"
-                      : "bg-white text-slate-700 hover:border-slate-300 hover:bg-slate-50"
-                  }`}
-                  aria-pressed={cardVisualVariant === item.value}
-                >
-                  {item.label}
-                </button>
-              ))}
-            </div>
-          </div>
-          <div className="mt-3">
-            <BloodlineVisualCard
-              cardId={null}
-              name={previewName}
-              ownerName={user?.name || "브리더"}
-              subtitle="새 혈통카드 미리보기"
-              variant={cardVisualVariant}
-              image={null}
-              imageUrl={previewImageUrl || ""}
-              compact
+
+        <FieldLabel
+          label="혈통 이름"
+          htmlFor="bloodline-card-name"
+          count={`${cardName.length}/${NAME_MAX_LENGTH}`}
+        />
+        <Input
+          id="bloodline-card-name"
+          value={cardName}
+          maxLength={NAME_MAX_LENGTH}
+          onChange={(event) => {
+            setCardName(event.target.value);
+            if (nameError) setNameError("");
+          }}
+          placeholder="혈통 이름을 입력해주세요"
+          disabled={creating}
+          aria-invalid={Boolean(nameError)}
+          aria-describedby={nameError ? "bloodline-card-name-error" : undefined}
+          className={bloodlineInputClass}
+        />
+        {nameError ? <FieldError id="bloodline-card-name-error" message={nameError} /> : null}
+
+        <div className="mt-5">
+          <FieldLabel
+            label="소개"
+            htmlFor="bloodline-card-description"
+            count={`${cardDescription.length}/${DESCRIPTION_MAX_LENGTH}`}
+          />
+          <Textarea
+            id="bloodline-card-description"
+            value={cardDescription}
+            maxLength={DESCRIPTION_MAX_LENGTH}
+            onChange={(event) => {
+              setCardDescription(event.target.value);
+              if (descriptionError) setDescriptionError("");
+            }}
+            placeholder="이 혈통카드의 소개를 적어주세요"
+            disabled={creating}
+            aria-invalid={Boolean(descriptionError)}
+            aria-describedby={descriptionError ? "bloodline-card-description-error" : undefined}
+            className={bloodlineTextareaClass}
+          />
+          {descriptionError ? (
+            <FieldError id="bloodline-card-description-error" message={descriptionError} />
+          ) : null}
+        </div>
+
+        <div className="mt-5">
+          <FieldLabel label="사진" />
+          <div className="flex gap-2">
+            <label
+              htmlFor="bloodline-card-image"
+              aria-label="사진 추가"
+              className={cn(
+                "flex h-20 w-20 cursor-pointer flex-col items-center justify-center rounded-lg border bg-app-bg",
+                imageError ? "border-app-brand" : "border-app-border",
+                creating && "pointer-events-none opacity-60"
+              )}
+            >
+              <CameraIcon />
+              <span className="mt-1 text-[12px] text-app-muted">{imageFile ? "1/1" : "0/1"}</span>
+            </label>
+            <input
+              id="bloodline-card-image"
+              ref={imageInputRef}
+              type="file"
+              accept="image/*"
+              className="sr-only"
+              onChange={handleImageChange}
+              disabled={creating}
             />
-          </div>
-        </section>
-
-        {isUserLoading ? (
-          <div className="flex h-28 items-center justify-center">
-            <Spinner />
-          </div>
-        ) : null}
-
-        {!isUserLoading && !user ? (
-          <section className="rounded-xl border border-slate-200 bg-white p-5 text-center">
-            <p className="text-sm text-slate-700">
-              혈통카드는 로그인 후 생성할 수 있습니다.
-            </p>
-            <Link
-              href="/auth/login?next=%2Fbloodline-cards%2Fcreate"
-              className="mt-3 inline-flex h-10 items-center justify-center rounded-lg bg-slate-900 px-4 text-sm font-semibold text-white"
-            >
-              로그인하고 시작하기
-            </Link>
-          </section>
-        ) : null}
-
-        {user ? (
-          <>
-            {message ? (
-              <p className="rounded-md border border-slate-200 bg-slate-50 px-3 py-2 text-sm font-semibold text-slate-700">
-                {message}
-              </p>
-            ) : null}
-            {formError ? (
-              <p className="rounded-md border border-rose-200 bg-rose-50 px-3 py-2 text-sm font-semibold text-rose-700">
-                {formError}
-              </p>
-            ) : null}
-
-            <form
-              onSubmit={handleCreateBloodlineCard}
-              className="app-reveal app-reveal-2 space-y-3 rounded-lg border border-slate-200 bg-white p-4"
-            >
-              <h2 className="text-base font-black tracking-tight text-slate-900">
-                혈통카드 생성
-              </h2>
-              <div className="space-y-1">
-                <Input
-                  value={cardName}
-                  onChange={(event) => {
-                    setCardName(event.target.value);
-                    if (nameError) {
-                      setNameError("");
-                    }
-                  }}
-                  placeholder="혈통 이름을 입력해주세요 (필수)"
-                  className={cn(
-                    "h-11 border-slate-200/70",
-                    nameError && "border-rose-300 focus-visible:ring-rose-200",
-                  )}
-                  disabled={creatingCard}
-                  aria-invalid={Boolean(nameError)}
-                  aria-describedby={
-                    nameError ? "bloodline-card-name-error" : undefined
-                  }
+            {imagePreview ? (
+              <div className="relative h-20 w-20">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img
+                  src={imagePreview}
+                  alt="선택한 사진"
+                  className="h-20 w-20 rounded-lg object-cover"
                 />
-                {nameError ? (
-                  <p
-                    id="bloodline-card-name-error"
-                    className="text-xs font-medium text-rose-600"
-                  >
-                    {nameError}
-                  </p>
-                ) : null}
-              </div>
-              <div className="space-y-1">
-                <Textarea
-                  rows={4}
-                  value={cardDescription}
-                  onChange={(event) => {
-                    setCardDescription(event.target.value);
-                    if (descriptionError) {
-                      setDescriptionError("");
-                    }
-                  }}
-                  placeholder="이 혈통카드의 소개를 적어주세요 (필수)"
-                  className={cn(
-                    "leading-relaxed",
-                    descriptionError &&
-                      "border-rose-300 focus-visible:ring-rose-200",
-                  )}
-                  disabled={creatingCard}
-                  aria-invalid={Boolean(descriptionError)}
-                  aria-describedby={
-                    descriptionError
-                      ? "bloodline-card-description-error"
-                      : undefined
-                  }
-                />
-                {descriptionError ? (
-                  <p
-                    id="bloodline-card-description-error"
-                    className="text-xs font-medium text-rose-600"
-                  >
-                    {descriptionError}
-                  </p>
-                ) : null}
-              </div>
-              <div className="space-y-2">
-                <p className="text-xs font-bold text-slate-700">카드 이미지</p>
-                <div
-                  className={cn(
-                    "rounded-lg border border-slate-200 bg-slate-50 p-3",
-                    imageError && "border-rose-200 bg-rose-50/40",
-                  )}
+                <button
+                  type="button"
+                  aria-label="사진 삭제"
+                  onClick={removeImage}
+                  disabled={creating}
+                  className="absolute -right-1.5 -top-1.5 grid h-[22px] w-[22px] place-items-center rounded-full text-white"
+                  style={{ backgroundColor: "rgba(0, 0, 0, 0.6)" }}
                 >
-                  <label
-                    htmlFor="bloodline-card-image"
-                    className={cn(
-                      "inline-flex h-11 w-full cursor-pointer items-center justify-center rounded-lg border border-dashed border-slate-300 bg-white text-sm font-semibold text-slate-700 transition hover:bg-slate-50",
-                      creatingCard && "pointer-events-none opacity-60",
-                      imageError && "border-rose-300",
-                    )}
-                  >
-                    {cardImageFile ? "다른 이미지로 바꾸기" : "이미지 선택"}
-                  </label>
-                  <input
-                    id="bloodline-card-image"
-                    ref={imageInputRef}
-                    type="file"
-                    accept="image/*"
-                    className="sr-only"
-                    onChange={handleImageChange}
-                    disabled={creatingCard}
-                  />
-                  {previewImageUrl ? (
-                    <div className="mt-3 flex items-center gap-2">
-                      <div className="h-16 w-16 overflow-hidden rounded-lg border border-slate-200 bg-white">
-                        <img
-                          src={previewImageUrl}
-                          alt="카드 이미지 미리보기"
-                          className="h-full w-full object-cover"
-                        />
-                      </div>
-                      <button
-                        type="button"
-                        onClick={handleRemoveImage}
-                        className="inline-flex h-8 items-center rounded-lg border border-slate-200 bg-white px-3 text-xs font-semibold text-slate-700 transition hover:bg-slate-50"
-                        disabled={creatingCard}
-                      >
-                        삭제
-                      </button>
-                    </div>
-                  ) : null}
-                </div>
-                {imageError ? (
-                  <p className="mt-1 text-xs font-medium text-rose-600">
-                    {imageError}
-                  </p>
-                ) : null}
-                <p className="text-[11px] text-slate-500">
-                  JPG / PNG / WEBP, 최대 10MB. 이미지 첨부는 선택 항목입니다.
-                </p>
+                  <svg width={14} height={14} viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                    <path d="M6 6l12 12M18 6L6 18" stroke="currentColor" strokeWidth={2} strokeLinecap="round" />
+                  </svg>
+                </button>
               </div>
-              <Button type="submit" disabled={creatingCard} className="h-11">
-                {creatingCard ? "생성 중..." : "혈통카드 생성"}
-              </Button>
-            </form>
-          </>
-        ) : null}
-      </div>
+            ) : null}
+          </div>
+          {imageError ? <FieldError message={imageError} /> : null}
+          <p className="mt-2 text-[13px] text-app-muted">JPG · PNG · WEBP, 최대 10MB. 선택 항목이에요.</p>
+        </div>
+
+        <div className="mt-5">
+          <FieldLabel label="카드 스타일" />
+          <div className="flex gap-1.5">
+            {CARD_VARIANT_LABELS.map((item) => (
+              <FilterChip
+                key={item.value}
+                label={item.label}
+                selected={item.value === variant}
+                onClick={() => {
+                  if (!creating) setVariant(item.value);
+                }}
+                className="px-3"
+              />
+            ))}
+          </div>
+        </div>
+      </form>
+
+      <BloodlineBottomBarSpacer />
+      <BloodlineBottomBar>
+        <BloodlinePrimaryButton
+          disabled={creating}
+          onClick={() => void handleSubmit()}
+        >
+          {creating ? "만드는 중..." : "혈통카드 만들기"}
+        </BloodlinePrimaryButton>
+      </BloodlineBottomBar>
+      {confirmDialog}
     </Layout>
   );
 }

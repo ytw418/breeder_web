@@ -1,15 +1,19 @@
 "use client";
 
 import { authFetch } from "@libs/client/authFetch";
-import Layout from "@components/features/MainLayout";
+import Layout, { toLoginHref } from "@components/features/MainLayout";
+import ConfirmDialog from "@components/atoms/ConfirmDialog";
 import { cn } from "@libs/client/utils";
+import { toast } from "@libs/client/toast";
 import { PRIVACY_POLICY_URL, TERMS_OF_SERVICE_URL } from "@libs/constants";
 import useUser from "hooks/useUser";
 import useLogout from "hooks/useLogout";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import useSWR from "swr";
-import { useEffect, useMemo, useState } from "react";
+import { type ReactNode, useEffect, useMemo, useState } from "react";
 import { useTheme } from "next-themes";
+import { version as APP_VERSION } from "../../../package.json";
 
 interface PushSubscriptionStatusResponse {
   success: boolean;
@@ -32,47 +36,190 @@ interface PushSubscriptionUpsertBody {
   userAgent?: string;
 }
 
-interface SettingItem {
-  label: string;
-  href?: string;
-  onClick?: () => void;
-  icon: React.ReactNode;
-  danger?: boolean;
-  description?: string;
-}
+type ThemePreference = "light" | "dark" | "system";
 
-interface SettingSection {
-  title: string;
-  items: SettingItem[];
-}
-
-const THEME_OPTIONS = [
+const THEME_OPTIONS: { value: ThemePreference; label: string }[] = [
   { value: "light", label: "라이트" },
   { value: "dark", label: "다크" },
   { value: "system", label: "시스템" },
-] as const;
+];
 
-const ChevronRight = () => (
-  <svg
-    className="h-4 w-4 text-gray-400 dark:text-slate-500"
-    fill="none"
-    stroke="currentColor"
-    viewBox="0 0 24 24"
-  >
-    <path
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      strokeWidth="2"
-      d="M9 5l7 7-7 7"
-    />
-  </svg>
-);
+/* ------------------------------------------------------------------ */
+/* 라인 아이콘 (앱 settings/index.tsx 와 같은 heroicon path, 1.5px)      */
+/* ------------------------------------------------------------------ */
+
+const ICON_PATHS = {
+  user: ["M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"],
+  box: ["M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"],
+  support: [
+    "M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-4l-3 3-3-3z",
+  ],
+  bell: [
+    "M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9",
+  ],
+  document: [
+    "M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z",
+  ],
+  shield: [
+    "M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z",
+  ],
+  info: ["M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"],
+  logout: [
+    "M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1",
+  ],
+  display: [
+    "M9 17.25h6M12 17.25V21M4 4.5h16a1 1 0 011 1v9.75a1 1 0 01-1 1H4a1 1 0 01-1-1V5.5a1 1 0 011-1z",
+  ],
+  "chevron-right": ["M9 5l7 7-7 7"],
+} as const;
+
+type LineIconName = keyof typeof ICON_PATHS;
+
+function LineIcon({ name, size = 22, className }: { name: LineIconName; size?: number; className?: string }) {
+  return (
+    <svg
+      width={size}
+      height={size}
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      aria-hidden="true"
+      className={cn("shrink-0", className)}
+    >
+      {ICON_PATHS[name].map((d) => (
+        <path key={d} d={d} strokeWidth={1.5} strokeLinecap="round" strokeLinejoin="round" />
+      ))}
+    </svg>
+  );
+}
+
+function SectionTitle({ title }: { title: string }) {
+  return (
+    <div className="bg-app-bg px-4 pb-2 pt-[18px]">
+      <h3 className="text-[13px] font-semibold text-app-muted">{title}</h3>
+    </div>
+  );
+}
+
+function SectionGap() {
+  return <div className="h-2 bg-app-gap" aria-hidden="true" />;
+}
+
+/**
+ * 56 플랫 행(아이콘 22 muted · 16/500 · 값 14 muted · chevron). sub 는 들여쓴 14/400 muted 행.
+ * href(내부·외부 링크) / onClick(버튼) / 둘 다 없으면 정적 행.
+ */
+function Row({
+  label,
+  icon,
+  value,
+  chevron,
+  right,
+  href,
+  onClick,
+  disabled,
+  sub,
+  ariaExpanded,
+}: {
+  label: string;
+  icon?: LineIconName;
+  value?: string;
+  chevron?: boolean;
+  right?: ReactNode;
+  href?: string;
+  onClick?: () => void;
+  disabled?: boolean;
+  sub?: boolean;
+  ariaExpanded?: boolean;
+}) {
+  const content = (
+    <>
+      {icon ? <LineIcon name={icon} className="mr-3 text-app-muted" /> : null}
+      <span
+        className={cn(
+          "flex-1 text-left",
+          sub ? "text-[14px] font-normal text-app-muted" : "text-[16px] font-medium text-app-text"
+        )}
+      >
+        {label}
+      </span>
+      {value ? <span className={cn("text-[14px] text-app-muted", chevron && "mr-1")}>{value}</span> : null}
+      {right}
+      {chevron ? <LineIcon name="chevron-right" size={18} className="text-app-caption" /> : null}
+    </>
+  );
+  const className = cn(
+    "flex min-h-[56px] w-full items-center border-b border-app-line bg-app-bg",
+    sub ? "pl-[50px] pr-4" : "px-4",
+    (href || onClick) && "transition-colors hover:bg-app-surface",
+    disabled && "pointer-events-none opacity-50"
+  );
+
+  if (href) {
+    const external = /^https?:\/\//.test(href);
+    return external ? (
+      <a href={href} target="_blank" rel="noreferrer" className={className}>
+        {content}
+      </a>
+    ) : (
+      <Link href={href} className={className}>
+        {content}
+      </Link>
+    );
+  }
+  if (onClick) {
+    return (
+      <button type="button" onClick={onClick} disabled={disabled} aria-expanded={ariaExpanded} className={className}>
+        {content}
+      </button>
+    );
+  }
+  return <div className={className}>{content}</div>;
+}
+
+/** 켜짐/꺼짐 스위치(켜짐 brand). */
+function Toggle({
+  checked,
+  disabled,
+  onChange,
+  label,
+}: {
+  checked: boolean;
+  disabled?: boolean;
+  onChange: () => void;
+  label: string;
+}) {
+  return (
+    <button
+      type="button"
+      role="switch"
+      aria-checked={checked}
+      aria-label={label}
+      disabled={disabled}
+      onClick={onChange}
+      className={cn(
+        "relative ml-3 h-[28px] w-[48px] shrink-0 rounded-full transition-colors disabled:opacity-50",
+        checked ? "bg-app-brand" : "bg-app-border"
+      )}
+    >
+      <span
+        className={cn(
+          "absolute top-[3px] h-[22px] w-[22px] rounded-full bg-[#fff] shadow-card transition-[left]",
+          checked ? "left-[23px]" : "left-[3px]"
+        )}
+      />
+    </button>
+  );
+}
 
 const SettingsClient = () => {
-  const { user } = useUser();
+  const router = useRouter();
+  const { user, isAdmin } = useUser();
   const handleLogout = useLogout();
   const { theme, resolvedTheme, setTheme } = useTheme();
   const [themeMounted, setThemeMounted] = useState(false);
+  const [themeExpanded, setThemeExpanded] = useState(false);
+  const [logoutOpen, setLogoutOpen] = useState(false);
   const [pushLoading, setPushLoading] = useState(false);
   const [pushTestLoading, setPushTestLoading] = useState(false);
   const [pushErrorMessage, setPushErrorMessage] = useState("");
@@ -83,7 +230,7 @@ const SettingsClient = () => {
     mutate: mutatePushStatus,
     error: pushStatusError,
     isLoading: isPushStatusLoading,
-  } = useSWR<PushSubscriptionStatusResponse>("/api/push/subscription");
+  } = useSWR<PushSubscriptionStatusResponse>(user ? "/api/push/subscription" : null);
 
   useEffect(() => {
     setThemeMounted(true);
@@ -98,36 +245,34 @@ const SettingsClient = () => {
   }, [themeMounted, theme, resolvedTheme]);
 
   const pushStatusLabel = useMemo(() => {
+    if (!user) return "로그인 필요";
     if (isPushStatusLoading) return "설정 확인 중";
     if (pushStatusError) return "설정 확인 실패";
     if (!pushStatus) return "설정 확인 중";
-    if (!pushStatus.configured) return "서버 설정 필요";
+    if (!pushStatus.configured) return "지금은 사용할 수 없음";
     return pushStatus.subscribed ? "켜짐" : "꺼짐";
-  }, [isPushStatusLoading, pushStatusError, pushStatus]);
+  }, [isPushStatusLoading, pushStatusError, pushStatus, user]);
 
-  // 현재 단말 기준으로 알림 권한 복구 경로를 가볍게 안내한다.
+  // 현재 단말 기준으로 알림 권한 복구 경로를 가볍게 안내한다(웹 전용).
   const permissionGuide = useMemo(() => {
-    const userAgent =
-      typeof navigator === "undefined" ? "" : navigator.userAgent.toLowerCase();
+    const userAgent = typeof navigator === "undefined" ? "" : navigator.userAgent.toLowerCase();
     const isIOS = /iphone|ipad|ipod/.test(userAgent);
-
     if (isIOS) {
       return {
         title: "iPhone/iPad 알림 다시 켜기",
         steps: [
           "설정 앱 > Safari > 알림으로 이동",
           "Bredy 사이트 알림을 '허용'으로 변경",
-          "설정 화면으로 돌아와 '알림 켜기'를 다시 눌러주세요.",
+          "설정 화면으로 돌아와 푸시 알림을 다시 켜주세요.",
         ],
       };
     }
-
     return {
       title: "브라우저 알림 다시 켜기",
       steps: [
         "브라우저 설정 > 개인정보/권한 > 알림으로 이동",
         "Bredy 사이트 알림을 '허용'으로 변경",
-        "설정 화면으로 돌아와 '알림 켜기'를 다시 눌러주세요.",
+        "설정 화면으로 돌아와 푸시 알림을 다시 켜주세요.",
       ],
     };
   }, []);
@@ -137,13 +282,10 @@ const SettingsClient = () => {
     if (!("serviceWorker" in navigator)) {
       throw new Error("현재 브라우저는 서비스워커를 지원하지 않습니다.");
     }
-
     let registration = await navigator.serviceWorker.getRegistration();
     if (!registration) {
       registration = await navigator.serviceWorker.register("/sw.js");
     }
-
-    // active 상태가 될 때까지 기다렸다가 반환한다.
     return navigator.serviceWorker.ready;
   };
 
@@ -154,24 +296,16 @@ const SettingsClient = () => {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(body),
     });
-    const result = (await res.json().catch(() => null)) as
-      | PushSubscriptionStatusResponse
-      | null;
-
+    const result = (await res.json().catch(() => null)) as PushSubscriptionStatusResponse | null;
     if (!res.ok || !result?.success) {
       throw new Error(result?.error || "푸시 알림 설정 요청에 실패했습니다.");
     }
-
     return result;
   };
 
   // Firebase 메시징 SDK는 브라우저 환경에서만 로드한다.
   const getMessagingTools = async () => {
-    const [{ app }, messagingModule] = await Promise.all([
-      import("@/firebase"),
-      import("firebase/messaging"),
-    ]);
-
+    const [{ app }, messagingModule] = await Promise.all([import("@/firebase"), import("firebase/messaging")]);
     return {
       messaging: messagingModule.getMessaging(app),
       getToken: messagingModule.getToken,
@@ -181,23 +315,20 @@ const SettingsClient = () => {
 
   const getValidatedVapidKey = () => {
     const raw = pushStatus?.vapidPublicKey || "";
-    const normalized = raw
-      .trim()
-      .replace(/^['"]|['"]$/g, "")
-      .replace(/\s+/g, "");
-
+    const normalized = raw.trim().replace(/^['"]|['"]$/g, "").replace(/\s+/g, "");
     // 잘못된 값(예: FCM 토큰 AAA...:APA...)을 조기 차단해 atob 오류를 예방한다.
     if (!normalized || !/^[A-Za-z0-9\-_]+$/.test(normalized) || normalized.length < 80) {
-      throw new Error(
-        "VAPID 공개키 형식이 올바르지 않습니다. Firebase 웹 푸시 인증서 키를 다시 확인해 주세요."
-      );
+      throw new Error("VAPID 공개키 형식이 올바르지 않습니다. Firebase 웹 푸시 인증서 키를 다시 확인해 주세요.");
     }
-
     return normalized;
   };
 
   const handleTogglePush = async () => {
-    if (pushLoading) return;
+    if (pushLoading || isPushStatusLoading) return;
+    if (!user) {
+      router.push(toLoginHref("/settings"));
+      return;
+    }
     setPushLoading(true);
     setPushErrorMessage("");
     setShowPermissionGuide(false);
@@ -206,12 +337,10 @@ const SettingsClient = () => {
       if (!("serviceWorker" in navigator) || !("Notification" in window)) {
         throw new Error("현재 브라우저는 알림 기능을 지원하지 않습니다.");
       }
-
       if (!pushStatus?.configured || !pushStatus?.vapidPublicKey) {
         throw new Error("FCM 푸시 서버 설정이 완료되지 않았습니다.");
       }
       const vapidKey = getValidatedVapidKey();
-
       const registration = await ensureServiceWorkerReady();
       const { messaging, getToken, deleteToken } = await getMessagingTools();
 
@@ -219,55 +348,39 @@ const SettingsClient = () => {
         // 해제 시 브라우저 토큰 삭제 + 서버 토큰 삭제를 모두 수행한다.
         const token =
           currentPushToken ||
-          (await getToken(messaging, {
-            vapidKey,
-            serviceWorkerRegistration: registration,
-          }).catch(() => ""));
-
+          (await getToken(messaging, { vapidKey, serviceWorkerRegistration: registration }).catch(() => ""));
         if (token) {
           await deleteToken(messaging).catch(() => undefined);
           await requestPushApi({ action: "unsubscribe", token });
         } else {
           await requestPushApi({ action: "unsubscribe" });
         }
-
         setCurrentPushToken("");
         await mutatePushStatus();
         return;
       }
 
-      // 브라우저에서 이미 '차단(denied)' 상태면 안내 UI를 우선 노출한다.
+      // 브라우저에서 이미 '차단(denied)' 상태면 안내를 먼저 보인다.
       if (Notification.permission === "denied") {
         setShowPermissionGuide(true);
         throw new Error("알림 권한이 차단되어 있습니다. 아래 안내대로 권한을 허용해 주세요.");
       }
-
       const permission = await Notification.requestPermission();
       if (permission !== "granted") {
-        if (permission === "denied") {
-          setShowPermissionGuide(true);
-        }
+        if (permission === "denied") setShowPermissionGuide(true);
         throw new Error("알림 권한이 거부되어 설정할 수 없습니다.");
       }
 
-      const token = await getToken(messaging, {
-        vapidKey,
-        serviceWorkerRegistration: registration,
-      });
+      const token = await getToken(messaging, { vapidKey, serviceWorkerRegistration: registration });
       if (!token) {
         throw new Error("FCM 토큰 발급에 실패했습니다. 잠시 후 다시 시도해 주세요.");
       }
-
-      await requestPushApi({
-        action: "subscribe",
-        token,
-        userAgent: navigator.userAgent,
-      });
-
+      await requestPushApi({ action: "subscribe", token, userAgent: navigator.userAgent });
       setCurrentPushToken(token);
       await mutatePushStatus();
-    } catch (error: any) {
-      setPushErrorMessage(error?.message || "푸시 알림 설정에 실패했습니다.");
+      toast.success("알림이 켜졌습니다.");
+    } catch (error) {
+      setPushErrorMessage(error instanceof Error ? error.message : "푸시 알림 설정에 실패했습니다.");
     } finally {
       setPushLoading(false);
     }
@@ -277,172 +390,66 @@ const SettingsClient = () => {
     if (pushTestLoading) return;
     setPushTestLoading(true);
     setPushErrorMessage("");
-
     try {
       const res = await authFetch("/api/push/test", { method: "POST" });
       const result = (await res.json().catch(() => null)) as PushTestResponse | null;
       if (!res.ok || !result?.success) {
         throw new Error(result?.error || "테스트 알림 전송에 실패했습니다.");
       }
-    } catch (error: any) {
-      setPushErrorMessage(error?.message || "테스트 알림 전송에 실패했습니다.");
+      toast.success(`테스트 알림을 전송했습니다. (${result.subscriptionCount}개 기기)`);
+    } catch (error) {
+      setPushErrorMessage(error instanceof Error ? error.message : "테스트 알림 전송에 실패했습니다.");
     } finally {
       setPushTestLoading(false);
     }
   };
 
-  const sections: SettingSection[] = [
-    {
-      title: "계정",
-      items: [
-        {
-          label: "프로필 수정",
-          href: "/editProfile",
-          description: "이름, 프로필 사진 변경",
-          icon: (
-            <path
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              strokeWidth="2"
-              d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"
-            />
-          ),
-        },
-        {
-          label: "내 상품 관리",
-          href: user?.id ? `/profiles/${user.id}/sales` : "/myPage",
-          description: "판매/구매 내역 확인",
-          icon: (
-            <path
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              strokeWidth="2"
-              d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"
-            />
-          ),
-        },
-      ],
-    },
-    {
-      title: "알림",
-      items: [
-        {
-          label: "알림 설정",
-          href: "/notifications",
-          description: "알림 확인",
-          icon: (
-            <path
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              strokeWidth="2"
-              d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"
-            />
-          ),
-        },
-      ],
-    },
-    {
-      title: "서비스 정보",
-      items: [
-        {
-          label: "이용약관",
-          href: TERMS_OF_SERVICE_URL,
-          icon: (
-            <path
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              strokeWidth="2"
-              d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
-            />
-          ),
-        },
-        {
-          label: "개인정보 처리방침",
-          href: PRIVACY_POLICY_URL,
-          icon: (
-            <path
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              strokeWidth="2"
-              d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"
-            />
-          ),
-        },
-        {
-          label: "고객의 소리",
-          href: "/support",
-          description: "버그 제보/기능 요청/비즈니스 문의 안내",
-          icon: (
-            <path
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              strokeWidth="2"
-              d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-4l-3 3-3-3z"
-            />
-          ),
-        },
-        {
-          label: "서비스 버전",
-          description: "1.0.0",
-          icon: (
-            <path
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              strokeWidth="2"
-              d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
-            />
-          ),
-        },
-      ],
-    },
-    {
-      title: "",
-      items: [
-        {
-          label: "로그아웃",
-          onClick: handleLogout,
-          danger: true,
-          icon: (
-            <path
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              strokeWidth="2"
-              d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"
-            />
-          ),
-        },
-      ],
-    },
-  ];
+  const pushErrorText =
+    pushErrorMessage || (pushStatusError ? "푸시 설정 상태를 불러오지 못했습니다." : "");
+  const showPushTest = isAdmin || process.env.NODE_ENV === "development";
 
   return (
     <Layout canGoBack title="설정" seoTitle="설정">
-      <div className="pb-10">
-        <div className="px-4 pt-4">
-          <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-700 dark:bg-slate-900">
-            <div>
-              <p className="text-sm font-semibold text-slate-900 dark:text-slate-100">
-                화면 테마
-              </p>
-              <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
-                라이트, 다크, 시스템 모드를 선택할 수 있습니다.
-              </p>
-            </div>
-            <div className="mt-3 grid grid-cols-3 gap-2 rounded-xl bg-slate-100 p-1 dark:bg-slate-800/80">
+      <div className="bg-app-bg pb-10">
+        <SectionTitle title="계정" />
+        <Row label="프로필 수정" icon="user" chevron href="/editProfile" />
+        <Row
+          label="내 상품 관리"
+          icon="box"
+          chevron
+          href={user?.id ? `/profiles/${user.id}/sales` : "/myPage"}
+        />
+        <Row label="차단 관리" icon="shield" chevron href="/settings/blocked-users" />
+        <Row label="회원탈퇴" icon="support" chevron href="/settings/delete-account" />
+
+        <SectionGap />
+
+        <SectionTitle title="화면" />
+        <Row
+          label="화면 테마"
+          icon="display"
+          value={currentThemeLabel}
+          chevron
+          ariaExpanded={themeExpanded}
+          onClick={() => setThemeExpanded((prev) => !prev)}
+        />
+        {themeExpanded ? (
+          <div className="border-b border-app-line bg-app-bg">
+            <div className="mx-4 my-2.5 flex gap-1.5" role="radiogroup" aria-label="화면 테마">
               {THEME_OPTIONS.map((option) => {
                 const isActive = themeMounted && theme === option.value;
-
                 return (
                   <button
                     key={option.value}
                     type="button"
-                    aria-pressed={isActive}
+                    role="radio"
+                    aria-checked={isActive}
                     onClick={() => setTheme(option.value)}
                     className={cn(
-                      "h-9 rounded-lg text-xs font-semibold transition-colors",
+                      "h-9 flex-1 rounded-md border text-[14px] transition-colors",
                       isActive
-                        ? "bg-white text-slate-900 shadow-sm dark:bg-slate-50 dark:text-slate-900"
-                        : "text-slate-600 hover:text-slate-900 dark:text-slate-300 dark:hover:text-slate-100"
+                        ? "border-app-border bg-app-bg font-semibold text-app-text"
+                        : "border-transparent bg-app-gap font-normal text-app-muted"
                     )}
                   >
                     {option.label}
@@ -450,174 +457,72 @@ const SettingsClient = () => {
                 );
               })}
             </div>
-            <p className="mt-2 text-xs text-slate-500 dark:text-slate-400">
-              현재 모드: {currentThemeLabel}
-            </p>
           </div>
-        </div>
+        ) : null}
 
-        <div className="px-4 pt-3">
-          <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-700 dark:bg-slate-900">
-            <div className="flex items-start justify-between gap-3">
-              <div>
-                <p className="text-sm font-semibold text-slate-900 dark:text-slate-100">
-                  푸시 알림
-                </p>
-                <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
-                  채팅과 주요 이벤트를 브라우저 알림으로 받을 수 있습니다.
-                </p>
-              </div>
-              <button
-                type="button"
-                onClick={handleTogglePush}
-                disabled={pushLoading || isPushStatusLoading}
-                className={cn(
-                  "h-9 min-w-[88px] shrink-0 whitespace-nowrap rounded-full px-3 text-xs font-semibold leading-9 transition-colors",
-                  pushStatus?.subscribed
-                    ? "bg-emerald-600 text-white hover:bg-emerald-700"
-                    : "bg-slate-900 text-white hover:bg-slate-800 dark:bg-slate-100 dark:text-slate-900 dark:hover:bg-slate-200",
-                  pushLoading && "cursor-not-allowed opacity-60"
-                )}
-              >
-                {pushLoading
-                  ? "처리 중..."
-                  : pushStatus?.subscribed
-                    ? "알림 끄기"
-                    : "알림 켜기"}
-              </button>
-            </div>
-            <div className="mt-2 flex items-center gap-2 text-xs">
-              <span className="rounded-full bg-slate-100 px-2 py-1 text-slate-600 dark:bg-slate-800 dark:text-slate-300">
-                상태: {pushStatusLabel}
-              </span>
-              {pushStatus && !pushStatus.configured && (
-                <span className="text-amber-600 dark:text-amber-400">
-                  Firebase Admin 서비스계정 + 웹 푸시 키 환경변수가 필요합니다.
-                </span>
-              )}
-            </div>
-            <div className="mt-2">
-              <button
-                type="button"
-                onClick={handleSendPushTest}
-                disabled={pushTestLoading || !pushStatus?.subscribed}
-                className={cn(
-                  "h-8 rounded-md border px-2.5 text-xs font-semibold transition-colors",
-                  "border-slate-200 bg-white text-slate-700 hover:bg-slate-50",
-                  "disabled:cursor-not-allowed disabled:opacity-60 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200 dark:hover:bg-slate-800"
-                )}
-              >
-                {pushTestLoading ? "전송 중..." : "테스트 알림 보내기"}
-              </button>
-            </div>
-            {pushErrorMessage && (
-              <p className="mt-2 text-xs text-rose-500">{pushErrorMessage}</p>
-            )}
-            {!pushErrorMessage && pushStatusError && (
-              <p className="mt-2 text-xs text-rose-500">
-                {pushStatusError.message || "푸시 설정 상태를 불러오지 못했습니다."}
-              </p>
-            )}
-            {showPermissionGuide && (
-              <div className="mt-3 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2.5 dark:border-amber-700/40 dark:bg-amber-950/30">
-                <p className="text-xs font-semibold text-amber-900 dark:text-amber-200">
-                  {permissionGuide.title}
-                </p>
-                <ol className="mt-1.5 list-decimal space-y-1 pl-4 text-[11px] text-amber-800 dark:text-amber-300">
-                  {permissionGuide.steps.map((step) => (
-                    <li key={step}>{step}</li>
-                  ))}
-                </ol>
-              </div>
-            )}
+        <SectionGap />
+
+        <SectionTitle title="알림" />
+        <Row
+          label="푸시 알림"
+          icon="bell"
+          value={pushLoading ? "처리 중..." : pushStatusLabel}
+          right={
+            <Toggle
+              label="푸시 알림"
+              checked={Boolean(pushStatus?.subscribed)}
+              disabled={pushLoading || (Boolean(user) && isPushStatusLoading)}
+              onChange={() => void handleTogglePush()}
+            />
+          }
+        />
+        {showPushTest ? (
+          <Row
+            label={pushTestLoading ? "전송 중..." : "테스트 알림 보내기"}
+            sub
+            chevron
+            disabled={pushTestLoading || !pushStatus?.subscribed}
+            onClick={() => void handleSendPushTest()}
+          />
+        ) : null}
+        <Row label="알림 내역" sub chevron href="/notifications" />
+        {pushErrorText ? (
+          <p className="px-4 pt-2.5 text-[13px] text-app-brand" role="alert">
+            {pushErrorText}
+          </p>
+        ) : null}
+        {showPermissionGuide ? (
+          <div className="px-4 pb-1 pt-1.5 text-[13px] text-app-muted">
+            <p className="font-semibold text-app-sub">{permissionGuide.title}</p>
+            <ol className="mt-1 list-decimal space-y-0.5 pl-4">
+              {permissionGuide.steps.map((step) => (
+                <li key={step}>{step}</li>
+              ))}
+            </ol>
           </div>
-        </div>
+        ) : null}
 
-        {sections.map((section, sectionIdx) => (
-          <div key={sectionIdx}>
-            {section.title && (
-              <div className="px-4 pt-6 pb-2">
-                <h3 className="text-xs font-semibold uppercase tracking-wider text-gray-400 dark:text-slate-500">
-                  {section.title}
-                </h3>
-              </div>
-            )}
-            <div>
-              {section.items.map((item, itemIdx) => {
-                const content = (
-                  <div
-                    className={cn(
-                      "flex items-center gap-3 px-4 py-3.5 transition-colors hover:bg-gray-50 dark:hover:bg-slate-800/60",
-                      item.danger && "hover:bg-red-50 dark:hover:bg-rose-950/20"
-                    )}
-                  >
-                    <div
-                      className={cn(
-                        "h-9 w-9 flex-shrink-0 rounded-full flex items-center justify-center",
-                        item.danger
-                          ? "bg-red-50 text-red-500 dark:bg-rose-950/35 dark:text-rose-300"
-                          : "bg-gray-100 text-gray-500 dark:bg-slate-800 dark:text-slate-300"
-                      )}
-                    >
-                      <svg
-                        className="h-5 w-5"
-                        fill="none"
-                        stroke="currentColor"
-                        viewBox="0 0 24 24"
-                      >
-                        {item.icon}
-                      </svg>
-                    </div>
-                    <div className="min-w-0 flex-1">
-                      <p
-                        className={cn(
-                          "text-sm font-medium",
-                          item.danger ? "text-red-500 dark:text-rose-300" : "text-gray-900 dark:text-slate-100"
-                        )}
-                      >
-                        {item.label}
-                      </p>
-                      {item.description && (
-                        <p className="mt-0.5 text-xs text-gray-400 dark:text-slate-500">
-                          {item.description}
-                        </p>
-                      )}
-                    </div>
-                    {item.href && <ChevronRight />}
-                  </div>
-                );
+        <SectionGap />
 
-                if (item.href) {
-                  return (
-                    <Link key={itemIdx} href={item.href}>
-                      {content}
-                    </Link>
-                  );
-                }
-
-                if (item.onClick) {
-                  return (
-                    <button
-                      key={itemIdx}
-                      onClick={item.onClick}
-                      className="w-full text-left"
-                    >
-                      {content}
-                    </button>
-                  );
-                }
-
-                return (
-                  <div key={itemIdx}>{content}</div>
-                );
-              })}
-            </div>
-            {sectionIdx < sections.length - 1 && (
-              <div className="mt-1 h-2 bg-gray-50 dark:bg-slate-900/70" />
-            )}
-          </div>
-        ))}
+        <SectionTitle title="서비스 정보" />
+        <Row label="이용약관" icon="document" chevron href={TERMS_OF_SERVICE_URL} />
+        <Row label="개인정보 처리방침" icon="shield" chevron href={PRIVACY_POLICY_URL} />
+        <Row label="고객의 소리" icon="support" chevron href="/support" />
+        <Row label="서비스 버전" icon="info" value={APP_VERSION} />
+        {user ? <Row label="로그아웃" icon="logout" onClick={() => setLogoutOpen(true)} /> : null}
       </div>
+
+      <ConfirmDialog
+        open={logoutOpen}
+        title="로그아웃할까요?"
+        confirmText="로그아웃"
+        tone="danger"
+        onCancel={() => setLogoutOpen(false)}
+        onConfirm={() => {
+          setLogoutOpen(false);
+          void handleLogout();
+        }}
+      />
     </Layout>
   );
 };

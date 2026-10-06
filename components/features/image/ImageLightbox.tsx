@@ -71,29 +71,41 @@ const ImageLightbox = ({
 
   if (!isOpen || !hasImages) return null;
 
+  const goPrevious = () => onIndexChange((safeIndex - 1 + images.length) % images.length);
+  const goNext = () => onIndexChange((safeIndex + 1) % images.length);
+
+  // 검정 배경 고정(테마 무관). 위: 닫기(44) + 가운데 "n / N", 넓은 화면은 좌우 ←/→ 버튼.
   return (
     <div
-      className="fixed inset-0 z-[120] bg-black/90 p-3 pb-[calc(1rem+env(safe-area-inset-bottom))] sm:p-6"
+      className="fixed inset-0 z-[120] flex flex-col bg-black text-white"
       role="dialog"
       aria-modal="true"
-      onClick={onClose}
+      aria-label={`${altPrefix} 보기`}
     >
-      <button
-        type="button"
-        className="absolute right-4 top-4 z-20 rounded-full bg-black/45 px-3 py-2 text-sm text-white backdrop-blur"
-        onClick={onClose}
-      >
-        닫기 ✕
-      </button>
+      <div className="relative flex h-14 shrink-0 items-center justify-center pt-[env(safe-area-inset-top)]">
+        <button
+          type="button"
+          onClick={onClose}
+          className="absolute left-2 grid h-11 w-11 place-items-center rounded-full"
+          aria-label="닫기"
+        >
+          <svg className="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" />
+          </svg>
+        </button>
+        <span className="text-[15px] font-medium tabular-nums" aria-live="polite">
+          {safeIndex + 1} / {images.length}
+        </span>
+      </div>
 
       <div
-        className="relative mx-auto flex h-full w-full max-w-5xl items-center justify-center"
-        onClick={(event) => event.stopPropagation()}
+        className="relative flex min-h-0 flex-1 items-center justify-center pb-[env(safe-area-inset-bottom)]"
+        onClick={onClose}
         onTouchStart={handleTouchStart}
         onTouchMove={handleTouchMove}
         onTouchEnd={handleTouchEnd}
       >
-        <div className="relative h-[82vh] w-full">
+        <div className="relative h-full w-full max-w-5xl" onClick={(event) => event.stopPropagation()}>
           <Image
             src={images[safeIndex]}
             fallbackSrc={DETAIL_FALLBACK_IMAGE}
@@ -110,34 +122,33 @@ const ImageLightbox = ({
           <>
             <button
               type="button"
-              onClick={() => onIndexChange((safeIndex - 1 + images.length) % images.length)}
-              className="absolute left-0 rounded-full bg-white/15 p-3 text-white backdrop-blur"
+              onClick={(event) => {
+                event.stopPropagation();
+                goPrevious();
+              }}
+              className="absolute left-3 top-1/2 hidden h-11 w-11 -translate-y-1/2 place-items-center rounded-full bg-white/15 sm:grid"
               aria-label="이전 이미지"
             >
-              ‹
+              <svg className="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 19l-7-7 7-7" />
+              </svg>
             </button>
             <button
               type="button"
-              onClick={() => onIndexChange((safeIndex + 1) % images.length)}
-              className="absolute right-0 rounded-full bg-white/15 p-3 text-white backdrop-blur"
+              onClick={(event) => {
+                event.stopPropagation();
+                goNext();
+              }}
+              className="absolute right-3 top-1/2 hidden h-11 w-11 -translate-y-1/2 place-items-center rounded-full bg-white/15 sm:grid"
               aria-label="다음 이미지"
             >
-              ›
+              <svg className="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 5l7 7-7 7" />
+              </svg>
             </button>
           </>
         )}
       </div>
-
-      <div className="pointer-events-none absolute inset-x-0 top-0 h-24 bg-gradient-to-b from-black/45 to-transparent" />
-      <div className="pointer-events-none absolute inset-x-0 bottom-0 h-28 bg-gradient-to-t from-black/45 to-transparent" />
-
-      <div className="pointer-events-none absolute bottom-11 left-1/2 -translate-x-1/2 rounded-full bg-black/45 px-3 py-1 text-xs text-white">
-        {safeIndex + 1} / {images.length}
-      </div>
-      <p className="pointer-events-none absolute bottom-5 left-1/2 -translate-x-1/2 text-[11px] text-white/75">
-        좌우로 스와이프하거나 버튼으로 이동
-      </p>
-
     </div>
   );
 };

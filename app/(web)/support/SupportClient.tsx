@@ -1,12 +1,9 @@
 "use client";
 
 import { authFetch } from "@libs/client/authFetch";
-import { FormEvent, useMemo, useState } from "react";
-import Link from "next/link";
+import { FormEvent, useEffect, useMemo, useState } from "react";
 import Layout from "@components/features/MainLayout";
-import { Button } from "@components/ui/button";
-import { Input } from "@components/ui/input";
-import { Textarea } from "@components/ui/textarea";
+import { cn } from "@libs/client/utils";
 import useUser from "hooks/useUser";
 
 type VoiceType = "BUG_REPORT" | "FEATURE_REQUEST" | "DEV_TEAM_REQUEST";
@@ -30,23 +27,33 @@ const FEEDBACK_TYPE_OPTIONS: { value: VoiceType; label: string; hint: string }[]
 ];
 
 const BUSINESS_EMAIL = "bredyteam@gmail.com";
-const INSTAGRAM_URL =
-  "https://www.instagram.com/bredy_breeder?igsh=OWZobjN0c3NhdXlk";
+const INSTAGRAM_URL = "https://www.instagram.com/bredy_breeder?igsh=OWZobjN0c3NhdXlk";
 
+const LABEL_CLASS = "block text-[15px] font-semibold text-app-text";
+const INPUT_CLASS =
+  "mt-2.5 w-full rounded-lg border border-app-border bg-app-bg px-3.5 text-[15px] text-app-text outline-none placeholder:text-app-caption focus:border-app-text focus:ring-0";
+
+/** 고객의 소리(앱 support/index.tsx): 유형 칩 + 안내, 제목·내용·회신 이메일, 하단 고정 '접수하기'. */
 export default function SupportClient() {
   const { user } = useUser();
   const [type, setType] = useState<VoiceType>("BUG_REPORT");
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
   const [contactEmail, setContactEmail] = useState(String(user?.email || ""));
+  const [emailTouched, setEmailTouched] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
 
-  const selectedType = useMemo(
-    () => FEEDBACK_TYPE_OPTIONS.find((option) => option.value === type),
-    [type]
-  );
+  // 로그인 정보가 늦게 오면 회신 이메일을 채운다(직접 고친 뒤에는 덮지 않는다).
+  useEffect(() => {
+    if (!emailTouched && user?.email && !contactEmail) setContactEmail(String(user.email));
+  }, [contactEmail, emailTouched, user?.email]);
+
+  const selectedType = useMemo(() => FEEDBACK_TYPE_OPTIONS.find((option) => option.value === type), [type]);
+
+  const canSubmit =
+    Boolean(title.trim()) && Boolean(description.trim()) && Boolean(contactEmail.trim()) && !submitting;
 
   const handleSubmit = async (event: FormEvent) => {
     event.preventDefault();
@@ -86,117 +93,129 @@ export default function SupportClient() {
 
   return (
     <Layout canGoBack title="고객의 소리" seoTitle="고객의 소리">
-      <div className="space-y-4 px-4 py-4 pb-12">
-        <section className="rounded-xl border border-slate-200 bg-white p-4">
-          <h2 className="text-base font-bold text-slate-900">접수 채널 안내</h2>
-          <p className="mt-2 text-sm leading-relaxed text-slate-700">
-            운영 안정성을 위해 접수 채널을 분리해서 운영합니다.
-            버그 제보/기능 요청은 아래 폼으로, 투자/광고/콜라보는 비즈니스 채널로 문의해주세요.
+      <form onSubmit={handleSubmit} className="bg-app-bg">
+        <div className="px-5 pb-[calc(77px+32px+env(safe-area-inset-bottom))] pt-5">
+          {/* 문의 유형 */}
+          <p className={LABEL_CLASS} id="support-type-label">
+            문의 유형
           </p>
-          <div className="mt-3 rounded-lg border border-emerald-200 bg-emerald-50 p-3 text-sm text-emerald-900">
-            버그 제보 · 기능 요청 · 개발팀 요청하기: 이 페이지 접수 폼 사용
+          <div className="mt-2.5 flex flex-wrap gap-2" role="radiogroup" aria-labelledby="support-type-label">
+            {FEEDBACK_TYPE_OPTIONS.map((option) => {
+              const selected = type === option.value;
+              return (
+                <button
+                  key={option.value}
+                  type="button"
+                  role="radio"
+                  aria-checked={selected}
+                  onClick={() => setType(option.value)}
+                  className={cn(
+                    "inline-flex h-8 items-center rounded-2xl border px-3 text-[13px] font-semibold",
+                    selected ? "border-app-text bg-app-text text-app-bg" : "border-app-border bg-app-bg text-app-text"
+                  )}
+                >
+                  {option.label}
+                </button>
+              );
+            })}
           </div>
-          <div className="mt-2 rounded-lg border border-blue-200 bg-blue-50 p-3 text-sm text-blue-900">
-            투자/광고/콜라보 문의:{" "}
+          {selectedType ? (
+            <p className="mt-2.5 text-[13px] leading-[19px] text-app-muted">{selectedType.hint}</p>
+          ) : null}
+
+          {/* 제목 */}
+          <label htmlFor="support-title" className={cn(LABEL_CLASS, "mt-6")}>
+            제목
+          </label>
+          <input
+            id="support-title"
+            value={title}
+            onChange={(event) => setTitle(event.target.value)}
+            placeholder="제목 (2~80자)"
+            maxLength={80}
+            className={cn(INPUT_CLASS, "h-12")}
+          />
+
+          {/* 상세 내용 */}
+          <label htmlFor="support-description" className={cn(LABEL_CLASS, "mt-5")}>
+            내용
+          </label>
+          <textarea
+            id="support-description"
+            value={description}
+            onChange={(event) => setDescription(event.target.value)}
+            placeholder="상세 내용 (10~2000자)"
+            maxLength={2000}
+            rows={6}
+            className={cn(INPUT_CLASS, "min-h-[120px] resize-y py-3")}
+          />
+
+          {/* 회신 이메일 */}
+          <label htmlFor="support-email" className={cn(LABEL_CLASS, "mt-5")}>
+            회신 이메일
+          </label>
+          <input
+            id="support-email"
+            type="email"
+            autoCapitalize="none"
+            value={contactEmail}
+            onChange={(event) => {
+              setEmailTouched(true);
+              setContactEmail(event.target.value);
+            }}
+            placeholder="회신 받을 이메일"
+            className={cn(INPUT_CLASS, "h-12")}
+          />
+
+          {message ? (
+            <p className="mt-4 text-[13px] leading-[19px] text-app-text" role="status">
+              {message}
+            </p>
+          ) : null}
+          {error ? (
+            <p className="mt-4 text-[13px] leading-[19px] text-app-danger" role="alert">
+              {error}
+            </p>
+          ) : null}
+
+          {/* 비즈니스 문의 */}
+          <p className="mt-7 text-[13px] leading-5 text-app-muted">
+            투자·광고·콜라보 문의는{" "}
             <a
-              className="font-semibold underline underline-offset-2"
-              href={`mailto:${BUSINESS_EMAIL}?subject=[비즈니스%20문의]%20브리디%20협업%20문의`}
+              className="font-semibold text-app-muted underline-offset-2 hover:underline"
+              href={`mailto:${BUSINESS_EMAIL}?subject=${encodeURIComponent("[비즈니스 문의] 브리디 협업 문의")}`}
             >
               {BUSINESS_EMAIL}
-            </a>
-            {" "}또는{" "}
+            </a>{" "}
+            또는{" "}
             <a
-              className="font-semibold underline underline-offset-2"
+              className="font-semibold text-app-muted underline-offset-2 hover:underline"
               href={INSTAGRAM_URL}
               target="_blank"
               rel="noreferrer"
             >
               공식 인스타그램 DM
             </a>
-          </div>
-        </section>
-
-        <form
-          onSubmit={handleSubmit}
-          className="space-y-3 rounded-xl border border-slate-200 bg-white p-4"
-        >
-          <h3 className="text-sm font-semibold text-slate-900">제품 의견 접수</h3>
-
-          <div className="space-y-2">
-            <p className="text-xs font-semibold text-slate-700">문의 유형</p>
-            <div className="flex flex-wrap gap-2">
-              {FEEDBACK_TYPE_OPTIONS.map((option) => (
-                <button
-                  key={option.value}
-                  type="button"
-                  onClick={() => setType(option.value)}
-                  className={
-                    type === option.value
-                      ? "rounded-full bg-slate-900 px-3 py-1.5 text-xs font-semibold text-white"
-                      : "rounded-full border border-slate-200 px-3 py-1.5 text-xs font-semibold text-slate-700"
-                  }
-                >
-                  {option.label}
-                </button>
-              ))}
-            </div>
-            <p className="text-xs text-slate-500">{selectedType?.hint}</p>
-          </div>
-
-          <Input
-            value={title}
-            onChange={(event) => setTitle(event.target.value)}
-            placeholder="제목 (2~80자)"
-          />
-          <Textarea
-            value={description}
-            onChange={(event) => setDescription(event.target.value)}
-            placeholder="상세 내용 (10~2000자)"
-            rows={7}
-          />
-          <Input
-            type="email"
-            value={contactEmail}
-            onChange={(event) => setContactEmail(event.target.value)}
-            placeholder="회신 받을 이메일"
-          />
-
-          {message ? (
-            <p className="rounded-md border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-800">
-              {message}
-            </p>
-          ) : null}
-          {error ? (
-            <p className="rounded-md border border-rose-200 bg-rose-50 px-3 py-2 text-sm text-rose-800">
-              {error}
-            </p>
-          ) : null}
-
-          <Button type="submit" disabled={submitting}>
-            {submitting ? "접수 중..." : "접수하기"}
-          </Button>
-        </form>
-
-        <section className="rounded-xl border border-slate-200 bg-slate-50 p-4 text-sm text-slate-700">
-          <p className="font-semibold text-slate-900">비즈니스 문의 시 포함하면 좋은 정보</p>
-          <ul className="mt-2 space-y-1 leading-relaxed">
-            <li>• 회사/브랜드명, 담당자명</li>
-            <li>• 문의 유형 (투자/광고/콜라보)</li>
-            <li>• 목적과 기대 효과</li>
-            <li>• 예산/일정 (가능한 범위)</li>
-          </ul>
-          <p className="mt-3">
-            랜딩/프로모션 참고 자료는{" "}
-            <Link
-              href="/auction-tool"
-              className="font-semibold underline underline-offset-2"
-            >
-              서비스 소개 페이지
-            </Link>
-            에서 확인할 수 있습니다.
+            으로 보내주세요.
           </p>
-        </section>
-      </div>
+        </div>
+
+        {/* 하단 고정 CTA */}
+        <div className="fixed inset-x-0 bottom-0 z-30 border-t border-app-border bg-app-bg">
+          <div className="mx-auto max-w-xl px-5 pb-[calc(12px+env(safe-area-inset-bottom))] pt-3">
+            <button
+              type="submit"
+              disabled={!canSubmit}
+              className={cn(
+                "flex h-[52px] w-full items-center justify-center rounded-lg text-[16px] font-semibold",
+                canSubmit ? "bg-app-brand text-white" : "bg-app-surface text-app-caption"
+              )}
+            >
+              {submitting ? "접수 중..." : "접수하기"}
+            </button>
+          </div>
+        </div>
+      </form>
     </Layout>
   );
 }

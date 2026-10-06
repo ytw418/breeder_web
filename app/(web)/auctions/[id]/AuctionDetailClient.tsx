@@ -1,39 +1,51 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useState, type ReactNode } from "react";
 import useSWR from "swr";
-import Image from "@components/atoms/Image";
 import Link from "next/link";
+import { useParams, usePathname, useRouter } from "next/navigation";
+
+import Image from "@components/atoms/Image";
+import ConfirmDialog from "@components/atoms/ConfirmDialog";
 import Layout from "@components/features/MainLayout";
-import { cn, makeImageUrl, getTimeAgoString } from "@libs/client/utils";
+import ImageLightbox from "@components/features/image/ImageLightbox";
+import { ImageCarousel } from "@components/app/ImageCarousel";
+import { PriceInput } from "@components/app/PriceInput";
+import { QueryErrorState } from "@components/app/QueryErrorState";
+import {
+  BreederProgramBadge,
+  getBreederProgramFrameClassName,
+  hasBreederProgramFrame,
+} from "@components/features/breeder/BreederProgramDecorators";
 import useMutation from "hooks/useMutation";
 import useUser from "hooks/useUser";
-import { useParams, usePathname, useRouter } from "next/navigation";
+import { cn, getTimeAgoString, makeImageUrl } from "@libs/client/utils";
 import { toast } from "@libs/client/toast";
-import { AuctionDetailResponse } from "pages/api/auctions/[id]";
-import { BidResponse } from "pages/api/auctions/[id]/bid";
+import { absoluteUrl, copyText, shareOrCopy } from "@libs/client/share";
+import { getAuctionResultMessage } from "@libs/client/auctionErrorMessage";
+import { ANALYTICS_EVENTS, trackEvent } from "@libs/client/analytics";
+import { extractAuctionIdFromPath, toAuctionPath } from "@libs/auction-route";
 import {
   AUCTION_EXTENSION_MS,
   AUCTION_EXTENSION_WINDOW_MS,
   getBidIncrement,
+  isBidAmountValid,
 } from "@libs/auctionRules";
-import { getAuctionErrorMessage } from "@libs/client/auctionErrorMessage";
-import { ANALYTICS_EVENTS, trackEvent } from "@libs/client/analytics";
-import { extractAuctionIdFromPath, toAuctionPath } from "@libs/auction-route";
-import ImageLightbox from "@components/features/image/ImageLightbox";
-import {
-  BreederProgramBadgeList,
-  getBreederProgramFrameClassName,
-  hasBreederProgramFrame,
-} from "@components/features/breeder/BreederProgramDecorators";
-
-const DETAIL_FALLBACK_IMAGE = "/images/placeholders/minimal-gray-blur.svg";
+import type { AuctionDetailResponse } from "pages/api/auctions/[id]";
+import type { BidResponse } from "pages/api/auctions/[id]/bid";
 
 interface AuctionReportResponse {
   success: boolean;
   error?: string;
   errorCode?: string;
+  message?: string;
+  status?: number;
 }
+
+type MutationResult<T> = T & { message?: string; status?: number };
+
+/** 마감 임박(주황 강조) 기준 */
+const URGENT_MS = 10 * 60 * 1000;
 
 const REPORT_REASONS = [
   "허위 매물 의심",
@@ -43,207 +55,213 @@ const REPORT_REASONS = [
   "기타",
 ] as const;
 
-/** 카운트다운 문자열 */
-const getCountdown = (endAt: string | Date) => {
-  const diff = new Date(endAt).getTime() - Date.now();
-  if (diff <= 0) return { text: "경매 종료", isEnded: true };
-
+const getCountdown = (endAt: string | Date | undefined, now: number) => {
+  const diff = endAt ? new Date(endAt).getTime() - now : Number.NaN;
+  if (Number.isNaN(diff) || diff <= 0) return { text: "경매 종료", isEnded: true, diff: 0 };
   const days = Math.floor(diff / (1000 * 60 * 60 * 24));
   const hours = Math.floor((diff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
   const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
   const seconds = Math.floor((diff % (1000 * 60)) / 1000);
-
-  let text = "";
-  if (days > 0) text = `${days}일 ${hours}시간 ${minutes}분 ${seconds}초`;
-  else if (hours > 0) text = `${hours}시간 ${minutes}분 ${seconds}초`;
-  else if (minutes > 0) text = `${minutes}분 ${seconds}초`;
-  else text = `${seconds}초`;
-
-  return { text, isEnded: false };
+  if (days > 0) return { text: `${days}일 ${hours}시간 ${minutes}분 ${seconds}초`, isEnded: false, diff };
+  if (hours > 0) return { text: `${hours}시간 ${minutes}분 ${seconds}초`, isEnded: false, diff };
+  if (minutes > 0) return { text: `${minutes}분 ${seconds}초`, isEnded: false, diff };
+  return { text: `${seconds}초`, isEnded: false, diff };
 };
+
+const formatPrice = (value: number) => `${value.toLocaleString("ko-KR")}원`;
+
+/* ------------------------------------------------------------------ */
+/* 작은 조각(앱 [id].tsx 와 같은 치수)                                     */
+/* ------------------------------------------------------------------ */
+
+function Divider() {
+  return <div className="h-px bg-app-line" />;
+}
+
+const ICON_PATHS = {
+  document:
+    "M15.666 3.888A2.25 2.25 0 0 0 13.5 2.25h-3c-1.03 0-1.9.693-2.166 1.638m7.332 0c.055.194.084.4.084.612v0a.75.75 0 0 1-.75.75H9a.75.75 0 0 1-.75-.75v0c0-.212.03-.418.084-.612m7.332 0c.646.049 1.288.11 1.927.184 1.1.128 1.907 1.077 1.907 2.185V19.5a2.25 2.25 0 0 1-2.25 2.25H6.75A2.25 2.25 0 0 1 4.5 19.5V6.257c0-1.108.806-2.057 1.907-2.185a48.208 48.208 0 0 1 1.927-.184",
+  send: "M6 12 3.269 3.125A59.769 59.769 0 0 1 21.485 12 59.768 59.768 0 0 1 3.27 20.875L5.999 12Zm0 0h7.5",
+  pencil:
+    "m16.862 4.487 1.687-1.688a1.875 1.875 0 1 1 2.652 2.652L10.582 16.07a4.5 4.5 0 0 1-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 0 1 1.13-1.897l8.932-8.931Zm0 0L19.5 7.125M18 14v4.75A2.25 2.25 0 0 1 15.75 21H5.25A2.25 2.25 0 0 1 3 18.75V8.25A2.25 2.25 0 0 1 5.25 6H10",
+  chevronRight: "m8.25 4.5 7.5 7.5-7.5 7.5",
+  chevronDown: "m19.5 8.25-7.5 7.5-7.5-7.5",
+  image:
+    "m2.25 15.75 5.159-5.159a2.25 2.25 0 0 1 3.182 0l5.159 5.159m-1.5-1.5 1.409-1.409a2.25 2.25 0 0 1 3.182 0l2.909 2.909m-18 3.75h16.5a1.5 1.5 0 0 0 1.5-1.5V6a1.5 1.5 0 0 0-1.5-1.5H3.75A1.5 1.5 0 0 0 2.25 6v12a1.5 1.5 0 0 0 1.5 1.5Zm10.5-11.25h.008v.008h-.008V8.25Zm.375 0a.375.375 0 1 1-.75 0 .375.375 0 0 1 .75 0Z",
+  check: "m4.5 12.75 6 6 9-13.5",
+} as const;
+
+function Icon({ name, size, className }: { name: keyof typeof ICON_PATHS; size: number; className?: string }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" aria-hidden className={className}>
+      <path d={ICON_PATHS[name]} stroke="currentColor" strokeWidth={1.5} strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  );
+}
+
+/** 32px 텍스트+아이콘 보조 버튼 */
+const ACTION_BUTTON_CLASS =
+  "inline-flex h-8 items-center gap-1 rounded-2xl bg-app-surface px-3 text-[13px] font-semibold text-app-text";
+
+function ActionButton({
+  icon,
+  label,
+  onClick,
+}: {
+  icon: "document" | "send" | "pencil";
+  label: string;
+  onClick: () => void;
+}) {
+  return (
+    <button type="button" onClick={onClick} className={ACTION_BUTTON_CLASS}>
+      <Icon name={icon} size={14} />
+      {label}
+    </button>
+  );
+}
+
+/** 접히는 섹션 행 ("경매 규칙 ›") */
+function CollapsibleRow({
+  title,
+  open,
+  onToggle,
+  children,
+}: {
+  title: string;
+  open: boolean;
+  onToggle: () => void;
+  children: ReactNode;
+}) {
+  return (
+    <div>
+      <button
+        type="button"
+        aria-expanded={open}
+        onClick={onToggle}
+        className="flex h-[52px] w-full items-center justify-between text-left"
+      >
+        <span className="text-[15px] font-semibold text-app-text">{title}</span>
+        <Icon name={open ? "chevronDown" : "chevronRight"} size={18} className="text-app-caption" />
+      </button>
+      {open ? <div className="pb-4">{children}</div> : null}
+    </div>
+  );
+}
+
+function CheckboxRow({
+  checked,
+  onToggle,
+  label,
+}: {
+  checked: boolean;
+  onToggle: () => void;
+  label: string;
+}) {
+  return (
+    <button
+      type="button"
+      role="checkbox"
+      aria-checked={checked}
+      onClick={onToggle}
+      className="flex w-full items-center gap-2 text-left"
+    >
+      <span
+        className={cn(
+          "flex h-[18px] w-[18px] shrink-0 items-center justify-center rounded border",
+          checked ? "border-app-text bg-app-text text-app-bg" : "border-app-border bg-app-bg"
+        )}
+      >
+        {checked ? <Icon name="check" size={12} /> : null}
+      </span>
+      <span className="flex-1 text-[12px] text-app-muted">{label}</span>
+    </button>
+  );
+}
+
+/* ------------------------------------------------------------------ */
 
 const AuctionDetailClient = () => {
   const params = useParams();
   const router = useRouter();
   const pathname = usePathname();
   const { user } = useUser();
-  const auctionId = params?.id
-    ? extractAuctionIdFromPath(params.id)
-    : Number.NaN;
-  const [bidAmount, setBidAmount] = useState<number | null>(null);
-  const [countdown, setCountdown] = useState({ text: "", isEnded: false });
+  const auctionId = params?.id ? extractAuctionIdFromPath(params.id) : Number.NaN;
+  const canLoadAuction = Number.isFinite(auctionId);
+  const isToolRoute = Boolean(pathname?.startsWith("/tool"));
+  const loginPath = isToolRoute ? "/tool/login" : "/auth/login";
+
+  const [now, setNow] = useState(() => Date.now());
   const [imageIndex, setImageIndex] = useState(0);
-  const [isImageLightboxOpen, setIsImageLightboxOpen] = useState(false);
+  const [viewerOpen, setViewerOpen] = useState(false);
+  const [bidInput, setBidInput] = useState<number | null>(null);
   const [agreedBidRule, setAgreedBidRule] = useState(false);
   const [agreedDisputePolicy, setAgreedDisputePolicy] = useState(false);
-  const [reportReason, setReportReason] =
-    useState<(typeof REPORT_REASONS)[number]>("허위 매물 의심");
+  const [rulesOpen, setRulesOpen] = useState(false);
+  const [reportOpen, setReportOpen] = useState(false);
+  const [reportReason, setReportReason] = useState<(typeof REPORT_REASONS)[number]>("허위 매물 의심");
   const [reportDetail, setReportDetail] = useState("");
-  const touchStartX = useRef<number | null>(null);
-  const touchEndX = useRef<number | null>(null);
-  const isImageDragging = useRef(false);
+  const [confirmBidAmount, setConfirmBidAmount] = useState<number | null>(null);
 
-  // 경매 데이터 (5초 간격 새로고침)
-  const { data, mutate: boundMutate } = useSWR<AuctionDetailResponse>(
-    Number.isNaN(auctionId) ? null : `/api/auctions/${auctionId}`,
-    { refreshInterval: 5000 },
+  // 경매 데이터(5초 폴링). 폴링이 실패해도 SWR 은 받아 둔 data 를 그대로 둔다.
+  const { data, error, mutate } = useSWR<AuctionDetailResponse>(
+    canLoadAuction ? `/api/auctions/${auctionId}` : null,
+    { refreshInterval: 5000 }
+  );
+  const [submitBid, { loading: bidLoading }] = useMutation<MutationResult<BidResponse>>(
+    canLoadAuction ? `/api/auctions/${auctionId}/bid` : ""
+  );
+  const [submitReport, { loading: reportLoading }] = useMutation<AuctionReportResponse>(
+    canLoadAuction ? `/api/auctions/${auctionId}/report` : ""
   );
 
-  // 입찰 API
-  const [submitBid, { loading: bidLoading }] = useMutation<BidResponse>(
-    Number.isNaN(auctionId) ? "" : `/api/auctions/${auctionId}/bid`,
-  );
-  const [submitReport, { loading: reportLoading }] =
-    useMutation<AuctionReportResponse>(
-      Number.isNaN(auctionId) ? "" : `/api/auctions/${auctionId}/report`,
-    );
-
-  // 1초마다 카운트다운 갱신
   useEffect(() => {
-    if (!data?.auction?.endAt) return;
-    const timer = setInterval(() => {
-      setCountdown(getCountdown(data.auction!.endAt));
-    }, 1000);
-    setCountdown(getCountdown(data.auction.endAt));
+    const timer = setInterval(() => setNow(Date.now()), 1000);
     return () => clearInterval(timer);
-  }, [data?.auction?.endAt]);
-
-  useEffect(() => {
-    if (!data?.auction?.id) return;
-    trackEvent(ANALYTICS_EVENTS.auctionDetailViewed, {
-      auction_id: data.auction.id,
-      auction_title: data.auction.title,
-      auction_category: data.auction.category,
-      auction_status: data.auction.status,
-      current_price: data.auction.currentPrice,
-      user_id: user?.id || null,
-    });
-  }, [
-    data?.auction?.id,
-    data?.auction?.title,
-    data?.auction?.category,
-    data?.auction?.status,
-    data?.auction?.currentPrice,
-    user?.id,
-  ]);
+  }, []);
 
   const auction = data?.auction;
-  const extensionMinutes = Math.floor(AUCTION_EXTENSION_MS / (60 * 1000));
-  const extensionWindowMinutes = Math.floor(
-    AUCTION_EXTENSION_WINDOW_MS / (60 * 1000),
-  );
-  const winnerBid = auction?.winnerId
-    ? auction.bids.find((bid) => bid.userId === auction.winnerId) ||
-      auction.bids[0]
-    : null;
-  const isWinner = Boolean(auction?.winnerId && user?.id === auction.winnerId);
+
+  useEffect(() => {
+    if (!auction?.id) return;
+    trackEvent(ANALYTICS_EVENTS.auctionDetailViewed, {
+      auction_id: auction.id,
+      auction_title: auction.title,
+      auction_category: auction.category,
+      auction_status: auction.status,
+      current_price: auction.currentPrice,
+      user_id: user?.id || null,
+    });
+    // 경매가 바뀔 때 한 번만 남긴다(폴링으로 현재가가 바뀌어도 다시 남기지 않는다).
+     
+  }, [auction?.id, user?.id]);
+
+  const photos = useMemo(() => auction?.photos ?? [], [auction?.photos]);
+  const safeImageIndex = photos.length ? Math.min(imageIndex, photos.length - 1) : 0;
+  const countdown = getCountdown(auction?.endAt, now);
+  const isUrgent = auction?.status === "진행중" && !countdown.isEnded && countdown.diff <= URGENT_MS;
   const bidIncrement = auction ? getBidIncrement(auction.currentPrice) : 0;
   const minimumBid = auction ? auction.currentPrice + bidIncrement : 0;
+  const selectedBidAmount = bidInput && bidInput > 0 ? bidInput : minimumBid;
+  const isOwner = Boolean(data?.isOwner);
+  const canEdit = Boolean(data?.canEdit);
   const isTopBidder = Boolean(
-    auction?.status === "진행중" &&
-      user?.id &&
-      auction?.bids?.[0]?.userId === user.id,
+    auction?.status === "진행중" && user?.id && auction?.bids?.[0]?.userId === user.id
   );
-  const selectedBidAmount = bidAmount ?? minimumBid;
+  const isBiddable = auction?.status === "진행중" && !countdown.isEnded && !isOwner && !isTopBidder;
+  const extensionMinutes = Math.floor(AUCTION_EXTENSION_MS / (60 * 1000));
+  const extensionWindowMinutes = Math.floor(AUCTION_EXTENSION_WINDOW_MS / (60 * 1000));
+  const winnerBid = auction?.winnerId
+    ? auction.bids.find((bid) => bid.userId === auction.winnerId) || auction.bids[0]
+    : null;
+  const isWinner = Boolean(auction?.winnerId && user?.id === auction.winnerId);
+  const auctionPath = auction ? toAuctionPath(auction.id, auction.title) : "/auctions";
 
-  const isToolRoute = pathname?.startsWith("/tool");
-  const loginPath = isToolRoute ? "/tool/login" : "/auth/login";
-  const hasBottomBidLayer = auction?.status === "진행중" && !data?.isOwner;
-  const mainImageSrc = auction?.photos?.[imageIndex]
-    ? makeImageUrl(auction.photos[imageIndex], "public")
-    : DETAIL_FALLBACK_IMAGE;
-  const auctionImageUrls =
-    auction?.photos?.length && auction.photos.length > 0
-      ? auction.photos.map((photo) => makeImageUrl(photo, "public"))
-      : [DETAIL_FALLBACK_IMAGE];
-
-  useEffect(() => {
-    setImageIndex((prev) => {
-      if (auctionImageUrls.length === 0) return 0;
-      return Math.min(prev, auctionImageUrls.length - 1);
-    });
-  }, [auctionImageUrls.length]);
-
-  const handleImageTouchStart = (event: React.TouchEvent) => {
-    isImageDragging.current = false;
-    touchStartX.current = event.targetTouches[0].clientX;
-    touchEndX.current = null;
+  const requireLogin = () => {
+    if (user) return false;
+    router.push(`${loginPath}?next=${encodeURIComponent(pathname || auctionPath)}`);
+    return true;
   };
 
-  const handleImageTouchMove = (event: React.TouchEvent) => {
-    const movedX = event.targetTouches[0].clientX;
-    const startX = touchStartX.current;
-    if (startX !== null && Math.abs(startX - movedX) > 10) {
-      isImageDragging.current = true;
-    }
-    touchEndX.current = movedX;
-  };
-
-  const handleImageTouchEnd = () => {
-    const startX = touchStartX.current;
-    const endX = touchEndX.current;
-
-    touchStartX.current = null;
-    touchEndX.current = null;
-
-    if (startX === null || endX === null) return;
-
-    const distance = startX - endX;
-    if (distance > 50) {
-      setImageIndex((prev) => (prev + 1) % auctionImageUrls.length);
-      return;
-    }
-    if (distance < -50) {
-      setImageIndex(
-        (prev) =>
-          (prev - 1 + auctionImageUrls.length) % auctionImageUrls.length,
-      );
-      return;
-    }
-
-    isImageDragging.current = false;
-  };
-
-  const normalizeBidAmount = (targetAmount: number) => {
-    if (!auction) return 0;
-
-    const basePrice = auction.currentPrice;
-    const increment = getBidIncrement(basePrice);
-    const minAmount = basePrice + increment;
-
-    if (!Number.isFinite(targetAmount) || targetAmount <= minAmount)
-      return minAmount;
-
-    const steps = Math.ceil((targetAmount - basePrice) / increment);
-    return basePrice + steps * increment;
-  };
-
-  const increaseBidAmount = (delta: number) => {
-    if (!auction) return;
-    setBidAmount((prev) => {
-      const baseAmount = prev ?? auction.currentPrice;
-      const nextAmount = normalizeBidAmount(baseAmount + delta);
-      trackEvent(ANALYTICS_EVENTS.auctionBidAmountAdjusted, {
-        auction_id: auction.id,
-        user_id: user?.id || null,
-        delta,
-        previous_amount: baseAmount,
-        next_amount: nextAmount,
-      });
-      return nextAmount;
-    });
-  };
-
-  useEffect(() => {
-    if (!auction) return;
-    setBidAmount((prev) => {
-      if (prev === null) return null;
-      if (prev < minimumBid) return minimumBid;
-      return normalizeBidAmount(prev);
-    });
-  }, [auction, minimumBid]);
-
-  /** 입찰 핸들러 */
   const handleBid = () => {
     trackEvent(ANALYTICS_EVENTS.auctionBidStart, {
       auction_id: auction?.id || null,
@@ -262,12 +280,8 @@ const AuctionDetailClient = () => {
       is_top_bidder: isTopBidder,
       requires_login: !user,
     });
-
-    if (!user)
-      return router.push(
-        `${loginPath}?next=${encodeURIComponent(pathname || "/")}`,
-      );
-    if (bidLoading) return;
+    if (!auction || bidLoading) return;
+    if (requireLogin()) return;
     if (isTopBidder) {
       toast.error("현재 최고 입찰자는 다시 입찰할 수 없습니다.");
       return;
@@ -276,22 +290,25 @@ const AuctionDetailClient = () => {
       toast.error("입찰 전 주의사항 및 분쟁 정책 동의가 필요합니다.");
       return;
     }
-
-    const amount = selectedBidAmount;
-    if (!Number.isInteger(amount) || amount < minimumBid) {
+    if (countdown.isEnded) {
+      toast.error("이미 종료된 경매입니다.");
+      return;
+    }
+    // 서버 BID_AMOUNT_RULE_VIOLATION 과 같은 기준·문구(최소 금액 이상 + 입찰 단위 배수).
+    if (
+      !Number.isInteger(selectedBidAmount) ||
+      !isBidAmountValid({ currentPrice: auction.currentPrice, bidAmount: selectedBidAmount })
+    ) {
       toast.error(
-        `최소 ${minimumBid.toLocaleString()}원 이상 입찰해야 합니다.`,
+        `입찰 금액은 최소 ${minimumBid.toLocaleString()}원 이상이며 ${bidIncrement.toLocaleString()}원 단위여야 합니다.`
       );
       return;
     }
+    setConfirmBidAmount(selectedBidAmount);
+  };
 
-    const confirmed = window.confirm(
-      `정말 ${amount.toLocaleString()}원으로 입찰하시겠습니까?\n입찰 취소가 불가능합니다.`,
-    );
-    if (!confirmed) {
-      return;
-    }
-
+  const placeBid = (amount: number) => {
+    setConfirmBidAmount(null);
     submitBid({
       data: { amount },
       onCompleted(result) {
@@ -303,29 +320,24 @@ const AuctionDetailClient = () => {
             extended: Boolean(result.extended),
             extension_minutes: result.extended ? extensionMinutes : 0,
           });
+          setBidInput(null);
           toast.success("입찰이 완료되었습니다!");
           if (result.extended) {
-            toast.info(
-              `마감 임박 입찰로 경매 시간이 ${extensionMinutes}분 연장되었습니다.`,
-            );
+            toast.info(`마감 임박 입찰로 경매 시간이 ${extensionMinutes}분 연장되었습니다.`);
           }
-          setBidAmount(null);
-          boundMutate();
-        } else {
-          trackEvent(ANALYTICS_EVENTS.auctionBidFailed, {
-            auction_id: auction?.id || null,
-            user_id: user?.id || null,
-            amount,
-            error_code: result.errorCode || null,
-            error_message: result.error || "입찰에 실패했습니다.",
-          });
-          toast.error(
-            getAuctionErrorMessage(
-              result.errorCode,
-              result.error || "입찰에 실패했습니다.",
-            ),
-          );
+          void mutate();
+          return;
         }
+        trackEvent(ANALYTICS_EVENTS.auctionBidFailed, {
+          auction_id: auction?.id || null,
+          user_id: user?.id || null,
+          amount,
+          error_code: result.errorCode || null,
+          error_message: result.error || "입찰에 실패했습니다.",
+        });
+        // 종료·단위 위반·최고 입찰자 재입찰 등 서버 거절 사유를 보여 주고, 바뀐 현재가를 바로 다시 받는다.
+        toast.error(getAuctionResultMessage(result, "입찰에 실패했습니다."));
+        void mutate();
       },
       onError() {
         trackEvent(ANALYTICS_EVENTS.auctionBidFailed, {
@@ -333,113 +345,21 @@ const AuctionDetailClient = () => {
           user_id: user?.id || null,
           amount,
           error_code: "network_error",
-          error_message: "오류가 발생했습니다.",
+          error_message: "네트워크 연결을 확인해 주세요.",
         });
-        toast.error("오류가 발생했습니다.");
+        toast.error("네트워크 연결을 확인해 주세요.");
       },
-    });
-  };
-
-  const getAuctionUrl = () => {
-    if (!auction || typeof window === "undefined") return "";
-    return new URL(
-      toAuctionPath(auction.id, auction.title),
-      window.location.origin,
-    ).toString();
-  };
-
-  const copyToClipboard = async (value: string) => {
-    if (!value) return;
-    if (navigator.clipboard?.writeText) {
-      await navigator.clipboard.writeText(value);
-      return;
-    }
-
-    const textarea = document.createElement("textarea");
-    textarea.value = value;
-    textarea.style.position = "fixed";
-    textarea.style.left = "-9999px";
-    document.body.appendChild(textarea);
-    textarea.focus();
-    textarea.select();
-    document.execCommand("copy");
-    document.body.removeChild(textarea);
-  };
-
-  const handleCopyAuctionLink = async () => {
-    try {
-      const url = getAuctionUrl();
-      if (!url) {
-        toast.error("공유 링크를 생성하지 못했습니다.");
-        return;
-      }
-      await copyToClipboard(url);
-      trackEvent(ANALYTICS_EVENTS.auctionLinkCopied, {
-        auction_id: auction?.id || null,
-        user_id: user?.id || null,
-        share_url: url,
-      });
-      toast.success("경매 링크가 복사되었습니다.");
-    } catch {
-      toast.error("링크 복사에 실패했습니다.");
-    }
-  };
-
-  const handleShareAuction = async () => {
-    try {
-      const url = getAuctionUrl();
-      if (!url) {
-        toast.error("공유 링크를 생성하지 못했습니다.");
-        return;
-      }
-
-      if (navigator.share) {
-        await navigator.share({
-          title: auction?.title || "경매 상세",
-          text: "경매 상세 내용을 확인해보세요.",
-          url,
-        });
-        trackEvent(ANALYTICS_EVENTS.auctionShared, {
-          auction_id: auction?.id || null,
-          user_id: user?.id || null,
-          channel: "navigator_share",
-          share_url: url,
-        });
-        toast.success("공유를 완료했습니다.");
-        return;
-      }
-
-      await copyToClipboard(url);
-      trackEvent(ANALYTICS_EVENTS.auctionShared, {
-        auction_id: auction?.id || null,
-        user_id: user?.id || null,
-        channel: "clipboard_fallback",
-        share_url: url,
-      });
-      toast.info(
-        "이 기기에서는 바로 공유를 지원하지 않아 링크를 복사했습니다.",
-      );
-    } catch (error) {
-      if (error instanceof Error && error.name === "AbortError") return;
-      toast.error("공유에 실패했습니다.");
-    }
+    }).catch(() => undefined);
   };
 
   const handleReport = () => {
-    if (!user) {
-      router.push(`${loginPath}?next=${encodeURIComponent(pathname || "/")}`);
-      return;
-    }
+    if (requireLogin() || reportLoading) return;
     if (reportDetail.trim().length < 5) {
       toast.error("신고 내용은 5자 이상 입력해주세요.");
       return;
     }
-
     submitReport({
-      data: {
-        reason: reportReason,
-        detail: reportDetail.trim(),
-      },
+      data: { reason: reportReason, detail: reportDetail.trim() },
       onCompleted(result) {
         if (!result.success) {
           trackEvent(ANALYTICS_EVENTS.auctionReportFailed, {
@@ -449,12 +369,7 @@ const AuctionDetailClient = () => {
             error_code: result.errorCode || null,
             error_message: result.error || "신고 접수에 실패했습니다.",
           });
-          toast.error(
-            getAuctionErrorMessage(
-              result.errorCode,
-              result.error || "신고 접수에 실패했습니다.",
-            ),
-          );
+          toast.error(getAuctionResultMessage(result, "신고 접수에 실패했습니다."));
           return;
         }
         trackEvent(ANALYTICS_EVENTS.auctionReportSubmitted, {
@@ -463,715 +378,425 @@ const AuctionDetailClient = () => {
           report_reason: reportReason,
           detail_length: reportDetail.trim().length,
         });
-        toast.success("신고가 접수되었습니다. 운영자가 검토 후 조치합니다.");
         setReportDetail("");
+        toast.success("신고가 접수되었습니다. 운영자가 검토 후 조치합니다.");
       },
       onError() {
-        trackEvent(ANALYTICS_EVENTS.auctionReportFailed, {
-          auction_id: auction?.id || null,
-          user_id: user?.id || null,
-          report_reason: reportReason,
-          error_code: "network_error",
-          error_message: "신고 접수 중 오류가 발생했습니다.",
-        });
         toast.error("신고 접수 중 오류가 발생했습니다.");
       },
-    });
+    }).catch(() => undefined);
   };
 
-  if (!auction) {
+  const copyAuctionLink = async () => {
+    if (!auction) {
+      toast.error("공유 링크를 생성하지 못했습니다.");
+      return;
+    }
+    const url = absoluteUrl(auctionPath);
+    if (await copyText(url)) {
+      trackEvent(ANALYTICS_EVENTS.auctionLinkCopied, {
+        auction_id: auction.id,
+        user_id: user?.id || null,
+        share_url: url,
+      });
+      toast.success("경매 링크가 복사되었습니다.");
+    } else {
+      toast.error("링크 복사에 실패했습니다.");
+    }
+  };
+
+  const shareAuction = async () => {
+    if (!auction) {
+      toast.error("공유 링크를 생성하지 못했습니다.");
+      return;
+    }
+    const result = await shareOrCopy({ title: auction.title, url: auctionPath });
+    if (result !== "failed") {
+      trackEvent(ANALYTICS_EVENTS.auctionShared, {
+        auction_id: auction.id,
+        user_id: user?.id || null,
+        channel: result === "shared" ? "navigator_share" : "clipboard_fallback",
+        share_url: absoluteUrl(auctionPath),
+      });
+    }
+  };
+
+  // 삭제(404)·권한 없음(403)은 다시 받아도 같으므로 받아 둔 경매를 내린다.
+  const errorStatus = (error as { status?: number } | undefined)?.status;
+  const isGone = Boolean(error) && (errorStatus === 404 || errorStatus === 403);
+
+  if (canLoadAuction && !auction && !error) {
     return (
       <Layout canGoBack title="경매" seoTitle="경매">
-        <div className="flex items-center justify-center h-[60vh]">
-          <div className="animate-spin w-8 h-8 border-2 border-primary border-t-transparent rounded-full" />
+        <div className="flex h-[60vh] items-center justify-center" role="status" aria-label="불러오는 중">
+          <span className="h-6 w-6 animate-spin rounded-full border-2 border-app-border border-t-app-brand" />
         </div>
       </Layout>
     );
   }
 
-  return (
-    <Layout canGoBack title={auction.title} seoTitle={auction.title}>
-      <div
-        className={cn(
-          "pb-24",
-          hasBottomBidLayer && "pb-[calc(20rem+env(safe-area-inset-bottom))]",
-        )}
-      >
-        {/* 이미지 슬라이더 */}
-        <div
-          className="group relative aspect-[4/3] bg-gray-100 dark:bg-slate-800 cursor-zoom-in"
-          onTouchStart={handleImageTouchStart}
-          onTouchMove={handleImageTouchMove}
-          onTouchEnd={handleImageTouchEnd}
-          onClick={() => {
-            if (isImageDragging.current) {
-              isImageDragging.current = false;
-              return;
-            }
-            setIsImageLightboxOpen(true);
-          }}
-        >
-          <Image
-            src={mainImageSrc}
-            fallbackSrc={DETAIL_FALLBACK_IMAGE}
-            className="object-contain p-2"
-            alt={auction.title}
-            fill
-            sizes="600px"
-            priority
-            quality={100}
-          />
-          {auction.photos.length > 1 && (
-            <>
-              <button
-                type="button"
-                onClick={(event) => {
-                  event.stopPropagation();
-                  setImageIndex(
-                    (prev) =>
-                      (prev - 1 + auction.photos.length) %
-                      auction.photos.length,
-                  );
-                }}
-                className="absolute left-2 top-1/2 -translate-y-1/2 rounded-full bg-black/40 p-2 text-white transition-all hover:bg-black/55 md:opacity-0 md:group-hover:opacity-100"
-                aria-label="이전 이미지"
-              >
-                <svg
-                  className="h-5 w-5"
-                  fill="none"
-                  stroke="currentColor"
-                  viewBox="0 0 24 24"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                    d="M15 19l-7-7 7-7"
-                  />
-                </svg>
-              </button>
-              <button
-                type="button"
-                onClick={(event) => {
-                  event.stopPropagation();
-                  setImageIndex((prev) => (prev + 1) % auction.photos.length);
-                }}
-                className="absolute right-2 top-1/2 -translate-y-1/2 rounded-full bg-black/40 p-2 text-white transition-all hover:bg-black/55 md:opacity-0 md:group-hover:opacity-100"
-                aria-label="다음 이미지"
-              >
-                <svg
-                  className="h-5 w-5"
-                  fill="none"
-                  stroke="currentColor"
-                  viewBox="0 0 24 24"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                    d="M9 5l7 7-7 7"
-                  />
-                </svg>
-              </button>
-
-              <div className="absolute bottom-3 left-1/2 -translate-x-1/2 flex gap-1.5">
-                {auction.photos.map((_, i) => (
-                  <button
-                    key={i}
-                    onClick={(event) => {
-                      event.stopPropagation();
-                      setImageIndex(i);
-                    }}
-                    className={cn(
-                      "h-2 w-2 rounded-full transition-all",
-                      imageIndex === i
-                        ? "bg-white dark:bg-white"
-                        : "bg-white/50 dark:bg-white/50",
-                    )}
-                    aria-label={`${i + 1}번 이미지로 이동`}
-                  />
-                ))}
-              </div>
-            </>
+  if (!canLoadAuction || !auction || isGone) {
+    const canRetry = canLoadAuction && Boolean(error) && !isGone;
+    return (
+      <Layout canGoBack title="경매" seoTitle="경매">
+        <div className="flex h-[60vh] items-center justify-center px-6">
+          {canRetry ? (
+            <QueryErrorState onRetry={() => void mutate()} />
+          ) : (
+            <p className="text-center text-[15px] text-app-muted">경매를 불러올 수 없습니다.</p>
           )}
         </div>
+      </Layout>
+    );
+  }
 
-        <ImageLightbox
-          images={auctionImageUrls}
-          isOpen={isImageLightboxOpen}
-          currentIndex={imageIndex}
-          onClose={() => setIsImageLightboxOpen(false)}
-          onIndexChange={setImageIndex}
-          altPrefix="경매 이미지"
-        />
+  const statusNotice =
+    auction.status === "진행중"
+      ? null
+      : auction.status === "종료"
+      ? "경매가 종료되었습니다."
+      : auction.status === "취소"
+      ? "운영 처리로 경매가 중단(취소)되었습니다."
+      : "유찰되었습니다.";
 
-        <div className="px-4">
-          {/* 카운트다운 배너 */}
-          <div
-            className={cn(
-              "mt-4 rounded-lg border px-4 py-3 text-center font-bold",
-              countdown.isEnded || auction.status !== "진행중"
-                ? "border-slate-200 bg-white text-slate-500 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300"
-                : "border-rose-200 bg-white text-rose-600 dark:border-rose-800 dark:bg-slate-900 dark:text-rose-300",
-            )}
-          >
-            {auction.status === "진행중" ? (
-              <div>
-                <span className="text-xs font-medium block mb-0.5">
-                  남은 시간
-                </span>
-                <span className="text-lg">{countdown.text}</span>
-              </div>
-            ) : (
-              <span className="text-base">
-                {auction.status === "종료"
-                  ? "경매가 종료되었습니다"
-                  : auction.status === "취소"
-                  ? "운영 처리로 경매가 중단(취소)되었습니다"
-                  : "유찰되었습니다"}
-              </span>
-            )}
+  const hasSellerTrustInfo = Boolean(
+    auction.sellerPhone ||
+      auction.sellerEmail ||
+      auction.sellerBlogUrl ||
+      auction.sellerCafeNick ||
+      auction.sellerBandNick ||
+      auction.sellerTrustNote ||
+      auction.sellerProofImage
+  );
+  const bidDisabled = bidLoading || !isBiddable || !agreedBidRule || !agreedDisputePolicy;
+  const programs = auction.user?.breederPrograms;
+  const framed = hasBreederProgramFrame(programs);
+
+  const sellerInner = (
+    <>
+      <div className={cn("shrink-0", framed && "rounded-full p-0.5", framed && getBreederProgramFrameClassName(programs))}>
+        {auction.user?.avatar ? (
+          <Image
+            src={makeImageUrl(auction.user.avatar, "avatar")}
+            className="h-11 w-11 rounded-full object-cover"
+            width={44}
+            height={44}
+            alt=""
+          />
+        ) : (
+          <div className="h-11 w-11 rounded-full bg-app-surface" />
+        )}
+      </div>
+      <div className="flex min-w-0 flex-1 flex-col gap-0.5">
+        <p className="truncate text-[16px] font-semibold text-app-text">{auction.user?.name}</p>
+        <p className="text-[13px] text-app-muted">경매 등록자</p>
+        <BreederProgramBadge programs={programs} className="mt-1" />
+      </div>
+    </>
+  );
+
+  return (
+    <Layout canGoBack title={auction.title} seoTitle={auction.title}>
+      <div className="bg-app-bg pb-[calc(200px+env(safe-area-inset-bottom))]">
+        {/* 이미지: 화면 폭 정사각 */}
+        <div className="relative">
+          {photos.length ? (
+            <ImageCarousel
+              images={photos}
+              index={safeImageIndex}
+              onIndexChange={setImageIndex}
+              onOpen={(i) => {
+                setImageIndex(i);
+                setViewerOpen(true);
+              }}
+              aspect="1/1"
+              alt="경매 이미지"
+            />
+          ) : (
+            <div className="flex aspect-square w-full items-center justify-center bg-app-surface text-app-caption">
+              <Icon name="image" size={40} />
+            </div>
+          )}
+          <span className="pointer-events-none absolute left-3 top-3 rounded-[14px] bg-black/70 px-2.5 py-[5px] text-[12px] text-white">
+            {auction.status}
+          </span>
+        </div>
+
+        {/* 판매자 행 */}
+        {isToolRoute ? (
+          <div className="flex items-center gap-3 p-4">{sellerInner}</div>
+        ) : (
+          <Link href={`/profiles/${auction.user?.id}`} className="flex items-center gap-3 p-4">
+            {sellerInner}
+            <Icon name="chevronRight" size={20} className="shrink-0 text-app-caption" />
+          </Link>
+        )}
+
+        <Divider />
+
+        {/* 제목·설명 */}
+        <div className="flex flex-col gap-2.5 p-4">
+          {auction.category ? (
+            <div className="flex">
+              <span className="rounded-xl bg-app-surface px-2 py-1 text-[12px] text-app-muted">{auction.category}</span>
+            </div>
+          ) : null}
+          <h1 className="break-keep text-[18px] font-bold text-app-text [overflow-wrap:anywhere]">{auction.title}</h1>
+          <p className="whitespace-pre-line break-words text-[15px] leading-[22px] text-app-text [overflow-wrap:anywhere]">
+            {auction.description}
+          </p>
+
+          {statusNotice ? <p className="text-[13px] text-app-muted">{statusNotice}</p> : null}
+
+          {auction.status === "종료" && winnerBid ? (
+            <div className="flex flex-col gap-0.5 text-[13px] text-app-muted">
+              <p>
+                {isWinner ? "낙찰 완료" : "낙찰자"}: {winnerBid.user?.name}
+              </p>
+              <p>낙찰가: {formatPrice(winnerBid.amount)}</p>
+              <p>종료시각: {new Date(auction.endAt).toLocaleString("ko-KR")}</p>
+            </div>
+          ) : null}
+
+          <div className="mt-0.5 flex flex-wrap gap-2">
+            {isOwner && canEdit && !isToolRoute ? (
+              <Link href={`${auctionPath}/edit`} className={ACTION_BUTTON_CLASS}>
+                <Icon name="pencil" size={14} />
+                경매 수정하기
+              </Link>
+            ) : null}
+            <ActionButton icon="document" label="링크 복사" onClick={() => void copyAuctionLink()} />
+            <ActionButton icon="send" label="공유하기" onClick={() => void shareAuction()} />
           </div>
 
-          {auction.status === "취소" && (
-            <div className="mt-3 rounded-lg border border-rose-200 bg-rose-50 px-3.5 py-3 dark:border-rose-800 dark:bg-rose-950/40">
-              <p className="text-sm font-bold text-rose-800 dark:text-rose-200">
-                신고/운영 처리로 경매 중단
-              </p>
-              <p className="mt-1 text-xs leading-relaxed text-rose-900 dark:text-rose-200/90">
-                이 경매는 운영 정책에 따라 취소되었습니다. 추가 이의가 있으면
-                신고 접수 채널로 문의해 주세요.
-              </p>
-            </div>
-          )}
-
-          {auction.status === "종료" && winnerBid && (
-            <div
-              className={cn(
-                "mt-3 rounded-lg border px-3.5 py-3",
-                isWinner
-                  ? "border-emerald-200 bg-emerald-50 dark:border-emerald-800 dark:bg-emerald-950/35"
-                  : "border-blue-200 bg-blue-50 dark:border-blue-800 dark:bg-blue-950/35",
-              )}
-            >
-              <p
-                className={cn(
-                  "text-sm font-bold",
-                  isWinner
-                    ? "text-emerald-800 dark:text-emerald-200"
-                    : "text-blue-800 dark:text-blue-200",
-                )}
-              >
-                {isWinner ? "낙찰 완료: 축하합니다!" : "낙찰 결과"}
-              </p>
-              <div className="mt-1.5 space-y-1 text-xs text-slate-700 dark:text-slate-200">
-                <p>낙찰자: {winnerBid.user?.name}</p>
-                <p>낙찰가: {winnerBid.amount.toLocaleString()}원</p>
-                <p>종료시각: {new Date(auction.endAt).toLocaleString()}</p>
-              </div>
-              <div className="mt-2 rounded-md border border-white/80 bg-white/80 px-2.5 py-2 text-[11px] text-slate-700 dark:border-slate-700 dark:bg-slate-800/80 dark:text-slate-200">
-                {isWinner ? (
-                  <p>
-                    판매자 신뢰 정보(전화/이메일/블로그)를 확인해 거래를
-                    진행하세요. 분쟁 발생 시 신고 기능을 사용하세요.
-                  </p>
-                ) : data?.isOwner ? (
-                  <p>
-                    낙찰자와 거래를 진행하세요. 거래 조건 분쟁이 있으면 신고
-                    접수로 운영 검토를 요청할 수 있습니다.
-                  </p>
-                ) : (
-                  <p>
-                    경매가 낙찰로 종료되었습니다. 참여 내역은 알림에서 확인할 수
-                    있습니다.
-                  </p>
-                )}
-              </div>
-            </div>
-          )}
-
-          {/* 판매자 정보 */}
-          {isToolRoute ? (
-            <div className="flex items-center gap-3 border-b border-gray-100 py-4 dark:border-slate-800">
-              <div
-                className={cn(
-                  hasBreederProgramFrame(auction.user?.breederPrograms)
-                    ? "rounded-[18px] p-1"
-                    : "",
-                  hasBreederProgramFrame(auction.user?.breederPrograms)
-                    ? getBreederProgramFrameClassName(
-                        auction.user?.breederPrograms,
-                      )
-                    : "",
-                )}
-              >
-                {auction.user?.avatar ? (
-                  <Image
-                    src={makeImageUrl(auction.user.avatar, "avatar")}
-                    className={cn(
-                      "h-10 w-10 rounded-full object-cover",
-                      hasBreederProgramFrame(auction.user?.breederPrograms)
-                        ? "ring-2 ring-white/70"
-                        : "",
-                    )}
-                    width={40}
-                    height={40}
-                    alt=""
-                  />
-                ) : (
-                  <div className="h-10 w-10 rounded-full bg-gray-200 dark:bg-slate-700" />
-                )}
-              </div>
-              <div>
-                <p className="text-sm font-semibold text-gray-900 dark:text-slate-100">
-                  {auction.user?.name}
-                </p>
-                <p className="text-xs text-gray-400 dark:text-slate-500">
-                  경매 등록자
-                </p>
-                <BreederProgramBadgeList
-                  programs={auction.user?.breederPrograms}
-                  compact
-                  className="mt-1"
-                />
-              </div>
-            </div>
-          ) : (
-            <Link
-              href={`/profiles/${auction.user?.id}`}
-              className="flex items-center gap-3 border-b border-gray-100 py-4 dark:border-slate-800"
-            >
-              <div
-                className={cn(
-                  hasBreederProgramFrame(auction.user?.breederPrograms)
-                    ? "rounded-[18px] p-1"
-                    : "",
-                  hasBreederProgramFrame(auction.user?.breederPrograms)
-                    ? getBreederProgramFrameClassName(
-                        auction.user?.breederPrograms,
-                      )
-                    : "",
-                )}
-              >
-                {auction.user?.avatar ? (
-                  <Image
-                    src={makeImageUrl(auction.user.avatar, "avatar")}
-                    className={cn(
-                      "h-10 w-10 rounded-full object-cover",
-                      hasBreederProgramFrame(auction.user?.breederPrograms)
-                        ? "ring-2 ring-white/70"
-                        : "",
-                    )}
-                    width={40}
-                    height={40}
-                    alt=""
-                  />
-                ) : (
-                  <div className="h-10 w-10 rounded-full bg-gray-200 dark:bg-slate-700" />
-                )}
-              </div>
-              <div>
-                <p className="text-sm font-semibold text-gray-900 dark:text-slate-100">
-                  {auction.user?.name}
-                </p>
-                <p className="text-xs text-gray-400 dark:text-slate-500">
-                  경매 등록자
-                </p>
-                <BreederProgramBadgeList
-                  programs={auction.user?.breederPrograms}
-                  compact
-                  className="mt-1"
-                />
-              </div>
-            </Link>
-          )}
-
-          {/* 상품 정보 */}
-          <div className="space-y-3 border-b border-gray-100 py-4 dark:border-slate-800">
-            <div className="flex items-center gap-2">
-              {auction.category && (
-                <span className="rounded-md bg-slate-100 px-2 py-0.5 text-xs font-semibold text-slate-600 dark:bg-slate-800 dark:text-slate-300">
-                  {auction.category}
-                </span>
-              )}
-              <span
-                className={cn(
-                  "rounded-md px-2 py-0.5 text-xs font-semibold",
-                  auction.status === "진행중"
-                    ? "bg-emerald-50 text-emerald-700 ring-1 ring-emerald-200"
-                    : "bg-gray-200 text-gray-500 dark:bg-slate-700 dark:text-slate-300",
-                )}
-              >
-                {auction.status}
-              </span>
-            </div>
-            <h1 className="text-lg font-bold text-gray-900 break-words [overflow-wrap:anywhere] dark:text-slate-50">
-              {auction.title}
-            </h1>
-            <p className="text-sm text-gray-600 dark:text-slate-300 whitespace-pre-line leading-relaxed break-words [overflow-wrap:anywhere]">
-              {auction.description}
+          {isOwner && !canEdit ? (
+            <p className="text-[13px] text-app-muted">
+              진행중 상태에서 등록 후 10분 이내, 입찰이 없을 때만 수정할 수 있습니다.
             </p>
-            <div className="flex flex-wrap items-center gap-2">
-              {data?.isOwner && data?.canEdit && !isToolRoute ? (
-                <Link
-                  href={`${toAuctionPath(auction.id, auction.title)}/edit`}
-                  className="inline-flex h-10 items-center rounded-lg border border-slate-200 bg-white px-4 text-sm font-semibold text-slate-700 transition-colors hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200 dark:hover:bg-slate-800"
-                >
-                  경매 수정하기
+          ) : null}
+        </div>
+
+        <Divider />
+
+        {/* 가격 블록 */}
+        <div className="flex flex-col gap-1.5 p-4">
+          <p className="text-[13px] text-app-muted">시작가 {formatPrice(auction.startPrice)}</p>
+          <div className="flex items-end justify-between gap-3">
+            <div className="flex flex-col gap-0.5">
+              <p className="text-[13px] text-app-muted">현재 최고가</p>
+              <p className="text-[22px] font-bold text-app-text">{formatPrice(auction.currentPrice)}</p>
+            </div>
+            <p className={cn("text-[14px] font-semibold", isUrgent ? "text-app-brand" : "text-app-text")}>
+              {auction.status === "진행중" ? countdown.text : "경매 종료"}
+            </p>
+          </div>
+        </div>
+
+        <Divider />
+
+        {/* 경매 규칙(접힘) */}
+        <div className="px-4">
+          <CollapsibleRow title="경매 규칙" open={rulesOpen} onToggle={() => setRulesOpen((v) => !v)}>
+            <div className="flex flex-col gap-1.5 text-[13px] leading-5 text-app-muted">
+              <p>현재가 기준 입찰 단위 {formatPrice(bidIncrement)}</p>
+              <p>
+                마감 {extensionWindowMinutes}분 이내 입찰 시 종료 시간이 {extensionMinutes}분 연장됩니다.
+              </p>
+              <p>입찰은 취소할 수 없으며, 본인 경매 입찰은 불가합니다.</p>
+              <p>현재 최고 입찰자는 재입찰할 수 없습니다.</p>
+              <p>본 서비스는 거래 당사자 간 분쟁에 법적 책임을 지지 않습니다.</p>
+              {!isToolRoute ? (
+                <Link href="/auctions/rules" className="flex h-8 items-center text-[13px] font-semibold text-app-text">
+                  규칙 전체 보기
                 </Link>
               ) : null}
-              <button
-                type="button"
-                onClick={handleCopyAuctionLink}
-                className="inline-flex h-10 items-center rounded-lg bg-slate-900 px-4 text-sm font-semibold text-white transition-colors hover:bg-slate-800 dark:bg-slate-100 dark:text-slate-900 dark:hover:bg-slate-200"
-              >
-                링크 복사
-              </button>
-              <button
-                type="button"
-                onClick={handleShareAuction}
-                className="inline-flex h-10 items-center rounded-lg border border-slate-200 bg-white px-4 text-sm font-semibold text-slate-700 transition-colors hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200 dark:hover:bg-slate-800"
-              >
-                공유하기
-              </button>
             </div>
-            {data?.isOwner && !data?.canEdit ? (
-              <p className="text-xs text-slate-500 dark:text-slate-400">
-                진행중 상태에서 등록 후 10분 이내, 입찰이 없을 때만 수정할 수
-                있습니다.
-              </p>
-            ) : null}
-            {(auction.sellerPhone ||
-              auction.sellerEmail ||
-              auction.sellerBlogUrl ||
-              auction.sellerCafeNick ||
-              auction.sellerBandNick ||
-              auction.sellerTrustNote ||
-              auction.sellerProofImage) && (
-              <div className="rounded-lg border border-slate-200 bg-slate-50 px-3.5 py-3 dark:border-slate-700 dark:bg-slate-800/70">
-                <p className="text-xs font-semibold text-slate-700 dark:text-slate-200">
-                  판매자 신뢰 정보
-                </p>
-                <div className="mt-2 space-y-1 text-xs text-slate-600 dark:text-slate-300">
-                  {auction.sellerPhone ? (
-                    <p>연락처: {auction.sellerPhone}</p>
-                  ) : null}
-                  {auction.sellerEmail ? (
-                    <p>이메일: {auction.sellerEmail}</p>
-                  ) : null}
-                  {auction.sellerBlogUrl ? (
-                    <a
-                      href={auction.sellerBlogUrl}
-                      target="_blank"
-                      rel="noreferrer"
-                      className="inline-flex underline underline-offset-2"
-                    >
-                      블로그/프로필 링크 확인
-                    </a>
-                  ) : null}
-                  {auction.sellerCafeNick ? (
-                    <p>카페 닉네임: {auction.sellerCafeNick}</p>
-                  ) : null}
-                  {auction.sellerBandNick ? (
-                    <p>밴드 닉네임: {auction.sellerBandNick}</p>
-                  ) : null}
-                  {auction.sellerTrustNote ? (
-                    <p className="whitespace-pre-line break-words [overflow-wrap:anywhere]">
-                      추가 안내: {auction.sellerTrustNote}
-                    </p>
-                  ) : null}
-                </div>
-                {auction.sellerProofImage ? (
-                  <div className="relative mt-2 h-28 w-40 overflow-hidden rounded-md border border-slate-200 dark:border-slate-700">
-                    <Image
-                      src={makeImageUrl(auction.sellerProofImage, "public")}
-                      className="object-contain p-2"
-                      fill
-                      alt="판매자 신뢰 자료"
-                    />
-                  </div>
-                ) : null}
-              </div>
-            )}
-          </div>
+          </CollapsibleRow>
+        </div>
 
-          {/* 입찰 현황 */}
-          <div className="py-4 space-y-4">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-xs text-gray-400 dark:text-slate-500">
-                  시작가
-                </p>
-                <p className="text-sm text-gray-500 dark:text-slate-300">
-                  {auction.startPrice.toLocaleString()}원
-                </p>
-              </div>
-              <div className="text-right">
-                <p className="text-xs text-gray-400 dark:text-slate-500">
-                  현재 최고가
-                </p>
-                <p className="text-2xl font-bold text-primary">
-                  {auction.currentPrice.toLocaleString()}원
-                </p>
-              </div>
-            </div>
+        <Divider />
 
-            <div className="rounded-lg border border-slate-200 bg-white px-3.5 py-3 dark:border-slate-700 dark:bg-slate-900">
-              <div className="flex items-center justify-between gap-3">
-                <p className="text-sm font-semibold text-slate-800 dark:text-slate-100">
-                  경매 규칙
-                </p>
-                {!isToolRoute ? (
-                  <Link
-                    href="/auctions/rules"
-                    className="text-xs font-semibold text-slate-600 dark:text-slate-300 underline underline-offset-2"
-                  >
-                    전체 보기
-                  </Link>
-                ) : null}
-              </div>
-              <ul className="mt-2 space-y-1 text-xs text-slate-600 dark:text-slate-300">
-                <li>
-                  • 현재가 기준 입찰 단위:{" "}
-                  {getBidIncrement(auction.currentPrice).toLocaleString()}원
-                </li>
-                <li>
-                  • 마감 {extensionWindowMinutes}분 이내 입찰 시 종료 시간이{" "}
-                  {extensionMinutes}분 연장됩니다.
-                </li>
-                <li>• 입찰은 취소할 수 없으며, 본인 경매 입찰은 불가합니다.</li>
-                <li>• 현재 최고 입찰자는 재입찰할 수 없습니다.</li>
-              </ul>
-              <div className="mt-3 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2.5 text-xs text-amber-900 dark:border-amber-700 dark:bg-amber-950/40 dark:text-amber-200">
-                <p className="font-semibold">분쟁/신고 안내</p>
-                <p className="mt-1 leading-relaxed">
-                  본 서비스는 거래 당사자 간 분쟁에 대해 법적 책임을 지지
-                  않습니다. 다만 문제가 발생하면 신고를 접수하여 운영정책에 따라
-                  검토 및 제재를 진행합니다.
-                </p>
-                <p className="mt-1 leading-relaxed font-semibold">
-                  카카오 로그인 기반 계정은 위반 시 영구 참여 제한됩니다.
-                </p>
-                {!isToolRoute ? (
-                  <a
-                    href="mailto:bredyteam@gmail.com?subject=[경매%20신고]%20분쟁%20접수"
-                    className="mt-1.5 inline-flex items-center font-semibold underline underline-offset-2"
-                  >
-                    신고 접수: bredyteam@gmail.com
+        {/* 판매자 신뢰 정보 */}
+        {hasSellerTrustInfo ? (
+          <>
+            <div className="flex flex-col gap-1.5 p-4 text-[13px] text-app-muted">
+              <p className="text-[15px] font-semibold text-app-text">판매자 정보</p>
+              {auction.sellerPhone ? <p>연락처 {auction.sellerPhone}</p> : null}
+              {auction.sellerEmail ? <p>이메일 {auction.sellerEmail}</p> : null}
+              {auction.sellerBlogUrl ? (
+                <p className="break-all">
+                  블로그/프로필{" "}
+                  <a href={auction.sellerBlogUrl} target="_blank" rel="noreferrer noopener" className="underline underline-offset-2">
+                    {auction.sellerBlogUrl}
                   </a>
-                ) : null}
-                {!data?.isOwner && (
-                  <div className="mt-3 rounded-lg border border-amber-300 bg-white/70 p-2.5 dark:border-amber-700 dark:bg-slate-900/65">
-                    <p className="text-[11px] font-semibold text-amber-900 dark:text-amber-200">
-                      빠른 신고 접수
-                    </p>
-                    <div className="mt-1.5 space-y-1.5">
-                      <select
-                        value={reportReason}
-                        onChange={(event) =>
-                          setReportReason(
-                            event.target
-                              .value as (typeof REPORT_REASONS)[number],
-                          )
-                        }
-                        className="w-full rounded-md border border-amber-200 bg-white px-2 py-1.5 text-[11px] dark:border-amber-700 dark:bg-slate-900 dark:text-slate-100"
-                      >
-                        {REPORT_REASONS.map((reason) => (
-                          <option key={reason} value={reason}>
-                            {reason}
-                          </option>
-                        ))}
-                      </select>
-                      <textarea
-                        value={reportDetail}
-                        onChange={(event) =>
-                          setReportDetail(event.target.value)
-                        }
-                        placeholder="신고 내용을 5자 이상 입력해주세요."
-                        rows={2}
-                        className="w-full rounded-md border border-amber-200 bg-white px-2 py-1.5 text-[11px] dark:border-amber-700 dark:bg-slate-900 dark:text-slate-100 dark:placeholder:text-slate-500"
-                      />
-                      <button
-                        type="button"
-                        onClick={handleReport}
-                        disabled={reportLoading}
-                        className="inline-flex items-center rounded-md bg-amber-600 px-2.5 py-1 text-[11px] font-semibold text-white disabled:opacity-60"
-                      >
-                        {reportLoading ? "접수 중..." : "신고 접수"}
-                      </button>
-                    </div>
-                  </div>
-                )}
-              </div>
-            </div>
-
-            {/* 입찰 내역 */}
-            <div>
-              <h3 className="text-sm font-semibold text-gray-900 dark:text-slate-100 mb-2">
-                입찰 내역 ({auction._count.bids}건)
-              </h3>
-              {auction.bids.length > 0 ? (
-                <div className="space-y-2 max-h-60 overflow-y-auto">
-                  {auction.bids.map((bid, i) => (
-                    <div
-                      key={bid.id}
-                      className={cn(
-                        "flex items-center justify-between py-2 px-3 rounded-lg",
-                        i === 0
-                          ? "border border-primary/20 bg-primary/5 dark:border-primary/30 dark:bg-primary/10"
-                          : "bg-gray-50 dark:bg-slate-800/70",
-                      )}
-                    >
-                      <div className="flex items-center gap-2">
-                        {i === 0 && (
-                          <span className="text-xs font-bold text-primary">
-                            {auction.status === "종료" &&
-                            auction.winnerId === bid.userId
-                              ? "낙찰"
-                              : "1위"}
-                          </span>
-                        )}
-                        {bid.user?.avatar ? (
-                          <Image
-                            src={makeImageUrl(bid.user.avatar, "avatar")}
-                            className="w-6 h-6 rounded-full object-cover"
-                            width={24}
-                            height={24}
-                            alt=""
-                          />
-                        ) : (
-                          <div className="h-6 w-6 rounded-full bg-gray-200 dark:bg-slate-700" />
-                        )}
-                        <span className="text-sm text-gray-700 dark:text-slate-200">
-                          {bid.user?.name}
-                        </span>
-                      </div>
-                      <div className="text-right">
-                        <p className="text-sm font-semibold text-gray-900 dark:text-slate-100">
-                          {bid.amount.toLocaleString()}원
-                        </p>
-                        <p className="text-xs text-gray-400 dark:text-slate-500">
-                          {getTimeAgoString(new Date(bid.createdAt))}
-                        </p>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              ) : (
-                <p className="py-4 text-center text-sm text-gray-400 dark:text-slate-500">
-                  아직 입찰 내역이 없습니다
                 </p>
-              )}
+              ) : null}
+              {auction.sellerCafeNick ? <p>카페 닉네임 {auction.sellerCafeNick}</p> : null}
+              {auction.sellerBandNick ? <p>밴드 닉네임 {auction.sellerBandNick}</p> : null}
+              {auction.sellerTrustNote ? (
+                <p className="whitespace-pre-line break-words leading-5 [overflow-wrap:anywhere]">{auction.sellerTrustNote}</p>
+              ) : null}
+              {auction.sellerProofImage ? (
+                <div className="relative mt-1 h-28 w-40 overflow-hidden rounded-lg bg-app-surface">
+                  <Image
+                    src={makeImageUrl(auction.sellerProofImage, "public")}
+                    className="object-contain"
+                    fill
+                    sizes="160px"
+                    alt="판매자 신뢰 자료"
+                  />
+                </div>
+              ) : null}
             </div>
+            <Divider />
+          </>
+        ) : null}
+
+        {/* 입찰 내역 */}
+        <div className="px-4 pt-4">
+          <h2 className="text-[15px] font-semibold text-app-text">입찰 내역 {auction._count.bids}건</h2>
+        </div>
+        {auction.bids.length > 0 ? (
+          <ul className="mt-1 px-4">
+            {auction.bids.map((bid, index) => (
+              <li
+                key={bid.id}
+                className={cn(
+                  "flex h-12 items-center justify-between gap-3",
+                  index !== auction.bids.length - 1 && "border-b border-app-line"
+                )}
+              >
+                <div className="flex min-w-0 flex-1 items-center gap-1.5">
+                  <span className="truncate text-[14px] text-app-text">{bid.user?.name}</span>
+                  {index === 0 ? (
+                    <span className="shrink-0 text-[12px] text-app-muted">
+                      {auction.status === "종료" && auction.winnerId === bid.userId ? "낙찰" : "최고가"}
+                    </span>
+                  ) : null}
+                </div>
+                <div className="flex shrink-0 items-center gap-2">
+                  <span className="text-[14px] font-semibold text-app-text">{formatPrice(bid.amount)}</span>
+                  <span className="text-[12px] text-app-muted">{getTimeAgoString(new Date(bid.createdAt))}</span>
+                </div>
+              </li>
+            ))}
+          </ul>
+        ) : (
+          <p className="p-4 text-[13px] text-app-muted">아직 입찰 내역이 없습니다.</p>
+        )}
+
+        {/* 신고(접힘) */}
+        {!isOwner ? (
+          <>
+            <div className="mt-4 h-2 bg-app-gap" />
+            <div className="px-4">
+              <CollapsibleRow title="신고하기" open={reportOpen} onToggle={() => setReportOpen((v) => !v)}>
+                <div className="flex flex-col gap-2">
+                  <select
+                    value={reportReason}
+                    onChange={(event) => setReportReason(event.target.value as (typeof REPORT_REASONS)[number])}
+                    aria-label="신고 사유 선택"
+                    className="h-12 w-full rounded-lg border border-app-border bg-app-bg px-3.5 text-[15px] text-app-text focus:border-app-text focus:outline-none focus:ring-0"
+                  >
+                    {REPORT_REASONS.map((reason) => (
+                      <option key={reason} value={reason}>
+                        {reason}
+                      </option>
+                    ))}
+                  </select>
+                  <textarea
+                    value={reportDetail}
+                    onChange={(event) => setReportDetail(event.target.value)}
+                    placeholder="신고 내용을 5자 이상 입력해주세요."
+                    maxLength={500}
+                    className="min-h-[80px] w-full resize-none rounded-lg border border-app-border bg-app-bg px-3.5 py-3 text-[14px] text-app-text placeholder:text-app-caption focus:border-app-text focus:outline-none focus:ring-0"
+                  />
+                  <button
+                    type="button"
+                    onClick={handleReport}
+                    disabled={reportLoading}
+                    className="h-10 self-start rounded-lg bg-app-surface px-4 text-[13px] font-semibold text-app-text disabled:opacity-60"
+                  >
+                    {reportLoading ? "접수 중..." : "신고 접수"}
+                  </button>
+                </div>
+              </CollapsibleRow>
+            </div>
+          </>
+        ) : null}
+      </div>
+
+      {/* 하단 고정 입찰 바 */}
+      <div className="fixed inset-x-0 bottom-0 z-40 border-t border-app-line bg-app-bg">
+        <div className="mx-auto flex max-w-xl flex-col gap-2 px-4 pt-2.5 pb-[max(14px,calc(env(safe-area-inset-bottom)+10px))]">
+          {isBiddable ? (
+            <div className="flex flex-col gap-1.5">
+              <CheckboxRow
+                checked={agreedBidRule}
+                onToggle={() => setAgreedBidRule((v) => !v)}
+                label="입찰 취소 불가, 마감 임박 자동연장 규칙을 확인했습니다."
+              />
+              <CheckboxRow
+                checked={agreedDisputePolicy}
+                onToggle={() => setAgreedDisputePolicy((v) => !v)}
+                label="분쟁 책임 제한 및 신고 접수 정책을 확인했습니다."
+              />
+            </div>
+          ) : null}
+          <div className="flex items-center gap-2">
+            <PriceInput
+              value={bidInput}
+              onChange={setBidInput}
+              disabled={!isBiddable}
+              placeholder={`최소 ${minimumBid.toLocaleString("ko-KR")}원`}
+              aria-label="입찰 금액"
+              className="min-w-0 flex-1"
+            />
+            <button
+              type="button"
+              onClick={handleBid}
+              disabled={bidDisabled}
+              className={cn(
+                "h-[52px] min-w-[112px] shrink-0 rounded-md px-5 text-[16px] font-semibold",
+                bidDisabled ? "bg-app-surface text-app-caption" : "bg-app-brand text-white"
+              )}
+            >
+              {bidLoading ? "입찰 중..." : "입찰하기"}
+            </button>
           </div>
+          {isOwner ? (
+            <p className="text-[13px] text-app-muted">본인이 등록한 경매에는 입찰할 수 없습니다.</p>
+          ) : isTopBidder ? (
+            <p className="text-[13px] text-app-muted">현재 최고 입찰자는 다시 입찰할 수 없습니다.</p>
+          ) : auction.status !== "진행중" || countdown.isEnded ? (
+            <p className="text-[13px] text-app-muted">종료된 경매입니다.</p>
+          ) : null}
         </div>
       </div>
 
-      {/* 하단 입찰 영역 (진행중일 때만, 본인 경매 아닐 때) */}
-      {hasBottomBidLayer && (
-        <div className="fixed bottom-0 left-0 right-0 bg-white dark:bg-slate-900 border-t border-gray-200 dark:border-slate-700 z-10">
-          <div className="max-w-xl mx-auto px-4 py-3">
-            <div className="mb-2.5 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 dark:border-slate-700 dark:bg-slate-800/70">
-              <label className="flex items-start gap-2 text-[11px] text-slate-700 dark:text-slate-300 leading-relaxed">
-                <input
-                  type="checkbox"
-                  checked={agreedBidRule}
-                  onChange={(event) => setAgreedBidRule(event.target.checked)}
-                  className="mt-0.5"
-                />
-                <span>
-                  입찰 취소 불가, 마감 임박 자동연장 규칙을 확인했습니다.
-                </span>
-              </label>
-              <label className="mt-1 flex items-start gap-2 text-[11px] text-slate-700 dark:text-slate-300 leading-relaxed">
-                <input
-                  type="checkbox"
-                  checked={agreedDisputePolicy}
-                  onChange={(event) =>
-                    setAgreedDisputePolicy(event.target.checked)
-                  }
-                  className="mt-0.5"
-                />
-                <span>분쟁 책임 제한 및 신고 접수 정책을 확인했습니다.</span>
-              </label>
-            </div>
-            <div className="space-y-2">
-              <div className="grid grid-cols-3 gap-1.5">
-                <button
-                  onClick={() => increaseBidAmount(bidIncrement)}
-                  disabled={isTopBidder}
-                  className="rounded-md border border-slate-200 bg-white px-2 py-2 text-[11px] font-semibold text-gray-700 transition-colors hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100 dark:hover:bg-slate-700"
-                >
-                  +1틱
-                </button>
-                <button
-                  onClick={() => increaseBidAmount(bidIncrement * 2)}
-                  disabled={isTopBidder}
-                  className="rounded-md border border-slate-200 bg-white px-2 py-2 text-[11px] font-semibold text-gray-700 transition-colors hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100 dark:hover:bg-slate-700"
-                >
-                  +2틱
-                </button>
-                <button
-                  onClick={() => increaseBidAmount(10_000)}
-                  disabled={isTopBidder}
-                  className="rounded-md border border-slate-200 bg-white px-2 py-2 text-[11px] font-semibold text-gray-700 transition-colors hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100 dark:hover:bg-slate-700"
-                >
-                  +10,000원
-                </button>
-                <button
-                  onClick={() => increaseBidAmount(50_000)}
-                  disabled={isTopBidder}
-                  className="rounded-md border border-slate-200 bg-white px-2 py-2 text-[11px] font-semibold text-gray-700 transition-colors hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100 dark:hover:bg-slate-700"
-                >
-                  +50,000원
-                </button>
-                <button
-                  onClick={() => increaseBidAmount(100_000)}
-                  disabled={isTopBidder}
-                  className="rounded-md border border-slate-200 bg-white px-2 py-2 text-[11px] font-semibold text-gray-700 transition-colors hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100 dark:hover:bg-slate-700"
-                >
-                  +100,000원
-                </button>
-                <button
-                  onClick={() => setBidAmount(minimumBid)}
-                  disabled={isTopBidder}
-                  className="rounded-md border border-slate-200 bg-white px-2 py-2 text-[11px] font-semibold text-gray-700 transition-colors hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100 dark:hover:bg-slate-700"
-                >
-                  최소가
-                </button>
-              </div>
-              <div className="flex items-center gap-2">
-                <div className="flex-1 rounded-lg border border-slate-200 bg-white px-3 py-2 text-right dark:border-slate-700 dark:bg-slate-800">
-                  <p className="text-[10px] font-medium text-gray-500 dark:text-slate-400">
-                    선택 입찰가
-                  </p>
-                  <p className="text-sm font-bold text-gray-900 dark:text-slate-100">
-                    {selectedBidAmount.toLocaleString()}원
-                  </p>
-                </div>
-                <button
-                  onClick={handleBid}
-                  disabled={
-                    bidLoading ||
-                    !agreedBidRule ||
-                    !agreedDisputePolicy ||
-                    isTopBidder
-                  }
-                  className="flex-shrink-0 rounded-lg bg-primary px-5 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-primary/90 disabled:opacity-50"
-                >
-                  {bidLoading ? "..." : "입찰"}
-                </button>
-              </div>
-            </div>
-            {isTopBidder ? (
-              <p className="mt-2 text-[11px] text-amber-700 dark:text-amber-300">
-                현재 최고 입찰자는 다시 입찰할 수 없습니다. 다른 참여자의 입찰을
-                기다려주세요.
-              </p>
-            ) : null}
-          </div>
-        </div>
-      )}
+      <ImageLightbox
+        images={photos.map((photo) => makeImageUrl(photo, "public"))}
+        isOpen={viewerOpen}
+        currentIndex={safeImageIndex}
+        onClose={() => setViewerOpen(false)}
+        onIndexChange={setImageIndex}
+        altPrefix="경매 이미지"
+      />
+
+      <ConfirmDialog
+        open={confirmBidAmount !== null}
+        title="입찰 확인"
+        description={
+          confirmBidAmount !== null
+            ? `정말 ${confirmBidAmount.toLocaleString()}원으로 입찰하시겠습니까?\n입찰 취소가 불가능합니다.`
+            : undefined
+        }
+        confirmText="입찰"
+        onConfirm={() => {
+          if (confirmBidAmount !== null) placeBid(confirmBidAmount);
+        }}
+        onCancel={() => setConfirmBidAmount(null)}
+      />
     </Layout>
   );
 };

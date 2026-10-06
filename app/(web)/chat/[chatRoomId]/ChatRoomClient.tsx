@@ -1,501 +1,474 @@
 "use client";
 
-import { authFetch } from "@libs/client/authFetch";
-import Layout from "@components/features/MainLayout";
-import useMutation from "hooks/useMutation";
-import useUser from "hooks/useUser";
+/**
+ * 채팅방 — 앱 bredy_app src/app/chat/[chatRoomId].tsx (시안 A-karrot.html 우측 화면) 1:1.
+ * 헤더(뒤로 + 상대 이름 18/700 + ⋮ 신고·차단) / 날짜 구분 / 말풍선 묶음 / "읽음" / 입력바(+ · pill · 전송).
+ * 최신 메시지가 아래, 이전 대화는 맨 위 "이전 대화 보기". 상품 맥락 바는 서버가 상품을 주지 않아 그리지 않는다.
+ */
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
-import { useEffect, useMemo, useRef, useState } from "react";
-import { useForm } from "react-hook-form";
 import useSWR, { useSWRConfig } from "swr";
-import { differenceInMinutes, format, isSameDay, isToday, isYesterday } from "date-fns";
-import { ko } from "date-fns/locale";
 
 import SkeletonChatRoom from "@components/atoms/SkeletonChatRoom";
-import Message from "@components/features/message";
-import { cn } from "@libs/client/utils";
+import ChatMessageGroup from "@components/features/message";
+import ImageLightbox from "@components/features/image/ImageLightbox";
+import { ActionSheet, type ActionSheetAction } from "@components/app/ActionSheet";
+import { ReportSheet } from "@components/app/moderation/ReportSheet";
+import { BlockConfirmDialog } from "@components/app/moderation/BlockConfirmDialog";
+import useMutation from "hooks/useMutation";
+import useUser from "hooks/useUser";
+import { useBlocks } from "hooks/useBlocks";
+import { authFetch } from "@libs/client/authFetch";
+import { toast } from "@libs/client/toast";
+import { cn, makeImageUrl } from "@libs/client/utils";
 
-import { ChatRoomResponse } from "pages/api/chat/[chatRoomId]";
-import { MessageResponse } from "pages/api/chat/[chatRoomId]/message";
-import { ReadResponse } from "pages/api/chat/[chatRoomId]/read";
+import type { ChatRoomResponse } from "pages/api/chat/[chatRoomId]";
+import type { MessageResponse } from "pages/api/chat/[chatRoomId]/message";
+import type { ReadResponse } from "pages/api/chat/[chatRoomId]/read";
+import {
+  CHAT_PAGE_SIZE,
+  CHAT_ROOM_POLL_MS,
+  buildChatItems,
+  composerPlaceholder,
+  findPartner,
+  findReadReceiptMessageId,
+  formatChatTime,
+  imageUploadNotices,
+  isDeletedPartnerName,
+  mergeMessages,
+  olderMessagesCursor,
+  planImageUploads,
+} from "../chatFormat";
+import { BackIcon, ChatCenterNotice, MoreIcon, PlusIcon, SendIcon } from "../chatUi";
 
-interface Form {
-  message: string;
-}
-
-interface FileUploadUrlResponse {
-  success: boolean;
-  uploadURL?: string;
-  id?: string;
-}
-
-interface CloudflareUploadResponse {
-  success: boolean;
-  result?: {
-    id?: string;
-  };
-}
-
-const PAGE_SIZE = 20;
-const GROUP_MINUTES = 5;
 type ChatMessage = NonNullable<ChatRoomResponse["chatRoom"]>["messages"][number];
 
-const mergeMessages = (prev: ChatMessage[], incoming: ChatMessage[]) => {
-  const map = new Map<number, ChatMessage>();
-  for (const message of prev) {
-    map.set(message.id, message);
-  }
-  for (const message of incoming) {
-    map.set(message.id, message);
-  }
-  return Array.from(map.values()).sort((a, b) => a.id - b.id);
-};
+/** 입력창이 늘어나는 최대 높이(15px 글자 약 5줄). 넘으면 입력창 안에서 스크롤. */
+const COMPOSER_MAX_HEIGHT = 112;
+/** 바닥에서 이 거리 안이면 새 메시지가 올 때 아래로 따라간다. */
+const STICK_TO_BOTTOM_PX = 80;
 
-const getDateDividerLabel = (date: Date) => {
-  if (isToday(date)) return "오늘";
-  if (isYesterday(date)) return "어제";
-  return format(date, "M월 d일 EEEE", { locale: ko });
-};
+type MessageResult = MessageResponse & { status?: number; errorCode?: string };
 
-const isGroupedWithNext = (current: ChatMessage, next?: ChatMessage) => {
-  if (!next) return false;
-  if (current.user.id !== next.user.id) return false;
-  const currentDate = new Date(current.createdAt);
-  const nextDate = new Date(next.createdAt);
-  if (!isSameDay(currentDate, nextDate)) return false;
-  return Math.abs(differenceInMinutes(nextDate, currentDate)) <= GROUP_MINUTES;
-};
+async function uploadChatImage(file: File): Promise<string> {
+  const urlRes = await authFetch("/api/files");
+  const info = (await urlRes.json().catch(() => null)) as { uploadURL?: string; id?: string } | null;
+  if (!urlRes.ok || !info?.uploadURL) throw new Error("이미지 업로드에 실패했습니다.");
+  const form = new FormData();
+  form.append("file", file);
+  const uploaded = await fetch(info.uploadURL, { method: "POST", body: form });
+  const payload = (await uploaded.json().catch(() => null)) as { result?: { id?: string } } | null;
+  const imageId = payload?.result?.id || info.id || "";
+  if (!uploaded.ok || !imageId) throw new Error("이미지 업로드에 실패했습니다.");
+  return imageId;
+}
+
+function RoomHeader({ title, onBack, onMore }: { title: string; onBack: () => void; onMore?: () => void }) {
+  return (
+    <header className="flex h-14 shrink-0 items-center gap-3 border-b border-app-line bg-app-bg px-4 text-app-text">
+      <button type="button" onClick={onBack} aria-label="뒤로 가기" className="-m-2.5 grid shrink-0 place-items-center p-2.5">
+        <BackIcon />
+      </button>
+      <h1 className="min-w-0 truncate text-[18px] font-bold tracking-[-0.3px] text-app-text">{title}</h1>
+      <div className="flex-1" />
+      {onMore ? (
+        <button
+          type="button"
+          onClick={onMore}
+          aria-label="더보기"
+          className="-m-1.5 grid h-11 w-11 shrink-0 place-items-center rounded-full transition-colors hover:bg-app-surface"
+        >
+          <MoreIcon />
+        </button>
+      ) : (
+        // 시안의 ⋮ 자리. 상대가 없거나 탈퇴해 동작이 없으면 보조기기에서는 숨긴다.
+        <span aria-hidden="true" className="grid h-8 w-8 shrink-0 place-items-center">
+          <MoreIcon />
+        </span>
+      )}
+    </header>
+  );
+}
 
 const ChatRoomClient = () => {
   const { user } = useUser();
   const { mutate: globalMutate } = useSWRConfig();
   const router = useRouter();
   const params = useParams();
-  const chatRoomId = params?.chatRoomId as string;
+  const roomId = params?.chatRoomId as string | undefined;
 
-  const [title, setTitle] = useState("");
-  const [isAtBottom, setIsAtBottom] = useState(true);
-  const [imageUploading, setImageUploading] = useState(false);
-  const [messages, setMessages] = useState<ChatMessage[]>([]);
-  const [olderCursor, setOlderCursor] = useState<number | null>(null);
-  const [hasMoreOlder, setHasMoreOlder] = useState(false);
+  const [localMessages, setLocalMessages] = useState<ChatMessage[]>([]);
+  const [olderPagination, setOlderPagination] = useState<{ nextCursor: number | null; hasMore: boolean } | null>(
+    null
+  );
   const [loadingOlder, setLoadingOlder] = useState(false);
-  const loadingOlderRef = useRef(false);
-  const initializedRef = useRef(false);
-  const lastReadSyncKeyRef = useRef<string | null>(null);
-  const messagesEndRef = useRef<HTMLDivElement>(null);
-  const chatContainerRef = useRef<HTMLDivElement>(null);
+  const [text, setText] = useState("");
+  const [imageUploading, setImageUploading] = useState(false);
+  const [viewerImageId, setViewerImageId] = useState<string | null>(null);
+  const [sheetOpen, setSheetOpen] = useState(false);
+  const [reportOpen, setReportOpen] = useState(false);
+  const [blockTarget, setBlockTarget] = useState<{ id: number; name: string } | null>(null);
+
+  const scrollRef = useRef<HTMLDivElement>(null);
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const atBottomRef = useRef(true);
+  const forceBottomRef = useRef(false);
+  const initialScrolledRef = useRef(false);
+  const restoreRef = useRef<{ height: number; top: number } | null>(null);
+  const lastIdRef = useRef<number | null>(null);
+  const latestReadKeyRef = useRef<string | null>(null);
 
-  // 3초마다 최신 20개 폴링
-  const { data, mutate, isLoading } = useSWR<ChatRoomResponse>(
-    chatRoomId && `/api/chat/${chatRoomId}?limit=${PAGE_SIZE}`,
-    { refreshInterval: 3000 }
+  const { isBlocked, unblock } = useBlocks();
+
+  const { data, error, isLoading, mutate } = useSWR<ChatRoomResponse>(
+    roomId ? `/api/chat/${roomId}?limit=${CHAT_PAGE_SIZE}` : null,
+    { refreshInterval: CHAT_ROOM_POLL_MS }
   );
 
-  // 접근 권한 없거나 에러 시 로그인 페이지로 이동
+  const [sendMessage, { loading: sending }] = useMutation<MessageResult>(`/api/chat/${roomId}/message`);
+  const [markAsRead] = useMutation<ReadResponse>(`/api/chat/${roomId}/read`);
+
+  const serverMessages = useMemo(() => data?.chatRoom?.messages ?? [], [data?.chatRoom?.messages]);
+  // 폴링은 최신 20개만 준다. 받은 것을 계속 쌓아 두어야 창에서 밀려난 메시지가 사라지지 않는다.
   useEffect(() => {
-    if (data && !data.success) {
-      router.replace("/auth/login");
+    if (serverMessages.length === 0) return;
+    setLocalMessages((prev) => mergeMessages(prev, serverMessages));
+  }, [serverMessages]);
+  const messages = useMemo(() => mergeMessages(localMessages, serverMessages), [localMessages, serverMessages]);
+
+  const hasMoreOlder = Boolean((olderPagination ?? data?.pagination)?.hasMore);
+  // 커서는 화면에 있는 가장 오래된 메시지. 첫 응답 이후 쌓인 메시지를 건너뛰지 않는다.
+  const olderCursor = olderMessagesCursor(messages, hasMoreOlder);
+
+  const room = data?.chatRoom;
+  const otherMember = room ? findPartner(room.chatRoomMembers, user?.id) : undefined;
+  const partner = otherMember?.user;
+  const title = partner?.name || "채팅방";
+  const partnerBlocked = Boolean(partner && isBlocked(partner.id));
+  // 방은 불러왔는데 상대 멤버가 없는 방(예전 하드 삭제)도 서버가 탈퇴로 403 을 준다.
+  const partnerDeleted = Boolean(room) && (!partner || isDeletedPartnerName(partner.name));
+  const composerLocked = partnerDeleted || partnerBlocked;
+  const canModerate = Boolean(partner && !partnerDeleted);
+
+  const readReceiptMessageId = useMemo(
+    () => findReadReceiptMessageId(messages, otherMember?.lastReadAt, user?.id),
+    [messages, otherMember?.lastReadAt, user?.id]
+  );
+  const items = useMemo(() => buildChatItems(messages, user?.id), [messages, user?.id]);
+
+  // 읽음 처리: 최신 메시지가 바뀔 때마다 1회(목록·탭 뱃지 갱신)
+  useEffect(() => {
+    const latestId = messages[messages.length - 1]?.id;
+    if (!room || !latestId) return;
+    const key = `${room.id}-${latestId}`;
+    if (latestReadKeyRef.current === key) return;
+    latestReadKeyRef.current = key;
+    markAsRead({
+      data: {},
+      onCompleted(result) {
+        if (!result?.success) return;
+        void globalMutate("/api/chat/chatList");
+        void globalMutate("/api/chat/unread-count");
+      },
+    }).catch(() => undefined);
+  }, [messages, room, markAsRead, globalMutate]);
+
+  // 스크롤: 처음엔 맨 아래, 이전 대화를 붙이면 보던 위치 유지, 새 메시지는 바닥 근처일 때만 따라간다.
+  useLayoutEffect(() => {
+    const el = scrollRef.current;
+    if (!el || messages.length === 0) return;
+    const lastId = messages[messages.length - 1].id;
+    if (restoreRef.current) {
+      el.scrollTop = el.scrollHeight - restoreRef.current.height + restoreRef.current.top;
+      restoreRef.current = null;
+    } else if (!initialScrolledRef.current) {
+      el.scrollTop = el.scrollHeight;
+      initialScrolledRef.current = true;
+    } else if (lastId !== lastIdRef.current && (atBottomRef.current || forceBottomRef.current)) {
+      el.scrollTo({ top: el.scrollHeight, behavior: "smooth" });
     }
-  }, [data, router]);
+    forceBottomRef.current = false;
+    lastIdRef.current = lastId;
+  }, [messages]);
 
-  const [sendMessage, { loading }] = useMutation<MessageResponse>(
-    `/api/chat/${chatRoomId}/message`
-  );
-
-  const [markAsRead] = useMutation<ReadResponse>(
-    `/api/chat/${chatRoomId}/read`
-  );
-
-  const { register, handleSubmit, reset, watch } = useForm<Form>();
-  const messageText = watch("message", "");
-
-  const scrollToBottom = (behavior: ScrollBehavior = "smooth") => {
-    messagesEndRef.current?.scrollIntoView({ behavior });
+  const handleScroll = () => {
+    const el = scrollRef.current;
+    if (!el) return;
+    atBottomRef.current = el.scrollHeight - el.scrollTop - el.clientHeight < STICK_TO_BOTTOM_PX;
   };
 
-  const loadOlderMessages = async () => {
-    if (
-      !chatRoomId ||
-      !olderCursor ||
-      !hasMoreOlder ||
-      loadingOlder ||
-      loadingOlderRef.current
-    ) {
-      return;
-    }
-    const container = chatContainerRef.current;
-    const prevScrollHeight = container?.scrollHeight ?? 0;
-    const prevScrollTop = container?.scrollTop ?? 0;
-
+  const loadOlder = async () => {
+    if (!roomId || !olderCursor || loadingOlder) return;
+    setLoadingOlder(true);
     try {
-      loadingOlderRef.current = true;
-      setLoadingOlder(true);
-      const res = await fetch(
-        `/api/chat/${chatRoomId}?limit=${PAGE_SIZE}&beforeId=${olderCursor}`
-      );
-      const result: ChatRoomResponse = await res.json();
-      if (!res.ok || !result.success || !result.chatRoom) return;
-
-      const olderMessages = result.chatRoom.messages || [];
-      setMessages((prev) => mergeMessages(prev, olderMessages));
-      setOlderCursor(result.pagination?.nextCursor ?? null);
-      setHasMoreOlder(Boolean(result.pagination?.hasMore));
-
-      requestAnimationFrame(() => {
-        if (!container) return;
-        const nextScrollHeight = container.scrollHeight;
-        container.scrollTop = nextScrollHeight - prevScrollHeight + prevScrollTop;
+      const res = await authFetch(`/api/chat/${roomId}?limit=${CHAT_PAGE_SIZE}&beforeId=${olderCursor}`);
+      const result = (await res.json().catch(() => null)) as ChatRoomResponse | null;
+      if (!res.ok || !result?.success || !result.chatRoom) return;
+      const el = scrollRef.current;
+      restoreRef.current = el ? { height: el.scrollHeight, top: el.scrollTop } : null;
+      setLocalMessages((prev) => mergeMessages(prev, result.chatRoom!.messages));
+      setOlderPagination({
+        nextCursor: result.pagination?.nextCursor ?? null,
+        hasMore: Boolean(result.pagination?.hasMore),
       });
     } finally {
-      loadingOlderRef.current = false;
       setLoadingOlder(false);
     }
   };
 
-  const handleScroll = () => {
-    const container = chatContainerRef.current;
-    if (!container) return;
+  const resizeComposer = useCallback(() => {
+    const el = textareaRef.current;
+    if (!el) return;
+    el.style.height = "auto";
+    el.style.height = `${Math.min(el.scrollHeight, COMPOSER_MAX_HEIGHT)}px`;
+  }, []);
 
-    const { scrollTop, scrollHeight, clientHeight } = container;
-    setIsAtBottom(scrollHeight - scrollTop - clientHeight < 50);
+  useLayoutEffect(() => {
+    resizeComposer();
+  }, [text, composerLocked, resizeComposer]);
 
-    if (scrollTop < 80 && hasMoreOlder && !loadingOlder) {
-      loadOlderMessages();
+  const canSend = Boolean(text.trim()) && !composerLocked && !sending && !imageUploading;
+
+  const submitText = async () => {
+    const value = text.trim();
+    if (!value || composerLocked || sending || imageUploading) return;
+    // 누르는 즉시 입력창을 비운다. 실패하면 되돌린다(그사이 새로 입력했으면 유지).
+    setText("");
+    try {
+      const result = await sendMessage({ data: { type: "TEXT", message: value } });
+      if (!result?.success || !result.message) {
+        setText((prev) => prev || value);
+        // 차단·탈퇴 상대(403)는 서버 문구를 그대로 보여준다.
+        toast.error(result?.error || "메시지 전송에 실패했습니다.");
+        return;
+      }
+      forceBottomRef.current = true;
+      setLocalMessages((prev) => mergeMessages(prev, [result.message!]));
+      void mutate();
+      void globalMutate("/api/chat/chatList");
+    } catch {
+      setText((prev) => prev || value);
+      toast.error("메시지 전송에 실패했습니다.");
     }
   };
 
-  // 텍스트 메시지 전송
-  const onValid = async (form: Form) => {
-    const text = form.message.trim();
-    if (text.length < 1 || loading || imageUploading) return;
-    reset();
+  const handleFiles = async (fileList: FileList | null) => {
+    const files = fileList ? Array.from(fileList) : [];
+    if (fileInputRef.current) fileInputRef.current.value = "";
+    if (!roomId || files.length === 0 || imageUploading || composerLocked) return;
 
-    sendMessage({
-      data: { type: "TEXT", message: text },
-      onCompleted(result) {
-        if (!result?.success || !result.message) return;
-        setMessages((prev) => mergeMessages(prev, [result.message!]));
-        scrollToBottom();
-        mutate();
-      },
-    });
-  };
-
-  // 이미지 메시지 전송
-  const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file || imageUploading) return;
-
+    const { toSend, summary } = planImageUploads(files);
     setImageUploading(true);
-
     try {
-      // 1. Cloudflare direct upload URL 발급
-      const uploadUrlRes = await authFetch("/api/files");
-      const fileUploadInfo: FileUploadUrlResponse = await uploadUrlRes.json();
-      const uploadURL = fileUploadInfo.uploadURL;
-      const preIssuedImageId = fileUploadInfo.id;
-      if (!uploadUrlRes.ok || !uploadURL) {
-        throw new Error("이미지 업로드 URL 발급 실패");
+      // 장마다 IMAGE 메시지 1개씩 순차 전송. 한 장이 실패해도 나머지는 계속 보낸다.
+      for (let index = 0; index < toSend.length; index += 1) {
+        const file = toSend[index];
+        try {
+          const imageId = await uploadChatImage(file);
+          const sent = await sendMessage({ data: { type: "IMAGE", image: imageId } });
+          if (!sent?.success || !sent.message) {
+            summary.failed += 1;
+            if (sent?.error) summary.serverError = sent.error;
+            // 차단·탈퇴 상대(403)에게는 남은 사진도 보낼 수 없으니 멈춘다.
+            if (sent?.status === 403) {
+              summary.failed += toSend.length - index - 1;
+              break;
+            }
+            continue;
+          }
+          summary.sent += 1;
+          forceBottomRef.current = true;
+          setLocalMessages((prev) => mergeMessages(prev, [sent.message!]));
+        } catch {
+          summary.failed += 1;
+        }
       }
-
-      // 2. Cloudflare에 이미지 업로드
-      const formData = new FormData();
-      formData.append("file", file);
-      const uploadRes = await fetch(uploadURL, { method: "POST", body: formData });
-      const uploadResult: CloudflareUploadResponse = await uploadRes.json();
-      if (!uploadRes.ok || !uploadResult.success) {
-        throw new Error("이미지 업로드 실패");
-      }
-      const finalImageId = uploadResult.result?.id || preIssuedImageId;
-      if (!finalImageId) {
-        throw new Error("업로드된 이미지 ID를 확인할 수 없습니다.");
-      }
-
-      // 3. 서버에 이미지 메시지 전송
-      sendMessage({
-        data: { type: "IMAGE", image: finalImageId },
-        onCompleted(result) {
-          if (!result?.success || !result.message) return;
-          setMessages((prev) => mergeMessages(prev, [result.message!]));
-          scrollToBottom();
-          mutate();
-        },
-      });
-    } catch (error) {
-      console.error("이미지 업로드 실패:", error);
-      alert("이미지 업로드에 실패했습니다.");
     } finally {
       setImageUploading(false);
-      // 파일 인풋 초기화
-      if (fileInputRef.current) {
-        fileInputRef.current.value = "";
-      }
+    }
+
+    if (summary.sent > 0) {
+      void mutate();
+      void globalMutate("/api/chat/chatList");
+    }
+    const notices = imageUploadNotices(summary);
+    if (notices.length > 0) {
+      toast.error("이미지 업로드", {
+        description: <span className="whitespace-pre-line">{notices.join("\n")}</span>,
+      });
     }
   };
 
-  useEffect(() => {
-    if (!data?.success || !data.chatRoom) return;
+  const goBack = () => {
+    if (typeof window !== "undefined" && window.history.length > 1) router.back();
+    else router.push("/chat");
+  };
 
-    const incoming = data.chatRoom.messages || [];
-    if (!initializedRef.current) {
-      setMessages(incoming);
-      setOlderCursor(data.pagination?.nextCursor ?? null);
-      setHasMoreOlder(Boolean(data.pagination?.hasMore));
-      initializedRef.current = true;
-      requestAnimationFrame(() => scrollToBottom("auto"));
-      return;
-    }
+  const sheetActions: ActionSheetAction[] = partner
+    ? [
+        { key: "report", label: "신고하기", onSelect: () => setReportOpen(true) },
+        partnerBlocked
+          ? { key: "unblock", label: "차단 해제", onSelect: () => void unblock(partner.id) }
+          : {
+              key: "block",
+              label: "차단하기",
+              destructive: true,
+              onSelect: () => setBlockTarget({ id: partner.id, name: partner.name }),
+            },
+      ]
+    : [];
 
-    setMessages((prev) => mergeMessages(prev, incoming));
-    if (isAtBottom) {
-      requestAnimationFrame(() => scrollToBottom("auto"));
-    }
-  }, [data?.chatRoom?.messages, data?.pagination, data?.success, isAtBottom]);
-
-  // 상대방 이름을 타이틀로 설정
-  useEffect(() => {
-    const _title = data?.chatRoom?.chatRoomMembers.find(
-      (member) => member.user.id !== user?.id
-    )?.user.name;
-    setTitle(_title ?? "");
-  }, [data, user?.id]);
-
-  // 메시지 목록이 갱신되면 읽음 상태를 서버에 반영해 뱃지 카운트를 동기화한다.
-  useEffect(() => {
-    if (!data?.chatRoom || messages.length === 0) return;
-    const latestMessageId = messages[messages.length - 1]?.id;
-    if (!latestMessageId) return;
-
-    // 같은 채팅방/같은 최신 메시지 기준으로는 중복 읽음 호출을 막는다.
-    const syncKey = `${data.chatRoom.id}-${latestMessageId}`;
-    if (lastReadSyncKeyRef.current === syncKey) return;
-    lastReadSyncKeyRef.current = syncKey;
-
-    markAsRead({
-      data: {},
-      onCompleted(result) {
-        if (result?.success) {
-          globalMutate("/api/chat/chatList");
-        }
-      },
-    });
-  }, [messages, data?.chatRoom?.id, markAsRead, globalMutate]);
-
-  // 같은 발신자의 연속 메시지는 아바타/시간 노출을 묶어 채팅 가독성을 높인다.
-  const renderedItems = useMemo(() => {
-    const items: Array<
-      | { type: "divider"; key: string; label: string }
-      | {
-          type: "message";
-          key: string;
-          message: ChatMessage;
-          reversed: boolean;
-          showAvatar: boolean;
-          showTime: boolean;
-        }
-    > = [];
-
-    messages.forEach((message, index) => {
-      const prev = messages[index - 1];
-      const next = messages[index + 1];
-      const currentDate = new Date(message.createdAt);
-      const previousDate = prev ? new Date(prev.createdAt) : null;
-
-      if (!previousDate || !isSameDay(previousDate, currentDate)) {
-        items.push({
-          type: "divider",
-          key: `divider-${message.id}`,
-          label: getDateDividerLabel(currentDate),
-        });
-      }
-
-      const reversed = user?.id === message.user.id;
-      const grouped = isGroupedWithNext(message, next);
-      items.push({
-        type: "message",
-        key: `message-${message.id}`,
-        message,
-        reversed,
-        showAvatar: !reversed && !grouped,
-        showTime: !grouped,
-      });
-    });
-
-    return items;
-  }, [messages, user?.id]);
-
-  if (isLoading && !initializedRef.current) {
-    return (
-      <Layout canGoBack title={title} seoTitle="채팅방">
-        <SkeletonChatRoom />
-      </Layout>
-    );
-  }
+  const isError = (Boolean(error) && !data) || (data ? !data.success : false);
+  const isRoomLoading = isLoading && !data;
 
   return (
-    <Layout canGoBack title={title} seoTitle="채팅방">
-      <div className="relative h-[calc(100vh-4rem)] bg-gradient-to-b from-slate-50 via-white to-slate-50/70">
-        <div
-          ref={chatContainerRef}
-          onScroll={handleScroll}
-          className="h-full overflow-y-auto px-3 pb-28 pt-4 sm:px-4"
-        >
-          <div className="mx-auto w-full max-w-2xl">
-            {(hasMoreOlder || loadingOlder) && (
-              <div className="mb-2 flex justify-center">
+    <div className="fixed inset-0 flex justify-center bg-app-bg">
+      <div className="flex h-full w-full max-w-xl flex-col bg-app-bg">
+        {isError ? (
+          <>
+            <RoomHeader title="채팅방" onBack={goBack} />
+            <ChatCenterNotice
+              title={data?.error || (error instanceof Error ? error.message : "") || "채팅방을 불러오지 못했습니다."}
+              description="네트워크 상태를 확인한 뒤 다시 시도해 주세요."
+              action={{ label: "다시 시도", onClick: () => void mutate() }}
+            />
+          </>
+        ) : (
+          <>
+            <RoomHeader title={title} onBack={goBack} onMore={canModerate ? () => setSheetOpen(true) : undefined} />
+
+            <div ref={scrollRef} onScroll={handleScroll} className="min-h-0 flex-1 overflow-y-auto overscroll-contain">
+              {isRoomLoading ? (
+                <SkeletonChatRoom />
+              ) : messages.length === 0 ? (
+                <div className="flex h-full items-center justify-center">
+                  <p className="text-[14px] text-app-muted">아직 대화가 없습니다.</p>
+                </div>
+              ) : (
+                <div className="px-4 pb-2 pt-4">
+                  {hasMoreOlder || loadingOlder ? (
+                    <div className="mb-3 flex justify-center">
+                      <button
+                        type="button"
+                        onClick={() => void loadOlder()}
+                        disabled={loadingOlder || !hasMoreOlder}
+                        className="h-8 rounded-2xl bg-app-surface px-3.5 text-[13px] font-semibold text-app-sub disabled:opacity-60"
+                      >
+                        {loadingOlder ? "불러오는 중" : "이전 대화 보기"}
+                      </button>
+                    </div>
+                  ) : null}
+                  {items.map((item) => {
+                    if (item.type === "divider") {
+                      return (
+                        <p key={item.key} className="mb-4 mt-1.5 text-center text-[13px] text-app-muted">
+                          {item.label}
+                        </p>
+                      );
+                    }
+                    const last = item.messages[item.messages.length - 1];
+                    return (
+                      <ChatMessageGroup
+                        key={item.key}
+                        messages={item.messages}
+                        mine={item.mine}
+                        avatar={item.avatar}
+                        timeLabel={formatChatTime(last?.createdAt)}
+                        showReadReceipt={item.mine && readReceiptMessageId != null && last?.id === readReceiptMessageId}
+                        onOpenImage={setViewerImageId}
+                      />
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+
+            {/* 입력바: + 36 원형 · pill h40 r20 · 전송 28 원형 주황. 여러 줄이면 위로 늘어난다. */}
+            <form
+              onSubmit={(event) => {
+                event.preventDefault();
+                void submitText();
+              }}
+              className="flex shrink-0 items-end gap-2 border-t border-app-line bg-app-bg px-3 pb-[max(20px,calc(env(safe-area-inset-bottom)+8px))] pt-2"
+            >
+              <button
+                type="button"
+                onClick={() => fileInputRef.current?.click()}
+                disabled={imageUploading || composerLocked}
+                aria-label="사진 보내기"
+                className={cn(
+                  "mb-0.5 grid h-9 w-9 shrink-0 place-items-center rounded-full bg-app-surface text-app-sub",
+                  imageUploading && "opacity-60"
+                )}
+              >
+                {imageUploading ? (
+                  <span className="h-4 w-4 animate-spin rounded-full border-2 border-app-caption border-t-transparent" />
+                ) : (
+                  <PlusIcon />
+                )}
+              </button>
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept="image/*"
+                multiple
+                className="hidden"
+                onChange={(event) => void handleFiles(event.target.files)}
+              />
+
+              <div className="flex min-h-[40px] flex-1 items-end rounded-[20px] bg-app-surface pl-4 pr-2">
+                {/* 차단·탈퇴 상대면 안내 placeholder 가 보이게 비워 둔다(차단 해제하면 입력하던 글이 돌아온다). */}
+                <textarea
+                  ref={textareaRef}
+                  rows={1}
+                  value={composerLocked ? "" : text}
+                  onChange={(event) => setText(event.target.value)}
+                  onKeyDown={(event) => {
+                    if (event.key === "Enter" && !event.shiftKey && !event.nativeEvent.isComposing) {
+                      event.preventDefault();
+                      void submitText();
+                    }
+                  }}
+                  disabled={composerLocked}
+                  placeholder={composerPlaceholder({ deleted: partnerDeleted, blocked: partnerBlocked })}
+                  aria-label="메시지 입력"
+                  className="max-h-[112px] min-h-[40px] flex-1 resize-none border-0 bg-transparent p-0 py-2.5 text-[15px] leading-5 text-app-text outline-none placeholder:text-app-caption focus:ring-0 disabled:cursor-not-allowed"
+                />
                 <button
-                  type="button"
-                  onClick={loadOlderMessages}
-                  disabled={loadingOlder || !hasMoreOlder}
-                  className="rounded-full border border-slate-200 bg-white px-3 py-1.5 text-xs font-semibold text-slate-500 shadow-sm transition-colors hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-60"
+                  type="submit"
+                  disabled={!canSend}
+                  aria-label="메시지 전송"
+                  className={cn(
+                    "mb-1.5 grid h-7 w-7 shrink-0 place-items-center rounded-full bg-app-brand text-white",
+                    !canSend && "opacity-40"
+                  )}
                 >
-                  {loadingOlder ? "이전 메시지 불러오는 중..." : "이전 대화 보기"}
+                  <SendIcon />
                 </button>
               </div>
-            )}
-
-            <div className="space-y-1.5">
-              {renderedItems.map((item) => {
-                if (item.type === "divider") {
-                  return (
-                    <div key={item.key} className="my-3 flex justify-center">
-                      <span className="rounded-full border border-slate-200 bg-white px-2.5 py-1 text-[11px] font-semibold text-slate-400 shadow-sm">
-                        {item.label}
-                      </span>
-                    </div>
-                  );
-                }
-
-                return (
-                  <div key={item.key}>
-                    <Message
-                      avatarUrl={item.message.user.avatar}
-                      message={item.message.message}
-                      type={item.message.type}
-                      image={item.message.image}
-                      reversed={item.reversed}
-                      userId={item.message.user.id}
-                      createdAt={item.message.createdAt}
-                      showAvatar={item.showAvatar}
-                      showTime={item.showTime}
-                    />
-                  </div>
-                );
-              })}
-              <div ref={messagesEndRef} />
-            </div>
-          </div>
-        </div>
-
-        {!isAtBottom && (
-          <button
-            type="button"
-            onClick={() => scrollToBottom("smooth")}
-            className="fixed bottom-[88px] left-1/2 z-20 -translate-x-1/2 rounded-full bg-slate-900 px-3.5 py-2 text-xs font-semibold text-white shadow-lg transition-colors hover:bg-slate-800"
-          >
-            최신 메시지로 이동
-          </button>
+            </form>
+          </>
         )}
-
-        {/* 메시지 입력 폼 */}
-        <form
-          onSubmit={handleSubmit(onValid)}
-          className="fixed inset-x-0 bottom-0 z-20 border-t border-slate-200/80 bg-white/92 backdrop-blur"
-        >
-          <div className="mx-auto flex w-full max-w-2xl items-end gap-2 px-3 pb-[calc(10px+env(safe-area-inset-bottom))] pt-2.5 sm:px-4">
-            {/* 이미지 첨부 버튼 */}
-            <button
-              type="button"
-              onClick={() => fileInputRef.current?.click()}
-              disabled={imageUploading}
-              className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-full border border-slate-200 bg-white text-slate-500 shadow-sm transition-colors hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-60"
-              aria-label="이미지 첨부"
-            >
-              {imageUploading ? (
-                <svg
-                  className="h-5 w-5 animate-spin text-slate-400"
-                  fill="none"
-                  viewBox="0 0 24 24"
-                >
-                  <circle
-                    className="opacity-25"
-                    cx="12"
-                    cy="12"
-                    r="10"
-                    stroke="currentColor"
-                    strokeWidth="4"
-                  />
-                  <path
-                    className="opacity-75"
-                    fill="currentColor"
-                    d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"
-                  />
-                </svg>
-              ) : (
-                <svg
-                  className="h-5 w-5"
-                  fill="none"
-                  stroke="currentColor"
-                  viewBox="0 0 24 24"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth="2"
-                    d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"
-                  />
-                </svg>
-              )}
-            </button>
-            <input
-              ref={fileInputRef}
-              type="file"
-              accept="image/png, image/jpeg, image/jpg, image/webp"
-              className="hidden"
-              onChange={handleImageUpload}
-            />
-
-            {/* 텍스트 입력 */}
-            <div className="relative flex-1">
-              <input
-                {...register("message")}
-                type="text"
-                className="h-11 w-full rounded-2xl border border-slate-200 bg-slate-50 pl-4 pr-12 text-sm text-slate-700 outline-none transition-all placeholder:text-slate-400 focus:border-primary/40 focus:bg-white focus:ring-2 focus:ring-primary/15"
-                placeholder="메시지를 입력하세요"
-                required
-              />
-              <button
-                type="submit"
-                disabled={loading || imageUploading || !messageText.trim()}
-                className={cn(
-                  "absolute right-1.5 top-1/2 flex h-8 w-8 -translate-y-1/2 items-center justify-center rounded-full text-white shadow-sm transition-colors",
-                  loading || imageUploading || !messageText.trim()
-                    ? "cursor-not-allowed bg-slate-300"
-                    : "bg-slate-900 hover:bg-slate-800"
-                )}
-                aria-label="메시지 전송"
-              >
-                <svg
-                  className="h-4 w-4"
-                  fill="none"
-                  stroke="currentColor"
-                  viewBox="0 0 24 24"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth="2"
-                    d="M12 5l7 7-7 7M5 12h14"
-                  />
-                </svg>
-              </button>
-            </div>
-          </div>
-        </form>
       </div>
-    </Layout>
+
+      <ImageLightbox
+        images={viewerImageId ? [makeImageUrl(viewerImageId, "public")] : []}
+        isOpen={Boolean(viewerImageId)}
+        currentIndex={0}
+        onClose={() => setViewerImageId(null)}
+        onIndexChange={() => undefined}
+        altPrefix="채팅 이미지"
+      />
+      <ActionSheet open={sheetOpen} onClose={() => setSheetOpen(false)} actions={sheetActions} />
+      <ReportSheet
+        open={reportOpen}
+        targetType="CHAT_ROOM"
+        targetId={room?.id ?? null}
+        onClose={() => setReportOpen(false)}
+      />
+      <BlockConfirmDialog target={blockTarget} onClose={() => setBlockTarget(null)} />
+    </div>
   );
 };
 

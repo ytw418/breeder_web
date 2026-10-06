@@ -1,582 +1,325 @@
 "use client";
 
-import { authFetch } from "@libs/client/authFetch";
-import { useEffect, useRef, useState } from "react";
-import { useForm } from "react-hook-form";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import Link from "next/link";
-import useSWR from "swr";
+import useSWR, { useSWRConfig } from "swr";
+
 import Image from "@components/atoms/Image";
 import Layout from "@components/features/MainLayout";
-import { Button } from "@components/ui/button";
-import { Input } from "@components/ui/input";
-import { Textarea } from "@components/ui/textarea";
+import { PriceInput } from "@components/app/PriceInput";
 import useMutation from "hooks/useMutation";
 import useUser from "hooks/useUser";
+import { useConfirmLeave } from "hooks/useConfirmLeave";
 import { cn, makeImageUrl } from "@libs/client/utils";
-import { toAuctionPath } from "@libs/auction-route";
 import { toast } from "@libs/client/toast";
+import { absoluteUrl, copyText } from "@libs/client/share";
+import { toAuctionPath } from "@libs/auction-route";
 import {
-  AUCTION_EXTENSION_MS,
-  AUCTION_EXTENSION_WINDOW_MS,
+  AUCTION_HIGH_PRICE_REQUIRE_CONTACT,
   AUCTION_MIN_START_PRICE,
   AUCTION_PHOTOS_MAX,
   getBidIncrement,
+  getPresetEndAtMs,
+  isAuctionDurationValid,
 } from "@libs/auctionRules";
-import { getAuctionErrorMessage } from "@libs/client/auctionErrorMessage";
+import { getAuctionResultMessage } from "@libs/client/auctionErrorMessage";
 import { TOP_LEVEL_CATEGORIES, getSubcategories } from "@libs/categoryTaxonomy";
-import { CreateAuctionResponse } from "pages/api/auctions";
-import { BloodlineCardsResponse } from "@libs/shared/bloodline-card";
+import type { CreateAuctionResponse } from "pages/api/auctions";
+import type { BloodlineCardsResponse } from "@libs/shared/bloodline-card";
+import {
+  AgreeRow,
+  BottomCta,
+  CenterModal,
+  ChipRow,
+  DURATION_PRESETS,
+  ErrorText,
+  FIELD_INPUT_CLASS,
+  FIELD_TEXTAREA_CLASS,
+  FieldLabel,
+  FormChip,
+  HelpText,
+  PhotoAddTile,
+  PhotoTile,
+  SheetButton,
+  fieldBorder,
+  formatConfirmDateTime,
+  uploadImageFile,
+} from "../AuctionFormParts";
 
-interface AuctionForm {
-  title: string;
-  description: string;
-  category: string;
-  startPrice: number;
-  endAt: string;
-  sellerPhone: string;
-  sellerEmail: string;
-  sellerBlogUrl: string;
-  sellerCafeNick: string;
-  sellerBandNick: string;
-  sellerTrustNote: string;
-}
+type TextKey =
+  | "title"
+  | "description"
+  | "sellerPhone"
+  | "sellerEmail"
+  | "sellerBlogUrl"
+  | "sellerCafeNick"
+  | "sellerBandNick"
+  | "sellerTrustNote";
+type FormState = Record<TextKey, string>;
+type ErrorKey = "photos" | "category" | "title" | "description" | "startPrice" | "agreement" | "duration";
+type ErrorState = Partial<Record<ErrorKey, string>>;
 
-interface AuctionCreatePayload extends AuctionForm {
-  title: string;
-  description: string;
+interface CreateAuctionPayload extends FormState {
   category: string;
   photos: string[];
   sellerProofImage: string | null;
   startPrice: number;
+  endAt: string;
   bloodlineRootId: number | null;
 }
 
-interface PendingCreateSubmission {
-  requestData: AuctionCreatePayload;
-  signature: string;
-}
+const initialForm: FormState = {
+  title: "",
+  description: "",
+  sellerPhone: "",
+  sellerEmail: "",
+  sellerBlogUrl: "",
+  sellerCafeNick: "",
+  sellerBandNick: "",
+  sellerTrustNote: "",
+};
 
-type CustomFieldErrorKey = "photos" | "category" | "agreement" | "duration";
-type CustomFieldErrors = Partial<Record<CustomFieldErrorKey, string>>;
-
-/** 경매 기간 프리셋 */
-const DURATION_PRESETS = [
-  { label: "1시간", hours: 1 },
-  { label: "3시간", hours: 3 },
-  { label: "24시간", hours: 24 },
-  { label: "48시간", hours: 48 },
-  { label: "72시간", hours: 72 },
-];
 const TOOL_FIXED_CATEGORY = "기타";
+const normalizeText = (value: string) => value.trim();
+const toIsoPresetEndAt = (hours: number) => new Date(getPresetEndAtMs(hours)).toISOString();
 
-const normalizeSignatureText = (value: unknown) =>
-  typeof value === "string" ? value.trim() : "";
-
-const toDateTimeLocalInputValue = (date: Date) => {
-  const localDate = new Date(date.getTime() - date.getTimezoneOffset() * 60000);
-  return localDate.toISOString().slice(0, 16);
-};
-
-const toIsoDateTimeValue = (value: string) => {
-  const date = new Date(value);
-  return Number.isNaN(date.getTime()) ? "" : date.toISOString();
-};
-
-const getPresetEndAtValue = (hours: number) => {
-  const base = new Date();
-  // datetime-local은 분 단위로 저장되므로 올림 처리해 1시간 프리셋 경계 오류를 방지한다.
-  if (base.getSeconds() > 0 || base.getMilliseconds() > 0) {
-    base.setMinutes(base.getMinutes() + 1);
-  }
-  base.setSeconds(0, 0);
-  const endDate = new Date(base.getTime() + hours * 60 * 60 * 1000);
-  return toDateTimeLocalInputValue(endDate);
-};
-
-const formatConfirmDateTime = (value: string) => {
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return value;
-  return date.toLocaleString("ko-KR", {
-    year: "numeric",
-    month: "2-digit",
-    day: "2-digit",
-    hour: "2-digit",
-    minute: "2-digit",
-  });
-};
-
-const buildSubmissionSignature = (requestData: AuctionCreatePayload) =>
-  JSON.stringify({
-    title: normalizeSignatureText(requestData.title),
-    description: normalizeSignatureText(requestData.description),
-    category: normalizeSignatureText(requestData.category),
-    startPrice: Number(requestData.startPrice),
-    endAt: normalizeSignatureText(requestData.endAt),
-    photos: requestData.photos.map((photo) => normalizeSignatureText(photo)),
-    sellerPhone: normalizeSignatureText(requestData.sellerPhone),
-    sellerEmail: normalizeSignatureText(requestData.sellerEmail),
-    sellerBlogUrl: normalizeSignatureText(requestData.sellerBlogUrl),
-    sellerCafeNick: normalizeSignatureText(requestData.sellerCafeNick),
-    sellerBandNick: normalizeSignatureText(requestData.sellerBandNick),
-    sellerTrustNote: normalizeSignatureText(requestData.sellerTrustNote),
-    sellerProofImage: normalizeSignatureText(requestData.sellerProofImage),
-    bloodlineRootId: requestData.bloodlineRootId,
-  });
+const buildSignature = (payload: CreateAuctionPayload) =>
+  JSON.stringify({ ...payload, endAt: undefined });
 
 const CreateAuctionClient = () => {
   const router = useRouter();
   const pathname = usePathname();
+  const { mutate: globalMutate } = useSWRConfig();
   const { user, isLoading: isUserLoading } = useUser();
+  const isToolRoute = Boolean(pathname?.startsWith("/tool"));
+  const withBasePath = (path: string) => (isToolRoute ? `/tool${path}` : path);
+  const loginPath = isToolRoute ? "/tool/login" : "/auth/login";
+
+  const [form, setForm] = useState<FormState>(initialForm);
+  const [startPrice, setStartPrice] = useState<number | null>(null);
   const [photos, setPhotos] = useState<string[]>([]);
   const [sellerProofImage, setSellerProofImage] = useState<string | null>(null);
-  const [uploading, setUploading] = useState(false);
-  const [proofUploading, setProofUploading] = useState(false);
-  const [selectedCategory, setSelectedCategory] = useState("");
+  const [selectedCategory, setSelectedCategory] = useState(isToolRoute ? TOOL_FIXED_CATEGORY : "");
   const [selectedSubcategory, setSelectedSubcategory] = useState("");
+  const [selectedBloodlineRootId, setSelectedBloodlineRootId] = useState("");
   const [selectedDuration, setSelectedDuration] = useState<number | null>(null);
   const [agreedAuctionNotice, setAgreedAuctionNotice] = useState(false);
   const [agreedDisputePolicy, setAgreedDisputePolicy] = useState(false);
-  const [shareModalOpen, setShareModalOpen] = useState(false);
+  const [errors, setErrors] = useState<ErrorState>({});
+  const [uploading, setUploading] = useState(false);
+  const [proofUploading, setProofUploading] = useState(false);
+  const [confirmPayload, setConfirmPayload] = useState<CreateAuctionPayload | null>(null);
+  const [shareOpen, setShareOpen] = useState(false);
   const [createdAuctionId, setCreatedAuctionId] = useState<number | null>(null);
-  const [createdAuctionTitle, setCreatedAuctionTitle] = useState<string>("");
-  const [lastCreatedSignature, setLastCreatedSignature] = useState<
-    string | null
-  >(null);
-  const [confirmModalOpen, setConfirmModalOpen] = useState(false);
-  const [pendingSubmission, setPendingSubmission] =
-    useState<PendingCreateSubmission | null>(null);
-  const [customFieldErrors, setCustomFieldErrors] = useState<CustomFieldErrors>(
-    {},
-  );
-  const [selectedBloodlineRootId, setSelectedBloodlineRootId] =
-    useState<string>("");
+  const [createdAuctionTitle, setCreatedAuctionTitle] = useState("");
+  const [lastCreatedSignature, setLastCreatedSignature] = useState<string | null>(null);
+  const [nowTick, setNowTick] = useState(() => Date.now());
+  // 확인 → 응답 사이 두 번 눌러도 요청이 한 번만 나가게 동기 잠금(상태 반영 전 연타 대비).
+  const submitLockRef = useRef(false);
 
-  const photosSectionRef = useRef<HTMLDivElement | null>(null);
-  const categorySectionRef = useRef<HTMLDivElement | null>(null);
-  const agreementSectionRef = useRef<HTMLDivElement | null>(null);
-  const durationSectionRef = useRef<HTMLDivElement | null>(null);
+  const [createAuction, { loading: submitting }] = useMutation<
+    CreateAuctionResponse & { message?: string; status?: number }
+  >("/api/auctions");
+  const { data: bloodlineData } = useSWR<BloodlineCardsResponse>(user?.id ? "/api/bloodline-cards" : null);
 
-  const {
-    register,
-    handleSubmit,
-    setValue,
-    watch,
-    formState: { errors },
-  } = useForm<AuctionForm>();
-  const { data: bloodlineData } = useSWR<BloodlineCardsResponse>(
-    user?.id ? "/api/bloodline-cards" : null,
-  );
-
-  const [createAuction, { loading }] =
-    useMutation<CreateAuctionResponse>("/api/auctions");
-  const watchedStartPrice = Number(watch("startPrice") || 0);
-  const watchedEndAt = watch("endAt");
-  const currentBidIncrement = getBidIncrement(watchedStartPrice);
-  const extensionMinutes = Math.floor(AUCTION_EXTENSION_MS / (60 * 1000));
-  const extensionWindowMinutes = Math.floor(
-    AUCTION_EXTENSION_WINDOW_MS / (60 * 1000),
-  );
-  const subcategories = selectedCategory
-    ? getSubcategories(selectedCategory)
-    : [];
-  const bloodlineOptions = (
-    bloodlineData?.myBloodlines?.length
-      ? bloodlineData.myBloodlines
-      : bloodlineData?.ownedCards || []
-  ).filter((card) => card.cardType === "BLOODLINE");
-
-  const customErrorMessages = [
-    customFieldErrors.photos,
-    customFieldErrors.category,
-    customFieldErrors.agreement,
-    customFieldErrors.duration,
-  ].filter((message): message is string => Boolean(message));
-
-  const isToolRoute = pathname?.startsWith("/tool");
-  const withBasePath = (path: string) => (isToolRoute ? `/tool${path}` : path);
-  const categoryForSubmit = isToolRoute
-    ? TOOL_FIXED_CATEGORY
-    : selectedSubcategory || selectedCategory;
-  const loginPath = isToolRoute ? "/tool/login" : "/auth/login";
-  const loginHref = `${loginPath}?next=${encodeURIComponent(
-    withBasePath("/auctions/create"),
-  )}`;
-
+  // 비로그인은 로그인으로 보낸다(앱 LoginRedirect).
   useEffect(() => {
-    if (!isToolRoute) return;
-    if (selectedCategory === TOOL_FIXED_CATEGORY && !selectedSubcategory)
-      return;
-    setSelectedCategory(TOOL_FIXED_CATEGORY);
-    setSelectedSubcategory("");
-    setCustomFieldErrors((prev) => ({ ...prev, category: undefined }));
-  }, [isToolRoute, selectedCategory]);
-
-  if (isUserLoading) {
-    return (
-      <Layout canGoBack title="경매 생성하기" seoTitle="경매 생성하기">
-        <div className="flex min-h-[60vh] items-center justify-center">
-          <div className="h-8 w-8 animate-spin rounded-full border-2 border-slate-300 border-t-slate-700" />
-        </div>
-      </Layout>
-    );
-  }
-
-  if (!user) {
-    return (
-      <Layout canGoBack title="경매 생성하기" seoTitle="경매 생성하기">
-        <div className="relative min-h-[68vh] px-4 pt-6">
-          <div className="rounded-lg border border-slate-200 bg-white p-4">
-            <p className="text-sm font-semibold text-slate-900">
-              경매 등록 안내
-            </p>
-            <p className="mt-1.5 text-sm leading-relaxed text-slate-600">
-              경매 등록은 카카오 로그인 사용자만 가능합니다. 로그인 후 바로 등록
-              화면으로 이동합니다.
-            </p>
-          </div>
-        </div>
-        <div className="fixed inset-0 z-[80] flex items-center justify-center p-4">
-          <div className="absolute inset-0 bg-black/45" />
-          <div className="relative w-full max-w-sm rounded-lg border border-slate-200 bg-white p-5 shadow-xl">
-            <h2 className="text-lg font-bold text-slate-900">
-              로그인이 필요합니다
-            </h2>
-            <p className="mt-2 text-sm leading-relaxed text-slate-600">
-              경매 등록은 카카오 계정으로만 진행할 수 있습니다. 지금 로그인하면
-              경매 등록 화면으로 바로 이동합니다.
-            </p>
-            <div className="mt-4 grid gap-2">
-              <Link
-                href={loginHref}
-                className="inline-flex h-11 items-center justify-center rounded-lg bg-[#fee500] text-sm font-bold text-[#191919]"
-              >
-                카카오 로그인하기
-              </Link>
-              <button
-                type="button"
-                onClick={() =>
-                  router.push(isToolRoute ? "/tool" : withBasePath("/auctions"))
-                }
-                className="h-11 rounded-lg border border-slate-200 bg-white text-sm font-semibold text-slate-700"
-              >
-                {isToolRoute ? "도구 홈으로 가기" : "경매 목록으로 가기"}
-              </button>
-            </div>
-          </div>
-        </div>
-      </Layout>
-    );
-  }
-
-  /** 이미지 업로드 */
-  const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const files = e.target.files;
-    if (!files || files.length === 0) return;
-    if (photos.length + files.length > AUCTION_PHOTOS_MAX) {
-      toast.error(`이미지는 최대 ${AUCTION_PHOTOS_MAX}장까지 등록 가능합니다.`);
-      return;
+    if (!isUserLoading && !user) {
+      router.replace(`${loginPath}?next=${encodeURIComponent(withBasePath("/auctions/create"))}`);
     }
+     
+  }, [isUserLoading, user]);
 
+  // 선택한 프리셋의 종료 시각 표시는 1분마다 갱신한다(제출 시점에 다시 계산한다).
+  useEffect(() => {
+    if (selectedDuration === null) return;
+    const timer = setInterval(() => setNowTick(Date.now()), 30_000);
+    return () => clearInterval(timer);
+  }, [selectedDuration]);
+
+  const dirty =
+    !createdAuctionId &&
+    (photos.length > 0 ||
+      (!isToolRoute && Boolean(selectedCategory)) ||
+      startPrice !== null ||
+      Object.entries(form).some(([key, value]) => value !== initialForm[key as TextKey]));
+  const { leave, dialog: leaveDialog } = useConfirmLeave(dirty);
+
+  const currentBidIncrement = getBidIncrement(startPrice ?? 0);
+  const subcategories = !isToolRoute && selectedCategory ? getSubcategories(selectedCategory) : [];
+  const categoryForSubmit = isToolRoute ? TOOL_FIXED_CATEGORY : selectedSubcategory || selectedCategory;
+  const selectedEndAt = selectedDuration ? new Date(getPresetEndAtMs(selectedDuration, nowTick)).toISOString() : "";
+  const bloodlineOptions = useMemo(
+    () =>
+      (bloodlineData?.myBloodlines?.length ? bloodlineData.myBloodlines : bloodlineData?.ownedCards || []).filter(
+        (card) => card.cardType === "BLOODLINE"
+      ),
+    [bloodlineData]
+  );
+  const customErrorMessages = [
+    errors.photos,
+    errors.category,
+    errors.title,
+    errors.description,
+    errors.startPrice,
+    errors.agreement,
+    errors.duration,
+  ].filter((message): message is string => Boolean(message));
+  const busy = submitting || uploading || proofUploading;
+
+  const updateForm = (key: TextKey, value: string) => {
+    setForm((prev) => ({ ...prev, [key]: value }));
+    if (key === "title" || key === "description") setErrors((prev) => ({ ...prev, [key]: undefined }));
+  };
+
+  const handlePhotos = async (files: FileList) => {
+    if (uploading) return;
+    const remaining = AUCTION_PHOTOS_MAX - photos.length;
+    if (remaining <= 0) return;
+    if (files.length > remaining) toast.error(`이미지는 최대 ${AUCTION_PHOTOS_MAX}장까지 등록 가능합니다.`);
     setUploading(true);
     try {
-      for (const file of Array.from(files)) {
-        // Cloudflare Image upload
-        const urlRes = await authFetch("/api/files");
-        const urlData = await urlRes.json();
-
-        const form = new FormData();
-        form.append("file", file);
-
-        const uploadRes = await fetch(urlData.uploadURL, {
-          method: "POST",
-          body: form,
-        });
-        const uploadData = await uploadRes.json();
-
-        if (uploadData.success) {
-          setCustomFieldErrors((prev) => ({ ...prev, photos: undefined }));
-          setPhotos((prev) => [...prev, uploadData.result.id]);
-        }
+      // 한 장 올라갈 때마다 바로 담는다. 중간에 실패해도 앞서 올라간 사진은 남긴다.
+      for (const file of Array.from(files).slice(0, remaining)) {
+        const id = await uploadImageFile(file);
+        setPhotos((prev) => [...prev, id].slice(0, AUCTION_PHOTOS_MAX));
+        setErrors((prev) => ({ ...prev, photos: undefined }));
       }
-    } catch {
-      toast.error("이미지 업로드에 실패했습니다.");
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "이미지 업로드에 실패했습니다.");
     } finally {
       setUploading(false);
     }
   };
 
-  /** 이미지 제거 */
-  const handleRemoveImage = (index: number) => {
-    setPhotos((prev) => prev.filter((_, i) => i !== index));
-  };
-
-  const handleTrustProofUpload = async (
-    e: React.ChangeEvent<HTMLInputElement>,
-  ) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-
+  const handleProof = async (file: File | undefined) => {
+    if (!file || proofUploading) return;
     setProofUploading(true);
     try {
-      const urlRes = await authFetch("/api/files");
-      const urlData = await urlRes.json();
-
-      const form = new FormData();
-      form.append("file", file);
-
-      const uploadRes = await fetch(urlData.uploadURL, {
-        method: "POST",
-        body: form,
-      });
-      const uploadData = await uploadRes.json();
-      if (uploadData.success) {
-        setSellerProofImage(uploadData.result.id);
-      } else {
-        toast.error("프로필 인증 이미지 업로드에 실패했습니다.");
-      }
-    } catch {
-      toast.error("프로필 인증 이미지 업로드에 실패했습니다.");
+      setSellerProofImage(await uploadImageFile(file, "프로필 인증 이미지 업로드에 실패했습니다."));
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "프로필 인증 이미지 업로드에 실패했습니다.");
     } finally {
       setProofUploading(false);
     }
   };
 
-  /** 기간 프리셋 선택 */
-  const handleDurationPreset = (hours: number) => {
-    setCustomFieldErrors((prev) => ({ ...prev, duration: undefined }));
-    setSelectedDuration(hours);
-    setValue("endAt", getPresetEndAtValue(hours), { shouldValidate: true });
-  };
-
-  /** 제출 */
-  const scrollToFirstCustomError = (errors: CustomFieldErrors) => {
-    if (errors.photos) {
-      photosSectionRef.current?.scrollIntoView({
-        behavior: "smooth",
-        block: "center",
-      });
-      return;
-    }
-    if (errors.category) {
-      categorySectionRef.current?.scrollIntoView({
-        behavior: "smooth",
-        block: "center",
-      });
-      return;
-    }
-    if (errors.agreement) {
-      agreementSectionRef.current?.scrollIntoView({
-        behavior: "smooth",
-        block: "center",
-      });
-      return;
-    }
-    if (errors.duration) {
-      durationSectionRef.current?.scrollIntoView({
-        behavior: "smooth",
-        block: "center",
-      });
-    }
-  };
-
-  const validateCustomRequiredFields = ({
-    showToast,
-  }: {
-    showToast: boolean;
-  }) => {
-    const nextErrors: CustomFieldErrors = {};
-
-    if (photos.length === 0) {
-      nextErrors.photos = "최소 1장의 사진을 등록해주세요.";
-    }
-    if (!categoryForSubmit) {
-      nextErrors.category = "카테고리를 선택해주세요.";
+  const validate = () => {
+    const next: ErrorState = {};
+    if (photos.length === 0) next.photos = "최소 1장의 사진을 등록해주세요.";
+    if (!categoryForSubmit) next.category = "카테고리를 선택해주세요.";
+    if (!normalizeText(form.title)) next.title = "제목을 입력해주세요.";
+    if (!normalizeText(form.description)) next.description = "설명을 입력해주세요.";
+    if (startPrice === null || startPrice < AUCTION_MIN_START_PRICE) {
+      next.startPrice = `최소 ${AUCTION_MIN_START_PRICE.toLocaleString()}원 이상`;
     }
     if (!agreedAuctionNotice || !agreedDisputePolicy) {
-      nextErrors.agreement = "경매 주의사항 및 분쟁 정책 동의가 필요합니다.";
+      next.agreement = "경매 주의사항 및 분쟁 정책 동의가 필요합니다.";
     }
     if (selectedDuration === null) {
-      nextErrors.duration = "경매 기간 프리셋(1시간/3시간 등)을 선택해주세요.";
+      next.duration = "경매 기간 프리셋(1시간/3시간 등)을 선택해주세요.";
+    } else if (!isAuctionDurationValid(toIsoPresetEndAt(selectedDuration))) {
+      next.duration = "경매 기간은 등록 시점 기준 1시간~72시간 사이여야 합니다.";
     }
-
-    setCustomFieldErrors(nextErrors);
-
-    const firstErrorMessage =
-      nextErrors.photos ||
-      nextErrors.category ||
-      nextErrors.agreement ||
-      nextErrors.duration;
-
-    if (firstErrorMessage) {
-      if (showToast) {
-        toast.error(firstErrorMessage);
-      }
-      scrollToFirstCustomError(nextErrors);
-      return false;
+    if (
+      (startPrice ?? 0) >= AUCTION_HIGH_PRICE_REQUIRE_CONTACT &&
+      !normalizeText(form.sellerPhone) &&
+      !normalizeText(form.sellerEmail)
+    ) {
+      next.startPrice = `시작가 ${AUCTION_HIGH_PRICE_REQUIRE_CONTACT.toLocaleString()}원 이상 경매는 연락처(전화/이메일) 정보가 필요합니다.`;
     }
-
-    return true;
+    setErrors(next);
+    return Object.keys(next).length === 0;
   };
 
-  const onSubmit = (data: AuctionForm) => {
-    if (loading || confirmModalOpen) return;
-    if (!validateCustomRequiredFields({ showToast: true })) {
+  const buildPayload = (): CreateAuctionPayload => ({
+    title: normalizeText(form.title),
+    description: normalizeText(form.description),
+    category: categoryForSubmit,
+    photos,
+    sellerProofImage,
+    startPrice: startPrice ?? 0,
+    endAt: selectedDuration ? toIsoPresetEndAt(selectedDuration) : "",
+    sellerPhone: normalizeText(form.sellerPhone),
+    sellerEmail: normalizeText(form.sellerEmail),
+    sellerBlogUrl: normalizeText(form.sellerBlogUrl),
+    sellerCafeNick: normalizeText(form.sellerCafeNick),
+    sellerBandNick: normalizeText(form.sellerBandNick),
+    sellerTrustNote: normalizeText(form.sellerTrustNote),
+    bloodlineRootId: selectedBloodlineRootId ? Number(selectedBloodlineRootId) : null,
+  });
+
+  const submit = () => {
+    if (busy) return;
+    // 등록에 성공한 폼은 잠근다. 같은 폼으로 다시 등록하지 않는다.
+    if (createdAuctionId) {
+      toast.error("이미 등록된 경매입니다. 기존 경매를 공유하거나 수정해주세요.");
+      setShareOpen(true);
       return;
     }
-    if (selectedDuration === null) {
+    if (!validate()) {
+      toast.error("필수 항목을 확인해주세요.");
       return;
     }
+    const payload = buildPayload();
+    if (lastCreatedSignature === buildSignature(payload)) {
+      toast.error("동일한 내용의 경매는 다시 등록할 수 없습니다. 기존 경매를 공유하거나 수정해주세요.");
+      return;
+    }
+    setConfirmPayload(payload);
+  };
 
-    const normalizedEndAt = toIsoDateTimeValue(
-      getPresetEndAtValue(selectedDuration),
-    );
-    if (!normalizedEndAt) return;
-
-    const requestData = {
-      ...data,
-      title: normalizeSignatureText(data.title),
-      description: normalizeSignatureText(data.description),
-      endAt: normalizedEndAt,
-      category: categoryForSubmit,
-      bloodlineRootId: selectedBloodlineRootId
-        ? Number(selectedBloodlineRootId)
-        : null,
-      photos,
-      sellerProofImage,
-      startPrice: Number(data.startPrice),
+  const confirmCreate = async () => {
+    if (!confirmPayload || submitting || createdAuctionId || submitLockRef.current) return;
+    submitLockRef.current = true;
+    // 확인 창을 보는 사이 시간이 흘렀으니 종료 시각을 누른 시점 기준으로 다시 계산한다.
+    const payload = {
+      ...confirmPayload,
+      endAt: selectedDuration ? toIsoPresetEndAt(selectedDuration) : confirmPayload.endAt,
     };
-
-    const signature = buildSubmissionSignature(requestData);
-
-    if (lastCreatedSignature === signature) {
-      toast.error(
-        "동일한 내용의 경매는 다시 등록할 수 없습니다. 기존 경매를 공유하거나 수정해주세요.",
-      );
-      if (createdAuctionId) {
-        setShareModalOpen(true);
-      }
-      return;
-    }
-
-    setPendingSubmission({
-      requestData,
-      signature,
-    });
-    setConfirmModalOpen(true);
-  };
-
-  const onInvalid = () => {
-    validateCustomRequiredFields({ showToast: true });
-  };
-
-  const handleConfirmCreate = () => {
-    if (!pendingSubmission || loading) return;
-
-    const refreshedEndAt = selectedDuration
-      ? toIsoDateTimeValue(getPresetEndAtValue(selectedDuration))
-      : pendingSubmission.requestData.endAt;
-
-    if (!refreshedEndAt) return;
-
-    const refreshedRequestData = selectedDuration
-      ? {
-          ...pendingSubmission.requestData,
-          endAt: refreshedEndAt,
-        }
-      : pendingSubmission.requestData;
-    const refreshedSignature = buildSubmissionSignature(refreshedRequestData);
-
-    if (lastCreatedSignature === refreshedSignature) {
-      toast.error(
-        "동일한 내용의 경매는 다시 등록할 수 없습니다. 기존 경매를 공유하거나 수정해주세요.",
-      );
-      return;
-    }
-
-    createAuction({
-      data: refreshedRequestData,
-      onCompleted(result) {
-        if (result.success && result.auction?.id) {
-          setLastCreatedSignature(refreshedSignature);
-          setCreatedAuctionId(result.auction.id);
-          setCreatedAuctionTitle(result.auction.title || "");
-          setConfirmModalOpen(false);
-          setPendingSubmission(null);
-          setShareModalOpen(true);
-          toast.success("경매가 등록되었습니다. SNS에 공유해보세요!");
-        } else {
-          toast.error(
-            getAuctionErrorMessage(
-              result.errorCode,
-              result.error || "등록에 실패했습니다.",
-            ),
-          );
-        }
-      },
-      onError() {
-        toast.error("오류가 발생했습니다.");
-      },
-    });
-  };
-
-  const handleCancelConfirm = () => {
-    if (loading) return;
-    setConfirmModalOpen(false);
-  };
-
-  const getCreatedAuctionPath = () =>
-    createdAuctionId
-      ? withBasePath(toAuctionPath(createdAuctionId, createdAuctionTitle))
-      : "";
-
-  const getCreatedAuctionUrl = () => {
-    const path = getCreatedAuctionPath();
-    if (!path) return "";
-    if (typeof window === "undefined") return path;
-    return new URL(path, window.location.origin).toString();
-  };
-
-  const copyToClipboard = async (value: string) => {
-    if (!value) return;
-    if (navigator.clipboard?.writeText) {
-      await navigator.clipboard.writeText(value);
-      return;
-    }
-    const textarea = document.createElement("textarea");
-    textarea.value = value;
-    textarea.style.position = "fixed";
-    textarea.style.left = "-9999px";
-    document.body.appendChild(textarea);
-    textarea.focus();
-    textarea.select();
-    document.execCommand("copy");
-    document.body.removeChild(textarea);
-  };
-
-  const handleCopyAuctionLink = async () => {
     try {
-      const url = getCreatedAuctionUrl();
-      if (!url) {
-        toast.error("공유 링크를 생성하지 못했습니다.");
+      const result = await createAuction({ data: payload });
+      if (!result.success || !result.auction?.id) {
+        toast.error(getAuctionResultMessage(result, "경매 등록 중 오류가 발생했습니다."));
         return;
       }
-      await copyToClipboard(url);
-      toast.success("경매 링크가 복사되었습니다.");
+      setLastCreatedSignature(buildSignature(payload));
+      setCreatedAuctionId(result.auction.id);
+      setCreatedAuctionTitle(result.auction.title || "");
+      setConfirmPayload(null);
+      setShareOpen(true);
+      toast.success("경매가 등록되었습니다. SNS에 공유해보세요!");
+      void globalMutate((key) => typeof key === "string" && key.startsWith("/api/auctions"), undefined, {
+        revalidate: true,
+      });
     } catch {
-      toast.error("링크 복사에 실패했습니다.");
+      toast.error("네트워크 연결을 확인해 주세요.");
+    } finally {
+      submitLockRef.current = false;
     }
   };
 
-  const handleShareAuction = async () => {
-    const url = getCreatedAuctionUrl();
-    const path = getCreatedAuctionPath();
-    if (!url || !path) {
-      toast.error("공유 링크를 생성하지 못했습니다.");
-      return;
-    }
+  const createdPath = createdAuctionId ? withBasePath(toAuctionPath(createdAuctionId, createdAuctionTitle)) : "";
+
+  // 공유 창을 닫아도 폼에 남기지 않고 생성된 경매 상세로 보낸다(replace — 뒤로가기로 폼에 돌아오지 않게).
+  const moveToCreatedAuction = () => {
+    if (!createdPath) return;
+    setShareOpen(false);
+    leave(() => router.replace(createdPath));
+  };
+
+  const copyCreatedLink = async () => {
+    if (!createdPath) return;
+    if (await copyText(absoluteUrl(createdPath))) toast.success("경매 링크가 복사되었습니다.");
+    else toast.error("링크 복사에 실패했습니다.");
+  };
+
+  const shareCreated = async () => {
+    if (!createdPath) return;
+    const url = absoluteUrl(createdPath);
     try {
-      if (navigator.share) {
+      if (typeof navigator !== "undefined" && typeof navigator.share === "function") {
         await navigator.share({
           title: "브리디 경매",
           text: "30초면 만드는 경매 도구, 지금 바로 참여해보세요.",
@@ -585,603 +328,371 @@ const CreateAuctionClient = () => {
         toast.success("공유를 완료했습니다.");
         return;
       }
-      await copyToClipboard(url);
-      toast.info(
-        "이 기기에서는 바로 공유를 지원하지 않아 링크를 복사했습니다.",
-      );
+      if (await copyText(url)) toast.info("이 기기에서는 바로 공유를 지원하지 않아 링크를 복사했습니다.");
+      else toast.error("공유에 실패했습니다.");
     } catch (error) {
-      if (error instanceof Error && error.name === "AbortError") return;
+      if (error instanceof Error && error.name === "AbortError") {
+        toast.info("공유를 취소했습니다.");
+        return;
+      }
       toast.error("공유에 실패했습니다.");
     }
   };
 
-  const handleMoveToAuction = () => {
-    const path = getCreatedAuctionPath();
-    if (!path) return;
-    setShareModalOpen(false);
-    router.push(path);
-  };
+  if (isUserLoading || !user) {
+    return (
+      <Layout canGoBack title="경매 등록" seoTitle="경매 등록">
+        <div className="flex min-h-[60vh] items-center justify-center" role="status" aria-label="불러오는 중">
+          <span className="h-6 w-6 animate-spin rounded-full border-2 border-app-border border-t-app-brand" />
+        </div>
+      </Layout>
+    );
+  }
 
   return (
-    <Layout canGoBack title="경매 생성하기" seoTitle="경매 생성하기">
-      <form
-        onSubmit={handleSubmit(onSubmit, onInvalid)}
-        className="px-4 py-4 space-y-6 pb-28"
-      >
-        {/* 이미지 업로드 */}
-        <div ref={photosSectionRef}>
-          <label className="block text-sm font-semibold text-gray-900 mb-2">
-            사진 등록 <span className="text-red-500">*</span>
-            <span className="text-xs font-normal text-gray-400 ml-1">
-              ({photos.length}/{AUCTION_PHOTOS_MAX})
-            </span>
-          </label>
-          <div className="flex gap-2 overflow-x-auto pb-2">
-            {/* 추가 버튼 */}
-            {photos.length < AUCTION_PHOTOS_MAX && (
-              <label className="flex-shrink-0 w-20 h-20 rounded-lg border-2 border-dashed border-gray-300 flex items-center justify-center cursor-pointer hover:border-primary transition-colors">
-                <input
-                  type="file"
-                  accept="image/*"
-                  multiple
-                  onChange={handleImageUpload}
-                  className="hidden"
-                />
-                {uploading ? (
-                  <div className="w-5 h-5 border-2 border-primary border-t-transparent rounded-full animate-spin" />
-                ) : (
-                  <svg
-                    className="w-6 h-6 text-gray-400"
-                    fill="none"
-                    viewBox="0 0 24 24"
-                    stroke="currentColor"
-                  >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth="2"
-                      d="M12 6v6m0 0v6m0-6h6m-6 0H6"
-                    />
-                  </svg>
-                )}
-              </label>
-            )}
-            {/* 미리보기 */}
-            {photos.map((photo, i) => (
-              <div
-                key={photo}
-                className="relative flex-shrink-0 w-20 h-20 rounded-lg overflow-hidden"
-              >
-                <Image
-                  src={makeImageUrl(photo, "avatar")}
-                  className="w-full h-full object-cover"
-                  width={80}
-                  height={80}
-                  alt={`사진 ${i + 1}`}
-                />
-                <button
-                  type="button"
-                  onClick={() => handleRemoveImage(i)}
-                  className="absolute top-1 right-1 w-5 h-5 bg-black/60 rounded-full flex items-center justify-center"
-                >
-                  <svg
-                    className="w-3 h-3 text-white"
-                    fill="none"
-                    viewBox="0 0 24 24"
-                    stroke="currentColor"
-                  >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth="2"
-                      d="M6 18L18 6M6 6l12 12"
-                    />
-                  </svg>
-                </button>
-              </div>
+    <Layout canGoBack title="경매 등록" seoTitle="경매 등록">
+      <div className="flex flex-col gap-5 bg-app-bg px-5 pt-5 pb-[calc(140px+env(safe-area-inset-bottom))]">
+        {/* 사진 */}
+        <div>
+          <div className="flex gap-2 overflow-x-auto pt-1.5 pr-1.5 scrollbar-hide">
+            {photos.length < AUCTION_PHOTOS_MAX ? (
+              <PhotoAddTile
+                count={photos.length}
+                max={AUCTION_PHOTOS_MAX}
+                uploading={uploading}
+                onFiles={(files) => void handlePhotos(files)}
+              />
+            ) : null}
+            {photos.map((photo, index) => (
+              <PhotoTile
+                key={`${photo}-${index}`}
+                id={photo}
+                index={index}
+                onRemove={() => setPhotos((prev) => prev.filter((_, i) => i !== index))}
+              />
             ))}
           </div>
-          {customFieldErrors.photos ? (
-            <p className="mt-1 text-xs text-red-500">
-              {customFieldErrors.photos}
-            </p>
-          ) : null}
+          <ErrorText message={errors.photos} />
+        </div>
+
+        {/* 제목 */}
+        <div>
+          <FieldLabel label="제목" htmlFor="auction-title" />
+          <input
+            id="auction-title"
+            value={form.title}
+            onChange={(event) => updateForm("title", event.target.value)}
+            placeholder="예: 슈퍼 팻테일 게코 암컷 분양합니다"
+            className={cn(FIELD_INPUT_CLASS, fieldBorder(Boolean(errors.title)))}
+          />
+          <ErrorText message={errors.title} />
         </div>
 
         {/* 카테고리 */}
-        <div ref={categorySectionRef}>
-          <label className="block text-sm font-semibold text-gray-900 mb-2">
-            카테고리 <span className="text-red-500">*</span>
-          </label>
+        <div>
+          <FieldLabel label="카테고리" />
           {isToolRoute ? (
-            <div className="inline-flex rounded-lg bg-gray-900 px-3 py-1.5 text-sm font-medium text-white">
-              {TOOL_FIXED_CATEGORY}
-            </div>
+            <ChipRow>
+              <FormChip label={TOOL_FIXED_CATEGORY} active onClick={() => undefined} />
+            </ChipRow>
           ) : (
             <>
-              <div className="flex flex-wrap gap-2">
-                {TOP_LEVEL_CATEGORIES.map((cat) => (
-                  <button
-                    key={cat.id}
-                    type="button"
+              <ChipRow>
+                {TOP_LEVEL_CATEGORIES.map((category) => (
+                  <FormChip
+                    key={category.id}
+                    label={category.name}
+                    active={selectedCategory === category.id}
                     onClick={() => {
-                      setSelectedCategory(cat.id);
+                      setSelectedCategory(category.id);
                       setSelectedSubcategory("");
-                      setCustomFieldErrors((prev) => ({
-                        ...prev,
-                        category: undefined,
-                      }));
+                      setErrors((prev) => ({ ...prev, category: undefined }));
                     }}
-                    className={cn(
-                      "rounded-lg border px-3 py-1.5 text-sm font-semibold transition-colors",
-                      selectedCategory === cat.id
-                        ? "border-gray-900 bg-gray-900 text-white"
-                        : "border-gray-200 bg-white text-gray-600 hover:bg-gray-50",
-                    )}
-                  >
-                    {cat.name}
-                  </button>
+                  />
                 ))}
-              </div>
+              </ChipRow>
               {subcategories.length > 0 ? (
-                <div className="mt-2 flex flex-wrap gap-2">
+                <ChipRow className="mt-1.5">
                   {subcategories.map((subcategory) => (
-                    <button
+                    <FormChip
                       key={subcategory}
-                      type="button"
+                      label={subcategory}
+                      active={selectedSubcategory === subcategory}
                       onClick={() => {
                         setSelectedSubcategory(subcategory);
-                        setCustomFieldErrors((prev) => ({
-                          ...prev,
-                          category: undefined,
-                        }));
+                        setErrors((prev) => ({ ...prev, category: undefined }));
                       }}
-                      className={cn(
-                        "rounded-lg border px-3 py-1 text-xs font-semibold transition-colors",
-                        selectedSubcategory === subcategory
-                          ? "border-primary bg-primary text-white"
-                          : "border-slate-200 bg-white text-slate-500 hover:bg-slate-50",
-                      )}
-                    >
-                      {subcategory}
-                    </button>
+                    />
                   ))}
-                </div>
+                </ChipRow>
               ) : null}
             </>
           )}
-          {customFieldErrors.category ? (
-            <p className="mt-1 text-xs text-red-500">
-              {customFieldErrors.category}
-            </p>
-          ) : null}
+          <ErrorText message={errors.category} />
         </div>
 
+        {/* 설명 */}
         <div>
-          <label className="mb-2 block text-sm font-semibold text-gray-900">
-            연결 혈통카드{" "}
-            <span className="text-xs font-normal text-gray-400">(선택)</span>
-          </label>
+          <FieldLabel label="설명" htmlFor="auction-description" />
+          <textarea
+            id="auction-description"
+            value={form.description}
+            onChange={(event) => updateForm("description", event.target.value)}
+            placeholder="개체 정보, 사육 환경, 거래 방식 등 입찰자가 궁금할 내용을 적어주세요."
+            className={cn(FIELD_TEXTAREA_CLASS, "min-h-[160px]", fieldBorder(Boolean(errors.description)))}
+          />
+          <ErrorText message={errors.description} />
+        </div>
+
+        {/* 시작가 */}
+        <div>
+          <FieldLabel label="시작가" htmlFor="auction-start-price" />
+          <PriceInput
+            id="auction-start-price"
+            value={startPrice}
+            onChange={(value) => {
+              setStartPrice(value);
+              setErrors((prev) => ({ ...prev, startPrice: undefined }));
+            }}
+            prefix="₩"
+            placeholder="10,000"
+            className={errors.startPrice ? "border-app-danger" : undefined}
+          />
+          <ErrorText message={errors.startPrice} />
+        </div>
+
+        {/* 최소 입찰 단위 */}
+        <div>
+          <FieldLabel label="최소 입찰 단위" />
+          <div className="flex h-12 items-center rounded-lg border border-app-border bg-app-surface px-3.5 text-[15px] text-app-text">
+            ₩ {currentBidIncrement.toLocaleString()}
+          </div>
+          <HelpText>시작가에 따라 자동으로 정해져요.</HelpText>
+        </div>
+
+        {/* 종료 시각 */}
+        <div>
+          <FieldLabel label="종료 시각" />
+          <ChipRow>
+            {DURATION_PRESETS.map((preset) => (
+              <FormChip
+                key={preset.hours}
+                label={preset.label}
+                active={selectedDuration === preset.hours}
+                onClick={() => {
+                  setSelectedDuration(preset.hours);
+                  setNowTick(Date.now());
+                  setErrors((prev) => ({ ...prev, duration: undefined }));
+                }}
+              />
+            ))}
+          </ChipRow>
+          <div
+            className={cn(
+              "mt-2 flex h-12 items-center truncate rounded-lg border border-app-border bg-app-surface px-3.5 text-[15px]",
+              selectedEndAt ? "text-app-text" : "text-app-caption"
+            )}
+          >
+            {selectedEndAt ? formatConfirmDateTime(selectedEndAt) : "기간을 선택해주세요"}
+          </div>
+          <ErrorText message={errors.duration} />
+        </div>
+
+        {/* 연결 혈통카드(선택) */}
+        <div>
+          <FieldLabel label="연결 혈통카드" caption="선택" htmlFor="auction-bloodline" />
           <select
+            id="auction-bloodline"
             value={selectedBloodlineRootId}
             onChange={(event) => setSelectedBloodlineRootId(event.target.value)}
-            className="w-full rounded-md border border-gray-200 bg-white px-3 py-2 text-sm text-slate-700"
+            className={cn(FIELD_INPUT_CLASS, "border-app-border")}
           >
             <option value="">혈통 연결 안 함</option>
             {bloodlineOptions.map((card) => (
-              <option key={card.id} value={card.id}>
+              <option key={card.id} value={String(card.id)}>
                 {card.name}
                 {card.speciesType ? ` · ${card.speciesType}` : ""}
               </option>
             ))}
           </select>
-          <p className="mt-1 text-xs text-slate-500">
-            혈통을 연결하면 해당 경매가 인기 혈통 랭킹 집계에 반영됩니다.
-          </p>
+          <HelpText>혈통을 연결하면 해당 경매가 인기 혈통 랭킹 집계에 반영돼요.</HelpText>
         </div>
 
-        {/* 제목 */}
+        {/* 판매자 신뢰 정보(선택) */}
         <div>
-          <label className="block text-sm font-semibold text-gray-900 mb-2">
-            제목 <span className="text-red-500">*</span>
-          </label>
-          <Input
-            {...register("title", { required: "제목을 입력해주세요." })}
-            placeholder="예: BMW520d 100만원 시작가 경매합니다."
-          />
-          {errors.title && (
-            <p className="text-xs text-red-500 mt-1">{errors.title.message}</p>
-          )}
-        </div>
-
-        {/* 설명 */}
-        <div>
-          <label className="block text-sm font-semibold text-gray-900 mb-2">
-            상세 설명 <span className="text-red-500">*</span>
-          </label>
-          <Textarea
-            {...register("description", { required: "설명을 입력해주세요." })}
-            placeholder="경매 내용을 상세하게 적어주세요. 물품 정보, 거래 내역, 상태 등을 자세히 적어주세요."
-            rows={5}
-          />
-          {errors.description && (
-            <p className="text-xs text-red-500 mt-1">
-              {errors.description.message}
-            </p>
-          )}
-        </div>
-
-        {/* 시작가 */}
-        <div>
-          <div className="mb-2 flex items-center justify-between gap-2">
-            <label className="block text-sm font-semibold text-gray-900">
-              시작가 <span className="text-red-500">*</span>
-            </label>
-            {watchedStartPrice > 0 ? (
-              <span className="rounded-md bg-slate-100 px-2 py-1 text-xs font-semibold text-slate-700">
-                {watchedStartPrice.toLocaleString()}원
-              </span>
-            ) : null}
-          </div>
-          <div className="relative">
-            <Input
-              type="number"
-              {...register("startPrice", {
-                required: "시작가를 입력해주세요.",
-                min: {
-                  value: AUCTION_MIN_START_PRICE,
-                  message: `최소 ${AUCTION_MIN_START_PRICE.toLocaleString()}원 이상`,
-                },
-              })}
-              placeholder="10000"
-              className="pr-8"
-            />
-            <span className="absolute right-3 top-1/2 -translate-y-1/2 text-sm text-gray-400">
-              원
-            </span>
-          </div>
-          {errors.startPrice && (
-            <p className="text-xs text-red-500 mt-1">
-              {errors.startPrice.message}
-            </p>
-          )}
-          <p className="text-xs text-gray-500 mt-1">
-            자동 입찰 단위: {currentBidIncrement.toLocaleString()}원
-          </p>
-        </div>
-
-        <div
-          ref={agreementSectionRef}
-          className="rounded-lg border border-slate-200 bg-white px-3.5 py-3"
-        >
-          <div className="flex items-center justify-between gap-3">
-            <p className="text-sm font-semibold text-slate-800">
-              경매 규칙 안내
-            </p>
-            {!isToolRoute ? (
-              <Link
-                href="/auctions/rules"
-                className="text-xs font-semibold text-slate-600 underline underline-offset-2"
-              >
-                전체 보기
-              </Link>
-            ) : null}
-          </div>
-          <ul className="mt-2 space-y-1 text-xs text-slate-600">
-            <li>• 입찰 단위는 현재가에 따라 자동 계산됩니다.</li>
-            <li>
-              • 마감 {extensionWindowMinutes}분 이내 입찰 시 경매 시간이{" "}
-              {extensionMinutes}분 연장됩니다.
-            </li>
-            <li>• 본인 경매에는 입찰할 수 없습니다.</li>
-            <li>
-              • 진행중 상태에서 등록 후 10분 이내, 입찰이 없을 때만 수정할 수
-              있습니다.
-            </li>
-            <li>• 동시 진행 경매는 계정당 최대 3개까지 등록 가능합니다.</li>
-            <li>
-              • 시작가 50만원 이상 경매는 연락처(전화/이메일) 정보가 필요합니다.
-            </li>
-          </ul>
-          <div className="mt-3 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2.5 text-xs text-amber-900">
-            <p className="font-semibold">거래/분쟁 안내</p>
-            <p className="mt-1 leading-relaxed">
-              본 서비스는 경매 중개 플랫폼이며, 거래 당사자 간 분쟁(허위 매물,
-              미발송, 환불 등)에 대해 법적 책임을 지지 않습니다. 다만 문제 발생
-              시 신고를 접수하여 운영정책에 따라 계정/콘텐츠 조치를 진행합니다.
-            </p>
-            <p className="mt-1 leading-relaxed font-semibold">
-              카카오 로그인 기반 계정은 위반 시 영구 참여 제한됩니다.
-            </p>
-            {!isToolRoute ? (
-              <a
-                href="mailto:bredyteam@gmail.com?subject=[경매%20신고]%20문제%20접수"
-                className="mt-1.5 inline-flex items-center font-semibold underline underline-offset-2"
-              >
-                신고 접수: bredyteam@gmail.com
-              </a>
-            ) : null}
-          </div>
-          <div className="mt-3 space-y-2">
-            <label className="flex items-start gap-2 text-xs text-slate-700">
-              <input
-                type="checkbox"
-                checked={agreedAuctionNotice}
-                onChange={(event) => {
-                  const checked = event.target.checked;
-                  setAgreedAuctionNotice(checked);
-                  if (checked && agreedDisputePolicy) {
-                    setCustomFieldErrors((prev) => ({
-                      ...prev,
-                      agreement: undefined,
-                    }));
-                  }
-                }}
-                className="mt-0.5"
-              />
-              <span>
-                경매 규칙(입찰 단위, 연장, 수정 가능 조건)을 확인했습니다.
-              </span>
-            </label>
-            <label className="flex items-start gap-2 text-xs text-slate-700">
-              <input
-                type="checkbox"
-                checked={agreedDisputePolicy}
-                onChange={(event) => {
-                  const checked = event.target.checked;
-                  setAgreedDisputePolicy(checked);
-                  if (agreedAuctionNotice && checked) {
-                    setCustomFieldErrors((prev) => ({
-                      ...prev,
-                      agreement: undefined,
-                    }));
-                  }
-                }}
-                className="mt-0.5"
-              />
-              <span>분쟁 책임 제한 및 신고 접수 정책을 확인했습니다.</span>
-            </label>
-          </div>
-          {customFieldErrors.agreement ? (
-            <p className="mt-2 text-xs text-red-500">
-              {customFieldErrors.agreement}
-            </p>
-          ) : null}
-        </div>
-
-        <div className="rounded-lg border border-slate-200 bg-white p-3.5">
-          <h3 className="text-sm font-semibold text-slate-900">
-            판매자 신뢰 정보 (선택)
-          </h3>
-          <p className="mt-1 text-xs text-slate-500">
-            카페/밴드/블로그에서 신뢰 확인할 수 있는 정보를 함께 올리면 입찰
-            전환율이 높아집니다.
-          </p>
-          <div className="mt-3 grid grid-cols-1 gap-2.5">
-            <Input
-              {...register("sellerPhone")}
+          <FieldLabel label="판매자 신뢰 정보" caption="선택" />
+          <div className="flex flex-col gap-2">
+            <input
+              value={form.sellerPhone}
+              onChange={(event) => updateForm("sellerPhone", event.target.value)}
               placeholder="연락처(전화번호)"
+              inputMode="tel"
+              aria-label="연락처(전화번호)"
+              className={cn(FIELD_INPUT_CLASS, "border-app-border")}
             />
-            <Input {...register("sellerEmail")} placeholder="연락 이메일" />
-            <Input
-              {...register("sellerBlogUrl")}
+            <input
+              value={form.sellerEmail}
+              onChange={(event) => updateForm("sellerEmail", event.target.value)}
+              placeholder="연락 이메일"
+              type="email"
+              autoCapitalize="none"
+              aria-label="연락 이메일"
+              className={cn(FIELD_INPUT_CLASS, "border-app-border")}
+            />
+            <input
+              value={form.sellerBlogUrl}
+              onChange={(event) => updateForm("sellerBlogUrl", event.target.value)}
               placeholder="블로그/프로필 URL"
+              type="url"
+              autoCapitalize="none"
+              aria-label="블로그/프로필 URL"
+              className={cn(FIELD_INPUT_CLASS, "border-app-border")}
             />
-            <Input {...register("sellerCafeNick")} placeholder="카페 닉네임" />
-            <Input {...register("sellerBandNick")} placeholder="밴드 닉네임" />
-            <Textarea
-              {...register("sellerTrustNote")}
-              rows={3}
+            <input
+              value={form.sellerCafeNick}
+              onChange={(event) => updateForm("sellerCafeNick", event.target.value)}
+              placeholder="카페 닉네임"
+              aria-label="카페 닉네임"
+              className={cn(FIELD_INPUT_CLASS, "border-app-border")}
+            />
+            <input
+              value={form.sellerBandNick}
+              onChange={(event) => updateForm("sellerBandNick", event.target.value)}
+              placeholder="밴드 닉네임"
+              aria-label="밴드 닉네임"
+              className={cn(FIELD_INPUT_CLASS, "border-app-border")}
+            />
+            <textarea
+              value={form.sellerTrustNote}
+              onChange={(event) => updateForm("sellerTrustNote", event.target.value)}
               placeholder="예: OO카페 활동 4년, 최근 3개월 거래 20건 무분쟁"
+              aria-label="추가 안내"
+              className={cn(FIELD_TEXTAREA_CLASS, "min-h-[96px] border-app-border")}
             />
-            <div className="rounded-lg border border-slate-200 p-2.5">
-              <p className="text-xs font-medium text-slate-700">
-                커뮤니티 프로필 캡처 (선택)
-              </p>
-              <p className="mt-0.5 text-[11px] text-slate-500">
-                카페/밴드 프로필 캡처를 올리면 신뢰도 안내에 표시됩니다.
-              </p>
-              <div className="mt-2 flex items-center gap-2">
-                <label className="inline-flex cursor-pointer items-center rounded-md border border-slate-300 px-2.5 py-1.5 text-xs font-medium text-slate-700">
-                  <input
-                    type="file"
-                    accept="image/*"
-                    onChange={handleTrustProofUpload}
-                    className="hidden"
-                  />
-                  {proofUploading ? "업로드 중..." : "이미지 업로드"}
-                </label>
-                {sellerProofImage ? (
-                  <button
-                    type="button"
-                    onClick={() => setSellerProofImage(null)}
-                    className="text-xs text-rose-600 underline underline-offset-2"
-                  >
-                    삭제
-                  </button>
-                ) : null}
-              </div>
-              {sellerProofImage ? (
-                <div className="relative mt-2 h-28 w-40 overflow-hidden rounded-md border border-slate-200">
-                  <Image
-                    src={makeImageUrl(sellerProofImage, "public")}
-                    className="object-cover"
-                    fill
-                    alt="커뮤니티 프로필 캡처"
-                  />
-                </div>
-              ) : null}
-            </div>
           </div>
-        </div>
-
-        {/* 경매 기간 */}
-        <div ref={durationSectionRef}>
-          <label className="block text-sm font-semibold text-gray-900 mb-2">
-            경매 기간 <span className="text-red-500">*</span>
-          </label>
-          <div className="flex flex-wrap gap-2 mb-3">
-            {DURATION_PRESETS.map((preset) => (
-              <button
-                key={preset.hours}
-                type="button"
-                onClick={() => handleDurationPreset(preset.hours)}
-                className={cn(
-                  "rounded-lg border px-3 py-1.5 text-sm font-semibold transition-colors",
-                  selectedDuration === preset.hours
-                    ? "border-gray-900 bg-gray-900 text-white"
-                    : "border-gray-200 bg-white text-gray-600 hover:bg-gray-50",
-                )}
-              >
-                {preset.label}
+          <div className="mt-2.5 flex items-center gap-2.5">
+            <label
+              className={cn(
+                "inline-flex h-10 cursor-pointer items-center justify-center rounded-md bg-app-surface px-3.5 text-[14px] font-semibold text-app-text",
+                proofUploading && "pointer-events-none opacity-60"
+              )}
+            >
+              {proofUploading ? "업로드 중..." : "프로필 캡처 올리기"}
+              <input
+                type="file"
+                accept="image/*"
+                className="hidden"
+                onChange={(event) => {
+                  void handleProof(event.target.files?.[0]);
+                  event.target.value = "";
+                }}
+              />
+            </label>
+            {sellerProofImage ? (
+              <button type="button" onClick={() => setSellerProofImage(null)} className="text-[14px] text-app-muted">
+                삭제
               </button>
-            ))}
+            ) : null}
           </div>
-          <Input
-            type="hidden"
-            {...register("endAt", { required: "종료 시간을 선택해주세요." })}
-          />
-          <Input
-            type="text"
-            value={watchedEndAt ? formatConfirmDateTime(watchedEndAt) : ""}
-            placeholder="상단 시간 프리셋을 선택해주세요."
-            readOnly
-            className="bg-slate-100 text-slate-600"
-          />
-          {errors.endAt && (
-            <p className="text-xs text-red-500 mt-1">{errors.endAt.message}</p>
-          )}
-          <p className="mt-1 text-[11px] text-slate-500">
-            경매 종료 시간은 프리셋 버튼으로만 설정할 수 있습니다.
-          </p>
-          {customFieldErrors.duration ? (
-            <p className="mt-1 text-xs text-red-500">
-              {customFieldErrors.duration}
-            </p>
+          {sellerProofImage ? (
+            <div className="relative mt-2.5 h-28 w-40 overflow-hidden rounded-md bg-app-placeholder">
+              <Image src={makeImageUrl(sellerProofImage, "public")} alt="판매자 신뢰 자료" fill sizes="160px" className="object-cover" />
+            </div>
           ) : null}
         </div>
 
-        {/* 등록 버튼 */}
-        <div className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-100 p-4 z-10">
-          <div className="max-w-xl mx-auto">
-            {customErrorMessages.length > 0 ? (
-              <div className="mb-2 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-xs text-red-700">
-                필수 항목을 확인해주세요: {customErrorMessages.join(" / ")}
-              </div>
-            ) : null}
-            <Button
-              type="submit"
-              disabled={loading || uploading || proofUploading}
-              className="h-12 w-full rounded-lg text-base font-semibold"
+        {/* 운영 룰 동의 */}
+        <div>
+          <div className="mb-3 flex items-center justify-between">
+            <span className="text-[15px] font-semibold text-app-text">운영 룰 동의</span>
+            {/* 툴 전용 룰 화면이 없어 공용 룰 화면을 쓴다. 툴에서는 작성 중인 폼을 두고 새 탭으로 연다. */}
+            <Link
+              href="/auctions/rules"
+              {...(isToolRoute ? { target: "_blank", rel: "noopener noreferrer" } : {})}
+              className="text-[14px] font-semibold text-app-brand"
             >
-              {loading ? "등록 중..." : "경매 등록하기"}
-            </Button>
+              룰 전체 보기
+            </Link>
           </div>
+          <div className="flex flex-col gap-3">
+            <AgreeRow
+              checked={agreedAuctionNotice}
+              onToggle={() => {
+                const next = !agreedAuctionNotice;
+                setAgreedAuctionNotice(next);
+                if (next && agreedDisputePolicy) setErrors((prev) => ({ ...prev, agreement: undefined }));
+              }}
+              label="경매 룰(입찰 단위, 자동 연장, 수정 가능 조건)을 확인했어요."
+            />
+            <AgreeRow
+              checked={agreedDisputePolicy}
+              onToggle={() => {
+                const next = !agreedDisputePolicy;
+                setAgreedDisputePolicy(next);
+                if (agreedAuctionNotice && next) setErrors((prev) => ({ ...prev, agreement: undefined }));
+              }}
+              label="분쟁 책임 제한 및 신고 접수 정책을 확인했어요."
+            />
+          </div>
+          <ErrorText message={errors.agreement} />
         </div>
-      </form>
+      </div>
 
-      {confirmModalOpen && pendingSubmission ? (
-        <div className="fixed inset-0 z-[95] flex items-center justify-center p-4">
-          <button
-            type="button"
-            className="absolute inset-0 bg-black/60"
-            onClick={handleCancelConfirm}
-            aria-label="등록 확인 팝업 닫기"
+      <BottomCta
+        label={submitting ? "등록 중..." : "경매 등록하기"}
+        disabled={busy}
+        onClick={submit}
+        errorText={customErrorMessages.length ? customErrorMessages.join(" / ") : undefined}
+      />
+
+      {/* 등록 확인 */}
+      <CenterModal
+        open={confirmPayload !== null}
+        onClose={() => {
+          if (!submitting) setConfirmPayload(null);
+        }}
+        label="등록 확인 팝업"
+      >
+        <h2 className="text-[18px] font-bold text-app-text">이 내용으로 등록할까요?</h2>
+        <p className="mt-2 text-[15px] leading-[22px] text-app-muted">
+          등록 후에는 동일 내용 재등록이 제한될 수 있어요. 가격과 시간을 다시 확인해주세요.
+        </p>
+        {confirmPayload ? (
+          <dl className="mt-4 flex flex-col gap-2.5 text-[15px]">
+            <div className="flex items-center justify-between">
+              <dt className="text-app-muted">시작가</dt>
+              <dd className="font-semibold text-app-text">{confirmPayload.startPrice.toLocaleString()}원</dd>
+            </div>
+            <div className="flex items-center justify-between">
+              <dt className="text-app-muted">종료 시각</dt>
+              <dd className="font-semibold text-app-text">{formatConfirmDateTime(confirmPayload.endAt)}</dd>
+            </div>
+          </dl>
+        ) : null}
+        <div className="mt-5 flex gap-2">
+          <SheetButton label="다시 확인" tone="ghost" disabled={submitting} fill onClick={() => setConfirmPayload(null)} />
+          <SheetButton
+            label={submitting ? "등록 중..." : "이대로 등록"}
+            tone="primary"
+            disabled={submitting}
+            fill
+            onClick={() => void confirmCreate()}
           />
-          <div className="relative w-full max-w-sm rounded-lg border border-slate-200 bg-white p-5 shadow-xl">
-            <h2 className="text-lg font-bold text-slate-900">
-              정말 이 내용으로 등록하시겠습니까?
-            </h2>
-            <p className="mt-2 text-sm leading-relaxed text-slate-600">
-              등록 후에는 동일 내용 재등록이 제한될 수 있습니다. 가격과 시간을
-              다시 확인해주세요.
-            </p>
-
-            <div className="mt-4 space-y-2 rounded-lg border border-slate-200 bg-slate-50 p-3">
-              <div className="flex items-center justify-between">
-                <span className="text-xs font-medium text-slate-500">
-                  시작가
-                </span>
-                <span className="text-base font-bold text-slate-900">
-                  {Number(
-                    pendingSubmission.requestData.startPrice,
-                  ).toLocaleString()}
-                  원
-                </span>
-              </div>
-              <div className="flex items-center justify-between">
-                <span className="text-xs font-medium text-slate-500">
-                  종료 시간
-                </span>
-                <span className="text-sm font-semibold text-slate-800">
-                  {formatConfirmDateTime(pendingSubmission.requestData.endAt)}
-                </span>
-              </div>
-            </div>
-
-            <div className="mt-4 grid grid-cols-2 gap-2">
-              <button
-                type="button"
-                onClick={handleCancelConfirm}
-                disabled={loading}
-                className="h-11 rounded-lg border border-slate-200 bg-white text-sm font-semibold text-slate-700 transition-colors hover:bg-slate-50 disabled:opacity-60"
-              >
-                다시 확인
-              </button>
-              <button
-                type="button"
-                onClick={handleConfirmCreate}
-                disabled={loading}
-                className="h-11 rounded-lg bg-slate-900 text-sm font-semibold text-white transition-colors hover:bg-slate-800 disabled:opacity-60"
-              >
-                {loading ? "등록 중..." : "이대로 등록"}
-              </button>
-            </div>
-          </div>
         </div>
-      ) : null}
+      </CenterModal>
 
-      {shareModalOpen ? (
-        <div className="fixed inset-0 z-[90] flex items-center justify-center p-4">
-          <button
-            type="button"
-            className="absolute inset-0 bg-black/60"
-            onClick={() => setShareModalOpen(false)}
-            aria-label="공유 팝업 닫기"
-          />
-          <div className="relative w-full max-w-sm rounded-lg border border-slate-200 bg-white p-5 shadow-xl">
-            <h2 className="text-lg font-bold text-slate-900">
-              생성한 경매를 SNS에 공유해보세요!
-            </h2>
-            <p className="mt-2 text-sm leading-relaxed text-slate-600">
-              지금 공유하면 더 빠르게 입찰자를 모을 수 있어요.
-            </p>
-            <div className="mt-4 grid gap-2">
-              <button
-                type="button"
-                onClick={handleCopyAuctionLink}
-                className="h-11 rounded-lg border border-slate-200 bg-white text-sm font-semibold text-slate-700 transition-colors hover:bg-slate-50"
-              >
-                링크 복사하기
-              </button>
-              <button
-                type="button"
-                onClick={handleShareAuction}
-                className="h-11 rounded-lg bg-slate-900 text-sm font-semibold text-white transition-colors hover:bg-slate-800"
-              >
-                바로 공유하기
-              </button>
-              <button
-                type="button"
-                onClick={handleMoveToAuction}
-                className="h-11 rounded-lg bg-[#fee500] text-sm font-bold text-[#191919] transition-colors hover:brightness-95"
-              >
-                경매 상세로 이동
-              </button>
-            </div>
-          </div>
+      {/* 공유 */}
+      <CenterModal open={shareOpen} onClose={moveToCreatedAuction} label="공유 팝업">
+        <h2 className="text-[18px] font-bold text-app-text">경매를 공유해보세요</h2>
+        <p className="mt-2 text-[15px] leading-[22px] text-app-muted">지금 공유하면 더 빠르게 입찰자를 모을 수 있어요.</p>
+        <div className="mt-5 flex flex-col gap-2">
+          <SheetButton label="링크 복사하기" tone="ghost" onClick={() => void copyCreatedLink()} />
+          <SheetButton label="바로 공유하기" tone="primary" onClick={() => void shareCreated()} />
+          <SheetButton label="경매 상세로 이동" tone="ghost" onClick={moveToCreatedAuction} />
         </div>
-      ) : null}
+      </CenterModal>
+
+      {leaveDialog}
     </Layout>
   );
 };

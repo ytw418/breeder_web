@@ -76,8 +76,29 @@ async function handler(
       });
     }
 
-    // POST: 모든 알림 읽음 처리
+    // POST: 읽음 처리. body.id 가 있으면 그 알림 하나, 없으면 모두.
     if (req.method === "POST") {
+      const rawId = req.body?.id;
+      const targetId = typeof rawId === "number" ? rawId : Number.NaN;
+      if (rawId !== undefined && rawId !== null) {
+        if (!Number.isInteger(targetId) || targetId <= 0) {
+          return res.status(400).json({
+            success: false,
+            error: "잘못된 알림입니다.",
+            notifications: [],
+            unreadCount: 0,
+          });
+        }
+        await client.notification.updateMany({
+          where: { id: targetId, userId, isRead: false },
+          data: { isRead: true },
+        });
+        const unreadCount = await client.notification.count({
+          where: { userId, isRead: false },
+        });
+        return res.json({ success: true, notifications: [], unreadCount });
+      }
+
       await client.notification.updateMany({
         where: { userId, isRead: false },
         data: { isRead: true },

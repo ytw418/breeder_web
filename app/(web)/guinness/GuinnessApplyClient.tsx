@@ -1,42 +1,53 @@
 "use client";
 
-import { authFetch } from "@libs/client/authFetch";
-import { FormEvent, useEffect, useMemo, useState } from "react";
+/**
+ * 브리디북 등록 — 당근 톤
+ * 원본: bredy_app src/app/guinness/apply.tsx
+ *
+ * 헤더(뒤로·홈 + 가운데 제목) → 설명 13 muted → 필드(라벨 15/600 + 보조 13 muted + 입력 h48)
+ * 종명·칩 1줄 / 측정값 + 공식 최고 기록 / 측정일 / 연락처 / 설명 / 증빙 사진 80px 행 / 체크리스트
+ * → 내 신청 현황 카드 → 하단 고정 CTA "브리디북 심사 신청".
+ * 임시저장은 계정별 localStorage 키(guinness_submission_draft_v2.<userId>), 예전 단일 키는 지운다.
+ */
+import { ChangeEvent, useEffect, useMemo, useState } from "react";
 import useSWR from "swr";
-import Link from "next/link";
 import Layout from "@components/features/MainLayout";
 import Image from "@components/atoms/Image";
-import { makeImageUrl } from "@libs/client/utils";
-import { Button } from "@components/ui/button";
 import { Input } from "@components/ui/input";
 import { Textarea } from "@components/ui/textarea";
-import { toast } from "@libs/client/toast";
-import { RankingResponse } from "pages/api/ranking";
+import { FilterChip } from "@components/app/FilterChip";
 import {
+  BloodlineBottomBar,
+  BloodlineBottomBarSpacer,
+  BloodlineSpinner,
+  bloodlineInputClass,
+  bloodlineTextareaClass,
+  useBloodlineLoginRedirect,
+} from "@components/features/bloodline/BloodlineScreenParts";
+import useUser from "hooks/useUser";
+import { authFetch } from "@libs/client/authFetch";
+import { toast } from "@libs/client/toast";
+import { cn, makeImageUrl } from "@libs/client/utils";
+import {
+  clearOtherGuinnessDrafts,
+  getGuinnessDraftKey,
+  readGuinnessDraft,
+  removeGuinnessDraft,
+  writeGuinnessDraft,
+} from "@libs/client/guinnessDraft";
+import { formatRecordValue } from "@libs/shared/guinness-record";
+import type { RankingResponse } from "pages/api/ranking";
+import type {
   GuinnessSubmission,
   GuinnessSubmissionsResponse,
 } from "pages/api/guinness/submissions";
-import { GuinnessSpeciesListResponse } from "pages/api/guinness/species";
+import type { GuinnessSpeciesListResponse } from "pages/api/guinness/species";
 
 const STATUS_TEXT: Record<GuinnessSubmission["status"], string> = {
   pending: "심사 대기",
   approved: "승인 완료",
   rejected: "반려",
 };
-
-const STATUS_CLASS: Record<GuinnessSubmission["status"], string> = {
-  pending: "bg-amber-100 text-amber-700",
-  approved: "bg-emerald-100 text-emerald-700",
-  rejected: "bg-rose-100 text-rose-700",
-};
-
-const PHONE_REGEX = /^[0-9+\-\s()]{8,20}$/;
-const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-const SPECIES_NAME_REGEX = /^[가-힣ㄱ-ㅎㅏ-ㅣ]{2,30}$/;
-const DRAFT_KEY = "guinness_submission_draft_v1";
-const SLA_HOURS = 72;
-const sanitizeSpeciesInput = (value: string) =>
-  String(value || "").replace(/[^가-힣ㄱ-ㅎㅏ-ㅣ]/g, "");
 
 const REVIEW_REASON_LABELS: Record<string, string> = {
   photo_blur: "증빙 사진 식별 어려움",
@@ -48,12 +59,13 @@ const REVIEW_REASON_LABELS: Record<string, string> = {
   other: "기타",
 };
 
-const getMedalClass = (rank: number) => {
-  if (rank === 1) return "bg-yellow-400 text-white";
-  if (rank === 2) return "bg-gray-400 text-white";
-  if (rank === 3) return "bg-amber-700 text-white";
-  return "bg-gray-100 text-gray-600";
-};
+const PHONE_REGEX = /^[0-9+\-\s()]{8,20}$/;
+const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+const SPECIES_NAME_REGEX = /^[가-힣ㄱ-ㅎㅏ-ㅣ]{2,30}$/;
+const MAX_PROOF_COUNT = 3;
+const MAX_IMAGE_SIZE = 10 * 1024 * 1024;
+
+const sanitizeSpeciesInput = (value: string) => String(value || "").replace(/[^가-힣ㄱ-ㅎㅏ-ㅣ]/g, "");
 
 interface SubmissionDraft {
   species: string;
@@ -69,27 +81,117 @@ interface SubmissionDraft {
   consentToContact: boolean;
 }
 
-const getSlaText = (dueAt: string | Date) => {
+const formatDate = (value?: string | Date | null) => {
+  if (!value) return "";
+  const date = new Date(value);
+  return Number.isNaN(date.getTime()) ? "" : date.toLocaleDateString("ko-KR");
+};
+
+const getSlaText = (dueAt?: string | Date | null) => {
+  if (!dueAt) return "SLA 정보 없음";
   const due = new Date(dueAt).getTime();
-  const diff = due - Date.now();
   if (Number.isNaN(due)) return "SLA 정보 없음";
-  if (diff <= 0) {
-    const overHours = Math.floor(Math.abs(diff) / (1000 * 60 * 60));
-    return `심사 지연 ${overHours}시간`;
-  }
-  const hours = Math.floor(diff / (1000 * 60 * 60));
-  const mins = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
+  const diff = due - Date.now();
+  if (diff <= 0) return `심사 지연 ${Math.floor(Math.abs(diff) / 3_600_000)}시간`;
+  const hours = Math.floor(diff / 3_600_000);
+  const mins = Math.floor((diff % 3_600_000) / 60_000);
   return `심사 목표까지 ${hours}시간 ${mins}분`;
 };
 
+function Field({
+  label,
+  helper,
+  htmlFor,
+  children,
+}: {
+  label: string;
+  helper?: string;
+  htmlFor?: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <div className="mt-5">
+      <label htmlFor={htmlFor} className="block text-[15px] font-semibold text-app-text">
+        {label}
+      </label>
+      {helper ? <p className="mt-1 text-[13px] text-app-muted">{helper}</p> : null}
+      <div className="mt-2 flex flex-col gap-2">{children}</div>
+    </div>
+  );
+}
+
+function CheckRow({
+  checked,
+  label,
+  onToggle,
+}: {
+  checked: boolean;
+  label: string;
+  onToggle: () => void;
+}) {
+  return (
+    <button
+      type="button"
+      role="checkbox"
+      aria-checked={checked}
+      onClick={onToggle}
+      className="flex items-start gap-2 text-left"
+    >
+      <span
+        className={cn(
+          "mt-px grid h-5 w-5 shrink-0 place-items-center rounded border",
+          checked ? "border-app-text bg-app-text text-app-bg" : "border-app-border bg-app-bg"
+        )}
+      >
+        {checked ? (
+          <svg width={14} height={14} viewBox="0 0 24 24" fill="none" aria-hidden="true">
+            <path d="M5 13l4 4L19 7" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" />
+          </svg>
+        ) : null}
+      </span>
+      <span className="min-w-0 flex-1 text-[14px] leading-5 text-app-text">{label}</span>
+    </button>
+  );
+}
+
+function RemoveBadge({ onClick }: { onClick: () => void }) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className="absolute right-1 top-1 rounded-full px-1.5 py-0.5 text-[11px] text-white"
+      style={{ backgroundColor: "rgba(0, 0, 0, 0.6)" }}
+    >
+      삭제
+    </button>
+  );
+}
+
+async function uploadProofFile(file: File) {
+  const urlResponse = await authFetch("/api/files");
+  const { uploadURL, id } = (await urlResponse.json().catch(() => ({}))) as {
+    uploadURL?: string;
+    id?: string;
+  };
+  if (!urlResponse.ok || !uploadURL) throw new Error("증빙 사진 업로드에 실패했습니다.");
+  const form = new FormData();
+  form.append("file", file, file.name);
+  const uploadResponse = await fetch(uploadURL, { method: "POST", body: form });
+  const uploaded = (await uploadResponse.json().catch(() => null)) as { result?: { id?: string } } | null;
+  const imageId = uploaded?.result?.id || id || "";
+  if (!uploadResponse.ok || !imageId) throw new Error("증빙 사진 업로드에 실패했습니다.");
+  return imageId;
+}
+
 export default function GuinnessApplyClient() {
-  const { data: rankingData } = useSWR<RankingResponse>("/api/ranking?tab=guinness");
-  const { data: submissionData, mutate } =
-    useSWR<GuinnessSubmissionsResponse>("/api/guinness/submissions");
+  const { user, isLoading: userLoading } = useUser();
+  const loggedOut = !user && !userLoading;
+  useBloodlineLoginRedirect(loggedOut, "/guinness/apply");
+  // 임시저장은 계정별 키에만 둔다. 사용자 ID를 알기 전에는 복원/저장하지 않는다.
+  const draftKey = user?.id != null ? getGuinnessDraftKey(user.id) : null;
 
   const [species, setSpecies] = useState("");
   const [isSpeciesComposing, setIsSpeciesComposing] = useState(false);
-  const [recordType] = useState<"size">("size");
   const [value, setValue] = useState("");
   const [measurementDate, setMeasurementDate] = useState("");
   const [description, setDescription] = useState("");
@@ -101,51 +203,122 @@ export default function GuinnessApplyClient() {
   const [consentToContact, setConsentToContact] = useState(false);
   const [existingProofPhotos, setExistingProofPhotos] = useState<string[]>([]);
   const [proofFiles, setProofFiles] = useState<File[]>([]);
-  const [submitting, setSubmitting] = useState(false);
   const [editingSubmissionId, setEditingSubmissionId] = useState<number | null>(null);
+  const [submitting, setSubmitting] = useState(false);
+  /** 복원을 마친 임시저장 키. 현재 draftKey 와 같을 때만 저장한다. */
+  const [loadedDraftKey, setLoadedDraftKey] = useState<string | null>(null);
+
+  const { data: rankingData } = useSWR<RankingResponse>("/api/ranking?tab=guinness");
   const { data: popularSpeciesData } = useSWR<GuinnessSpeciesListResponse>(
     "/api/guinness/species?limit=12"
   );
   const { data: searchedSpeciesData } = useSWR<GuinnessSpeciesListResponse>(
-    `/api/guinness/species?q=${encodeURIComponent(species)}&limit=12`
+    species.trim() ? `/api/guinness/species?q=${encodeURIComponent(species)}&limit=12` : null
+  );
+  const submissionsQuery = useSWR<GuinnessSubmissionsResponse>(
+    user?.id ? "/api/guinness/submissions" : null
   );
 
-  const proofPreviews = useMemo(
-    () => proofFiles.map((file) => URL.createObjectURL(file)),
-    [proofFiles]
+  const records = useMemo(
+    () => (rankingData?.records || []).filter((record) => record.recordType === "size"),
+    [rankingData?.records]
+  );
+  const mySubmissions = useMemo(
+    () => submissionsQuery.data?.submissions || [],
+    [submissionsQuery.data?.submissions]
+  );
+  /** 종 선택 칩 1줄: 입력 중이면 검색 결과, 아니면 인기 종. */
+  const speciesChips = species.trim()
+    ? searchedSpeciesData?.species || []
+    : popularSpeciesData?.species || [];
+
+  const proofPreviews = useMemo(() => proofFiles.map((file) => URL.createObjectURL(file)), [proofFiles]);
+  useEffect(() => () => proofPreviews.forEach((url) => URL.revokeObjectURL(url)), [proofPreviews]);
+
+  const activeTopRecord = useMemo(
+    () =>
+      records
+        .filter((record) => record.species === species && record.recordType === "size")
+        .sort((a, b) => b.value - a.value)[0] ?? null,
+    [records, species]
+  );
+  const pendingSameType = useMemo(
+    () =>
+      mySubmissions.find(
+        (item) =>
+          item.status === "pending" &&
+          item.species.trim().toLowerCase() === species.trim().toLowerCase() &&
+          item.recordType === "size"
+      ),
+    [mySubmissions, species]
   );
 
-  useEffect(() => {
-    return () => {
-      proofPreviews.forEach((url) => URL.revokeObjectURL(url));
-    };
-  }, [proofPreviews]);
+  const numericValue = Number(value);
+  const hasValidContact = Boolean(
+    (contactPhone.trim() && PHONE_REGEX.test(contactPhone.trim())) ||
+      (contactEmail.trim() && EMAIL_REGEX.test(contactEmail.trim()))
+  );
+  const isChecklistDone = checklistPhotoClear && checklistToolVisible && checklistRealInfo;
+  const isValueValid = Boolean(value && Number.isFinite(numericValue) && numericValue > 0);
+  const proofCount = existingProofPhotos.length + proofFiles.length;
+  const isFormReady =
+    Boolean(species.trim()) &&
+    isValueValid &&
+    proofCount > 0 &&
+    hasValidContact &&
+    isChecklistDone &&
+    consentToContact;
 
+  const clearForm = () => {
+    setEditingSubmissionId(null);
+    setSpecies("");
+    setValue("");
+    setMeasurementDate("");
+    setDescription("");
+    setContactPhone("");
+    setContactEmail("");
+    setChecklistPhotoClear(false);
+    setChecklistToolVisible(false);
+    setChecklistRealInfo(false);
+    setConsentToContact(false);
+    setExistingProofPhotos([]);
+    setProofFiles([]);
+  };
+
+  // 계정이 바뀌면(로그아웃·다른 계정) 이전 계정 입력값을 비우고, 새 키 복원 전에는 저장하지 않는다.
+  const [prevDraftKey, setPrevDraftKey] = useState(draftKey);
+  if (prevDraftKey !== draftKey) {
+    setPrevDraftKey(draftKey);
+    setLoadedDraftKey(null);
+    if (prevDraftKey) clearForm();
+  }
+
+  // 복원: 계정 구분 없던 v1 키와 다른 계정의 임시저장은 복원하지 않고 지운다.
   useEffect(() => {
-    const saved = localStorage.getItem(DRAFT_KEY);
-    if (saved) {
-      try {
-        const parsed = JSON.parse(saved) as SubmissionDraft;
-        if (parsed.species) setSpecies(sanitizeSpeciesInput(parsed.species));
-        setValue(parsed.value || "");
-        setMeasurementDate(parsed.measurementDate || "");
-        setDescription(parsed.description || "");
-        setContactPhone(parsed.contactPhone || "");
-        setContactEmail(parsed.contactEmail || "");
-        setChecklistPhotoClear(Boolean(parsed.checklistPhotoClear));
-        setChecklistToolVisible(Boolean(parsed.checklistToolVisible));
-        setChecklistRealInfo(Boolean(parsed.checklistRealInfo));
-        setConsentToContact(Boolean(parsed.consentToContact));
-      } catch {
-        localStorage.removeItem(DRAFT_KEY);
-      }
+    if (userLoading) return;
+    clearOtherGuinnessDrafts(user?.id ?? null);
+    if (!draftKey) return;
+    const parsed = readGuinnessDraft<SubmissionDraft>(draftKey);
+    if (parsed) {
+      if (parsed.species) setSpecies(sanitizeSpeciesInput(parsed.species));
+      setValue(parsed.value || "");
+      setMeasurementDate(parsed.measurementDate || "");
+      setDescription(parsed.description || "");
+      setContactPhone(parsed.contactPhone || "");
+      setContactEmail(parsed.contactEmail || "");
+      setChecklistPhotoClear(Boolean(parsed.checklistPhotoClear));
+      setChecklistToolVisible(Boolean(parsed.checklistToolVisible));
+      setChecklistRealInfo(Boolean(parsed.checklistRealInfo));
+      setConsentToContact(Boolean(parsed.consentToContact));
     }
-  }, []);
+    setLoadedDraftKey(draftKey);
+  }, [draftKey, user?.id, userLoading]);
 
   useEffect(() => {
+    if (!draftKey || loadedDraftKey !== draftKey) return;
     const draft: SubmissionDraft = {
       species,
-      recordType,
+      recordType: "size",
       value,
       measurementDate,
       description,
@@ -156,10 +329,11 @@ export default function GuinnessApplyClient() {
       checklistRealInfo,
       consentToContact,
     };
-    localStorage.setItem(DRAFT_KEY, JSON.stringify(draft));
+    writeGuinnessDraft(draftKey, draft);
   }, [
+    draftKey,
+    loadedDraftKey,
     species,
-    recordType,
     value,
     measurementDate,
     description,
@@ -171,85 +345,9 @@ export default function GuinnessApplyClient() {
     consentToContact,
   ]);
 
-  const records = (rankingData?.records || []).filter(
-    (record) => record.recordType === "size"
-  );
-  const mySubmissions = submissionData?.submissions || [];
-  const popularSpecies = popularSpeciesData?.species || [];
-  const searchedSpecies = searchedSpeciesData?.species || [];
-
-  const speciesSuggestions = useMemo(() => {
-    const seen = new Set<string>();
-    const merged = [...searchedSpecies, ...popularSpecies];
-    return merged.filter((item) => {
-      if (seen.has(item.name)) return false;
-      seen.add(item.name);
-      return true;
-    });
-  }, [popularSpecies, searchedSpecies]);
-
-  const speciesSearchResults = useMemo(() => {
-    if (!species.trim()) return [];
-    return searchedSpecies.slice(0, 8);
-  }, [searchedSpecies, species]);
-
-  const activeTopRecord = useMemo(() => {
-    return (
-      records
-        .filter((record) => record.species === species && record.recordType === recordType)
-        .sort((a, b) => b.value - a.value)[0] || null
-    );
-  }, [records, species, recordType]);
-
-  const pendingSameType = useMemo(
-    () =>
-      mySubmissions.find(
-        (item) =>
-          item.status === "pending" &&
-          item.species.trim().toLowerCase() === species.trim().toLowerCase() &&
-          item.recordType === recordType
-      ),
-    [mySubmissions, recordType, species]
-  );
-
-  const hasValidContact = Boolean(
-    (contactPhone.trim() && PHONE_REGEX.test(contactPhone.trim())) ||
-      (contactEmail.trim() && EMAIL_REGEX.test(contactEmail.trim()))
-  );
-  const isChecklistDone =
-    checklistPhotoClear && checklistToolVisible && checklistRealInfo;
-  const isValueValid = Boolean(value && Number(value) > 0);
-  const isFormReady =
-    Boolean(species.trim()) &&
-    isValueValid &&
-    existingProofPhotos.length + proofFiles.length > 0 &&
-    hasValidContact &&
-    isChecklistDone &&
-    consentToContact;
-
-  const uploadProofPhotos = async () => {
-    const ids = await Promise.all(
-      proofFiles.map(async (file) => {
-        const uploadUrlResponse = await authFetch("/api/files");
-        const { uploadURL } = await uploadUrlResponse.json();
-        const form = new FormData();
-        form.append("file", file, file.name);
-        const uploadResponse = await fetch(uploadURL, { method: "POST", body: form });
-        const uploaded = await uploadResponse.json();
-        return uploaded?.result?.id as string;
-      })
-    );
-
-    const filtered = ids.filter(Boolean);
-    return filtered;
-  };
-
-  const handleSpeciesInputChange = (value: string) => {
-    if (isSpeciesComposing) {
-      setSpecies(value);
-      return;
-    }
-    setSpecies(sanitizeSpeciesInput(value));
+  const resetForm = () => {
+    clearForm();
+    if (draftKey) removeGuinnessDraft(draftKey);
   };
 
   const startResubmit = (submission: GuinnessSubmission) => {
@@ -257,9 +355,7 @@ export default function GuinnessApplyClient() {
     setSpecies(sanitizeSpeciesInput(submission.species));
     setValue(String(submission.value));
     setMeasurementDate(
-      submission.measurementDate
-        ? new Date(submission.measurementDate).toISOString().slice(0, 10)
-        : ""
+      submission.measurementDate ? new Date(submission.measurementDate).toISOString().slice(0, 10) : ""
     );
     setDescription(submission.description || "");
     setContactPhone(submission.contactPhone || "");
@@ -273,80 +369,64 @@ export default function GuinnessApplyClient() {
     window.scrollTo({ top: 0, behavior: "smooth" });
   };
 
-  const resetForm = () => {
-    setEditingSubmissionId(null);
-    setValue("");
-    setMeasurementDate("");
-    setDescription("");
-    setContactPhone("");
-    setContactEmail("");
-    setChecklistPhotoClear(false);
-    setChecklistToolVisible(false);
-    setChecklistRealInfo(false);
-    setConsentToContact(false);
-    setExistingProofPhotos([]);
-    setProofFiles([]);
-    localStorage.removeItem(DRAFT_KEY);
+  const handleSpeciesChange = (next: string) => {
+    setSpecies(isSpeciesComposing ? next : sanitizeSpeciesInput(next));
   };
 
-  const handleSubmit = async (event: FormEvent) => {
-    event.preventDefault();
-    if (submitting) return;
+  const handleProofChange = (event: ChangeEvent<HTMLInputElement>) => {
+    const incoming = Array.from(event.target.files || []);
+    event.target.value = "";
+    if (!incoming.length) return;
+    const remaining = MAX_PROOF_COUNT - proofCount;
+    if (remaining <= 0) {
+      toast.info("증빙 사진은 최대 3장까지 등록할 수 있습니다.");
+      return;
+    }
+    const picked: File[] = [];
+    for (const file of incoming.slice(0, remaining)) {
+      if (!file.type.startsWith("image/")) {
+        toast.error("이미지 파일만 업로드할 수 있습니다.");
+        continue;
+      }
+      if (file.size > MAX_IMAGE_SIZE) {
+        toast.error("증빙 사진은 장당 10MB 이하만 업로드할 수 있습니다.");
+        continue;
+      }
+      picked.push(file);
+    }
+    setProofFiles((prev) => [...prev, ...picked].slice(0, MAX_PROOF_COUNT));
+  };
 
+  const handleSubmit = async () => {
+    if (submitting) return;
     const normalizedSpecies = species.trim();
-    if (!normalizedSpecies) {
-      toast.error("종명을 입력해주세요.");
-      return;
-    }
-    if (!SPECIES_NAME_REGEX.test(normalizedSpecies)) {
-      toast.error("종명은 한글만 2~30자로 입력해주세요.");
-      return;
-    }
-    if (!isValueValid) {
-      toast.error("측정값을 올바르게 입력해주세요.");
-      return;
-    }
-    if (existingProofPhotos.length + proofFiles.length === 0) {
-      toast.error("증빙 사진을 최소 1장 첨부해주세요.");
-      return;
-    }
-    if (!hasValidContact) {
-      toast.error("전화번호 또는 이메일 형식을 확인해주세요.");
-      return;
-    }
-    if (!isChecklistDone) {
-      toast.error("신청 전 체크리스트를 모두 확인해주세요.");
-      return;
-    }
-    if (!consentToContact) {
-      toast.error("심사 연락 및 개인정보 처리 동의가 필요합니다.");
-      return;
-    }
-    if (pendingSameType) {
-      toast.error("해당 항목은 심사 진행 중입니다. 결과 확인 후 다시 신청해주세요.");
-      return;
+    const fail = (message: string) => toast.error(message);
+    if (!normalizedSpecies) return fail("종명을 입력해주세요.");
+    if (!SPECIES_NAME_REGEX.test(normalizedSpecies)) return fail("종명은 한글만 2~30자로 입력해주세요.");
+    if (!isValueValid) return fail("측정값을 올바르게 입력해주세요.");
+    if (proofCount === 0) return fail("증빙 사진을 최소 1장 첨부해주세요.");
+    if (!hasValidContact) return fail("전화번호 또는 이메일 형식을 확인해주세요.");
+    if (!isChecklistDone) return fail("신청 전 체크리스트를 모두 확인해주세요.");
+    if (!consentToContact) return fail("심사 연락 및 개인정보 처리 동의가 필요합니다.");
+    if (!editingSubmissionId && pendingSameType) {
+      return fail("해당 항목은 심사 진행 중입니다. 결과 확인 후 다시 신청해주세요.");
     }
 
     try {
       setSubmitting(true);
-      const uploadedProofPhotos = await uploadProofPhotos();
-      const finalProofPhotos = [...existingProofPhotos, ...uploadedProofPhotos].slice(
-        0,
-        3
-      );
-      if (!finalProofPhotos.length) {
-        throw new Error("증빙 사진 업로드에 실패했습니다.");
-      }
+      const uploaded = await Promise.all(proofFiles.map(uploadProofFile));
+      const finalProofPhotos = [...existingProofPhotos, ...uploaded].slice(0, MAX_PROOF_COUNT);
+      if (!finalProofPhotos.length) throw new Error("증빙 사진 업로드에 실패했습니다.");
 
-      const res = await authFetch("/api/guinness/submissions", {
+      const response = await authFetch("/api/guinness/submissions", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           action: editingSubmissionId ? "resubmit" : "submit",
           id: editingSubmissionId || undefined,
           species: normalizedSpecies,
-          recordType,
-          value: Number(value),
+          recordType: "size",
+          value: numericValue,
           measurementDate,
           description: description.trim(),
           contactPhone: contactPhone.trim(),
@@ -355,11 +435,8 @@ export default function GuinnessApplyClient() {
           proofPhotos: finalProofPhotos,
         }),
       });
-
-      const result = await res.json();
-      if (!result.success) {
-        throw new Error(result.error || "신청 등록에 실패했습니다.");
-      }
+      const result = await response.json().catch(() => null);
+      if (!result?.success) throw new Error(result?.error || "신청 등록에 실패했습니다.");
 
       toast.success(
         editingSubmissionId
@@ -367,386 +444,310 @@ export default function GuinnessApplyClient() {
           : "기록 신청이 접수되었습니다. 심사 후 반영됩니다."
       );
       resetForm();
-      mutate();
-    } catch (error: any) {
-      toast.error(error?.message || "신청 처리 중 오류가 발생했습니다.");
+      void submissionsQuery.mutate();
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "신청 처리 중 오류가 발생했습니다.");
     } finally {
       setSubmitting(false);
     }
   };
 
+  if (userLoading || loggedOut) {
+    return (
+      <Layout canGoBack showHome title="브리디북 등록" seoTitle="브리디북 등록">
+        <div className="flex min-h-[60vh] items-center justify-center">
+          <BloodlineSpinner />
+        </div>
+      </Layout>
+    );
+  }
+
+  const ctaDisabled = !isFormReady || submitting;
+  // 날짜 입력 max 는 로컬 날짜(toISOString 은 UTC 라 한국 오전 9시 전엔 어제가 된다).
+  const now = new Date();
+  const today = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
+
   return (
-    <Layout canGoBack title="브리디북 등록" seoTitle="브리디북 등록" showHome>
-      <div className="app-page pb-10">
-        <section className="px-4 pt-5">
-          <div className="app-card border-transparent bg-gradient-to-r from-amber-500 to-orange-500 p-5 text-white">
-            <p className="text-xs font-semibold text-white/80">Bredy Records</p>
-            <h1 className="mt-1 text-2xl font-bold">브리디북 체장 등록</h1>
-            <p className="mt-2 text-sm text-white/90 leading-relaxed">
-              증빙 자료와 연락처를 제출하면 어드민 심사를 거쳐 공식 기록으로 등록됩니다.
-            </p>
-            <Link
-              href="/guinness"
-              className="mt-4 inline-flex h-9 items-center rounded-lg bg-white/95 px-3 text-xs font-semibold text-amber-700"
+    <Layout canGoBack showHome title="브리디북 등록" seoTitle="브리디북 등록">
+      <div className="px-4 pb-8">
+        <p className="pt-3 text-[13px] text-app-muted">
+          증빙 자료와 연락처를 제출하면 심사 후 공식 기록으로 등록됩니다
+        </p>
+
+        {editingSubmissionId ? (
+          <div className="mt-3 flex items-center justify-between">
+            <p className="text-[15px] font-semibold text-app-text">반려 건 수정 재신청</p>
+            <button
+              type="button"
+              onClick={resetForm}
+              className="h-8 rounded-md bg-app-surface px-3 text-[13px] font-semibold text-app-text"
             >
-              브리디북 보기
-            </Link>
+              수정 취소
+            </button>
           </div>
-        </section>
+        ) : null}
 
-        <section className="px-4 pt-8">
-          <div className="app-card p-4">
-            <div className="mb-4">
-              <div className="flex items-center justify-between gap-3">
-                <h2 className="app-section-title">
-                  {editingSubmissionId ? "반려 건 수정 재신청" : "기록 신청하기"}
-                </h2>
-                {editingSubmissionId && (
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    onClick={resetForm}
-                  >
-                    수정 취소
-                  </Button>
-                )}
-              </div>
-              <p className="mt-1 text-xs text-slate-500">
-                신청 후 최대 {SLA_HOURS}시간 내 심사를 목표로 하며, 승인 시 브리디북에 반영됩니다.
-              </p>
+        <Field
+          label="종명"
+          htmlFor="guinness-species"
+          helper="한글만 입력할 수 있습니다. 공식 종이 없으면 후보 종으로 접수됩니다."
+        >
+          <Input
+            id="guinness-species"
+            value={species}
+            onChange={(event) => handleSpeciesChange(event.target.value)}
+            onCompositionStart={() => setIsSpeciesComposing(true)}
+            onCompositionEnd={(event) => {
+              setIsSpeciesComposing(false);
+              setSpecies(sanitizeSpeciesInput(event.currentTarget.value));
+            }}
+            onBlur={(event) => setSpecies(sanitizeSpeciesInput(event.currentTarget.value))}
+            placeholder="종명을 검색하거나 직접 입력하세요"
+            autoComplete="off"
+            className={bloodlineInputClass}
+          />
+          {speciesChips.length > 0 ? (
+            <div className="flex gap-2 overflow-x-auto scrollbar-hide">
+              {speciesChips.slice(0, 8).map((item) => (
+                <FilterChip
+                  key={item.id}
+                  label={item.name}
+                  selected={species === item.name}
+                  onClick={() => setSpecies(item.name)}
+                />
+              ))}
             </div>
+          ) : species.trim() ? (
+            <p className="text-[13px] text-app-muted">
+              검색된 공식 종이 없습니다. 그대로 신청하면 후보 종으로 등록됩니다.
+            </p>
+          ) : null}
+        </Field>
 
-            <form onSubmit={handleSubmit} className="space-y-3">
-              <div className="grid grid-cols-1 gap-2 sm:grid-cols-[1fr_140px]">
-                <div className="space-y-2">
-                  <Input
-                    list="guinness-species-list"
-                    value={species}
-                    onChange={(event) =>
-                      handleSpeciesInputChange(event.target.value)
-                    }
-                    onCompositionStart={() => setIsSpeciesComposing(true)}
-                    onCompositionEnd={(event) => {
-                      setIsSpeciesComposing(false);
-                      setSpecies(sanitizeSpeciesInput(event.currentTarget.value));
-                    }}
-                    onBlur={(event) =>
-                      setSpecies(sanitizeSpeciesInput(event.currentTarget.value))
-                    }
-                    placeholder="종명을 검색하거나 직접 입력하세요"
-                  />
-                  <datalist id="guinness-species-list">
-                    {speciesSuggestions.map((item) => (
-                      <option key={item.id} value={item.name} />
-                    ))}
-                  </datalist>
-                  <p className="text-[11px] leading-relaxed text-slate-500">
-                    한글만 입력할 수 있습니다. 검색 결과가 없으면 후보 종으로 접수되며,
-                    어드민 승인 후 공식 분류에 반영됩니다.
-                  </p>
-                  {species.trim() && (
-                    <div className="rounded-md border border-slate-200 bg-slate-50 px-2 py-2">
-                      <p className="px-1 text-[11px] font-semibold text-slate-500">
-                        검색 결과
-                      </p>
-                      {speciesSearchResults.length > 0 ? (
-                        <div className="mt-1 flex flex-wrap gap-1.5">
-                          {speciesSearchResults.map((item) => (
-                            <button
-                              key={item.id}
-                              type="button"
-                              onClick={() => setSpecies(item.name)}
-                              className={`rounded-full border px-2.5 py-1 text-xs ${
-                                species === item.name
-                                  ? "border-slate-900 bg-slate-900 text-white"
-                                  : "border-slate-200 bg-white text-slate-600"
-                              }`}
-                            >
-                              {item.name}
-                            </button>
-                          ))}
-                        </div>
-                      ) : (
-                        <p className="mt-1 px-1 text-xs text-slate-500">
-                          검색된 공식 종이 없습니다. 그대로 신청하면 후보 종으로 등록됩니다.
-                        </p>
-                      )}
-                    </div>
-                  )}
-                  {popularSpecies.length > 0 && (
-                    <div className="flex gap-1.5 overflow-x-auto scrollbar-hide pb-1">
-                      {popularSpecies.slice(0, 8).map((item) => (
-                        <button
-                          key={item.id}
-                          type="button"
-                          onClick={() => setSpecies(item.name)}
-                          className={`shrink-0 rounded-full border px-2.5 py-1 text-xs transition-colors ${
-                            species === item.name
-                              ? "border-slate-900 bg-slate-900 text-white"
-                              : "border-slate-200 bg-white text-slate-600"
-                          }`}
-                        >
-                          {item.name}
-                        </button>
-                      ))}
-                    </div>
-                  )}
-                </div>
-                <div className="flex h-10 items-center rounded-md border border-gray-200 px-3 text-sm text-slate-700">
-                  체장 (mm)
-                </div>
-              </div>
+        <Field label="측정값 (체장, mm)" htmlFor="guinness-value">
+          <Input
+            id="guinness-value"
+            type="number"
+            inputMode="decimal"
+            min={0}
+            step="0.01"
+            value={value}
+            onChange={(event) => setValue(event.target.value)}
+            placeholder="체장 입력 (예: 84.5)"
+            className={bloodlineInputClass}
+          />
+          <p className="text-[13px] text-app-muted">
+            {species.trim()
+              ? `현재 ${species} 공식 최고 기록: ${
+                  activeTopRecord
+                    ? `${formatRecordValue(activeTopRecord.value)}mm (${activeTopRecord.user.name})`
+                    : "없음"
+                }`
+              : "종명을 입력하면 현재 공식 최고 기록을 보여드립니다."}
+          </p>
+        </Field>
 
-              <div className="rounded-md border border-amber-100 bg-amber-50 px-3 py-2">
-                <p className="text-xs text-amber-800">
-                  {species.trim() ? (
-                    <>
-                      현재 {species} 체장 공식 최고 기록:
-                      {" "}
-                      <span className="font-semibold">
-                        {activeTopRecord
-                          ? `${activeTopRecord.value}mm (${activeTopRecord.user.name})`
-                          : "없음"}
-                      </span>
-                    </>
-                  ) : (
-                    <>종명을 입력하면 현재 공식 최고 기록을 보여드립니다.</>
-                  )}
-                </p>
-              </div>
+        <Field label="측정일" htmlFor="guinness-date">
+          <Input
+            id="guinness-date"
+            type="date"
+            value={measurementDate}
+            max={today}
+            onChange={(event) => setMeasurementDate(event.target.value)}
+            className={bloodlineInputClass}
+          />
+        </Field>
 
-              <Input
-                type="number"
-                min={0}
-                step="0.01"
-                value={value}
-                onChange={(event) => setValue(event.target.value)}
-                placeholder="체장 입력 (예: 84.5)"
-              />
+        <Field
+          label="연락처"
+          htmlFor="guinness-phone"
+          helper="전화번호/이메일 중 1개 이상 필수, 형식 오류 시 신청이 제한됩니다."
+        >
+          <Input
+            id="guinness-phone"
+            type="tel"
+            value={contactPhone}
+            onChange={(event) => setContactPhone(event.target.value)}
+            placeholder="전화번호 (예: 010-1234-5678)"
+            className={bloodlineInputClass}
+          />
+          <Input
+            type="email"
+            aria-label="이메일"
+            value={contactEmail}
+            onChange={(event) => setContactEmail(event.target.value)}
+            placeholder="이메일 (예: bredy@example.com)"
+            className={bloodlineInputClass}
+          />
+        </Field>
 
-              <Input
-                type="date"
-                value={measurementDate}
-                onChange={(event) => setMeasurementDate(event.target.value)}
-                max={new Date().toISOString().slice(0, 10)}
-              />
+        <Field label="설명" htmlFor="guinness-description">
+          <Textarea
+            id="guinness-description"
+            value={description}
+            onChange={(event) => setDescription(event.target.value)}
+            placeholder="측정 환경, 측정 도구, 개체 특이사항 등 심사에 필요한 내용을 입력해주세요."
+            className={bloodlineTextareaClass}
+          />
+        </Field>
 
-              <div className="grid grid-cols-1 gap-2">
-                <Input
-                  value={contactPhone}
-                  onChange={(event) => setContactPhone(event.target.value)}
-                  placeholder="전화번호 (예: 010-1234-5678)"
+        <Field label="증빙 사진" helper="원본 사진 최대 3장. 측정 수치와 개체가 식별되게 촬영해주세요.">
+          <div className="flex gap-2 overflow-x-auto scrollbar-hide">
+            <label
+              htmlFor="guinness-proof"
+              aria-label="증빙 사진 추가"
+              className="flex h-20 w-20 shrink-0 cursor-pointer flex-col items-center justify-center gap-1 rounded-lg border border-app-border bg-app-bg"
+            >
+              <svg width={18} height={18} viewBox="0 0 24 24" fill="none" aria-hidden="true" className="text-app-muted">
+                <path d="M12 5v14M5 12h14" stroke="currentColor" strokeWidth={1.5} strokeLinecap="round" />
+              </svg>
+              <span className="text-[12px] text-app-muted">
+                {proofCount}/{MAX_PROOF_COUNT}
+              </span>
+            </label>
+            <input
+              id="guinness-proof"
+              type="file"
+              multiple
+              accept="image/*"
+              className="sr-only"
+              onChange={handleProofChange}
+            />
+            {existingProofPhotos.map((photoId, index) => (
+              <div
+                key={`existing-${photoId}-${index}`}
+                className="relative h-20 w-20 shrink-0 overflow-hidden rounded-lg bg-app-surface"
+              >
+                <Image
+                  src={makeImageUrl(photoId, "public")}
+                  alt=""
+                  width={80}
+                  height={80}
+                  className="h-20 w-20 object-cover"
                 />
-                <Input
-                  value={contactEmail}
-                  onChange={(event) => setContactEmail(event.target.value)}
-                  placeholder="이메일 (예: bredy@example.com)"
+                <RemoveBadge
+                  onClick={() => setExistingProofPhotos((prev) => prev.filter((_, i) => i !== index))}
                 />
-                <p className="text-[11px] text-slate-400">
-                  전화번호/이메일 중 1개 이상 필수, 형식 오류 시 신청이 제한됩니다.
-                </p>
               </div>
-
-              <Textarea
-                value={description}
-                onChange={(event) => setDescription(event.target.value)}
-                rows={4}
-                placeholder="측정 환경, 측정 도구, 개체 특이사항 등 심사에 필요한 내용을 입력해주세요."
-              />
-
-              <div className="rounded-lg border border-slate-100 bg-slate-50 px-3 py-3">
-                <p className="text-xs font-semibold text-slate-700">증빙 사진 첨부</p>
-                <p className="mt-1 text-[11px] text-slate-500">
-                  원본 사진 최대 3장. 측정 수치와 개체가 식별되게 촬영해주세요.
-                </p>
-                <input
-                  type="file"
-                  multiple
-                  accept="image/*"
-                  onChange={(event) => {
-                    const incoming = Array.from(event.target.files || []);
-                    if (!incoming.length) return;
-                    const remain = Math.max(
-                      0,
-                      3 - (existingProofPhotos.length + proofFiles.length)
-                    );
-                    if (remain <= 0) {
-                      toast.info("증빙 사진은 최대 3장까지 등록할 수 있습니다.");
-                      return;
-                    }
-                    const combined = [...proofFiles, ...incoming.slice(0, remain)];
-                    setProofFiles(combined);
-                    event.currentTarget.value = "";
-                  }}
-                  className="mt-2 block w-full text-xs text-slate-600 file:mr-3 file:rounded-md file:border-0 file:bg-white file:px-2 file:py-1 file:text-xs file:font-medium file:text-slate-700"
-                />
-                {(existingProofPhotos.length > 0 || proofPreviews.length > 0) && (
-                  <div className="mt-3 grid grid-cols-3 gap-2">
-                    {existingProofPhotos.map((photoId, index) => (
-                      <div
-                        key={`existing-${photoId}-${index}`}
-                        className="relative aspect-square overflow-hidden rounded-md bg-white border border-slate-200"
-                      >
-                        <Image
-                          src={makeImageUrl(photoId, "public")}
-                          alt=""
-                          width={160}
-                          height={160}
-                          className="h-full w-full object-cover"
-                        />
-                        <button
-                          type="button"
-                          onClick={() =>
-                            setExistingProofPhotos((prev) =>
-                              prev.filter((_, i) => i !== index)
-                            )
-                          }
-                          className="absolute right-1 top-1 rounded-full bg-black/60 px-1.5 py-0.5 text-[10px] text-white"
-                        >
-                          삭제
-                        </button>
-                      </div>
-                    ))}
-                    {proofPreviews.map((preview, index) => (
-                      <div
-                        key={`${preview}-${index}`}
-                        className="relative aspect-square overflow-hidden rounded-md bg-white border border-slate-200"
-                      >
-                        {/* eslint-disable-next-line @next/next/no-img-element */}
-                        <img
-                          src={preview}
-                          alt={`proof-${index}`}
-                          className="w-full h-full object-cover"
-                        />
-                        <button
-                          type="button"
-                          onClick={() =>
-                            setProofFiles((prev) => prev.filter((_, i) => i !== index))
-                          }
-                          className="absolute right-1 top-1 rounded-full bg-black/60 px-1.5 py-0.5 text-[10px] text-white"
-                        >
-                          삭제
-                        </button>
-                      </div>
-                    ))}
-                  </div>
-                )}
+            ))}
+            {proofPreviews.map((preview, index) => (
+              <div
+                key={`${preview}-${index}`}
+                className="relative h-20 w-20 shrink-0 overflow-hidden rounded-lg bg-app-surface"
+              >
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img src={preview} alt={`증빙 사진 ${index + 1}`} className="h-20 w-20 object-cover" />
+                <RemoveBadge onClick={() => setProofFiles((prev) => prev.filter((_, i) => i !== index))} />
               </div>
-
-              <div className="rounded-lg border border-slate-100 bg-white px-3 py-3">
-                <p className="text-xs font-semibold text-slate-700">신청 전 체크리스트</p>
-                <label className="mt-2 flex items-start gap-2 text-xs text-slate-600">
-                  <input
-                    type="checkbox"
-                    checked={checklistPhotoClear}
-                    onChange={(event) => setChecklistPhotoClear(event.target.checked)}
-                  />
-                  사진에서 개체와 측정 수치가 명확히 보입니다.
-                </label>
-                <label className="mt-1.5 flex items-start gap-2 text-xs text-slate-600">
-                  <input
-                    type="checkbox"
-                    checked={checklistToolVisible}
-                    onChange={(event) => setChecklistToolVisible(event.target.checked)}
-                  />
-                  측정 도구(자/저울)가 식별 가능하게 촬영했습니다.
-                </label>
-                <label className="mt-1.5 flex items-start gap-2 text-xs text-slate-600">
-                  <input
-                    type="checkbox"
-                    checked={checklistRealInfo}
-                    onChange={(event) => setChecklistRealInfo(event.target.checked)}
-                  />
-                  허위/도용 자료 제출 시 제재될 수 있음을 확인했습니다.
-                </label>
-              </div>
-
-              <label className="flex items-start gap-2 text-xs text-slate-600">
-                <input
-                  type="checkbox"
-                  checked={consentToContact}
-                  onChange={(event) => setConsentToContact(event.target.checked)}
-                />
-                심사 안내를 위한 연락 및 개인정보 처리에 동의합니다.
-              </label>
-
-              <Button type="submit" disabled={!isFormReady || submitting} className="w-full">
-                {submitting ? "신청 접수 중..." : "브리디북 심사 신청"}
-              </Button>
-            </form>
+            ))}
           </div>
-        </section>
+        </Field>
 
-        <section className="px-4 pt-8">
-          <div className="mb-3 flex items-center justify-between">
-            <h2 className="app-section-title">내 신청 현황</h2>
-            <span className="text-xs text-slate-400">{mySubmissions.length}건</span>
-          </div>
-          <div className="space-y-2">
-            {mySubmissions.length > 0 ? (
-              mySubmissions.map((submission) => (
-                <div
-                  key={submission.id}
-                  className="app-card p-3"
+        <Field label="신청 전 체크리스트">
+          <CheckRow
+            checked={checklistPhotoClear}
+            onToggle={() => setChecklistPhotoClear((prev) => !prev)}
+            label="사진에서 개체와 측정 수치가 명확히 보입니다."
+          />
+          <CheckRow
+            checked={checklistToolVisible}
+            onToggle={() => setChecklistToolVisible((prev) => !prev)}
+            label="측정 도구(자/저울)가 식별 가능하게 촬영했습니다."
+          />
+          <CheckRow
+            checked={checklistRealInfo}
+            onToggle={() => setChecklistRealInfo((prev) => !prev)}
+            label="허위/도용 자료 제출 시 제재될 수 있음을 확인했습니다."
+          />
+          <CheckRow
+            checked={consentToContact}
+            onToggle={() => setConsentToContact((prev) => !prev)}
+            label="심사 안내를 위한 연락 및 개인정보 처리에 동의합니다."
+          />
+        </Field>
+
+        <section className="mt-8">
+          <h2 className="text-[17px] font-bold text-app-text">내 신청 현황</h2>
+          <div className="mt-3 flex flex-col gap-2.5">
+            {submissionsQuery.isLoading ? (
+              <div className="flex justify-center rounded-xl border border-app-border bg-app-elevated p-4">
+                <BloodlineSpinner />
+              </div>
+            ) : submissionsQuery.error && !submissionsQuery.data ? (
+              <div className="rounded-xl border border-app-border bg-app-elevated p-4 text-center">
+                <p className="text-[14px] text-app-muted">신청 현황을 불러오지 못했어요.</p>
+                <button
+                  type="button"
+                  onClick={() => void submissionsQuery.mutate()}
+                  className="mt-3 h-10 rounded-md bg-app-surface px-4 text-[14px] font-semibold text-app-text"
                 >
-                  <div className="flex items-start justify-between gap-3">
-                    <div>
-                      <p className="text-sm font-semibold text-slate-900">
-                        {submission.species} · 체장 {submission.value}mm
+                  다시 시도
+                </button>
+              </div>
+            ) : mySubmissions.length > 0 ? (
+              mySubmissions.map((submission) => (
+                <div key={submission.id} className="rounded-xl border border-app-border bg-app-elevated p-4">
+                  <div className="flex items-start gap-3">
+                    <div className="min-w-0 flex-1">
+                      <p className="text-[16px] font-semibold text-app-text">
+                        {submission.species} · 체장 {formatRecordValue(submission.value)}mm
                       </p>
-                      <p className="mt-1 text-xs text-slate-400">
-                        신청일 {new Date(submission.submittedAt).toLocaleString()}
+                      <p className="mt-1 text-[13px] text-app-muted">
+                        신청일 {formatDate(submission.submittedAt)}
                       </p>
-                      {submission.measurementDate && (
-                        <p className="mt-1 text-xs text-slate-400">
-                          측정일 {new Date(submission.measurementDate).toLocaleDateString()}
+                      {submission.measurementDate ? (
+                        <p className="mt-0.5 text-[13px] text-app-muted">
+                          측정일 {formatDate(submission.measurementDate)}
                         </p>
-                      )}
-                      {submission.status === "pending" && (
-                        <p className="mt-1 text-xs text-amber-700">
-                          {getSlaText(submission.slaDueAt)}
-                        </p>
-                      )}
+                      ) : null}
+                      {submission.status === "pending" ? (
+                        <p className="mt-0.5 text-[13px] text-app-muted">{getSlaText(submission.slaDueAt)}</p>
+                      ) : null}
                     </div>
-                    <span
-                      className={`inline-flex rounded-full px-2 py-0.5 text-xs font-semibold ${STATUS_CLASS[submission.status]}`}
-                    >
+                    <span className="shrink-0 rounded-md bg-app-surface px-2 py-1 text-[12px] font-semibold text-app-muted">
                       {STATUS_TEXT[submission.status]}
                     </span>
                   </div>
-                  {submission.reviewMemo && (
-                    <p className="mt-2 rounded-md bg-slate-50 px-2 py-1.5 text-xs text-slate-600">
-                      심사 메모: {submission.reviewMemo}
+                  {submission.reviewMemo ? (
+                    <p className="mt-2.5 text-[14px] text-app-muted">심사 메모: {submission.reviewMemo}</p>
+                  ) : null}
+                  {submission.reviewReasonCode ? (
+                    <p className="mt-1 text-[14px] text-app-muted">
+                      반려 사유: {REVIEW_REASON_LABELS[submission.reviewReasonCode] || "기타"}
                     </p>
-                  )}
-                  {submission.reviewReasonCode && (
-                    <p className="mt-1 text-xs text-slate-500">
-                      반려 사유:{" "}
-                      {REVIEW_REASON_LABELS[submission.reviewReasonCode] || "기타"}
-                    </p>
-                  )}
-                  {submission.status === "rejected" && (
-                    <div className="mt-3 flex justify-end">
-                      <Button
-                        type="button"
-                        size="sm"
-                        onClick={() => startResubmit(submission)}
-                      >
-                        수정 후 재신청
-                      </Button>
-                    </div>
-                  )}
+                  ) : null}
+                  {submission.status === "rejected" ? (
+                    <button
+                      type="button"
+                      onClick={() => startResubmit(submission)}
+                      className="mt-3 h-10 rounded-md bg-app-surface px-4 text-[14px] font-semibold text-app-text"
+                    >
+                      수정 후 재신청
+                    </button>
+                  ) : null}
                 </div>
               ))
             ) : (
-              <div className="app-card border-dashed px-4 py-8 text-center">
-                <p className="text-sm text-slate-500">아직 신청한 내역이 없습니다.</p>
-              </div>
+              <p className="text-[14px] text-app-muted">아직 신청한 내역이 없습니다.</p>
             )}
           </div>
         </section>
       </div>
+
+      <BloodlineBottomBarSpacer />
+      <BloodlineBottomBar>
+        <button
+          type="button"
+          disabled={ctaDisabled}
+          onClick={() => void handleSubmit()}
+          className={cn(
+            "inline-flex h-[52px] w-full items-center justify-center rounded-md text-[16px] font-semibold",
+            ctaDisabled ? "bg-app-surface text-app-caption" : "bg-app-brand text-white"
+          )}
+        >
+          {submitting ? "신청 접수 중..." : "브리디북 심사 신청"}
+        </button>
+      </BloodlineBottomBar>
     </Layout>
   );
 }
