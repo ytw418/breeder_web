@@ -18,6 +18,7 @@ import { ANALYTICS_EVENTS, trackEvent } from "@libs/client/analytics";
 import { extractProductId, getProductPath } from "@libs/product-route";
 import { formatProductPrice } from "@libs/productRules";
 import ImageLightbox from "@components/features/image/ImageLightbox";
+import { authFetch } from "@libs/client/authFetch";
 
 const DETAIL_FALLBACK_IMAGE = "/images/placeholders/minimal-gray-blur.svg";
 
@@ -34,7 +35,7 @@ const ProductClient = ({ product, relatedProducts }: ItemDetailResponse) => {
 
   // 채팅방 생성 API 호출
   const [getChatRoomId] = useMutation<ChatResponseType>(`/api/chat`);
-  const { user } = useUser();
+  const { user, isLoading: isUserLoading } = useUser();
   const router = useRouter();
   const params = useParams();
   const { mutate } = useSWRConfig();
@@ -373,6 +374,24 @@ const ProductClient = ({ product, relatedProducts }: ItemDetailResponse) => {
     product?.photos?.length,
     user?.id,
   ]);
+
+  // 상세를 열면 조회수를 한 번 올린다. 삭제·숨김 상품은 서버가 거른다.
+  // 로그인 확인(useUser)이 끝난 뒤에 보내고, 판매자 본인이면 보내지 않는다.
+  // 만료 토큰으로 먼저 보내면 서버가 비로그인으로 보고 본인 조회를 세기 때문이다.
+  const viewedProductIdRef = useRef<number | null>(null);
+  useEffect(() => {
+    if (
+      !product?.id ||
+      isUserLoading ||
+      viewedProductIdRef.current === product.id
+    )
+      return;
+    viewedProductIdRef.current = product.id;
+    if (user?.id && user.id === product.user?.id) return;
+    authFetch(`/api/products/${product.id}/view`, { method: "POST" }).catch(
+      () => {}
+    );
+  }, [product?.id, product?.user?.id, user?.id, isUserLoading]);
 
   return (
     <Layout

@@ -33,6 +33,9 @@ export interface PostsListResponse {
   pages: number;
 }
 
+/** 목록 한 페이지 크기 */
+const PAGE_SIZE = 10;
+
 const handler = async (
   req: NextApiRequest,
   res: NextApiResponse<ResponseType>
@@ -77,10 +80,22 @@ const handler = async (
     setViewerCacheHeader(res, viewerId);
 
     const pageNumber = Number(page);
-    const normalizedPage = Number.isInteger(pageNumber) && pageNumber > 0 ? pageNumber : 1;
-    const skip = (normalizedPage - 1) * 10;
+    // 1e30 같은 값은 DB offset 범위를 넘으므로 안전한 정수만 페이지로 받는다.
+    const normalizedPage =
+      Number.isSafeInteger(pageNumber) && pageNumber > 0 ? pageNumber : 1;
+    const skip = (normalizedPage - 1) * PAGE_SIZE;
 
-    const basePostQuery = Prisma.validator<Prisma.PostFindManyArgs>()({
+    // 정렬·페이지 나눔은 DB 에서 한다(전체 글을 메모리로 읽지 않는다).
+    // 같은 순위끼리는 최신 → id 순으로 이어 붙여 페이지가 넘어가도 순서가 흔들리지 않게 한다.
+    const tieBreak = [{ createdAt: "desc" as const }, { id: "desc" as const }];
+    const orderBy: Prisma.PostOrderByWithRelationInput[] =
+      selectedSort === "popular"
+        ? [{ Likes: { _count: "desc" } }, ...tieBreak]
+        : selectedSort === "comments"
+          ? [{ comments: { _count: "desc" } }, ...tieBreak]
+          : tieBreak;
+
+    const postQuery = Prisma.validator<Prisma.PostFindManyArgs>()({
       where,
       include: {
         user: {
@@ -101,30 +116,17 @@ const handler = async (
           },
         },
       },
-      orderBy: { createdAt: "desc" as const },
+      orderBy,
+      skip,
+      take: PAGE_SIZE,
     });
 
-    const [allPosts, postCount] = await Promise.all([
-      client.post.findMany(basePostQuery),
+    const [pagePosts, postCount] = await Promise.all([
+      client.post.findMany(postQuery),
       client.post.count({ where }),
     ]);
 
-    const sortedPosts =
-      selectedSort === "latest"
-        ? allPosts
-        : allPosts.sort((a, b) => {
-            if (selectedSort === "popular") {
-              const likeDiff = b._count.Likes - a._count.Likes;
-              if (likeDiff !== 0) return likeDiff;
-            }
-            if (selectedSort === "comments") {
-              const commentDiff = b._count.comments - a._count.comments;
-              if (commentDiff !== 0) return commentDiff;
-            }
-            return b.createdAt.getTime() - a.createdAt.getTime();
-          });
-
-    const posts = sortedPosts.slice(skip, skip + 10).map((post) => ({
+    const posts = pagePosts.map((post) => ({
       ...withPostImages(post),
       user: {
         ...post.user,
@@ -137,7 +139,7 @@ const handler = async (
     res.json({
       success: true,
       posts,
-      pages: Math.ceil(postCount / 10),
+      pages: Math.ceil(postCount / PAGE_SIZE),
     });
   }
 
