@@ -421,6 +421,12 @@ describe("GET /api/users/:id isBlocked", () => {
     expect(res.body.isBlocked).toBe(false);
     expect(mockClient.userBlock.findFirst).not.toHaveBeenCalled();
   });
+  it("상품 수(_count.products)에는 삭제한 상품을 세지 않는다", async () => {
+    await call(userDetailHandler, { query: { id: String(TARGET) } });
+
+    const count = mockClient.user.findUnique.mock.calls[0][0].include._count.select;
+    expect(count.products).toEqual({ where: { isDeleted: false } });
+  });
 });
 
 describe("GET /api/products/:id 숨김 상품", () => {
@@ -541,13 +547,19 @@ describe("GET /api/users/:id/productList", () => {
     });
   });
 
-  it("본인 목록에는 숨김 상품도 그대로 보인다", async () => {
+  it("본인 목록에는 숨김 상품은 보이고, 직접 삭제한 상품은 빠진다", async () => {
     await call(productListHandler, {
       query: { id: String(SELLER) },
       user: { id: SELLER, name: "판매자" } as NextApiRequest["user"],
     });
 
-    expect(mockClient.product.findMany.mock.calls[0][0].where).toEqual({ userId: SELLER });
-    expect(mockClient.product.count.mock.calls[0][0].where).toEqual({ userId: SELLER });
+    expect(mockClient.product.findMany.mock.calls[0][0].where).toEqual({
+      userId: SELLER,
+      isDeleted: false,
+    });
+    expect(mockClient.product.count.mock.calls[0][0].where).toEqual({
+      userId: SELLER,
+      isDeleted: false,
+    });
   });
 });

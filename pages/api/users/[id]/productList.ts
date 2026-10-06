@@ -52,11 +52,11 @@ async function handler(
 
     const pageSize = Math.min(Math.max(1, +size), 50); // 최소 1, 최대 50개로 제한
 
-    // 숨김(관리자 조치·탈퇴)·삭제 상품은 본인 목록에만 보인다.
+    // 숨김(관리자 조치·탈퇴) 상품은 본인 목록에만 보인다. 직접 삭제한 상품은 본인에게도 빠진다.
     const sellerId = +id.toString();
     const where: Prisma.ProductWhereInput =
       req.user?.id === sellerId
-        ? { userId: sellerId }
+        ? { userId: sellerId, isDeleted: false }
         : { userId: sellerId, isHidden: false, isDeleted: false };
 
     const products = await client.product.findMany({

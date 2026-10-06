@@ -9,6 +9,7 @@ import Link from "next/link";
 import { SearchResponse } from "pages/api/search";
 import { CATEGORIES } from "@libs/constants";
 import { getProductPath } from "@libs/product-route";
+import { formatProductPrice } from "@libs/productRules";
 import { toPostPath } from "@libs/post-route";
 import { ANALYTICS_EVENTS, trackEvent } from "@libs/client/analytics";
 
@@ -344,9 +345,7 @@ const SearchClient = () => {
                           {product.name}
                         </p>
                         <p className="text-sm font-bold text-gray-900 dark:text-slate-100 mt-0.5">
-                          {product.price
-                            ? `${product.price.toLocaleString()}원`
-                            : "가격 미정"}
+                          {formatProductPrice(product.price)}
                         </p>
                         {product.category && (
                           <span className="text-xs text-primary mt-0.5 inline-block">
@@ -501,9 +500,7 @@ const SearchClient = () => {
                           </span>
                         </div>
                         <p className="text-sm font-semibold mt-1">
-                          {product.price
-                            ? `${product.price.toLocaleString()}원`
-                            : "가격 미정"}
+                          {formatProductPrice(product.price)}
                         </p>
                       </div>
                     </Link>

@@ -99,7 +99,8 @@ async function handler(
         select: {
           followers: true,
           following: true,
-          products: true,
+          // 삭제한 상품은 세지 않는다(상품 삭제는 isDeleted 소프트 삭제).
+          products: { where: { isDeleted: false } },
           posts: true,
           Comments: true,
           insectRecords: true,

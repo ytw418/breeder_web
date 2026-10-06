@@ -41,7 +41,8 @@ export default function EditClient({ product }: EditClientProps) {
   } = useForm<EditForm>({
     defaultValues: {
       name: product?.name || "",
-      price: product?.price || 0,
+      // 가격 미정(null)은 0(무료나눔)으로 바꾸지 않고 빈 칸으로 두어 직접 입력하게 한다
+      price: product?.price ?? undefined,
       description: product?.description || "",
       photos: product?.photos || [],
     },
