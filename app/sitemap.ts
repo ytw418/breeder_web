@@ -92,6 +92,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
         updatedAt: true,
       },
       where: {
+        isHidden: false,
         status: {
           in: ["진행중", "종료", "유찰"],
         },
@@ -112,6 +113,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
         title: true,
         updatedAt: true,
       },
+      where: { isHidden: false },
       orderBy: {
         updatedAt: "desc",
       },

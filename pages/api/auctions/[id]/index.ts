@@ -2,6 +2,7 @@ import { NextApiRequest, NextApiResponse } from "next";
 import withHandler, { ResponseType } from "@libs/server/withHandler";
 import client from "@libs/server/client";
 import { withAuth } from "@libs/server/auth";
+import { isModeratorUser } from "@libs/server/adminAccess";
 import { Auction, Bid, User } from "@prisma/client";
 import { extractAuctionIdFromPath } from "@libs/auction-route";
 import {
@@ -95,6 +96,14 @@ async function handler(
     }
 
     const isOwner = user?.id === auction.userId;
+    // 운영자가 숨긴 경매는 작성자와 관리자만 본다.
+    if (auction.isHidden && !isOwner && !isModeratorUser(user)) {
+      return res.status(404).json({
+        success: false,
+        error: "운영 정책에 따라 비공개된 경매입니다.",
+        errorCode: "AUCTION_HIDDEN",
+      });
+    }
     const canEdit = canEditAuction({
       isOwner: Boolean(isOwner),
       createdAt: auction.createdAt,

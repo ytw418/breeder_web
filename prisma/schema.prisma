@@ -136,6 +136,7 @@ model User {
   bloodlineCardTransfersTo   BloodlineCardTransfer[] @relation("BloodlineCardTransferTo")
   insectRecords   InsectRecord[]
   guinnessSubmissions GuinnessSubmission[]
+  moderationLogs  ModerationLog[] @relation("ModerationLogActor")
 
   @@index([status, deletedAt])
 }
@@ -252,9 +253,12 @@ model Post {
   Likes      Like[]
   image       String      // 대표 이미지(= images[0]). 웹 단일 이미지 호환용으로 유지
   images      String[]    @default([]) // 게시글 사진(Cloudflare 이미지 id, 최대 10장)
+  /// 운영자 숨김. 작성자·관리자에게만 보인다.
+  isHidden    Boolean     @default(false)
 
   @@index([userId])
   @@index([category])
+  @@index([isHidden, createdAt])
 }
 
 model Comment {
@@ -266,6 +270,8 @@ model Comment {
   post      Post     @relation(fields: [postId], references: [id], onDelete: Cascade)
   postId    Int
   comment String
+  /// 운영자 숨김. 작성자·관리자에게만 보인다.
+  isHidden Boolean @default(false)
 
   @@index([userId])
   @@index([postId])
@@ -598,6 +604,8 @@ model Auction {
   bids            Bid[]
   reports         AuctionReport[]
   winnerId        Int?      // 낙찰자 ID
+  /// 운영자 숨김. 작성자·관리자에게만 보인다. 숨길 때 진행중이면 취소한다.
+  isHidden        Boolean   @default(false)
 
   createdAt       DateTime  @default(now())
   updatedAt       DateTime  @updatedAt
@@ -660,6 +668,45 @@ model AuctionReport {
   @@index([reportedUserId])
   @@index([status])
   @@index([createdAt])
+}
+
+// ============================================================
+// 운영자 조치 기록(숨김·숨김 해제·삭제)
+// ============================================================
+
+enum ModerationTargetType {
+  POST
+  COMMENT
+  PRODUCT
+  AUCTION
+}
+
+enum ModerationActionType {
+  HIDE
+  UNHIDE
+  DELETE
+}
+
+model ModerationLog {
+  id           Int                  @id @default(autoincrement())
+  actorId      Int
+  targetType   ModerationTargetType
+  targetId     Int
+  /// 콘텐츠 작성자. 삭제 뒤에도 추적한다.
+  targetUserId Int?
+  action       ModerationActionType
+  reason       String?
+  /// 신고 처리에서 온 조치면 Report.id
+  reportId     Int?
+  /// 삭제 시 원문 보존용 { title, excerpt }
+  snapshot     Json?
+  createdAt    DateTime             @default(now())
+
+  actor User @relation("ModerationLogActor", fields: [actorId], references: [id], onDelete: Cascade)
+
+  @@index([targetType, targetId])
+  @@index([actorId, createdAt])
+  @@index([targetUserId, createdAt])
 }
 
 // ============================================================

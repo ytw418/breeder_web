@@ -7,9 +7,10 @@ const mockClient = {
     findUnique: jest.fn(),
     update: jest.fn(),
   },
-  post: { findMany: jest.fn(), delete: jest.fn() },
-  comment: { findMany: jest.fn(), delete: jest.fn() },
-  product: { findMany: jest.fn(), update: jest.fn() },
+  post: { findMany: jest.fn(), findUnique: jest.fn(), delete: jest.fn() },
+  comment: { findMany: jest.fn(), findUnique: jest.fn(), delete: jest.fn() },
+  product: { findMany: jest.fn(), findUnique: jest.fn(), update: jest.fn() },
+  moderationLog: { create: jest.fn() },
   user: { findMany: jest.fn(), update: jest.fn(), updateMany: jest.fn() },
   chatRoom: { findMany: jest.fn() },
   message: { findMany: jest.fn() },
@@ -17,6 +18,9 @@ const mockClient = {
 jest.mock("@libs/server/client", () => ({
   __esModule: true,
   default: mockClient,
+}));
+jest.mock("@libs/server/notification", () => ({
+  createNotification: jest.fn(),
 }));
 jest.mock("@libs/server/auth", () => ({
   withAuth: (handler: unknown) => handler,
@@ -100,6 +104,23 @@ beforeEach(() => {
     { id: 30, title: "문제 게시글", description: "광고 내용입니다" },
   ]);
   mockClient.post.delete.mockResolvedValue({ id: 30 });
+  mockClient.post.findUnique.mockResolvedValue({
+    userId: 9,
+    title: "문제 게시글",
+    description: "광고 내용입니다",
+  });
+  mockClient.comment.findUnique.mockResolvedValue({
+    userId: 9,
+    comment: "나쁜 댓글",
+    post: { title: "문제 게시글" },
+  });
+  mockClient.product.findUnique.mockResolvedValue({
+    userId: 9,
+    name: "왕사슴",
+    description: "허위 매물",
+    isDeleted: false,
+  });
+  mockClient.moderationLog.create.mockResolvedValue({ id: 1 });
   mockClient.comment.findMany.mockResolvedValue([
     { id: 31, comment: "나쁜 댓글", postId: 30, post: { title: "문제 게시글" } },
   ]);
@@ -343,6 +364,18 @@ describe("POST /api/admin/reports 처리", () => {
     });
     expect(res.statusCode).toBe(200);
     expect(mockClient.post.delete).toHaveBeenCalledWith({ where: { id: 30 } });
+    // 신고 처리 조치도 운영자 조치 기록에 신고 id 와 함께 남는다.
+    expect(mockClient.moderationLog.create).toHaveBeenCalledWith({
+      data: expect.objectContaining({
+        actorId: 1,
+        targetType: "POST",
+        targetId: 30,
+        targetUserId: 9,
+        action: "DELETE",
+        reportId: 5,
+        snapshot: { title: "문제 게시글", excerpt: "광고 내용입니다" },
+      }),
+    });
     expect(mockClient.user.updateMany).not.toHaveBeenCalled();
     const update = mockClient.report.update.mock.calls[0][0];
     expect(update.where).toEqual({ id: 5 });
@@ -408,6 +441,16 @@ describe("POST /api/admin/reports 처리", () => {
     mockClient.post.delete.mockRejectedValue(Object.assign(new Error("not found"), { code: "P2025" }));
     const res = await decide({ reportId: 5, decision: "RESOLVED", action: "REMOVE_CONTENT" });
     expect(res.statusCode).toBe(200);
+    expect(mockClient.report.update).toHaveBeenCalled();
+    expect(mockClient.moderationLog.create).not.toHaveBeenCalled();
+  });
+
+  it("콘텐츠를 조회할 때부터 없으면 조치 없이 처리 완료한다", async () => {
+    openReport("POST", 30);
+    mockClient.post.findUnique.mockResolvedValue(null);
+    const res = await decide({ reportId: 5, decision: "RESOLVED", action: "REMOVE_CONTENT" });
+    expect(res.statusCode).toBe(200);
+    expect(mockClient.post.delete).not.toHaveBeenCalled();
     expect(mockClient.report.update).toHaveBeenCalled();
   });
 
