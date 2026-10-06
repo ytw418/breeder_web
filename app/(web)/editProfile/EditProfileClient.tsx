@@ -18,6 +18,7 @@ import {
 import { LoadingBlock } from "@components/features/profile/ProfileRows";
 import { useSWRConfig } from "swr";
 import type { UserResponse } from "pages/api/users/[id]";
+import { PROFILE_DEPENDENT_KEY_PREFIXES, revalidateByPrefix } from "@libs/client/swrRevalidate";
 
 interface EditProfileResponse {
   success: boolean;
@@ -41,7 +42,7 @@ const requestCheckName = async (name: string, signal: AbortSignal): Promise<Chec
 const EditProfileClient = () => {
   const [isLoading, setIsLoading] = useState(false);
   const router = useRouter();
-  const { mutate: globalMutate } = useSWRConfig();
+  const { mutate: globalMutate, cache: swrCache } = useSWRConfig();
   const { user, isLoading: userLoading, mutate } = useUser();
   const [nameDraft, setNameDraft] = useState("");
   const [hasEditedName, setHasEditedName] = useState(false);
@@ -164,7 +165,8 @@ const EditProfileClient = () => {
       ]);
       // 낙관적 반영 뒤 백그라운드 재검증으로 서버 상태와 동기화한다.
       void mutate();
-      void globalMutate(`/api/users/${user.id}`);
+      // 작성자 이름·사진을 그리는 목록·상세와 내 활동 목록을 모두 다시 받는다(앱 editProfile invalidate 묶음).
+      revalidateByPrefix({ cache: swrCache, mutate: globalMutate }, PROFILE_DEPENDENT_KEY_PREFIXES);
 
       toast.success("프로필이 저장되었습니다.");
       router.replace("/myPage");
@@ -257,7 +259,7 @@ const EditProfileClient = () => {
       </div>
 
       {/* 하단 고정 CTA */}
-      <div className="fixed inset-x-0 bottom-0 z-30 border-t border-app-line bg-app-bg">
+      <div className="fixed inset-x-0 bottom-0 mx-auto max-w-xl z-30 border-t border-app-line bg-app-bg">
         <div className="mx-auto max-w-xl px-5 pb-[max(12px,env(safe-area-inset-bottom))] pt-2">
           <button
             type="submit"

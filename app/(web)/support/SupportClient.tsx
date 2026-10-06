@@ -219,7 +219,7 @@ export function SupportForm({ initial = EMPTY_SUPPORT_PREFILL }: { initial?: Sup
         </div>
 
         {/* 하단 고정 CTA */}
-        <div className="fixed inset-x-0 bottom-0 z-30 border-t border-app-border bg-app-bg">
+        <div className="fixed inset-x-0 bottom-0 z-30 mx-auto max-w-xl border-t border-app-border bg-app-bg">
           <div className="mx-auto max-w-xl px-5 pb-[calc(12px+env(safe-area-inset-bottom))] pt-3">
             <button
               type="submit"

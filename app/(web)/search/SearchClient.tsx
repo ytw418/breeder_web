@@ -6,13 +6,12 @@ import useSWR from "swr";
 
 import Layout from "@components/features/MainLayout";
 import Image from "@components/atoms/Image";
-import { PostCard } from "@components/app/PostCard";
-import { ProductCard } from "@components/app/ProductCard";
 import { QueryErrorState } from "@components/app/QueryErrorState";
 import { cn, makeImageUrl } from "@libs/client/utils";
 import { SearchResponse } from "pages/api/search";
 import { TOP_LEVEL_CATEGORIES } from "@libs/categoryTaxonomy";
 import { getProductPath } from "@libs/product-route";
+import { toPostPath } from "@libs/post-route";
 import { formatProductPrice } from "@libs/productRules";
 import { ANALYTICS_EVENTS, trackEvent } from "@libs/client/analytics";
 
@@ -56,6 +55,42 @@ interface RecommendProductsResponse {
 interface RecommendPostsResponse {
   success: boolean;
   posts: SearchResponse["posts"];
+}
+
+/** 검색 결과 플랫 행(앱 search ResultRow): 제목 16/600 · 설명 14 muted · 메타 13 muted, 오른쪽 56 썸네일 r8. */
+function ResultRow({
+  href,
+  title,
+  description,
+  meta,
+  imageId,
+  imageVariant = "public",
+}: {
+  href: string;
+  title: string;
+  description?: string | null;
+  meta?: string;
+  imageId?: string | null;
+  imageVariant?: "public" | "product";
+}) {
+  return (
+    <Link href={href} className="flex items-center border-b border-app-line bg-app-bg px-4 py-3">
+      <div className="min-w-0 flex-1 pr-3">
+        <p className="truncate text-[16px] font-semibold text-app-text">{title}</p>
+        {description ? <p className="mt-0.5 truncate text-[14px] text-app-muted">{description}</p> : null}
+        {meta ? <p className="mt-1 truncate text-[13px] text-app-muted">{meta}</p> : null}
+      </div>
+      {imageId ? (
+        <Image
+          src={makeImageUrl(imageId, imageVariant)}
+          alt=""
+          width={56}
+          height={56}
+          className="h-14 w-14 shrink-0 rounded-lg bg-app-surface object-cover"
+        />
+      ) : null}
+    </Link>
+  );
 }
 
 /** 텍스트 칩(앱 TextChip): h32 r16 px14 14px. filled 면 테두리 없는 회색, selected 면 반전 채움. */
@@ -183,18 +218,14 @@ const SearchClient = () => {
           <section>
             {activeTab === "all" ? <SectionHeader title="상품" onMore={() => selectTab("products")} /> : null}
             {data.products.map((product) => (
-              <ProductCard
+              <ResultRow
                 key={product.id}
-                product={{
-                  id: product.id,
-                  name: product.name,
-                  price: product.price,
-                  image: product.photos?.[0],
-                  createdAt: product.createdAt,
-                  category: product.category,
-                  status: product.status,
-                  wishCount: product._count?.favs,
-                }}
+                href={getProductPath(product.id, product.name)}
+                title={product.name}
+                description={formatProductPrice(product.price)}
+                meta={[product.category, product.status].filter(Boolean).join(" · ")}
+                imageId={product.photos?.[0]}
+                imageVariant="product"
               />
             ))}
           </section>
@@ -204,7 +235,14 @@ const SearchClient = () => {
           <section>
             {activeTab === "all" ? <SectionHeader title="게시글" onMore={() => selectTab("posts")} /> : null}
             {data.posts.map((post) => (
-              <PostCard key={post.id} post={post} />
+              <ResultRow
+                key={post.id}
+                href={toPostPath(post.id, post.title)}
+                title={post.title}
+                description={post.description}
+                meta={`${post.user.name} · 좋아요 ${post._count.Likes} · 댓글 ${post._count.comments}`}
+                imageId={post.image}
+              />
             ))}
           </section>
         ) : null}
@@ -320,7 +358,14 @@ const SearchClient = () => {
           <section>
             <SectionHeader title="최근 게시글" moreHref="/posts" />
             {posts.slice(0, 5).map((post) => (
-              <PostCard key={post.id} post={post} />
+              <ResultRow
+                key={post.id}
+                href={toPostPath(post.id, post.title)}
+                title={post.title}
+                description={post.description}
+                meta={`${post.user?.name ?? "익명"} · 좋아요 ${post._count?.Likes ?? 0} · 댓글 ${post._count?.comments ?? 0}`}
+                imageId={post.image}
+              />
             ))}
           </section>
         ) : null}

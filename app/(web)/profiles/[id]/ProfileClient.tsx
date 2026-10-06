@@ -203,7 +203,8 @@ const ProfileClient = () => {
         {/* ① 프로필 */}
         <div className="px-5 py-5">
           <div className="flex items-center gap-3">
-            <ProfileAvatar avatar={user?.avatar} name={user?.name ?? ""} programs={user?.breederPrograms} />
+            {/* 앱 profiles/[id] 처럼 프로필 화면 아바타에는 브리더 프레임을 두르지 않는다(프레임은 마이페이지만). */}
+            <ProfileAvatar avatar={user?.avatar} name={user?.name ?? ""} />
             <div className="min-w-0 flex-1">
               <h2 className="truncate text-[18px] font-bold text-app-text">{user?.name || ""}</h2>
               {subLabel ? <p className="mt-0.5 truncate text-[13px] text-app-muted">{subLabel}</p> : null}

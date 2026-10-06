@@ -455,7 +455,7 @@ const MyPageClient = () => {
   } else if (activeTab === "comments") {
     activityContent = <ProfileCommentRows list={commentsList} />;
   } else if (activeTab === "products") {
-    activityContent = <ProfileProductRows list={productsList} />;
+    activityContent = <ProfileProductRows list={productsList} showMeta={false} />;
   } else if (activeTab === "bloodline") {
     activityContent = (
       <div className="space-y-3 px-4">

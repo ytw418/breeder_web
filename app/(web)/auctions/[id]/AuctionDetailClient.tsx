@@ -25,6 +25,7 @@ import { absoluteUrl, copyText, shareOrCopy } from "@libs/client/share";
 import { getAuctionResultMessage } from "@libs/client/auctionErrorMessage";
 import { ANALYTICS_EVENTS, trackEvent } from "@libs/client/analytics";
 import { extractAuctionIdFromPath, toAuctionPath } from "@libs/auction-route";
+import { DELETED_USER_LABEL, isDeletedUserName } from "@libs/shared/deletedUser";
 import {
   AUCTION_EXTENSION_MS,
   AUCTION_EXTENSION_WINDOW_MS,
@@ -469,13 +470,17 @@ const AuctionDetailClient = () => {
       auction.sellerProofImage
   );
   const bidDisabled = bidLoading || !isBiddable || !agreedBidRule || !agreedDisputePolicy;
-  const programs = auction.user?.breederPrograms;
+  // 판매자가 탈퇴해 user 가 없거나 탈퇴 이름이면 프로필 링크 없이 "탈퇴한 사용자"로 보인다.
+  const sellerId = auction.user?.id;
+  const sellerDeleted = !sellerId || isDeletedUserName(auction.user?.name);
+  const sellerName = sellerDeleted ? DELETED_USER_LABEL : auction.user?.name;
+  const programs = sellerDeleted ? undefined : auction.user?.breederPrograms;
   const framed = hasBreederProgramFrame(programs);
 
   const sellerInner = (
     <>
       <div className={cn("shrink-0", framed && "rounded-full p-0.5", framed && getBreederProgramFrameClassName(programs))}>
-        {auction.user?.avatar ? (
+        {!sellerDeleted && auction.user?.avatar ? (
           <Image
             src={makeImageUrl(auction.user.avatar, "avatar")}
             className="h-11 w-11 rounded-full object-cover"
@@ -488,7 +493,7 @@ const AuctionDetailClient = () => {
         )}
       </div>
       <div className="flex min-w-0 flex-1 flex-col gap-0.5">
-        <p className="truncate text-[16px] font-semibold text-app-text">{auction.user?.name}</p>
+        <p className="truncate text-[16px] font-semibold text-app-text">{sellerName}</p>
         <p className="text-[13px] text-app-muted">경매 등록자</p>
         <BreederProgramBadge programs={programs} className="mt-1" />
       </div>
@@ -523,10 +528,10 @@ const AuctionDetailClient = () => {
         </div>
 
         {/* 판매자 행 */}
-        {isToolRoute ? (
+        {isToolRoute || sellerDeleted ? (
           <div className="flex items-center gap-3 p-4">{sellerInner}</div>
         ) : (
-          <Link href={`/profiles/${auction.user?.id}`} className="flex items-center gap-3 p-4">
+          <Link href={`/profiles/${sellerId}`} className="flex items-center gap-3 p-4">
             {sellerInner}
             <Icon name="chevronRight" size={20} className="shrink-0 text-app-caption" />
           </Link>
@@ -727,7 +732,7 @@ const AuctionDetailClient = () => {
       </div>
 
       {/* 하단 고정 입찰 바 */}
-      <div className="fixed inset-x-0 bottom-0 z-40 border-t border-app-line bg-app-bg">
+      <div className="fixed inset-x-0 bottom-0 mx-auto max-w-xl z-40 border-t border-app-line bg-app-bg">
         <div className="mx-auto flex max-w-xl flex-col gap-2 px-4 pt-2.5 pb-[max(14px,calc(env(safe-area-inset-bottom)+10px))]">
           {isBiddable ? (
             <div className="flex flex-col gap-1.5">

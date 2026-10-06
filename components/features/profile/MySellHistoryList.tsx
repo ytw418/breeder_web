@@ -62,12 +62,13 @@ function CenterMessage({
 /**
  * 판매·구매·관심 목록(앱 profiles/[id]/sales·purchases·favs). ProductCard 플랫 행 / 빈 상태 14 muted 가운데.
  * 구매내역은 다른 사용자도 볼 수 있다(관심목록만 본인 전용 — 서버가 401·403 으로 막고 여기서는 안내만 한다).
- * `/profiles/0/...`(비로그인 사이드 메뉴 링크)로 들어오면 로그인한 내 id 경로로 바꾼다.
+ * `/profiles/0/...`(비로그인 사이드 메뉴 링크)처럼 id 가 양의 정수가 아니면 로그인한 내 id 경로로 바꾼다.
  */
 export default function MySellHistoryList({ kind, id }: ProductListProps) {
   const router = useRouter();
   const { user, isLoading: userLoading } = useUser();
-  const resolvingOwner = id === 0;
+  // 양의 정수가 아닌 id(/profiles/0·abc·-1 …)는 내 id 경로로 바꾼다(앱 useOwnProfileRedirect). /api/users/NaN 요청 금지.
+  const resolvingOwner = !(Number.isInteger(id) && id > 0);
 
   useEffect(() => {
     if (!resolvingOwner || userLoading) return;

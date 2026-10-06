@@ -280,7 +280,7 @@ export function BottomCta({
   type?: "button" | "submit";
 }) {
   return (
-    <div className="fixed inset-x-0 bottom-0 z-40 border-t border-app-line bg-app-bg">
+    <div className="fixed inset-x-0 bottom-0 mx-auto max-w-xl z-40 border-t border-app-line bg-app-bg">
       <div className="mx-auto max-w-xl px-5 pt-2 pb-[calc(8px+env(safe-area-inset-bottom))]">
         {errorText ? <p className="mb-2 text-[13px] text-app-danger">{errorText}</p> : null}
         <button

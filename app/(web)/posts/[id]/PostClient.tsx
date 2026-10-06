@@ -21,6 +21,7 @@ import { copyText, absoluteUrl, shareOrCopy } from "@libs/client/share";
 import { cn, getTimeAgoString, makeImageUrl } from "@libs/client/utils";
 import { extractPostIdFromPath, toPostPath } from "@libs/post-route";
 import type { PostDetailResponse } from "pages/api/posts/[id]";
+import { MY_ACTIVITY_KEY_PREFIXES, POST_KEY_PREFIXES, revalidateByPrefix } from "@libs/client/swrRevalidate";
 import { getPostMenuActionKeys, isNoticePost, type PostMenuActionKey } from "../_lib/postComposer";
 import { PostAvatar } from "../_components/PostAvatar";
 
@@ -31,12 +32,6 @@ type BlockTarget = { id: number; name: string };
 const timeAgo = (value: string | Date) => {
   const date = new Date(value);
   return Number.isNaN(date.getTime()) ? "" : getTimeAgoString(date);
-};
-
-/** 게시글 목록 키(무한 목록 포함)·마이페이지 활동 키를 다시 받는다. */
-const isPostListKey = (key: unknown) => {
-  const raw = Array.isArray(key) ? key[0] : key;
-  return typeof raw === "string" && raw.replace(/^\$inf\$/, "").startsWith("/api/posts");
 };
 
 function MoreIcon() {
@@ -133,7 +128,9 @@ const PostClient = ({
   const postApiId = Number.isNaN(postId) ? null : postId;
   const router = useRouter();
   const { user, isLoading: userLoading } = useUser();
-  const { mutate: globalMutate } = useSWRConfig();
+  const { mutate: globalMutate, cache: swrCache } = useSWRConfig();
+  const revalidateMyPostActivity = () =>
+    revalidateByPrefix({ cache: swrCache, mutate: globalMutate }, [...POST_KEY_PREFIXES, ...MY_ACTIVITY_KEY_PREFIXES]);
   const { isBlocked, unblock, isPending: blockPending } = useBlocks();
 
   const { data, error, mutate } = useSWR<PostDetailResponse>(
@@ -218,7 +215,7 @@ const PostClient = ({
         body: JSON.stringify({}),
       });
       if (!response.ok) throw new Error("like failed");
-      void globalMutate(isPostListKey);
+      revalidateByPrefix({ cache: swrCache, mutate: globalMutate }, POST_KEY_PREFIXES);
       await mutate();
     } catch {
       void mutate(previous, { revalidate: false });
@@ -248,7 +245,8 @@ const PostClient = ({
       if (response.ok && result?.success) {
         setComment("");
         await mutate();
-        void globalMutate(isPostListKey);
+        // 게시글 목록 댓글 수와 마이페이지·내 프로필 댓글 목록·수(앱 invalidateMyActivity)
+        revalidateMyPostActivity();
         toast.success("댓글이 등록되었습니다.");
         return;
       }
@@ -280,7 +278,7 @@ const PostClient = ({
       }
       setDeleteOpen(false);
       toast.success("게시글이 삭제되었습니다.");
-      void globalMutate(isPostListKey);
+      revalidateMyPostActivity();
       router.replace("/posts");
     } catch {
       toast.error("게시글 삭제에 실패했습니다.");
@@ -554,7 +552,7 @@ const PostClient = ({
         </div>
 
         {/* 입력바: pill 44 surface + 32 주황 원형 전송 */}
-        <div className="fixed inset-x-0 bottom-0 z-30 border-t border-app-line bg-app-bg">
+        <div className="fixed inset-x-0 bottom-0 mx-auto max-w-xl z-30 border-t border-app-line bg-app-bg">
           <div className="mx-auto max-w-xl">
             {loggedOut ? (
               <button
