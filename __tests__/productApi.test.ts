@@ -27,6 +27,7 @@ import createHandler from "../pages/api/products/index";
 import detailHandler from "../pages/api/products/[id]/index";
 import favsHandler from "../pages/api/users/[id]/favs";
 import salesHandler from "../pages/api/users/[id]/sales";
+import purchasesHandler from "../pages/api/users/[id]/purchases";
 import favToggleHandler from "../pages/api/products/[id]/fav";
 
 function createRes() {
@@ -342,9 +343,9 @@ describe("GET /api/users/:id/favs (관심목록)", () => {
   });
 });
 
-// 구매내역은 본인만 볼 수 있다(userHistoryAccessApi.test.ts).
 describe.each([
   ["sales", "판매내역", salesHandler, mockClient.sale.findMany],
+  ["purchases", "구매내역", purchasesHandler, mockClient.purchase.findMany],
 ] as const)("GET /api/users/:id/%s (%s)", (_kind, _label, handler, findMany) => {
   beforeEach(() => {
     findMany.mockResolvedValue([]);
