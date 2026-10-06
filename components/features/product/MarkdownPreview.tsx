@@ -8,6 +8,8 @@ interface MarkdownPreviewProps {
   content: string;
   className?: string;
   emptyText?: string;
+  /** 빈 상태 박스에 덧붙일 클래스(편집기 미리보기 안에서는 테두리 없이). */
+  emptyClassName?: string;
 }
 
 const linkPattern = /\[([^\]]+)\]\((https?:\/\/[^\s)]+)\)/;
@@ -70,7 +72,7 @@ const renderInline = (text: string, keyPrefix: string): React.ReactNode[] => {
       nodes.push(
         <code
           key={`${keyPrefix}-code-${index}`}
-          className="px-1.5 py-0.5 rounded bg-gray-100 text-[13px] font-mono"
+          className="px-1.5 py-0.5 rounded bg-app-surface text-[13px] text-app-text font-mono"
         >
           {codeMatch[1]}
         </code>
@@ -102,6 +104,7 @@ const MarkdownPreview = ({
   content,
   className,
   emptyText = "설명을 입력하면 이곳에 미리보기가 표시됩니다.",
+  emptyClassName,
 }: MarkdownPreviewProps) => {
   const markdown = content?.trim() ?? "";
 
@@ -109,8 +112,9 @@ const MarkdownPreview = ({
     return (
       <div
         className={cn(
-          "rounded-xl border border-dashed border-gray-200 bg-gray-50 p-4 text-sm text-gray-400",
-          className
+          "rounded-xl border border-dashed border-app-border bg-app-gap p-4 text-sm text-app-muted",
+          className,
+          emptyClassName
         )}
       >
         {emptyText}
@@ -140,7 +144,7 @@ const MarkdownPreview = ({
           ? "text-base font-bold"
           : "text-sm font-semibold";
       blocks.push(
-        <h3 key={`heading-${i}`} className={cn("text-gray-900", headingClass)}>
+        <h3 key={`heading-${i}`} className={cn("text-app-text", headingClass)}>
           {renderInline(text, `heading-${i}`)}
         </h3>
       );
@@ -157,7 +161,7 @@ const MarkdownPreview = ({
       blocks.push(
         <ul
           key={`ul-${i}`}
-          className="list-disc pl-5 space-y-1 text-sm text-gray-700"
+          className="list-disc pl-5 space-y-1 text-sm text-app-sub"
         >
           {items.map((item, idx) => (
             <li key={`ul-item-${idx}`}>
@@ -178,7 +182,7 @@ const MarkdownPreview = ({
       blocks.push(
         <ol
           key={`ol-${i}`}
-          className="list-decimal pl-5 space-y-1 text-sm text-gray-700"
+          className="list-decimal pl-5 space-y-1 text-sm text-app-sub"
         >
           {items.map((item, idx) => (
             <li key={`ol-item-${idx}`}>
@@ -203,7 +207,7 @@ const MarkdownPreview = ({
     }
 
     blocks.push(
-      <p key={`p-${i}`} className="text-sm text-gray-700 leading-relaxed">
+      <p key={`p-${i}`} className="text-sm text-app-sub leading-relaxed">
         {renderParagraph(paragraphLines.join("\n"), `p-${i}`)}
       </p>
     );

@@ -398,6 +398,7 @@ export function ProductForm({
             }}
             placeholder="사육 정보, 상태, 거래 방식 등 구매자가 궁금할 내용을 구체적으로 작성해주세요."
             rows={9}
+            hasError={Boolean(errors.description)}
           />
           <ErrorText>{errors.description}</ErrorText>
         </div>

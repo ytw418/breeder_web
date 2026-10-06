@@ -98,3 +98,56 @@ export function isInterceptableHref(
   }
   return true;
 }
+
+/**
+ * 뒤로가기 감지용 history 센티널(같은 URL 한 칸)의 상태.
+ * 이탈이 허용되면(leave(fn), 확인 창 나가기, dirty→clean) 이동 전에 센티널을 history.back() 으로 걷어 내야
+ * 다음 화면에서 뒤로가기를 눌렀을 때 작성 화면으로 돌아오지 않는다.
+ * - present: 센티널이 history 맨 위에 있다
+ * - popping: 걷어 내려고 back() 을 불렀고 popstate 를 기다리는 중
+ */
+export interface SentinelState {
+  present: boolean;
+  popping: boolean;
+}
+
+export const createSentinelState = (): SentinelState => ({ present: false, popping: false });
+
+/** 지금 센티널을 새로 쌓아도 되는지(이미 있거나 걷어 내는 중이면 안 된다). */
+export const canPushSentinel = (state: SentinelState): boolean =>
+  !state.present && !state.popping;
+
+export const sentinelPushed = (state: SentinelState): SentinelState => ({
+  ...state,
+  present: true,
+});
+
+/**
+ * 센티널을 걷어 낸 뒤 이어서 실행할 일이 있을 때의 계획.
+ * - "back": history.back() 을 부르고 popstate 뒤에 실행
+ * - "wait": 이미 걷어 내는 중 — 같은 popstate 뒤에 실행
+ * - "run": 센티널이 없다 — 바로 실행
+ */
+export function planSentinelRemoval(state: SentinelState): {
+  state: SentinelState;
+  plan: "back" | "wait" | "run";
+} {
+  if (state.present) return { state: { present: false, popping: true }, plan: "back" };
+  if (state.popping) return { state, plan: "wait" };
+  return { state, plan: "run" };
+}
+
+/**
+ * popstate 를 받았을 때.
+ * - removal: 우리가 걷어 낸 back() 의 결과 → 대기 중인 이동을 실행
+ * - userBack: 사용자가 뒤로가기로 센티널을 뺐다 → 막아야 하면 확인 창
+ * - ignore: 센티널과 무관한 이동
+ */
+export function sentinelOnPopState(state: SentinelState): {
+  state: SentinelState;
+  kind: "removal" | "userBack" | "ignore";
+} {
+  if (state.popping) return { state: { present: false, popping: false }, kind: "removal" };
+  if (state.present) return { state: { present: false, popping: false }, kind: "userBack" };
+  return { state, kind: "ignore" };
+}

@@ -1,5 +1,10 @@
 import {
+  canPushSentinel,
   createLeaveGuardState,
+  createSentinelState,
+  planSentinelRemoval,
+  sentinelOnPopState,
+  sentinelPushed,
   isInterceptableHref,
   leaveGuardTransition,
   shouldBlockLeave,
@@ -90,5 +95,36 @@ describe("isInterceptableHref", () => {
     expect(isInterceptableHref("#photos", current)).toBe(false);
     expect(isInterceptableHref("mailto:help@bredy.app", current)).toBe(false);
     expect(isInterceptableHref(null, current)).toBe(false);
+  });
+});
+
+describe("history 센티널", () => {
+  it("dirty 가 되면 한 번만 쌓는다", () => {
+    let state = createSentinelState();
+    expect(canPushSentinel(state)).toBe(true);
+    state = sentinelPushed(state);
+    expect(canPushSentinel(state)).toBe(false);
+  });
+
+  it("leave(fn): 센티널이 있으면 back 으로 걷어 내고, 그 popstate 는 removal 이다", () => {
+    let state = sentinelPushed(createSentinelState());
+    const removal = planSentinelRemoval(state);
+    expect(removal.plan).toBe("back");
+    state = removal.state;
+    expect(canPushSentinel(state)).toBe(false);
+    // 걷어 내는 중에 또 요청하면 같은 popstate 를 기다린다.
+    expect(planSentinelRemoval(state).plan).toBe("wait");
+    const popped = sentinelOnPopState(state);
+    expect(popped.kind).toBe("removal");
+    expect(popped.state).toEqual({ present: false, popping: false });
+  });
+
+  it("센티널이 없으면 바로 실행한다", () => {
+    expect(planSentinelRemoval(createSentinelState()).plan).toBe("run");
+  });
+
+  it("사용자 뒤로가기로 센티널이 빠지면 userBack, 센티널이 없으면 ignore", () => {
+    expect(sentinelOnPopState(sentinelPushed(createSentinelState())).kind).toBe("userBack");
+    expect(sentinelOnPopState(createSentinelState()).kind).toBe("ignore");
   });
 });

@@ -33,7 +33,7 @@ export function HeaderIconButton({
     <>
       {children}
       {badgeLabel ? (
-        <span className="absolute right-0.5 top-0.5 flex h-5 min-w-5 items-center justify-center rounded-full bg-app-danger px-1 text-[10px] font-bold text-white">
+        <span className="absolute right-0.5 top-0.5 flex h-5 min-w-[20px] items-center justify-center rounded-full bg-app-danger px-1 text-[10px] font-bold text-white">
           {badgeLabel}
         </span>
       ) : null}

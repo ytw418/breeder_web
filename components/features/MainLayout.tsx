@@ -654,7 +654,7 @@ export default function MainLayout({
                   <span className="relative inline-flex h-6 w-6 items-center justify-center">
                     <StrokeIcon d={item.d} className="h-6 w-6" strokeWidth={1.5} />
                     {showChatBadge ? (
-                      <span className="absolute -right-2 -top-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-app-danger px-1 text-[10px] font-semibold leading-none text-white">
+                      <span className="absolute -right-2 -top-1 flex h-4 min-w-[16px] items-center justify-center rounded-full bg-app-danger px-1 text-[10px] font-semibold leading-none text-white">
                         {chatUnread > 9 ? "9+" : chatUnread}
                       </span>
                     ) : null}

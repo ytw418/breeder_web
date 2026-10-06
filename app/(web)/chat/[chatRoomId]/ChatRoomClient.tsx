@@ -411,7 +411,7 @@ const ChatRoomClient = () => {
                 onChange={(event) => void handleFiles(event.target.files)}
               />
 
-              <div className="flex min-h-10 flex-1 items-end rounded-[20px] bg-app-surface pl-4 pr-2">
+              <div className="flex min-h-[40px] flex-1 items-end rounded-[20px] bg-app-surface pl-4 pr-2">
                 {/* 차단·탈퇴 상대면 안내 placeholder 가 보이게 비워 둔다(차단 해제하면 입력하던 글이 돌아온다). */}
                 <textarea
                   ref={textareaRef}
@@ -427,7 +427,7 @@ const ChatRoomClient = () => {
                   disabled={composerLocked}
                   placeholder={composerPlaceholder({ deleted: partnerDeleted, blocked: partnerBlocked })}
                   aria-label="메시지 입력"
-                  className="max-h-[112px] min-h-10 flex-1 resize-none border-0 bg-transparent p-0 py-2.5 text-[15px] leading-5 text-app-text outline-none placeholder:text-app-caption focus:ring-0 disabled:cursor-not-allowed"
+                  className="max-h-[112px] min-h-[40px] flex-1 resize-none border-0 bg-transparent p-0 py-2.5 text-[15px] leading-5 text-app-text outline-none placeholder:text-app-caption focus:ring-0 disabled:cursor-not-allowed"
                 />
                 <button
                   type="submit"

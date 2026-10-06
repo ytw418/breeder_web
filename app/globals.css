@@ -515,6 +515,25 @@ textarea {
   --toast-icon-fg: var(--app-sub);
 }
 
+/*
+ * 토스트 영역이 헤더(⋯·뒤로가기) 클릭을 막지 않게 한다. 컨테이너와 sonner 의 스와이프·간격용
+ * 가상 요소, 사라지는 중인 토스트는 클릭을 통과시키고, 보이는 토스트 본문만 클릭을 받는다.
+ */
+.app-sonner-toaster,
+[data-sonner-toaster] {
+  pointer-events: none;
+}
+
+[data-sonner-toast]::before,
+[data-sonner-toast]::after {
+  pointer-events: none;
+}
+
+[data-sonner-toast][data-removed="true"],
+[data-sonner-toast][data-visible="false"] {
+  pointer-events: none !important;
+}
+
 .app-sonner-toast {
   position: relative;
   display: flex;
@@ -528,6 +547,7 @@ textarea {
   box-shadow: var(--app-shadow-popover);
   padding: 12px 40px 12px 12px;
   white-space: normal;
+  pointer-events: auto;
 }
 
 .app-sonner-icon {

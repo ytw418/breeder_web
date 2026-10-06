@@ -69,7 +69,7 @@ function ChatRow({ room, myId }: { room: ChatRoomItem; myId?: number }) {
 
       {room.unreadCount > 0 ? (
         <span
-          className="flex h-5 min-w-5 shrink-0 items-center justify-center rounded-[10px] bg-app-brand px-1.5 text-[12px] font-bold text-white"
+          className="flex h-5 min-w-[20px] shrink-0 items-center justify-center rounded-[10px] bg-app-brand px-1.5 text-[12px] font-bold text-white"
           aria-label={`안 읽은 메시지 ${room.unreadCount}개`}
         >
           {room.unreadCount}

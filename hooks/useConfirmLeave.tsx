@@ -4,13 +4,19 @@ import { useCallback, useEffect, useRef, useState, type ReactNode } from "react"
 import { useRouter } from "next/navigation";
 import ConfirmDialog from "@components/atoms/ConfirmDialog";
 import {
+  canPushSentinel,
   createLeaveGuardState,
+  createSentinelState,
+  planSentinelRemoval,
+  sentinelOnPopState,
+  sentinelPushed,
   isInterceptableHref,
   leaveGuardTransition,
   shouldBlockLeave,
   type LeaveGuardEvent,
   type LeaveGuardState,
   type LeaveTarget,
+  type SentinelState,
 } from "@libs/client/leaveGuard";
 
 export interface ConfirmLeaveOptions {
@@ -23,6 +29,8 @@ export interface ConfirmLeaveOptions {
 }
 
 const SENTINEL_KEY = "__bredyLeaveGuard";
+/** 센티널을 걷어 내는 back() 의 popstate 가 오지 않을 때 대기 중인 이동을 실행하는 시간. */
+const SENTINEL_POP_TIMEOUT_MS = 1000;
 
 /**
  * 작성 중인 내용이 있으면(dirty) 이탈을 막고 확인을 받는다(앱 use-confirm-leave 와 같은 문구).
@@ -39,7 +47,9 @@ export function useConfirmLeave(
   const router = useRouter();
   const stateRef = useRef<LeaveGuardState>(createLeaveGuardState(dirty));
   const [prompt, setPrompt] = useState<LeaveTarget | null>(null);
-  const sentinelRef = useRef(false);
+  const sentinelRef = useRef<SentinelState>(createSentinelState());
+  const afterPopRef = useRef<Array<() => void>>([]);
+  const popTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const run = useCallback(
     (target: LeaveTarget | null) => {
@@ -76,18 +86,61 @@ export function useConfirmLeave(
     return () => window.removeEventListener("beforeunload", onBeforeUnload);
   }, []);
 
-  // 뒤로가기: dirty 가 되면 같은 URL 센티널을 한 칸 쌓아 두고, 뒤로가기로 센티널이 빠지면 확인 창을 띄운다.
-  useEffect(() => {
-    if (!dirty || sentinelRef.current) return;
+  const pushSentinel = useCallback(() => {
+    if (!canPushSentinel(sentinelRef.current)) return;
     window.history.pushState({ [SENTINEL_KEY]: true }, "");
-    sentinelRef.current = true;
-  }, [dirty]);
+    sentinelRef.current = sentinelPushed(sentinelRef.current);
+  }, []);
+
+  const flushAfterPop = useCallback(() => {
+    if (popTimerRef.current) {
+      clearTimeout(popTimerRef.current);
+      popTimerRef.current = null;
+    }
+    const queued = afterPopRef.current;
+    afterPopRef.current = [];
+    queued.forEach((fn) => fn());
+  }, []);
+
+  /** 센티널이 있으면 history.back() 으로 걷어 낸 뒤 then 을 실행한다(없으면 바로 실행). */
+  const removeSentinel = useCallback(
+    (then?: () => void) => {
+      const { state, plan } = planSentinelRemoval(sentinelRef.current);
+      sentinelRef.current = state;
+      if (plan === "run") {
+        then?.();
+        return;
+      }
+      if (then) afterPopRef.current.push(then);
+      if (plan === "back") {
+        window.history.back();
+        popTimerRef.current = setTimeout(() => {
+          popTimerRef.current = null;
+          sentinelRef.current = { present: false, popping: false };
+          flushAfterPop();
+        }, SENTINEL_POP_TIMEOUT_MS);
+      }
+    },
+    [flushAfterPop]
+  );
+
+  // 뒤로가기: dirty 가 되면 같은 URL 센티널을 한 칸 쌓아 두고, 뒤로가기로 센티널이 빠지면 확인 창을 띄운다.
+  // 다시 깨끗해지면(dirty→clean) 센티널을 걷어 낸다.
+  useEffect(() => {
+    if (dirty) pushSentinel();
+    else removeSentinel();
+  }, [dirty, pushSentinel, removeSentinel]);
 
   useEffect(() => {
     const onPopState = () => {
-      if (!sentinelRef.current) return;
-      // 센티널이 빠졌다(뒤로가기). 막아야 하면 확인 창, 아니면 실제로 한 칸 더 뒤로 간다.
-      sentinelRef.current = false;
+      const { state, kind } = sentinelOnPopState(sentinelRef.current);
+      sentinelRef.current = state;
+      if (kind === "removal") {
+        flushAfterPop();
+        return;
+      }
+      if (kind !== "userBack") return;
+      // 사용자가 뒤로가기로 센티널을 뺐다. 막아야 하면 확인 창, 아니면 실제로 한 칸 더 뒤로 간다.
       if (shouldBlockLeave(stateRef.current)) {
         dispatch({ type: "attempt", target: { kind: "back" } });
       } else {
@@ -96,7 +149,14 @@ export function useConfirmLeave(
     };
     window.addEventListener("popstate", onPopState);
     return () => window.removeEventListener("popstate", onPopState);
-  }, [dispatch]);
+  }, [dispatch, flushAfterPop]);
+
+  useEffect(
+    () => () => {
+      if (popTimerRef.current) clearTimeout(popTimerRef.current);
+    },
+    []
+  );
 
   // 문서 안 링크 클릭 가로채기(캡처 단계라 next/link 보다 먼저 받는다).
   useEffect(() => {
@@ -131,22 +191,24 @@ export function useConfirmLeave(
     const wasBack = stateRef.current.prompt?.kind === "back";
     dispatch({ type: "cancel" });
     // 뒤로가기를 취소했으면 센티널을 다시 쌓는다.
-    if (wasBack && !sentinelRef.current) {
-      window.history.pushState({ [SENTINEL_KEY]: true }, "");
-      sentinelRef.current = true;
-    }
-  }, [dispatch]);
+    if (wasBack) pushSentinel();
+  }, [dispatch, pushSentinel]);
 
   const confirm = useCallback(() => {
-    run(dispatch({ type: "confirm" }));
-  }, [dispatch, run]);
+    const target = dispatch({ type: "confirm" });
+    if (!target) return;
+    // 뒤로가기는 센티널이 이미 빠진 상태다. 그 밖의 이동은 센티널을 걷어 낸 뒤 간다.
+    if (target.kind === "back") run(target);
+    else removeSentinel(() => run(target));
+  }, [dispatch, removeSentinel, run]);
 
+  /** 확인 없이 나간다(저장 성공 후 이동 등). 센티널을 걷어 낸 뒤 fn 을 실행한다. */
   const leave = useCallback(
     (fn: () => void) => {
       dispatch({ type: "allow" });
-      fn();
+      removeSentinel(fn);
     },
-    [dispatch]
+    [dispatch, removeSentinel]
   );
 
   const dialog = (
