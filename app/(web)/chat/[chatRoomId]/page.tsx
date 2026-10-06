@@ -1,5 +1,6 @@
 import React from "react";
 import ChatRoomClient from "./ChatRoomClient";
+import AuthGuard from "@components/auth/AuthGuard";
 import type { Metadata } from "next";
 
 export const metadata: Metadata = {
@@ -16,7 +17,11 @@ export const metadata: Metadata = {
 };
 
 const Page = () => {
-  return <ChatRoomClient />;
+  return (
+    <AuthGuard>
+      <ChatRoomClient />
+    </AuthGuard>
+  );
 };
 
 export default Page;

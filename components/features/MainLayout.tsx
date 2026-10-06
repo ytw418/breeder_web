@@ -535,7 +535,7 @@ export default function MainLayout({
 
     if (headerVariant === "chat-list") {
       return (
-        <header className="sticky top-0 z-30 h-14 w-full border-b border-app-line bg-app-bg">
+        <header className="sticky top-0 z-30 h-14 w-full bg-app-bg">
           <div className="mx-auto flex h-full max-w-xl items-center justify-between pl-4 pr-2">
             <h1 className="text-[18px] font-bold tracking-[-0.3px] text-app-text">{title}</h1>
             <div className="flex items-center gap-1">
