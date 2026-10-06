@@ -12,10 +12,16 @@ interface ConfirmDialogProps {
   tone?: "default" | "danger";
   confirmKeyword?: string;
   confirmKeywordLabel?: string;
+  /** 확인 요청 중. 버튼을 막고 확인 버튼에 진행 상태를 보인다. */
+  loading?: boolean;
   onConfirm: () => void;
   onCancel: () => void;
 }
 
+/**
+ * 확인 창(앱 ConfirmDialog 와 같은 톤). 모바일은 아래, 넓은 화면은 가운데에 뜬다.
+ * 확인 버튼: 기본 inverse 채움, danger 는 app-danger 채움.
+ */
 export default function ConfirmDialog({
   open,
   title,
@@ -25,6 +31,7 @@ export default function ConfirmDialog({
   tone = "default",
   confirmKeyword = "",
   confirmKeywordLabel = "확인 키워드",
+  loading = false,
   onConfirm,
   onCancel,
 }: ConfirmDialogProps) {
@@ -33,11 +40,11 @@ export default function ConfirmDialog({
   useEffect(() => {
     if (!open) return;
     const handleEscape = (event: KeyboardEvent) => {
-      if (event.key === "Escape") onCancel();
+      if (event.key === "Escape" && !loading) onCancel();
     };
     window.addEventListener("keydown", handleEscape);
     return () => window.removeEventListener("keydown", handleEscape);
-  }, [open, onCancel]);
+  }, [open, onCancel, loading]);
 
   useEffect(() => {
     if (!open) return;
@@ -58,36 +65,40 @@ export default function ConfirmDialog({
 
   const requiresKeyword = Boolean(confirmKeyword?.trim());
   const normalizedKeyword = String(confirmKeyword || "").trim();
-  const canConfirm = !requiresKeyword || keywordInput.trim() === normalizedKeyword;
+  const canConfirm =
+    !loading && (!requiresKeyword || keywordInput.trim() === normalizedKeyword);
 
   return (
     <div className="fixed inset-0 z-[90] flex items-end justify-center p-4 sm:items-center">
       <button
         type="button"
-        className="absolute inset-0 bg-black/40 backdrop-blur-[1px]"
-        onClick={onCancel}
+        className="absolute inset-0 bg-app-overlay"
+        onClick={loading ? undefined : onCancel}
         aria-label="모달 닫기"
       />
 
       <div
         role="dialog"
         aria-modal="true"
-        className="app-card relative w-full max-w-sm rounded-2xl border border-slate-200 bg-white p-4"
+        aria-label={title}
+        className="relative w-full max-w-sm rounded-2xl border border-app-border bg-app-elevated p-4 shadow-card"
       >
-        <h3 className="text-base font-semibold text-slate-900">{title}</h3>
+        <h3 className="text-[16px] font-semibold text-app-strong">{title}</h3>
         {description ? (
-          <p className="mt-1.5 whitespace-pre-line text-sm leading-relaxed text-slate-500">{description}</p>
+          <p className="mt-1.5 whitespace-pre-line text-[14px] leading-relaxed text-app-muted">
+            {description}
+          </p>
         ) : null}
         {requiresKeyword ? (
-          <div className="mt-3 rounded-xl border border-rose-200 bg-rose-50 px-3 py-2.5">
-            <p className="text-xs font-semibold text-rose-900">
-              {confirmKeywordLabel}: <span className="font-black">{normalizedKeyword}</span>
+          <div className="mt-3 rounded-xl border border-app-danger-soft bg-app-danger-soft px-3 py-2.5">
+            <p className="text-xs font-semibold text-app-danger">
+              {confirmKeywordLabel}: <span className="font-bold">{normalizedKeyword}</span>
             </p>
             <input
               value={keywordInput}
               onChange={(event) => setKeywordInput(event.target.value)}
               placeholder={`${normalizedKeyword} 입력`}
-              className="mt-1.5 h-9 w-full rounded-lg border border-rose-300 bg-white px-2.5 text-sm text-slate-800 outline-none focus:ring-2 focus:ring-rose-200"
+              className="mt-1.5 h-12 w-full rounded-lg border border-app-border bg-app-bg px-2.5 text-sm text-app-strong placeholder:text-app-caption outline-none focus:border-app-text focus:ring-0"
             />
           </div>
         ) : null}
@@ -96,7 +107,8 @@ export default function ConfirmDialog({
           <button
             type="button"
             onClick={onCancel}
-            className="h-10 rounded-xl border border-slate-200 bg-white text-sm font-semibold text-slate-700 transition-colors hover:bg-slate-50"
+            disabled={loading}
+            className="h-11 rounded-xl border border-app-border bg-app-elevated text-sm font-semibold text-app-sub transition-colors hover:bg-app-surface disabled:opacity-50"
           >
             {cancelText}
           </button>
@@ -104,14 +116,13 @@ export default function ConfirmDialog({
             type="button"
             onClick={onConfirm}
             disabled={!canConfirm}
+            aria-busy={loading || undefined}
             className={cn(
-              "h-10 rounded-xl text-sm font-semibold text-white transition-colors disabled:cursor-not-allowed disabled:opacity-50",
-              tone === "danger"
-                ? "bg-rose-600 hover:bg-rose-700"
-                : "bg-slate-900 hover:bg-slate-800"
+              "h-11 rounded-xl text-sm font-semibold transition-opacity disabled:cursor-not-allowed disabled:opacity-50",
+              tone === "danger" ? "bg-app-danger text-white" : "bg-app-inverse text-app-inverse-text"
             )}
           >
-            {confirmText}
+            {loading ? "처리 중..." : confirmText}
           </button>
         </div>
       </div>
