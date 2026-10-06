@@ -30,6 +30,7 @@
     "seed:dummy": "ts-node --transpile-only --compiler-options '{\"module\":\"CommonJS\"}' prisma/seed-dummy.ts",
     "seed:dummy:reset": "ts-node --transpile-only --compiler-options '{\"module\":\"CommonJS\"}' prisma/seed-dummy.ts --reset",
     "seed:auction-flow": "ts-node --transpile-only --compiler-options '{\"module\":\"CommonJS\"}' prisma/seed-auction-flow.ts",
+    "seed:community": "ts-node --transpile-only --compiler-options '{\"module\":\"CommonJS\"}' scripts/seed-community.ts",
     "issue:auto-pr": "node scripts/issue-auto-pr.mjs",
     "import:morphmarket:auction": "npx ts-node --transpile-only --compiler-options '{\"module\":\"CommonJS\"}' -r tsconfig-paths/register scripts/import-morphmarket-auctions.ts"
   },
