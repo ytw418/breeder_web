@@ -1,248 +1,149 @@
 "use client";
 
+/**
+ * 혈통 하위 목록(내 혈통 / 내 라인 / 받은 카드) — 당근 톤(A안) 1:1
+ * 원본: bredy_app src/components/features/bloodline/BloodlineSectionListScreen.tsx
+ *
+ * 헤더(뒤로 + 제목 18/700) → 설명 13/muted → 검색 인풋 → 1열 카드 리스트(gap 12)
+ * → (내 혈통만) 하단 고정 CTA "새 혈통 만들기".
+ */
 import { useMemo, useState } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
 import useSWR from "swr";
-import { Input } from "@components/ui/input";
-import { Spinner } from "@components/atoms/Spinner";
 import Layout from "@components/features/MainLayout";
+import { Input } from "@components/ui/input";
+import { QueryErrorState } from "@components/app/QueryErrorState";
 import { BloodlineVisualCard } from "@components/features/bloodline/BloodlineVisualCard";
+import {
+  BloodlineBottomBar,
+  BloodlineBottomBarSpacer,
+  BloodlineHeader,
+  BloodlinePrimaryButton,
+  BloodlineSpinner,
+  bloodlineInputClass,
+  useBloodlineLoginRedirect,
+} from "@components/features/bloodline/BloodlineScreenParts";
 import useUser from "hooks/useUser";
 import {
-  BloodlineCardsResponse,
-  BloodlineCardItem,
+  bloodlineCardMeta,
+  bloodlineCardTypeLabel,
+  groupBloodlineCards,
+  searchBloodlineCards,
+  type BloodlineCardsResponse,
 } from "@libs/shared/bloodline-card";
 
 type SectionMode = "myBloodlines" | "createdLines" | "receivedCards";
 
-interface BloodlineSectionListClientProps {
-  mode: SectionMode;
-}
-
 const sectionMeta: Record<
   SectionMode,
-  { title: string; sub: string; backLabel: string }
+  { title: string; sub: string; path: string; cta?: string }
 > = {
   myBloodlines: {
     title: "내 혈통",
-    sub: "원본 혈통카드",
-    backLabel: "전체 보기",
+    sub: "내가 만든 원본 혈통카드예요.",
+    path: "/bloodline-management/my-bloodlines",
+    cta: "새 혈통 만들기",
   },
   createdLines: {
     title: "내 라인",
-    sub: "내가 만든 라인카드",
-    backLabel: "전체 보기",
+    sub: "혈통에서 파생한 라인카드예요.",
+    path: "/bloodline-management/created-lines",
   },
   receivedCards: {
     title: "받은 카드",
-    sub: "받은 혈통/라인 목록",
-    backLabel: "전체 보기",
+    sub: "다른 브리더에게 받은 혈통·라인카드예요.",
+    path: "/bloodline-management/received-cards",
   },
 };
 
-const cardTypeClassByKind =
-  "inline-flex shrink-0 rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.1em]";
-
-const toCardMetaLabel = (card: BloodlineCardItem) =>
-  card.cardType === "BLOODLINE" ? "혈통" : "라인";
-
-export default function BloodlineSectionListClient({
-  mode,
-}: BloodlineSectionListClientProps) {
-  const router = useRouter();
-  const { user } = useUser();
-  const { data: bloodlineData, isLoading } = useSWR<BloodlineCardsResponse>(
-    user?.id ? "/api/bloodline-cards" : null,
+export default function BloodlineSectionListClient({ mode }: { mode: SectionMode }) {
+  const meta = sectionMeta[mode];
+  const { user, isLoading: userLoading } = useUser();
+  const { data, error, isLoading, mutate } = useSWR<BloodlineCardsResponse>(
+    user?.id ? "/api/bloodline-cards" : null
   );
-
   const [query, setQuery] = useState("");
 
-  const myBloodlines = useMemo(() => {
-    if (!bloodlineData) return [];
-    if (bloodlineData.myBloodlines?.length) return bloodlineData.myBloodlines;
-    if (bloodlineData.myCreatedCards?.length) {
-      return bloodlineData.myCreatedCards.filter(
-        (card) => card.cardType === "BLOODLINE",
-      );
-    }
-    return (bloodlineData.ownedCards || []).filter(
-      (card) => card.creator.id === user?.id && card.cardType === "BLOODLINE",
-    );
-  }, [bloodlineData, user?.id]);
-
-  const createdLines = useMemo(() => {
-    if (!bloodlineData) return [];
-    if (bloodlineData.createdLines?.length) return bloodlineData.createdLines;
-    if (bloodlineData.myCreatedCards?.length) {
-      return bloodlineData.myCreatedCards.filter(
-        (card) => card.cardType === "LINE",
-      );
-    }
-    return (bloodlineData.ownedCards || []).filter(
-      (card) => card.creator.id === user?.id && card.cardType === "LINE",
-    );
-  }, [bloodlineData, user?.id]);
-
-  const receivedBloodlines = useMemo(() => {
-    if (!bloodlineData) return [];
-    if (bloodlineData.receivedBloodlines?.length)
-      return bloodlineData.receivedBloodlines;
-    if (bloodlineData.receivedCards?.length) {
-      return bloodlineData.receivedCards.filter(
-        (card) => card.cardType === "BLOODLINE",
-      );
-    }
-    return (bloodlineData.ownedCards || []).filter(
-      (card) => card.creator.id !== user?.id && card.cardType === "BLOODLINE",
-    );
-  }, [bloodlineData, user?.id]);
-
-  const receivedLines = useMemo(() => {
-    if (!bloodlineData) return [];
-    if (bloodlineData.receivedLines?.length) return bloodlineData.receivedLines;
-    if (bloodlineData.receivedCards?.length) {
-      return bloodlineData.receivedCards.filter(
-        (card) => card.cardType === "LINE",
-      );
-    }
-    return (bloodlineData.ownedCards || []).filter(
-      (card) => card.creator.id !== user?.id && card.cardType === "LINE",
-    );
-  }, [bloodlineData, user?.id]);
+  const loggedOut = !user && !userLoading;
+  useBloodlineLoginRedirect(loggedOut, meta.path);
 
   const cards = useMemo(() => {
-    if (mode === "myBloodlines") return myBloodlines;
-    if (mode === "createdLines") return createdLines;
-    return [...receivedBloodlines, ...receivedLines];
-  }, [mode, myBloodlines, createdLines, receivedBloodlines, receivedLines]);
+    const groups = groupBloodlineCards(data, user?.id);
+    if (mode === "myBloodlines") return groups.myBloodlines;
+    if (mode === "createdLines") return groups.createdLines;
+    return groups.receivedCards;
+  }, [data, mode, user?.id]);
+  const filteredCards = useMemo(() => searchBloodlineCards(cards, query), [cards, query]);
 
-  const filteredCards = useMemo(() => {
-    const normalized = query.trim().toLowerCase();
-    if (!normalized) return cards;
-
-    return cards.filter((card) => {
-      return (
-        card.name.toLowerCase().includes(normalized) ||
-        card.description?.toLowerCase().includes(normalized) ||
-        card.creator.name.toLowerCase().includes(normalized) ||
-        card.currentOwner.name.toLowerCase().includes(normalized)
-      );
-    });
-  }, [cards, query]);
-
-  const handleCardClick = (cardId: number) => {
-    router.push(`/bloodline-management/card/${cardId}`);
-  };
+  if (userLoading || loggedOut) {
+    return (
+      <Layout headerVariant="none" seoTitle={meta.title}>
+        <BloodlineHeader title={meta.title} />
+        <div className="flex min-h-[60vh] items-center justify-center">
+          <BloodlineSpinner />
+        </div>
+      </Layout>
+    );
+  }
 
   return (
-    <Layout
-      canGoBack
-      hasTabBar
-      showHome
-      title={sectionMeta[mode].title}
-      seoTitle={sectionMeta[mode].title}
-    >
-      <section className="px-4 py-4">
-        <div className="mx-auto flex w-full max-w-[680px] flex-col gap-3">
-          <header className="rounded-xl border border-slate-200 bg-white p-4">
-            <p className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-500">
-              BLOODLINE MANAGEMENT
-            </p>
-            <div className="mt-1 flex flex-wrap items-start justify-between gap-2">
-              <div className="min-w-0">
-                <h1 className="app-title-md">{sectionMeta[mode].title}</h1>
-                <p className="app-body-sm mt-1 text-slate-600">
-                  {sectionMeta[mode].sub}
-                </p>
-              </div>
-              <Link
-                href="/bloodline-management"
-                className="inline-flex h-8 items-center rounded-full bg-slate-100 px-3 text-xs font-semibold text-slate-700 transition hover:bg-slate-200"
-              >
-                {sectionMeta[mode].backLabel}
-              </Link>
-            </div>
-          </header>
+    <Layout headerVariant="none" seoTitle={meta.title}>
+      <BloodlineHeader title={meta.title} />
 
-          <Input
-            value={query}
-            onChange={(event) => setQuery(event.target.value)}
-            placeholder="카드명/닉네임 검색"
-            className="h-11 rounded-lg"
-          />
+      <p className="truncate px-4 pt-3 text-[13px] tracking-[-0.2px] text-app-muted">{meta.sub}</p>
 
-          <p className="text-sm font-semibold text-slate-700">
-            조회: {filteredCards.length}개
+      <div className="px-4 pt-3">
+        <Input
+          value={query}
+          onChange={(event) => setQuery(event.target.value)}
+          placeholder="카드명 · 닉네임 검색"
+          aria-label="카드명 · 닉네임 검색"
+          autoComplete="off"
+          className={bloodlineInputClass}
+        />
+      </div>
+
+      <div className="flex flex-col gap-3 px-4 pb-6 pt-4">
+        {isLoading ? (
+          <div className="flex justify-center py-12">
+            <BloodlineSpinner />
+          </div>
+        ) : error && !data ? (
+          <QueryErrorState onRetry={() => void mutate()} />
+        ) : filteredCards.length > 0 ? (
+          filteredCards.map((card) => (
+            <Link
+              key={card.id}
+              href={`/bloodline-management/card/${card.id}`}
+              aria-label={`${card.name} 카드`}
+              className="block rounded-xl focus-visible:outline focus-visible:outline-2 focus-visible:outline-app-text"
+            >
+              <BloodlineVisualCard
+                cardId={card.id}
+                name={card.name}
+                subtitle={bloodlineCardMeta(card)}
+                ownerName={card.currentOwner.name}
+                typeLabel={bloodlineCardTypeLabel(card.cardType)}
+                issuedAt={card.createdAt}
+                image={card.image}
+              />
+            </Link>
+          ))
+        ) : (
+          <p className="py-12 text-center text-[14px] tracking-[-0.2px] text-app-muted">
+            {query.trim() ? "검색 결과가 없어요." : "아직 카드가 없어요."}
           </p>
+        )}
+      </div>
 
-          {isLoading ? (
-            <div className="flex h-24 items-center justify-center">
-              <Spinner />
-            </div>
-          ) : filteredCards.length ? (
-            <>
-              <div className="grid grid-cols-2 gap-2">
-                {filteredCards.map((card) => (
-                  <article
-                    key={card.id}
-                    role="button"
-                    tabIndex={0}
-                    onClick={() => handleCardClick(card.id)}
-                    onKeyDown={(event) => {
-                      if (event.key === "Enter" || event.key === " ") {
-                        event.preventDefault();
-                        handleCardClick(card.id);
-                      }
-                    }}
-                    className="cursor-pointer rounded-lg border border-slate-200 bg-white p-3 transition duration-150 hover:shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-300"
-                  >
-                    <BloodlineVisualCard
-                      cardId={card.id}
-                      name={card.name}
-                      ownerName={card.currentOwner.name}
-                      subtitle={card.description || "설명이 없습니다."}
-                      image={card.image}
-                      variant={card.visualStyle}
-                      compact
-                    />
-                    <div className="mt-2 space-y-1">
-                      <div className="flex items-start justify-between gap-2">
-                        <p className="line-clamp-1 text-sm font-bold text-slate-900">
-                          {card.name}
-                        </p>
-                        <span
-                          className={`${cardTypeClassByKind} ${
-                            card.cardType === "BLOODLINE"
-                              ? "bg-blue-50 text-blue-700"
-                              : "bg-emerald-50 text-emerald-700"
-                          }`}
-                        >
-                          {toCardMetaLabel(card)}
-                        </span>
-                      </div>
-                      <p className="text-xs text-slate-500">
-                        제작 {card.creator.name}
-                      </p>
-                      <p className="text-xs text-slate-500">
-                        보유 {card.currentOwner.name}
-                      </p>
-                    </div>
-                  </article>
-                ))}
-              </div>
-              <p className="text-xs text-slate-500">
-                카드 상세에서 보내기 또는 라인 만들기 작업을 이어서 진행할 수
-                있습니다.
-              </p>
-            </>
-          ) : (
-            <p className="rounded-lg bg-slate-50 px-3 py-6 text-sm text-slate-600">
-              조회 가능한 카드가 없습니다.
-            </p>
-          )}
-        </div>
-      </section>
+      {meta.cta ? (
+        <>
+          <BloodlineBottomBarSpacer />
+          <BloodlineBottomBar>
+            <BloodlinePrimaryButton href="/bloodline-cards/create">{meta.cta}</BloodlinePrimaryButton>
+          </BloodlineBottomBar>
+        </>
+      ) : null}
     </Layout>
   );
 }

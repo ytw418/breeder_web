@@ -1,317 +1,190 @@
 "use client";
 
-import { KeyboardEvent, useEffect, useMemo, useState } from "react";
+/**
+ * 혈통관리 — 채택 시안(A안, 당근 톤) 1:1
+ * 원본: bredy_app design/mockups/bloodline-card/A-karrot.html, docs/prd/bloodline-card.md,
+ *       src/app/bloodline-management/index.tsx
+ *
+ * 헤더(뒤로/제목/검색) → 요약 행 → 8px 섹션 갭 → 리스트바(제목 + 이벤트 + 전체보기)
+ * → 칩 4개 → 1열 카드 리스트 → 하단 고정 CTA "새 혈통 만들기".
+ * 상태: 로딩(요약 회색 바 + 카드 스켈레톤 2장) / 오류 + 다시 시도 / 빈 / 비로그인 → 로그인 이동.
+ */
+import { useMemo, useState } from "react";
 import Link from "next/link";
-import { useRouter, useSearchParams } from "next/navigation";
 import useSWR from "swr";
-import { Spinner } from "@components/atoms/Spinner";
 import Layout from "@components/features/MainLayout";
+import { FilterChip } from "@components/app/FilterChip";
+import { EmptyState } from "@components/app/EmptyState";
+import { QueryErrorState } from "@components/app/QueryErrorState";
+import { BloodlineVisualCard } from "@components/features/bloodline/BloodlineVisualCard";
+import {
+  BloodlineBottomBar,
+  BloodlineBottomBarSpacer,
+  BloodlineHeader,
+  BloodlinePrimaryButton,
+  BloodlineSpinner,
+  ChevronRightIcon,
+  useBloodlineLoginRedirect,
+} from "@components/features/bloodline/BloodlineScreenParts";
 import useUser from "hooks/useUser";
 import {
-  BloodlineCardItem,
-  BloodlineCardsResponse,
+  bloodlineCardMeta,
+  bloodlineCardTypeLabel,
+  cardsForBloodlineFilter,
+  groupBloodlineCards,
+  type BloodlineCardsResponse,
+  type BloodlineManagementFilter,
 } from "@libs/shared/bloodline-card";
-import { BloodlineVisualCard } from "@components/features/bloodline/BloodlineVisualCard";
 
-type SectionKey = "myBloodlines" | "createdLines" | "receivedCards";
-
-const PREVIEW_LIMIT = 4;
-const RECEIVED_PREVIEW_LIMIT = 10;
-
-const sectionTitle: Record<SectionKey, string> = {
-  myBloodlines: "내 혈통",
-  createdLines: "내 라인",
-  receivedCards: "받은 혈통/라인",
-};
-
-const sectionPagePath: Record<SectionKey, string> = {
-  myBloodlines: "/bloodline-management/my-bloodlines",
-  createdLines: "/bloodline-management/created-lines",
-  receivedCards: "/bloodline-management/received-cards",
-};
-
-const getSectionId = (key: SectionKey) => {
-  if (key === "myBloodlines") return "section-my-bloodlines";
-  if (key === "createdLines") return "section-created-lines";
-  return "section-received-cards";
-};
-
-const cardTypeBadgeClass =
-  "inline-flex rounded-md bg-slate-100 px-2 py-0.5 text-[10px] font-semibold";
-
-const SECTION_KEYS: SectionKey[] = [
-  "myBloodlines",
-  "createdLines",
-  "receivedCards",
+const FILTERS: { key: BloodlineManagementFilter; label: string }[] = [
+  { key: "all", label: "전체" },
+  { key: "bloodline", label: "혈통" },
+  { key: "line", label: "라인" },
+  { key: "received", label: "받은 카드" },
 ];
 
+/** 리스트바 제목과 "전체보기" 목적지(시안 기본값 = 내 혈통) */
+const LIST_META: Record<BloodlineManagementFilter, { title: string; href: string }> = {
+  all: { title: "내 혈통", href: "/bloodline-management/my-bloodlines" },
+  bloodline: { title: "내 혈통", href: "/bloodline-management/my-bloodlines" },
+  line: { title: "내 라인", href: "/bloodline-management/created-lines" },
+  received: { title: "받은 카드", href: "/bloodline-management/received-cards" },
+};
+
+function CardSkeleton() {
+  return (
+    <div aria-hidden="true" className="overflow-hidden rounded-xl border border-app-border bg-app-bg">
+      <div className="h-[186px] bg-app-placeholder" />
+      <div className="p-3.5">
+        <div className="h-5 w-[62%] rounded bg-app-surface" />
+        <div className="mt-[9px] h-3.5 w-[44%] rounded bg-app-surface" />
+        <div className="mt-4 h-3.5 w-full rounded bg-app-surface" />
+        <div className="mt-2.5 h-3.5 w-full rounded bg-app-surface" />
+      </div>
+    </div>
+  );
+}
+
+const linkClass =
+  "inline-flex items-center gap-0.5 py-1.5 text-[13px] text-app-muted transition-colors hover:text-app-text";
+
 export default function BloodlineManagementClient() {
-  const { user } = useUser();
-  const searchParams = useSearchParams();
-  const router = useRouter();
+  const { user, isLoading: userLoading } = useUser();
+  const [filter, setFilter] = useState<BloodlineManagementFilter>("all");
 
-  const { data: bloodlineData, isLoading: isBloodlineLoading } =
-    useSWR<BloodlineCardsResponse>(user?.id ? "/api/bloodline-cards" : null);
-
-  const [expandedSections, setExpandedSections] = useState<
-    Record<SectionKey, boolean>
-  >({
-    myBloodlines: false,
-    createdLines: false,
-    receivedCards: false,
-  });
-
-  const myBloodlines = useMemo(() => {
-    if (!bloodlineData) return [];
-    if (bloodlineData.myBloodlines?.length) return bloodlineData.myBloodlines;
-    if (bloodlineData.myCreatedCards?.length) {
-      return bloodlineData.myCreatedCards.filter(
-        (card) => card.cardType === "BLOODLINE",
-      );
-    }
-    return (bloodlineData.ownedCards || []).filter(
-      (card) => card.creator.id === user?.id && card.cardType === "BLOODLINE",
-    );
-  }, [bloodlineData, user?.id]);
-
-  const createdLines = useMemo(() => {
-    if (!bloodlineData) return [];
-    if (bloodlineData.createdLines?.length) return bloodlineData.createdLines;
-    if (bloodlineData.myCreatedCards?.length) {
-      return bloodlineData.myCreatedCards.filter(
-        (card) => card.cardType === "LINE",
-      );
-    }
-    return (bloodlineData.ownedCards || []).filter(
-      (card) => card.creator.id === user?.id && card.cardType === "LINE",
-    );
-  }, [bloodlineData, user?.id]);
-
-  const receivedBloodlines = useMemo(() => {
-    if (!bloodlineData) return [];
-    if (bloodlineData.receivedBloodlines?.length)
-      return bloodlineData.receivedBloodlines;
-    if (bloodlineData.receivedCards?.length) {
-      return bloodlineData.receivedCards.filter(
-        (card) => card.cardType === "BLOODLINE",
-      );
-    }
-    return (bloodlineData.ownedCards || []).filter(
-      (card) => card.creator.id !== user?.id && card.cardType === "BLOODLINE",
-    );
-  }, [bloodlineData, user?.id]);
-
-  const receivedLines = useMemo(() => {
-    if (!bloodlineData) return [];
-    if (bloodlineData.receivedLines?.length) return bloodlineData.receivedLines;
-    if (bloodlineData.receivedCards?.length) {
-      return bloodlineData.receivedCards.filter(
-        (card) => card.cardType === "LINE",
-      );
-    }
-    return (bloodlineData.ownedCards || []).filter(
-      (card) => card.creator.id !== user?.id && card.cardType === "LINE",
-    );
-  }, [bloodlineData, user?.id]);
-
-  const receivedCards = useMemo(
-    () => [...receivedBloodlines, ...receivedLines],
-    [receivedBloodlines, receivedLines],
+  const { data, error, isLoading, mutate } = useSWR<BloodlineCardsResponse>(
+    user?.id ? "/api/bloodline-cards" : null
   );
 
-  const directCards = myBloodlines.length + createdLines.length;
-  const totalCards = directCards + receivedCards.length;
+  const loggedOut = !user && !userLoading;
+  useBloodlineLoginRedirect(loggedOut, "/bloodline-management");
 
-  useEffect(() => {
-    const section = searchParams?.get("focus") as SectionKey | null;
-    if (!section || !SECTION_KEYS.includes(section)) return;
+  const groups = useMemo(() => groupBloodlineCards(data, user?.id), [data, user?.id]);
+  const visibleCards = useMemo(() => cardsForBloodlineFilter(groups, filter), [groups, filter]);
+  const listMeta = LIST_META[filter];
+  const isBusy = userLoading || (Boolean(user) && isLoading);
+  const isError = Boolean(error) && !data;
 
-    setExpandedSections((prev) => {
-      if (prev[section]) return prev;
-      return {
-        ...prev,
-        [section]: true,
-      };
-    });
-
-    const sectionId = getSectionId(section);
-    requestAnimationFrame(() => {
-      document.getElementById(sectionId)?.scrollIntoView({
-        behavior: "smooth",
-        block: "start",
-      });
-    });
-  }, [searchParams]);
-
-  const toggleSection = (key: SectionKey) => {
-    setExpandedSections((prev) => ({
-      ...prev,
-      [key]: !prev[key],
-    }));
-  };
-
-  const handleCardClick = (cardId: number) => {
-    router.push(`/bloodline-management/card/${cardId}`);
-  };
-
-  const handleCardKeyDown = (
-    event: KeyboardEvent<HTMLElement>,
-    cardId: number,
-  ) => {
-    if (event.key === "Enter" || event.key === " ") {
-      event.preventDefault();
-      handleCardClick(cardId);
-    }
-  };
-
-  const renderSection = (key: SectionKey, cards: BloodlineCardItem[]) => {
-    const open = expandedSections[key];
-    const previewLimit =
-      key === "receivedCards" ? RECEIVED_PREVIEW_LIMIT : PREVIEW_LIMIT;
-    const visibleCards = open ? cards : cards.slice(0, previewLimit);
-    const hasMore = cards.length > previewLimit;
-
+  if (loggedOut) {
     return (
-      <section
-        id={getSectionId(key)}
-        className="space-y-3 rounded-lg border border-slate-200 bg-white p-4"
-      >
-        <div className="flex items-center justify-between gap-2">
-          <div>
-            <h2 className="app-title-md">{sectionTitle[key]}</h2>
-            <p className="mt-1 text-xs font-semibold text-slate-500">
-              총 {cards.length}개
-            </p>
-          </div>
-          <div className="flex items-center gap-2">
-            <Link
-              href={sectionPagePath[key]}
-              className="inline-flex h-8 items-center rounded-lg border border-slate-200 bg-white px-3 text-xs font-semibold text-slate-700 transition hover:bg-slate-50"
-            >
-              목록 이동
-            </Link>
-            {hasMore ? (
-              <button
-                type="button"
-                onClick={() => toggleSection(key)}
-                className="inline-flex h-8 items-center rounded-lg border border-slate-200 bg-white px-3 text-xs font-semibold text-slate-700 transition hover:bg-slate-50"
-              >
-                {open ? "접기" : "모두 보기"}
-              </button>
-            ) : null}
-          </div>
+      <Layout headerVariant="none" seoTitle="혈통관리">
+        <BloodlineHeader title="혈통관리" />
+        <div className="flex min-h-[60vh] items-center justify-center">
+          <BloodlineSpinner />
         </div>
-
-        {cards.length ? (
-          <div className="grid grid-cols-2 gap-2">
-            {visibleCards.map((card) => (
-              <article
-                key={card.id}
-                role="button"
-                tabIndex={0}
-                onClick={() => handleCardClick(card.id)}
-                onKeyDown={(event) => handleCardKeyDown(event, card.id)}
-                className="cursor-pointer rounded-lg border border-slate-200 bg-white p-3 transition duration-150 hover:border-slate-300 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-300"
-              >
-                <BloodlineVisualCard
-                  cardId={card.id}
-                  name={card.name}
-                  ownerName={card.currentOwner.name}
-                  subtitle={card.description || "설명이 없습니다."}
-                  image={card.image}
-                  variant={card.visualStyle}
-                  compact
-                />
-                <div className="mt-2 space-y-1">
-                  <div className="flex items-start justify-between gap-2">
-                    <p className="line-clamp-1 text-sm font-bold text-slate-900">
-                      {card.name}
-                    </p>
-                    <span
-                      className={`${cardTypeBadgeClass} ${
-                        card.cardType === "BLOODLINE"
-                          ? "bg-blue-50 text-blue-700"
-                          : "bg-emerald-50 text-emerald-700"
-                      }`}
-                    >
-                      {card.cardType === "BLOODLINE" ? "혈통" : "라인"}
-                    </span>
-                  </div>
-                  <p className="line-clamp-1 text-xs text-slate-500">
-                    보유자 {card.currentOwner.name}
-                  </p>
-                  <p className="line-clamp-1 text-[11px] text-slate-400">
-                    최근 전송 {card.transfers.length}회
-                  </p>
-                </div>
-              </article>
-            ))}
-          </div>
-        ) : (
-          <p className="rounded-none bg-slate-50 p-4 text-sm text-slate-600">
-            해당 항목의 카드가 없습니다.
-          </p>
-        )}
-      </section>
+      </Layout>
     );
-  };
+  }
 
   return (
-    <Layout canGoBack hasTabBar showHome title="혈통관리" seoTitle="혈통관리">
-      <div className="px-4 py-4">
-        <div className="mx-auto flex w-full max-w-[680px] flex-col gap-4">
-          <header className="space-y-3">
-            <div className="rounded-lg border border-slate-200 bg-white p-4">
-              <p className="text-xs font-semibold text-primary">
-                BLOODLINE MANAGEMENT
-              </p>
-              <div className="mt-2 flex items-center justify-between gap-2">
-                <h1 className="app-title-lg">혈통관리</h1>
-                <Link
-                  href="/bloodline-cards/create"
-                  className="inline-flex h-9 items-center justify-center rounded-lg bg-slate-900 px-3 text-xs font-semibold text-white transition hover:bg-slate-800"
-                >
-                  새 혈통 만들기
-                </Link>
-              </div>
-              <p className="mt-1 text-sm text-slate-600">
-                카드를 선택하면 상세에서 보내기와 라인 만들기를 바로 이어서
-                진행할 수 있습니다.
-              </p>
-              <div className="mt-3 grid grid-cols-2 gap-2 text-sm">
-                <div className="rounded-lg bg-slate-50 px-3 py-2">
-                  <p className="text-[11px] font-semibold text-slate-500">
-                    총 자산
-                  </p>
-                  <p className="mt-1 text-lg font-bold text-slate-900">
-                    {totalCards}개
-                  </p>
-                </div>
-                <div className="rounded-lg bg-slate-50 px-3 py-2">
-                  <p className="text-[11px] font-semibold text-slate-500">
-                    내 구성
-                  </p>
-                  <p className="mt-1 text-lg font-bold text-slate-900">
-                    {directCards}개
-                  </p>
-                </div>
-              </div>
-            </div>
-          </header>
+    <Layout headerVariant="none" seoTitle="혈통관리">
+      <BloodlineHeader title="혈통관리" searchHref="/search" />
 
-          {isBloodlineLoading ? (
-            <div className="flex h-20 items-center justify-center">
-              <Spinner />
-            </div>
-          ) : (
-            <>
-              {renderSection("myBloodlines", myBloodlines)}
-              {renderSection("createdLines", createdLines)}
-              {renderSection("receivedCards", receivedCards)}
-            </>
-          )}
+      {/* 요약 텍스트 행 */}
+      <div className="px-4 pb-4 pt-3.5">
+        {isBusy ? (
+          <div aria-label="요약 불러오는 중" className="h-5 w-[62%] rounded bg-app-surface" />
+        ) : (
+          <p className="text-[14px] tracking-[-0.2px] text-app-muted">
+            내 혈통 <b className="font-semibold text-app-text">{groups.myBloodlines.length}</b>
+            {" · "}내 라인 <b className="font-semibold text-app-text">{groups.createdLines.length}</b>
+            {" · "}받은 카드{" "}
+            <b className="font-semibold text-app-text">{groups.receivedCards.length}</b>
+          </p>
+        )}
+      </div>
+
+      <div className="h-2 bg-app-gap" />
+
+      {/* 리스트바 */}
+      <div className="flex items-center justify-between px-4 pb-2.5 pt-4">
+        <h2 className="text-[16px] font-bold tracking-[-0.3px] text-app-text">{listMeta.title}</h2>
+        <div className="flex items-center gap-3">
+          <Link href="/bloodline-management/events" aria-label="혈통 이벤트" className={linkClass}>
+            이벤트
+            <ChevronRightIcon />
+          </Link>
+          <Link href={listMeta.href} aria-label={`${listMeta.title} 전체보기`} className={linkClass}>
+            전체보기
+            <ChevronRightIcon />
+          </Link>
         </div>
       </div>
+
+      {/* 칩 */}
+      <div className="flex gap-1.5 px-4 pb-3.5">
+        {FILTERS.map((item) => (
+          <FilterChip
+            key={item.key}
+            label={item.label}
+            selected={item.key === filter}
+            onClick={() => setFilter(item.key)}
+            className="px-3"
+          />
+        ))}
+      </div>
+
+      {/* 카드 리스트 */}
+      <div className="flex flex-col gap-3 px-4 pb-6">
+        {isBusy ? (
+          <>
+            <CardSkeleton />
+            <CardSkeleton />
+          </>
+        ) : isError ? (
+          <QueryErrorState onRetry={() => void mutate()} />
+        ) : visibleCards.length === 0 ? (
+          <EmptyState
+            title="아직 카드가 없어요"
+            description="새 혈통을 만들면 여기에 카드가 쌓여요."
+            className="py-10"
+          />
+        ) : (
+          visibleCards.map((card) => (
+            <Link
+              key={card.id}
+              href={`/bloodline-management/card/${card.id}`}
+              aria-label={`${card.name} 혈통카드`}
+              className="block rounded-xl focus-visible:outline focus-visible:outline-2 focus-visible:outline-app-text"
+            >
+              <BloodlineVisualCard
+                cardId={card.id}
+                name={card.name}
+                subtitle={bloodlineCardMeta(card)}
+                ownerName={card.currentOwner.name}
+                typeLabel={bloodlineCardTypeLabel(card.cardType)}
+                issuedAt={card.createdAt}
+                image={card.image}
+              />
+            </Link>
+          ))
+        )}
+      </div>
+
+      <BloodlineBottomBarSpacer />
+      <BloodlineBottomBar>
+        <BloodlinePrimaryButton href="/bloodline-cards/create">새 혈통 만들기</BloodlinePrimaryButton>
+      </BloodlineBottomBar>
     </Layout>
   );
 }

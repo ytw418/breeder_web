@@ -1,59 +1,48 @@
 "use client";
 
-import { authFetch } from "@libs/client/authFetch";
-import { fetchBloodlineCardEvents } from "@libs/client/bloodlineCardEvents";
+/**
+ * 혈통카드 상세 — 당근 톤(A안)
+ * 원본: bredy_app src/app/bloodline-management/card/[cardId].tsx
+ *
+ * 헤더(뒤로 + 제목 18/700) → 상단 카드(BloodlineVisualCard)
+ * → 8px 갭 + "카드 정보" 표(라벨 14 muted · 값 15, 1px line 행)
+ * → 8px 갭 + "양도 이력" 플랫 리스트 → 안내/폼 → 하단 고정 바(라인 만들기 surface / 카드 보내기 주황 52).
+ */
 import { FormEvent, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
-import { usePathname, useSearchParams, useRouter } from "next/navigation";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import useSWR from "swr";
-import { Button } from "@components/ui/button";
-import { Input } from "@components/ui/input";
-import { Spinner } from "@components/atoms/Spinner";
+import { authFetch } from "@libs/client/authFetch";
+import { fetchBloodlineCardEvents } from "@libs/client/bloodlineCardEvents";
 import Layout from "@components/features/MainLayout";
+import { Input } from "@components/ui/input";
+import { QueryErrorState } from "@components/app/QueryErrorState";
+import { BloodlineVisualCard } from "@components/features/bloodline/BloodlineVisualCard";
+import {
+  BloodlineBottomBar,
+  BloodlineBottomBarSpacer,
+  BloodlineHeader,
+  BloodlinePrimaryButton,
+  BloodlineSecondaryButton,
+  BloodlineSpinner,
+  bloodlineInputClass,
+} from "@components/features/bloodline/BloodlineScreenParts";
 import useUser from "hooks/useUser";
 import {
-  BloodlineCardDetailResponse,
-  BloodlineCardIssueLineResponse,
-  BloodlineCardEventsResponse,
+  bloodlineCardMeta,
+  bloodlineCardTypeLabel,
+  formatBloodlineEventTime,
+  type BloodlineCardDetailResponse,
+  type BloodlineCardEventItem,
+  type BloodlineCardIssueLineResponse,
 } from "@libs/shared/bloodline-card";
-import { BloodlineVisualCard } from "@components/features/bloodline/BloodlineVisualCard";
 
 type ActiveAction = "transfer" | "issue" | null;
-
-interface BloodlineCardDetailClientProps {
-  cardId: number;
-}
-
-interface Drafts {
-  [cardId: number]: {
-    toUserName?: string;
-    toUserId?: number;
-    note?: string;
-    lineName?: string;
-  };
-}
 
 interface TransferUserItem {
   id: number;
   name: string;
 }
-
-const sectionClass = "rounded-lg border border-slate-200 bg-white p-4";
-const panelHeaderClass = "mb-3 flex items-center justify-between gap-2";
-const actionButtonClass =
-  "inline-flex h-11 w-full items-center justify-center rounded-lg bg-slate-900 px-4 text-sm font-semibold text-white transition hover:bg-slate-800";
-const accentButtonClass =
-  "inline-flex h-11 w-full items-center justify-center rounded-lg bg-[hsl(var(--accent))] px-4 text-sm font-semibold text-[hsl(var(--accent-foreground))] transition hover:opacity-95";
-const cancelButtonClass =
-  "inline-flex h-10 w-full items-center justify-center rounded-lg bg-white border border-slate-200 text-sm font-semibold text-slate-700 transition hover:bg-slate-50";
-const chipClass = "rounded-md bg-slate-100 px-2 py-1 text-xs text-slate-600";
-const formatDate = (value: string) =>
-  new Date(value).toLocaleString("ko-KR", {
-    month: "short",
-    day: "2-digit",
-    hour: "2-digit",
-    minute: "2-digit",
-  });
 
 const actionLabel: Record<string, string> = {
   BLOODLINE_CREATED: "혈통카드 생성",
@@ -64,18 +53,103 @@ const actionLabel: Record<string, string> = {
   CARD_REVOKED: "카드 철회",
 };
 
-const eventToneByAction: Record<string, string> = {
-  BLOODLINE_CREATED: "border-emerald-100 bg-emerald-50 text-emerald-700",
-  BLOODLINE_TRANSFER: "border-amber-100 bg-amber-50 text-amber-700",
-  LINE_CREATED: "border-sky-100 bg-sky-50 text-sky-700",
-  LINE_ISSUED: "border-violet-100 bg-violet-50 text-violet-700",
-  LINE_TRANSFER: "border-amber-100 bg-amber-50 text-amber-700",
-  CARD_REVOKED: "border-rose-100 bg-rose-50 text-rose-700",
+const statusLabel: Record<string, string> = {
+  ACTIVE: "사용 중",
+  INACTIVE: "비활성",
+  REVOKED: "철회됨",
+  TRANSFERRED: "양도됨",
 };
 
-export default function BloodlineCardDetailClient({
-  cardId,
-}: BloodlineCardDetailClientProps) {
+function SectionGap() {
+  return <div className="mt-5 h-2 bg-app-gap" />;
+}
+
+function SectionTitle({ label }: { label: string }) {
+  return (
+    <h2 className="px-4 pb-2 pt-4 text-[16px] font-bold tracking-[-0.3px] text-app-text">{label}</h2>
+  );
+}
+
+function InfoRow({
+  label,
+  value,
+  href,
+  first,
+}: {
+  label: string;
+  value: string;
+  href?: string;
+  first: boolean;
+}) {
+  const rowClass = `flex items-center justify-between gap-3 px-4 py-[13px] ${
+    first ? "" : "border-t border-app-line"
+  }`;
+  const body = (
+    <>
+      <span className="shrink-0 text-[14px] tracking-[-0.2px] text-app-muted">{label}</span>
+      <span
+        className={`min-w-0 truncate text-right text-[15px] tracking-[-0.2px] text-app-text ${
+          href ? "font-semibold" : ""
+        }`}
+      >
+        {value}
+      </span>
+    </>
+  );
+  if (!href) return <div className={rowClass}>{body}</div>;
+  return (
+    <Link href={href} aria-label={`${label} ${value}`} className={`${rowClass} hover:bg-app-surface`}>
+      {body}
+    </Link>
+  );
+}
+
+function HistoryRow({ record, first }: { record: BloodlineCardEventItem; first: boolean }) {
+  const who = record.actorUser?.name ?? "시스템";
+  const flow = record.toUser ? `${record.fromUser?.name ?? who} → ${record.toUser.name}` : who;
+  const sub = [flow, record.note].filter(Boolean).join(" · ");
+  return (
+    <div
+      className={`flex items-center gap-3 px-4 py-3.5 ${first ? "" : "border-t border-app-line"}`}
+    >
+      <div className="min-w-0 flex-1">
+        <p className="truncate text-[15px] font-semibold tracking-[-0.2px] text-app-text">
+          {actionLabel[record.action] ?? record.action}
+        </p>
+        <p className="mt-[3px] truncate text-[13px] tracking-[-0.2px] text-app-muted">{sub}</p>
+      </div>
+      <span className="shrink-0 text-[13px] tracking-[-0.2px] text-app-muted">
+        {formatBloodlineEventTime(record.createdAt)}
+      </span>
+    </div>
+  );
+}
+
+function Notice({ tone, message }: { tone: "error" | "success"; message: string }) {
+  return (
+    <p
+      role={tone === "error" ? "alert" : "status"}
+      className={`mx-4 mt-3 rounded-md bg-app-gap px-3 py-2.5 text-[14px] tracking-[-0.2px] ${
+        tone === "error" ? "text-app-brand" : "text-app-text"
+      }`}
+    >
+      {message}
+    </p>
+  );
+}
+
+function FieldLabel({ label, htmlFor }: { label: string; htmlFor?: string }) {
+  return (
+    <label
+      htmlFor={htmlFor}
+      className="mb-2 block text-[15px] font-semibold tracking-[-0.2px] text-app-text"
+    >
+      {label}
+    </label>
+  );
+}
+
+export default function BloodlineCardDetailClient({ cardId }: { cardId: number }) {
   const { user } = useUser();
   const router = useRouter();
   const pathname = usePathname();
@@ -83,727 +157,532 @@ export default function BloodlineCardDetailClient({
 
   const {
     data: detailData,
+    error: detailError,
     isLoading,
     mutate: mutateCard,
-  } = useSWR<BloodlineCardDetailResponse>(`/api/bloodline-cards/${cardId}`);
-
-  const [activeAction, setActiveAction] = useState<ActiveAction>(null);
-  const [transferDraft, setTransferDraft] = useState<Drafts>({});
-  const [issueDraft, setIssueDraft] = useState<Drafts>({});
-  const [transferLoading, setTransferLoading] = useState(false);
-  const [issueLoading, setIssueLoading] = useState(false);
-  const [message, setMessage] = useState("");
-  const [error, setError] = useState("");
-  const [events, setEvents] = useState<BloodlineCardEventsResponse["events"]>(
-    [],
-  );
-  const [eventsLoading, setEventsLoading] = useState(false);
-  const [missingCardRetryCount, setMissingCardRetryCount] = useState(0);
-  const [transferCandidates, setTransferCandidates] = useState<
-    TransferUserItem[]
-  >([]);
-  const [transferSearchLoading, setTransferSearchLoading] = useState(false);
-  const [showCelebrationModal, setShowCelebrationModal] = useState(false);
-  const [celebrationCardName, setCelebrationCardName] = useState("");
-  const searchDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const searchAbortRef = useRef<AbortController | null>(null);
+  } = useSWR<BloodlineCardDetailResponse>(`/api/bloodline-cards/${cardId}`, {
+    shouldRetryOnError: false,
+  });
 
   const card = detailData?.card || null;
-
-  const isOwnedByMe = card?.isOwnedByMe ?? card?.currentOwner.id === user?.id;
-  const isBloodline = card?.cardType === "BLOODLINE";
-  const canTransfer = Boolean(card && isOwnedByMe);
-  const canIssue = Boolean(card && isOwnedByMe && isBloodline);
-
   const bloodlineSourceCard = detailData?.bloodlineSourceCard || null;
   const parentLineCard = detailData?.parentLineCard || null;
 
-  const lineageTransferHint = useMemo(() => {
-    if (!card || card.cardType !== "LINE" || !user?.id) {
-      return null;
-    }
+  const isBloodline = card?.cardType === "BLOODLINE";
+  const isOwnedByMe = card?.isOwnedByMe ?? card?.currentOwner.id === user?.id;
+  const canTransfer = Boolean(card && isOwnedByMe);
+  const canIssue = Boolean(card && isOwnedByMe && isBloodline);
 
-    const incoming = events.find(
-      (event) =>
-        (event.action === "LINE_ISSUED" || event.action === "LINE_TRANSFER") &&
-        event.toUser?.id === user.id,
-    );
+  const [activeAction, setActiveAction] = useState<ActiveAction>(null);
+  const [toUserName, setToUserName] = useState("");
+  const [toUserId, setToUserId] = useState<number | undefined>(undefined);
+  const [transferNote, setTransferNote] = useState("");
+  const [transferLoading, setTransferLoading] = useState(false);
+  const [candidates, setCandidates] = useState<TransferUserItem[]>([]);
+  const [candidatesLoading, setCandidatesLoading] = useState(false);
+  const [lineName, setLineName] = useState("");
+  const [issueLoading, setIssueLoading] = useState(false);
+  const [errorMsg, setErrorMsg] = useState("");
+  const [successMsg, setSuccessMsg] = useState("");
+  const [events, setEvents] = useState<BloodlineCardEventItem[]>([]);
+  const [eventsLoading, setEventsLoading] = useState(false);
+  const [missingCardRetryCount, setMissingCardRetryCount] = useState(0);
+  const [showCelebration, setShowCelebration] = useState(false);
+  const [celebrationName, setCelebrationName] = useState("");
+  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const abortRef = useRef<AbortController | null>(null);
 
-    if (!incoming) return null;
-
-    const sourceName =
-      incoming.fromUser?.name || incoming.actorUser?.name || "알 수 없음";
-    return `${sourceName}로부터 최근 수신`;
-  }, [card, events, user?.id]);
-
+  // ── 이력 ────────────────────────────────────────────────────────────
   useEffect(() => {
     if (!card) {
       setEvents([]);
       return;
     }
-
     let active = true;
     const load = async () => {
       setEventsLoading(true);
       try {
         const loaded = await fetchBloodlineCardEvents(cardId, 12);
-        if (!active) return;
-        setEvents(loaded);
+        if (active) setEvents(loaded);
+      } catch {
+        if (active) setEvents([]);
       } finally {
         if (active) setEventsLoading(false);
       }
     };
-
-    load();
+    void load();
     return () => {
       active = false;
     };
   }, [cardId, card]);
 
+  const lineageTransferHint = useMemo(() => {
+    if (!card || card.cardType !== "LINE" || !user?.id) return null;
+    const incoming = events.find(
+      (event) =>
+        (event.action === "LINE_ISSUED" || event.action === "LINE_TRANSFER") &&
+        event.toUser?.id === user.id
+    );
+    if (!incoming) return null;
+    const sourceName = incoming.fromUser?.name ?? incoming.actorUser?.name ?? "알 수 없음";
+    return `${sourceName}님에게 받음`;
+  }, [card, events, user?.id]);
+
+  // ── ?action=transfer|issue 로 바로 폼 열기 ──────────────────────────
   useEffect(() => {
-    const requested = searchParams?.get("action") as ActiveAction;
-    if (!requested || (requested !== "transfer" && requested !== "issue"))
-      return;
-    if (requested === "transfer" && !canTransfer) return;
-    if (requested === "issue" && !canIssue) return;
-    setActiveAction(requested);
+    const requested = searchParams?.get("action");
+    if (requested === "transfer" && canTransfer) setActiveAction("transfer");
+    if (requested === "issue" && canIssue) setActiveAction("issue");
   }, [searchParams, canTransfer, canIssue]);
 
+  // ── 생성 축하 모달 ──────────────────────────────────────────────────
   const celebration = searchParams?.get("celebration");
   useEffect(() => {
     if (celebration !== "card-created") {
-      setShowCelebrationModal(false);
+      setShowCelebration(false);
       return;
     }
+    const raw = searchParams?.get("name") || card?.name || "";
+    let decoded = raw;
+    try {
+      decoded = decodeURIComponent(raw);
+    } catch {
+      decoded = raw;
+    }
+    setCelebrationName(decoded);
+    setShowCelebration(true);
+  }, [celebration, card?.name, searchParams]);
 
-    const nextName = searchParams?.get("name") || card?.name || "";
-    setCelebrationCardName(nextName ? decodeURIComponent(nextName) : "");
-    setShowCelebrationModal(true);
-  }, [card?.name, searchParams]);
-
-  const handleCloseCelebrationModal = () => {
-    const resolvedPathname = pathname ?? "/";
-    setShowCelebrationModal(false);
-    const nextSearchParams = new URLSearchParams(
-      searchParams?.toString() || "",
-    );
-    nextSearchParams.delete("celebration");
-    nextSearchParams.delete("name");
-    const nextQuery = nextSearchParams.toString();
-    router.replace(
-      nextQuery ? `${resolvedPathname}?${nextQuery}` : resolvedPathname,
-    );
+  const closeCelebration = () => {
+    setShowCelebration(false);
+    const next = new URLSearchParams(searchParams?.toString() || "");
+    next.delete("celebration");
+    next.delete("name");
+    const query = next.toString();
+    const base = pathname ?? "/";
+    router.replace(query ? `${base}?${query}` : base);
   };
 
+  // ── 생성 직후 동기화 지연 대비: 600ms 간격 2회 재시도 ─────────────────
   useEffect(() => {
-    if (isLoading) {
-      return;
-    }
-
+    if (isLoading) return;
     if (card) {
       setMissingCardRetryCount(0);
       return;
     }
-
-    if (missingCardRetryCount >= 2) {
-      return;
-    }
-
+    if (missingCardRetryCount >= 2) return;
     const timeoutId = setTimeout(async () => {
-      await mutateCard();
+      await mutateCard().catch(() => undefined);
       setMissingCardRetryCount((prev) => prev + 1);
     }, 600);
-
     return () => clearTimeout(timeoutId);
   }, [card, isLoading, missingCardRetryCount, mutateCard]);
 
-  const handleTransferSubmit = async (event: FormEvent) => {
-    event.preventDefault();
-    if (!card || !user?.id) return;
-
-    const toUserName = String(transferDraft[card.id]?.toUserName || "").trim();
-    const toUserId = transferDraft[card.id]?.toUserId;
-    const note = String(transferDraft[card.id]?.note || "").trim();
-    if (!toUserName) {
-      setError("받는 사람 닉네임을 입력해주세요.");
+  // ── 받는 사람 검색(디바운스 200ms) ───────────────────────────────────
+  useEffect(() => {
+    const keyword = toUserName.trim();
+    if (activeAction !== "transfer" || toUserId || keyword.length < 1) {
+      setCandidatesLoading(false);
+      setCandidates([]);
       return;
     }
+    if (debounceRef.current) clearTimeout(debounceRef.current);
+    debounceRef.current = setTimeout(async () => {
+      abortRef.current?.abort();
+      const controller = new AbortController();
+      abortRef.current = controller;
+      setCandidatesLoading(true);
+      try {
+        const response = await fetch(
+          `/api/users/search?q=${encodeURIComponent(keyword)}&limit=8`,
+          { signal: controller.signal }
+        );
+        const payload = (await response.json()) as { success: boolean; users?: TransferUserItem[] };
+        if (controller.signal.aborted) return;
+        setCandidates(response.ok && payload.success ? payload.users || [] : []);
+      } catch (error) {
+        if ((error as DOMException).name === "AbortError") return;
+        setCandidates([]);
+      } finally {
+        if (!controller.signal.aborted) setCandidatesLoading(false);
+      }
+    }, 200);
+    return () => {
+      if (debounceRef.current) clearTimeout(debounceRef.current);
+      abortRef.current?.abort();
+    };
+  }, [activeAction, toUserName, toUserId]);
 
-    setError("");
-    setMessage("");
+  // ── 핸들러 ──────────────────────────────────────────────────────────
+  const openAction = (action: Exclude<ActiveAction, null>) => {
+    setErrorMsg("");
+    setSuccessMsg("");
+    setActiveAction(action);
+  };
+
+  const cancelAction = () => {
+    setActiveAction(null);
+    setErrorMsg("");
+    setSuccessMsg("");
+    setToUserName("");
+    setToUserId(undefined);
+    setTransferNote("");
+    setLineName("");
+    setCandidates([]);
+  };
+
+  const selectCandidate = (item: TransferUserItem) => {
+    setToUserName(item.name);
+    setToUserId(item.id);
+    setCandidates([]);
+  };
+
+  const submitTransfer = async () => {
+    if (!card || !user?.id) return;
+    const name = toUserName.trim();
+    if (!name) {
+      setErrorMsg("받는 사람 닉네임을 입력해주세요.");
+      return;
+    }
+    setErrorMsg("");
+    setSuccessMsg("");
     setTransferLoading(true);
-
     try {
       const response = await authFetch(`/api/bloodline-cards/${card.id}/transfer`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ cardId: card.id, toUserName, toUserId, note }),
+        body: JSON.stringify({
+          cardId: card.id,
+          toUserName: name,
+          toUserId,
+          note: transferNote.trim(),
+        }),
       });
-      const payload = await response.json();
-      if (!response.ok || !payload.success) {
-        throw new Error(payload.error || "카드 보내기 요청에 실패했습니다.");
+      const payload = await response.json().catch(() => null);
+      if (!response.ok || !payload?.success) {
+        throw new Error(payload?.error || "카드 보내기 요청에 실패했습니다.");
       }
-
-      setMessage("카드 보내기 요청이 완료되었습니다.");
+      setSuccessMsg("카드 보내기 요청이 완료되었습니다.");
       setActiveAction(null);
-      setTransferDraft((prev) => ({
-        ...prev,
-        [card.id]: { toUserName: "", toUserId: undefined, note: "" },
-      }));
-      setTransferCandidates([]);
+      setToUserName("");
+      setToUserId(undefined);
+      setTransferNote("");
+      setCandidates([]);
       await mutateCard();
-    } catch (transferError) {
-      setError(
-        transferError instanceof Error
-          ? transferError.message
-          : "카드 보내기 중 오류가 발생했습니다.",
-      );
+    } catch (error) {
+      setErrorMsg(error instanceof Error ? error.message : "카드 보내기 중 오류가 발생했습니다.");
     } finally {
       setTransferLoading(false);
     }
   };
 
-  const handleTransferCandidateSelect = (user: TransferUserItem) => {
-    if (!card) return;
-
-    setTransferDraft((prev) => ({
-      ...prev,
-      [card.id]: {
-        ...prev[card.id],
-        toUserName: user.name,
-        toUserId: user.id,
-      },
-    }));
-    setTransferCandidates([]);
-  };
-
-  useEffect(() => {
-    const inputKeyword = String(
-      transferDraft[card?.id || 0]?.toUserName || "",
-    ).trim();
-    const selectedUserId = transferDraft[card?.id || 0]?.toUserId;
-
-    if (activeAction !== "transfer" || !card) {
-      setTransferSearchLoading(false);
-      setTransferCandidates([]);
-      return;
-    }
-
-    if (selectedUserId) {
-      setTransferSearchLoading(false);
-      setTransferCandidates([]);
-      return;
-    }
-
-    if (inputKeyword.length < 1) {
-      setTransferSearchLoading(false);
-      setTransferCandidates([]);
-      return;
-    }
-
-    if (searchDebounceRef.current) {
-      clearTimeout(searchDebounceRef.current);
-    }
-
-    const keyword = inputKeyword;
-
-    searchDebounceRef.current = setTimeout(async () => {
-      searchAbortRef.current?.abort();
-      const controller = new AbortController();
-      searchAbortRef.current = controller;
-
-      setTransferSearchLoading(true);
-      try {
-        const response = await fetch(
-          `/api/users/search?q=${encodeURIComponent(keyword)}&limit=8`,
-          { signal: controller.signal },
-        );
-        const payload = (await response.json()) as {
-          success: boolean;
-          users?: TransferUserItem[];
-        };
-        if (!activeAction || !card) return;
-        if (keyword !== String(transferDraft[card.id]?.toUserName || "").trim())
-          return;
-        if (transferDraft[card.id]?.toUserId) return;
-        if (response.ok && payload.success) {
-          setTransferCandidates(payload.users || []);
-        } else {
-          setTransferCandidates([]);
-        }
-      } catch (candidateError) {
-        if ((candidateError as DOMException).name === "AbortError") return;
-        setTransferCandidates([]);
-      } finally {
-        if (activeAction === "transfer" && card) {
-          setTransferSearchLoading(false);
-        }
-      }
-    }, 200);
-
-    return () => {
-      if (searchDebounceRef.current) {
-        clearTimeout(searchDebounceRef.current);
-      }
-      searchAbortRef.current?.abort();
-    };
-  }, [
-    activeAction,
-    card?.id,
-    transferDraft[card?.id || 0]?.toUserName,
-    transferDraft[card?.id || 0]?.toUserId,
-  ]);
-
-  const handleIssueSubmit = async (event: FormEvent) => {
-    event.preventDefault();
+  const submitIssue = async () => {
     if (!card || !user?.id) return;
-
-    const lineName = String(issueDraft[card.id]?.lineName || "").trim();
-
-    setError("");
-    setMessage("");
+    setErrorMsg("");
+    setSuccessMsg("");
     setIssueLoading(true);
-
     try {
-      const response = await fetch(
-        `/api/bloodline-cards/${card.id}/issue-line`,
-        {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ name: lineName }),
-        },
-      );
-      const payload = (await response.json()) as BloodlineCardIssueLineResponse;
-      if (!response.ok || !payload.success) {
-        throw new Error(payload.error || "라인 만들기에 실패했습니다.");
+      const response = await authFetch(`/api/bloodline-cards/${card.id}/issue-line`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name: lineName.trim() }),
+      });
+      const payload = (await response.json().catch(() => null)) as BloodlineCardIssueLineResponse | null;
+      if (!response.ok || !payload?.success) {
+        throw new Error(payload?.error || "라인 만들기에 실패했습니다.");
       }
-
-      setMessage(`라인 카드 발급 완료: ${payload.card?.name || "요청한 라인"}`);
+      setSuccessMsg(`라인 카드 발급 완료: ${payload.card?.name || "요청한 라인"}`);
       setActiveAction(null);
-      setIssueDraft((prev) => ({ ...prev, [card.id]: { lineName: "" } }));
+      setLineName("");
       await mutateCard();
-    } catch (issueError) {
-      setError(
-        issueError instanceof Error
-          ? issueError.message
-          : "라인 만들기 처리 중 오류가 발생했습니다.",
+    } catch (error) {
+      setErrorMsg(
+        error instanceof Error ? error.message : "라인 만들기 처리 중 오류가 발생했습니다."
       );
     } finally {
       setIssueLoading(false);
     }
   };
 
+  const handleFormSubmit = (event: FormEvent) => {
+    event.preventDefault();
+    if (activeAction === "transfer") void submitTransfer();
+    else if (activeAction === "issue") void submitIssue();
+  };
+
+  // ── 로딩 ────────────────────────────────────────────────────────────
   if (isLoading) {
     return (
-      <Layout canGoBack hasTabBar showHome title="혈통카드" seoTitle="혈통카드">
-        <div className="flex min-h-[60vh] items-center justify-center px-4 py-4">
-          <Spinner />
+      <Layout headerVariant="none" seoTitle="혈통카드">
+        <BloodlineHeader title="혈통카드" />
+        <div className="flex min-h-[60vh] items-center justify-center">
+          <BloodlineSpinner />
         </div>
       </Layout>
     );
   }
 
+  // ── 카드 없음 / 오류 ────────────────────────────────────────────────
   if (!card) {
     const isWaitingForSync = missingCardRetryCount < 2;
-    if (isWaitingForSync) {
+    const status = (detailError as (Error & { status?: number }) | undefined)?.status;
+    const isNotFound = status === 404 || status === 403;
+    if (!isWaitingForSync && detailError && !detailData && !isNotFound) {
       return (
-        <Layout
-          canGoBack
-          hasTabBar
-          showHome
-          title="혈통카드"
-          seoTitle="혈통카드"
-        >
-          <div className="flex min-h-[60vh] items-center justify-center px-4 py-4">
-            <div className="rounded-xl border border-slate-200 bg-white px-4 py-4 text-sm text-slate-700 shadow-sm">
-              <Spinner />
-              <p className="mt-2">카드 정보를 불러오는 중입니다.</p>
-            </div>
+        <Layout headerVariant="none" seoTitle="혈통카드">
+          <BloodlineHeader title="혈통카드" />
+          <div className="flex min-h-[60vh] items-center justify-center px-4">
+            <QueryErrorState
+              title="카드 정보를 불러오지 못했어요"
+              onRetry={() => void mutateCard()}
+            />
           </div>
         </Layout>
       );
     }
-
     return (
-      <Layout canGoBack hasTabBar showHome title="혈통카드" seoTitle="혈통카드">
-        <section className="px-4 py-4">
-          <div className="mx-auto w-full max-w-[680px] rounded-xl border border-slate-200 bg-white p-5">
-            <h1 className="text-lg font-black text-slate-900">
-              카드를 찾을 수 없습니다.
-            </h1>
-            <p className="mt-1 text-sm text-slate-600">
-              카드 ID가 없거나 비활성화된 카드일 수 있습니다.
+      <Layout headerVariant="none" seoTitle="혈통카드">
+        <BloodlineHeader title="혈통카드" />
+        <div className="flex min-h-[60vh] flex-col items-center justify-center px-4 text-center">
+          {isWaitingForSync ? (
+            <>
+              <BloodlineSpinner />
+              <p className="mt-3 text-[14px] tracking-[-0.2px] text-app-muted">
+                카드 정보를 불러오는 중이에요.
+              </p>
+            </>
+          ) : (
+            <p className="text-[14px] tracking-[-0.2px] text-app-muted">
+              카드를 찾을 수 없어요. 비활성화된 카드일 수 있어요.
             </p>
-            <Link
-              href="/bloodline-management"
-              className="mt-4 inline-flex h-10 items-center justify-center rounded-lg bg-slate-900 px-4 text-sm font-medium text-white transition hover:bg-slate-800"
-            >
-              혈통관리로 이동
-            </Link>
-          </div>
-        </section>
+          )}
+        </div>
+        {!isWaitingForSync ? (
+          <BloodlineBottomBar>
+            <BloodlinePrimaryButton href="/bloodline-management">혈통관리로 이동</BloodlinePrimaryButton>
+          </BloodlineBottomBar>
+        ) : null}
       </Layout>
     );
   }
 
+  const infoRows: { label: string; value: string; href?: string }[] = [
+    { label: "제작자", value: card.creator.name, href: `/profiles/${card.creator.id}` },
+    { label: "현재 보유자", value: card.currentOwner.name, href: `/profiles/${card.currentOwner.id}` },
+    { label: "상태", value: statusLabel[card.status] ?? card.status },
+    // transfers 는 생성 기록을 포함하고 최근 몇 건만 내려오므로 서버 transferCount 를 쓴다.
+    { label: "발급 횟수", value: `${card.transferCount ?? 0}회` },
+    { label: "카드 번호", value: `#${card.id}` },
+  ];
+  if (card.cardType === "LINE") {
+    infoRows.push({
+      label: "원본 혈통",
+      value: bloodlineSourceCard
+        ? bloodlineSourceCard.name
+        : card.bloodlineReferenceId
+          ? `#${card.bloodlineReferenceId}`
+          : "-",
+      href: bloodlineSourceCard ? `/bloodline-management/card/${bloodlineSourceCard.id}` : undefined,
+    });
+    infoRows.push({
+      label: "상위 라인",
+      value: parentLineCard
+        ? parentLineCard.name
+        : card.parentCardId
+          ? `#${card.parentCardId}`
+          : "직접 파생 없음",
+      href: parentLineCard ? `/bloodline-management/card/${parentLineCard.id}` : undefined,
+    });
+  }
+  if (lineageTransferHint) infoRows.push({ label: "수신 경로", value: lineageTransferHint });
+
+  const showActionBar = (canTransfer || canIssue) && activeAction === null;
+  const busy = transferLoading || issueLoading;
+  const title = isBloodline ? "혈통카드" : "라인카드";
+
   return (
-    <Layout
-      canGoBack
-      hasTabBar
-      showHome
-      title={isBloodline ? "혈통카드" : "라인카드"}
-      seoTitle={card.name}
-    >
-      <section className="px-4 py-4">
-        <div className="mx-auto flex w-full max-w-[680px] flex-col gap-3">
-          {showCelebrationModal ? (
-            <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/55 px-4">
-              <div className="relative w-full max-w-sm rounded-lg border border-slate-200 bg-white p-5 shadow-xl">
-                <div className="relative text-center">
-                  <p className="text-sm font-bold text-slate-900">
-                    {celebrationCardName
-                      ? `"${celebrationCardName}"`
-                      : "혈통카드"}
-                    가 완성됐습니다!
-                  </p>
-                  <p className="mt-2 text-sm leading-relaxed text-slate-500">
-                    화면을 캡쳐해서 친구들에게 공유해보세요.
-                  </p>
-                  <Button
-                    type="button"
-                    className="mt-5 h-11 w-full rounded-lg bg-slate-900 text-sm font-semibold text-white hover:bg-slate-800"
-                    onClick={handleCloseCelebrationModal}
-                  >
-                    닫기
-                  </Button>
-                </div>
-              </div>
-            </div>
-          ) : null}
-          <div className={sectionClass}>
-            <div className={panelHeaderClass}>
-              <Link
-                href="/bloodline-management"
-                className="inline-flex h-8 items-center justify-center rounded-lg border border-slate-200 bg-white px-3 text-xs font-medium text-slate-700 transition hover:bg-slate-50"
-              >
-                목록으로
-              </Link>
-              <span className="rounded-md bg-slate-100 px-2.5 py-1 text-[11px] font-semibold text-slate-700">
-                {isBloodline ? "혈통카드" : "라인카드"}
-              </span>
-            </div>
+    <Layout headerVariant="none" seoTitle={card.name}>
+      <BloodlineHeader title={title} />
 
-            <h1 className="app-title-lg text-slate-900">{card.name}</h1>
-            <p className="mt-1.5 text-sm leading-relaxed text-slate-600">
-              {card.description || "설명이 없습니다."}
+      {showCelebration ? (
+        <div
+          className="fixed inset-0 z-[90] flex items-center justify-center bg-app-overlay px-6"
+          onClick={closeCelebration}
+        >
+          <div
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="bloodline-celebration-title"
+            className="w-full max-w-sm rounded-xl bg-app-elevated px-5 pb-4 pt-6"
+            onClick={(event) => event.stopPropagation()}
+          >
+            <p
+              id="bloodline-celebration-title"
+              className="text-center text-[18px] font-bold tracking-[-0.3px] text-app-text"
+            >
+              {celebrationName || "혈통카드"} 완성!
             </p>
-
-            <div className="mt-3 flex flex-wrap gap-2">
-              <span className={chipClass}>현재 상태 {card.status}</span>
-              <span className={chipClass}>발급 {card.transfers.length}회</span>
-              <span className={chipClass}>ID #{card.id}</span>
+            <p className="mt-2 text-center text-[14px] tracking-[-0.2px] text-app-muted">
+              화면을 캡쳐해서 친구들에게 공유해보세요.
+            </p>
+            <div className="mt-5 flex">
+              <BloodlinePrimaryButton onClick={closeCelebration}>확인</BloodlinePrimaryButton>
             </div>
-            {lineageTransferHint ? (
-              <p className="mt-2 inline-flex rounded-md bg-amber-50 px-3 py-1 text-xs text-amber-700">
-                {lineageTransferHint}
-              </p>
-            ) : null}
           </div>
+        </div>
+      ) : null}
 
-          <article className={sectionClass}>
-            <div className={panelHeaderClass}>
-              <h2 className="text-sm font-bold text-slate-900">
-                카드 미리보기
-              </h2>
-            </div>
-            <BloodlineVisualCard
-              cardId={card.id}
-              name={card.name}
-              ownerName={card.currentOwner.name}
-              subtitle={card.description || "설명이 없습니다."}
-              image={card.image}
-              variant={card.visualStyle}
+      <form id="bloodline-action-form" onSubmit={handleFormSubmit}>
+        <div className="px-4 pt-3.5">
+          <BloodlineVisualCard
+            cardId={card.id}
+            name={card.name}
+            subtitle={bloodlineCardMeta(card)}
+            ownerName={card.currentOwner.name}
+            typeLabel={bloodlineCardTypeLabel(card.cardType)}
+            issuedAt={card.createdAt}
+            image={card.image}
+          />
+        </div>
+
+        <SectionGap />
+        <SectionTitle label="카드 정보" />
+        <div>
+          {infoRows.map((row, index) => (
+            <InfoRow key={row.label} {...row} first={index === 0} />
+          ))}
+        </div>
+
+        <SectionGap />
+        <SectionTitle label="양도 이력" />
+        {eventsLoading ? (
+          <div className="flex justify-center py-8">
+            <BloodlineSpinner />
+          </div>
+        ) : events.length > 0 ? (
+          <div>
+            {events.slice(0, 8).map((record, index) => (
+              <HistoryRow key={record.id} record={record} first={index === 0} />
+            ))}
+          </div>
+        ) : (
+          <p className="py-8 text-center text-[14px] tracking-[-0.2px] text-app-muted">
+            아직 이력이 없어요.
+          </p>
+        )}
+
+        {errorMsg ? <Notice tone="error" message={errorMsg} /> : null}
+        {successMsg ? <Notice tone="success" message={successMsg} /> : null}
+
+        {!canTransfer && !canIssue ? (
+          <p className="px-4 pt-5 text-[14px] tracking-[-0.2px] text-app-muted">
+            이 카드는 {card.currentOwner.name}님이 보유 중이에요. 보내기와 라인 만들기는 보유자만 할
+            수 있어요.
+          </p>
+        ) : null}
+
+        {activeAction === "transfer" ? (
+          <div className="px-4 pt-5">
+            <FieldLabel label="받는 사람" htmlFor="bloodline-transfer-to" />
+            <Input
+              id="bloodline-transfer-to"
+              value={toUserName}
+              onChange={(event) => {
+                setToUserName(event.target.value);
+                setToUserId(undefined);
+              }}
+              placeholder="닉네임을 입력해주세요"
+              autoComplete="off"
+              disabled={transferLoading}
+              className={bloodlineInputClass}
             />
-          </article>
-
-          <article className={sectionClass}>
-            <div className={panelHeaderClass}>
-              <h2 className="text-sm font-bold text-slate-900">기본 정보</h2>
-            </div>
-            <div className="grid gap-2">
-              <p className={chipClass}>
-                제작자:{" "}
-                <Link
-                  href={`/profiles/${card.creator.id}`}
-                  className="font-semibold text-slate-900 underline underline-offset-4"
-                >
-                  {card.creator.name}
-                </Link>
-              </p>
-              <p className={chipClass}>
-                현재 보유자:{" "}
-                <Link
-                  href={`/profiles/${card.currentOwner.id}`}
-                  className="font-semibold text-slate-900 underline underline-offset-4"
-                >
-                  {card.currentOwner.name}
-                </Link>
-              </p>
-              {card.cardType === "LINE" ? (
-                <>
-                  <div className={chipClass}>
-                    원본 혈통:{" "}
-                    {bloodlineSourceCard ? (
-                      <Link
-                        href={`/bloodline-management/card/${bloodlineSourceCard.id}`}
-                        className="font-semibold text-slate-900 underline underline-offset-4"
-                      >
-                        #{bloodlineSourceCard.id} {bloodlineSourceCard.name}
-                      </Link>
-                    ) : (
-                      `#${card.bloodlineReferenceId}`
-                    )}
-                  </div>
-                  <div className={chipClass}>
-                    상위 라인:{" "}
-                    {parentLineCard ? (
-                      <Link
-                        href={`/bloodline-management/card/${parentLineCard.id}`}
-                        className="font-semibold text-slate-900 underline underline-offset-4"
-                      >
-                        #{parentLineCard.id} {parentLineCard.name}
-                      </Link>
-                    ) : card.parentCardId ? (
-                      `#${card.parentCardId}`
-                    ) : (
-                      "직접 파생 없음"
-                    )}
-                  </div>
-                </>
-              ) : null}
-            </div>
-          </article>
-
-          <article className={sectionClass}>
-            <div className={panelHeaderClass}>
-              <h2 className="text-sm font-bold text-slate-900">
-                {canTransfer || canIssue ? "카드 발급/전송" : "열람 정보"}
-              </h2>
-            </div>
-
-            {canTransfer || canIssue ? (
-              <div className="space-y-2">
-                {error ? (
-                  <p className="rounded-lg border border-rose-200 bg-rose-50 px-3 py-2 text-sm font-medium text-rose-700">
-                    {error}
-                  </p>
-                ) : null}
-                {message ? (
-                  <p className="rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm font-medium text-emerald-700">
-                    {message}
-                  </p>
-                ) : null}
-                {activeAction === "transfer" ? (
-                  <form className="space-y-2" onSubmit={handleTransferSubmit}>
-                    <div className="relative">
-                      <Input
-                        value={transferDraft[card.id]?.toUserName || ""}
-                        onChange={(event) =>
-                          setTransferDraft((prev) => ({
-                            ...prev,
-                            [card.id]: {
-                              ...prev[card.id],
-                              toUserName: event.target.value,
-                              toUserId: undefined,
-                            },
-                          }))
-                        }
-                        placeholder="보내는 상대 닉네임(필수)"
-                        className="h-11 rounded-lg"
-                      />
-                      {transferSearchLoading ||
-                      transferCandidates.length > 0 ? (
-                        <div className="absolute left-0 right-0 z-20 mt-1 max-h-56 overflow-y-auto rounded-lg border border-slate-200 bg-white shadow-md">
-                          {transferSearchLoading ? (
-                            <p className="px-3 py-2 text-sm text-slate-500">
-                              검색 중...
-                            </p>
-                          ) : transferCandidates.length ? (
-                            transferCandidates.map((item) => (
-                              <button
-                                key={item.id}
-                                type="button"
-                                onClick={() =>
-                                  handleTransferCandidateSelect(item)
-                                }
-                                className="w-full px-3 py-2 text-left text-sm text-slate-900 transition hover:bg-slate-50"
-                              >
-                                {item.name}
-                              </button>
-                            ))
-                          ) : null}
-                        </div>
-                      ) : null}
-                    </div>
-                    <Input
-                      value={transferDraft[card.id]?.note || ""}
-                      onChange={(event) =>
-                        setTransferDraft((prev) => ({
-                          ...prev,
-                          [card.id]: {
-                            ...prev[card.id],
-                            note: event.target.value,
-                          },
-                        }))
-                      }
-                      placeholder="메모 (선택)"
-                      className="h-11 rounded-lg"
-                    />
-                    <div className="grid gap-2">
-                      <Button
-                        type="submit"
-                        className={actionButtonClass}
-                        disabled={transferLoading}
-                      >
-                        {transferLoading ? "처리 중..." : "확인"}
-                      </Button>
-                      <Button
-                        type="button"
-                        className={cancelButtonClass}
-                        onClick={() => setActiveAction(null)}
-                        disabled={transferLoading}
-                      >
-                        취소
-                      </Button>
-                    </div>
-                  </form>
-                ) : activeAction === "issue" ? (
-                  <form className="space-y-2" onSubmit={handleIssueSubmit}>
-                    <Input
-                      value={issueDraft[card.id]?.lineName || ""}
-                      onChange={(event) =>
-                        setIssueDraft((prev) => ({
-                          ...prev,
-                          [card.id]: {
-                            ...prev[card.id],
-                            lineName: event.target.value,
-                          },
-                        }))
-                      }
-                      placeholder="라인 이름(선택)"
-                      className="h-11 rounded-lg"
-                    />
-                    <div className="grid gap-2">
-                      <Button
-                        type="submit"
-                        className={accentButtonClass}
-                        disabled={issueLoading}
-                      >
-                        {issueLoading ? "처리 중..." : "확인"}
-                      </Button>
-                      <Button
-                        type="button"
-                        className={cancelButtonClass}
-                        onClick={() => setActiveAction(null)}
-                        disabled={issueLoading}
-                      >
-                        취소
-                      </Button>
-                    </div>
-                  </form>
+            {candidatesLoading || candidates.length > 0 ? (
+              <div className="mt-1.5 overflow-hidden rounded-lg border border-app-border bg-app-elevated">
+                {candidatesLoading ? (
+                  <p className="px-3.5 py-3 text-[14px] text-app-muted">검색 중...</p>
                 ) : (
-                  <div className="grid gap-2">
-                    {canTransfer ? (
-                      <Button
-                        type="button"
-                        className={actionButtonClass}
-                        onClick={() => setActiveAction("transfer")}
-                      >
-                        보내기
-                      </Button>
-                    ) : null}
-                    {canIssue ? (
-                      <Button
-                        type="button"
-                        className={accentButtonClass}
-                        onClick={() => setActiveAction("issue")}
-                      >
-                        라인 만들기
-                      </Button>
-                    ) : null}
-                  </div>
+                  candidates.map((item, index) => (
+                    <button
+                      key={item.id}
+                      type="button"
+                      onClick={() => selectCandidate(item)}
+                      className={`block w-full px-3.5 py-3 text-left text-[15px] text-app-text hover:bg-app-surface ${
+                        index === 0 ? "" : "border-t border-app-line"
+                      }`}
+                    >
+                      {item.name}
+                    </button>
+                  ))
                 )}
               </div>
-            ) : (
-              <div className="rounded-lg border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-600">
-                <p className="font-medium text-slate-800">
-                  이 카드는 현재 {card.currentOwner.name}님이 보유 중입니다.
-                </p>
-                <p className="mt-1 leading-relaxed">
-                  상세 정보와 기록은 열람할 수 있고, 보내기나 라인 만들기는
-                  보유자만 진행할 수 있습니다.
-                </p>
-              </div>
-            )}
-          </article>
-
-          <article className={sectionClass}>
-            <div className={panelHeaderClass}>
-              <h2 className="text-sm font-bold text-slate-900">최근 기록</h2>
-              <span className="text-xs text-slate-500">
-                총 {events.length}건
-              </span>
+            ) : null}
+            <div className="mt-4">
+              <FieldLabel label="메모" htmlFor="bloodline-transfer-note" />
+              <Input
+                id="bloodline-transfer-note"
+                value={transferNote}
+                onChange={(event) => setTransferNote(event.target.value)}
+                placeholder="메모를 남겨보세요 (선택)"
+                disabled={transferLoading}
+                className={bloodlineInputClass}
+              />
             </div>
+          </div>
+        ) : null}
 
-            {eventsLoading ? (
-              <div className="flex h-16 items-center justify-center">
-                <Spinner />
-              </div>
-            ) : events.length ? (
-              <div className="space-y-2">
-                {events.slice(0, 5).map((record) => (
-                  <div
-                    key={record.id}
-                    className={`rounded-lg border p-3 ${
-                      eventToneByAction[record.action] ||
-                      "border-slate-200 bg-slate-50"
-                    } text-sm`}
-                  >
-                    <div className="flex items-start justify-between gap-2">
-                      <p className="font-semibold text-slate-900">
-                        {actionLabel[record.action] || record.action}
-                      </p>
-                      <span className="text-[10px] font-semibold text-slate-700">
-                        {record.action}
-                      </span>
-                    </div>
-                    <p className="mt-1 text-xs text-slate-700">
-                      {record.actorUser?.name || "시스템"}
-                      {record.fromUser
-                        ? ` · ${record.fromUser.name} → ${
-                            record.toUser?.name || "시스템"
-                          }`
-                        : ""}
-                    </p>
-                    {record.note ? (
-                      <p className="mt-1 text-xs text-slate-500">
-                        메모: {record.note}
-                      </p>
-                    ) : null}
-                    <p className="mt-1 text-xs text-slate-500">
-                      {formatDate(record.createdAt)}
-                    </p>
-                  </div>
-                ))}
-              </div>
-            ) : (
-              <p className="rounded-lg border border-slate-200 bg-slate-50 p-3 text-sm text-slate-600">
-                기록이 없습니다.
-              </p>
-            )}
-          </article>
-        </div>
-      </section>
+        {activeAction === "issue" ? (
+          <div className="px-4 pt-5">
+            <FieldLabel label="라인 이름" htmlFor="bloodline-line-name" />
+            <Input
+              id="bloodline-line-name"
+              value={lineName}
+              onChange={(event) => setLineName(event.target.value)}
+              placeholder="라인 이름을 입력해주세요 (선택)"
+              disabled={issueLoading}
+              className={bloodlineInputClass}
+            />
+          </div>
+        ) : null}
+
+        <div className="h-8" />
+      </form>
+
+      {showActionBar || activeAction !== null ? <BloodlineBottomBarSpacer /> : null}
+
+      {showActionBar ? (
+        <BloodlineBottomBar>
+          {canIssue ? (
+            <BloodlineSecondaryButton onClick={() => openAction("issue")}>
+              라인 만들기
+            </BloodlineSecondaryButton>
+          ) : null}
+          {canTransfer ? (
+            <BloodlinePrimaryButton onClick={() => openAction("transfer")}>
+              카드 보내기
+            </BloodlinePrimaryButton>
+          ) : null}
+        </BloodlineBottomBar>
+      ) : null}
+
+      {activeAction !== null ? (
+        <BloodlineBottomBar>
+          <BloodlineSecondaryButton onClick={cancelAction} disabled={busy}>
+            취소
+          </BloodlineSecondaryButton>
+          <BloodlinePrimaryButton
+            onClick={() => (activeAction === "transfer" ? void submitTransfer() : void submitIssue())}
+            disabled={busy}
+          >
+            {activeAction === "transfer"
+              ? transferLoading
+                ? "보내는 중..."
+                : "카드 보내기"
+              : issueLoading
+                ? "만드는 중..."
+                : "라인 만들기"}
+          </BloodlinePrimaryButton>
+        </BloodlineBottomBar>
+      ) : null}
     </Layout>
   );
 }
