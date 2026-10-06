@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
-import SupportClient from "./SupportClient";
+import { Suspense } from "react";
+import SupportClient, { SupportForm } from "./SupportClient";
 
 export const metadata: Metadata = {
   title: "고객의 소리 | 브리디",
@@ -33,5 +34,9 @@ export const metadata: Metadata = {
 };
 
 export default function SupportPage() {
-  return <SupportClient />;
+  return (
+    <Suspense fallback={<SupportForm />}>
+      <SupportClient />
+    </Suspense>
+  );
 }

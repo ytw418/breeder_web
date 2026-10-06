@@ -1,6 +1,8 @@
 "use client";
 import { useEffect, useState } from "react";
 
+import Image from "next/image";
+import logo from "@images/logo.png";
 import KakaoRound from "@images/KakaoRound.svg";
 import GoogleRound from "@images/GoogleRound.svg";
 
@@ -75,6 +77,13 @@ const navigateAfterSessionReady = async (nextPath: string) => {
 
   window.location.assign(nextPath);
 };
+
+// 구글 버튼은 브랜드 가이드(흰 버튼)대로 테마와 무관하게 라이트 색 고정.
+const GOOGLE_BUTTON_STYLE = {
+  backgroundColor: "#FFFFFF",
+  borderColor: "#E8E9EB",
+  color: "#212124",
+} as const;
 
 type TestAccountItem = {
   id: number;
@@ -345,162 +354,169 @@ const LoginClient = ({ shouldShowTestLogin }: LoginClientProps) => {
   };
 
   return (
-    <div className="min-h-screen w-full overflow-y-auto bg-slate-50 px-5 py-8 sm:py-10">
-      <div className="mx-auto flex w-full max-w-sm flex-col">
-        <div className="mb-8">
-          <p className="text-[13px] font-semibold text-primary">Bredy</p>
-          <h1 className="mt-2 text-[30px] font-bold leading-tight tracking-[-0.02em] text-app-strong">
-            브리디 로그인
-          </h1>
-          <p className="mt-2 text-sm leading-relaxed text-app-muted">
-            생물인들과 소통하고 안전하게 거래하세요.
+    <div className="flex min-h-screen w-full flex-col overflow-y-auto bg-app-bg px-5 py-8">
+      <div className="mx-auto my-auto flex w-full max-w-sm flex-col">
+        {/* 브랜드 */}
+        <div className="mb-10 flex flex-col items-center">
+          <Image
+            src={logo}
+            alt="브리디 로고"
+            width={56}
+            height={56}
+            priority
+            className="h-14 w-14 object-contain"
+          />
+          <h1 className="mt-4 text-[24px] font-bold text-app-text">브리디</h1>
+          <p className="mt-2 text-center text-[15px] leading-[22px] text-app-muted">
+            생물인들과 소통하고 안전하게 거래하세요
           </p>
         </div>
 
-        <div className="flex h-auto w-full flex-col gap-3">
+        {/* 소셜 로그인 */}
+        <div className="flex w-full flex-col gap-2.5">
           <button
             type="button"
             onClick={() => loginWithKakao()}
-            className="button relative flex h-[52px] w-full items-center justify-center rounded-lg border border-[#E2CD00] bg-[#FEE500] px-6 text-[#191919] transition-colors hover:bg-[#FADA0A]"
+            className="relative flex h-[52px] w-full items-center justify-center rounded-lg bg-[#FEE500] px-6 text-[#191919]"
           >
             <KakaoRound className="absolute left-5" width={24} height={24} />
-            <span className="text-sm font-semibold">카카오로 계속하기</span>
+            <span className="text-[15px] font-semibold">카카오로 계속하기</span>
           </button>
 
           {canShowGoogleLogin ? (
             <button
               type="button"
               onClick={() => loginWithGoogle()}
-              className="button relative flex h-[52px] w-full items-center justify-center rounded-lg border border-slate-200 bg-white px-6 text-slate-900 transition-colors hover:bg-slate-50"
+              className="relative flex h-[52px] w-full items-center justify-center rounded-lg border px-6"
+              // 다크 모드의 레거시 .dark .bg-white 재매핑을 피하려고 inline style 로 고정한다.
+              style={GOOGLE_BUTTON_STYLE}
             >
               <GoogleRound className="absolute left-5" width={24} height={24} />
-              <span className="text-sm font-semibold">구글로 계속하기</span>
+              <span className="text-[15px] font-semibold">구글로 계속하기</span>
             </button>
           ) : !isReactNativeWebView ? (
-            <p className="text-[12px] text-app-muted">
+            <p className="text-[13px] leading-5 text-app-muted">
               현재는 카카오 로그인만 지원합니다.
             </p>
           ) : null}
 
-          {shouldShowTestLogin ? (
-            <div className="w-full rounded-lg border border-slate-200 bg-white p-3">
-              <p className="text-[11px] font-semibold text-app-muted">
-                테스트 로그인 (개발/테스트 환경 전용)
-              </p>
-              {isLoadingTestAccounts ? (
-                <p className="mt-2 text-[11px] text-app-muted">
-                  테스트 계정 목록 불러오는 중...
-                </p>
-              ) : null}
-              {testLoginError ? (
-                <p className="mt-2 text-[11px] text-rose-600">
-                  {testLoginError}
-                </p>
-              ) : null}
-              {!isLoadingTestAccounts && !testAccounts.length ? (
-                <p className="mt-2 text-[11px] text-app-muted">
-                  사용 가능한 테스트 계정이 없습니다.
-                </p>
-              ) : (
-                <div className="mt-2 max-h-64 space-y-1 overflow-y-auto pr-1">
-                  {testAccounts.map((account) => (
-                    <button
-                      key={account.id}
-                      type="button"
-                      onClick={() => loginAsTestUser(account.id)}
-                      disabled={switchingTestUserId === account.id}
-                      className="button relative flex h-10 w-full items-center justify-between rounded-md border border-slate-200 bg-slate-50 px-3 text-left transition-colors hover:bg-white disabled:opacity-60"
-                    >
-                      <span className="truncate text-xs text-app-sub">
-                        {account.name}
-                      </span>
-                      <span className="text-[11px] text-app-muted">
-                        {switchingTestUserId === account.id
-                          ? "전환 중..."
-                          : account.provider}
-                      </span>
-                    </button>
-                  ))}
-                </div>
-              )}
-            </div>
-          ) : null}
-
+          {/* 서비스 둘러보기 */}
           <Link
             href={"/"}
-            className="button relative flex h-[52px] w-full items-center justify-center rounded-lg border border-slate-200 bg-white px-6 text-sm font-semibold text-app-sub transition-colors hover:bg-slate-50"
+            className="flex items-center justify-center py-2.5 text-[13px] text-app-muted"
           >
             서비스 둘러보기
           </Link>
+        </div>
 
-          <Link
-            href="/content/breeder-program"
-            className="w-full rounded-lg border border-slate-200 bg-white p-4 text-left transition-colors hover:border-slate-300 hover:bg-slate-50"
-          >
-            <div className="flex items-start justify-between gap-3">
-              <div>
-                <p className="text-[11px] font-semibold text-primary">
-                  Founding Breeder 100
-                </p>
-                <h2 className="mt-1 text-base font-bold text-app-strong">
-                  {isFoundingSoldOut
-                    ? "창립 브리더 100인 마감"
-                    : "창립 브리더 100인 한정"}
-                </h2>
-                <p className="mt-1 text-[13px] leading-relaxed text-app-muted">
-                  {isFoundingSoldOut
-                    ? "창립 브리더 프로그램 소개를 확인해보세요."
-                    : "초기 100명에게 평생 경매 수수료 무료와 전용 표시 혜택을 제공합니다."}
-                </p>
+        {/* 테스트 로그인 (개발/테스트 환경 전용) */}
+        {shouldShowTestLogin ? (
+          <div className="mt-6 w-full">
+            <p className="text-[13px] font-semibold text-app-muted">
+              테스트 계정
+            </p>
+            {isLoadingTestAccounts ? (
+              <p className="mt-2 text-[13px] text-app-muted">
+                테스트 계정 목록 불러오는 중...
+              </p>
+            ) : null}
+            {testLoginError ? (
+              <p className="mt-2 text-[13px] text-app-danger">
+                {testLoginError}
+              </p>
+            ) : null}
+            {!isLoadingTestAccounts && !testAccounts.length ? (
+              <p className="mt-2 text-[13px] text-app-muted">
+                사용 가능한 테스트 계정이 없습니다.
+              </p>
+            ) : (
+              <div className="mt-1 max-h-60 overflow-y-auto">
+                {testAccounts.map((account) => (
+                  <button
+                    key={account.id}
+                    type="button"
+                    onClick={() => loginAsTestUser(account.id)}
+                    disabled={switchingTestUserId === account.id}
+                    className="flex h-11 w-full items-center justify-between text-left disabled:opacity-60"
+                  >
+                    <span className="flex-1 truncate text-[15px] text-app-text">
+                      {account.name}
+                    </span>
+                    <span className="ml-3 text-[12px] text-app-muted">
+                      {switchingTestUserId === account.id
+                        ? "전환 중..."
+                        : account.provider}
+                    </span>
+                  </button>
+                ))}
               </div>
-              <span className="shrink-0 rounded-md bg-slate-900 px-2 py-1 text-[11px] font-semibold text-white">
-                보기
-              </span>
-            </div>
-            <div className="mt-3 flex flex-wrap gap-1.5">
-              {foundingRemaining !== null && !isFoundingSoldOut ? (
-                <span className="rounded-md border border-rose-200 bg-rose-50 px-2 py-1 text-[11px] font-semibold text-rose-700">
-                  잔여 {foundingRemaining}석
-                </span>
-              ) : null}
-              <span className="rounded-md border border-slate-200 bg-slate-50 px-2 py-1 text-[11px] font-semibold text-app-sub">
-                수수료 무료
-              </span>
-              <span className="rounded-md border border-slate-200 bg-slate-50 px-2 py-1 text-[11px] font-semibold text-app-sub">
-                전용 프레임
-              </span>
-              <span className="rounded-md border border-slate-200 bg-slate-50 px-2 py-1 text-[11px] font-semibold text-app-sub">
-                전용 뱃지
-              </span>
-            </div>
-          </Link>
-        </div>
+            )}
+          </div>
+        ) : null}
 
-        <div className="mb-2 mt-8 w-full border-t border-slate-200" />
-        <div className="text-[11px] leading-relaxed text-app-muted">
-          <span>
-            서비스 이용시 브리디의{" "}
-            <Link
-              target="_blank"
-              className="font-semibold text-primary"
-              href={TERMS_OF_SERVICE_URL}
-            >
-              이용약관
-            </Link>{" "}
-            및{" "}
-            <Link
-              target="_blank"
-              className="font-semibold text-primary"
-              href={PRIVACY_POLICY_URL}
-            >
-              개인정보처리동의서
-            </Link>{" "}
-            동의로 간주합니다.
-          </span>
-        </div>
+        {/* 창립 브리더 */}
+        <Link
+          href="/content/breeder-program"
+          className="mt-6 w-full rounded-xl border border-app-border p-4 text-left"
+        >
+          <div className="flex items-start justify-between gap-3">
+            <div className="flex-1">
+              <h2 className="text-[15px] font-bold text-app-text">
+                {isFoundingSoldOut
+                  ? "창립 브리더 100인 마감"
+                  : "창립 브리더 100인 한정"}
+              </h2>
+              <p className="mt-1 text-[14px] leading-[21px] text-app-muted">
+                {isFoundingSoldOut
+                  ? "창립 브리더 프로그램 소개를 확인해보세요."
+                  : "초기 100명에게 평생 경매 수수료 무료와 전용 표시 혜택을 제공합니다."}
+              </p>
+            </div>
+            <span className="shrink-0 text-[13px] font-semibold text-app-text">
+              보기
+            </span>
+          </div>
+          <div className="mt-3 flex flex-wrap gap-1.5">
+            {foundingRemaining !== null && !isFoundingSoldOut ? (
+              <FoundingPill label={`잔여 ${foundingRemaining}석`} />
+            ) : null}
+            <FoundingPill label="수수료 무료" />
+            <FoundingPill label="전용 프레임" />
+            <FoundingPill label="전용 뱃지" />
+          </div>
+        </Link>
+
+        {/* 약관 */}
+        <p className="mt-6 text-[12px] leading-[18px] text-app-muted">
+          서비스 이용시 브리디의{" "}
+          <Link
+            target="_blank"
+            className="font-semibold text-app-sub"
+            href={TERMS_OF_SERVICE_URL}
+          >
+            이용약관
+          </Link>{" "}
+          및{" "}
+          <Link
+            target="_blank"
+            className="font-semibold text-app-sub"
+            href={PRIVACY_POLICY_URL}
+          >
+            개인정보처리동의서
+          </Link>{" "}
+          동의로 간주합니다.
+        </p>
       </div>
     </div>
   );
 };
+
+function FoundingPill({ label }: { label: string }) {
+  return (
+    <span className="rounded-md bg-app-surface px-2 py-1 text-[12px] text-app-muted">
+      {label}
+    </span>
+  );
+}
 
 export default LoginClient;
