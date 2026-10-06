@@ -349,10 +349,10 @@ const LoginClient = ({ shouldShowTestLogin }: LoginClientProps) => {
       <div className="mx-auto flex w-full max-w-sm flex-col">
         <div className="mb-8">
           <p className="text-[13px] font-semibold text-primary">Bredy</p>
-          <h1 className="mt-2 text-[30px] font-bold leading-tight tracking-[-0.02em] text-slate-950">
+          <h1 className="mt-2 text-[30px] font-bold leading-tight tracking-[-0.02em] text-app-strong">
             브리디 로그인
           </h1>
-          <p className="mt-2 text-sm leading-relaxed text-slate-500">
+          <p className="mt-2 text-sm leading-relaxed text-app-muted">
             생물인들과 소통하고 안전하게 거래하세요.
           </p>
         </div>
@@ -377,18 +377,18 @@ const LoginClient = ({ shouldShowTestLogin }: LoginClientProps) => {
               <span className="text-sm font-semibold">구글로 계속하기</span>
             </button>
           ) : !isReactNativeWebView ? (
-            <p className="text-[12px] text-slate-500">
+            <p className="text-[12px] text-app-muted">
               현재는 카카오 로그인만 지원합니다.
             </p>
           ) : null}
 
           {shouldShowTestLogin ? (
             <div className="w-full rounded-lg border border-slate-200 bg-white p-3">
-              <p className="text-[11px] font-semibold text-slate-500">
+              <p className="text-[11px] font-semibold text-app-muted">
                 테스트 로그인 (개발/테스트 환경 전용)
               </p>
               {isLoadingTestAccounts ? (
-                <p className="mt-2 text-[11px] text-slate-500">
+                <p className="mt-2 text-[11px] text-app-muted">
                   테스트 계정 목록 불러오는 중...
                 </p>
               ) : null}
@@ -398,7 +398,7 @@ const LoginClient = ({ shouldShowTestLogin }: LoginClientProps) => {
                 </p>
               ) : null}
               {!isLoadingTestAccounts && !testAccounts.length ? (
-                <p className="mt-2 text-[11px] text-slate-500">
+                <p className="mt-2 text-[11px] text-app-muted">
                   사용 가능한 테스트 계정이 없습니다.
                 </p>
               ) : (
@@ -411,10 +411,10 @@ const LoginClient = ({ shouldShowTestLogin }: LoginClientProps) => {
                       disabled={switchingTestUserId === account.id}
                       className="button relative flex h-10 w-full items-center justify-between rounded-md border border-slate-200 bg-slate-50 px-3 text-left transition-colors hover:bg-white disabled:opacity-60"
                     >
-                      <span className="truncate text-xs text-slate-700">
+                      <span className="truncate text-xs text-app-sub">
                         {account.name}
                       </span>
-                      <span className="text-[11px] text-slate-500">
+                      <span className="text-[11px] text-app-muted">
                         {switchingTestUserId === account.id
                           ? "전환 중..."
                           : account.provider}
@@ -428,7 +428,7 @@ const LoginClient = ({ shouldShowTestLogin }: LoginClientProps) => {
 
           <Link
             href={"/"}
-            className="button relative flex h-[52px] w-full items-center justify-center rounded-lg border border-slate-200 bg-white px-6 text-sm font-semibold text-slate-700 transition-colors hover:bg-slate-50"
+            className="button relative flex h-[52px] w-full items-center justify-center rounded-lg border border-slate-200 bg-white px-6 text-sm font-semibold text-app-sub transition-colors hover:bg-slate-50"
           >
             서비스 둘러보기
           </Link>
@@ -442,12 +442,12 @@ const LoginClient = ({ shouldShowTestLogin }: LoginClientProps) => {
                 <p className="text-[11px] font-semibold text-primary">
                   Founding Breeder 100
                 </p>
-                <h2 className="mt-1 text-base font-bold text-slate-950">
+                <h2 className="mt-1 text-base font-bold text-app-strong">
                   {isFoundingSoldOut
                     ? "창립 브리더 100인 마감"
                     : "창립 브리더 100인 한정"}
                 </h2>
-                <p className="mt-1 text-[13px] leading-relaxed text-slate-500">
+                <p className="mt-1 text-[13px] leading-relaxed text-app-muted">
                   {isFoundingSoldOut
                     ? "창립 브리더 프로그램 소개를 확인해보세요."
                     : "초기 100명에게 평생 경매 수수료 무료와 전용 표시 혜택을 제공합니다."}
@@ -463,13 +463,13 @@ const LoginClient = ({ shouldShowTestLogin }: LoginClientProps) => {
                   잔여 {foundingRemaining}석
                 </span>
               ) : null}
-              <span className="rounded-md border border-slate-200 bg-slate-50 px-2 py-1 text-[11px] font-semibold text-slate-600">
+              <span className="rounded-md border border-slate-200 bg-slate-50 px-2 py-1 text-[11px] font-semibold text-app-sub">
                 수수료 무료
               </span>
-              <span className="rounded-md border border-slate-200 bg-slate-50 px-2 py-1 text-[11px] font-semibold text-slate-600">
+              <span className="rounded-md border border-slate-200 bg-slate-50 px-2 py-1 text-[11px] font-semibold text-app-sub">
                 전용 프레임
               </span>
-              <span className="rounded-md border border-slate-200 bg-slate-50 px-2 py-1 text-[11px] font-semibold text-slate-600">
+              <span className="rounded-md border border-slate-200 bg-slate-50 px-2 py-1 text-[11px] font-semibold text-app-sub">
                 전용 뱃지
               </span>
             </div>
@@ -477,7 +477,7 @@ const LoginClient = ({ shouldShowTestLogin }: LoginClientProps) => {
         </div>
 
         <div className="mb-2 mt-8 w-full border-t border-slate-200" />
-        <div className="text-[11px] leading-relaxed text-slate-400">
+        <div className="text-[11px] leading-relaxed text-app-muted">
           <span>
             서비스 이용시 브리디의{" "}
             <Link

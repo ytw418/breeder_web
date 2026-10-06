@@ -5,6 +5,15 @@ jest.mock("swr", () => ({
   __esModule: true,
   default: (...args: unknown[]) => mockUseSWR(...args),
 }));
+jest.mock("next/navigation", () => ({
+  useRouter: () => ({ push: jest.fn(), replace: jest.fn(), back: jest.fn() }),
+}));
+// jest 설정에 hooks/ 별칭이 없어 가상 모듈로 막는다.
+jest.mock(
+  "hooks/useUser",
+  () => ({ __esModule: true, default: () => ({ user: { id: 7 }, isLoading: false }) }),
+  { virtual: true }
+);
 jest.mock("@components/features/MainLayout", () => ({
   __esModule: true,
   default: ({ children }: { children: React.ReactNode }) => <div>{children}</div>,
@@ -12,7 +21,7 @@ jest.mock("@components/features/MainLayout", () => ({
 
 import Item from "@components/features/item/item";
 import MySellHistoryList from "@components/features/profile/MySellHistoryList";
-import MyPostList from "@components/features/profile/MyPostList";
+import { ProfileProductRows } from "@components/features/profile/ProfileActivityLists";
 
 const baseItem = {
   title: "왕사슴 유충",
@@ -60,7 +69,7 @@ describe("MySellHistoryList 삭제·숨김 상품", () => {
     },
   });
 
-  it("삭제·숨김 상품은 링크 없이 '삭제된 상품'으로 보이고, 살아 있는 상품은 링크로 보인다", () => {
+  it("삭제·숨김 상품은 링크 없이 '삭제된 상품'·'숨김 상품'으로 보이고, 살아 있는 상품은 링크로 보인다", () => {
     mockUseSWR.mockReturnValue({
       isLoading: false,
       data: {
@@ -78,12 +87,13 @@ describe("MySellHistoryList 삭제·숨김 상품", () => {
     for (const name of ["상품 2", "상품 3"]) {
       expect(screen.getByText(name).closest("a")).toBeNull();
     }
-    expect(screen.getAllByText("삭제된 상품")).toHaveLength(2);
+    expect(screen.getAllByText("삭제된 상품")).toHaveLength(1);
+    expect(screen.getAllByText("숨김 상품")).toHaveLength(1);
     expect(screen.getAllByRole("link")).toHaveLength(1);
   });
 });
 
-describe("MyPostList 가격 표시", () => {
+describe("ProfileProductRows 가격 표시", () => {
   const product = (id: number, price?: number) => ({
     id,
     name: `상품 ${id}`,
@@ -93,17 +103,31 @@ describe("MyPostList 가격 표시", () => {
     createdAt: new Date("2026-10-01T00:00:00.000Z"),
     _count: { favs: 0 },
   });
+  const list = (items: ReturnType<typeof product>[]) => ({
+    items,
+    isLoading: false,
+    isError: false,
+    isLoaded: true,
+    hasNextPage: false,
+    isFetchingNextPage: false,
+    isFetchNextPageError: false,
+    loadMore: jest.fn(),
+    refetch: jest.fn(),
+  });
 
   it("0원은 무료나눔, 가격이 없으면 가격 미정으로 보인다", () => {
-    mockUseSWR.mockReturnValue({
-      isLoading: false,
-      data: { success: true, products: [product(1, 0), product(2), product(3, 10000)] },
-    });
-    render(<MyPostList userId={7} />);
+    render(<ProfileProductRows list={list([product(1, 0), product(2), product(3, 10000)])} />);
 
     expect(screen.getByText("무료나눔")).toBeInTheDocument();
     expect(screen.getByText("가격 미정")).toBeInTheDocument();
     expect(screen.getByText("10,000원")).toBeInTheDocument();
+  });
+
+  it("다음 페이지가 있으면 더보기로 이어 받는다", () => {
+    const state = { ...list([product(1, 100)]), hasNextPage: true };
+    render(<ProfileProductRows list={state} />);
+    fireEvent.click(screen.getByRole("button", { name: "상품 더보기" }));
+    expect(state.loadMore).toHaveBeenCalledTimes(1);
   });
 });
 
@@ -135,7 +159,7 @@ describe("MySellHistoryList 오류 처리", () => {
     expectNoEmptyState();
   });
 
-  it("403 이면 서버 문구로 본인만 볼 수 있다고 안내한다", () => {
+  it("403 이면 본인만 볼 수 있다고 안내한다", () => {
     mockUseSWR.mockReturnValue({
       isLoading: false,
       data: undefined,
@@ -144,11 +168,11 @@ describe("MySellHistoryList 오류 처리", () => {
     });
     render(<MySellHistoryList kind="favs" id={99} />);
 
-    expect(screen.getByText("본인의 관심목록만 볼 수 있습니다.")).toBeInTheDocument();
+    expect(screen.getByText("관심목록은 본인만 볼 수 있습니다.")).toBeInTheDocument();
     expectNoEmptyState();
   });
 
-  it("403 인데 서버 문구가 없으면 기본 문구를 보인다", () => {
+  it("403 이면 서버 문구와 관계없이 앱과 같은 문구를 보인다", () => {
     mockUseSWR.mockReturnValue({
       isLoading: false,
       data: undefined,
@@ -157,11 +181,11 @@ describe("MySellHistoryList 오류 처리", () => {
     });
     render(<MySellHistoryList kind="favs" id={99} />);
 
-    expect(screen.getByText("본인의 관심목록만 볼 수 있습니다.")).toBeInTheDocument();
+    expect(screen.getByText("관심목록은 본인만 볼 수 있습니다.")).toBeInTheDocument();
     expectNoEmptyState();
   });
 
-  it("그 밖의 오류는 불러오지 못했다고 안내하고 다시 불러오기로 재요청한다", () => {
+  it("그 밖의 오류는 불러올 수 없다고 안내하고 다시 시도로 재요청한다", () => {
     const mutate = jest.fn();
     mockUseSWR.mockReturnValue({
       isLoading: false,
@@ -171,9 +195,9 @@ describe("MySellHistoryList 오류 처리", () => {
     });
     render(<MySellHistoryList kind="purchases" id={7} />);
 
-    expect(screen.getByText("구매내역을 불러오지 못했습니다")).toBeInTheDocument();
+    expect(screen.getByText("구매내역을 불러올 수 없습니다.")).toBeInTheDocument();
     expectNoEmptyState();
-    fireEvent.click(screen.getByRole("button", { name: "다시 불러오기" }));
+    fireEvent.click(screen.getByRole("button", { name: "다시 시도" }));
     expect(mutate).toHaveBeenCalledTimes(1);
   });
 

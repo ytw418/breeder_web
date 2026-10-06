@@ -2,42 +2,47 @@
 
 import { authFetch } from "@libs/client/authFetch";
 import { setTokens } from "@libs/client/authToken";
+import { canUseTestAccountSwitcher } from "@libs/shared/test-accounts";
+import ConfirmDialog from "@components/atoms/ConfirmDialog";
+import { FilterChip, FilterChipRail } from "@components/app/FilterChip";
+import { BreederProgramBadgeList } from "@components/features/breeder/BreederProgramDecorators";
+import { BloodlineVisualCard } from "@components/features/bloodline/BloodlineVisualCard";
 import {
-  canUseTestAccountSwitcher,
-  isTestAccountUser,
-} from "@libs/shared/test-accounts";
-import Image from "@components/atoms/Image";
-import { Spinner } from "@components/atoms/Spinner";
-import MyCommentList from "@components/features/profile/MyCommentList";
-import MyCommunityPostList from "@components/features/profile/MyCommunityPostList";
-import MySaleHistoryMenu from "@components/features/profile/MySaleHistoryMenu";
-import MyPostList from "@components/features/profile/MyPostList";
+  EmptyBlock,
+  LineIcon,
+  LoadingBlock,
+  MenuRow,
+  ProfileAvatar,
+  RetryBlock,
+  SectionGap,
+  SMALL_BUTTON_CLASS,
+  TransactionMenu,
+} from "@components/features/profile/ProfileRows";
 import {
-  BreederProgramBadgeList,
-  getBreederProgramFrameClassName,
-  getPrimaryBreederBenefitLabel,
-  hasBreederProgramFrame,
-} from "@components/features/breeder/BreederProgramDecorators";
-import { Button } from "@components/ui/button";
-import { cn } from "@libs/client/utils";
+  ProfileCommentRows,
+  ProfilePostRows,
+  ProfileProductRows,
+  useUserCommentsList,
+  useUserPostsList,
+  useUserProductsList,
+} from "@components/features/profile/ProfileActivityLists";
 import { USER_INFO } from "@libs/constants";
 import useUser from "hooks/useUser";
 import useMutation from "hooks/useMutation";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import {
+import type {
   GuinnessSubmission,
   GuinnessSubmissionsResponse,
 } from "pages/api/guinness/submissions";
-import { BloodlineVisualCard } from "@components/features/bloodline/BloodlineVisualCard";
-import { LoginReqBody, LoginResponseType } from "pages/api/auth/login";
+import type { LoginReqBody, LoginResponseType } from "pages/api/auth/login";
 import useSWR from "swr";
-import { UserResponse } from "pages/api/users/[id]";
-import type { BloodlineCardsResponse } from "@libs/shared/bloodline-card";
-import { useEffect, useMemo, useState } from "react";
+import type { UserResponse } from "pages/api/users/[id]";
+import type { BloodlineCardItem, BloodlineCardsResponse } from "@libs/shared/bloodline-card";
+import { useEffect, useMemo, useState, type ReactNode } from "react";
 import useLogout from "../../../hooks/useLogout";
 
-type ActivityTab = "posts" | "comments" | "guinness" | "products" | "bloodline";
+type ActivityTab = "posts" | "comments" | "products" | "bloodline" | "guinness";
 
 const TAB_META: { id: ActivityTab; name: string }[] = [
   { id: "posts", name: "게시물" },
@@ -53,11 +58,8 @@ const GUINNESS_STATUS_TEXT: Record<GuinnessSubmission["status"], string> = {
   rejected: "반려",
 };
 
-const GUINNESS_STATUS_CLASS: Record<GuinnessSubmission["status"], string> = {
-  pending: "bg-slate-100 text-slate-700",
-  approved: "bg-slate-100 text-slate-700",
-  rejected: "bg-slate-100 text-slate-700",
-};
+const LIST_ROW_CLASS =
+  "flex items-start gap-3 border-b border-app-line px-4 py-3.5 transition-colors hover:bg-app-surface";
 
 type TestAccountItem = {
   id: number;
@@ -67,99 +69,202 @@ type TestAccountItem = {
   createdAt: string;
 };
 
-type TestAccountListResponse = {
-  success: boolean;
-  error?: string;
-  users?: TestAccountItem[];
-};
-
+type TestAccountListResponse = { success: boolean; error?: string; users?: TestAccountItem[] };
 type TestAccountSwitchResponse = {
   success: boolean;
   error?: string;
   accessToken?: string;
   refreshToken?: string;
-  expiresIn?: number;
 };
 
-const GuinnessSubmissionList = ({
+/* ------------------------------------------------------------------ */
+/* 브리디북 · 혈통 카드                                                  */
+/* ------------------------------------------------------------------ */
+
+function GuinnessSubmissionList({
   submissions,
   isLoading,
+  isError,
+  onRetry,
 }: {
   submissions: GuinnessSubmission[];
   isLoading: boolean;
-}) => {
-  if (isLoading) {
+  isError: boolean;
+  onRetry: () => void;
+}) {
+  if (isLoading) return <LoadingBlock />;
+  if (isError) {
     return (
-      <div className="flex h-32 items-center justify-center">
-        <Spinner />
-      </div>
+      <RetryBlock
+        message="브리디북 신청 내역을 불러오지 못했습니다. 잠시 후 다시 시도해주세요."
+        onRetry={onRetry}
+      />
     );
   }
-
   if (!submissions.length) {
     return (
-      <div className="app-card flex h-36 flex-col items-center justify-center text-slate-500">
-        <p className="app-title-md text-slate-600">체장 기록 신청 내역이 없습니다</p>
-        <p className="app-caption mt-1">체장 기록을 신청해 공식 인증을 받아보세요.</p>
-        <Link
-          href="/guinness/apply"
-          className="mt-3 rounded-lg bg-slate-900 px-3 py-1.5 text-xs font-semibold text-white"
-        >
-          브리디북 등록하기
-        </Link>
-      </div>
+      <EmptyBlock
+        title="체장 기록 신청 내역이 없습니다"
+        description="체장 기록을 신청해 공식 인증을 받아보세요."
+        action={
+          <Link
+            href="/guinness/apply"
+            className="mt-3 inline-flex h-10 items-center rounded-md bg-app-surface px-3.5 text-[14px] font-semibold text-app-text"
+          >
+            브리디북 등록하기
+          </Link>
+        }
+      />
     );
   }
-
   return (
-    <div className="space-y-2.5">
+    <div>
       {submissions.map((submission) => (
-        <div key={submission.id} className="app-card px-3.5 py-3">
-          <div className="flex items-start justify-between gap-2">
-            <div className="min-w-0">
-              <p className="app-title-md truncate">
-                {submission.species} · 체장 {submission.value}mm
-              </p>
-              <p className="app-caption mt-1">
-                신청일 {new Date(submission.submittedAt).toLocaleDateString("ko-KR")}
-              </p>
-            </div>
-            <span
-              className={cn(
-                "shrink-0 rounded-full px-2 py-1 text-[11px] font-semibold",
-                GUINNESS_STATUS_CLASS[submission.status]
-              )}
-            >
-              {GUINNESS_STATUS_TEXT[submission.status]}
-            </span>
-          </div>
-          {submission.reviewMemo && (
-            <p className="app-body-sm mt-2 rounded-lg bg-slate-50 dark:bg-slate-800/70 px-2.5 py-2 text-slate-600">
-              심사 메모: {submission.reviewMemo}
+        <Link
+          key={submission.id}
+          href={submission.status === "approved" ? "/guinness" : "/guinness/apply"}
+          className={LIST_ROW_CLASS}
+        >
+          <div className="min-w-0 flex-1">
+            <p className="truncate text-[16px] font-semibold text-app-text">
+              {submission.species} · 체장 {submission.value}mm
             </p>
-          )}
-          <div className="mt-2 flex items-center gap-2">
-            {submission.status === "approved" ? (
-              <Link href="/guinness" className="app-pill-muted">
-                브리디북 보기
-              </Link>
-            ) : (
-              <Link href="/guinness/apply" className="app-pill-muted">
-                신청 상세/수정
-              </Link>
-            )}
+            <p className="mt-1 text-[13px] text-app-muted">
+              {new Date(submission.submittedAt).toLocaleDateString("ko-KR")} ·{" "}
+              {GUINNESS_STATUS_TEXT[submission.status]}
+            </p>
+            {submission.reviewMemo ? (
+              <p className="mt-1.5 text-[14px] text-app-muted">심사 메모: {submission.reviewMemo}</p>
+            ) : null}
           </div>
-        </div>
+          <LineIcon name="chevron-right" size={18} className="mt-0.5 text-app-caption" />
+        </Link>
       ))}
     </div>
   );
-};
+}
+
+function BloodlineCardPreview({ card, kind }: { card: BloodlineCardItem; kind: "created" | "received" }) {
+  const subtitle = card.description || card.speciesType || "설명이 아직 등록되지 않았습니다.";
+  return (
+    <Link href={`/bloodline-management/card/${card.id}`} className="block">
+      <BloodlineVisualCard
+        cardId={card.id}
+        name={card.name}
+        ownerName={card.currentOwner.name}
+        subtitle={subtitle}
+        image={card.image}
+        variant={card.visualStyle ?? "noir"}
+        typeLabel={card.cardType === "LINE" ? "라인" : "혈통"}
+        issuedAt={card.createdAt}
+        compact
+      />
+      {kind === "received" ? (
+        <>
+          <p className="mt-2 text-[13px] text-app-muted">
+            제작자 {card.creator.name} · 전달 {card.transfers?.length || 0}건
+          </p>
+          {card.transfers?.length ? (
+            <div className="mt-1.5 space-y-1">
+              {card.transfers.map((transfer) => (
+                <p key={transfer.id} className="text-[13px] text-app-muted">
+                  {new Date(transfer.createdAt).toLocaleDateString("ko-KR")} ·{" "}
+                  {transfer.fromUser ? transfer.fromUser.name : "시스템"} → {transfer.toUser.name}
+                  {transfer.note ? ` · ${transfer.note}` : ""}
+                </p>
+              ))}
+            </div>
+          ) : null}
+        </>
+      ) : null}
+    </Link>
+  );
+}
+
+function BloodlineSection({
+  title,
+  cards,
+  kind,
+  emptyText,
+}: {
+  title: string;
+  cards: BloodlineCardItem[];
+  kind: "created" | "received";
+  emptyText: string;
+}) {
+  return (
+    <section>
+      <div className="mb-2 flex items-center justify-between">
+        <h4 className="text-[14px] font-bold text-app-text">{title}</h4>
+        <span className="text-[13px] text-app-muted">{cards.length}장</span>
+      </div>
+      {cards.length ? (
+        <div className="space-y-3">
+          {cards.map((card) => (
+            <BloodlineCardPreview key={card.id} card={card} kind={kind} />
+          ))}
+        </div>
+      ) : (
+        <p className="py-5 text-center text-[14px] text-app-muted">{emptyText}</p>
+      )}
+    </section>
+  );
+}
+
+/* ------------------------------------------------------------------ */
+/* 개발자 도구 (테스트 계정·관리자 전용)                                    */
+/* ------------------------------------------------------------------ */
+
+function DevNote({ text }: { text: string }) {
+  return <p className="px-4 py-1.5 text-[13px] text-app-muted">{text}</p>;
+}
+
+function DevRow({
+  label,
+  caption,
+  disabled,
+  onClick,
+  href,
+}: {
+  label: string;
+  caption?: string;
+  disabled?: boolean;
+  onClick?: () => void;
+  href?: string;
+}) {
+  const className =
+    "flex h-11 w-full items-center gap-2 px-4 text-left hover:bg-app-surface disabled:opacity-50";
+  const inner = (
+    <>
+      <span className="flex-1 truncate text-[14px] text-app-text">{label}</span>
+      {caption ? <span className="text-[13px] text-app-muted">{caption}</span> : null}
+    </>
+  );
+  if (href) {
+    return (
+      <Link href={href} className={className}>
+        {inner}
+      </Link>
+    );
+  }
+  return (
+    <button type="button" className={className} disabled={disabled} onClick={onClick}>
+      {inner}
+    </button>
+  );
+}
+
+/* ------------------------------------------------------------------ */
+/* 화면                                                                */
+/* ------------------------------------------------------------------ */
 
 const MyPageClient = () => {
   const { user, isAdmin, mutate: mutateUser } = useUser();
   const router = useRouter();
   const handleLogout = useLogout();
   const [activeTab, setActiveTab] = useState<ActivityTab>("posts");
+  const [logoutOpen, setLogoutOpen] = useState(false);
+  const [devOpen, setDevOpen] = useState(false);
   const [switchError, setSwitchError] = useState("");
   const [switchMessage, setSwitchMessage] = useState("");
   const [loginWithProvider, { loading: switchingGoogle }] =
@@ -168,46 +273,32 @@ const MyPageClient = () => {
   const [fakeUsersLoading, setFakeUsersLoading] = useState(false);
   const [fakeUsersError, setFakeUsersError] = useState("");
   const [switchingFakeUserId, setSwitchingFakeUserId] = useState<number | null>(null);
+  const userId = user?.id;
 
-  // _count 포함된 유저 정보 가져오기
-  const { data } = useSWR<UserResponse>(
-    user?.id ? `/api/users/${user.id}` : null
-  );
-  const { data: guinnessData, isLoading: isGuinnessLoading } =
-    useSWR<GuinnessSubmissionsResponse>(
-      user?.id ? "/api/guinness/submissions" : null
-    );
-  const {
-    data: bloodlineData,
-    isLoading: isBloodlineLoading,
-    error: bloodlineLoadError,
-  } = useSWR<BloodlineCardsResponse>(user?.id ? "/api/bloodline-cards" : null);
+  const profileQuery = useSWR<UserResponse>(userId ? `/api/users/${userId}` : null);
+  const guinnessQuery = useSWR<GuinnessSubmissionsResponse>(userId ? "/api/guinness/submissions" : null);
+  const bloodlineQuery = useSWR<BloodlineCardsResponse>(userId ? "/api/bloodline-cards" : null);
+  // 게시물·댓글·상품은 페이지로 나눠 받고 목록 끝 '더보기'로 이어 붙인다.
+  const postsList = useUserPostsList(userId);
+  const commentsList = useUserCommentsList(userId);
+  const productsList = useUserProductsList(userId);
 
-  const avatarUrl =
-    user?.avatar &&
-    (user.avatar.includes("http")
-      ? user.avatar
-      : `https://imagedelivery.net/OvWZrAz6J6K7n9LKUH5pKw/${user.avatar}/avatar`);
-
-  const profileUser = data?.user;
+  const profileUser = profileQuery.data?.user;
   const profileBreederPrograms = profileUser?.breederPrograms ?? [];
-  const hasProfileBreederFrame = hasBreederProgramFrame(profileBreederPrograms);
-  const profileBreederFrameClassName = getBreederProgramFrameClassName(
-    profileBreederPrograms
-  );
-  const profileBreederBenefitLabel = getPrimaryBreederBenefitLabel(
-    profileBreederPrograms
-  );
+  const profileName = profileUser?.name || user?.name || "";
+  const profileLoading = profileQuery.isLoading;
+  // 이전에 받은 값이 있으면 계속 보여 주고, 처음부터 못 받았을 때만 오류 줄을 띄운다.
+  const profileFailed = Boolean(profileQuery.error) && !profileUser;
+
   const mySubmissions = useMemo(
     () =>
-      [...(guinnessData?.submissions || [])]
+      [...(guinnessQuery.data?.submissions || [])]
         .filter((submission) => submission.recordType === "size")
-        .sort(
-          (a, b) =>
-            new Date(b.submittedAt).getTime() - new Date(a.submittedAt).getTime()
-        ),
-    [guinnessData?.submissions]
+        .sort((a, b) => new Date(b.submittedAt).getTime() - new Date(a.submittedAt).getTime()),
+    [guinnessQuery.data?.submissions]
   );
+
+  const bloodlineData = bloodlineQuery.data;
   const receivedCards = useMemo(() => {
     if (!bloodlineData) return [];
     if (bloodlineData.receivedBloodlines?.length) return bloodlineData.receivedBloodlines;
@@ -215,9 +306,9 @@ const MyPageClient = () => {
       return bloodlineData.receivedCards.filter((card) => card.cardType === "BLOODLINE");
     }
     return (bloodlineData.ownedCards || []).filter(
-      (card) => card.creator.id !== user?.id && card.cardType === "BLOODLINE"
+      (card) => card.creator.id !== userId && card.cardType === "BLOODLINE"
     );
-  }, [bloodlineData, user?.id]);
+  }, [bloodlineData, userId]);
 
   const myCreatedCards = useMemo(() => {
     if (!bloodlineData) return [];
@@ -226,65 +317,71 @@ const MyPageClient = () => {
       return bloodlineData.myCreatedCards.filter((card) => card.cardType === "BLOODLINE");
     }
     return (bloodlineData.ownedCards || []).filter(
-      (card) => card.creator.id === user?.id && card.cardType === "BLOODLINE"
+      (card) => card.creator.id === userId && card.cardType === "BLOODLINE"
     );
-  }, [bloodlineData, user?.id]);
+  }, [bloodlineData, userId]);
 
-  const isTestUser = isTestAccountUser(user);
+  const bloodlineCountFallback =
+    (profileUser?._count?.createdBloodlineCards ?? 0) + (profileUser?._count?.ownedBloodlineCards ?? 0);
+
+  // 프로필(_count)이나 목록을 아직 받지 못했거나 실패했으면 0 대신 '–' 로 둔다.
+  const countOrDash = (profileCount: number | undefined, listLoaded: boolean, listLength: number) => {
+    if (profileCount !== undefined) return profileCount;
+    return listLoaded ? listLength : "–";
+  };
+  const tabCountMap: Record<ActivityTab, number | string> = {
+    posts: countOrDash(profileUser?._count?.posts, postsList.isLoaded, postsList.items.length),
+    comments: countOrDash(profileUser?._count?.Comments, commentsList.isLoaded, commentsList.items.length),
+    products: countOrDash(profileUser?._count?.products, productsList.isLoaded, productsList.items.length),
+    bloodline:
+      bloodlineData !== undefined
+        ? myCreatedCards.length + receivedCards.length || bloodlineCountFallback
+        : profileUser
+          ? bloodlineCountFallback
+          : "–",
+    guinness: guinnessQuery.data !== undefined ? mySubmissions.length : "–",
+  };
+
+  const profileStats = [
+    { label: "게시물", value: profileUser?._count?.posts },
+    { label: "공식 기록", value: profileUser?._count?.insectRecords },
+    { label: "팔로워", value: profileUser?._count?.followers },
+  ];
+
+  /* ---------------- 개발자 도구 ---------------- */
   const canSwitchTestAccount = canUseTestAccountSwitcher(user, Boolean(isAdmin));
-  const fakeUserListForSwitch = fakeUsers.filter((item) => item.id !== user?.id);
+  const showDevTools = canSwitchTestAccount || Boolean(isAdmin);
+  const fakeUserListForSwitch = fakeUsers.filter((item) => item.id !== userId);
 
   useEffect(() => {
-    if (!canSwitchTestAccount) return;
-
+    if (!canSwitchTestAccount || !devOpen) return;
     let mounted = true;
     setFakeUsersLoading(true);
     setFakeUsersError("");
-
     const fetchFakeUsers = async () => {
       try {
-        const res = await authFetch("/api/users/test-accounts", {
-          method: "GET",
-          cache: "no-store",
-        });
+        const res = await authFetch("/api/users/test-accounts", { method: "GET", cache: "no-store" });
         const data = (await res.json()) as TestAccountListResponse;
-
         if (!mounted) return;
-
         if (!res.ok || !data.success) {
           throw new Error(data.error || "fake user 목록을 불러오지 못했습니다.");
         }
-
         setFakeUsers(data.users || []);
       } catch (error) {
         if (!mounted) return;
         setFakeUsers([]);
         setFakeUsersError(
-          error instanceof Error
-            ? error.message
-            : "fake user 목록 조회 중 오류가 발생했습니다."
+          error instanceof Error ? error.message : "fake user 목록 조회 중 오류가 발생했습니다."
         );
       } finally {
-        if (mounted) {
-          setFakeUsersLoading(false);
-        }
+        if (mounted) setFakeUsersLoading(false);
       }
     };
-
     void fetchFakeUsers();
-
     return () => {
       mounted = false;
     };
-  }, [canSwitchTestAccount]);
-
-  const tabCountMap: Record<ActivityTab, number> = {
-    posts: profileUser?._count?.posts ?? 0,
-    comments: profileUser?._count?.Comments ?? 0,
-    guinness: mySubmissions.length,
-    products: profileUser?._count?.products ?? 0,
-    bloodline: (myCreatedCards.length + receivedCards.length) ?? 0,
-  };
+  }, [canSwitchTestAccount, devOpen]);
 
   const providerLabel =
     user?.provider === USER_INFO.provider.GOOGLE
@@ -296,452 +393,262 @@ const MyPageClient = () => {
   const handleSwitchToGoogle = async () => {
     setSwitchError("");
     setSwitchMessage("");
-
     try {
-      const [{ getAuth, GoogleAuthProvider, signInWithPopup }, { app }] =
-        await Promise.all([import("firebase/auth"), import("@/firebase")]);
+      const [{ getAuth, GoogleAuthProvider, signInWithPopup }, { app }] = await Promise.all([
+        import("firebase/auth"),
+        import("@/firebase"),
+      ]);
       const auth = getAuth(app);
       const provider = new GoogleAuthProvider();
       provider.setCustomParameters({ prompt: "select_account" });
       const { user: googleUser } = await signInWithPopup(auth, provider);
-
-      if (!googleUser?.uid) {
-        throw new Error("구글 계정 정보를 가져오지 못했습니다.");
-      }
-
+      if (!googleUser?.uid) throw new Error("구글 계정 정보를 가져오지 못했습니다.");
       const body: LoginReqBody = {
         token: await googleUser.getIdToken(),
         snsId: googleUser.uid,
-        name:
-          googleUser.displayName || googleUser.email?.split("@")[0] || "Google User",
+        name: googleUser.displayName || googleUser.email?.split("@")[0] || "Google User",
         provider: USER_INFO.provider.GOOGLE,
         email: googleUser.email,
         avatar: googleUser.photoURL || undefined,
       };
-
-      const result = await loginWithProvider({
-        data: body,
-      });
-      if (!result?.success) {
-        throw new Error(result?.error || "구글 계정 전환에 실패했습니다.");
-      }
-
+      const result = await loginWithProvider({ data: body });
+      if (!result?.success) throw new Error(result?.error || "구글 계정 전환에 실패했습니다.");
       await mutateUser();
       setSwitchMessage("구글 계정으로 전환되었습니다.");
       router.refresh();
     } catch (error) {
-      setSwitchError(
-        error instanceof Error
-          ? error.message
-          : "구글 계정 전환에 실패했습니다."
-      );
+      setSwitchError(error instanceof Error ? error.message : "구글 계정 전환에 실패했습니다.");
     }
   };
 
   const handleSwitchToFakeUser = async (targetUserId: number) => {
-    if (switchingFakeUserId === targetUserId || targetUserId === user?.id) return;
-
+    if (switchingFakeUserId === targetUserId || targetUserId === userId) return;
     setSwitchError("");
     setSwitchMessage("");
     setSwitchingFakeUserId(targetUserId);
-
     try {
       const res = await authFetch("/api/users/test-accounts", {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ userId: targetUserId }),
       });
       const data = (await res.json()) as TestAccountSwitchResponse;
-
-      if (!res.ok || !data.success) {
-        throw new Error(data.error || "fake user 전환에 실패했습니다.");
-      }
-
+      if (!res.ok || !data.success) throw new Error(data.error || "fake user 전환에 실패했습니다.");
       if (data.accessToken && data.refreshToken) {
-        setTokens({
-          accessToken: data.accessToken,
-          refreshToken: data.refreshToken,
-        });
+        setTokens({ accessToken: data.accessToken, refreshToken: data.refreshToken });
       }
-
       // 전환된 계정으로 모든 캐시(SWR 등)를 새로 읽도록 전체 새로고침으로 이동한다.
       window.location.assign("/myPage");
     } catch (error) {
-      setSwitchError(
-        error instanceof Error
-          ? error.message
-          : "fake user 전환 중 오류가 발생했습니다."
-      );
+      setSwitchError(error instanceof Error ? error.message : "fake user 전환 중 오류가 발생했습니다.");
     } finally {
       setSwitchingFakeUserId(null);
     }
   };
 
+  /* ---------------- 활동 탭 ---------------- */
+  let activityContent: ReactNode = null;
+  if (activeTab === "posts") {
+    activityContent = (
+      <ProfilePostRows list={postsList} emptyDescription="첫 게시글을 작성해 보세요." />
+    );
+  } else if (activeTab === "comments") {
+    activityContent = <ProfileCommentRows list={commentsList} />;
+  } else if (activeTab === "products") {
+    activityContent = <ProfileProductRows list={productsList} />;
+  } else if (activeTab === "bloodline") {
+    activityContent = (
+      <div className="space-y-3 px-4">
+        <Link
+          href="/bloodline-management"
+          className="flex h-11 items-center justify-center rounded-md bg-app-surface text-[15px] font-semibold text-app-text"
+        >
+          혈통관리로 이동
+        </Link>
+        {bloodlineQuery.isLoading ? <LoadingBlock height={112} /> : null}
+        {bloodlineQuery.error && !bloodlineData ? (
+          <RetryBlock
+            message="혈통카드 정보를 불러오지 못했습니다. 잠시 후 다시 시도해주세요."
+            onRetry={() => void bloodlineQuery.mutate()}
+          />
+        ) : null}
+        {!bloodlineQuery.isLoading && bloodlineData ? (
+          <>
+            <BloodlineSection
+              title="내가 만든 카드"
+              cards={myCreatedCards}
+              kind="created"
+              emptyText="아직 만든 혈통카드가 없습니다."
+            />
+            <BloodlineSection
+              title="내가 전달받은 카드"
+              cards={receivedCards}
+              kind="received"
+              emptyText="아직 전달받은 카드가 없습니다."
+            />
+          </>
+        ) : null}
+      </div>
+    );
+  } else {
+    activityContent = (
+      <GuinnessSubmissionList
+        submissions={mySubmissions}
+        isLoading={guinnessQuery.isLoading}
+        isError={Boolean(guinnessQuery.error) && !guinnessQuery.data}
+        onRetry={() => void guinnessQuery.mutate()}
+      />
+    );
+  }
+
   return (
-    <div className="flex flex-col pb-4">
-      {/* 프로필 헤더 */}
-      <div className="px-6 pt-6 pb-4">
-        <div className="flex items-center gap-5">
-          {/* 아바타 */}
-          <div
-            className={cn(
-              "flex-shrink-0",
-              hasProfileBreederFrame
-                ? cn("rounded-[28px] p-1", profileBreederFrameClassName)
-                : ""
-            )}
-          >
-            {avatarUrl ? (
-              <Image
-                src={avatarUrl}
-                alt={profileUser?.name || user?.name || "프로필"}
-                width={80}
-                height={80}
-                className={cn(
-                  "h-20 w-20 rounded-full bg-slate-200 object-cover dark:bg-slate-700",
-                  hasProfileBreederFrame ? "ring-2 ring-white/70" : ""
-                )}
-              />
+    <div className="flex flex-col bg-app-bg pb-8">
+      {/* 프로필 */}
+      <div className="px-4 py-5">
+        <div className="flex items-center gap-3">
+          <ProfileAvatar avatar={profileUser?.avatar ?? user?.avatar} name={profileName} programs={profileBreederPrograms} />
+          <div className="min-w-0 flex-1">
+            <h2 className="truncate text-[18px] font-bold text-app-text">{profileName}</h2>
+            {user?.email ? <p className="mt-0.5 truncate text-[13px] text-app-muted">{user.email}</p> : null}
+            {profileLoading ? (
+              <div className="mt-2 h-5 w-[72px] animate-pulse rounded bg-app-surface" />
             ) : (
-              <div
-                className={cn(
-                  "flex h-20 w-20 items-center justify-center rounded-full bg-slate-200 dark:bg-slate-700",
-                  hasProfileBreederFrame ? "ring-2 ring-white/70" : ""
-                )}
-              >
-                <svg
-                  className="w-10 h-10 text-slate-400"
-                  fill="none"
-                  stroke="currentColor"
-                  viewBox="0 0 24 24"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth="1.5"
-                    d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"
-                  />
-                </svg>
-              </div>
+              <BreederProgramBadgeList className="mt-2" programs={profileBreederPrograms} />
             )}
           </div>
-
-          {/* 통계 */}
-          <div className="flex-1 flex justify-around">
-            <div className="flex flex-col items-center">
-              <span className="text-lg font-bold text-slate-900">
-                {profileUser?._count?.posts ?? 0}
-              </span>
-              <span className="text-xs text-slate-500">게시물</span>
-            </div>
-            <div className="flex flex-col items-center">
-              <span className="text-lg font-bold text-slate-900">
-                {profileUser?._count?.insectRecords ?? 0}
-              </span>
-              <span className="text-xs text-slate-500">공식 기록</span>
-            </div>
-            <div className="flex flex-col items-center">
-              <span className="text-lg font-bold text-slate-900">
-                {profileUser?._count?.followers ?? 0}
-              </span>
-              <span className="text-xs text-slate-500">팔로워</span>
-            </div>
-          </div>
-        </div>
-
-        {/* 이름 + 이메일 */}
-        <div className="mt-4">
-          <h2 className="text-lg font-bold text-slate-900">
-            {profileUser?.name || user?.name || ""}
-          </h2>
-          {user?.email && (
-            <p className="text-sm text-slate-500 dark:text-slate-400 mt-0.5">{user.email}</p>
-          )}
-          <BreederProgramBadgeList className="mt-2" programs={profileBreederPrograms} />
-          {profileBreederBenefitLabel ? (
-            <p className="mt-2 text-xs font-semibold text-slate-700 dark:text-slate-200">
-              {profileBreederBenefitLabel}
-            </p>
-          ) : null}
-        </div>
-
-        {/* 액션 버튼 */}
-        <div className="flex gap-2 mt-4">
-          <Button
-            variant="outline"
-            className="flex-1"
-            onClick={() => router.push("/editProfile")}
-          >
+          <Link href="/editProfile" className={SMALL_BUTTON_CLASS}>
             프로필 수정
-          </Button>
-          <Button
-            variant="outline"
-            className="flex-1"
-            onClick={handleLogout}
-          >
-            로그아웃
-          </Button>
+          </Link>
         </div>
-        {canSwitchTestAccount ? (
-          <div className="mt-4 rounded-lg border border-slate-200 bg-slate-50 p-3 dark:border-slate-700/80 dark:bg-slate-800/50">
-            <p className="text-xs font-semibold text-slate-700">다른 FAKE_USER 전환</p>
-            <p className="mt-1 text-[11px] text-slate-500">
-              fake 계정을 전환해 커뮤니티/거래 활동을 시뮬레이션할 수 있습니다.
-            </p>
-            {fakeUsersLoading ? (
-              <p className="mt-2 text-xs text-slate-500">목록을 불러오는 중...</p>
-            ) : null}
-            {fakeUsersError ? (
-              <p className="mt-2 text-xs font-semibold text-rose-500">{fakeUsersError}</p>
-            ) : null}
-            {!fakeUsersLoading && !fakeUserListForSwitch.length ? (
-              <p className="mt-2 text-xs text-slate-500">
-                전환 가능한 FAKE_USER가 없습니다.
-              </p>
-            ) : null}
-            <div className="mt-2 space-y-1.5">
-              {fakeUserListForSwitch.map((account) => (
-                <button
-                  key={account.id}
-                  type="button"
-                  onClick={() => handleSwitchToFakeUser(account.id)}
-                  disabled={switchingFakeUserId === account.id}
-                  className="w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-left text-sm text-slate-700 disabled:opacity-50 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200"
-                >
-                  <span className="truncate block">{account.name}</span>
-                  <span className="text-[11px] text-slate-500">
-                    {switchingFakeUserId === account.id ? "전환 중..." : account.provider}
-                  </span>
-                </button>
-              ))}
-            </div>
-          </div>
-        ) : null}
-        {isAdmin ? (
-          <div className="mt-2 space-y-2">
-            <Link
-              href="/admin"
-              className="inline-flex h-10 w-full items-center justify-center rounded-lg bg-slate-900 text-sm font-semibold text-white"
-            >
-              관리자 페이지로 이동
-            </Link>
-            <div className="rounded-lg border border-slate-200 bg-slate-50 p-3 dark:border-slate-700/80 dark:bg-slate-800/50">
-              <p className="text-xs font-semibold text-slate-700">
-                관리자 계정 전환
-              </p>
-              <p className="mt-1 text-xs text-slate-600">
-                현재 로그인: {providerLabel}
-              </p>
-              <div className="mt-2 grid grid-cols-1 gap-2 sm:grid-cols-2">
-                <Button
-                  type="button"
-                  variant="outline"
-                  className="w-full"
-                  onClick={handleSwitchToGoogle}
-                  disabled={switchingGoogle}
-                >
-                  {switchingGoogle ? "전환 중..." : "구글 계정으로 전환"}
-                </Button>
-                <Link
-                  href="/auth/login?next=%2FmyPage"
-                  className="inline-flex h-10 items-center justify-center rounded-md border border-slate-300 bg-white px-3 text-sm font-medium text-slate-700 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200"
-                >
-                  카카오 로그인으로 전환
-                </Link>
-              </div>
-              {switchMessage ? (
-                <p className="mt-2 text-xs font-semibold text-slate-600">
-                  {switchMessage}
-                </p>
-              ) : null}
-              {switchError ? (
-                <p className="mt-2 text-xs font-semibold text-slate-600">
-                  {switchError}
-                </p>
-              ) : null}
-            </div>
-          </div>
-        ) : null}
-      </div>
 
-      <div className="h-px border-t border-slate-100/80 dark:border-slate-800/80" />
-
-      {/* 거래 메뉴 */}
-      <div className="px-4 py-4">
-        <MySaleHistoryMenu />
-      </div>
-
-      <div className="h-px border-t border-slate-100/80 dark:border-slate-800/80" />
-
-      {/* 활동 탭 */}
-      <div className="px-4 py-4">
-        <h3 className="mb-3 text-base font-semibold text-slate-900">내 활동</h3>
-
-        <div className="app-card p-2">
-          <div className="app-rail flex gap-2 snap-none">
-            {TAB_META.map((tab) => (
-              <button
-                key={tab.id}
-                onClick={() => setActiveTab(tab.id)}
-                className={cn(
-                  "app-chip",
-                  activeTab === tab.id ? "app-chip-active" : "app-chip-muted"
-                )}
+        {profileFailed ? (
+          <button
+            type="button"
+            onClick={() => void profileQuery.mutate()}
+            className="mt-3 flex min-h-[42px] w-full items-center justify-center text-[13px] text-app-muted"
+          >
+            프로필 정보를 불러오지 못했어요 ·&nbsp;<span className="font-semibold text-app-text">다시 시도</span>
+          </button>
+        ) : (
+          <div className="mt-3 flex justify-around">
+            {profileStats.map((stat) => (
+              <div
+                key={stat.label}
+                className="flex flex-col items-center"
+                aria-label={profileLoading ? `${stat.label} 불러오는 중` : `${stat.label} ${stat.value ?? 0}`}
               >
-                {tab.name}
-                <span className="ml-1.5 text-[11px] opacity-80">
-                  {tabCountMap[tab.id]}
-                </span>
-              </button>
+                {profileLoading ? (
+                  <div className="flex h-6 items-center">
+                    <div className="h-4 w-7 animate-pulse rounded bg-app-surface" />
+                  </div>
+                ) : (
+                  <span className="text-[18px] font-bold leading-6 text-app-text">{stat.value ?? 0}</span>
+                )}
+                <span className="mt-0.5 text-[12px] leading-4 text-app-muted">{stat.label}</span>
+              </div>
             ))}
           </div>
-        </div>
+        )}
+      </div>
 
-        <div className="mt-3">
-          {activeTab === "posts" && <MyCommunityPostList userId={user?.id} />}
-          {activeTab === "comments" && <MyCommentList userId={user?.id} />}
-          {activeTab === "guinness" && (
-            <GuinnessSubmissionList
-              submissions={mySubmissions}
-              isLoading={isGuinnessLoading}
+      <SectionGap />
+
+      {/* 거래 */}
+      {userId ? <TransactionMenu userId={userId} isMine /> : null}
+
+      <SectionGap />
+
+      {/* 기타: 설정 · 고객센터 · 로그아웃 */}
+      <div className="py-1">
+        <MenuRow label="설정" icon="settings" href="/settings" />
+        <MenuRow label="고객센터" icon="support" href="/support" />
+        <MenuRow label="로그아웃" icon="logout" chevron={false} onClick={() => setLogoutOpen(true)} />
+      </div>
+
+      <SectionGap />
+
+      {/* 내 활동 */}
+      <div className="pt-4">
+        <h3 className="mb-1.5 px-4 text-[16px] font-semibold text-app-text">내 활동</h3>
+        <FilterChipRail>
+          {TAB_META.map((tab) => (
+            <FilterChip
+              key={tab.id}
+              label={tab.name}
+              count={tabCountMap[tab.id]}
+              selected={activeTab === tab.id}
+              onClick={() => setActiveTab(tab.id)}
             />
-          )}
-          {activeTab === "products" && <MyPostList userId={user?.id} />}
-          {activeTab === "bloodline" && (
-            <div className="space-y-3">
-              <Link
-                href="/bloodline-management"
-                className="inline-flex h-10 w-full items-center justify-center rounded-lg bg-gradient-to-r from-slate-500 to-slate-500 text-sm font-semibold text-white shadow-[0_12px_24px_rgba(15, 23, 42,0.23)] transition hover:scale-[1.01] hover:shadow-[0_16px_28px_rgba(15, 23, 42,0.3)]"
-              >
-                혈통관리로 이동
-              </Link>
+          ))}
+        </FilterChipRail>
+        <div className="mt-1.5">{activityContent}</div>
+      </div>
 
-              {isBloodlineLoading ? (
-                <div className="flex h-28 items-center justify-center">
-                  <Spinner />
-                </div>
-              ) : null}
-
-              {bloodlineLoadError ? (
-                <p className="rounded-md border border-slate-200 bg-slate-50 px-3 py-2 text-xs font-semibold text-slate-700 dark:border-slate-700/80 dark:bg-slate-900/70">
-                  혈통카드 정보를 불러오지 못했습니다. 잠시 후 다시 시도해주세요.
-                </p>
-              ) : null}
-
-              <div className="mb-2 flex items-center justify-between">
-                <p className="text-xs font-black uppercase tracking-[0.16em] text-slate-500">내가 만든 카드</p>
-                <span className="rounded-full bg-slate-100 px-2 py-1 text-[11px] font-semibold text-slate-700">
-                  {myCreatedCards.length}장
-                </span>
-              </div>
-
-              <div className="grid grid-cols-2 gap-2">
-                {myCreatedCards.map((card) => (
-                  <section
-                    key={card.id}
-                    className="overflow-hidden rounded-2xl border border-slate-200/75 bg-gradient-to-br from-white/90 via-slate-50 to-slate-50 p-2.5 dark:border-slate-700/80 dark:from-slate-900 dark:to-slate-900/80"
-                  >
-                    <div className="mb-2 flex items-center justify-between">
-                      <p className="text-[11px] font-black uppercase tracking-[0.16em] text-slate-500">
-                        내가 만든 카드
-                      </p>
-                      <span className="rounded-full bg-slate-100 px-2 py-1 text-[10px] font-semibold text-slate-700">
-                        ACTIVE
-                      </span>
-                    </div>
-                    <BloodlineVisualCard
-                      cardId={card.id}
-                      name={card.name}
-                      ownerName={card.currentOwner.name}
-                      subtitle={`${card.currentOwner.name} 님의 내가 만든 혈통카드`}
-                      image={card.image}
-                      variant={card.visualStyle}
-                      compact
+      {/* 개발자 도구 (테스트 계정·관리자 전용) */}
+      {showDevTools ? (
+        <>
+          <SectionGap />
+          <button
+            type="button"
+            aria-expanded={devOpen}
+            onClick={() => setDevOpen((prev) => !prev)}
+            className="flex min-h-[48px] w-full items-center gap-3 px-4 text-left"
+          >
+            <span className="flex-1 text-[15px] text-app-muted">개발자 도구</span>
+            <LineIcon name={devOpen ? "chevron-down" : "chevron-right"} size={18} className="text-app-caption" />
+          </button>
+          {devOpen ? (
+            <div className="pb-2">
+              {canSwitchTestAccount ? (
+                <div>
+                  <DevNote text="다른 FAKE_USER 전환" />
+                  {fakeUsersLoading ? <DevNote text="목록을 불러오는 중..." /> : null}
+                  {fakeUsersError ? <DevNote text={fakeUsersError} /> : null}
+                  {!fakeUsersLoading && !fakeUserListForSwitch.length ? (
+                    <DevNote text="전환 가능한 FAKE_USER가 없습니다." />
+                  ) : null}
+                  {fakeUserListForSwitch.map((account) => (
+                    <DevRow
+                      key={account.id}
+                      label={account.name}
+                      caption={switchingFakeUserId === account.id ? "전환 중..." : account.provider}
+                      disabled={switchingFakeUserId === account.id}
+                      onClick={() => void handleSwitchToFakeUser(account.id)}
                     />
-                    {card.description ? (
-                      <p className="mt-2 text-xs leading-relaxed text-slate-600">
-                        {card.description}
-                      </p>
-                    ) : null}
-                    <p className="mt-2 text-[11px] text-slate-500">
-                      현재 보유자: {card.currentOwner.name}
-                    </p>
-                  </section>
-                ))}
-              </div>
-
-              {!isBloodlineLoading && myCreatedCards.length === 0 ? (
-                <div className="rounded-xl border border-dashed border-slate-300 bg-white p-5 text-center text-sm text-slate-500 dark:border-slate-700 dark:bg-slate-900/70 dark:text-slate-300">
-                  아직 만든 혈통카드가 없습니다.
-                </div>
-              ) : null}
-
-              <section className="space-y-3">
-                <div className="mb-1 flex items-center justify-between">
-                  <p className="text-xs font-black uppercase tracking-[0.16em] text-slate-500">내가 전달받은 카드</p>
-                  <span className="rounded-full bg-slate-100 px-2 py-1 text-[11px] font-semibold text-slate-700">
-                    {receivedCards.length}장
-                  </span>
-                </div>
-
-                {receivedCards.length ? null : (
-                  <div className="rounded-xl border border-dashed border-slate-300 bg-white p-5 text-center text-sm text-slate-500 dark:border-slate-700 dark:bg-slate-900/70 dark:text-slate-300">
-                    아직 전달받은 카드가 없습니다.
-                  </div>
-                )}
-
-                <div className="grid grid-cols-2 gap-2">
-                  {receivedCards.map((card) => (
-                    <section
-                      key={card.id}
-                      className="overflow-hidden rounded-2xl border border-slate-200/80 bg-gradient-to-br from-white/95 via-slate-50 to-slate-50 p-2.5 transition duration-300 hover:-translate-y-0.5 hover:shadow-[0_16px_36px_rgba(15, 23, 42,0.2)] dark:border-slate-700/80 dark:from-slate-900 dark:to-slate-900/80"
-                    >
-                      <BloodlineVisualCard
-                        cardId={card.id}
-                        name={card.name}
-                        ownerName={card.currentOwner.name}
-                        subtitle={card.description || "혈통카드 설명이 아직 등록되지 않았습니다."}
-                        image={card.image}
-                        variant={card.visualStyle}
-                        compact
-                      />
-                      <div className="mt-2 flex flex-wrap gap-1">
-                        <span className="rounded-full bg-slate-100 px-2 py-1 text-[11px] font-semibold text-slate-700">
-                          제작자 {card.creator.name}
-                        </span>
-                        <span className="rounded-full bg-slate-100 px-2 py-1 text-[11px] font-semibold text-slate-700">
-                          보유자 {card.currentOwner.name}
-                        </span>
-                        <span className="rounded-full bg-slate-100 px-2 py-1 text-[11px] font-semibold text-slate-700">
-                          전달 {card.transfers?.length || 0}건
-                        </span>
-                      </div>
-
-                      {card.transfers?.length ? (
-                        <div className="mt-3 space-y-1.5 rounded-lg border border-slate-100 bg-slate-50/80 p-2 dark:border-slate-700/80 dark:bg-slate-900/70">
-                          <p className="text-[11px] font-black uppercase tracking-[0.16em] text-slate-700">
-                            최근 전달 이력
-                          </p>
-                          {card.transfers.map((transfer) => (
-                            <p key={transfer.id} className="text-[11px] leading-relaxed text-slate-500">
-                              {new Date(transfer.createdAt).toLocaleDateString("ko-KR")} ·{" "}
-                              {transfer.fromUser ? transfer.fromUser.name : "시스템"} → {transfer.toUser.name}
-                              {transfer.note ? ` · ${transfer.note}` : ""}
-                            </p>
-                          ))}
-                        </div>
-                      ) : null}
-                    </section>
                   ))}
                 </div>
-              </section>
-
+              ) : null}
+              {isAdmin ? (
+                <div>
+                  <DevNote text={`관리자 · 현재 로그인 ${providerLabel}`} />
+                  <DevRow label="관리자 페이지로 이동" href="/admin" />
+                  <DevRow
+                    label={switchingGoogle ? "구글 계정 전환 중..." : "구글 계정으로 전환"}
+                    disabled={switchingGoogle}
+                    onClick={() => void handleSwitchToGoogle()}
+                  />
+                  <DevRow label="카카오 로그인으로 전환" href="/auth/login?next=%2FmyPage" />
+                </div>
+              ) : null}
+              {switchMessage ? <DevNote text={switchMessage} /> : null}
+              {switchError ? <DevNote text={switchError} /> : null}
             </div>
-          )}
-        </div>
-      </div>
+          ) : null}
+        </>
+      ) : null}
+
+      <ConfirmDialog
+        open={logoutOpen}
+        title="로그아웃할까요?"
+        confirmText="로그아웃"
+        tone="danger"
+        onCancel={() => setLogoutOpen(false)}
+        onConfirm={() => {
+          setLogoutOpen(false);
+          // 홈으로 보낸 뒤 토큰을 지운다(useLogout 이 홈으로 이동).
+          void handleLogout();
+        }}
+      />
     </div>
   );
 };
