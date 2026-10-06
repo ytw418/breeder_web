@@ -74,3 +74,89 @@ export const canEditAuction = ({
   const deadline = getAuctionEditDeadline(createdAt);
   return now <= deadline;
 };
+
+const MINUTE_MS = 60 * 1000;
+const HOUR_MS = 60 * MINUTE_MS;
+/**
+ * 서버는 요청을 받은 시각 기준으로 종료 시각이 1~72시간 사이인지 본다(isAuctionDurationValid).
+ * 요청 지연과 기기·서버 시계 차이를 견디도록 허용 범위 양 끝에서 1분씩 안쪽으로 둔다.
+ */
+const DURATION_MARGIN_MS = MINUTE_MS;
+
+/**
+ * 기간 프리셋(N시간)의 종료 시각(ms, 분 단위). 등록·수정 화면 공용(앱 getPresetEndAtMs 와 같다).
+ * 분을 올린 뒤 N시간을 더하면 72시간 프리셋이 상한을 넘어 거의 항상 거절됐다.
+ * 그래서 허용 범위(1시간+1분 ~ 72시간-1분) 안으로 자른다.
+ */
+export function getPresetEndAtMs(hours: number, nowMs = Date.now()): number {
+  const earliest =
+    Math.ceil((nowMs + AUCTION_MIN_DURATION_MS + DURATION_MARGIN_MS) / MINUTE_MS) * MINUTE_MS;
+  const latest =
+    Math.floor((nowMs + AUCTION_MAX_DURATION_MS - DURATION_MARGIN_MS) / MINUTE_MS) * MINUTE_MS;
+  const target = Math.ceil(nowMs / MINUTE_MS) * MINUTE_MS + hours * HOUR_MS;
+  return Math.min(Math.max(target, earliest), latest);
+}
+
+/** 진행중 경매의 마감 시각이 지났는지(서버 정산 전 '마감' 표시·refetch 판단용). */
+export function isAuctionTimeOver(endAt: string | Date, nowMs = Date.now()): boolean {
+  const end = new Date(endAt).getTime();
+  if (Number.isNaN(end)) return false;
+  return end - nowMs <= 0;
+}
+
+/** 경매 남은 시간: "3일 2시간 남음" / "12분 남음" / 지났으면 "마감"(앱 formatTimeLeft). */
+export function formatAuctionTimeLeft(endAt: string | Date, nowMs = Date.now()): string {
+  const end = new Date(endAt).getTime();
+  if (Number.isNaN(end)) return "";
+  const diff = end - nowMs;
+  if (diff <= 0) return "마감";
+  const min = Math.floor(diff / MINUTE_MS);
+  const days = Math.floor(min / (60 * 24));
+  const hours = Math.floor((min % (60 * 24)) / 60);
+  const mins = min % 60;
+  if (days > 0) return `${days}일 ${hours}시간 남음`;
+  if (hours > 0) return `${hours}시간 ${mins}분 남음`;
+  return `${mins}분 남음`;
+}
+
+/** 수정 불가 사유. 서버 canEditAuction 규칙(진행중·입찰 없음·등록 후 10분) 순서대로 판별한다. */
+export type AuctionEditLockReason = "status" | "bid" | "time";
+
+export const AUCTION_EDIT_LOCK_MESSAGES: Record<
+  AuctionEditLockReason,
+  { title: string; description: string }
+> = {
+  status: {
+    title: "진행중인 경매만 수정할 수 있습니다",
+    description: "종료되었거나 취소된 경매는 수정할 수 없어요.",
+  },
+  bid: {
+    title: "입찰이 들어와 더 이상 수정할 수 없습니다",
+    description: "입찰이 시작된 경매는 입찰자 보호를 위해 수정할 수 없어요.",
+  },
+  time: {
+    title: "수정 가능 시간이 지났습니다",
+    description: "경매는 등록 후 10분 이내에만 수정할 수 있어요.",
+  },
+};
+
+export function getAuctionEditLockReason(input: {
+  canEdit: boolean;
+  status: string;
+  bidCount: number;
+}): AuctionEditLockReason | null {
+  if (input.canEdit) return null;
+  if (input.status !== "진행중") return "status";
+  if (input.bidCount > 0) return "bid";
+  return "time";
+}
+
+/** 무한 목록 페이지 사이에 새 항목이 끼어 같은 id 가 다시 오면 처음 것만 남긴다. */
+export function uniqueAuctionsById<T extends { id: number }>(items: T[]): T[] {
+  const seen = new Set<number>();
+  return items.filter((item) => {
+    if (seen.has(item.id)) return false;
+    seen.add(item.id);
+    return true;
+  });
+}
