@@ -125,12 +125,12 @@ describe("MySellHistoryList 오류 처리", () => {
       error: swrError(401, "로그인이 필요합니다."),
       mutate: jest.fn(),
     });
-    render(<MySellHistoryList kind="purchases" id={7} />);
+    render(<MySellHistoryList kind="favs" id={7} />);
 
     expect(screen.getByText("로그인이 필요합니다")).toBeInTheDocument();
     expect(screen.getByRole("link", { name: "로그인하기" })).toHaveAttribute(
       "href",
-      `/auth/login?next=${encodeURIComponent("/profiles/7/purchases")}`
+      `/auth/login?next=${encodeURIComponent("/profiles/7/favs")}`
     );
     expectNoEmptyState();
   });
@@ -155,9 +155,9 @@ describe("MySellHistoryList 오류 처리", () => {
       error: swrError(403, ""),
       mutate: jest.fn(),
     });
-    render(<MySellHistoryList kind="purchases" id={99} />);
+    render(<MySellHistoryList kind="favs" id={99} />);
 
-    expect(screen.getByText("본인의 구매내역만 볼 수 있습니다.")).toBeInTheDocument();
+    expect(screen.getByText("본인의 관심목록만 볼 수 있습니다.")).toBeInTheDocument();
     expectNoEmptyState();
   });
 
