@@ -1,4 +1,5 @@
 import NotificationsClient from "./NotificationsClient";
+import AuthGuard from "@components/auth/AuthGuard";
 import type { Metadata } from "next";
 
 export const metadata: Metadata = {
@@ -10,12 +11,16 @@ export const metadata: Metadata = {
       follow: false,
     },
   },
-  title: "알림 설정 | 브리디",
-  description: "브리디 알림 목록 및 설정 페이지입니다.",
+  title: "알림 | 브리디",
+  description: "브리디 알림 목록 페이지입니다.",
 };
 
 const NotificationsPage = () => {
-  return <NotificationsClient />;
+  return (
+    <AuthGuard>
+      <NotificationsClient />
+    </AuthGuard>
+  );
 };
 
 export default NotificationsPage;

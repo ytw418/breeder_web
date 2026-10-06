@@ -44,17 +44,18 @@ export const metadata: Metadata = {
 export const revalidate = 3600; // 1시간
 
 const page = async () => {
+  // 피드·상품 집계가 실패해도 페이지는 그린다. 클라이언트가 다시 받아 스켈레톤·오류 상태를 보인다.
   const [initialHomeFeed, initialProducts, initialBanners] = await Promise.all([
-    getHomeFeed({ includePersonalized: false }),
-    getProductsResponse({ page: 1, size: 10 }),
+    getHomeFeed({ includePersonalized: false }).catch(() => null),
+    getProductsResponse({ page: 1, size: 10 }).catch(() => null),
     getHomeBanners(),
   ]);
 
   // SWR fallbackData 로 그대로 쓰이므로 클라이언트 fetcher 와 같이 탈퇴 유저 이름을 정규화한다.
   return (
     <MainClient
-      initialHomeFeed={normalizeDeletedUserNames(initialHomeFeed)}
-      initialProducts={normalizeDeletedUserNames(initialProducts)}
+      initialHomeFeed={initialHomeFeed ? normalizeDeletedUserNames(initialHomeFeed) : null}
+      initialProducts={initialProducts ? normalizeDeletedUserNames(initialProducts) : null}
       initialBanners={initialBanners}
     />
   );

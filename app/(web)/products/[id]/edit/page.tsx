@@ -1,17 +1,19 @@
-import React from "react";
+import type { Metadata } from "next";
+import AuthGuard from "@components/auth/AuthGuard";
+import { extractProductId } from "@libs/product-route";
 import EditClient from "./EditClient";
-import { getProduct } from "@libs/server/apis";
+
+export const metadata: Metadata = {
+  title: "상품 수정 | 브리디",
+  robots: { index: false, follow: false },
+};
 
 const page = async ({ params }: { params: Promise<{ id: string }> }) => {
   const { id } = await params;
-  const productId = id.split(/[_-]/)[0];
-
-  const data = await getProduct(productId, { mode: "no-store" });
-
   return (
-    <div>
-      <EditClient product={data.product} />
-    </div>
+    <AuthGuard>
+      <EditClient productId={extractProductId(id)} />
+    </AuthGuard>
   );
 };
 

@@ -1,16 +1,19 @@
 "use client";
 
-import { useState } from "react";
+import { useRef, useState, type ReactNode } from "react";
+import Link from "next/link";
 import useSWR from "swr";
+
 import Layout from "@components/features/MainLayout";
 import Image from "@components/atoms/Image";
-import { cn, makeImageUrl, getTimeAgoString } from "@libs/client/utils";
-import Link from "next/link";
+import { PostCard } from "@components/app/PostCard";
+import { ProductCard } from "@components/app/ProductCard";
+import { QueryErrorState } from "@components/app/QueryErrorState";
+import { cn, makeImageUrl } from "@libs/client/utils";
 import { SearchResponse } from "pages/api/search";
-import { CATEGORIES } from "@libs/constants";
+import { TOP_LEVEL_CATEGORIES } from "@libs/categoryTaxonomy";
 import { getProductPath } from "@libs/product-route";
 import { formatProductPrice } from "@libs/productRules";
-import { toPostPath } from "@libs/post-route";
 import { ANALYTICS_EVENTS, trackEvent } from "@libs/client/analytics";
 
 type SearchTab = "all" | "products" | "posts" | "users";
@@ -22,7 +25,7 @@ const SEARCH_TABS: { id: SearchTab; name: string }[] = [
   { id: "users", name: "유저" },
 ];
 
-/** 인기 검색어 목록 */
+/** 인기 검색어 목록(앱과 같다) */
 const POPULAR_KEYWORDS = [
   "헤라클레스",
   "사슴벌레",
@@ -44,6 +47,7 @@ interface RecommendProductsResponse {
     photos: string[];
     category: string | null;
     status: string;
+    createdAt: string;
     _count: { favs: number };
   }[];
 }
@@ -51,557 +55,376 @@ interface RecommendProductsResponse {
 /** 추천 게시글 응답 타입 */
 interface RecommendPostsResponse {
   success: boolean;
-  posts: {
-    id: number;
-    title: string;
-    description: string;
-    image: string;
-    category: string | null;
-    createdAt: string;
-    user: { id: number; name: string; avatar: string | null };
-    _count: { Likes: number; comments: number };
-  }[];
+  posts: SearchResponse["posts"];
+}
+
+/** 텍스트 칩(앱 TextChip): h32 r16 px14 14px. filled 면 테두리 없는 회색, selected 면 반전 채움. */
+function TextChip({
+  label,
+  onClick,
+  filled,
+  selected,
+}: {
+  label: string;
+  onClick: () => void;
+  filled?: boolean;
+  selected?: boolean;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      aria-pressed={selected}
+      className={cn(
+        "inline-flex h-8 shrink-0 items-center justify-center whitespace-nowrap rounded-2xl px-3.5 text-[14px]",
+        selected
+          ? "border border-app-text bg-app-text font-bold text-app-bg"
+          : filled
+            ? "bg-app-surface font-medium text-app-text"
+            : "border border-app-border bg-app-bg font-medium text-app-text"
+      )}
+    >
+      {label}
+    </button>
+  );
+}
+
+function SectionHeader({ title, onMore, moreHref }: { title: string; onMore?: () => void; moreHref?: string }) {
+  const moreClass = "text-[13px] font-semibold text-app-muted";
+  return (
+    <div className="flex items-center justify-between px-4 pb-2 pt-5">
+      <h2 className="text-[16px] font-bold text-app-text">{title}</h2>
+      {moreHref ? (
+        <Link href={moreHref} className={moreClass}>
+          더보기 ›
+        </Link>
+      ) : onMore ? (
+        <button type="button" onClick={onMore} className={moreClass}>
+          더보기 ›
+        </button>
+      ) : null}
+    </div>
+  );
+}
+
+function RecommendSkeleton() {
+  return (
+    <div aria-busy="true" aria-label="불러오는 중">
+      {[0, 1, 2].map((i) => (
+        <div key={i} className="flex items-center border-b border-app-line px-4 py-3">
+          <div className="flex-1 pr-3">
+            <span className="block h-4 w-[70%] animate-pulse rounded bg-app-surface" />
+            <span className="mt-2 block h-3.5 w-[45%] animate-pulse rounded bg-app-surface" />
+          </div>
+          <span className="h-14 w-14 animate-pulse rounded-lg bg-app-surface" />
+        </div>
+      ))}
+    </div>
+  );
 }
 
 const SearchClient = () => {
+  const inputRef = useRef<HTMLInputElement>(null);
   const [keyword, setKeyword] = useState("");
   const [searchQuery, setSearchQuery] = useState("");
   const [activeTab, setActiveTab] = useState<SearchTab>("all");
 
   // 검색 결과
-  const { data, isLoading } = useSWR<SearchResponse>(
-    searchQuery
-      ? `/api/search?q=${encodeURIComponent(searchQuery)}&type=${activeTab}`
-      : null
+  const { data, isLoading, error, mutate } = useSWR<SearchResponse>(
+    searchQuery ? `/api/search?q=${encodeURIComponent(searchQuery)}&type=${activeTab}` : null
   );
 
-  // 검색 전 추천 콘텐츠 (검색어가 없을 때만 fetch)
-  const { data: recommendProducts } = useSWR<RecommendProductsResponse>(
+  // 검색 전 추천 콘텐츠(검색어가 없을 때만)
+  const recommendProductsQuery = useSWR<RecommendProductsResponse>(
     !searchQuery ? "/api/products?page=1" : null
   );
-  const { data: recommendPosts } = useSWR<RecommendPostsResponse>(
+  const recommendPostsQuery = useSWR<RecommendPostsResponse>(
     !searchQuery ? "/api/posts?page=1" : null
   );
 
-  /** 검색 실행 */
-  const handleSearch = (e: React.FormEvent) => {
-    e.preventDefault();
-    const normalizedKeyword = keyword.trim();
-    if (!normalizedKeyword) {
+  const runSearch = (q: string) => {
+    setKeyword(q);
+    setSearchQuery(q);
+  };
+
+  const handleSubmit = (event: React.FormEvent) => {
+    event.preventDefault();
+    const q = keyword.trim();
+    if (!q) {
       setSearchQuery("");
       return;
     }
-
-    trackEvent(ANALYTICS_EVENTS.searchSubmitted, {
-      query: normalizedKeyword,
-      activeTab,
-    });
-    setSearchQuery(normalizedKeyword);
+    trackEvent(ANALYTICS_EVENTS.searchSubmitted, { query: q, activeTab });
+    setSearchQuery(q);
+    inputRef.current?.blur();
   };
 
-  /** 인기 검색어 클릭 */
-  const handleKeywordClick = (kw: string) => {
-    trackEvent(ANALYTICS_EVENTS.searchKeywordQuickSelected, { keyword: kw });
-    setKeyword(kw);
-    setSearchQuery(kw);
+  const handleClear = () => {
+    setKeyword("");
+    setSearchQuery("");
+    inputRef.current?.focus();
   };
-
-  /** 카테고리 클릭 */
-  const handleCategoryClick = (categoryName: string) => {
-    trackEvent(ANALYTICS_EVENTS.searchCategoryQuickSelected, {
-      category: categoryName,
-    });
-    setKeyword(categoryName);
-    setSearchQuery(categoryName);
-  };
-
-  const hasResults =
-    data &&
-    (data.products.length > 0 ||
-      data.posts.length > 0 ||
-      data.users.length > 0);
-
-  const totalResults = data
-    ? data.products.length + data.posts.length + data.users.length
-    : 0;
 
   const selectTab = (nextTab: SearchTab) => {
     if (activeTab === nextTab) return;
-    trackEvent(ANALYTICS_EVENTS.searchTabChanged, {
-      from: activeTab,
-      to: nextTab,
-      query: searchQuery,
-    });
+    trackEvent(ANALYTICS_EVENTS.searchTabChanged, { from: activeTab, to: nextTab, query: searchQuery });
     setActiveTab(nextTab);
   };
 
+  const hasResults =
+    data && (data.products.length > 0 || data.posts.length > 0 || data.users.length > 0);
+  const totalResults = data ? data.products.length + data.posts.length + data.users.length : 0;
+
+  const renderResults = () => {
+    if (!data || !hasResults) return null;
+    return (
+      <div className="pb-20">
+        {data.products.length > 0 && (activeTab === "all" || activeTab === "products") ? (
+          <section>
+            {activeTab === "all" ? <SectionHeader title="상품" onMore={() => selectTab("products")} /> : null}
+            {data.products.map((product) => (
+              <ProductCard
+                key={product.id}
+                product={{
+                  id: product.id,
+                  name: product.name,
+                  price: product.price,
+                  image: product.photos?.[0],
+                  createdAt: product.createdAt,
+                  category: product.category,
+                  status: product.status,
+                  wishCount: product._count?.favs,
+                }}
+              />
+            ))}
+          </section>
+        ) : null}
+
+        {data.posts.length > 0 && (activeTab === "all" || activeTab === "posts") ? (
+          <section>
+            {activeTab === "all" ? <SectionHeader title="게시글" onMore={() => selectTab("posts")} /> : null}
+            {data.posts.map((post) => (
+              <PostCard key={post.id} post={post} />
+            ))}
+          </section>
+        ) : null}
+
+        {data.users.length > 0 && (activeTab === "all" || activeTab === "users") ? (
+          <section>
+            {activeTab === "all" ? <SectionHeader title="유저" onMore={() => selectTab("users")} /> : null}
+            {data.users.map((user) => (
+              <Link
+                key={user.id}
+                href={`/profiles/${user.id}`}
+                className="flex items-center gap-3 border-b border-app-line bg-app-bg px-4 py-3"
+              >
+                <span className="relative h-11 w-11 shrink-0 overflow-hidden rounded-full bg-app-surface">
+                  {user.avatar ? (
+                    <Image
+                      src={makeImageUrl(user.avatar, "avatar")}
+                      alt=""
+                      width={44}
+                      height={44}
+                      className="h-full w-full object-cover"
+                    />
+                  ) : null}
+                </span>
+                <span className="min-w-0 flex-1 truncate text-[16px] font-semibold text-app-text">
+                  {user.name}
+                </span>
+              </Link>
+            ))}
+          </section>
+        ) : null}
+      </div>
+    );
+  };
+
+  const renderRecommend = () => {
+    const products = recommendProductsQuery.data?.products;
+    const posts = recommendPostsQuery.data?.posts;
+    // 추천 상품·게시글이 모두 조회 실패하면 스켈레톤 대신 오류 상태를 보인다.
+    const isRecommendError =
+      !products && !posts && Boolean(recommendProductsQuery.error) && Boolean(recommendPostsQuery.error);
+    const isLoadingRecommend = !products && !posts && !isRecommendError;
+
+    return (
+      <div className="pb-20">
+        {/* 인기 검색어 */}
+        <div className="px-4 pt-3">
+          <h2 className="text-[16px] font-bold text-app-text">인기 검색어</h2>
+          <div className="mt-3 flex flex-wrap gap-2">
+            {POPULAR_KEYWORDS.map((kw) => (
+              <TextChip
+                key={kw}
+                label={kw}
+                filled
+                onClick={() => {
+                  trackEvent(ANALYTICS_EVENTS.searchKeywordQuickSelected, { keyword: kw });
+                  runSearch(kw);
+                }}
+              />
+            ))}
+          </div>
+          <p className="mt-3 text-[13px] text-app-muted">대분류로 검색하면 하위 분류까지 함께 찾아줘요.</p>
+        </div>
+
+        {/* 카테고리 — 텍스트 칩 1줄 가로 스크롤 */}
+        <SectionHeader title="카테고리" />
+        <div className="flex gap-2 overflow-x-auto px-4 scrollbar-hide">
+          {TOP_LEVEL_CATEGORIES.map((cat) => (
+            <TextChip
+              key={cat.id}
+              label={cat.name}
+              onClick={() => {
+                trackEvent(ANALYTICS_EVENTS.searchCategoryQuickSelected, { category: cat.name });
+                runSearch(cat.name);
+              }}
+            />
+          ))}
+        </div>
+
+        {/* 추천 상품(가로 스크롤) */}
+        {products && products.length > 0 ? (
+          <section>
+            <SectionHeader title="추천 상품" moreHref="/products" />
+            <div className="flex gap-3 overflow-x-auto px-4 pb-1 scrollbar-hide">
+              {products.slice(0, 10).map((p) => (
+                <Link key={p.id} href={getProductPath(p.id, p.name)} className="w-36 shrink-0">
+                  <div className="relative h-36 w-36 overflow-hidden rounded-xl bg-app-surface">
+                    {p.photos?.[0] ? (
+                      <Image
+                        src={makeImageUrl(p.photos[0], "product")}
+                        alt={p.name}
+                        fill
+                        sizes="144px"
+                        className="object-cover"
+                      />
+                    ) : null}
+                    {p.status && p.status !== "판매중" ? (
+                      <div className="absolute inset-0 flex items-center justify-center bg-app-overlay">
+                        <span className="text-[13px] font-bold text-white">{p.status}</span>
+                      </div>
+                    ) : null}
+                  </div>
+                  <p className="mt-2 truncate text-[14px] text-app-text">{p.name}</p>
+                  <p className="mt-0.5 text-[16px] font-bold text-app-text">{formatProductPrice(p.price)}</p>
+                </Link>
+              ))}
+            </div>
+          </section>
+        ) : null}
+
+        {/* 최근 게시글 */}
+        {posts && posts.length > 0 ? (
+          <section>
+            <SectionHeader title="최근 게시글" moreHref="/posts" />
+            {posts.slice(0, 5).map((post) => (
+              <PostCard key={post.id} post={post} />
+            ))}
+          </section>
+        ) : null}
+
+        {isLoadingRecommend ? <RecommendSkeleton /> : null}
+        {isRecommendError ? (
+          <QueryErrorState
+            title="추천 콘텐츠를 불러오지 못했어요"
+            onRetry={() => {
+              void recommendProductsQuery.mutate();
+              void recommendPostsQuery.mutate();
+            }}
+          />
+        ) : null}
+      </div>
+    );
+  };
+
+  let body: ReactNode;
+  if (!searchQuery) body = renderRecommend();
+  else if (isLoading)
+    body = (
+      <div className="flex justify-center py-20">
+        <span
+          role="status"
+          aria-label="검색 중"
+          className="h-6 w-6 animate-spin rounded-full border-2 border-app-border border-t-app-brand"
+        />
+      </div>
+    );
+  else if (error && !data)
+    body = (
+      <QueryErrorState
+        title="검색 결과를 불러오지 못했어요"
+        onRetry={() => void mutate()}
+        className="py-[72px]"
+      />
+    );
+  else if (!hasResults)
+    body = (
+      <div className="px-4 py-[72px] text-center">
+        <p className="text-[16px] font-semibold text-app-text">검색 결과가 없습니다</p>
+        <p className="mt-1.5 text-[14px] text-app-muted">다른 키워드로 검색해 보세요</p>
+      </div>
+    );
+  else body = renderResults();
+
   return (
-    <Layout canGoBack title="검색" seoTitle="검색">
-      {/* 검색 입력 */}
-      <form onSubmit={handleSearch} className="px-4 pt-4 pb-2">
-        <div className="relative">
+    <Layout canGoBack title="검색" seoTitle="검색" headerRight={<></>}>
+      {/* 검색 pill */}
+      <form onSubmit={handleSubmit} className="px-4 pb-2 pt-3" role="search">
+        <div className="flex h-11 items-center rounded-[22px] bg-app-surface px-3.5">
+          <svg className="h-5 w-5 shrink-0 text-app-muted" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+          </svg>
           <input
-            type="text"
+            ref={inputRef}
+            type="search"
+            enterKeyHint="search"
             value={keyword}
             onChange={(e) => setKeyword(e.target.value)}
             placeholder="상품, 게시글, 유저를 검색해보세요"
-            className="w-full px-4 py-3 pl-10 rounded-xl bg-gray-100 dark:bg-slate-800 focus:outline-none focus:ring-2 focus:ring-primary focus:bg-white dark:focus:bg-slate-900 transition-all"
+            aria-label="검색어"
+            className="ml-2 h-11 min-w-0 flex-1 border-0 bg-transparent p-0 text-[15px] text-app-text placeholder:text-app-caption focus:outline-none focus:ring-0 [&::-webkit-search-cancel-button]:hidden"
             autoFocus
           />
-          <svg
-            className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400"
-            fill="none"
-            stroke="currentColor"
-            viewBox="0 0 24 24"
-          >
-            <path
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              strokeWidth="2"
-              d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
-            />
-          </svg>
-          {/* 검색어 지우기 버튼 */}
-          {keyword && (
+          {keyword ? (
             <button
               type="button"
-              onClick={() => {
-                setKeyword("");
-                setSearchQuery("");
-              }}
-              className="absolute right-3 top-1/2 -translate-y-1/2 p-0.5 rounded-full bg-gray-300 hover:bg-gray-400 transition-colors"
+              onClick={handleClear}
+              aria-label="검색어 지우기"
+              className="grid h-[22px] w-[22px] shrink-0 place-items-center rounded-full bg-app-caption"
             >
-              <svg
-                className="w-3.5 h-3.5 text-white"
-                fill="none"
-                viewBox="0 0 24 24"
-                stroke="currentColor"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth="2.5"
-                  d="M6 18L18 6M6 6l12 12"
-                />
+              <svg className="h-3.5 w-3.5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M6 18L18 6M6 6l12 12" />
               </svg>
             </button>
-          )}
+          ) : null}
         </div>
       </form>
 
-      {/* 탭 (검색 후) */}
-      {searchQuery && (
-        <div className="flex px-4 gap-2 pb-3 border-b border-gray-100">
+      {/* 탭(검색 후) */}
+      {searchQuery ? (
+        <div className="flex gap-2 border-b border-app-line px-4 pb-3">
           {SEARCH_TABS.map((tab) => (
-            <button
+            <TextChip
               key={tab.id}
+              label={tab.name}
+              selected={activeTab === tab.id}
               onClick={() => selectTab(tab.id)}
-              aria-pressed={activeTab === tab.id}
-              className={cn(
-                "px-4 py-1.5 rounded-full text-sm font-medium transition-colors",
-                activeTab === tab.id
-                  ? "bg-gray-900 text-white"
-                  : "bg-gray-100 text-gray-600 dark:text-slate-300 hover:bg-gray-200 dark:hover:bg-slate-700"
-              )}
-            >
-              {tab.name}
-            </button>
+            />
           ))}
         </div>
-      )}
+      ) : null}
 
-      {searchQuery && !isLoading && data && (
-        <div className="px-4 py-2 text-xs text-slate-500 dark:text-slate-400">
-          <span className="font-medium text-slate-700 dark:text-slate-200">&quot;{searchQuery}&quot;</span>
-          {' '}검색 결과 총 <span className="font-semibold">{totalResults}</span>건
-        </div>
-      )}
+      {/* 검색 결과 건수 */}
+      {searchQuery && !isLoading && data ? (
+        <p className="px-4 py-2.5 text-[13px] text-app-muted">
+          <span className="font-semibold text-app-text">&quot;{searchQuery}&quot;</span>
+          {` 검색 결과 ${totalResults}건`}
+        </p>
+      ) : null}
 
-      {/* 로딩 */}
-      {isLoading && (
-        <div className="flex justify-center py-20">
-          <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-primary" />
-        </div>
-      )}
-
-      {/* 결과 없음 */}
-      {searchQuery && !isLoading && !hasResults && (
-        <div className="flex flex-col items-center justify-center py-20 text-gray-400">
-          <p className="text-lg font-medium">검색 결과가 없습니다</p>
-          <p className="text-sm mt-1">다른 키워드로 검색해 보세요</p>
-        </div>
-      )}
-
-      {/* ============ 검색 전: 추천 콘텐츠 ============ */}
-      {!searchQuery && !isLoading && (
-        <div className="pb-20">
-          {/* 인기 검색어 */}
-          <div className="px-4 pt-4 pb-2">
-            <h3 className="text-sm font-semibold text-gray-900 dark:text-slate-100 mb-3">
-              인기 검색어
-            </h3>
-            <div className="flex flex-wrap gap-2">
-              {POPULAR_KEYWORDS.map((kw) => (
-                <button
-                  key={kw}
-                  onClick={() => handleKeywordClick(kw)}
-                  className="px-3 py-1.5 rounded-full text-sm font-medium bg-gray-100 dark:bg-slate-800 text-gray-700 dark:text-slate-300 hover:bg-gray-200 dark:hover:bg-slate-700 transition-colors"
-                >
-                  {kw}
-                </button>
-              ))}
-            </div>
-          </div>
-
-          <div className="px-4 pt-4">
-            <div className="rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-xs text-slate-600 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300">
-              <p className="font-semibold text-slate-800 dark:text-slate-100">검색 팁</p>
-              <ul className="mt-1 list-disc pl-4 space-y-0.5">
-                <li>대분류(예: 파충류)로 검색하면 하위 분류도 함께 찾아줘요.</li>
-                <li>품종명 + 키워드(예: 볼파이썬 분양) 조합이 가장 정확해요.</li>
-              </ul>
-            </div>
-          </div>
-
-          {/* 카테고리 바로가기 */}
-          <div className="px-4 pt-5 pb-2">
-            <h3 className="text-sm font-semibold text-gray-900 dark:text-slate-100 mb-3">
-              카테고리
-            </h3>
-            <div className="flex overflow-x-auto scrollbar-hide gap-3 pb-1">
-              {CATEGORIES.map((cat) => (
-                <button
-                  key={cat.id}
-                  onClick={() => handleCategoryClick(cat.name)}
-                  className="flex flex-col items-center gap-1.5 flex-shrink-0"
-                >
-                  <div className="w-14 h-14 rounded-2xl bg-primary/10 flex items-center justify-center">
-                    <svg
-                      className="w-6 h-6 text-primary"
-                      fill="none"
-                      stroke="currentColor"
-                      viewBox="0 0 24 24"
-                    >
-                      <path
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        strokeWidth="1.5"
-                        d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
-                      />
-                    </svg>
-                  </div>
-                  <span className="text-xs text-gray-600 dark:text-slate-300 font-medium whitespace-nowrap">
-                    {cat.name}
-                  </span>
-                </button>
-              ))}
-            </div>
-          </div>
-
-          {/* 추천 상품 (가로 스크롤 카드) */}
-          {recommendProducts?.products &&
-            recommendProducts.products.length > 0 && (
-              <div className="pt-5">
-                <div className="px-4 flex items-center justify-between mb-3">
-                  <h3 className="text-sm font-semibold text-gray-900">
-                    추천 상품
-                  </h3>
-                  <Link
-                    href="/"
-                    className="text-xs text-gray-400 dark:text-slate-500 hover:text-gray-600"
-                  >
-                    전체보기
-                  </Link>
-                </div>
-                <div className="flex overflow-x-auto scrollbar-hide gap-3 px-4 pb-2">
-                  {recommendProducts.products.slice(0, 10).map((product) => (
-                    <Link
-                      key={product.id}
-                      href={getProductPath(product.id, product.name)}
-                      className="flex-shrink-0 w-36"
-                    >
-                      <div className="relative w-36 h-36 rounded-xl overflow-hidden bg-gray-100">
-                        {product.photos[0] ? (
-                          <Image
-                            src={makeImageUrl(product.photos[0], "product")}
-                            alt={product.name}
-                            fill
-                            sizes="144px"
-                            className="object-cover"
-                          />
-                        ) : (
-                          <div className="w-full h-full bg-gray-200" />
-                        )}
-                        {product.status !== "판매중" && (
-                          <div className="absolute inset-0 bg-black/40 flex items-center justify-center">
-                            <span className="text-white text-xs font-bold">
-                              {product.status}
-                            </span>
-                          </div>
-                        )}
-                      </div>
-                      <div className="mt-2">
-                        <p className="text-sm text-gray-900 dark:text-slate-100 font-medium line-clamp-1">
-                          {product.name}
-                        </p>
-                        <p className="text-sm font-bold text-gray-900 dark:text-slate-100 mt-0.5">
-                          {formatProductPrice(product.price)}
-                        </p>
-                        {product.category && (
-                          <span className="text-xs text-primary mt-0.5 inline-block">
-                            {product.category}
-                          </span>
-                        )}
-                      </div>
-                    </Link>
-                  ))}
-                </div>
-              </div>
-            )}
-
-          {/* 인기 게시글 */}
-          {recommendPosts?.posts && recommendPosts.posts.length > 0 && (
-            <div className="pt-5">
-              <div className="px-4 flex items-center justify-between mb-2">
-                <h3 className="text-sm font-semibold text-gray-900">
-                  인기 게시글
-                </h3>
-                <Link
-                  href="/posts"
-                  className="text-xs text-gray-400 dark:text-slate-500 hover:text-gray-600"
-                >
-                  전체보기
-                </Link>
-              </div>
-              <div className="divide-y divide-gray-50 dark:divide-slate-800">
-                  {recommendPosts.posts.slice(0, 5).map((post) => (
-                    <Link
-                      key={post.id}
-                      href={toPostPath(post.id, post.title)}
-                      className="flex items-center gap-4 px-4 py-3 hover:bg-gray-50 dark:hover:bg-slate-800/70 transition-colors"
-                    >
-                    <div className="flex-1 min-w-0">
-                      <p className="text-sm font-medium text-gray-900 dark:text-slate-100 truncate">
-                        {post.title}
-                      </p>
-                      <p className="text-xs text-gray-500 dark:text-slate-400 truncate mt-1">
-                        {post.description}
-                      </p>
-                      <div className="flex items-center gap-3 mt-1.5 text-xs text-gray-400">
-                        <span>{post.user.name}</span>
-                        <span className="flex items-center gap-0.5">
-                          <svg
-                            className="w-3 h-3"
-                            fill="currentColor"
-                            viewBox="0 0 24 24"
-                          >
-                            <path d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" />
-                          </svg>
-                          {post._count.Likes}
-                        </span>
-                        <span className="flex items-center gap-0.5">
-                          <svg
-                            className="w-3 h-3"
-                            fill="none"
-                            stroke="currentColor"
-                            viewBox="0 0 24 24"
-                          >
-                            <path
-                              strokeLinecap="round"
-                              strokeLinejoin="round"
-                              strokeWidth="2"
-                              d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"
-                            />
-                          </svg>
-                          {post._count.comments}
-                        </span>
-                      </div>
-                    </div>
-                    {post.image && (
-                      <Image
-                        src={makeImageUrl(post.image, "public")}
-                        alt={post.title}
-                        width={56}
-                        height={56}
-                        className="w-14 h-14 rounded-lg object-cover bg-gray-200 dark:bg-slate-700 flex-shrink-0"
-                      />
-                    )}
-                  </Link>
-                ))}
-              </div>
-            </div>
-          )}
-
-          {/* 추천 콘텐츠 로딩 스켈레톤 */}
-          {!recommendProducts && !recommendPosts && (
-            <div className="px-4 pt-6 space-y-4">
-              {[...Array(3)].map((_, i) => (
-                <div key={i} className="animate-pulse flex gap-4">
-                  <div className="w-16 h-16 rounded-lg bg-gray-200" />
-                  <div className="flex-1 space-y-2 py-1">
-                    <div className="h-4 bg-gray-200 dark:bg-slate-700 rounded w-3/4" />
-                    <div className="h-3 bg-gray-200 dark:bg-slate-700 rounded w-1/2" />
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
-      )}
-
-      {/* ============ 검색 결과 ============ */}
-      {data && hasResults && (
-        <div className="pb-20">
-          {/* 상품 결과 */}
-          {data.products.length > 0 &&
-            (activeTab === "all" || activeTab === "products") && (
-              <div>
-                {activeTab === "all" && (
-                  <div className="px-4 py-3 flex items-center justify-between">
-                    <h3 className="font-semibold text-gray-900">상품</h3>
-                    <button
-                      onClick={() => selectTab("products")}
-                      className="text-sm text-primary"
-                    >
-                      더보기
-                    </button>
-                  </div>
-                )}
-                <div className="divide-y divide-gray-50 dark:divide-slate-800">
-                  {data.products.map((product) => (
-                    <Link
-                      key={product.id}
-                      href={getProductPath(product.id, product.name)}
-                      className="flex items-center gap-4 px-4 py-3 hover:bg-gray-50 dark:hover:bg-slate-800/70 transition-colors"
-                    >
-                      {product.photos[0] ? (
-                        <Image
-                          src={makeImageUrl(product.photos[0], "product")}
-                          alt={product.name}
-                          width={64}
-                          height={64}
-                          className="w-16 h-16 rounded-lg object-cover bg-gray-200"
-                        />
-                      ) : (
-                        <div className="w-16 h-16 rounded-lg bg-gray-200" />
-                      )}
-                      <div className="flex-1 min-w-0">
-                        <p className="text-sm font-medium text-gray-900 dark:text-slate-100 truncate">
-                          {product.name}
-                        </p>
-                        <div className="flex items-center gap-2 mt-1">
-                          {product.category && (
-                            <span className="text-xs text-primary bg-primary/10 px-2 py-0.5 rounded-full">
-                              {product.category}
-                            </span>
-                          )}
-                          <span className="text-xs text-gray-500">
-                            {product.status}
-                          </span>
-                        </div>
-                        <p className="text-sm font-semibold mt-1">
-                          {formatProductPrice(product.price)}
-                        </p>
-                      </div>
-                    </Link>
-                  ))}
-                </div>
-              </div>
-            )}
-
-          {/* 게시글 결과 */}
-          {data.posts.length > 0 &&
-            (activeTab === "all" || activeTab === "posts") && (
-              <div>
-                {activeTab === "all" && (
-                  <div className="px-4 py-3 flex items-center justify-between border-t border-gray-100">
-                    <h3 className="font-semibold text-gray-900">게시글</h3>
-                    <button
-                      onClick={() => selectTab("posts")}
-                      className="text-sm text-primary"
-                    >
-                      더보기
-                    </button>
-                  </div>
-                )}
-                <div className="divide-y divide-gray-50 dark:divide-slate-800">
-                  {data.posts.map((post) => (
-                    <Link
-                      key={post.id}
-                      href={toPostPath(post.id, post.title)}
-                      className="flex items-center gap-4 px-4 py-3 hover:bg-gray-50 dark:hover:bg-slate-800/70 transition-colors"
-                    >
-                      <div className="flex-1 min-w-0">
-                        <p className="text-sm font-medium text-gray-900 dark:text-slate-100 truncate">
-                          {post.title}
-                        </p>
-                        <p className="text-xs text-gray-500 dark:text-slate-400 truncate mt-1">
-                          {post.description}
-                        </p>
-                        <div className="flex items-center gap-3 mt-1 text-xs text-gray-400">
-                          <span>{post.user.name}</span>
-                          <span>좋아요 {post._count.Likes}</span>
-                          <span>댓글 {post._count.comments}</span>
-                        </div>
-                      </div>
-                      {post.image && (
-                        <Image
-                          src={makeImageUrl(post.image, "public")}
-                          alt={post.title}
-                          width={56}
-                          height={56}
-                          className="w-14 h-14 rounded-lg object-cover bg-gray-200"
-                        />
-                      )}
-                    </Link>
-                  ))}
-                </div>
-              </div>
-            )}
-
-          {/* 유저 결과 */}
-          {data.users.length > 0 &&
-            (activeTab === "all" || activeTab === "users") && (
-              <div>
-                {activeTab === "all" && (
-                  <div className="px-4 py-3 flex items-center justify-between border-t border-gray-100">
-                    <h3 className="font-semibold text-gray-900">유저</h3>
-                    <button
-                      onClick={() => selectTab("users")}
-                      className="text-sm text-primary"
-                    >
-                      더보기
-                    </button>
-                  </div>
-                )}
-                <div className="divide-y divide-gray-50 dark:divide-slate-800">
-                  {data.users.map((user) => (
-                    <Link
-                      key={user.id}
-                      href={`/profiles/${user.id}`}
-                      className="flex items-center gap-3 px-4 py-3 hover:bg-gray-50 dark:hover:bg-slate-800/70 transition-colors"
-                    >
-                      {user.avatar ? (
-                        <Image
-                          src={makeImageUrl(user.avatar, "avatar")}
-                          alt={user.name}
-                          width={40}
-                          height={40}
-                          className="w-10 h-10 rounded-full bg-gray-200"
-                        />
-                      ) : (
-                        <div className="w-10 h-10 rounded-full bg-gray-200" />
-                      )}
-                      <p className="text-sm font-medium text-gray-900">
-                        {user.name}
-                      </p>
-                    </Link>
-                  ))}
-                </div>
-              </div>
-            )}
-        </div>
-      )}
+      {body}
     </Layout>
   );
 };

@@ -1,33 +1,51 @@
 "use client";
 
-import { UIEvent, useEffect, useRef, useState } from "react";
+import { UIEvent, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import useSWR from "swr";
+import useSWRInfinite from "swr/infinite";
 import { useRouter } from "next/navigation";
 
 import FloatingButton from "@components/atoms/floating-button";
 import Image from "@components/atoms/Image";
-import Item from "@components/features/item/item";
-import useSWRInfinite from "swr/infinite";
-
-import { useInfiniteScroll } from "hooks/useInfiniteScroll";
-
-import SkeletonItem from "@components/atoms/SkeletonItem";
+import { FilterChip, FilterChipRail } from "@components/app/FilterChip";
+import { ProductCard } from "@components/app/ProductCard";
+import { QueryErrorState } from "@components/app/QueryErrorState";
+import { RetryFooter } from "@components/app/RetryFooter";
 import { cn, makeImageUrl } from "@libs/client/utils";
-import { CATEGORIES } from "@libs/constants";
+import { TOP_LEVEL_CATEGORIES } from "@libs/categoryTaxonomy";
 import { ANALYTICS_EVENTS, trackEvent } from "@libs/client/analytics";
+import { withoutBlocked } from "@libs/shared/blockFilter";
+import { uniqueById } from "@libs/productFilters";
 import useUser from "hooks/useUser";
-import { FreeProductItem, HomeFeedResponse } from "@libs/shared/ranking";
-import { HomeBanner, ProductsResponse } from "@libs/shared/home";
+import useBlocks from "hooks/useBlocks";
+import { BreederRankingItem, HomeFeedResponse } from "@libs/shared/ranking";
+import { filterHomeFeedForBlocked, HomeBanner, ProductsResponse } from "@libs/shared/home";
+import { ProductRowSkeleton } from "../products/_components/ProductRowSkeleton";
+import { ProductFeedEmpty } from "../products/_components/ProductFeedEmpty";
 
 interface BeforeInstallPromptEvent extends Event {
   prompt: () => Promise<void>;
   userChoice: Promise<{ outcome: "accepted" | "dismissed"; platform: string }>;
 }
 
-/** 탭 목록: "전체" + 카테고리 목록 */
-const TABS = [{ id: "전체", name: "전체" }, ...CATEGORIES];
+/** 탭 목록: "전체" + 대분류(앱 TOP_LEVEL_CATEGORIES) */
+const TABS = [{ id: "전체", name: "전체" }, ...TOP_LEVEL_CATEGORIES];
+const HOME_FEED_KEY = "/api/home/feed?scope=public";
 
+type RankingTabId = "breeders" | "auctions" | "bloodlines" | "community";
+type RankingPeriodId = "weekly" | "all";
+
+const toRankingHref = (tab: RankingTabId, period: RankingPeriodId) =>
+  `/ranking?tab=${tab}&period=${period}`;
+
+const formatRankDelta = (rankDelta: number) => {
+  if (rankDelta > 0) return `▲ ${rankDelta}`;
+  if (rankDelta < 0) return `▼ ${Math.abs(rankDelta)}`;
+  return "유지";
+};
+
+/** 섹션 제목(앱 SectionHeader: 18/700 strong + 12 muted 부제 + 오른쪽 13 muted 링크). */
 const SectionHeader = ({
   title,
   subtitle,
@@ -39,46 +57,224 @@ const SectionHeader = ({
   href?: string;
   actionLabel?: string;
 }) => (
-  <div className="px-5 flex items-end justify-between gap-3">
+  <div className="flex items-end justify-between gap-3 px-4">
     <div>
-      <h2 className="app-section-title">{title}</h2>
-      {subtitle ? <p className="mt-1 app-caption">{subtitle}</p> : null}
+      <h2 className="text-[18px] font-bold tracking-tight text-app-strong">{title}</h2>
+      {subtitle ? <p className="mt-1 text-[12px] font-medium text-app-muted">{subtitle}</p> : null}
     </div>
     {href ? (
       <Link
         href={href}
-        className="inline-flex h-7 items-center text-[13px] font-medium text-slate-500 transition-colors hover:text-slate-700"
+        className="inline-flex h-7 shrink-0 items-center text-[13px] font-medium text-app-muted"
       >
-        {actionLabel}
-        <span aria-hidden="true" className="ml-0.5">
-          ›
-        </span>
+        {actionLabel} ›
       </Link>
     ) : null}
   </div>
 );
 
-const formatRankDelta = (rankDelta: number) => {
-  if (rankDelta > 0) return `▲ ${rankDelta}`;
-  if (rankDelta < 0) return `▼ ${Math.abs(rankDelta)}`;
-  return "유지";
+function Skeleton({ className }: { className?: string }) {
+  return <span className={cn("block animate-pulse rounded bg-app-surface", className)} />;
+}
+
+type MiniCardRow = {
+  id: string | number;
+  image?: string | null;
+  main: string;
+  sub: string;
+  /** 행을 눌러 이동할 곳(무료나눔 → 상품 상세). */
+  href?: string;
 };
 
+/** 2x2 그리드 카드(앱 MiniCard). 카드 전체가 링크이고, href 가 있는 행은 행 단위로 이동한다. */
+function MiniCard({
+  title,
+  subtitle,
+  rows,
+  href,
+  loading = false,
+  showThumb = true,
+  subTone,
+  onOpen,
+}: {
+  title: string;
+  subtitle: string;
+  rows: MiniCardRow[];
+  href: string;
+  loading?: boolean;
+  showThumb?: boolean;
+  subTone?: "price";
+  onOpen?: () => void;
+}) {
+  const router = useRouter();
+  const open = () => {
+    onOpen?.();
+    router.push(href);
+  };
 
-const toRankingHref = (tab: "breeders" | "auctions" | "bloodlines" | "community", period: "weekly" | "all") =>
-  `/ranking?tab=${tab}&period=${period}`;
+  const rowContent = (row: MiniCardRow) => (
+    <>
+      {showThumb ? (
+        <span className="relative h-8 w-8 shrink-0 overflow-hidden rounded-lg bg-app-placeholder">
+          {row.image ? (
+            <Image
+              src={makeImageUrl(row.image, "public")}
+              alt={row.main}
+              width={32}
+              height={32}
+              className="h-full w-full object-cover"
+            />
+          ) : null}
+        </span>
+      ) : null}
+      <span className="min-w-0 flex-1">
+        <span className="block truncate text-xs font-medium text-app-sub">{row.main}</span>
+        <span
+          className={cn(
+            "block text-[10px]",
+            subTone === "price" ? "font-semibold text-app-brand" : "text-app-muted"
+          )}
+        >
+          {row.sub}
+        </span>
+      </span>
+    </>
+  );
+
+  return (
+    <div
+      role="link"
+      tabIndex={0}
+      aria-label={`${title} 더보기`}
+      onClick={open}
+      onKeyDown={(event) => {
+        // 안쪽 행 링크에서 누른 Enter 는 그 링크가 처리한다(카드 이동과 겹치지 않게).
+        if (event.target !== event.currentTarget) return;
+        if (event.key === "Enter") open();
+      }}
+      className="flex min-h-[126px] cursor-pointer flex-col gap-2 rounded-xl border border-app-border bg-app-elevated p-3 shadow-card"
+    >
+      <div>
+        <div className="flex items-center justify-between">
+          <h3 className="text-sm font-bold text-app-strong">{title}</h3>
+          <span className="text-[10px] text-app-muted">더보기 ›</span>
+        </div>
+        <p className="mt-0.5 break-keep text-[10px] text-app-muted">{subtitle}</p>
+      </div>
+      <div className="mt-2 space-y-1.5">
+        {loading
+          ? [0, 1].map((i) => (
+              <div key={i} className="flex items-center gap-2">
+                {showThumb ? <Skeleton className="h-8 w-8 rounded-lg" /> : null}
+                <div className="min-w-0 flex-1">
+                  <Skeleton className="h-2.5 w-4/5" />
+                  <Skeleton className="mt-1 h-2 w-1/2" />
+                </div>
+              </div>
+            ))
+          : rows.map((row) =>
+              row.href ? (
+                <Link
+                  key={row.id}
+                  href={row.href}
+                  onClick={(event) => event.stopPropagation()}
+                  className="flex items-center gap-2"
+                >
+                  {rowContent(row)}
+                </Link>
+              ) : (
+                <div key={row.id} className="flex items-center gap-2">
+                  {rowContent(row)}
+                </div>
+              )
+            )}
+      </div>
+    </div>
+  );
+}
+
+function HeroBreederCard({
+  hero,
+  onChallenge,
+}: {
+  hero: BreederRankingItem;
+  onChallenge: () => void;
+}) {
+  const badge = hero.badges?.[0];
+  return (
+    <div className="overflow-hidden rounded-xl border border-app-border bg-app-elevated shadow-card">
+      <div className="flex items-center gap-3 px-4 pb-3 pt-3.5">
+        <div className="relative">
+          <div className="h-11 w-11 overflow-hidden rounded-full bg-app-placeholder ring-2 ring-amber-400/60">
+            {hero.user.avatar ? (
+              <Image
+                src={makeImageUrl(hero.user.avatar, "avatar")}
+                alt={hero.user.name}
+                width={44}
+                height={44}
+                className="h-full w-full object-cover"
+              />
+            ) : (
+              <div className="flex h-full w-full items-center justify-center bg-app-border text-sm font-bold text-app-muted">
+                {hero.user.name.charAt(0)}
+              </div>
+            )}
+          </div>
+          {/* 다크에서도 amber 위 글자가 읽히도록 테마와 무관한 어두운 잉크를 쓴다(앱 S.onAccent). */}
+          <span className="absolute -bottom-0.5 -right-0.5 flex h-5 w-5 items-center justify-center rounded-full bg-app-warning text-[9px] font-black text-neutral-900">
+            {hero.rank}
+          </span>
+        </div>
+        <div className="min-w-0 flex-1">
+          <div className="flex items-center gap-1.5">
+            <h3 className="truncate text-sm font-bold text-app-strong">{hero.user.name}</h3>
+            {badge ? (
+              <span className="shrink-0 rounded bg-app-warning-soft px-1.5 py-0.5 text-[9px] font-semibold text-app-warning-text">
+                {badge.label}
+              </span>
+            ) : null}
+          </div>
+          <p className="mt-0.5 text-xs text-app-muted">
+            {hero.score.toLocaleString()}점 · {formatRankDelta(hero.rankDelta)}
+          </p>
+        </div>
+        <button
+          type="button"
+          onClick={onChallenge}
+          className="shrink-0 rounded-full bg-app-inverse px-3 py-1.5 text-[11px] font-semibold text-app-inverse-text"
+        >
+          도전하기
+        </button>
+      </div>
+      <div className="flex divide-x divide-app-line border-t border-app-line">
+        {[
+          { label: "게시", value: hero.postsCount },
+          { label: "댓글", value: hero.commentsCount },
+          { label: "입찰", value: hero.bidsCount },
+          { label: "낙찰", value: hero.auctionWinsCount },
+        ].map((stat) => (
+          <div key={stat.label} className="flex-1 py-2.5 text-center">
+            <p className="text-sm font-bold text-app-strong">{stat.value}</p>
+            <p className="text-[10px] text-app-muted">{stat.label}</p>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
 
 const MainClient = ({
   initialHomeFeed,
   initialProducts,
   initialBanners,
 }: {
-  initialHomeFeed: HomeFeedResponse;
-  initialProducts: ProductsResponse;
+  initialHomeFeed: HomeFeedResponse | null;
+  initialProducts: ProductsResponse | null;
   initialBanners: HomeBanner[];
 }) => {
   const router = useRouter();
   const { user, isLoading: isUserLoading } = useUser();
+  const { blockedIds } = useBlocks();
   const [selectedCategory, setSelectedCategory] = useState("전체");
   const [activeBannerIndex, setActiveBannerIndex] = useState(0);
   const [showPostLoginGuide, setShowPostLoginGuide] = useState(false);
@@ -86,45 +282,98 @@ const MainClient = ({
     useState<BeforeInstallPromptEvent | null>(null);
   const [installLoading, setInstallLoading] = useState(false);
   const bannerRef = useRef<HTMLDivElement>(null);
+  const sentinelRef = useRef<HTMLDivElement>(null);
 
-  const getKey = (
-    pageIndex: number,
-    previousPageData: ProductsResponse | null
-  ) => {
-    if (previousPageData && !previousPageData.products.length) return null;
+  // ── 상품 목록(무한 스크롤) ──────────────────────────────────────────────
+  const getKey = (pageIndex: number, previousPageData: ProductsResponse | null) => {
+    if (previousPageData && pageIndex >= (previousPageData.pages ?? 0)) return null;
     const categoryParam =
-      selectedCategory !== "전체" ? `&category=${selectedCategory}` : "";
+      selectedCategory !== "전체" ? `&category=${encodeURIComponent(selectedCategory)}` : "";
     return `/api/products?page=${pageIndex + 1}${categoryParam}`;
   };
-
-  const hasInitializedCategory = useRef(false);
-  const { data, setSize } = useSWRInfinite<ProductsResponse>(getKey, {
-    fallbackData: [initialProducts],
+  // SSR 1페이지는 "전체" 목록이다. 다른 카테고리에 그 값을 보여주지 않게 전체일 때만 넘긴다.
+  const productFallback =
+    selectedCategory === "전체" && initialProducts ? [initialProducts] : undefined;
+  const {
+    data: productPages,
+    error: productsError,
+    size,
+    setSize,
+    isValidating: productsValidating,
+    mutate: reloadProducts,
+  } = useSWRInfinite<ProductsResponse>(getKey, {
+    fallbackData: productFallback,
     revalidateFirstPage: false,
     revalidateOnFocus: false,
-    revalidateOnMount: false,
+    revalidateOnMount: !productFallback,
     revalidateIfStale: false,
   });
-  // 상단 홈 경험은 단일 피드 API로 묶고, 상품 리스트만 기존 무한스크롤 구조를 유지한다.
-  const { data: homeFeedData } = useSWR<HomeFeedResponse>(
-    "/api/home/feed?scope=public",
-    {
-      fallbackData: initialHomeFeed,
-      revalidateOnFocus: false,
-      revalidateOnMount: false,
-      revalidateIfStale: false,
-    }
+
+  // ── 홈 피드(공개 캐시) ─────────────────────────────────────────────────
+  const {
+    data: rawFeed,
+    error: feedFetchError,
+    mutate: reloadFeed,
+  } = useSWR<HomeFeedResponse>(HOME_FEED_KEY, {
+    fallbackData: initialHomeFeed ?? undefined,
+    revalidateOnFocus: false,
+    revalidateOnMount: !initialHomeFeed,
+    revalidateIfStale: false,
+  });
+  const feedOk = rawFeed?.success ? rawFeed : undefined;
+  const feedError = !feedOk && (Boolean(feedFetchError) || rawFeed?.success === false);
+  const feedLoading = !feedOk && !feedError;
+
+  // 공개 캐시 응답이라 서버가 차단 사용자를 거르지 못한다. 받은 뒤 여기서 뺀다.
+  const feed = useMemo(
+    () => (feedOk ? filterHomeFeedForBlocked(feedOk, blockedIds) : undefined),
+    [feedOk, blockedIds]
   );
+  // 1위 브리더를 차단했으면 같은 기간 랭킹에서 차단하지 않은 다음 브리더로 바꾼다.
+  const { data: replacementRanking } = useSWR<{ success: boolean; items: BreederRankingItem[] }>(
+    feed?.heroBlocked ? `/api/rankings/breeders?limit=10&period=${feed.heroBreederMode}` : null
+  );
+  const hero =
+    feed?.heroBreeder ??
+    (feed?.heroBlocked
+      ? replacementRanking?.items?.find((item) => !blockedIds.has(item.user.id)) ?? null
+      : null);
   const banners = initialBanners;
 
-  const page = useInfiniteScroll();
+  const products = useMemo(
+    () =>
+      withoutBlocked(
+        uniqueById((productPages ?? []).flatMap((pageData) => pageData?.products ?? [])),
+        blockedIds,
+        (product) => product.userId
+      ),
+    [productPages, blockedIds]
+  );
+  const totalPages = productPages?.[productPages.length - 1]?.pages ?? 0;
+  const loadedPages = productPages?.length ?? 0;
+  const hasMore = loadedPages > 0 && loadedPages < totalPages;
+  const isLoadingMore = productsValidating && size > loadedPages;
+  const firstPageError = Boolean(productsError) && loadedPages === 0;
+  const nextPageError = Boolean(productsError) && loadedPages > 0;
 
+  // 바닥 근처에 오면 다음 페이지. 다음 페이지가 실패하면 자동으로 다시 부르지 않고 '다시 시도'로만 부른다.
   useEffect(() => {
-    setSize(page);
-  }, [setSize, page]);
+    const target = sentinelRef.current;
+    if (!target || !hasMore || productsError) return;
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries[0]?.isIntersecting && !productsValidating) {
+          void setSize((current) => (current <= loadedPages ? loadedPages + 1 : current));
+        }
+      },
+      { rootMargin: "600px 0px" }
+    );
+    observer.observe(target);
+    return () => observer.disconnect();
+  }, [hasMore, productsError, productsValidating, loadedPages, setSize]);
 
-  // 카테고리 변경 시 목록 초기화
   const handleCategoryChange = (categoryId: string) => {
+    if (categoryId === selectedCategory) return;
     trackEvent(ANALYTICS_EVENTS.homeCategorySelected, {
       selected_category: categoryId,
       previous_category: selectedCategory,
@@ -132,16 +381,6 @@ const MainClient = ({
     });
     setSelectedCategory(categoryId);
   };
-
-  // 카테고리 변경 시 데이터 리셋
-  useEffect(() => {
-    if (!hasInitializedCategory.current) {
-      hasInitializedCategory.current = true;
-      return;
-    }
-
-    void setSize(1);
-  }, [selectedCategory, setSize]);
 
   useEffect(() => {
     const onBeforeInstallPrompt = (event: Event) => {
@@ -169,7 +408,7 @@ const MainClient = ({
   }, [isUserLoading, user]);
 
   useEffect(() => {
-    if (!homeFeedData?.success) return;
+    if (!feedOk) return;
     // 랭킹 우선 IA 전환 이후 섹션별 노출량을 비교할 수 있도록 홈 진입 시 한 번에 기록한다.
     const sectionIds = [
       "hero_breeder",
@@ -185,10 +424,10 @@ const MainClient = ({
         section_id: sectionId,
         position: index + 1,
         user_tier: user ? "member" : "guest",
-        season_id: homeFeedData.currentSeasonId,
+        season_id: feedOk.currentSeasonId,
       });
     });
-  }, [homeFeedData?.currentSeasonId, homeFeedData?.success, user]);
+  }, [feedOk?.currentSeasonId, feedOk?.success, user]);
 
   const handleInstallClick = async () => {
     if (!deferredInstallPrompt) {
@@ -232,7 +471,7 @@ const MainClient = ({
     let minDistance = Number.POSITIVE_INFINITY;
 
     children.forEach((child, index) => {
-      const distance = Math.abs(child.offsetLeft - container.scrollLeft);
+      const distance = Math.abs(child.offsetLeft - container.scrollLeft - 16);
       if (distance < minDistance) {
         minDistance = distance;
         nearestIndex = index;
@@ -249,26 +488,67 @@ const MainClient = ({
     if (!container) return;
     const target = container.children[index] as HTMLElement | undefined;
     if (!target) return;
-    container.scrollTo({ left: target.offsetLeft, behavior: "smooth" });
+    container.scrollTo({ left: target.offsetLeft - 16, behavior: "smooth" });
   };
 
-  const loadedProductCount =
-    data?.reduce((count, pageData) => count + (pageData?.products?.length ?? 0), 0) ?? 0;
-  const heroBreederPeriod = homeFeedData?.heroBreederMode ?? "weekly";
-  const auctionPeriod = homeFeedData?.topAuctionsMode === "all" ? "all" : "weekly";
-  const bloodlinePeriod = homeFeedData?.topBloodlinesMode ?? "weekly";
-  const communityPeriod = homeFeedData?.trendingPostsMode === "all" ? "all" : "weekly";
-  const bloodlineSubtitle = "가장 많은 사용자가 보유한 혈통카드를 기준으로 집계한 랭킹";
-  const communitySubtitle = "좋아요와 댓글 반응이 높은 커뮤니티 글";
+  const heroBreederPeriod: RankingPeriodId = feed?.heroBreederMode === "all" ? "all" : "weekly";
+  const auctionPeriod: RankingPeriodId = feed?.topAuctionsMode === "all" ? "all" : "weekly";
+  const bloodlinePeriod: RankingPeriodId = feed?.topBloodlinesMode === "all" ? "all" : "weekly";
+  const communityPeriod: RankingPeriodId = feed?.trendingPostsMode === "all" ? "all" : "weekly";
+  const weeklyBreederRankingHref = toRankingHref("breeders", "weekly");
+
+  // 앱과 같은 결정(2026-10-06): 집계가 빈 카드는 숨긴다. 로딩 중에는 스켈레톤으로 자리를 둔다.
+  const topAuctionRows: MiniCardRow[] = (feed?.topAuctionsByCategory ?? []).slice(0, 2).map((a) => ({
+    id: a.auctionId,
+    image: a.photo,
+    main: a.title,
+    sub: `${a.currentPrice.toLocaleString()}원`,
+  }));
+  const topBloodlineRows: MiniCardRow[] = (feed?.topBloodlines ?? []).slice(0, 2).map((b) => ({
+    id: b.bloodlineRootId,
+    image: b.image,
+    main: b.name,
+    sub: `보유자 ${b.ownerCount}명`,
+  }));
+  const trendingRows: MiniCardRow[] = (feed?.trendingPosts ?? []).slice(0, 2).map((t) => ({
+    id: t.post.id,
+    main: t.post.title,
+    sub: `#${t.rank} 상승중`,
+  }));
+  const freeGiveawayRows: MiniCardRow[] = (feed?.freeGiveawayProducts ?? []).slice(0, 2).map((f) => ({
+    id: f.id,
+    image: f.photos[0],
+    main: f.name,
+    sub: f.user.name,
+    href: `/products/${f.id}`,
+  }));
+  const showMini = (rows: MiniCardRow[]) => feedLoading || rows.length > 0;
+  const showGrid =
+    !feedError &&
+    [topAuctionRows, topBloodlineRows, trendingRows, freeGiveawayRows].some(showMini);
+  const showTopBreeder = feedError || feedLoading || Boolean(hero);
+
+  const trackRankingCard = (rankingType: string, entityId: number | string, sectionId: string) =>
+    trackEvent(ANALYTICS_EVENTS.rankingCardClick, {
+      ranking_type: rankingType,
+      rank: 1,
+      entity_id: entityId,
+      section_id: sectionId,
+    });
+
+  const productsHref =
+    selectedCategory === "전체"
+      ? "/products"
+      : `/products?category=${encodeURIComponent(selectedCategory)}`;
 
   return (
-    <div className="app-page flex flex-col h-full">
-      {/* Section 1: 상단 배너/히어로 */}
-      <section className="app-reveal relative bg-white pb-1 pt-3">
+    <div className="flex h-full flex-col bg-app-bg">
+      {/* 배너 슬라이더(관리자 배너 API, 웹 그라데이션 카드 유지 — 좌우 여백만 16) */}
+      <section className="relative bg-app-bg pb-1 pt-3">
         <div
           ref={bannerRef}
           onScroll={handleBannerScroll}
-          className="app-rail flex snap-x snap-mandatory gap-3 scroll-px-5 px-5"
+          className="app-rail flex snap-x snap-mandatory scroll-px-4 gap-3 px-4"
         >
           {banners.map((banner) => (
             <Link
@@ -283,14 +563,12 @@ const MainClient = ({
                 })
               }
               className={cn(
-                "app-card-interactive relative flex min-h-[132px] w-[calc(100vw-40px)] max-w-[calc(36rem-40px)] shrink-0 snap-start flex-col justify-between overflow-hidden rounded-xl border border-white/20 bg-gradient-to-br from-emerald-500 to-teal-500 px-4 py-4 text-white shadow-none",
+                "app-card-interactive relative flex min-h-[132px] w-[calc(100vw-32px)] max-w-[calc(36rem-32px)] shrink-0 snap-start flex-col justify-between overflow-hidden rounded-xl border border-white/20 bg-gradient-to-br from-emerald-500 to-teal-500 px-4 py-4 text-white shadow-none",
                 banner.bgClass
               )}
             >
               <div>
-                <span className="text-[11px] font-semibold leading-none text-white/70">
-                  Bredy
-                </span>
+                <span className="text-[11px] font-semibold leading-none text-white/70">Bredy</span>
                 <h2 className="mt-2 text-[20px] font-extrabold leading-tight tracking-normal text-white">
                   {banner.title}
                 </h2>
@@ -298,7 +576,7 @@ const MainClient = ({
                   {banner.description}
                 </p>
               </div>
-              <span className="mt-4 inline-flex h-7 w-fit items-center rounded-md bg-white/15 px-2.5 text-[11px] font-bold text-white backdrop-blur-sm">
+              <span className="mt-4 inline-flex h-7 w-fit items-center rounded-md bg-white/15 px-2.5 text-[11px] font-bold text-white">
                 자세히 보기
               </span>
             </Link>
@@ -313,7 +591,7 @@ const MainClient = ({
                 onClick={() => scrollToBanner(index)}
                 aria-label={`${index + 1}번 배너로 이동`}
                 aria-current={activeBannerIndex === index ? "true" : undefined}
-                className="pointer-events-auto grid h-4 w-4 place-items-center rounded-full focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-black/30"
+                className="pointer-events-auto grid h-4 w-4 place-items-center rounded-full"
               >
                 <span
                   className={cn(
@@ -327,22 +605,20 @@ const MainClient = ({
         ) : null}
       </section>
 
-      {/* Section 2: 혈통카드 공유 챌린지 (compact) */}
-      <section className="app-section app-reveal app-reveal-1 py-2">
-        <div className="mx-5 rounded-sm border border-slate-200 bg-white px-4 py-3">
-          <div className="min-w-0">
-            <div className="flex items-center gap-2">
-              <span className="inline-flex h-5 items-center rounded bg-primary/10 px-1.5 text-[10px] font-bold text-primary">
-                이벤트
-              </span>
-              <h3 className="text-sm font-extrabold tracking-normal text-slate-950">
-                혈통카드 공유 챌린지
-              </h3>
-            </div>
-            <p className="mt-1.5 text-xs font-medium tracking-normal text-slate-500">
-              내 혈통카드를 공유하고 특별 배지를 받아보세요.
-            </p>
+      {/* 혈통카드 공유 챌린지 */}
+      <section className="py-2">
+        <div className="mx-4 rounded-sm border border-app-border bg-app-elevated px-4 py-3">
+          <div className="flex items-center gap-2">
+            <span className="inline-flex h-5 items-center rounded bg-app-brand-soft px-1.5 text-[10px] font-bold text-app-brand">
+              이벤트
+            </span>
+            <h3 className="text-sm font-extrabold tracking-normal text-app-strong">
+              혈통카드 공유 챌린지
+            </h3>
           </div>
+          <p className="mt-1.5 text-xs font-medium tracking-normal text-app-muted">
+            내 혈통카드를 공유하고 특별 배지를 받아보세요.
+          </p>
           <div className="mt-3 grid grid-cols-2 gap-2">
             <Link
               href="/bloodline-management"
@@ -352,13 +628,13 @@ const MainClient = ({
                   entry_type: user ? "member" : "guest",
                 })
               }
-              className="inline-flex h-9 items-center justify-center rounded-sm bg-slate-950 px-3 text-xs font-bold text-white transition hover:bg-slate-800"
+              className="inline-flex h-9 items-center justify-center rounded-lg bg-app-inverse px-3 text-xs font-bold text-app-inverse-text"
             >
               보기
             </Link>
             <Link
               href="/bloodline-cards/create"
-              className="inline-flex h-9 items-center justify-center rounded-sm border border-slate-200 bg-white px-3 text-xs font-bold text-slate-700 transition hover:bg-slate-50"
+              className="inline-flex h-9 items-center justify-center rounded-lg border border-app-border bg-app-elevated px-3 text-xs font-bold text-app-sub"
             >
               만들기
             </Link>
@@ -366,399 +642,193 @@ const MainClient = ({
         </div>
       </section>
 
-      {/* Section 3: TOP 브리더 */}
-      <section className="app-section app-reveal app-reveal-1 pt-4 pb-2">
-        <SectionHeader
-          title="이번 주 TOP 브리더"
-          href={toRankingHref("breeders", heroBreederPeriod)}
-          actionLabel="랭킹 보기"
-        />
-        <div className="mt-3 px-5">
-          {homeFeedData?.heroBreeder ? (
-            <div className="app-card overflow-hidden border border-slate-200/80 p-0">
-              {/* 상단: 프로필 + 순위 */}
-              <div className="flex items-center gap-3 px-4 pt-3.5 pb-3">
-                <div className="relative">
-                  <div className="h-11 w-11 overflow-hidden rounded-full bg-slate-100 ring-2 ring-amber-400/60">
-                    {homeFeedData.heroBreeder.user.avatar ? (
-                      <Image
-                        src={makeImageUrl(homeFeedData.heroBreeder.user.avatar, "avatar")}
-                        alt={homeFeedData.heroBreeder.user.name}
-                        width={44}
-                        height={44}
-                        className="h-full w-full object-cover"
-                      />
-                    ) : (
-                      <div className="flex h-full w-full items-center justify-center bg-slate-200 text-sm font-bold text-slate-500">
-                        {homeFeedData.heroBreeder.user.name.charAt(0)}
-                      </div>
-                    )}
-                  </div>
-                  <span className="absolute -bottom-0.5 -right-0.5 flex h-5 w-5 items-center justify-center rounded-full bg-amber-400 text-[9px] font-black text-white shadow-sm">
-                    {homeFeedData.heroBreeder.rank}
-                  </span>
-                </div>
-                <div className="min-w-0 flex-1">
-                  <div className="flex items-center gap-1.5">
-                    <h3 className="truncate text-sm font-bold text-slate-900">
-                      {homeFeedData.heroBreeder.user.name}
-                    </h3>
-                    {(homeFeedData.heroBreeder.badges || []).slice(0, 1).map((badge) => (
-                      <span key={badge.id} className="shrink-0 rounded bg-amber-50 px-1.5 py-0.5 text-[9px] font-semibold text-amber-600">
-                        {badge.label}
-                      </span>
-                    ))}
-                  </div>
-                  <p className="mt-0.5 text-xs text-slate-500">
-                    {homeFeedData.heroBreeder.score.toLocaleString()}점 · {formatRankDelta(homeFeedData.heroBreeder.rankDelta)}
-                  </p>
-                </div>
-                <button
-                  type="button"
-                  onClick={() => {
-                    trackEvent(ANALYTICS_EVENTS.challengeJoin, {
-                      challenge_id: "weekly_breeder_rank",
-                      entry_type: user ? "member" : "guest",
-                    });
-                    router.push(
-                      user
-                        ? toRankingHref("breeders", "weekly")
-                        : "/auth/login?next=%2Franking%3Ftab%3Dbreeders%26period%3Dweekly"
-                    );
-                  }}
-                  className="shrink-0 rounded-full bg-slate-900 px-3 py-1.5 text-[11px] font-semibold text-white transition-colors hover:bg-slate-800"
-                >
-                  도전하기
-                </button>
+      {/* 이번 주 TOP 브리더 — 집계가 비면 섹션을 숨긴다 */}
+      {showTopBreeder ? (
+        <section className="pb-2 pt-4">
+          <SectionHeader
+            title="이번 주 TOP 브리더"
+            href={toRankingHref("breeders", heroBreederPeriod)}
+            actionLabel="랭킹 보기"
+          />
+          <div className="mt-3 px-4">
+            {feedError ? (
+              <div className="rounded-xl border border-app-border bg-app-elevated shadow-card">
+                <QueryErrorState
+                  title="랭킹을 불러오지 못했어요"
+                  onRetry={() => void reloadFeed()}
+                  className="py-6"
+                />
               </div>
-              {/* 하단: 활동 스탯 바 */}
-              <div className="flex border-t border-slate-100 divide-x divide-slate-100">
-                {[
-                  { label: "게시", value: homeFeedData.heroBreeder.postsCount },
-                  { label: "댓글", value: homeFeedData.heroBreeder.commentsCount },
-                  { label: "입찰", value: homeFeedData.heroBreeder.bidsCount },
-                  { label: "낙찰", value: homeFeedData.heroBreeder.auctionWinsCount },
-                ].map((stat) => (
-                  <div key={stat.label} className="flex-1 py-2.5 text-center">
-                    <p className="text-sm font-bold text-slate-900">{stat.value}</p>
-                    <p className="text-[10px] text-slate-400">{stat.label}</p>
-                  </div>
-                ))}
+            ) : feedLoading ? (
+              <div className="space-y-2 rounded-xl border border-app-border bg-app-elevated p-4 shadow-card">
+                <Skeleton className="h-3.5 w-1/2" />
+                <Skeleton className="h-3 w-[35%]" />
               </div>
-            </div>
-          ) : (
-            <div className="app-card p-4 text-sm text-slate-400">이번 주 브리더 집계가 준비 중입니다.</div>
-          )}
-        </div>
-      </section>
-
-      {/* Section 3: 2x2 Grid — 경매 / 혈통 / 커뮤니티 / 무료나눔 */}
-      <section className="app-section app-reveal app-reveal-1 py-2">
-        <div className="grid grid-cols-2 gap-3 px-5">
-          {/* 최고가 경매 */}
-          <Link
-            href={toRankingHref("auctions", auctionPeriod)}
-            onClick={() =>
-              trackEvent(ANALYTICS_EVENTS.rankingCardClick, {
-                ranking_type: "auction",
-                rank: 1,
-                entity_id: homeFeedData?.topAuctionsByCategory?.[0]?.auctionId ?? "",
-                section_id: "auction_ranking",
-              })
-            }
-            className="app-card app-card-interactive flex flex-col gap-2 p-3"
-          >
-            <div>
-              <div className="flex items-center justify-between">
-                <h3 className="text-sm font-bold text-slate-900">최고가 경매</h3>
-                <span className="text-[10px] text-slate-400">더보기 ›</span>
-              </div>
-              <p className="mt-0.5 text-[10px] text-slate-400">카테고리별 최고 낙찰가</p>
-            </div>
-            <div className="mt-2 space-y-1.5">
-              {homeFeedData?.topAuctionsByCategory?.length ? (
-                homeFeedData.topAuctionsByCategory.slice(0, 2).map((auction) => (
-                  <div key={auction.auctionId} className="flex items-center gap-2">
-                    <div className="h-8 w-8 shrink-0 overflow-hidden rounded-lg bg-slate-100">
-                      {auction.photo ? (
-                        <Image
-                          src={makeImageUrl(auction.photo, "public")}
-                          alt={auction.title}
-                          width={32}
-                          height={32}
-                          className="h-full w-full object-cover"
-                        />
-                      ) : null}
-                    </div>
-                    <div className="min-w-0 flex-1">
-                      <p className="truncate text-xs font-medium text-slate-700">{auction.title}</p>
-                      <p className="text-[10px] text-primary font-semibold">
-                        {auction.currentPrice.toLocaleString()}원
-                      </p>
-                    </div>
-                  </div>
-                ))
-              ) : (
-                <p className="text-[10px] text-slate-400">집계 준비 중</p>
-              )}
-            </div>
-          </Link>
-
-          {/* 인기 혈통 TOP */}
-          <Link
-            href={toRankingHref("bloodlines", bloodlinePeriod)}
-            onClick={() =>
-              trackEvent(ANALYTICS_EVENTS.rankingCardClick, {
-                ranking_type: "bloodline",
-                rank: 1,
-                entity_id: homeFeedData?.topBloodlines?.[0]?.bloodlineRootId ?? "",
-                section_id: "bloodline_ranking",
-              })
-            }
-            className="app-card app-card-interactive flex flex-col gap-2 p-3"
-          >
-            <div>
-              <div className="flex items-center justify-between">
-                <h3 className="text-sm font-bold text-slate-900">인기 혈통 TOP</h3>
-                <span className="text-[10px] text-slate-400">더보기 ›</span>
-              </div>
-              <p className="mt-0.5 text-[10px] text-slate-400">보유자 수 기준 랭킹</p>
-            </div>
-            <div className="mt-2 space-y-1.5">
-              {homeFeedData?.topBloodlines?.length ? (
-                homeFeedData.topBloodlines.slice(0, 2).map((bloodline) => (
-                  <div key={bloodline.bloodlineRootId} className="flex items-center gap-2">
-                    <div className="h-8 w-8 shrink-0 overflow-hidden rounded-lg bg-slate-100">
-                      {bloodline.image ? (
-                        <Image
-                          src={makeImageUrl(bloodline.image, "public")}
-                          alt={bloodline.name}
-                          width={32}
-                          height={32}
-                          className="h-full w-full object-cover"
-                        />
-                      ) : (
-                        <div className="flex h-full w-full items-end bg-[linear-gradient(145deg,#111827,#1f2937_58%,#f59e0b)] p-1">
-                          <span className="text-[6px] font-semibold tracking-wider text-white/80">BL</span>
-                        </div>
-                      )}
-                    </div>
-                    <div className="min-w-0 flex-1">
-                      <p className="truncate text-xs font-medium text-slate-700">{bloodline.name}</p>
-                      <p className="text-[10px] text-slate-400">보유자 {bloodline.ownerCount}명</p>
-                    </div>
-                  </div>
-                ))
-              ) : (
-                <p className="text-[10px] text-slate-400">집계 준비 중</p>
-              )}
-            </div>
-          </Link>
-
-          {/* 급상승 커뮤니티 */}
-          <Link
-            href={toRankingHref("community", communityPeriod)}
-            onClick={() =>
-              trackEvent(ANALYTICS_EVENTS.rankingCardClick, {
-                ranking_type: "community",
-                rank: 1,
-                entity_id: homeFeedData?.trendingPosts?.[0]?.post?.id ?? "",
-                section_id: "trending_community",
-              })
-            }
-            className="app-card app-card-interactive flex flex-col gap-2 p-3"
-          >
-            <div>
-              <div className="flex items-center justify-between">
-                <h3 className="text-sm font-bold text-slate-900">급상승 커뮤니티</h3>
-                <span className="text-[10px] text-slate-400">더보기 ›</span>
-              </div>
-              <p className="mt-0.5 text-[10px] text-slate-400">{communitySubtitle}</p>
-            </div>
-            <div className="mt-2 space-y-1.5">
-              {homeFeedData?.trendingPosts?.length ? (
-                homeFeedData.trendingPosts.slice(0, 2).map((item) => (
-                  <div key={item.post.id} className="flex items-center gap-2">
-                    <div className="min-w-0 flex-1">
-                      <p className="truncate text-xs font-medium text-slate-700">{item.post.title}</p>
-                      <p className="text-[10px] text-slate-400">#{item.rank} 상승중</p>
-                    </div>
-                  </div>
-                ))
-              ) : (
-                <p className="text-[10px] text-slate-400">급상승 글 집계 중</p>
-              )}
-            </div>
-          </Link>
-
-          {/* 무료나눔 */}
-          {homeFeedData?.freeGiveawayProducts?.length ? (
-            <Link
-              href="/products?status=판매중&price=0"
-              onClick={() =>
-                trackEvent(ANALYTICS_EVENTS.rankingCardClick, {
-                  ranking_type: "free_giveaway",
-                  rank: 1,
-                  entity_id: homeFeedData.freeGiveawayProducts[0]?.id ?? "",
-                  section_id: "free_giveaway",
-                })
-              }
-              className="app-card app-card-interactive flex flex-col gap-2 p-3"
-            >
-              <div>
-                <div className="flex items-center justify-between">
-                  <h3 className="text-sm font-bold text-slate-900">무료나눔</h3>
-                  <span className="text-[10px] text-slate-400">더보기 ›</span>
-                </div>
-                <p className="mt-0.5 text-[10px] text-slate-400">가격 0원 · 지금 연락하세요</p>
-              </div>
-              <div className="mt-2 space-y-1.5">
-                {homeFeedData.freeGiveawayProducts.slice(0, 2).map((item: FreeProductItem) => (
-                  <div key={item.id} className="flex items-center gap-2">
-                    <div className="h-8 w-8 shrink-0 overflow-hidden rounded-lg bg-slate-100">
-                      {item.photos[0] ? (
-                        <Image
-                          src={makeImageUrl(item.photos[0], "public")}
-                          alt={item.name}
-                          width={32}
-                          height={32}
-                          className="h-full w-full object-cover"
-                        />
-                      ) : null}
-                    </div>
-                    <div className="min-w-0 flex-1">
-                      <p className="truncate text-xs font-medium text-slate-700">{item.name}</p>
-                      <p className="text-[10px] text-slate-400">{item.user.name}</p>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </Link>
-          ) : (
-            <Link
-              href="/products/upload"
-              className="app-card app-card-interactive flex flex-col items-center justify-center p-3 text-center"
-            >
-              <h3 className="text-sm font-bold text-slate-900">무료나눔</h3>
-              <p className="mt-2 text-xs text-slate-500">아직 무료나눔이 없어요</p>
-              <p className="mt-1 text-[10px] font-semibold text-primary">첫 번째로 등록해보세요 ›</p>
-            </Link>
-          )}
-        </div>
-      </section>
-
-      {/* Section 5: 카테고리 탭 */}
-      <div className="app-sticky-rail app-reveal app-reveal-3">
-        <div className="px-4 py-2.5">
-          <div className="app-rail flex gap-1.5 snap-none">
-            {TABS.map((tab) => {
-              const isActive = selectedCategory === tab.id;
-              return (
-                <button
-                  key={tab.id}
-                  onClick={() => handleCategoryChange(tab.id)}
-                  className={cn(
-                    "flex-shrink-0 rounded-md px-3 py-1.5 text-sm transition-colors",
-                    isActive
-                      ? "bg-slate-900 font-semibold text-white"
-                      : "bg-slate-100 font-medium text-slate-600 hover:bg-slate-200"
-                  )}
-                >
-                  {tab.name}
-                </button>
-              );
-            })}
+            ) : hero ? (
+              <HeroBreederCard
+                hero={hero}
+                onChallenge={() => {
+                  trackEvent(ANALYTICS_EVENTS.challengeJoin, {
+                    challenge_id: "weekly_breeder_rank",
+                    entry_type: user ? "member" : "guest",
+                  });
+                  router.push(
+                    user
+                      ? weeklyBreederRankingHref
+                      : `/auth/login?next=${encodeURIComponent(weeklyBreederRankingHref)}`
+                  );
+                }}
+              />
+            ) : null}
           </div>
-        </div>
+        </section>
+      ) : null}
+
+      {/* 2x2 그리드 — 피드 오류면 위 오류 상태로 대신하고, 빈 카드는 숨긴다 */}
+      {showGrid ? (
+        <section className="py-2">
+          <div className="grid grid-cols-2 gap-3 px-4">
+            {showMini(topAuctionRows) ? (
+              <MiniCard
+                title="최고가 경매"
+                subtitle="카테고리별 최고 낙찰가"
+                href={toRankingHref("auctions", auctionPeriod)}
+                loading={feedLoading}
+                subTone="price"
+                rows={topAuctionRows}
+                onOpen={() =>
+                  trackRankingCard("auction", topAuctionRows[0]?.id ?? "", "auction_ranking")
+                }
+              />
+            ) : null}
+            {showMini(topBloodlineRows) ? (
+              <MiniCard
+                title="인기 혈통 TOP"
+                subtitle="보유자 수 기준 랭킹"
+                href={toRankingHref("bloodlines", bloodlinePeriod)}
+                loading={feedLoading}
+                rows={topBloodlineRows}
+                onOpen={() =>
+                  trackRankingCard("bloodline", topBloodlineRows[0]?.id ?? "", "bloodline_ranking")
+                }
+              />
+            ) : null}
+            {showMini(trendingRows) ? (
+              <MiniCard
+                title="급상승 커뮤니티"
+                subtitle="좋아요와 댓글 반응이 높은 커뮤니티 글"
+                href={toRankingHref("community", communityPeriod)}
+                loading={feedLoading}
+                showThumb={false}
+                rows={trendingRows}
+                onOpen={() =>
+                  trackRankingCard("community", trendingRows[0]?.id ?? "", "trending_community")
+                }
+              />
+            ) : null}
+            {showMini(freeGiveawayRows) ? (
+              <MiniCard
+                title="무료나눔"
+                subtitle="가격 0원 · 지금 연락하세요"
+                href="/products?status=판매중&price=0"
+                loading={feedLoading}
+                rows={freeGiveawayRows}
+                onOpen={() =>
+                  trackRankingCard("free_giveaway", freeGiveawayRows[0]?.id ?? "", "free_giveaway")
+                }
+              />
+            ) : null}
+          </div>
+        </section>
+      ) : null}
+
+      {/* 카테고리 칩(sticky). 고정 중에도 아래가 비치지 않게 불투명 배경 + 하단 1px line. */}
+      <div className="sticky top-14 z-10 border-b border-app-line bg-app-bg py-1">
+        <FilterChipRail>
+          {TABS.map((tab) => (
+            <FilterChip
+              key={tab.id}
+              label={tab.name}
+              selected={selectedCategory === tab.id}
+              onClick={() => handleCategoryChange(tab.id)}
+            />
+          ))}
+        </FilterChipRail>
       </div>
 
-      <section id="all-products" className="px-4 pt-6 pb-2">
-        <div className="flex items-end justify-between">
-          <div>
-            <h2 className="app-section-title">
-              {selectedCategory === "전체" ? "전체 상품" : `${selectedCategory} 상품`}
-            </h2>
-            <p className="mt-1 app-caption">
-              최신 등록 순으로 노출됩니다.
-            </p>
-          </div>
-          <span className="app-count-chip">{loadedProductCount}개</span>
+      {/* 전체 상품 헤더 */}
+      <section id="all-products" className="flex items-end justify-between bg-app-bg px-4 pb-2 pt-6">
+        <div>
+          <h2 className="text-[18px] font-bold tracking-tight text-app-strong">
+            {selectedCategory === "전체" ? "전체 상품" : `${selectedCategory} 상품`}
+          </h2>
+          <p className="mt-1 text-[12px] font-medium text-app-muted">최신 등록 순으로 노출됩니다.</p>
         </div>
+        <Link
+          href={productsHref}
+          className="inline-flex h-7 shrink-0 items-center text-[13px] font-medium text-app-muted"
+        >
+          상품목록 ›
+        </Link>
       </section>
 
       {/* 상품 목록 */}
-      <div className="h-full border-y border-slate-100 bg-white pb-4">
-        {data ? (
-          data.map((result) => {
-            return result?.products?.map((product) => (
-              <Item
-                key={product?.id}
-                id={product?.id}
-                title={product?.name}
-                price={product?.price}
-                hearts={product?._count?.favs}
-                image={product?.photos[0]}
-                createdAt={product.createdAt}
-                category={product?.category}
-                status={product?.status}
-                minimal
-              />
-            ));
-          })
+      <div className="bg-app-bg pb-4">
+        {products.length > 0 ? (
+          products.map((product) => (
+            <ProductCard
+              key={product.id}
+              product={{
+                id: product.id,
+                name: product.name,
+                price: product.price,
+                image: product.photos?.[0],
+                createdAt: product.createdAt,
+                category: product.category,
+                status: product.status,
+                wishCount: product._count?.favs,
+              }}
+            />
+          ))
+        ) : firstPageError ? (
+          <QueryErrorState
+            title="상품 목록을 불러오지 못했어요"
+            onRetry={() => void reloadProducts()}
+          />
+        ) : !productPages || (productsValidating && loadedPages === 0) ? (
+          <ProductRowSkeleton count={5} />
         ) : (
-          <div className="divide-y divide-slate-100">
-            {[...Array(5)].map((_, i) => (
-              <div key={i} className="px-4">
-                <SkeletonItem />
-              </div>
-            ))}
-          </div>
+          <ProductFeedEmpty />
         )}
 
-        {/* 결과 없을 때 */}
-        {data &&
-          data.length > 0 &&
-          data[0].products.length === 0 && (
-            <div className="flex flex-col items-center justify-center py-20 text-slate-400">
-              <p className="app-title-md text-slate-500">
-                상품 피드가 활발해질 준비 중이에요
-              </p>
-              <p className="app-body-sm mt-1">
-                지금 개체를 등록해 첫 상품을 올려보세요.
-              </p>
-              <Link
-                href="/products/upload"
-                className="mt-3 inline-flex h-9 items-center rounded-md bg-slate-900 px-3 text-xs font-semibold text-white"
-              >
-                상품 등록하러 가기
-              </Link>
-            </div>
-          )}
+        {products.length > 0 ? (
+          <RetryFooter
+            loading={isLoadingMore}
+            error={nextPageError}
+            onRetry={() => void setSize(loadedPages + 1)}
+          />
+        ) : null}
+        <div ref={sentinelRef} aria-hidden="true" />
       </div>
 
-      <FloatingButton href="/products/upload">
+      <FloatingButton href="/products/upload" label="상품 등록">
         <svg
-          className="w-6 h-6"
+          className="h-6 w-6"
           xmlns="http://www.w3.org/2000/svg"
           fill="none"
           viewBox="0 0 24 24"
           stroke="currentColor"
           aria-hidden="true"
         >
-          <path
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            strokeWidth="2"
-            d="M12 6v6m0 0v6m0-6h6m-6 0H6"
-          />
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
         </svg>
       </FloatingButton>
 
       {showPostLoginGuide && (
-        <div className="fixed inset-0 z-50 bg-black/50 px-4 py-8">
-          <div className="mx-auto mt-16 w-full max-w-sm rounded-2xl border border-slate-200 bg-white p-5 shadow-2xl">
-            <h3 className="text-base font-semibold text-slate-900">시작 설정</h3>
-            <p className="mt-1 text-sm text-slate-600">
+        <div className="fixed inset-0 z-50 bg-app-overlay px-4 py-8">
+          <div className="mx-auto mt-16 w-full max-w-sm rounded-2xl border border-app-border bg-app-elevated p-5">
+            <h3 className="text-base font-semibold text-app-text">시작 설정</h3>
+            <p className="mt-1 text-sm text-app-sub">
               홈 화면 설치와 푸시 알림을 설정하면 새 소식을 빠르게 확인할 수 있습니다.
             </p>
             <div className="mt-4 flex flex-col gap-2.5">
@@ -766,10 +836,10 @@ const MainClient = ({
                 type="button"
                 onClick={handleInstallClick}
                 className={cn(
-                  "h-11 rounded-xl text-sm font-semibold transition-colors",
+                  "h-11 rounded-md text-sm font-semibold transition-colors",
                   deferredInstallPrompt
-                    ? "bg-slate-900 text-white hover:bg-slate-800"
-                    : "bg-slate-100 text-slate-500"
+                    ? "bg-app-brand text-white"
+                    : "bg-app-surface text-app-muted"
                 )}
                 disabled={!deferredInstallPrompt || installLoading}
               >
@@ -778,7 +848,7 @@ const MainClient = ({
               <button
                 type="button"
                 onClick={handleGoPushSettings}
-                className="h-11 rounded-xl bg-slate-600 text-sm font-semibold text-white transition-colors hover:bg-slate-700"
+                className="h-11 rounded-md bg-app-surface text-sm font-semibold text-app-text"
               >
                 푸시 알림 설정하기
               </button>
@@ -790,7 +860,7 @@ const MainClient = ({
                   });
                   setShowPostLoginGuide(false);
                 }}
-                className="h-10 rounded-xl border border-slate-200 text-sm font-medium text-slate-600 transition-colors hover:bg-slate-50"
+                className="h-10 rounded-md text-sm font-medium text-app-muted"
               >
                 나중에 하기
               </button>

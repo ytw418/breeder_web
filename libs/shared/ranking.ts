@@ -151,3 +151,19 @@ export interface HomeFeedResponse {
   freeGiveawayProducts: FreeProductItem[];
   hotDiscussions: HotDiscussionItem[];
 }
+
+export type RankingTabId = "breeders" | "auctions" | "bloodlines" | "community";
+
+/**
+ * 랭킹 항목의 작성자(차단 필터 기준). 공개 캐시 응답(/api/rankings/*)은 서버가 차단 사용자를 거르지 않아
+ * 클라이언트가 withoutBlocked 로 거른다: 브리더=user, 경매=seller, 혈통=creator, 커뮤니티=post.user.
+ */
+export function getRankingOwnerId(
+  tab: RankingTabId,
+  item: BreederRankingItem | AuctionRankingItem | BloodlineRankingItem | TrendingPostItem
+): number | undefined {
+  if (tab === "breeders") return (item as BreederRankingItem).user?.id;
+  if (tab === "auctions") return (item as AuctionRankingItem).seller?.id;
+  if (tab === "bloodlines") return (item as BloodlineRankingItem).creator?.id;
+  return (item as TrendingPostItem).post?.user?.id;
+}

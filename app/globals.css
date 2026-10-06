@@ -163,60 +163,126 @@ textarea {
 
 @layer base {
   :root {
-    /* 라이트 모드 색상 */
-    --background: 0 0% 100%; /* #FFFFFF - 흰색 */
-    --foreground: 20 14.3% 4.1%; /* #0A0A0A - 거의 검은색 */
-    --card: 0 0% 100%; /* #FFFFFF - 흰색 */
-    --card-foreground: 20 14.3% 4.1%; /* #0A0A0A - 거의 검은색 */
-    --popover: 0 0% 100%; /* #FFFFFF - 흰색 */
-    --popover-foreground: 20 14.3% 4.1%; /* #0A0A0A - 거의 검은색 */
+    /*
+     * 앱(bredy_app src/theme/palette.ts) 색 토큰. 화면 코드는 tailwind `app-*` 색 이름으로 쓴다.
+     * (bg-app-surface, text-app-muted, border-app-line …). app-* 에는 /opacity 를 쓰지 않는다(soft 토큰 사용).
+     * 읽어야 하는 회색 글자(시간·수·메타)는 app-muted 이상, app-caption 은 placeholder·아이콘·구분점 전용.
+     */
+    --app-bg: #ffffff;
+    --app-elevated: #ffffff;
+    --app-gap: #f7f8fa;
+    --app-surface: #f2f3f6;
+    --app-placeholder: #e9ebee;
+    --app-line: #f2f3f6;
+    --app-border: #e8e9eb;
+    --app-text: #212124;
+    --app-strong: #191919;
+    --app-sub: #4d5159;
+    --app-muted: #6e737c;
+    --app-caption: #adb1ba;
+    --app-inverse: #191919;
+    --app-inverse-text: #ffffff;
+    --app-brand: #f97316;
+    --app-brand-soft: #fff4ec;
+    --app-danger: #ef4444;
+    --app-danger-soft: #fff1f2;
+    --app-success: #10b981;
+    --app-success-soft: #ecfdf5;
+    --app-success-text: #047857;
+    --app-info: #2563eb;
+    --app-info-soft: #eff6ff;
+    --app-warning: #f59e0b;
+    --app-warning-soft: #fffbeb;
+    --app-warning-text: #b45309;
+    --app-overlay: rgba(0, 0, 0, 0.45);
+    --app-shadow-card: 0 1px 2px rgba(0, 0, 0, 0.05);
+    --app-shadow-popover: 0 10px 15px -3px rgba(15, 23, 42, 0.1), 0 4px 6px -4px rgba(15, 23, 42, 0.1);
+
+    /* shadcn 변수(HSL). 앱 토큰과 같은 색으로 맞춘다. --primary/--destructive 는 유지. */
+    --background: 0 0% 100%; /* app-bg */
+    --foreground: 240 4.3% 13.5%; /* app-text #212124 */
+    --card: 0 0% 100%; /* app-elevated */
+    --card-foreground: 240 4.3% 13.5%;
+    --popover: 0 0% 100%; /* app-elevated */
+    --popover-foreground: 240 4.3% 13.5%;
     --primary: 24.6 95% 53.1%; /* #F97316 - 주황색 */
-    --primary-foreground: 60 9.1% 97.8%; /* #FAFAF9 - 밝은 크림색 */
-    --secondary: 60 4.8% 95.9%; /* #F5F5F4 - 매우 밝은 회색 */
-    --secondary-foreground: 24 9.8% 10%; /* #1A1A1A - 매우 어두운 회색 */
-    --muted: 60 4.8% 95.9%; /* #F5F5F4 - 매우 밝은 회색 */
-    --muted-foreground: 25 5.3% 44.7%; /* #71717A - 중간 회색 */
-    --accent: 60 4.8% 95.9%; /* #F5F5F4 - 매우 밝은 회색 */
-    --accent-foreground: 24 9.8% 10%; /* #1A1A1A - 매우 어두운 회색 */
+    --primary-foreground: 60 9.1% 97.8%;
+    --secondary: 225 18.2% 95.7%; /* app-surface #F2F3F6 */
+    --secondary-foreground: 240 4.3% 13.5%;
+    --muted: 225 18.2% 95.7%; /* app-surface */
+    --muted-foreground: 219 6% 45.9%; /* app-muted #6E737C */
+    --accent: 225 18.2% 95.7%; /* app-surface */
+    --accent-foreground: 240 4.3% 13.5%;
     --destructive: 0 84.2% 60.2%; /* #EF4444 - 빨간색 */
-    --destructive-foreground: 60 9.1% 97.8%; /* #FAFAF9 - 밝은 크림색 */
-    --border: 20 5.9% 90%; /* #E5E7EB - 밝은 회색 */
-    --input: 20 5.9% 90%; /* #E5E7EB - 밝은 회색 */
-    --ring: 217 91% 60%; /* #3B82F6 - 파란색 */
+    --destructive-foreground: 60 9.1% 97.8%;
+    --border: 220 7% 91.6%; /* app-border #E8E9EB */
+    --input: 220 7% 91.6%;
+    --ring: 240 4.3% 13.5%; /* app-text (파란 링 금지) */
     --radius: 0.75rem;
-    --chart-1: 12 76% 61%; /* #F87171 - 연한 빨간색 */
-    --chart-2: 173 58% 39%; /* #2DD4BF - 청록색 */
-    --chart-3: 197 37% 24%; /* #1E3A8A - 진한 파란색 */
-    --chart-4: 43 74% 66%; /* #FCD34D - 노란색 */
-    --chart-5: 27 87% 67%; /* #FB923C - 주황색 */
+    --chart-1: 12 76% 61%;
+    --chart-2: 173 58% 39%;
+    --chart-3: 197 37% 24%;
+    --chart-4: 43 74% 66%;
+    --chart-5: 27 87% 67%;
   }
 
   .dark {
-    /* 다크 모드 색상 */
-    --background: 20 14.3% 4.1%; /* #0A0A0A - 거의 검은색 */
-    --foreground: 60 9.1% 97.8%; /* #FAFAF9 - 밝은 크림색 */
-    --card: 20 14.3% 4.1%; /* #0A0A0A - 거의 검은색 */
-    --card-foreground: 60 9.1% 97.8%; /* #FAFAF9 - 밝은 크림색 */
-    --popover: 20 14.3% 4.1%; /* #0A0A0A - 거의 검은색 */
-    --popover-foreground: 60 9.1% 97.8%; /* #FAFAF9 - 밝은 크림색 */
+    color-scheme: dark;
+    --app-bg: #17171a;
+    --app-elevated: #212124;
+    --app-gap: #0f0f11;
+    --app-surface: #2b2c30;
+    --app-placeholder: #2b2c30;
+    --app-line: #26272b;
+    --app-border: #34353a;
+    --app-text: #f5f5f7;
+    --app-strong: #ffffff;
+    --app-sub: #c5c8ce;
+    --app-muted: #9a9fa6;
+    --app-caption: #6f747c;
+    --app-inverse: #f5f5f7;
+    --app-inverse-text: #17171a;
+    --app-brand: #f97316;
+    --app-brand-soft: rgba(249, 115, 22, 0.16);
+    --app-danger: #f87171;
+    --app-danger-soft: rgba(239, 68, 68, 0.16);
+    --app-success: #34d399;
+    --app-success-soft: rgba(16, 185, 129, 0.16);
+    --app-success-text: #34d399;
+    --app-info: #60a5fa;
+    --app-info-soft: rgba(37, 99, 235, 0.16);
+    --app-warning: #fbbf24;
+    --app-warning-soft: rgba(245, 158, 11, 0.16);
+    --app-warning-text: #fbbf24;
+    --app-overlay: rgba(0, 0, 0, 0.6);
+    /* 다크는 그림자 대신 1px border 로 면을 구분한다. */
+    --app-shadow-card: none;
+    --app-shadow-popover: none;
+
+    --background: 240 6.1% 9.6%; /* app-bg #17171A */
+    --foreground: 240 11.1% 96.5%; /* app-text #F5F5F7 */
+    --card: 240 4.3% 13.5%; /* app-elevated #212124 */
+    --card-foreground: 240 11.1% 96.5%;
+    --popover: 240 4.3% 13.5%;
+    --popover-foreground: 240 11.1% 96.5%;
     --primary: 20.5 90.2% 48.2%; /* #EA580C - 진한 주황색 */
-    --primary-foreground: 60 9.1% 97.8%; /* #FAFAF9 - 밝은 크림색 */
-    --secondary: 12 6.5% 15.1%; /* #262626 - 매우 어두운 회색 */
-    --secondary-foreground: 60 9.1% 97.8%; /* #FAFAF9 - 밝은 크림색 */
-    --muted: 12 6.5% 15.1%; /* #262626 - 매우 어두운 회색 */
-    --muted-foreground: 24 5.4% 63.9%; /* #A1A1AA - 중간 회색 */
-    --accent: 12 6.5% 15.1%; /* #262626 - 매우 어두운 회색 */
-    --accent-foreground: 60 9.1% 97.8%; /* #FAFAF9 - 밝은 크림색 */
+    --primary-foreground: 60 9.1% 97.8%;
+    --secondary: 228 5.5% 17.8%; /* app-surface #2B2C30 */
+    --secondary-foreground: 240 11.1% 96.5%;
+    --muted: 228 5.5% 17.8%;
+    --muted-foreground: 215 6.3% 62.7%; /* app-muted #9A9FA6 */
+    --accent: 228 5.5% 17.8%;
+    --accent-foreground: 240 11.1% 96.5%;
     --destructive: 0 72.2% 50.6%; /* #DC2626 - 진한 빨간색 */
-    --destructive-foreground: 60 9.1% 97.8%; /* #FAFAF9 - 밝은 크림색 */
-    --border: 12 6.5% 15.1%; /* #262626 - 매우 어두운 회색 */
-    --input: 12 6.5% 15.1%; /* #262626 - 매우 어두운 회색 */
-    --ring: 217 91% 60%; /* #3B82F6 - 파란색 */
-    --chart-1: 220 70% 50%; /* #3B82F6 - 파란색 */
-    --chart-2: 160 60% 45%; /* #10B981 - 녹색 */
-    --chart-3: 30 80% 55%; /* #F59E0B - 노란색 */
-    --chart-4: 280 65% 60%; /* #8B5CF6 - 보라색 */
-    --chart-5: 340 75% 55%; /* #EC4899 - 분홍색 */
+    --destructive-foreground: 60 9.1% 97.8%;
+    --border: 230 5.5% 21.6%; /* app-border #34353A */
+    --input: 230 5.5% 21.6%;
+    --ring: 240 11.1% 96.5%; /* app-text */
+    --chart-1: 220 70% 50%;
+    --chart-2: 160 60% 45%;
+    --chart-3: 30 80% 55%;
+    --chart-4: 280 65% 60%;
+    --chart-5: 340 75% 55%;
   }
 }
 
@@ -226,6 +292,31 @@ textarea {
   }
   body {
     @apply bg-background text-foreground;
+  }
+
+  /* @tailwindcss/forms 의 파란 포커스 링·테두리를 text 색으로 바꾼다(파란 링 금지). */
+  [type="text"]:focus,
+  input:where(:not([type])):focus,
+  [type="email"]:focus,
+  [type="url"]:focus,
+  [type="password"]:focus,
+  [type="number"]:focus,
+  [type="date"]:focus,
+  [type="datetime-local"]:focus,
+  [type="month"]:focus,
+  [type="search"]:focus,
+  [type="tel"]:focus,
+  [type="time"]:focus,
+  [type="week"]:focus,
+  [multiple]:focus,
+  textarea:focus,
+  select:focus {
+    --tw-ring-color: var(--app-text);
+    border-color: var(--app-text);
+  }
+  [type="checkbox"]:focus,
+  [type="radio"]:focus {
+    --tw-ring-color: var(--app-text);
   }
 }
 
@@ -250,23 +341,26 @@ textarea {
     }
   }
 
+  /* 화면 배경은 평평한 app-bg(그라데이션 금지). */
   .app-page {
-    @apply min-h-screen bg-gradient-to-b from-slate-50 via-white to-slate-50/70 dark:from-slate-950 dark:via-slate-950 dark:to-slate-900/80;
+    @apply min-h-screen bg-app-bg;
   }
 
   .app-section {
     @apply py-6;
   }
 
+  /* 섹션 사이 회색 갭(app-gap). */
   .app-section-muted {
-    @apply py-6 border-y border-slate-100 bg-slate-50/80 dark:border-slate-800 dark:bg-slate-900/70;
+    @apply py-6 border-y border-app-line bg-app-gap;
+  }
+
+  .app-section-gap {
+    @apply h-2 bg-app-gap;
   }
 
   .app-card {
-    @apply rounded-xl border border-slate-200/80 bg-white dark:border-slate-800/90 dark:bg-slate-900;
-    box-shadow:
-      0 1px 2px rgba(15, 23, 42, 0.05),
-      0 4px 10px rgba(15, 23, 42, 0.04);
+    @apply rounded-xl border border-app-border bg-app-elevated shadow-card;
   }
 
   .app-rail {
@@ -297,119 +391,89 @@ textarea {
   }
 
   .app-card-interactive {
-    @apply transition-[transform,box-shadow,background-color,border-color] duration-200 ease-out;
-    will-change: transform;
+    @apply transition-colors duration-200 ease-out;
   }
 
+  /* 헤더(h-14) 아래 고정 레일. blur 없이 불투명 app-bg. */
   .app-sticky-rail {
-    @apply sticky top-14 z-10 border-b border-slate-100 bg-white/90 backdrop-blur-xl dark:border-slate-800 dark:bg-slate-950/90;
+    @apply sticky top-14 z-10 border-b border-app-line bg-app-bg;
   }
 
   .app-section-title {
-    @apply text-[18px] leading-tight font-bold tracking-[-0.02em] text-slate-900 dark:text-slate-100;
+    @apply text-[16px] leading-tight font-bold tracking-[-0.02em] text-app-text;
   }
 
   .app-section-link {
-    @apply inline-flex items-center gap-1 text-[13px] font-semibold text-slate-500 transition-colors hover:text-slate-800 dark:text-slate-400 dark:hover:text-slate-100;
+    @apply inline-flex items-center gap-1 text-[13px] font-medium text-app-muted transition-colors hover:text-app-text;
   }
 
   .app-title-xl {
-    @apply text-[26px] leading-[1.2] font-extrabold tracking-[-0.03em] text-slate-950 dark:text-slate-50;
+    @apply text-[24px] leading-[1.25] font-bold tracking-[-0.03em] text-app-strong;
   }
 
   .app-title-lg {
-    @apply text-[21px] leading-tight font-bold tracking-[-0.02em] text-slate-900 dark:text-slate-100;
+    @apply text-[18px] leading-tight font-bold tracking-[-0.02em] text-app-text;
   }
 
   .app-title-md {
-    @apply text-[16px] leading-tight font-semibold tracking-[-0.02em] text-slate-900 dark:text-slate-100;
+    @apply text-[16px] leading-tight font-semibold tracking-[-0.02em] text-app-text;
   }
 
   .app-body-md {
-    @apply text-[14px] leading-[1.55] font-medium text-slate-600 dark:text-slate-300;
+    @apply text-[14px] leading-[1.55] font-normal text-app-sub;
   }
 
   .app-body-sm {
-    @apply text-[13px] leading-[1.5] font-medium text-slate-500 dark:text-slate-400;
+    @apply text-[13px] leading-[1.5] font-normal text-app-muted;
   }
 
   .app-caption {
-    @apply text-[12px] leading-[1.35] font-medium text-slate-400 dark:text-slate-500;
+    @apply text-[12px] leading-[1.35] font-normal text-app-muted;
   }
 
   .app-kicker {
-    @apply text-[11px] leading-none font-semibold uppercase tracking-[0.06em] text-slate-400 dark:text-slate-500;
+    @apply text-[12px] leading-none font-semibold text-app-muted;
   }
 
+  /* 중립 pill(상태·브리더 뱃지 등). */
   .app-pill-muted {
-    @apply inline-flex shrink-0 items-center gap-1 whitespace-nowrap rounded-full bg-slate-100 px-2 py-1 text-[11px] font-semibold leading-none text-slate-600 dark:bg-slate-800 dark:text-slate-300;
+    @apply inline-flex shrink-0 items-center gap-1 whitespace-nowrap rounded bg-app-surface px-1.5 py-0.5 text-[12px] font-medium leading-4 text-app-muted;
   }
 
   .app-pill-accent {
-    @apply inline-flex shrink-0 items-center gap-1 whitespace-nowrap rounded-full bg-primary/10 px-2 py-1 text-[11px] font-semibold leading-none text-primary;
+    @apply inline-flex shrink-0 items-center gap-1 whitespace-nowrap rounded bg-app-brand-soft px-1.5 py-0.5 text-[12px] font-semibold leading-4 text-app-brand;
   }
 
   .app-count-chip {
-    @apply inline-flex shrink-0 items-center whitespace-nowrap rounded-full border border-slate-200 bg-white px-2.5 py-1 text-[11px] font-semibold leading-none text-slate-500 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300;
+    @apply inline-flex shrink-0 items-center whitespace-nowrap rounded-full border border-app-border bg-app-bg px-2.5 py-1 text-[12px] font-medium leading-none text-app-muted;
   }
 
+  /* 필터 칩: h32 r16 px14 13px. 선택은 text 채움 + bg 글자 600. */
   .app-chip {
-    @apply inline-flex h-9 flex-shrink-0 items-center gap-1.5 whitespace-nowrap rounded-xl border px-3.5 text-[13px] font-semibold transition-[border-color,background-color,color,box-shadow];
+    @apply inline-flex h-8 flex-shrink-0 items-center justify-center gap-1 whitespace-nowrap rounded-2xl border px-3.5 text-[13px] font-medium transition-colors;
   }
 
   .app-chip-active {
-    @apply border-slate-900 bg-slate-900 text-white dark:border-slate-100 dark:bg-slate-100 dark:text-slate-900;
-    box-shadow:
-      0 1px 2px rgba(15, 23, 42, 0.12),
-      inset 0 1px 0 rgba(255, 255, 255, 0.08);
+    @apply border-app-text bg-app-text font-semibold text-app-bg;
   }
 
   .app-chip-muted {
-    @apply border-slate-200 bg-white text-slate-600 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300;
+    @apply border-app-border bg-app-bg text-app-sub;
   }
 }
 
 @media (hover: hover) {
   .app-card-interactive:hover {
-    transform: none;
-    border-color: rgba(148, 163, 184, 0.5);
-    box-shadow:
-      0 1px 2px rgba(15, 23, 42, 0.05),
-      0 6px 14px rgba(15, 23, 42, 0.06);
-  }
-
-  .app-chip:hover {
-    transform: none;
+    background-color: var(--app-gap);
   }
 
   .app-chip-muted:hover {
-    border-color: rgba(148, 163, 184, 0.45);
-    background-color: rgba(248, 250, 252, 0.95);
-    color: rgb(30, 41, 59);
-    box-shadow: 0 1px 2px rgba(15, 23, 42, 0.05);
+    background-color: var(--app-surface);
   }
 
   .app-section-link:hover > span {
     transform: translateX(2px);
   }
-
-  .app-fab:hover {
-    transform: translateY(-2px);
-  }
-}
-
-.dark .app-card-interactive:hover {
-  border-color: rgba(100, 116, 139, 0.7);
-  box-shadow:
-    0 1px 2px rgba(2, 6, 23, 0.35),
-    0 8px 20px rgba(2, 6, 23, 0.35);
-}
-
-.dark .app-chip-muted:hover {
-  border-color: rgba(100, 116, 139, 0.75);
-  background-color: rgba(30, 41, 59, 0.8);
-  color: rgb(226, 232, 240);
-  box-shadow: 0 1px 2px rgba(2, 6, 23, 0.2);
 }
 
 .app-card-interactive:active,
@@ -441,14 +505,33 @@ textarea {
   }
 }
 
-/* Toast (sonner) */
+/* Toast (sonner) — 색은 app 토큰(다크는 토큰이 자동 전환된다). */
 .app-sonner-toaster {
-  --toast-surface: #ffffff;
-  --toast-border: rgba(226, 232, 240, 0.92);
-  --toast-title: #0f172a;
-  --toast-description: #475569;
-  --toast-icon-bg: #f8fafc;
-  --toast-icon-fg: #475569;
+  --toast-surface: var(--app-elevated);
+  --toast-border: var(--app-border);
+  --toast-title: var(--app-text);
+  --toast-description: var(--app-sub);
+  --toast-icon-bg: var(--app-surface);
+  --toast-icon-fg: var(--app-sub);
+}
+
+/*
+ * 토스트 영역이 헤더(⋯·뒤로가기) 클릭을 막지 않게 한다. 컨테이너와 sonner 의 스와이프·간격용
+ * 가상 요소, 사라지는 중인 토스트는 클릭을 통과시키고, 보이는 토스트 본문만 클릭을 받는다.
+ */
+.app-sonner-toaster,
+[data-sonner-toaster] {
+  pointer-events: none;
+}
+
+[data-sonner-toast]::before,
+[data-sonner-toast]::after {
+  pointer-events: none;
+}
+
+[data-sonner-toast][data-removed="true"],
+[data-sonner-toast][data-visible="false"] {
+  pointer-events: none !important;
 }
 
 .app-sonner-toast {
@@ -459,11 +542,12 @@ textarea {
   width: min(380px, calc(100vw - 20px));
   margin: 0 auto;
   border: 1px solid var(--toast-border);
-  border-radius: 16px;
+  border-radius: 12px;
   background: var(--toast-surface);
-  box-shadow: 0 10px 26px rgba(15, 23, 42, 0.1);
+  box-shadow: var(--app-shadow-popover);
   padding: 12px 40px 12px 12px;
   white-space: normal;
+  pointer-events: auto;
 }
 
 .app-sonner-icon {
@@ -511,7 +595,7 @@ textarea {
 
 .app-sonner-description {
   color: var(--toast-description);
-  font-size: 12px;
+  font-size: 13px;
   font-weight: 400;
   line-height: 1.45;
   letter-spacing: -0.01em;
@@ -529,7 +613,7 @@ textarea {
   border: 0;
   border-radius: 9999px;
   background: transparent;
-  color: #64748b;
+  color: var(--app-muted);
   transition:
     background-color 0.2s ease,
     color 0.2s ease,
@@ -537,8 +621,8 @@ textarea {
 }
 
 .app-sonner-close:hover {
-  background: rgba(241, 245, 249, 0.9);
-  color: #0f172a;
+  background: var(--app-surface);
+  color: var(--app-text);
 }
 
 .app-sonner-close:active {
@@ -547,7 +631,7 @@ textarea {
 
 .app-sonner-action,
 .app-sonner-cancel {
-  border-radius: 10px;
+  border-radius: 6px;
   padding: 7px 10px;
   font-size: 12px;
   font-weight: 600;
@@ -555,67 +639,44 @@ textarea {
 }
 
 .app-sonner-action {
-  background: #0f172a;
-  color: #ffffff;
+  background: var(--app-inverse);
+  color: var(--app-inverse-text);
 }
 
 .app-sonner-cancel {
-  background: #f8fafc;
-  color: #334155;
+  background: var(--app-surface);
+  color: var(--app-sub);
 }
 
 .app-sonner-success {
-  --toast-icon-bg: #ecfdf5;
-  --toast-icon-fg: #059669;
+  --toast-icon-bg: var(--app-success-soft);
+  --toast-icon-fg: var(--app-success-text);
 }
 
 .app-sonner-error {
-  --toast-icon-bg: #fff1f2;
-  --toast-icon-fg: #e11d48;
+  --toast-icon-bg: var(--app-danger-soft);
+  --toast-icon-fg: var(--app-danger);
 }
 
 .app-sonner-info {
-  --toast-icon-bg: #eff6ff;
-  --toast-icon-fg: #2563eb;
+  --toast-icon-bg: var(--app-info-soft);
+  --toast-icon-fg: var(--app-info);
 }
 
 .app-sonner-warning {
-  --toast-icon-bg: #fff7ed;
-  --toast-icon-fg: #ea580c;
+  --toast-icon-bg: var(--app-warning-soft);
+  --toast-icon-fg: var(--app-warning-text);
 }
 
 .app-sonner-loading {
-  --toast-icon-bg: #f8fafc;
-  --toast-icon-fg: #475569;
-}
-
-.dark .app-sonner-toaster {
-  --toast-surface: #0f172a;
-  --toast-border: rgba(51, 65, 85, 0.92);
-  --toast-title: #f8fafc;
-  --toast-description: #cbd5e1;
-  --toast-icon-bg: #1e293b;
-  --toast-icon-fg: #cbd5e1;
-}
-
-.dark .app-sonner-toast {
-  box-shadow: 0 14px 32px rgba(2, 6, 23, 0.32);
-}
-
-.dark .app-sonner-close {
-  background: transparent;
-  color: #cbd5e1;
-}
-
-.dark .app-sonner-close:hover {
-  background: rgba(30, 41, 59, 0.95);
-  color: #f8fafc;
+  --toast-icon-bg: var(--app-surface);
+  --toast-icon-fg: var(--app-sub);
 }
 
 @media (max-width: 640px) {
   .app-sonner-toast {
     width: min(100vw - 16px, 380px);
-    border-radius: 14px;
+    border-radius: 12px;
     padding: 11px 36px 11px 11px;
   }
 
@@ -625,102 +686,105 @@ textarea {
   }
 }
 
-/* Legacy utility fallback for dark mode */
+/*
+ * Legacy utility fallback for dark mode — 아직 app-* 토큰으로 옮기지 않은 화면용.
+ * 셀렉터는 유지하고 값만 앱 다크 팔레트로 맞춘다.
+ */
 .dark .bg-white {
-  background-color: rgb(15 23 42 / 1);
+  background-color: var(--app-bg);
 }
 
 .dark .bg-gray-50,
 .dark .bg-slate-50 {
-  background-color: rgb(30 41 59 / 0.7);
+  background-color: var(--app-elevated);
 }
 
 .dark .bg-gray-100,
 .dark .bg-slate-100 {
-  background-color: rgb(30 41 59 / 1);
+  background-color: var(--app-surface);
 }
 
 .dark .bg-gray-200 {
-  background-color: rgb(51 65 85 / 1);
+  background-color: var(--app-border);
 }
 
 .dark .text-gray-900,
 .dark .text-slate-900 {
-  color: rgb(241 245 249 / 1);
+  color: var(--app-text);
 }
 
 .dark .text-gray-700,
 .dark .text-gray-600,
 .dark .text-slate-700,
 .dark .text-slate-600 {
-  color: rgb(203 213 225 / 1);
+  color: var(--app-sub);
 }
 
 .dark .text-gray-500,
 .dark .text-slate-500 {
-  color: rgb(148 163 184 / 1);
+  color: var(--app-muted);
 }
 
 .dark .text-gray-400,
 .dark .text-slate-400 {
-  color: rgb(100 116 139 / 1);
+  color: var(--app-muted);
 }
 
 .dark .border-gray-100,
 .dark .border-slate-100 {
-  border-color: rgb(51 65 85 / 0.75);
+  border-color: var(--app-line);
 }
 
 .dark .border-gray-200,
 .dark .border-slate-200 {
-  border-color: rgb(51 65 85 / 1);
+  border-color: var(--app-border);
 }
 
 .dark .border-gray-300,
 .dark .border-slate-300 {
-  border-color: rgb(71 85 105 / 1);
+  border-color: var(--app-border);
 }
 
 .dark .divide-gray-50 > :not([hidden]) ~ :not([hidden]) {
-  border-color: rgb(51 65 85 / 0.75);
+  border-color: var(--app-line);
 }
 
 .dark .hover\:bg-gray-50:hover {
-  background-color: rgb(30 41 59 / 0.7);
+  background-color: var(--app-elevated);
 }
 
 .dark .hover\:bg-gray-100:hover {
-  background-color: rgb(30 41 59 / 1);
+  background-color: var(--app-surface);
 }
 
 .dark .hover\:bg-gray-200:hover {
-  background-color: rgb(51 65 85 / 1);
+  background-color: var(--app-border);
 }
 
 .dark .hover\:bg-slate-50:hover {
-  background-color: rgb(30 41 59 / 0.7);
+  background-color: var(--app-elevated);
 }
 
 .dark .hover\:bg-slate-100:hover {
-  background-color: rgb(30 41 59 / 1);
+  background-color: var(--app-surface);
 }
 
 .dark .focus\:bg-white:focus {
-  background-color: rgb(15 23 42 / 1);
+  background-color: var(--app-bg);
 }
 
 .dark .bg-white\/92 {
-  background-color: rgb(2 6 23 / 0.92);
+  background-color: rgb(23 23 26 / 0.92);
 }
 
 .dark .bg-white\/90 {
-  background-color: rgb(2 6 23 / 0.9);
+  background-color: rgb(23 23 26 / 0.9);
 }
 
 .dark .bg-white\/80 {
-  background-color: rgb(15 23 42 / 0.8);
+  background-color: rgb(33 33 36 / 0.8);
 }
 
 .dark .border-slate-200\/80 {
-  border-color: rgb(51 65 85 / 0.8);
+  border-color: var(--app-border);
 }

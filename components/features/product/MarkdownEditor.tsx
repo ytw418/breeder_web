@@ -2,7 +2,6 @@
 
 import { useRef, useState } from "react";
 import { cn } from "@libs/client/utils";
-import { Textarea } from "@components/ui/textarea";
 import MarkdownPreview from "./MarkdownPreview";
 
 interface MarkdownEditorProps {
@@ -11,6 +10,8 @@ interface MarkdownEditorProps {
   onChange: (nextValue: string) => void;
   placeholder?: string;
   rows?: number;
+  /** 오류 상태면 테두리를 app-danger 로. */
+  hasError?: boolean;
 }
 
 const DESCRIPTION_TEMPLATE = `## 개체 정보
@@ -30,11 +31,37 @@ const DESCRIPTION_TEMPLATE = `## 개체 정보
 - 기타 안내:
 `;
 
-const toolbarButtonClass =
-  "px-2.5 py-1.5 text-xs rounded-md border border-gray-200 bg-white text-gray-700 hover:bg-gray-50 transition-colors disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-white";
-
-const modeButtonClass =
-  "px-3 py-1.5 text-xs font-semibold rounded-md transition-colors";
+/** 툴바 칩(앱 MarkdownEditor ToolbarChip): h32 r16 px12 13/500, 비활성 0.4. */
+function ToolbarChip({
+  label,
+  onClick,
+  disabled,
+  accent,
+  active,
+}: {
+  label: string;
+  onClick: () => void;
+  disabled?: boolean;
+  accent?: boolean;
+  active?: boolean;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      disabled={disabled}
+      aria-pressed={active === undefined ? undefined : active}
+      className={cn(
+        "inline-flex h-8 shrink-0 items-center justify-center whitespace-nowrap rounded-2xl border px-3 text-[13px] font-medium transition-opacity disabled:cursor-not-allowed disabled:opacity-40",
+        active
+          ? "border-app-inverse bg-app-inverse text-app-inverse-text"
+          : cn("border-app-border bg-app-bg", accent ? "text-app-brand" : "text-app-text")
+      )}
+    >
+      {label}
+    </button>
+  );
+}
 
 const MarkdownEditor = ({
   id,
@@ -42,6 +69,7 @@ const MarkdownEditor = ({
   onChange,
   placeholder = "상품 설명을 입력해주세요",
   rows = 8,
+  hasError = false,
 }: MarkdownEditorProps) => {
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const [mode, setMode] = useState<"write" | "preview">("write");
@@ -119,110 +147,56 @@ const MarkdownEditor = ({
     requestAnimationFrame(() => textareaRef.current?.focus());
   };
 
+  const editorMinHeight = Math.max(rows * 22, 180);
+
+  // 앱과 같은 구성: 32px 칩 툴바 한 줄(가로 스크롤, 마지막 칩이 작성/미리보기 토글) + 입력칸.
   return (
-    <div className="rounded-xl border border-gray-200 bg-white">
-      <div className="flex items-center justify-between gap-2 px-3 py-2 border-b border-gray-100 bg-gray-50 rounded-t-xl">
-        <div className="flex items-center gap-1.5 flex-wrap">
-          <button
-            type="button"
-            onClick={() => wrapSelection("**")}
-            disabled={isPreviewMode}
-            className={toolbarButtonClass}
-          >
-            굵게
-          </button>
-          <button
-            type="button"
-            onClick={() => wrapSelection("`")}
-            disabled={isPreviewMode}
-            className={toolbarButtonClass}
-          >
-            코드
-          </button>
-          <button
-            type="button"
-            onClick={() => prefixLine("- ")}
-            disabled={isPreviewMode}
-            className={toolbarButtonClass}
-          >
-            목록
-          </button>
-          <button
-            type="button"
-            onClick={() => prefixLine("1. ")}
-            disabled={isPreviewMode}
-            className={toolbarButtonClass}
-          >
-            번호
-          </button>
-          <button
-            type="button"
-            onClick={() => prefixLine("## ")}
-            disabled={isPreviewMode}
-            className={toolbarButtonClass}
-          >
-            제목
-          </button>
-          <button
-            type="button"
-            onClick={() => wrapSelection("[", "](https://)", "링크텍스트")}
-            disabled={isPreviewMode}
-            className={toolbarButtonClass}
-          >
-            링크
-          </button>
-          <button
-            type="button"
-            onClick={insertTemplate}
-            disabled={isPreviewMode}
-            className={cn(toolbarButtonClass, "text-primary border-primary/20")}
-          >
-            템플릿
-          </button>
-        </div>
-
-        <div className="inline-flex rounded-lg bg-white border border-gray-200 p-0.5">
-          <button
-            type="button"
-            onClick={() => setMode("write")}
-            className={cn(
-              modeButtonClass,
-              mode === "write" ? "bg-gray-900 text-white" : "text-gray-500"
-            )}
-          >
-            작성
-          </button>
-          <button
-            type="button"
-            onClick={() => setMode("preview")}
-            className={cn(
-              modeButtonClass,
-              mode === "preview" ? "bg-gray-900 text-white" : "text-gray-500"
-            )}
-          >
-            미리보기
-          </button>
-        </div>
+    <div className="flex flex-col gap-2">
+      <div className="flex gap-1.5 overflow-x-auto scrollbar-hide">
+        <ToolbarChip label="굵게" disabled={isPreviewMode} onClick={() => wrapSelection("**")} />
+        <ToolbarChip label="코드" disabled={isPreviewMode} onClick={() => wrapSelection("`")} />
+        <ToolbarChip label="목록" disabled={isPreviewMode} onClick={() => prefixLine("- ")} />
+        <ToolbarChip label="번호" disabled={isPreviewMode} onClick={() => prefixLine("1. ")} />
+        <ToolbarChip label="제목" disabled={isPreviewMode} onClick={() => prefixLine("## ")} />
+        <ToolbarChip
+          label="링크"
+          disabled={isPreviewMode}
+          onClick={() => wrapSelection("[", "](https://)", "링크텍스트")}
+        />
+        <ToolbarChip label="템플릿" accent disabled={isPreviewMode} onClick={insertTemplate} />
+        <ToolbarChip
+          label={isPreviewMode ? "작성" : "미리보기"}
+          active={isPreviewMode}
+          onClick={() => setMode(isPreviewMode ? "write" : "preview")}
+        />
       </div>
 
-      <div className="p-3">
-        {mode === "write" ? (
-          <Textarea
-            id={id}
-            ref={textareaRef}
-            value={value}
-            onChange={(event) => onChange(event.target.value)}
-            placeholder={placeholder}
-            rows={rows}
-            className="min-h-[180px] focus-visible:ring-1"
-          />
-        ) : (
-          <MarkdownPreview
-            content={value}
-            className="min-h-[180px] rounded-lg border border-gray-100 bg-gray-50 p-4"
-          />
-        )}
-      </div>
+      {mode === "write" ? (
+        <textarea
+          id={id}
+          ref={textareaRef}
+          value={value}
+          onChange={(event) => onChange(event.target.value)}
+          placeholder={placeholder}
+          rows={rows}
+          aria-invalid={hasError || undefined}
+          style={{ minHeight: editorMinHeight }}
+          className={cn(
+            "w-full resize-y rounded-lg border bg-app-bg px-3.5 py-3 text-[15px] leading-[22px] text-app-text placeholder:text-app-caption focus:outline-none focus:ring-0",
+            hasError ? "border-app-danger focus:border-app-danger" : "border-app-border focus:border-app-text"
+          )}
+        />
+      ) : (
+        <div
+          style={{ minHeight: editorMinHeight, maxHeight: Math.max(editorMinHeight, 260) }}
+          className={cn(
+            "overflow-y-auto rounded-lg border bg-app-gap p-3.5",
+            hasError ? "border-app-danger" : "border-app-border"
+          )}
+        >
+          <MarkdownPreview content={value} emptyClassName="border-0 bg-transparent p-0" />
+        </div>
+      )}
     </div>
   );
 };

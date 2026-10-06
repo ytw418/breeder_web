@@ -1,574 +1,672 @@
 "use client";
 
-import { authFetch } from "@libs/client/authFetch";
-import { useEffect, useMemo, useState } from "react";
-import { useForm } from "react-hook-form";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
-import useSWR from "swr";
-import Layout from "@components/features/MainLayout";
+import useSWR, { useSWRConfig } from "swr";
+
 import Image from "@components/atoms/Image";
-import { Button } from "@components/ui/button";
-import { Input } from "@components/ui/input";
-import { Textarea } from "@components/ui/textarea";
+import Layout from "@components/features/MainLayout";
+import { PriceInput } from "@components/app/PriceInput";
 import useMutation from "hooks/useMutation";
+import useUser from "hooks/useUser";
 import { cn, makeImageUrl } from "@libs/client/utils";
 import { toast } from "@libs/client/toast";
-import { AuctionDetailResponse } from "pages/api/auctions/[id]";
+import type { AuctionDetailResponse } from "pages/api/auctions/[id]";
 import {
+  AUCTION_EDIT_LOCK_MESSAGES,
   AUCTION_MIN_START_PRICE,
   AUCTION_PHOTOS_MAX,
+  getAuctionEditLockReason,
   getBidIncrement,
+  getPresetEndAtMs,
+  isAuctionDurationValid,
+  type AuctionEditLockReason,
 } from "@libs/auctionRules";
-import { getAuctionErrorMessage } from "@libs/client/auctionErrorMessage";
+import { getAuctionResultMessage } from "@libs/client/auctionErrorMessage";
 import { extractAuctionIdFromPath, toAuctionPath } from "@libs/auction-route";
 import { TOP_LEVEL_CATEGORIES, findCategoryBranch, getSubcategories } from "@libs/categoryTaxonomy";
-import { BloodlineCardsResponse } from "@libs/shared/bloodline-card";
+import type { BloodlineCardsResponse } from "@libs/shared/bloodline-card";
+import {
+  BottomCta,
+  ChipRow,
+  DURATION_PRESETS,
+  ErrorText,
+  FIELD_INPUT_CLASS,
+  FIELD_TEXTAREA_CLASS,
+  FieldLabel,
+  FormChip,
+  HelpText,
+  PhotoAddTile,
+  PhotoTile,
+  fieldBorder,
+  formatConfirmDateTime,
+  uploadImageFile,
+} from "../../AuctionFormParts";
 
-interface AuctionEditForm {
-  title: string;
-  description: string;
-  bloodlineRootId?: string;
-  startPrice: number;
-  endAt: string;
-  sellerPhone: string;
-  sellerEmail: string;
-  sellerBlogUrl: string;
-  sellerCafeNick: string;
-  sellerBandNick: string;
-  sellerTrustNote: string;
-}
+type Auction = NonNullable<AuctionDetailResponse["auction"]>;
+type TextKey =
+  | "title"
+  | "description"
+  | "endAt"
+  | "sellerPhone"
+  | "sellerEmail"
+  | "sellerBlogUrl"
+  | "sellerCafeNick"
+  | "sellerBandNick"
+  | "sellerTrustNote";
+type FormState = Record<TextKey, string>;
+type ErrorKey = "photos" | "category" | "title" | "description" | "startPrice" | "endAt";
+type ErrorState = Partial<Record<ErrorKey, string>>;
 
 interface AuctionUpdateResponse {
   success: boolean;
   error?: string;
   errorCode?: string;
+  message?: string;
+  status?: number;
   auction?: { id: number };
 }
 
-const DURATION_PRESETS = [
-  { label: "1시간", hours: 1 },
-  { label: "3시간", hours: 3 },
-  { label: "24시간", hours: 24 },
-  { label: "48시간", hours: 48 },
-  { label: "72시간", hours: 72 },
-];
+const normalizeText = (value: string) => value.trim();
 
-const toDateTimeLocalValue = (value: string | Date) => {
+/** datetime-local 값("YYYY-MM-DDTHH:mm", 로컬 시각). */
+const toLocalInputValue = (value: string | Date) => {
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) return "";
   const local = new Date(date.getTime() - date.getTimezoneOffset() * 60_000);
   return local.toISOString().slice(0, 16);
 };
-
 const toIsoDateTimeValue = (value: string) => {
-  const date = new Date(value);
+  const date = new Date(value.trim().replace(" ", "T"));
   return Number.isNaN(date.getTime()) ? "" : date.toISOString();
 };
+const toPresetEndAtInput = (hours: number) => toLocalInputValue(new Date(getPresetEndAtMs(hours)));
 
-const EditAuctionClient = () => {
-  const params = useParams();
+const buildInitialForm = (auction: Auction): FormState => ({
+  title: auction.title,
+  description: auction.description,
+  endAt: toLocalInputValue(auction.endAt),
+  sellerPhone: auction.sellerPhone || "",
+  sellerEmail: auction.sellerEmail || "",
+  sellerBlogUrl: auction.sellerBlogUrl || "",
+  sellerCafeNick: auction.sellerCafeNick || "",
+  sellerBandNick: auction.sellerBandNick || "",
+  sellerTrustNote: auction.sellerTrustNote || "",
+});
+
+function MessageState({
+  title,
+  description,
+  buttonLabel,
+  onClick,
+}: {
+  title: string;
+  description: string;
+  buttonLabel?: string;
+  onClick?: () => void;
+}) {
+  return (
+    <div className="flex min-h-[60vh] flex-col items-center justify-center px-5 text-center">
+      <p className="text-[18px] font-bold text-app-text">{title}</p>
+      <p className="mt-2 whitespace-pre-line text-[15px] leading-[22px] text-app-muted">{description}</p>
+      {buttonLabel && onClick ? (
+        <button
+          type="button"
+          onClick={onClick}
+          className="mt-5 h-[52px] w-full rounded-md bg-app-brand text-[16px] font-semibold text-white"
+        >
+          {buttonLabel}
+        </button>
+      ) : null}
+    </div>
+  );
+}
+
+function AuctionEditFormBody({
+  auction,
+  auctionId,
+  editAvailableUntilText,
+  lockReason,
+  onEditRejected,
+}: {
+  auction: Auction;
+  auctionId: number;
+  editAvailableUntilText: string;
+  /** 수정 중 입찰·시간 경과로 막히면 폼은 유지하고 저장만 막는다. */
+  lockReason: AuctionEditLockReason | null;
+  onEditRejected: () => void;
+}) {
   const router = useRouter();
-  const [photos, setPhotos] = useState<string[]>([]);
-  const [sellerProofImage, setSellerProofImage] = useState<string | null>(null);
+  const { mutate: globalMutate } = useSWRConfig();
+  const initialCategory = useMemo(() => findCategoryBranch(auction.category || ""), [auction.category]);
+  const [form, setForm] = useState<FormState>(() => buildInitialForm(auction));
+  // 종료 시각을 건드리지 않았으면 원래 값을 그대로 보낸다(입력칸은 분 단위라 초가 잘린다).
+  const [initialEndAt] = useState(() => ({ iso: new Date(auction.endAt).toISOString(), input: toLocalInputValue(auction.endAt) }));
+  const [startPrice, setStartPrice] = useState<number | null>(auction.startPrice || null);
+  const [photos, setPhotos] = useState<string[]>(() => auction.photos || []);
+  const [sellerProofImage, setSellerProofImage] = useState<string | null>(auction.sellerProofImage || null);
+  const [selectedCategory, setSelectedCategory] = useState(initialCategory.parent);
+  const [selectedSubcategory, setSelectedSubcategory] = useState(initialCategory.child);
+  const [selectedBloodlineRootId, setSelectedBloodlineRootId] = useState(
+    auction.bloodlineRootId ? String(auction.bloodlineRootId) : ""
+  );
+  const [selectedDuration, setSelectedDuration] = useState<number | null>(null);
+  const [errors, setErrors] = useState<ErrorState>({});
   const [uploading, setUploading] = useState(false);
   const [proofUploading, setProofUploading] = useState(false);
-  const [selectedCategory, setSelectedCategory] = useState("");
-  const [selectedSubcategory, setSelectedSubcategory] = useState("");
-  const [selectedDuration, setSelectedDuration] = useState<number | null>(null);
-  const [selectedBloodlineRootId, setSelectedBloodlineRootId] = useState("");
-  const auctionId = params?.id ? extractAuctionIdFromPath(params.id) : Number.NaN;
+  const submitLockRef = useRef(false);
 
-  const { data } = useSWR<AuctionDetailResponse>(
-    Number.isNaN(auctionId) ? null : `/api/auctions/${auctionId}`
-  );
+  const [updateAuction, { loading: submitting }] = useMutation<AuctionUpdateResponse>(`/api/auctions/${auctionId}`);
   const { data: bloodlineData } = useSWR<BloodlineCardsResponse>("/api/bloodline-cards");
 
-  const {
-    register,
-    handleSubmit,
-    reset,
-    setValue,
-    watch,
-    formState: { errors, isSubmitting },
-  } = useForm<AuctionEditForm>();
-
-  const [updateAuction, { loading }] = useMutation<AuctionUpdateResponse>(
-    Number.isNaN(auctionId) ? "" : `/api/auctions/${auctionId}`
-  );
-
-  useEffect(() => {
-    if (!data?.auction) return;
-    reset({
-      title: data.auction.title,
-      description: data.auction.description,
-      startPrice: data.auction.startPrice,
-      endAt: toDateTimeLocalValue(data.auction.endAt),
-      sellerPhone: data.auction.sellerPhone || "",
-      sellerEmail: data.auction.sellerEmail || "",
-      sellerBlogUrl: data.auction.sellerBlogUrl || "",
-      sellerCafeNick: data.auction.sellerCafeNick || "",
-      sellerBandNick: data.auction.sellerBandNick || "",
-      sellerTrustNote: data.auction.sellerTrustNote || "",
-    });
-    const branch = findCategoryBranch(data.auction.category || "");
-    setSelectedCategory(branch.parent);
-    setSelectedSubcategory(branch.child);
-    setSelectedBloodlineRootId(data.auction.bloodlineRootId ? String(data.auction.bloodlineRootId) : "");
-    setPhotos(data.auction.photos || []);
-    setSellerProofImage(data.auction.sellerProofImage || null);
-  }, [data?.auction, reset]);
-
-  const watchedStartPrice = Number(watch("startPrice") || 0);
+  const currentBidIncrement = getBidIncrement(startPrice ?? 0);
   const subcategories = selectedCategory ? getSubcategories(selectedCategory) : [];
-  const bloodlineOptions =
-    (bloodlineData?.myBloodlines?.length
-      ? bloodlineData.myBloodlines
-      : bloodlineData?.ownedCards || []
-    ).filter((card) => card.cardType === "BLOODLINE");
-  const currentBidIncrement = getBidIncrement(watchedStartPrice);
-  const editAvailableUntilText = useMemo(() => {
-    if (!data?.editAvailableUntil) return "-";
-    return new Date(data.editAvailableUntil).toLocaleString();
-  }, [data?.editAvailableUntil]);
+  const categoryForSubmit = selectedSubcategory || selectedCategory;
+  const bloodlineOptions = useMemo(
+    () =>
+      (bloodlineData?.myBloodlines?.length ? bloodlineData.myBloodlines : bloodlineData?.ownedCards || []).filter(
+        (card) => card.cardType === "BLOODLINE"
+      ),
+    [bloodlineData]
+  );
+  const customErrorMessages = [
+    errors.photos,
+    errors.category,
+    errors.title,
+    errors.description,
+    errors.startPrice,
+    errors.endAt,
+  ].filter((message): message is string => Boolean(message));
+  const busy = submitting || uploading || proofUploading;
+  const locked = lockReason !== null;
+  const lockMessage = lockReason ? AUCTION_EDIT_LOCK_MESSAGES[lockReason] : null;
+  const endAtChanged = form.endAt.trim() !== initialEndAt.input;
 
-  const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const files = e.target.files;
-    if (!files || files.length === 0) return;
-    if (photos.length + files.length > AUCTION_PHOTOS_MAX) {
-      toast.error(`이미지는 최대 ${AUCTION_PHOTOS_MAX}장까지 등록 가능합니다.`);
-      return;
-    }
+  const updateForm = (key: TextKey, value: string) => {
+    setForm((prev) => ({ ...prev, [key]: value }));
+    if (key in errors) setErrors((prev) => ({ ...prev, [key]: undefined }));
+  };
 
+  const handlePhotos = async (files: FileList) => {
+    if (uploading) return;
+    const remaining = AUCTION_PHOTOS_MAX - photos.length;
+    if (remaining <= 0) return;
+    if (files.length > remaining) toast.error(`이미지는 최대 ${AUCTION_PHOTOS_MAX}장까지 등록 가능합니다.`);
     setUploading(true);
     try {
-      for (const file of Array.from(files)) {
-        const urlRes = await authFetch("/api/files");
-        const urlData = await urlRes.json();
-
-        const form = new FormData();
-        form.append("file", file);
-
-        const uploadRes = await fetch(urlData.uploadURL, {
-          method: "POST",
-          body: form,
-        });
-        const uploadData = await uploadRes.json();
-        if (uploadData.success) {
-          setPhotos((prev) => [...prev, uploadData.result.id]);
-        }
+      // 한 장 올라갈 때마다 바로 담는다. 중간에 실패해도 앞서 올라간 사진은 남긴다.
+      for (const file of Array.from(files).slice(0, remaining)) {
+        const id = await uploadImageFile(file);
+        setPhotos((prev) => [...prev, id].slice(0, AUCTION_PHOTOS_MAX));
+        setErrors((prev) => ({ ...prev, photos: undefined }));
       }
-    } catch {
-      toast.error("이미지 업로드에 실패했습니다.");
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "이미지 업로드에 실패했습니다.");
     } finally {
       setUploading(false);
     }
   };
 
-  const handleRemoveImage = (index: number) => {
-    setPhotos((prev) => prev.filter((_, i) => i !== index));
-  };
-
-  const handleTrustProofUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-
+  const handleProof = async (file: File | undefined) => {
+    if (!file || proofUploading) return;
     setProofUploading(true);
     try {
-      const urlRes = await authFetch("/api/files");
-      const urlData = await urlRes.json();
-
-      const form = new FormData();
-      form.append("file", file);
-
-      const uploadRes = await fetch(urlData.uploadURL, {
-        method: "POST",
-        body: form,
-      });
-      const uploadData = await uploadRes.json();
-      if (uploadData.success) {
-        setSellerProofImage(uploadData.result.id);
-      } else {
-        toast.error("프로필 인증 이미지 업로드에 실패했습니다.");
-      }
-    } catch {
-      toast.error("프로필 인증 이미지 업로드에 실패했습니다.");
+      setSellerProofImage(await uploadImageFile(file, "프로필 인증 이미지 업로드에 실패했습니다."));
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "프로필 인증 이미지 업로드에 실패했습니다.");
     } finally {
       setProofUploading(false);
     }
   };
 
-  const handleDurationPreset = (hours: number) => {
-    setSelectedDuration(hours);
-    const endDate = new Date(Date.now() + hours * 60 * 60 * 1000);
-    setValue("endAt", toDateTimeLocalValue(endDate));
+  /** 칩(+N시간)은 저장 시점 기준으로 다시 계산해, 고른 뒤 시간이 흘러도 기간 제약을 넘지 않게 한다. */
+  const resolveEndAtInput = () => (selectedDuration !== null ? toPresetEndAtInput(selectedDuration) : form.endAt);
+
+  const validate = (endAtInput: string, changed: boolean) => {
+    const next: ErrorState = {};
+    if (photos.length === 0) next.photos = "최소 1장의 사진을 등록해주세요.";
+    if (!categoryForSubmit) next.category = "카테고리를 선택해주세요.";
+    if (!normalizeText(form.title)) next.title = "제목을 입력해주세요.";
+    if (!normalizeText(form.description)) next.description = "설명을 입력해주세요.";
+    if (startPrice === null || startPrice < AUCTION_MIN_START_PRICE) {
+      next.startPrice = `최소 ${AUCTION_MIN_START_PRICE.toLocaleString()}원 이상`;
+    }
+    const endAtIso = toIsoDateTimeValue(endAtInput);
+    if (!endAtIso) next.endAt = "유효한 종료 시각을 입력해주세요.";
+    else if (changed && !isAuctionDurationValid(endAtIso)) {
+      next.endAt = "종료 시각은 지금부터 1시간~72시간 사이로 정해주세요.";
+    }
+    setErrors(next);
+    return Object.keys(next).length === 0;
   };
 
-  const onSubmit = (form: AuctionEditForm) => {
-    if (!selectedCategory) {
-      toast.error("카테고리를 선택해주세요.");
+  const submit = async () => {
+    if (busy || locked || submitLockRef.current) return;
+    const endAtInput = resolveEndAtInput();
+    if (endAtInput !== form.endAt) setForm((prev) => ({ ...prev, endAt: endAtInput }));
+    const changed = endAtInput.trim() !== initialEndAt.input;
+    if (!validate(endAtInput, changed)) {
+      toast.error("필수 항목을 확인해주세요.");
       return;
     }
-    if (photos.length === 0) {
-      toast.error("최소 1장의 사진을 등록해주세요.");
-      return;
+    submitLockRef.current = true;
+    try {
+      const result = await updateAuction({
+        data: {
+          action: "update",
+          title: normalizeText(form.title),
+          description: normalizeText(form.description),
+          category: categoryForSubmit,
+          photos,
+          sellerProofImage,
+          startPrice: startPrice ?? 0,
+          endAt: changed ? toIsoDateTimeValue(endAtInput) : initialEndAt.iso,
+          sellerPhone: normalizeText(form.sellerPhone),
+          sellerEmail: normalizeText(form.sellerEmail),
+          sellerBlogUrl: normalizeText(form.sellerBlogUrl),
+          sellerCafeNick: normalizeText(form.sellerCafeNick),
+          sellerBandNick: normalizeText(form.sellerBandNick),
+          sellerTrustNote: normalizeText(form.sellerTrustNote),
+          bloodlineRootId: selectedBloodlineRootId ? Number(selectedBloodlineRootId) : null,
+        },
+      });
+      if (!result.success) {
+        // 폴링 사이에 입찰·마감이 생긴 경우: 최신 상태로 사유를 다시 판별한다.
+        if (result.errorCode === "AUCTION_EDIT_NOT_ALLOWED" || result.status === 403) onEditRejected();
+        toast.error(getAuctionResultMessage(result, "경매 수정 중 오류가 발생했습니다."));
+        return;
+      }
+      void globalMutate((key) => typeof key === "string" && key.startsWith("/api/auctions"), undefined, {
+        revalidate: true,
+      });
+      toast.success("경매가 수정되었습니다.");
+      router.replace(toAuctionPath(result.auction?.id || auctionId, normalizeText(form.title)));
+    } catch {
+      toast.error("네트워크 연결을 확인해 주세요.");
+    } finally {
+      submitLockRef.current = false;
     }
-    // 종료 시각 입력값을 건드리지 않았으면 서버에서 받은 원래 값을 그대로 보낸다.
-    // (datetime-local 은 분 단위라 그대로 변환하면 초가 잘려 "변경"으로 판정되고,
-    // 남은 시간이 1시간 미만인 경매는 수정이 막힌다 — #140)
-    const originalEndAt = data?.auction?.endAt;
-    const isEndAtUntouched =
-      Boolean(originalEndAt) && form.endAt === toDateTimeLocalValue(originalEndAt!);
-    const normalizedEndAt = isEndAtUntouched
-      ? new Date(originalEndAt!).toISOString()
-      : toIsoDateTimeValue(form.endAt);
-    if (!normalizedEndAt) {
-      toast.error("유효한 종료 시간을 입력해주세요.");
-      return;
-    }
-
-    updateAuction({
-      data: {
-        action: "update",
-        ...form,
-        endAt: normalizedEndAt,
-        category: selectedSubcategory || selectedCategory,
-        bloodlineRootId: selectedBloodlineRootId ? Number(selectedBloodlineRootId) : null,
-        photos,
-        sellerProofImage,
-        startPrice: Number(form.startPrice),
-      },
-      onCompleted(result) {
-        if (!result.success) {
-          return toast.error(
-            getAuctionErrorMessage(result.errorCode, result.error || "수정에 실패했습니다.")
-          );
-        }
-        toast.success("경매가 수정되었습니다.");
-        if (Number.isNaN(auctionId)) {
-          return router.push("/auctions");
-        }
-        router.push(toAuctionPath(auctionId, form.title));
-      },
-      onError() {
-        toast.error("오류가 발생했습니다.");
-      },
-    });
   };
-
-  if (!data?.auction) {
-    return (
-      <Layout canGoBack title="경매 수정" seoTitle="경매 수정">
-        <div className="flex items-center justify-center h-[60vh]">
-          <div className="animate-spin w-8 h-8 border-2 border-primary border-t-transparent rounded-full" />
-        </div>
-      </Layout>
-    );
-  }
-
-  if (!data.isOwner) {
-    return (
-      <Layout canGoBack title="경매 수정" seoTitle="경매 수정">
-        <div className="px-4 py-10 text-center">
-          <p className="text-sm text-slate-600">본인 경매만 수정할 수 있습니다.</p>
-        </div>
-      </Layout>
-    );
-  }
-
-  if (!data.canEdit) {
-    return (
-      <Layout canGoBack title="경매 수정" seoTitle="경매 수정">
-        <div className="px-4 py-8">
-          <div className="rounded-xl border border-slate-200 bg-white p-4 space-y-2">
-            <p className="text-sm font-semibold text-slate-900">수정 가능 시간이 지났습니다</p>
-            <p className="text-sm text-slate-600">
-              진행중 상태에서 등록 후 10분 이내, 입찰이 없는 경우에만 수정할 수 있습니다.
-            </p>
-            <p className="text-xs text-slate-400">수정 가능 마감: {editAvailableUntilText}</p>
-            <Button
-              type="button"
-              className="mt-2"
-              onClick={() => router.push(Number.isNaN(auctionId) ? "/auctions" : toAuctionPath(auctionId, data?.auction?.title))}
-            >
-              상세로 돌아가기
-            </Button>
-          </div>
-        </div>
-      </Layout>
-    );
-  }
 
   return (
-    <Layout canGoBack title="경매 수정" seoTitle="경매 수정">
-      <form onSubmit={handleSubmit(onSubmit)} className="px-4 py-4 space-y-6 pb-28">
-        <div className="rounded-xl border border-slate-200 bg-slate-50 px-3.5 py-3">
-          <p className="text-sm font-semibold text-slate-800">수정 가능 조건</p>
-          <p className="mt-1 text-xs text-slate-600">
-            진행중 + 등록 후 10분 이내 + 입찰 없음 상태에서만 수정할 수 있습니다.
-          </p>
-          <p className="mt-1 text-xs text-slate-500">수정 가능 마감: {editAvailableUntilText}</p>
-        </div>
+    <>
+      <div className="flex flex-col gap-5 bg-app-bg px-5 pt-5 pb-[calc(140px+env(safe-area-inset-bottom))]">
+        {lockMessage ? (
+          <div role="alert" className="rounded-lg bg-app-danger-soft px-3.5 py-3">
+            <p className="text-[14px] font-semibold text-app-danger">{lockMessage.title}</p>
+            <p className="mt-1 text-[13px] leading-5 text-app-muted">
+              {lockMessage.description} 입력한 내용은 저장되지 않아요.
+            </p>
+          </div>
+        ) : null}
 
+        <p className="text-[13px] leading-5 text-app-muted">
+          진행중 + 등록 후 10분 이내 + 입찰 없음일 때만 수정할 수 있어요.
+          <br />
+          수정 가능 마감: {editAvailableUntilText}
+        </p>
+
+        {/* 사진 */}
         <div>
-          <label className="block text-sm font-semibold text-gray-900 mb-2">
-            사진 등록 <span className="text-red-500">*</span>
-            <span className="text-xs font-normal text-gray-400 ml-1">({photos.length}/{AUCTION_PHOTOS_MAX})</span>
-          </label>
-          <div className="flex gap-2 overflow-x-auto pb-2">
-            {photos.length < AUCTION_PHOTOS_MAX && (
-              <label className="flex-shrink-0 w-20 h-20 rounded-lg border-2 border-dashed border-gray-300 flex items-center justify-center cursor-pointer hover:border-primary transition-colors">
-                <input
-                  type="file"
-                  accept="image/*"
-                  multiple
-                  onChange={handleImageUpload}
-                  className="hidden"
-                />
-                {uploading ? (
-                  <div className="w-5 h-5 border-2 border-primary border-t-transparent rounded-full animate-spin" />
-                ) : (
-                  <svg className="w-6 h-6 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
-                  </svg>
-                )}
-              </label>
-            )}
-            {photos.map((photo, i) => (
-              <div key={photo} className="relative flex-shrink-0 w-20 h-20 rounded-lg overflow-hidden">
-                <Image
-                  src={makeImageUrl(photo, "avatar")}
-                  className="w-full h-full object-cover"
-                  width={80}
-                  height={80}
-                  alt={`사진 ${i + 1}`}
-                />
-                <button
-                  type="button"
-                  onClick={() => handleRemoveImage(i)}
-                  className="absolute top-1 right-1 w-5 h-5 bg-black/60 rounded-full flex items-center justify-center"
-                >
-                  <svg className="w-3 h-3 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" />
-                  </svg>
-                </button>
-              </div>
+          <div className="flex gap-2 overflow-x-auto pt-1.5 pr-1.5 scrollbar-hide">
+            {photos.length < AUCTION_PHOTOS_MAX ? (
+              <PhotoAddTile
+                count={photos.length}
+                max={AUCTION_PHOTOS_MAX}
+                uploading={uploading}
+                onFiles={(files) => void handlePhotos(files)}
+              />
+            ) : null}
+            {photos.map((photo, index) => (
+              <PhotoTile
+                key={`${photo}-${index}`}
+                id={photo}
+                index={index}
+                onRemove={() => setPhotos((prev) => prev.filter((_, i) => i !== index))}
+              />
             ))}
           </div>
+          <ErrorText message={errors.photos} />
         </div>
 
+        {/* 제목 */}
         <div>
-          <label className="block text-sm font-semibold text-gray-900 mb-2">
-            카테고리 <span className="text-red-500">*</span>
-          </label>
-          <div className="flex flex-wrap gap-2">
-            {TOP_LEVEL_CATEGORIES.map((cat) => (
-              <button
-                key={cat.id}
-                type="button"
+          <FieldLabel label="제목" htmlFor="auction-title" />
+          <input
+            id="auction-title"
+            value={form.title}
+            onChange={(event) => updateForm("title", event.target.value)}
+            placeholder="예: 슈퍼 팻테일 게코 암컷 분양합니다"
+            className={cn(FIELD_INPUT_CLASS, fieldBorder(Boolean(errors.title)))}
+          />
+          <ErrorText message={errors.title} />
+        </div>
+
+        {/* 카테고리 */}
+        <div>
+          <FieldLabel label="카테고리" />
+          <ChipRow>
+            {TOP_LEVEL_CATEGORIES.map((category) => (
+              <FormChip
+                key={category.id}
+                label={category.name}
+                active={selectedCategory === category.id}
                 onClick={() => {
-                  setSelectedCategory(cat.id);
+                  setSelectedCategory(category.id);
                   setSelectedSubcategory("");
+                  setErrors((prev) => ({ ...prev, category: undefined }));
                 }}
-                className={cn(
-                  "px-3 py-1.5 rounded-full text-sm font-medium transition-colors",
-                  selectedCategory === cat.id
-                    ? "bg-gray-900 text-white"
-                    : "bg-gray-100 text-gray-600 hover:bg-gray-200"
-                )}
-              >
-                {cat.name}
-              </button>
+              />
             ))}
-          </div>
+          </ChipRow>
           {subcategories.length > 0 ? (
-            <div className="mt-2 flex flex-wrap gap-2">
+            <ChipRow className="mt-1.5">
               {subcategories.map((subcategory) => (
-                <button
+                <FormChip
                   key={subcategory}
-                  type="button"
-                  onClick={() => setSelectedSubcategory(subcategory)}
-                  className={cn(
-                    "rounded-full border px-3 py-1 text-xs font-medium transition-colors",
-                    selectedSubcategory === subcategory
-                      ? "border-primary bg-primary text-white"
-                      : "border-slate-200 bg-white text-slate-500 hover:bg-slate-50"
-                  )}
-                >
-                  {subcategory}
-                </button>
+                  label={subcategory}
+                  active={selectedSubcategory === subcategory}
+                  onClick={() => {
+                    setSelectedSubcategory(subcategory);
+                    setErrors((prev) => ({ ...prev, category: undefined }));
+                  }}
+                />
               ))}
-            </div>
+            </ChipRow>
           ) : null}
+          <ErrorText message={errors.category} />
         </div>
 
+        {/* 설명 */}
         <div>
-          <label className="mb-2 block text-sm font-semibold text-gray-900">
-            연결 혈통카드 <span className="text-xs font-normal text-gray-400">(선택)</span>
-          </label>
+          <FieldLabel label="설명" htmlFor="auction-description" />
+          <textarea
+            id="auction-description"
+            value={form.description}
+            onChange={(event) => updateForm("description", event.target.value)}
+            placeholder="개체 정보, 사육 환경, 거래 방식 등 입찰자가 궁금할 내용을 적어주세요."
+            className={cn(FIELD_TEXTAREA_CLASS, "min-h-[160px]", fieldBorder(Boolean(errors.description)))}
+          />
+          <ErrorText message={errors.description} />
+        </div>
+
+        {/* 시작가 */}
+        <div>
+          <FieldLabel label="시작가" htmlFor="auction-start-price" />
+          <PriceInput
+            id="auction-start-price"
+            value={startPrice}
+            onChange={(value) => {
+              setStartPrice(value);
+              setErrors((prev) => ({ ...prev, startPrice: undefined }));
+            }}
+            prefix="₩"
+            placeholder="10,000"
+            className={errors.startPrice ? "border-app-danger" : undefined}
+          />
+          <ErrorText message={errors.startPrice} />
+        </div>
+
+        {/* 최소 입찰 단위 */}
+        <div>
+          <FieldLabel label="최소 입찰 단위" />
+          <div className="flex h-12 items-center rounded-lg border border-app-border bg-app-surface px-3.5 text-[15px] text-app-text">
+            ₩ {currentBidIncrement.toLocaleString()}
+          </div>
+          <HelpText>시작가에 따라 자동으로 정해져요.</HelpText>
+        </div>
+
+        {/* 종료 시각 */}
+        <div>
+          <FieldLabel label="종료 시각" htmlFor="auction-end-at" />
+          <ChipRow>
+            {DURATION_PRESETS.map((preset) => (
+              <FormChip
+                key={preset.hours}
+                label={`+${preset.label}`}
+                active={selectedDuration === preset.hours}
+                onClick={() => {
+                  setSelectedDuration(preset.hours);
+                  updateForm("endAt", toPresetEndAtInput(preset.hours));
+                  setErrors((prev) => ({ ...prev, endAt: undefined }));
+                }}
+              />
+            ))}
+          </ChipRow>
+          <input
+            id="auction-end-at"
+            type="datetime-local"
+            value={form.endAt}
+            onChange={(event) => {
+              setSelectedDuration(null);
+              updateForm("endAt", event.target.value);
+            }}
+            className={cn(FIELD_INPUT_CLASS, "mt-2", fieldBorder(Boolean(errors.endAt)))}
+          />
+          <HelpText>
+            {endAtChanged
+              ? `바꾼 종료 시각은 지금부터 1시간~72시간 사이여야 해요.${
+                  selectedDuration !== null ? ` (${formatConfirmDateTime(toIsoDateTimeValue(form.endAt))})` : ""
+                }`
+              : "그대로 두면 기존 종료 시각이 유지돼요."}
+          </HelpText>
+          <ErrorText message={errors.endAt} />
+        </div>
+
+        {/* 연결 혈통카드(선택) */}
+        <div>
+          <FieldLabel label="연결 혈통카드" caption="선택" htmlFor="auction-bloodline" />
           <select
+            id="auction-bloodline"
             value={selectedBloodlineRootId}
             onChange={(event) => setSelectedBloodlineRootId(event.target.value)}
-            className="w-full rounded-md border border-gray-200 bg-white px-3 py-2 text-sm text-slate-700"
+            className={cn(FIELD_INPUT_CLASS, "border-app-border")}
           >
             <option value="">혈통 연결 안 함</option>
             {bloodlineOptions.map((card) => (
-              <option key={card.id} value={card.id}>
+              <option key={card.id} value={String(card.id)}>
                 {card.name}
                 {card.speciesType ? ` · ${card.speciesType}` : ""}
               </option>
             ))}
           </select>
-          <p className="mt-1 text-xs text-slate-500">
-            혈통을 연결하면 해당 경매의 낙찰가가 혈통 랭킹 집계에 반영됩니다.
-          </p>
+          <HelpText>혈통을 연결하면 해당 경매의 낙찰가가 혈통 랭킹 집계에 반영돼요.</HelpText>
         </div>
 
+        {/* 판매자 신뢰 정보(선택) */}
         <div>
-          <label className="block text-sm font-semibold text-gray-900 mb-2">
-            제목 <span className="text-red-500">*</span>
-          </label>
-          <Input
-            {...register("title", { required: "제목을 입력해주세요." })}
-            placeholder="예: 지리산 산삼 500g 출품합니다."
-          />
-          {errors.title && (
-            <p className="text-xs text-red-500 mt-1">{errors.title.message}</p>
-          )}
-        </div>
-
-        <div>
-          <label className="block text-sm font-semibold text-gray-900 mb-2">
-            상세 설명 <span className="text-red-500">*</span>
-          </label>
-          <Textarea
-            {...register("description", { required: "설명을 입력해주세요." })}
-            placeholder="경매 내용을 상세하게 적어주세요. 물품 정보, 거래 내역, 상태 등을 자세히 적어주세요."
-            rows={5}
-          />
-          {errors.description && (
-            <p className="text-xs text-red-500 mt-1">{errors.description.message}</p>
-          )}
-        </div>
-
-        <div>
-          <label className="block text-sm font-semibold text-gray-900 mb-2">
-            시작가 <span className="text-red-500">*</span>
-          </label>
-          <div className="relative">
-            <Input
-              type="number"
-              {...register("startPrice", {
-                required: "시작가를 입력해주세요.",
-                min: {
-                  value: AUCTION_MIN_START_PRICE,
-                  message: `최소 ${AUCTION_MIN_START_PRICE.toLocaleString()}원 이상`,
-                },
-              })}
-              placeholder="10000"
-              className="pr-8"
-            />
-            <span className="absolute right-3 top-1/2 -translate-y-1/2 text-sm text-gray-400">원</span>
-          </div>
-          {errors.startPrice && (
-            <p className="text-xs text-red-500 mt-1">{errors.startPrice.message}</p>
-          )}
-          <p className="text-xs text-gray-500 mt-1">
-            자동 입찰 단위: {currentBidIncrement.toLocaleString()}원
-          </p>
-        </div>
-
-        <div className="rounded-xl border border-slate-200 bg-white p-3.5">
-          <h3 className="text-sm font-semibold text-slate-900">판매자 신뢰 정보 (선택)</h3>
-          <div className="mt-3 grid grid-cols-1 gap-2.5">
-            <Input {...register("sellerPhone")} placeholder="연락처(전화번호)" />
-            <Input {...register("sellerEmail")} placeholder="연락 이메일" />
-            <Input {...register("sellerBlogUrl")} placeholder="블로그/프로필 URL" />
-            <Input {...register("sellerCafeNick")} placeholder="카페 닉네임" />
-            <Input {...register("sellerBandNick")} placeholder="밴드 닉네임" />
-            <Textarea
-              {...register("sellerTrustNote")}
-              rows={3}
-              placeholder="예: OO카페 활동 4년, 최근 3개월 거래 20건 무분쟁"
-            />
-
-            <div className="rounded-lg border border-slate-200 p-2.5">
-              <p className="text-xs font-medium text-slate-700">커뮤니티 프로필 캡처 (선택)</p>
-              <div className="mt-2 flex items-center gap-2">
-                <label className="inline-flex cursor-pointer items-center rounded-md border border-slate-300 px-2.5 py-1.5 text-xs font-medium text-slate-700">
-                  <input
-                    type="file"
-                    accept="image/*"
-                    onChange={handleTrustProofUpload}
-                    className="hidden"
-                  />
-                  {proofUploading ? "업로드 중..." : "이미지 업로드"}
-                </label>
-                {sellerProofImage ? (
-                  <button
-                    type="button"
-                    onClick={() => setSellerProofImage(null)}
-                    className="text-xs text-rose-600 underline underline-offset-2"
-                  >
-                    삭제
-                  </button>
-                ) : null}
-              </div>
-              {sellerProofImage ? (
-                <div className="relative mt-2 h-28 w-40 overflow-hidden rounded-md border border-slate-200">
-                  <Image
-                    src={makeImageUrl(sellerProofImage, "public")}
-                    className="object-cover"
-                    fill
-                    alt="커뮤니티 프로필 캡처"
-                  />
-                </div>
-              ) : null}
-            </div>
-          </div>
-        </div>
-
-        <div>
-          <label className="block text-sm font-semibold text-gray-900 mb-2">
-            경매 기간 <span className="text-red-500">*</span>
-          </label>
-          <div className="flex flex-wrap gap-2 mb-3">
-            {DURATION_PRESETS.map((preset) => (
-              <button
-                key={preset.hours}
-                type="button"
-                onClick={() => handleDurationPreset(preset.hours)}
-                className={cn(
-                  "px-3 py-1.5 rounded-full text-sm font-medium transition-colors",
-                  selectedDuration === preset.hours
-                    ? "bg-gray-900 text-white"
-                    : "bg-gray-100 text-gray-600 hover:bg-gray-200"
-                )}
-              >
-                +{preset.label}
-              </button>
+          <FieldLabel label="판매자 신뢰 정보" caption="선택" />
+          <div className="flex flex-col gap-2">
+            {(
+              [
+                ["sellerPhone", "연락처(전화번호)", "tel"],
+                ["sellerEmail", "연락 이메일", "email"],
+                ["sellerBlogUrl", "블로그/프로필 URL", "url"],
+                ["sellerCafeNick", "카페 닉네임", "text"],
+                ["sellerBandNick", "밴드 닉네임", "text"],
+              ] as const
+            ).map(([key, placeholder, type]) => (
+              <input
+                key={key}
+                type={type}
+                value={form[key]}
+                onChange={(event) => updateForm(key, event.target.value)}
+                placeholder={placeholder}
+                aria-label={placeholder}
+                autoCapitalize={type === "email" || type === "url" ? "none" : undefined}
+                className={cn(FIELD_INPUT_CLASS, "border-app-border")}
+              />
             ))}
+            <textarea
+              value={form.sellerTrustNote}
+              onChange={(event) => updateForm("sellerTrustNote", event.target.value)}
+              placeholder="예: OO카페 활동 4년, 최근 3개월 거래 20건 무분쟁"
+              aria-label="추가 안내"
+              className={cn(FIELD_TEXTAREA_CLASS, "min-h-[96px] border-app-border")}
+            />
           </div>
-          <Input
-            type="datetime-local"
-            {...register("endAt", { required: "종료 시간을 선택해주세요." })}
-          />
-          {errors.endAt && (
-            <p className="text-xs text-red-500 mt-1">{errors.endAt.message}</p>
-          )}
-        </div>
-
-        <div className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-100 p-4 z-10">
-          <div className="max-w-xl mx-auto">
-            <Button
-              type="submit"
-              disabled={loading || uploading || proofUploading || isSubmitting}
-              className="w-full h-12 text-base font-semibold rounded-xl"
+          <div className="mt-2.5 flex items-center gap-2.5">
+            <label
+              className={cn(
+                "inline-flex h-10 cursor-pointer items-center justify-center rounded-md bg-app-surface px-3.5 text-[14px] font-semibold text-app-text",
+                proofUploading && "pointer-events-none opacity-60"
+              )}
             >
-              {loading ? "수정 중..." : "경매 수정 완료"}
-            </Button>
+              {proofUploading ? "업로드 중..." : "프로필 캡처 올리기"}
+              <input
+                type="file"
+                accept="image/*"
+                className="hidden"
+                onChange={(event) => {
+                  void handleProof(event.target.files?.[0]);
+                  event.target.value = "";
+                }}
+              />
+            </label>
+            {sellerProofImage ? (
+              <button type="button" onClick={() => setSellerProofImage(null)} className="text-[14px] text-app-muted">
+                삭제
+              </button>
+            ) : null}
           </div>
+          {sellerProofImage ? (
+            <div className="relative mt-2.5 h-28 w-40 overflow-hidden rounded-md bg-app-placeholder">
+              <Image src={makeImageUrl(sellerProofImage, "public")} alt="판매자 신뢰 자료" fill sizes="160px" className="object-cover" />
+            </div>
+          ) : null}
         </div>
-      </form>
+      </div>
+
+      <BottomCta
+        label={submitting ? "수정 중..." : "경매 수정 완료"}
+        disabled={busy || locked}
+        onClick={() => void submit()}
+        errorText={lockMessage ? lockMessage.title : customErrorMessages.length ? customErrorMessages.join(" / ") : undefined}
+      />
+    </>
+  );
+}
+
+const formatDateTime = (value?: string | null) => {
+  if (!value) return "-";
+  return formatConfirmDateTime(value);
+};
+
+const EditAuctionClient = () => {
+  const params = useParams();
+  const router = useRouter();
+  const { user, isLoading: isUserLoading } = useUser();
+  const auctionId = params?.id ? extractAuctionIdFromPath(params.id) : Number.NaN;
+  const validAuctionId = Number.isFinite(auctionId);
+  const idParam = Array.isArray(params?.id) ? params?.id[0] : params?.id;
+
+  const { data, error, mutate } = useSWR<AuctionDetailResponse>(
+    validAuctionId && user ? `/api/auctions/${auctionId}` : null,
+    { refreshInterval: 5000 }
+  );
+  const auction = data?.auction;
+  const lockReason =
+    data && auction
+      ? getAuctionEditLockReason({
+          canEdit: Boolean(data.canEdit),
+          status: auction.status,
+          bidCount: auction._count?.bids ?? auction.bids?.length ?? 0,
+        })
+      : null;
+  // 한 번이라도 폼을 열었으면, 이후 폴링에서 수정 불가가 되어도 폼을 내리지 않는다(입력 유지).
+  const [formOpened, setFormOpened] = useState(false);
+  useEffect(() => {
+    if (data?.canEdit && !formOpened) setFormOpened(true);
+  }, [data?.canEdit, formOpened]);
+
+  useEffect(() => {
+    if (!isUserLoading && !user && validAuctionId) {
+      router.replace(`/auth/login?next=${encodeURIComponent(`/auctions/${idParam ?? ""}/edit`)}`);
+    }
+  }, [isUserLoading, user, validAuctionId, idParam, router]);
+
+  const errorStatus = (error as { status?: number } | undefined)?.status;
+  const spinner = (
+    <div className="flex min-h-[60vh] items-center justify-center" role="status" aria-label="불러오는 중">
+      <span className="h-6 w-6 animate-spin rounded-full border-2 border-app-border border-t-app-brand" />
+    </div>
+  );
+
+  const renderBody = () => {
+    if (!validAuctionId) {
+      return (
+        <MessageState
+          title="경매를 찾을 수 없습니다"
+          description="잘못된 경매 주소입니다."
+          buttonLabel="경매 목록으로 가기"
+          onClick={() => router.replace("/auctions")}
+        />
+      );
+    }
+    if (isUserLoading || !user) return spinner;
+    if (!data && !error) return spinner;
+    // 삭제(404)·권한 없음(403)은 다시 받아도 같으므로 받아 둔 폼을 내리고 목록으로 보낸다.
+    if (errorStatus === 404 || errorStatus === 403) {
+      return (
+        <MessageState
+          title="경매를 불러올 수 없습니다"
+          description={(error as Error | undefined)?.message || "삭제되었거나 볼 수 없는 경매입니다."}
+          buttonLabel="경매 목록으로 가기"
+          onClick={() => router.replace("/auctions")}
+        />
+      );
+    }
+    // 폴링이 한 번 실패해도 이미 받은 경매가 있으면 폼(입력 중인 내용)을 그대로 둔다.
+    if (!auction) {
+      return (
+        <MessageState
+          title="경매 정보를 불러오지 못했습니다"
+          description="잠시 후 다시 시도해주세요."
+          buttonLabel="다시 시도"
+          onClick={() => void mutate()}
+        />
+      );
+    }
+    if (!data?.isOwner) {
+      return (
+        <MessageState
+          title="본인 경매만 수정할 수 있습니다"
+          description="등록자가 아닌 계정으로는 경매 수정 화면에 접근할 수 없어요."
+          buttonLabel="상세로 돌아가기"
+          onClick={() => router.replace(toAuctionPath(auction.id, auction.title))}
+        />
+      );
+    }
+    if (lockReason && !formOpened) {
+      const message = AUCTION_EDIT_LOCK_MESSAGES[lockReason];
+      return (
+        <MessageState
+          title={message.title}
+          description={
+            lockReason === "time"
+              ? `${message.description}\n수정 가능 마감: ${formatDateTime(data.editAvailableUntil)}`
+              : message.description
+          }
+          buttonLabel="상세로 돌아가기"
+          onClick={() => router.replace(toAuctionPath(auction.id, auction.title))}
+        />
+      );
+    }
+    return (
+      <AuctionEditFormBody
+        key={auction.id}
+        auction={auction}
+        auctionId={auctionId}
+        editAvailableUntilText={formatDateTime(data.editAvailableUntil)}
+        lockReason={lockReason}
+        onEditRejected={() => void mutate()}
+      />
+    );
+  };
+
+  return (
+    <Layout canGoBack title="경매 수정" seoTitle="경매 수정">
+      {renderBody()}
     </Layout>
   );
 };

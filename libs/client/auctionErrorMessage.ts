@@ -42,6 +42,9 @@ const AUCTION_ERROR_MESSAGES: Record<string, string> = {
   REPORT_AUCTION_NOT_FOUND: "경매를 찾을 수 없습니다.",
   REPORT_SELF_NOT_ALLOWED: "본인 경매는 신고할 수 없습니다.",
   REPORT_ALREADY_EXISTS: "이미 접수된 신고가 있습니다. 운영자 검토를 기다려주세요.",
+  AUCTION_INVALID_BLOODLINE_ROOT: "연결할 원본 혈통카드를 찾을 수 없습니다.",
+  AUCTION_BLOODLINE_FORBIDDEN:
+    "내가 생성하거나 보유한 혈통카드만 경매에 연결할 수 있습니다.",
 };
 
 export const getAuctionErrorMessage = (
@@ -52,4 +55,22 @@ export const getAuctionErrorMessage = (
     return AUCTION_ERROR_MESSAGES[errorCode];
   }
   return fallback || "요청 처리 중 오류가 발생했습니다.";
+};
+
+/**
+ * useMutation 결과(HTTP 실패도 payload 로 온다)를 사용자 문구로 바꾼다(앱 getErrorMessage 대응).
+ * errorCode 문구 → 4xx 서버 문구(error/message) → fallback 순서. 5xx 는 서버 문구 대신 fallback.
+ */
+export const getAuctionResultMessage = (
+  result: { errorCode?: string; error?: string; message?: string; status?: number } | null | undefined,
+  fallback: string
+) => {
+  if (result?.errorCode && AUCTION_ERROR_MESSAGES[result.errorCode]) {
+    return AUCTION_ERROR_MESSAGES[result.errorCode];
+  }
+  const serverMessage = (result?.error || result?.message || "").trim();
+  if (serverMessage && (result?.status === undefined || result.status < 500)) {
+    return serverMessage;
+  }
+  return fallback;
 };
