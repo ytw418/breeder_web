@@ -8,7 +8,6 @@ import {
 } from "@libs/shared/deletedUser";
 import ProductClient from "./ProductClient";
 import Script from "next/script";
-import Image from "@components/atoms/Image";
 
 const CLOUDFLARE_IMAGE_BASE = "https://imagedelivery.net/OvWZrAz6J6K7n9LKUH5pKw";
 const DEFAULT_OG_IMAGE = "/opengraph-image";
@@ -186,6 +185,11 @@ export default async function ProductPage({ params }: Props) {
   const data = await getProduct(productId);
 
   if (!data.success || !data.product) {
+    // 삭제·숨김 상품은 비로그인 SSR 에서 404(PRODUCT_HIDDEN)다. 소유자는 토큰으로 다시 받아 안내를 봐야 하므로
+    // 이 경우만 클라이언트에 맡긴다(메타데이터는 noindex). 그 밖의 없는 상품은 404.
+    if (data.error?.includes("숨겨진 상품")) {
+      return <ProductClient success={false} />;
+    }
     notFound();
   }
 
@@ -209,43 +213,11 @@ export default async function ProductPage({ params }: Props) {
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: JSON.stringify(breadcrumbJsonLd) }}
       />
-
-      {/* 브레드크럼 네비게이션 */}
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <nav className="flex py-3 text-gray-700" aria-label="Breadcrumb">
-          <ol className="inline-flex items-center space-x-1 md:space-x-3">
-            <li className="inline-flex items-center">
-              <a href="/" className="text-gray-700 hover:text-primary">
-                홈
-              </a>
-            </li>
-            <li aria-current="page">
-              <div className="flex items-center">
-                <svg
-                  className="w-6 h-6 text-gray-400"
-                  fill="currentColor"
-                  viewBox="0 0 20 20"
-                  xmlns="http://www.w3.org/2000/svg"
-                >
-                  <path
-                    fillRule="evenodd"
-                    d="M7.293 14.707a1 1 0 010-1.414L10.586 10 7.293 6.707a1 1 0 011.414-1.414l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0z"
-                    clipRule="evenodd"
-                  />
-                </svg>
-                <span className="ml-1 text-gray-500 md:ml-2">
-                  {data.product.name}
-                </span>
-              </div>
-            </li>
-          </ol>
-        </nav>
-        <ProductClient
-          product={normalizeDeletedUserNames(data.product)}
-          relatedProducts={normalizeDeletedUserNames(data.relatedProducts)}
-          success={data.success}
-        />
-      </div>
+      <ProductClient
+        product={normalizeDeletedUserNames(data.product)}
+        relatedProducts={normalizeDeletedUserNames(data.relatedProducts)}
+        success={data.success}
+      />
     </>
   );
 }
