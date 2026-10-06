@@ -46,6 +46,8 @@ interface PostDetail {
   title: string;
   description: string;
   category: string | null;
+  /** 관심 생물군(작성 화면 species). 수정 화면 초기값에 쓴다. */
+  type: string | null;
   image: string;
   /** 게시글 사진 id 목록. 구 데이터는 [image] 로 채운다. */
   images: string[];
