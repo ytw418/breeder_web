@@ -6,6 +6,11 @@ import { withAuth } from "@libs/server/auth";
 import { hasAdminAccess } from "@libs/server/adminAccess";
 import { checkNickname, isUniqueNameError } from "@libs/server/nickname";
 import { NICKNAME_TAKEN_MESSAGE } from "@libs/shared/nickname";
+import {
+  INVALID_REGION_MESSAGE,
+  REGION_REQUIRED_MESSAGE,
+  isValidRegion,
+} from "@libs/shared/regions";
 
 async function handler(
   req: NextApiRequest,
@@ -30,8 +35,62 @@ async function handler(
     if (req.method === "POST") {
       const {
         user,
-        body: { name, avatarId },
+        body: { name, avatarId, regionSido, regionSigungu, regionVisible },
       } = req;
+      const body = (req.body ?? {}) as Record<string, unknown>;
+
+      // 내 동네: 두 값을 함께 보낸다. 둘 다 null 이면 해제(노출도 같이 끈다), 목록에 없는 조합은 400.
+      const hasRegion = "regionSido" in body || "regionSigungu" in body;
+      if (hasRegion) {
+        if (regionSido == null && regionSigungu == null) {
+          await client.user.update({
+            where: { id: user?.id },
+            data: {
+              regionSido: null,
+              regionSigungu: null,
+              regionVisible: false,
+              regionUpdatedAt: new Date(),
+            },
+          });
+        } else if (!isValidRegion(regionSido, regionSigungu)) {
+          return res.status(400).json({
+            success: false,
+            error: INVALID_REGION_MESSAGE,
+            errorCode: "INVALID_REGION",
+          });
+        } else {
+          await client.user.update({
+            where: { id: user?.id },
+            data: { regionSido, regionSigungu, regionUpdatedAt: new Date() },
+          });
+        }
+      }
+
+      // 동네 브리더 노출(opt-in). 켜려면 동네가 있어야 한다.
+      if (typeof regionVisible === "boolean") {
+        const clearing = hasRegion && regionSido == null && regionSigungu == null;
+        if (regionVisible && !clearing) {
+          const current = hasRegion
+            ? { regionSigungu }
+            : await client.user.findUnique({
+                where: { id: user?.id },
+                select: { regionSigungu: true },
+              });
+          if (!current?.regionSigungu) {
+            return res.status(400).json({
+              success: false,
+              error: REGION_REQUIRED_MESSAGE,
+              errorCode: "REGION_REQUIRED",
+            });
+          }
+        }
+        if (!clearing) {
+          await client.user.update({
+            where: { id: user?.id },
+            data: { regionVisible },
+          });
+        }
+      }
 
       if (name != null) {
         // 형식(공백·길이·예약어)과 중복을 한 번에 검사한다. 본인의 현재 닉네임은 사용 가능.

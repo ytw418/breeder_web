@@ -15,6 +15,10 @@ import type { BreederProgramSummary } from "@libs/shared/breeder-program";
 import { resolvePostImagesInput, withPostImages } from "@libs/postImages";
 import { canWriteNoticePost, isNoticePostInput } from "@libs/server/postNotice";
 import { excludedAuthorIds, setViewerCacheHeader } from "@libs/server/blocks";
+import { REGION_REQUIRED_MESSAGE } from "@libs/shared/regions";
+
+/** 동네 글 카테고리. 앱 전용이라 POST_CATEGORIES(웹 UI 목록)에는 넣지 않는다. 등록 시 작성자 동네를 글에 복사한다. */
+export const REGION_POST_CATEGORY = "동네";
 
 /** 게시글 목록 응답 타입 */
 export interface PostWithUser extends Post {
@@ -42,7 +46,7 @@ const handler = async (
 ) => {
   if (req.method === "GET") {
     const {
-      query: { page = 1, category, sort, species },
+      query: { page = 1, category, sort, species, regionSido, regionSigungu },
     } = req;
     const selectedSort =
       typeof sort === "string" && ["latest", "popular", "comments"].includes(sort)
@@ -70,6 +74,14 @@ const handler = async (
 
     if (species && species !== "전체") {
       where.type = { in: getCategoryFilterValues(String(species)) };
+    }
+
+    // 동네 글: 시/도만 주면 시/도 전체, 시/군/구까지 주면 그 동네만.
+    if (typeof regionSido === "string" && regionSido) {
+      where.regionSido = regionSido;
+      if (typeof regionSigungu === "string" && regionSigungu) {
+        where.regionSigungu = regionSigungu;
+      }
     }
 
     // viewer 가 차단한 작성자의 글은 viewer 에게서만 뺀다(목록·페이지 수 모두).
@@ -175,6 +187,23 @@ const handler = async (
         .json({ success: false, error: "공지 작성 권한이 없습니다." });
     }
 
+    // '동네' 글은 등록 시점 작성자 동네를 복사한다. 동네가 없으면 쓸 수 없다.
+    let region: { regionSido: string; regionSigungu: string } | null = null;
+    if (category === REGION_POST_CATEGORY) {
+      const author = await client.user.findUnique({
+        where: { id: user.id },
+        select: { regionSido: true, regionSigungu: true },
+      });
+      if (!author?.regionSido || !author.regionSigungu) {
+        return res.status(400).json({
+          success: false,
+          error: REGION_REQUIRED_MESSAGE,
+          errorCode: "REGION_REQUIRED",
+        });
+      }
+      region = { regionSido: author.regionSido, regionSigungu: author.regionSigungu };
+    }
+
     const post = await client.post.create({
       data: {
         title,
@@ -183,6 +212,7 @@ const handler = async (
         description,
         category: category || null,
         type: species || null,
+        ...(region ?? {}),
         user: {
           connect: {
             id: user?.id,
