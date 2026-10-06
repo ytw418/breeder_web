@@ -65,7 +65,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const canonicalUrl = `https://bredy.app${getProductPath(product.id, product.name)}`;
   const keywordSet = new Set<string>([
     "브리디",
-    "애완동물 서비스",
+    "반려동물",
     "중고 거래",
     "분양",
     product.name,

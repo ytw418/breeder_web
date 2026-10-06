@@ -50,18 +50,18 @@ export const viewport: Viewport = {
 export const metadata: Metadata = {
   metadataBase: new URL(siteUrl),
   title: {
-    default: "Bredy | 애완동물 서비스",
+    default: "Bredy | 반려동물 경매·혈통카드",
     template: "%s | Bredy",
   },
   description:
-    "애완동물 서비스 브리디에서 링크형 경매 도구와 거래 기능을 쉽고 신뢰감 있게 시작해보세요.",
+    "카페·밴드는 그대로, 경매 링크만 올리세요. 브리디에서 곤충·파충류 경매와 혈통카드를 관리할 수 있습니다.",
   keywords: [
     "브리디",
-    "애완동물 서비스",
+    "곤충 경매",
+    "파충류 경매",
+    "혈통카드",
     "링크형 경매",
     "경매 도구",
-    "카카오 로그인",
-    "안전 거래",
     "반려동물",
     "중고 거래",
   ],
@@ -71,23 +71,23 @@ export const metadata: Metadata = {
     locale: "ko_KR",
     url: "https://bredy.app",
     siteName: "Bredy",
-    title: "Bredy | 애완동물 서비스",
+    title: "Bredy | 반려동물 경매·혈통카드",
     description:
-      "애완동물 서비스 브리디에서 링크형 경매 도구와 거래 기능을 쉽고 신뢰감 있게 시작해보세요.",
+      "카페·밴드는 그대로, 경매 링크만 올리세요. 브리디에서 곤충·파충류 경매와 혈통카드를 관리할 수 있습니다.",
     images: [
       {
         url: "/opengraph-image",
         width: 1200,
         height: 630,
-        alt: "브리디 애완동물 서비스 공유 이미지",
+        alt: "브리디 반려동물 경매 공유 이미지",
       },
     ],
   },
   twitter: {
     card: "summary_large_image",
-    title: "Bredy | 애완동물 서비스",
+    title: "Bredy | 반려동물 경매·혈통카드",
     description:
-      "애완동물 서비스 브리디에서 링크형 경매 도구와 거래 기능을 쉽고 신뢰감 있게 시작해보세요.",
+      "카페·밴드는 그대로, 경매 링크만 올리세요. 브리디에서 곤충·파충류 경매와 혈통카드를 관리할 수 있습니다.",
     images: ["/twitter-image"],
     site: "@bredy",
     creator: "@bredy",

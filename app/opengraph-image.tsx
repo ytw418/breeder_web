@@ -85,7 +85,7 @@ export default function OpenGraphImage() {
                 fontWeight: 800,
               }}
             >
-              <span>애완동물 서비스</span>
+              <span>반려동물 경매</span>
               <span>브리디</span>
             </div>
             <div
