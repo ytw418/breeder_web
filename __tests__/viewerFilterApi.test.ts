@@ -194,14 +194,43 @@ describe("GET /api/posts 목록", () => {
 
     expect(mockClient.post.findMany.mock.calls[0][0].where).toEqual({
       NOT: { category: "공지" },
+      isHidden: false,
     });
     expect(res.headers["cache-control"]).toBe(PRIVATE_NO_STORE);
   });
 });
 
 describe("GET /api/posts/:id 댓글", () => {
-  it("비로그인이면 댓글 include·_count 는 기존 그대로", async () => {
+  it("비로그인이면 숨긴 댓글만 빼고 그 수도 같이 뺀다", async () => {
     const res = await call(postDetailHandler, { query: { id: "10" } });
+
+    expect(res.statusCode).toBe(200);
+    const include = mockClient.post.findUnique.mock.calls[0][0].include;
+    expect(include.comments.where).toEqual({ isHidden: false });
+    expect(include._count.select.comments).toEqual({ where: { isHidden: false } });
+  });
+
+  it("로그인 + 차단이 있으면 차단한 사람의 댓글과 숨긴 댓글(내 것 제외)을 뺀다", async () => {
+    blockAsViewer(BLOCKED_A);
+    const res = await call(postDetailHandler, { query: { id: "10" }, user: viewer });
+
+    expect(res.statusCode).toBe(200);
+    const include = mockClient.post.findUnique.mock.calls[0][0].include;
+    const expected = {
+      AND: [
+        { userId: { notIn: [BLOCKED_A] } },
+        { OR: [{ isHidden: false }, { userId: VIEWER }] },
+      ],
+    };
+    expect(include.comments.where).toEqual(expected);
+    expect(include._count.select.comments).toEqual({ where: expected });
+  });
+
+  it("관리자는 숨긴 댓글까지 모두 받는다", async () => {
+    const res = await call(postDetailHandler, {
+      query: { id: "10" },
+      user: { ...viewer, role: "ADMIN" } as NextApiRequest["user"],
+    });
 
     expect(res.statusCode).toBe(200);
     const include = mockClient.post.findUnique.mock.calls[0][0].include;
@@ -209,16 +238,33 @@ describe("GET /api/posts/:id 댓글", () => {
     expect(include._count.select.comments).toBe(true);
   });
 
-  it("로그인 + 차단이 있으면 차단한 사람의 댓글과 그 수를 뺀다", async () => {
-    blockAsViewer(BLOCKED_A);
-    const res = await call(postDetailHandler, { query: { id: "10" }, user: viewer });
+  it("숨긴 글은 작성자·관리자가 아니면 404 POST_HIDDEN", async () => {
+    const hiddenPost = {
+      ...(await mockClient.post.findUnique()),
+      userId: 1,
+      isHidden: true,
+    };
+    mockClient.post.findUnique.mockResolvedValue(hiddenPost);
 
-    expect(res.statusCode).toBe(200);
-    const include = mockClient.post.findUnique.mock.calls[0][0].include;
-    expect(include.comments.where).toEqual({ userId: { notIn: [BLOCKED_A] } });
-    expect(include._count.select.comments).toEqual({
-      where: { userId: { notIn: [BLOCKED_A] } },
+    const stranger = await call(postDetailHandler, { query: { id: "10" }, user: viewer });
+    expect(stranger.statusCode).toBe(404);
+    expect(stranger.body.errorCode).toBe("POST_HIDDEN");
+
+    const anonymous = await call(postDetailHandler, { query: { id: "10" } });
+    expect(anonymous.statusCode).toBe(404);
+
+    const author = await call(postDetailHandler, {
+      query: { id: "10" },
+      user: { id: 1, name: "작성자" } as NextApiRequest["user"],
     });
+    expect(author.statusCode).toBe(200);
+    expect(author.body.post.isHidden).toBe(true);
+
+    const admin = await call(postDetailHandler, {
+      query: { id: "10" },
+      user: { ...viewer, role: "SUPER_USER" } as NextApiRequest["user"],
+    });
+    expect(admin.statusCode).toBe(200);
   });
 });
 
@@ -321,7 +367,7 @@ describe("GET /api/auctions 목록", () => {
     const res = await call(auctionsHandler, { query: {} });
 
     expect(res.statusCode).toBe(200);
-    expect(mockClient.auction.findMany.mock.calls[0][0].where).toEqual({});
+    expect(mockClient.auction.findMany.mock.calls[0][0].where).toEqual({ isHidden: false });
     expect(res.headers["cache-control"]).toMatch(/^public, s-maxage=/);
     expect(res.headers["vary"]).toBe(VARY_AUTHORIZATION);
   });
@@ -331,7 +377,11 @@ describe("GET /api/auctions 목록", () => {
     const res = await call(auctionsHandler, { query: { status: "진행중" }, user: viewer });
 
     const where = mockClient.auction.findMany.mock.calls[0][0].where;
-    expect(where).toEqual({ status: "진행중", userId: { notIn: [BLOCKED_A] } });
+    expect(where).toEqual({
+      isHidden: false,
+      status: "진행중",
+      userId: { notIn: [BLOCKED_A] },
+    });
     expect(mockClient.auction.count.mock.calls[0][0].where).toEqual(where);
     expect(res.headers["cache-control"]).toBe(PRIVATE_NO_STORE);
   });

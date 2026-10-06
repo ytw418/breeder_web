@@ -86,7 +86,7 @@ async function handler(
       if (periodStart) where.createdAt = { gte: periodStart };
 
       const postRanking = await client.post.findMany({
-        where,
+        where: { ...where, isHidden: false },
         include: {
           user: { select: { id: true, name: true, avatar: true } },
           _count: { select: { Likes: true } },
@@ -110,7 +110,7 @@ async function handler(
       if (periodStart) where.createdAt = { gte: periodStart };
 
       const postRanking = await client.post.findMany({
-        where,
+        where: { ...where, isHidden: false },
         include: {
           user: { select: { id: true, name: true, avatar: true } },
           _count: { select: { Likes: true } },
@@ -134,7 +134,7 @@ async function handler(
       if (periodStart) where.createdAt = { gte: periodStart };
 
       const postRanking = await client.post.findMany({
-        where,
+        where: { ...where, isHidden: false },
         include: {
           user: { select: { id: true, name: true, avatar: true } },
           _count: { select: { Likes: true } },

@@ -116,6 +116,7 @@ async function handler(
         ? await client.post.findMany({
             where: {
               category: { not: "공지" },
+              isHidden: false,
               ...authorFilter,
               OR: [
                 { title: { contains: keyword, mode: "insensitive" } },

@@ -2,6 +2,7 @@ import { NextApiRequest, NextApiResponse } from "next";
 import withHandler, { ResponseType } from "@libs/server/withHandler";
 import client from "@libs/server/client";
 import { withAuth } from "@libs/server/auth";
+import { isModeratorUser } from "@libs/server/adminAccess";
 import type { Prisma } from "@prisma/client";
 
 export interface ProductListQuery {
@@ -52,10 +53,10 @@ async function handler(
 
     const pageSize = Math.min(Math.max(1, +size), 50); // 최소 1, 최대 50개로 제한
 
-    // 숨김(관리자 조치·탈퇴) 상품은 본인 목록에만 보인다. 직접 삭제한 상품은 본인에게도 빠진다.
+    // 숨김(관리자 조치·탈퇴) 상품은 본인·관리자 목록에만 보인다. 직접 삭제한 상품은 본인에게도 빠진다.
     const sellerId = +id.toString();
     const where: Prisma.ProductWhereInput =
-      req.user?.id === sellerId
+      req.user?.id === sellerId || isModeratorUser(req.user)
         ? { userId: sellerId, isDeleted: false }
         : { userId: sellerId, isHidden: false, isDeleted: false };
 

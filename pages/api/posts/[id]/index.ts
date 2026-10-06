@@ -12,6 +12,7 @@ import type { BreederProgramSummary } from "@libs/shared/breeder-program";
 import { resolvePostImagesInput, withPostImages } from "@libs/postImages";
 import { canWriteNoticePost, isNoticePostInput } from "@libs/server/postNotice";
 import { excludedAuthorIds } from "@libs/server/blocks";
+import { isModeratorUser } from "@libs/server/adminAccess";
 import { Prisma, type Post } from "@prisma/client";
 
 interface PostDetail {
@@ -31,6 +32,8 @@ interface PostDetail {
     };
     comment: string;
     createdAt: Date;
+    /** 운영자 숨김. 작성자·관리자에게만 내려온다. */
+    isHidden: boolean;
   }[];
   _count: {
     comments: number;
@@ -46,6 +49,8 @@ interface PostDetail {
   image: string;
   /** 게시글 사진 id 목록. 구 데이터는 [image] 로 채운다. */
   images: string[];
+  /** 운영자 숨김. 작성자·관리자만 숨긴 글을 받는다. */
+  isHidden: boolean;
 }
 
 interface AdjacentNotice {
@@ -232,7 +237,23 @@ async function getPostDetail(
 
   // viewer 가 차단한 사람의 댓글과 그 수를 뺀다. 차단이 없으면 기존 쿼리 그대로.
   const excluded = await excludedAuthorIds(user?.id);
-  const commentWhere = excluded.length ? { userId: { notIn: excluded } } : null;
+  const isModerator = isModeratorUser(user);
+  // 숨긴 댓글은 작성자 본인과 관리자에게만 보인다.
+  const hiddenCommentWhere: Prisma.CommentWhereInput | null = isModerator
+    ? null
+    : user?.id
+      ? { OR: [{ isHidden: false }, { userId: user.id }] }
+      : { isHidden: false };
+  const commentConditions: Prisma.CommentWhereInput[] = [
+    ...(excluded.length ? [{ userId: { notIn: excluded } }] : []),
+    ...(hiddenCommentWhere ? [hiddenCommentWhere] : []),
+  ];
+  const commentWhere: Prisma.CommentWhereInput | null =
+    commentConditions.length === 0
+      ? null
+      : commentConditions.length === 1
+        ? commentConditions[0]
+        : { AND: commentConditions };
 
   const post = await client.post.findUnique({
     where: {
@@ -256,6 +277,7 @@ async function getPostDetail(
           comment: true,
           id: true,
           createdAt: true,
+          isHidden: true,
           user: {
             select: {
               id: true,
@@ -282,11 +304,16 @@ async function getPostDetail(
   if (!post) {
     return res.status(404).json({ success: false, error: "게시글을 찾을 수 없습니다." });
   }
+  // 운영자가 숨긴 글은 작성자와 관리자만 본다(상품 PRODUCT_HIDDEN 과 같은 방식).
+  if (post.isHidden && post.userId !== user?.id && !isModerator) {
+    return sendPostError(res, 404, "POST_HIDDEN", "운영 정책에 따라 비공개된 게시글입니다.");
+  }
 
   const isNoticePost =
     post.category === "공지" || String(post.title || "").startsWith("[공지]");
 
   const noticeWhere = {
+    isHidden: false,
     OR: [{ category: "공지" }, { title: { startsWith: "[공지]" } }],
   };
 

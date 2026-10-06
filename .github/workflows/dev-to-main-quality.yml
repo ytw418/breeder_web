@@ -44,7 +44,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 20
     permissions:
-      checks: read
+      statuses: read
       pull-requests: read
     steps:
       - name: Wait for Vercel deployment check
@@ -63,41 +63,33 @@ jobs:
             const intervalMs = 10 * 1000;
             const startedAt = Date.now();
 
+            // Vercel 배포 결과는 check run 이 아니라 커밋 상태(context "Vercel")로 온다.
+            // 예전처럼 check run 이름에 "Vercel" 이 들어간 것을 찾으면 이 작업(wait_vercel) 자신이나
+            // "Vercel Preview Comments" 가 걸려, 자신이 가장 최근이면 끝날 때까지 자기 자신을 기다리다 시간 초과됐다.
             while (true) {
-              const { data } = await github.rest.checks.listForRef({
+              const { data } = await github.rest.repos.getCombinedStatusForRef({
                 owner,
                 repo,
                 ref,
                 per_page: 100,
               });
 
-              const vercelChecks = data.check_runs.filter((c) =>
-                /Vercel/i.test(c.name || "")
-              );
+              // getCombinedStatusForRef 는 context 마다 가장 최근 상태 하나만 돌려준다.
+              const vercelStatus = data.statuses.find((s) => s.context === "Vercel");
 
-              const vercelCheck = vercelChecks.sort(
-                (a, b) =>
-                  new Date(b.completed_at || b.started_at || b.updated_at || 0).getTime() -
-                  new Date(a.completed_at || a.started_at || a.updated_at || 0).getTime()
-              )[0];
+              if (vercelStatus) {
+                core.info(`Vercel status state=${vercelStatus.state}`);
 
-              if (vercelCheck) {
-                core.info(
-                  `Vercel check status=${vercelCheck.status}, conclusion=${vercelCheck.conclusion || "null"}`
-                );
-
-                if (vercelCheck.status === "completed") {
-                  if (vercelCheck.conclusion === "success") {
-                    core.info("Vercel deployment check passed.");
-                    return;
-                  }
-                  core.setFailed(
-                    `Vercel deployment check failed: ${vercelCheck.conclusion || "unknown"}`
-                  );
+                if (vercelStatus.state === "success") {
+                  core.info("Vercel deployment passed.");
+                  return;
+                }
+                if (vercelStatus.state === "failure" || vercelStatus.state === "error") {
+                  core.setFailed(`Vercel deployment failed: ${vercelStatus.state}`);
                   return;
                 }
               } else {
-                core.info("Vercel check not created yet. Waiting...");
+                core.info("Vercel status not created yet. Waiting...");
               }
 
               if (Date.now() - startedAt > timeoutMs) {

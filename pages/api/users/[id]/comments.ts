@@ -2,6 +2,7 @@ import { NextApiRequest, NextApiResponse } from "next";
 import withHandler, { ResponseType } from "@libs/server/withHandler";
 import client from "@libs/server/client";
 import { withAuth } from "@libs/server/auth";
+import { isModeratorUser } from "@libs/server/adminAccess";
 
 export interface UserCommentsQuery {
   id?: string | string[];
@@ -54,7 +55,11 @@ async function handler(
   const userId = +id.toString();
   const pageNumber = Math.max(1, +page);
 
-  const where = { userId };
+  // 숨긴 댓글·숨긴 글의 댓글은 작성자 본인과 관리자에게만 보인다.
+  const canSeeHidden = req.user?.id === userId || isModeratorUser(req.user);
+  const where = canSeeHidden
+    ? { userId }
+    : { userId, isHidden: false, post: { isHidden: false } };
 
   const [comments, commentCount] = await Promise.all([
     client.comment.findMany({
@@ -63,6 +68,7 @@ async function handler(
         id: true,
         comment: true,
         createdAt: true,
+        isHidden: true,
         post: {
           select: {
             id: true,

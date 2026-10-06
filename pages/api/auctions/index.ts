@@ -56,7 +56,8 @@ async function handler(
   if (req.method === "GET") {
     const { page = 1, status, category, q } = req.query;
 
-    const where: any = {};
+    // 운영자가 숨긴 경매는 목록에서 모두에게 뺀다(작성자는 프로필에서 본다).
+    const where: any = { isHidden: false };
     if (status && status !== "전체") where.status = String(status);
     if (category && category !== "전체") {
       where.category = { in: getCategoryFilterValues(String(category)) };

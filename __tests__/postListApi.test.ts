@@ -193,10 +193,10 @@ describe("GET /api/posts 정렬·페이지를 DB 에서 처리", () => {
 
   it("기본 피드는 공지를 빼고, 공지 카테고리를 고르면 공지만 본다", async () => {
     await getPosts({});
-    expect(findManyArgs().where).toEqual({ NOT: { category: "공지" } });
+    expect(findManyArgs().where).toEqual({ NOT: { category: "공지" }, isHidden: false });
 
     mockClient.post.findMany.mockClear();
     await getPosts({ category: "공지" });
-    expect(findManyArgs().where).toEqual({ category: "공지" });
+    expect(findManyArgs().where).toEqual({ category: "공지", isHidden: false });
   });
 });
