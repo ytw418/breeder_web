@@ -1,5 +1,6 @@
 import axios from "axios";
 import { clearTokens } from "@libs/client/authToken";
+import { clearGuinnessDrafts } from "@libs/client/guinnessDraft";
 
 export default function useLogout() {
   const handleLogout = async () => {
@@ -11,6 +12,8 @@ export default function useLogout() {
     } finally {
       // stateless 방식이므로 클라이언트 토큰 폐기가 실제 로그아웃이다.
       clearTokens();
+      // 같은 브라우저의 다음 계정에 브리디북 신청서 임시저장이 보이지 않게 지운다.
+      clearGuinnessDrafts(null);
       window.location.replace("/");
     }
   };
