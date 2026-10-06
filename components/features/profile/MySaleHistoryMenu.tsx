@@ -9,11 +9,11 @@ const MySaleHistoryMenu = () => {
   const { user } = useUser();
   // 마이페이지면 user.id 다른 유저의 프로필페이지면 params.id
   const id = params?.id ? Number(params?.id) : user?.id;
-  // 구매내역·관심목록은 본인만 볼 수 있다(API 도 본인 외 401/403). 다른 사람 프로필에는 판매내역만 둔다.
+  // 관심목록은 본인만 볼 수 있다(API 도 본인 외 401/403). 다른 사람 프로필에는 판매내역·구매내역만 둔다.
   const isOwner = !params?.id || (user?.id !== undefined && user.id === id);
 
   return (
-    <div className={`grid gap-2 ${isOwner ? "grid-cols-3" : "grid-cols-1"}`}>
+    <div className={`grid gap-2 ${isOwner ? "grid-cols-3" : "grid-cols-2"}`}>
       <Link
         href={`/profiles/${id}/sales`}
         className="flex flex-col items-center p-3 bg-white rounded-xl shadow-sm hover:shadow-md transition-shadow"
@@ -36,52 +36,50 @@ const MySaleHistoryMenu = () => {
         <span className="text-xs font-medium">판매내역</span>
       </Link>
 
-      {isOwner ? (
-        <>
-          <Link
-            href={`/profiles/${id}/purchases`}
-            className="flex flex-col items-center p-3 bg-white rounded-xl shadow-sm hover:shadow-md transition-shadow"
+      <Link
+        href={`/profiles/${id}/purchases`}
+        className="flex flex-col items-center p-3 bg-white rounded-xl shadow-sm hover:shadow-md transition-shadow"
+      >
+        <div className="w-11 h-11 text-primary rounded-full flex items-center justify-center mb-1.5">
+          <svg
+            className="w-5 h-5"
+            fill="none"
+            stroke="currentColor"
+            viewBox="0 0 24 24"
           >
-            <div className="w-11 h-11 text-primary rounded-full flex items-center justify-center mb-1.5">
-              <svg
-                className="w-5 h-5"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth="2"
-                  d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z"
-                />
-              </svg>
-            </div>
-            <span className="text-xs font-medium">구매내역</span>
-          </Link>
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              strokeWidth="2"
+              d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z"
+            />
+          </svg>
+        </div>
+        <span className="text-xs font-medium">구매내역</span>
+      </Link>
 
-          <Link
-            href={`/profiles/${id}/favs`}
-            className="flex flex-col items-center p-3 bg-white rounded-xl shadow-sm hover:shadow-md transition-shadow"
-          >
-            <div className="w-11 h-11 text-primary rounded-full flex items-center justify-center mb-1.5">
-              <svg
-                className="w-5 h-5"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth="2"
-                  d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z"
-                />
-              </svg>
-            </div>
-            <span className="text-xs font-medium">관심목록</span>
-          </Link>
-        </>
+      {isOwner ? (
+        <Link
+          href={`/profiles/${id}/favs`}
+          className="flex flex-col items-center p-3 bg-white rounded-xl shadow-sm hover:shadow-md transition-shadow"
+        >
+          <div className="w-11 h-11 text-primary rounded-full flex items-center justify-center mb-1.5">
+            <svg
+              className="w-5 h-5"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth="2"
+                d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z"
+              />
+            </svg>
+          </div>
+          <span className="text-xs font-medium">관심목록</span>
+        </Link>
       ) : null}
     </div>
   );
