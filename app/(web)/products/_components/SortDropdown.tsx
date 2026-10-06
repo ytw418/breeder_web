@@ -36,13 +36,16 @@ export function SortDropdown({
     const onKey = (event: KeyboardEvent) => {
       if (event.key === "Escape") setOpen(false);
     };
-    // 칩 줄이 가로 스크롤(overflow)이라 메뉴는 fixed 로 띄운다. 스크롤하면 위치가 어긋나니 닫는다.
-    const onScroll = () => setOpen(false);
+    // 칩 줄이 가로 스크롤(overflow)이라 메뉴는 fixed 로 띄운다. 페이지든 칩 줄이든 어디가 스크롤되거나
+    // 창 크기가 바뀌면 위치가 어긋나니 닫는다(캡처 단계라 요소 스크롤도 받는다).
+    const close = () => setOpen(false);
     document.addEventListener("mousedown", onPointer);
     document.addEventListener("keydown", onKey);
-    window.addEventListener("scroll", onScroll, { passive: true });
+    document.addEventListener("scroll", close, { capture: true, passive: true });
+    window.addEventListener("resize", close);
     return () => {
-      window.removeEventListener("scroll", onScroll);
+      document.removeEventListener("scroll", close, { capture: true });
+      window.removeEventListener("resize", close);
       document.removeEventListener("mousedown", onPointer);
       document.removeEventListener("keydown", onKey);
     };

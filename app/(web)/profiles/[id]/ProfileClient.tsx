@@ -121,7 +121,12 @@ const ProfileClient = () => {
     if (requireLogin() || followLoading) return;
     await toggleFollow({
       data: {},
-      onCompleted() {
+      onCompleted(result) {
+        // 차단·자기 자신 등 서버가 거절하면(success:false) 서버 문구를 그대로 알린다.
+        if (!result?.success) {
+          toast.error((result as { error?: string } | undefined)?.error || "팔로우 처리에 실패했습니다.");
+          return;
+        }
         void mutate();
       },
       onError() {

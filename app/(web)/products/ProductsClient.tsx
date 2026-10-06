@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import useSWRInfinite from "swr/infinite";
 
 import Layout from "@components/features/MainLayout";
@@ -20,11 +21,13 @@ import {
   parseProductFilterParams,
   priceChipLabel,
   PRODUCT_SORT_OPTIONS,
+  sameProductFilters,
   toProductsApiUrl,
   uniqueById,
   type ProductFilterParams,
   type ProductFilters,
   type ProductSort,
+  withProductFilterSearch,
 } from "@libs/productFilters";
 import useBlocks from "hooks/useBlocks";
 import { ProductFeedEmpty } from "./_components/ProductFeedEmpty";
@@ -38,12 +41,32 @@ const CATEGORY_TABS = [{ id: "전체", name: "전체" }, ...TOP_LEVEL_CATEGORIES
 /**
  * 상품 목록(앱 src/app/products/index.tsx). 필터 블록(대분류·하위분류·정렬·타입·판매중만·가격)을
  * 헤더 아래 고정하고, 그 아래 "전체 N개 · 초기화" 요약과 상품 행을 그린다.
- * URL 은 처음 한 번만 읽고 이후 필터는 화면 상태로 둔다(홈 "상품목록 ›", 무료나눔 카드, 하위분류 링크).
+ * 필터는 화면 상태로 두되 바꿀 때마다 URL 에 적고(router.replace), URL 이 바뀌면(링크·뒤로가기) 다시 읽는다.
+ * 그래서 상세에 갔다가 뒤로 오면 고른 필터가 그대로다(홈 "상품목록 ›", 무료나눔 카드, 하위분류 링크).
  */
 export default function ProductsClient({ initialParams }: { initialParams: ProductFilterParams }) {
+  const router = useRouter();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
+  const searchKey = searchParams?.toString() ?? "";
+  // 뒤로가기로 돌아오면 서버 initialParams 는 처음 URL 일 수 있어 현재 URL 을 먼저 읽는다.
   const [filters, setFilters] = useState<ProductFilters>(() =>
-    parseProductFilterParams(initialParams)
+    parseProductFilterParams(searchParams ?? initialParams)
   );
+
+  // URL → 상태: 같은 화면에서 링크로 쿼리가 바뀌면 따라간다.
+  useEffect(() => {
+    const fromUrl = parseProductFilterParams(new URLSearchParams(searchKey));
+    setFilters((prev) => (sameProductFilters(prev, fromUrl) ? prev : fromUrl));
+  }, [searchKey]);
+
+  // 상태 → URL: 기록을 쌓지 않고(replace) 스크롤도 건드리지 않는다.
+  useEffect(() => {
+    const current = window.location.search.replace(/^\?/, "");
+    if (sameProductFilters(parseProductFilterParams(new URLSearchParams(current)), filters)) return;
+    const next = withProductFilterSearch(current, filters);
+    router.replace(next ? `${pathname}?${next}` : pathname || "/products", { scroll: false });
+  }, [filters, pathname, router]);
   const [priceSheetOpen, setPriceSheetOpen] = useState(false);
   const categoryRailRef = useRef<HTMLDivElement>(null);
   const sentinelRef = useRef<HTMLDivElement>(null);

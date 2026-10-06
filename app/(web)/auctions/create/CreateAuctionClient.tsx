@@ -180,12 +180,12 @@ const CreateAuctionClient = () => {
     if (files.length > remaining) toast.error(`이미지는 최대 ${AUCTION_PHOTOS_MAX}장까지 등록 가능합니다.`);
     setUploading(true);
     try {
-      const ids: string[] = [];
+      // 한 장 올라갈 때마다 바로 담는다. 중간에 실패해도 앞서 올라간 사진은 남긴다.
       for (const file of Array.from(files).slice(0, remaining)) {
-        ids.push(await uploadImageFile(file));
+        const id = await uploadImageFile(file);
+        setPhotos((prev) => [...prev, id].slice(0, AUCTION_PHOTOS_MAX));
+        setErrors((prev) => ({ ...prev, photos: undefined }));
       }
-      setPhotos((prev) => [...prev, ...ids].slice(0, AUCTION_PHOTOS_MAX));
-      setErrors((prev) => ({ ...prev, photos: undefined }));
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "이미지 업로드에 실패했습니다.");
     } finally {
@@ -605,11 +605,14 @@ const CreateAuctionClient = () => {
         <div>
           <div className="mb-3 flex items-center justify-between">
             <span className="text-[15px] font-semibold text-app-text">운영 룰 동의</span>
-            {!isToolRoute ? (
-              <Link href="/auctions/rules" className="text-[14px] font-semibold text-app-brand">
-                룰 전체 보기
-              </Link>
-            ) : null}
+            {/* 툴 전용 룰 화면이 없어 공용 룰 화면을 쓴다. 툴에서는 작성 중인 폼을 두고 새 탭으로 연다. */}
+            <Link
+              href="/auctions/rules"
+              {...(isToolRoute ? { target: "_blank", rel: "noopener noreferrer" } : {})}
+              className="text-[14px] font-semibold text-app-brand"
+            >
+              룰 전체 보기
+            </Link>
           </div>
           <div className="flex flex-col gap-3">
             <AgreeRow

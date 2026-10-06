@@ -4,7 +4,7 @@ import { PRODUCT_PRICE_MAX } from "@libs/productRules";
 /**
  * 상품 목록(/products) 필터 상태 ↔ URL 파라미터 ↔ GET /api/products 쿼리.
  * 앱 bredy_app src/lib/productFilters.ts 와 같은 규칙.
- * URL 은 화면 마운트 때 한 번만 읽고, 이후 필터는 화면 로컬 상태로 둔다.
+ * 화면은 필터를 바꿀 때마다 URL 에도 적어 둔다(router.replace) — 상세에 갔다가 뒤로 오면 필터가 그대로다.
  */
 export type ProductSort = "latest" | "popular" | "priceAsc" | "priceDesc";
 
@@ -86,6 +86,48 @@ export function parseProductFilterParams(params: ProductFilterParams): ProductFi
     minPrice: price ?? toFilterPrice(readParam(params, "minPrice")),
     maxPrice: price ?? toFilterPrice(readParam(params, "maxPrice")),
   };
+}
+
+/** 상품 목록 URL 에서 필터가 쓰는 키. 그 밖의 키(utm 등)는 건드리지 않는다. */
+export const PRODUCT_FILTER_PARAM_KEYS = [
+  "category",
+  "productType",
+  "status",
+  "sort",
+  "price",
+  "minPrice",
+  "maxPrice",
+] as const;
+
+/** 필터 → URL 쿼리(기본값은 넣지 않는다). parseProductFilterParams 와 왕복한다. */
+export function serializeProductFilters(filters: ProductFilters): URLSearchParams {
+  const search = new URLSearchParams();
+  const category =
+    filters.subcategory || (filters.category !== "전체" ? filters.category : "");
+  if (category) search.set("category", category);
+  if (filters.productType) search.set("productType", filters.productType);
+  if (filters.onSaleOnly) search.set("status", "판매중");
+  if (filters.sort !== "latest") search.set("sort", filters.sort);
+  if (filters.minPrice === 0 && filters.maxPrice === 0) {
+    search.set("price", "0");
+  } else {
+    if (filters.minPrice !== undefined) search.set("minPrice", String(filters.minPrice));
+    if (filters.maxPrice !== undefined) search.set("maxPrice", String(filters.maxPrice));
+  }
+  return search;
+}
+
+/** 두 필터가 URL 로 적었을 때 같은지. */
+export function sameProductFilters(a: ProductFilters, b: ProductFilters): boolean {
+  return serializeProductFilters(a).toString() === serializeProductFilters(b).toString();
+}
+
+/** 현재 쿼리 문자열에서 필터 키만 바꿔 끼운 쿼리 문자열("?" 없음). */
+export function withProductFilterSearch(currentSearch: string, filters: ProductFilters): string {
+  const next = new URLSearchParams(currentSearch);
+  PRODUCT_FILTER_PARAM_KEYS.forEach((key) => next.delete(key));
+  serializeProductFilters(filters).forEach((value, key) => next.set(key, value));
+  return next.toString();
 }
 
 export type ProductQueryParams = {

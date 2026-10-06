@@ -67,7 +67,14 @@ export async function loadMergedBloodlineEvents(
       ? firstError
       : new Error("혈통 이벤트를 불러오지 못했습니다.");
   }
+  // 같은 이벤트가 여러 카드 응답에 함께 오면(예: 라인 카드와 원본 혈통) 한 번만 보여 준다.
+  const seen = new Set<number | string>();
   return loaded
     .flat()
+    .filter((event) => {
+      if (seen.has(event.id)) return false;
+      seen.add(event.id);
+      return true;
+    })
     .sort((left, right) => new Date(right.createdAt).getTime() - new Date(left.createdAt).getTime());
 }

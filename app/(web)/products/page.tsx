@@ -17,7 +17,7 @@ export const metadata: Metadata = {
 
 type SearchParams = Record<string, string | string[] | undefined>;
 
-/** 쿼리(category·status·price·minPrice·maxPrice·sort·productType)는 처음 한 번만 필터로 읽는다. */
+/** 쿼리(category·status·price·minPrice·maxPrice·sort·productType)를 필터로 읽는다. 이후 필터 변경은 클라이언트가 URL 에 다시 적는다. */
 export default async function ProductsPage({
   searchParams,
 }: {

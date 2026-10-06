@@ -29,6 +29,7 @@ import {
   AUCTION_EXTENSION_MS,
   AUCTION_EXTENSION_WINDOW_MS,
   getBidIncrement,
+  isBidAmountValid,
 } from "@libs/auctionRules";
 import type { AuctionDetailResponse } from "pages/api/auctions/[id]";
 import type { BidResponse } from "pages/api/auctions/[id]/bid";
@@ -246,7 +247,7 @@ const AuctionDetailClient = () => {
   const isTopBidder = Boolean(
     auction?.status === "진행중" && user?.id && auction?.bids?.[0]?.userId === user.id
   );
-  const isBiddable = auction?.status === "진행중" && !isOwner && !isTopBidder;
+  const isBiddable = auction?.status === "진행중" && !countdown.isEnded && !isOwner && !isTopBidder;
   const extensionMinutes = Math.floor(AUCTION_EXTENSION_MS / (60 * 1000));
   const extensionWindowMinutes = Math.floor(AUCTION_EXTENSION_WINDOW_MS / (60 * 1000));
   const winnerBid = auction?.winnerId
@@ -289,8 +290,18 @@ const AuctionDetailClient = () => {
       toast.error("입찰 전 주의사항 및 분쟁 정책 동의가 필요합니다.");
       return;
     }
-    if (!Number.isInteger(selectedBidAmount) || selectedBidAmount < minimumBid) {
-      toast.error(`최소 ${minimumBid.toLocaleString()}원 이상 입찰해야 합니다.`);
+    if (countdown.isEnded) {
+      toast.error("이미 종료된 경매입니다.");
+      return;
+    }
+    // 서버 BID_AMOUNT_RULE_VIOLATION 과 같은 기준·문구(최소 금액 이상 + 입찰 단위 배수).
+    if (
+      !Number.isInteger(selectedBidAmount) ||
+      !isBidAmountValid({ currentPrice: auction.currentPrice, bidAmount: selectedBidAmount })
+    ) {
+      toast.error(
+        `입찰 금액은 최소 ${minimumBid.toLocaleString()}원 이상이며 ${bidIncrement.toLocaleString()}원 단위여야 합니다.`
+      );
       return;
     }
     setConfirmBidAmount(selectedBidAmount);
@@ -757,7 +768,7 @@ const AuctionDetailClient = () => {
             <p className="text-[13px] text-app-muted">본인이 등록한 경매에는 입찰할 수 없습니다.</p>
           ) : isTopBidder ? (
             <p className="text-[13px] text-app-muted">현재 최고 입찰자는 다시 입찰할 수 없습니다.</p>
-          ) : auction.status !== "진행중" ? (
+          ) : auction.status !== "진행중" || countdown.isEnded ? (
             <p className="text-[13px] text-app-muted">종료된 경매입니다.</p>
           ) : null}
         </div>

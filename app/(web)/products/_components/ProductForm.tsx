@@ -171,6 +171,8 @@ export function ProductForm({
       return;
     }
 
+    // 저장에 성공하면 이동이 끝날 때까지 버튼을 잠근 채 둔다(다시 누르기·이탈 가드 재무장 방지).
+    let succeeded = false;
     try {
       setSubmitStep("images");
       // 올라간 사진은 바로 remote 로 바꿔 둔다. 일부가 실패해 다시 누르면 남은 사진만 올린다.
@@ -209,6 +211,7 @@ export function ProductForm({
       void globalMutate(
         (key) => typeof key === "string" && /^(\$inf\$)?\/api\/(products|users\/)/.test(key)
       );
+      succeeded = true;
       if (isEdit) {
         toast.success("상품이 수정되었습니다.");
         const path = getProductPath(product!.id, fields.name);
@@ -230,7 +233,7 @@ export function ProductForm({
             : "상품 등록에 실패했습니다. 다시 시도해주세요."
       );
     } finally {
-      setSubmitStep("idle");
+      if (!succeeded) setSubmitStep("idle");
     }
   };
 

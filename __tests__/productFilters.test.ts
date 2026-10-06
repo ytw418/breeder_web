@@ -5,7 +5,10 @@ import {
   normalizePriceRange,
   parseProductFilterParams,
   priceChipLabel,
+  sameProductFilters,
+  serializeProductFilters,
   toProductQueryParams,
+  withProductFilterSearch,
   toProductsApiUrl,
   uniqueById,
 } from "@libs/productFilters";
@@ -116,5 +119,48 @@ describe("필터 상태 도우미", () => {
       { id: 1, n: "a" },
       { id: 2, n: "b" },
     ]);
+  });
+});
+
+describe("필터 ↔ URL 왕복", () => {
+  const roundTrip = (filters: Parameters<typeof serializeProductFilters>[0]) =>
+    parseProductFilterParams(serializeProductFilters(filters));
+
+  it("기본 필터는 빈 쿼리", () => {
+    expect(serializeProductFilters(DEFAULT_PRODUCT_FILTERS).toString()).toBe("");
+    expect(sameProductFilters(roundTrip(DEFAULT_PRODUCT_FILTERS), DEFAULT_PRODUCT_FILTERS)).toBe(true);
+  });
+
+  it.each([
+    { ...DEFAULT_PRODUCT_FILTERS, category: "곤충" },
+    { ...DEFAULT_PRODUCT_FILTERS, category: "어류", subcategory: "구피", sort: "priceAsc" as const },
+    { ...DEFAULT_PRODUCT_FILTERS, productType: "용품" as const, onSaleOnly: true },
+    { ...DEFAULT_PRODUCT_FILTERS, minPrice: 0, maxPrice: 0, onSaleOnly: true },
+    { ...DEFAULT_PRODUCT_FILTERS, minPrice: 10_000, sort: "popular" as const },
+    { ...DEFAULT_PRODUCT_FILTERS, minPrice: 10_000, maxPrice: 50_000 },
+    { ...DEFAULT_PRODUCT_FILTERS, maxPrice: 10_000 },
+  ])("parse(serialize(f)) 는 f 와 같다: %o", (filters) => {
+    expect(roundTrip(filters)).toEqual({
+      ...filters,
+      minPrice: filters.minPrice,
+      maxPrice: filters.maxPrice,
+    });
+  });
+
+  it("무료나눔은 price=0 으로 적는다", () => {
+    expect(
+      serializeProductFilters({ ...DEFAULT_PRODUCT_FILTERS, minPrice: 0, maxPrice: 0 }).toString()
+    ).toBe("price=0");
+  });
+
+  it("필터 키만 바꾸고 다른 쿼리는 남긴다", () => {
+    const next = withProductFilterSearch("utm_source=x&category=곤충&minPrice=5", {
+      ...DEFAULT_PRODUCT_FILTERS,
+      sort: "popular",
+    });
+    expect(new URLSearchParams(next).get("utm_source")).toBe("x");
+    expect(new URLSearchParams(next).get("category")).toBeNull();
+    expect(new URLSearchParams(next).get("minPrice")).toBeNull();
+    expect(new URLSearchParams(next).get("sort")).toBe("popular");
   });
 });

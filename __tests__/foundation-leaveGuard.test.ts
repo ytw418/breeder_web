@@ -70,6 +70,14 @@ describe("leaveGuard 상태 머신", () => {
     expect(proceed).toEqual({ kind: "href", href: "/posts/1" });
   });
 
+  it("leave 뒤 dirty 가 false→true 로 다시 바뀌어도(저장 후 버튼 상태 복구) 계속 허용한다", () => {
+    let state = createLeaveGuardState(true);
+    state = leaveGuardTransition(state, { type: "allow" }).state;
+    state = leaveGuardTransition(state, { type: "setDirty", dirty: false }).state;
+    state = leaveGuardTransition(state, { type: "setDirty", dirty: true }).state;
+    expect(shouldBlockLeave(state)).toBe(false);
+  });
+
   it("setDirty 로 막기 여부가 바뀐다", () => {
     let state = createLeaveGuardState(false);
     state = leaveGuardTransition(state, { type: "setDirty", dirty: true }).state;

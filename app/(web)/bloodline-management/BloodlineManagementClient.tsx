@@ -9,8 +9,9 @@
  * → 칩 4개 → 1열 카드 리스트 → 하단 고정 CTA "새 혈통 만들기".
  * 상태: 로딩(요약 회색 바 + 카드 스켈레톤 2장) / 오류 + 다시 시도 / 빈 / 비로그인 → 로그인 이동.
  */
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
+import { useSearchParams } from "next/navigation";
 import useSWR from "swr";
 import Layout from "@components/features/MainLayout";
 import { FilterChip } from "@components/app/FilterChip";
@@ -30,6 +31,7 @@ import useUser from "hooks/useUser";
 import {
   bloodlineCardMeta,
   bloodlineCardTypeLabel,
+  bloodlineFilterFromFocus,
   cardsForBloodlineFilter,
   groupBloodlineCards,
   type BloodlineCardsResponse,
@@ -70,7 +72,13 @@ const linkClass =
 
 export default function BloodlineManagementClient() {
   const { user, isLoading: userLoading } = useUser();
-  const [filter, setFilter] = useState<BloodlineManagementFilter>("all");
+  const searchParams = useSearchParams();
+  const focusFilter = bloodlineFilterFromFocus(searchParams?.get("focus"));
+  const [filter, setFilter] = useState<BloodlineManagementFilter>(focusFilter ?? "all");
+  // ?focus=<섹션> 딥링크(예전 섹션 화면 값 포함)로 들어오면 해당 칩을 고른다.
+  useEffect(() => {
+    if (focusFilter) setFilter(focusFilter);
+  }, [focusFilter]);
 
   const { data, error, isLoading, mutate } = useSWR<BloodlineCardsResponse>(
     user?.id ? "/api/bloodline-cards" : null

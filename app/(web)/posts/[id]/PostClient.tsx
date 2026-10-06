@@ -159,6 +159,9 @@ const PostClient = ({
   const prevNotice = data?.prevNotice ?? initialPrevNotice;
   const nextNotice = data?.nextNotice ?? initialNextNotice;
   const isLiked = Boolean(data?.isLiked);
+  // 서버 초기값(initialPost)에는 내 좋아요 여부가 없다. 클라이언트 응답이 오기 전에 누르면 반대로 토글되니 막는다.
+  // 로그아웃 상태는 누르면 로그인으로 보내므로 막지 않는다.
+  const likeReady = !user || Boolean(data);
   const isNotice = isNoticePost(post);
   const detailPath = post ? toPostPath(post.id, post.title) : `/posts/${postApiId ?? ""}`;
   const authorId = post?.user?.id;
@@ -188,6 +191,7 @@ const PostClient = ({
   const handleLike = async () => {
     if (!post || likeLoading) return;
     if (!user) return goLogin();
+    if (!likeReady) return;
     setLikeLoading(true);
     const previous = data;
     void mutate(
@@ -450,7 +454,7 @@ const PostClient = ({
               type="button"
               aria-label="좋아요"
               aria-pressed={isLiked}
-              disabled={likeLoading}
+              disabled={likeLoading || !likeReady}
               onClick={() => void handleLike()}
               className={cn(
                 "flex h-8 items-center gap-1.5 rounded-2xl border bg-app-bg px-3 text-[13px] font-semibold",

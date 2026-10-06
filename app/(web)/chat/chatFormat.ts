@@ -140,6 +140,17 @@ export function mergeMessages<T extends ChatMessageLike>(prev: T[], incoming: T[
   return Array.from(map.values()).sort((a, b) => a.id - b.id);
 }
 
+/**
+ * "이전 대화 보기" 커서. 폴링은 최신 20개만 주므로 서버 nextCursor 를 그대로 쓰면
+ * 그사이 쌓인(창에서 밀려난) 메시지를 건너뛴다. 화면에 있는 가장 오래된 id 를 커서로 쓴다.
+ */
+export function olderMessagesCursor(messages: { id: number }[], hasMore: boolean): number | null {
+  if (!hasMore || messages.length === 0) return null;
+  let oldest = messages[0].id;
+  for (const message of messages) if (message.id < oldest) oldest = message.id;
+  return oldest;
+}
+
 export function isGroupedWithPrev(current: ChatMessageLike, prev?: ChatMessageLike): boolean {
   if (!prev) return false;
   if (current.user.id !== prev.user.id) return false;
@@ -234,6 +245,8 @@ export interface ImageUploadSummary {
   invalidType: number;
   oversized: number;
   failed: number;
+  /** 10장을 넘겨 고른 나머지 장수. */
+  overflow: number;
   serverError: string | null;
 }
 
@@ -242,6 +255,7 @@ export const emptyUploadSummary = (): ImageUploadSummary => ({
   invalidType: 0,
   oversized: 0,
   failed: 0,
+  overflow: 0,
   serverError: null,
 });
 
@@ -251,6 +265,7 @@ export function planImageUploads<F extends { type: string; size: number }>(
 ): { toSend: F[]; summary: ImageUploadSummary } {
   const summary = emptyUploadSummary();
   const toSend: F[] = [];
+  summary.overflow = Math.max(0, files.length - MAX_CHAT_IMAGES);
   for (const file of files.slice(0, MAX_CHAT_IMAGES)) {
     if (!file.type.startsWith("image/")) {
       summary.invalidType += 1;
@@ -268,6 +283,9 @@ export function planImageUploads<F extends { type: string; size: number }>(
 /** 업로드 결과 안내 문구(앱 Alert "이미지 업로드" 본문과 같다). */
 export function imageUploadNotices(summary: ImageUploadSummary): string[] {
   return [
+    summary.overflow > 0
+      ? `사진은 한 번에 ${MAX_CHAT_IMAGES}장까지 보낼 수 있어요. ${summary.overflow}장은 제외했어요.`
+      : null,
     summary.invalidType > 0 ? `이미지 파일이 아닌 ${summary.invalidType}개는 제외했습니다.` : null,
     summary.oversized > 0 ? `10MB를 넘는 이미지 ${summary.oversized}장은 제외했습니다.` : null,
     summary.failed > 0 ? `이미지 ${summary.failed}장을 보내지 못했습니다.` : null,

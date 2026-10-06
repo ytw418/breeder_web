@@ -141,7 +141,7 @@ export function ImageCarousel({
               aria-current={i === index ? "true" : undefined}
               onClick={() => goTo(i)}
               className={cn(
-                "pointer-events-auto h-2 w-2 rounded-full bg-white",
+                "pointer-events-auto h-2 w-2 rounded-full bg-[#fff]",
                 i === index ? "opacity-100" : "opacity-50"
               )}
             />

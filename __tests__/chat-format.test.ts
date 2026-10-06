@@ -11,6 +11,7 @@ import {
   imageUploadNotices,
   isDeletedPartnerName,
   mergeMessages,
+  olderMessagesCursor,
   planImageUploads,
   MAX_CHAT_IMAGE_SIZE,
 } from "@/app/(web)/chat/chatFormat";
@@ -88,6 +89,24 @@ describe("채팅방", () => {
     expect(mergeMessages([list[2], list[0]], [list[0], list[1]]).map((m) => m.id)).toEqual([1, 2, 3]);
   });
 
+  it("폴링 창(최신 N개)을 계속 쌓으면 창에서 밀려난 메시지가 남는다", () => {
+    const d = at(2026, 2, 14, 12);
+    const poll1 = [1, 2, 3].map((id) => msg(id, 1, d));
+    const poll2 = [3, 4, 5].map((id) => msg(id, 2, d)); // 1·2 는 창에서 밀려났다
+    let acc = mergeMessages([], poll1);
+    acc = mergeMessages(acc, poll2);
+    expect(acc.map((m) => m.id)).toEqual([1, 2, 3, 4, 5]);
+    // 같은 id 는 새로 받은 것으로 갱신
+    expect(acc.find((m) => m.id === 3)?.user.id).toBe(2);
+  });
+
+  it("이전 대화 커서는 화면의 가장 오래된 id", () => {
+    const d = at(2026, 2, 14, 12);
+    expect(olderMessagesCursor([7, 3, 9].map((id) => msg(id, 1, d)), true)).toBe(3);
+    expect(olderMessagesCursor([7, 3].map((id) => msg(id, 1, d)), false)).toBeNull();
+    expect(olderMessagesCursor([], true)).toBeNull();
+  });
+
   it("날짜 구분 + 5분 묶음", () => {
     const items = buildChatItems(list, 1, now);
     expect(items.map((i) => (i.type === "divider" ? i.label : i.messages.map((m) => m.id).join(",")))).toEqual([
@@ -130,7 +149,9 @@ describe("채팅방", () => {
     expect(toSend).toHaveLength(8);
     expect(summary.oversized).toBe(1);
     expect(summary.invalidType).toBe(1);
+    expect(summary.overflow).toBe(1);
     expect(imageUploadNotices({ ...summary, failed: 2, serverError: "이 사용자에게는 메시지를 보낼 수 없습니다." })).toEqual([
+      "사진은 한 번에 10장까지 보낼 수 있어요. 1장은 제외했어요.",
       "이미지 파일이 아닌 1개는 제외했습니다.",
       "10MB를 넘는 이미지 1장은 제외했습니다.",
       "이미지 2장을 보내지 못했습니다.",

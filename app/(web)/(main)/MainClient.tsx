@@ -148,6 +148,8 @@ function MiniCard({
       aria-label={`${title} 더보기`}
       onClick={open}
       onKeyDown={(event) => {
+        // 안쪽 행 링크에서 누른 Enter 는 그 링크가 처리한다(카드 이동과 겹치지 않게).
+        if (event.target !== event.currentTarget) return;
         if (event.key === "Enter") open();
       }}
       className="flex min-h-[126px] cursor-pointer flex-col gap-2 rounded-xl border border-app-border bg-app-elevated p-3 shadow-card"

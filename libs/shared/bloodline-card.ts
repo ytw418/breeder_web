@@ -169,6 +169,24 @@ export function groupBloodlineCards(
 
 export type BloodlineManagementFilter = "all" | "bloodline" | "line" | "received";
 
+const FOCUS_TO_FILTER: Record<string, BloodlineManagementFilter> = {
+  // 예전 섹션형 화면의 ?focus= 값(알림·외부 링크 호환)
+  myBloodlines: "bloodline",
+  createdLines: "line",
+  receivedCards: "received",
+  // 지금 칩 값도 그대로 받는다
+  all: "all",
+  bloodline: "bloodline",
+  line: "line",
+  received: "received",
+};
+
+/** 혈통관리 `?focus=` 딥링크 → 칩. 모르는 값이면 null(기본 "전체"). */
+export function bloodlineFilterFromFocus(focus?: string | null): BloodlineManagementFilter | null {
+  if (!focus) return null;
+  return Object.prototype.hasOwnProperty.call(FOCUS_TO_FILTER, focus) ? FOCUS_TO_FILTER[focus] : null;
+}
+
 /** 혈통관리 칩별 카드. "전체"는 id 로 중복을 없앤 합집합. */
 export function cardsForBloodlineFilter(
   groups: BloodlineCardGroups,

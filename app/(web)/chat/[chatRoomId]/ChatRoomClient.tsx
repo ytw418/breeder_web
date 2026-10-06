@@ -36,6 +36,7 @@ import {
   imageUploadNotices,
   isDeletedPartnerName,
   mergeMessages,
+  olderMessagesCursor,
   planImageUploads,
 } from "../chatFormat";
 import { BackIcon, ChatCenterNotice, MoreIcon, PlusIcon, SendIcon } from "../chatUi";
@@ -129,11 +130,16 @@ const ChatRoomClient = () => {
   const [markAsRead] = useMutation<ReadResponse>(`/api/chat/${roomId}/read`);
 
   const serverMessages = useMemo(() => data?.chatRoom?.messages ?? [], [data?.chatRoom?.messages]);
+  // 폴링은 최신 20개만 준다. 받은 것을 계속 쌓아 두어야 창에서 밀려난 메시지가 사라지지 않는다.
+  useEffect(() => {
+    if (serverMessages.length === 0) return;
+    setLocalMessages((prev) => mergeMessages(prev, serverMessages));
+  }, [serverMessages]);
   const messages = useMemo(() => mergeMessages(localMessages, serverMessages), [localMessages, serverMessages]);
 
-  const currentPagination = olderPagination ?? data?.pagination;
-  const olderCursor = currentPagination?.nextCursor ?? null;
-  const hasMoreOlder = Boolean(currentPagination?.hasMore);
+  const hasMoreOlder = Boolean((olderPagination ?? data?.pagination)?.hasMore);
+  // 커서는 화면에 있는 가장 오래된 메시지. 첫 응답 이후 쌓인 메시지를 건너뛰지 않는다.
+  const olderCursor = olderMessagesCursor(messages, hasMoreOlder);
 
   const room = data?.chatRoom;
   const otherMember = room ? findPartner(room.chatRoomMembers, user?.id) : undefined;

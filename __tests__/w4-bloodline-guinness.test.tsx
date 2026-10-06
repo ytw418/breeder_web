@@ -1,6 +1,7 @@
 import { render, screen } from "@testing-library/react";
 import {
   bloodlineCardMeta,
+  bloodlineFilterFromFocus,
   cardsForBloodlineFilter,
   formatBloodlineIssuedAt,
   groupBloodlineCards,
@@ -44,6 +45,15 @@ const card = (over: Partial<BloodlineCardItem>): BloodlineCardItem => ({
 });
 
 describe("혈통관리 순수 함수", () => {
+  it("?focus= 딥링크(예전 섹션 값 포함)를 칩으로 바꾼다", () => {
+    expect(bloodlineFilterFromFocus("myBloodlines")).toBe("bloodline");
+    expect(bloodlineFilterFromFocus("createdLines")).toBe("line");
+    expect(bloodlineFilterFromFocus("receivedCards")).toBe("received");
+    expect(bloodlineFilterFromFocus("line")).toBe("line");
+    expect(bloodlineFilterFromFocus("toString")).toBeNull();
+    expect(bloodlineFilterFromFocus(null)).toBeNull();
+  });
+
   const mine = card({ id: 1 });
   const line = card({ id: 2, cardType: "LINE" });
   const received = card({ id: 3, creator: { id: 9, name: "박도윤" }, currentOwner: { id: 7, name: "김하늘" } });
@@ -158,6 +168,16 @@ describe("혈통 이벤트 모으기", () => {
     });
     const merged = await loadMergedBloodlineEvents([1, 2, 3], 10, loader);
     expect(merged.map((e) => e.id)).toEqual([3, 1]);
+  });
+
+  it("여러 카드 응답에 같은 이벤트가 오면 한 번만 남긴다", async () => {
+    const loader = jest.fn(async (cardId: number | string) =>
+      cardId === 1
+        ? [ev(10, "2026-03-01T00:00:00.000Z"), ev(11, "2026-02-01T00:00:00.000Z")]
+        : [ev(10, "2026-03-01T00:00:00.000Z")]
+    );
+    const merged = await loadMergedBloodlineEvents([1, 2], 10, loader);
+    expect(merged.map((e) => e.id)).toEqual([10, 11]);
   });
 
   it("전부 실패하면 오류", async () => {

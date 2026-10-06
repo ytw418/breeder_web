@@ -153,7 +153,13 @@ const NotificationsClient = () => {
       <EmptyState
         title="로그인이 필요해요"
         description="알림을 보려면 로그인해 주세요."
-        action={{ label: "로그인하기", href: toLoginHref(pathname || "/notifications") }}
+        action={{
+          label: "로그인하기",
+          // 툴 알림은 툴 로그인으로 보낸다(로그인 후 툴 알림으로 돌아온다).
+          href: isToolRoute
+            ? `/tool/login?next=${encodeURIComponent(pathname || "/tool/notifications")}`
+            : toLoginHref(pathname || "/notifications"),
+        }}
         className="py-24"
       />
     );

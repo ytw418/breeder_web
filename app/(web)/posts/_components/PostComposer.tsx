@@ -317,6 +317,8 @@ export function PostComposer(props: PostComposerProps) {
       return;
     }
 
+    // 저장에 성공해 이동하면 버튼을 잠근 채 둔다(다시 누르기·이탈 가드 재무장 방지).
+    let leaving = false;
     try {
       // 순서를 지키도록 한 장씩 올린다. 기존 사진(remote)은 다시 올리지 않고 id 를 그대로 보낸다.
       const imageIds: string[] = [];
@@ -346,6 +348,7 @@ export function PostComposer(props: PostComposerProps) {
 
       if (response.status === 401) {
         toast.error("로그인이 필요합니다.");
+        leaving = true;
         leave(() => router.push(toLoginHref(initial ? `/posts/${initial.postId}/edit` : "/posts/upload")));
         return;
       }
@@ -358,6 +361,7 @@ export function PostComposer(props: PostComposerProps) {
         void globalMutate(isPostListKey);
         toast.success("게시글이 수정되었습니다.");
         const postPath = toPostPath(initial.postId, title.trim());
+        leaving = true;
         leave(() => router.replace(postPath));
         return;
       }
@@ -369,6 +373,7 @@ export function PostComposer(props: PostComposerProps) {
       void globalMutate(isPostListKey);
       toast.success("게시글이 등록되었습니다.");
       const postPath = toPostPath(result.post.id, result.post.title);
+      leaving = true;
       leave(() => router.replace(postPath));
     } catch (error) {
       toast.error(
@@ -379,7 +384,7 @@ export function PostComposer(props: PostComposerProps) {
             : "게시글 등록 중 오류가 발생했습니다."
       );
     } finally {
-      setSubmitStep("idle");
+      if (!leaving) setSubmitStep("idle");
     }
   };
 

@@ -194,10 +194,12 @@ function AuctionEditFormBody({
     if (files.length > remaining) toast.error(`이미지는 최대 ${AUCTION_PHOTOS_MAX}장까지 등록 가능합니다.`);
     setUploading(true);
     try {
-      const ids: string[] = [];
-      for (const file of Array.from(files).slice(0, remaining)) ids.push(await uploadImageFile(file));
-      setPhotos((prev) => [...prev, ...ids].slice(0, AUCTION_PHOTOS_MAX));
-      setErrors((prev) => ({ ...prev, photos: undefined }));
+      // 한 장 올라갈 때마다 바로 담는다. 중간에 실패해도 앞서 올라간 사진은 남긴다.
+      for (const file of Array.from(files).slice(0, remaining)) {
+        const id = await uploadImageFile(file);
+        setPhotos((prev) => [...prev, id].slice(0, AUCTION_PHOTOS_MAX));
+        setErrors((prev) => ({ ...prev, photos: undefined }));
+      }
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "이미지 업로드에 실패했습니다.");
     } finally {

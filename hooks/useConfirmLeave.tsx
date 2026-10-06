@@ -126,9 +126,12 @@ export function useConfirmLeave(
 
   // 뒤로가기: dirty 가 되면 같은 URL 센티널을 한 칸 쌓아 두고, 뒤로가기로 센티널이 빠지면 확인 창을 띄운다.
   // 다시 깨끗해지면(dirty→clean) 센티널을 걷어 낸다.
+  // 이미 나가기가 허용됐으면(leave()·확인 창 나가기) 다시 dirty 가 돼도 쌓지 않는다 —
+  // 저장 성공 뒤 router.replace 가 끝나기 전에 쌓으면 뒤로가기가 빈 작성 화면으로 돌아온다.
   useEffect(() => {
-    if (dirty) pushSentinel();
-    else removeSentinel();
+    if (dirty) {
+      if (shouldBlockLeave(stateRef.current)) pushSentinel();
+    } else removeSentinel();
   }, [dirty, pushSentinel, removeSentinel]);
 
   useEffect(() => {

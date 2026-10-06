@@ -463,7 +463,9 @@ export default function GuinnessApplyClient() {
   }
 
   const ctaDisabled = !isFormReady || submitting;
-  const today = new Date().toISOString().slice(0, 10);
+  // 날짜 입력 max 는 로컬 날짜(toISOString 은 UTC 라 한국 오전 9시 전엔 어제가 된다).
+  const now = new Date();
+  const today = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
 
   return (
     <Layout canGoBack showHome title="브리디북 등록" seoTitle="브리디북 등록">
