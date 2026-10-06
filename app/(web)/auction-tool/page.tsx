@@ -39,14 +39,14 @@ const quickStats = [
     desc: "등록 후 링크 생성",
   },
   {
-    label: "운영 시간",
-    value: "-60%",
-    desc: "수기 댓글 정리 감소",
+    label: "마감 연장",
+    value: "+5분",
+    desc: "종료 3분 전 입찰 시 자동",
   },
   {
-    label: "분쟁 감소",
-    value: "-70%",
-    desc: "마감 임박 분쟁 완화",
+    label: "호가 단위",
+    value: "자동",
+    desc: "현재가 기준 입찰 단위 계산",
   },
 ];
 
