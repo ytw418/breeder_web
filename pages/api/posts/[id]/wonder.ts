@@ -52,6 +52,7 @@ async function handler(
 
     // 좋아요 알림 생성 (게시글 작성자에게)
     // 알림은 부가 작업이므로 실패해도 좋아요 성공 응답에 영향을 주지 않는다.
+    // 같은 사람이 같은 글에 좋아요를 껐다 켜도 알림·푸시는 처음 한 번만 보낸다(dedupe).
     try {
       const post = await client.post.findUnique({
         where: { id: postId },
@@ -70,6 +71,7 @@ async function handler(
           message: `${senderUser.name}님이 회원님의 게시글에 좋아요를 눌렀습니다.`,
           targetId: postId,
           targetType: "post",
+          dedupe: true,
         });
       }
     } catch (error) {

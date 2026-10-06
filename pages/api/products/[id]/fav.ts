@@ -27,7 +27,7 @@ async function handler(
   // 상품 존재 여부 확인
   const product = await client.product.findUnique({
     where: { id: productId },
-    select: { id: true, userId: true },
+    select: { id: true, userId: true, isDeleted: true, isHidden: true },
   });
 
   if (!product) {
@@ -49,6 +49,15 @@ async function handler(
       });
       return res.json({ success: true, action: "removed" });
     } else {
+      // 삭제·숨김 상품은 새로 찜하지 못한다(판매자 알림도 보내지 않는다). 이미 찜한 것은 위에서 해제할 수 있다.
+      if (product.isDeleted || product.isHidden) {
+        return res.status(404).json({
+          success: false,
+          message: "삭제된 상품입니다.",
+          errorCode: "PRODUCT_HIDDEN",
+        });
+      }
+
       // 관심목록에 추가
       await client.fav.create({
         data: {

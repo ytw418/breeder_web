@@ -1,24 +1,36 @@
+import { findCategoryBranch } from "@libs/categoryTaxonomy";
+import { PRODUCT_TYPES } from "@libs/constants";
+
 export const PRODUCT_NAME_MIN_LENGTH = 2;
 export const PRODUCT_NAME_MAX_LENGTH = 60;
-export const PRODUCT_PRICE_MIN = 100;
+/** 0원은 무료나눔이다(홈 무료나눔 카드 → price=0). */
+export const PRODUCT_PRICE_MIN = 0;
 export const PRODUCT_PRICE_MAX = 1_000_000_000;
 export const PRODUCT_DESCRIPTION_MIN_LENGTH = 10;
 export const PRODUCT_DESCRIPTION_MAX_LENGTH = 3000;
 /** 상품 사진 최대 장수(0장 허용). 웹 업로드 화면과 앱이 같은 값을 쓴다. */
 export const PRODUCT_PHOTOS_MAX = 10;
 
+/** 상품 가격 표시: 0 → "무료나눔", null/undefined → "가격 미정", 그 외 "1,234원". */
+export const formatProductPrice = (price?: number | null) =>
+  price === 0 ? "무료나눔" : price != null ? `${price.toLocaleString()}원` : "가격 미정";
+
 export type ProductValidationErrorCode =
   | "PRODUCT_INVALID_NAME"
   | "PRODUCT_INVALID_PRICE"
   | "PRODUCT_INVALID_DESCRIPTION"
   | "PRODUCT_INVALID_PHOTOS"
-  | "PRODUCT_TOO_MANY_PHOTOS";
+  | "PRODUCT_TOO_MANY_PHOTOS"
+  | "PRODUCT_INVALID_CATEGORY"
+  | "PRODUCT_INVALID_PRODUCT_TYPE";
 
 export interface ProductInputValue {
   name?: string;
   price?: number;
   description?: string;
   photos?: string[];
+  category?: string;
+  productType?: string;
 }
 
 export type ProductValidationResult =
@@ -35,10 +47,23 @@ const fail = (
  * - 상품명·설명은 앞뒤 공백을 제거한 길이로 검사한다.
  * - partial 모드(수정)에서는 보낸 필드(undefined 가 아닌 것)만 검사하고, 보내지 않은 필드는 결과에서 뺀다.
  * - 사진(photos)은 선택 항목이다. 보냈을 때(null/undefined 가 아닐 때)만 검사하고 결과에 넣는다.
+ * - 카테고리는 대분류·하위분류·레거시 별칭만, 상품 타입은 생물·용품만 받는다.
+ *   requireCategory(등록 API)면 둘 다 필수, 아니면 보냈을 때만 검사한다.
+ *   (웹 수정 화면은 카테고리 없이 이 함수로 사전 검사하므로 기본값은 선택이다.)
  */
 export const validateProductInput = (
-  input: { name?: unknown; price?: unknown; description?: unknown; photos?: unknown },
-  { partial = false }: { partial?: boolean } = {}
+  input: {
+    name?: unknown;
+    price?: unknown;
+    description?: unknown;
+    photos?: unknown;
+    category?: unknown;
+    productType?: unknown;
+  },
+  {
+    partial = false,
+    requireCategory = false,
+  }: { partial?: boolean; requireCategory?: boolean } = {}
 ): ProductValidationResult => {
   const value: ProductInputValue = {};
 
@@ -64,7 +89,7 @@ export const validateProductInput = (
     if (!Number.isInteger(price) || price < PRODUCT_PRICE_MIN || price > PRODUCT_PRICE_MAX) {
       return fail(
         "PRODUCT_INVALID_PRICE",
-        `가격은 ${PRODUCT_PRICE_MIN.toLocaleString()}원~${PRODUCT_PRICE_MAX.toLocaleString()}원 사이로 입력해주세요.`
+        `가격은 ${PRODUCT_PRICE_MIN}원~10억원 사이의 정수로 입력해주세요.`
       );
     }
     value.price = price;
@@ -100,6 +125,25 @@ export const validateProductInput = (
       );
     }
     value.photos = photos;
+  }
+
+  const sent = (v: unknown) => v !== undefined && v !== null;
+  const trimmed = (v: unknown) => (typeof v === "string" ? v.trim() : "");
+
+  if (requireCategory || sent(input.category)) {
+    const category = trimmed(input.category);
+    if (findCategoryBranch(category).parent === "") {
+      return fail("PRODUCT_INVALID_CATEGORY", "카테고리를 다시 선택해주세요.");
+    }
+    value.category = category;
+  }
+
+  if (requireCategory || sent(input.productType)) {
+    const productType = trimmed(input.productType);
+    if (!PRODUCT_TYPES.some((type) => type.id === productType)) {
+      return fail("PRODUCT_INVALID_PRODUCT_TYPE", "상품 타입은 생물·용품 중에서 선택해주세요.");
+    }
+    value.productType = productType;
   }
 
   return { ok: true, value };

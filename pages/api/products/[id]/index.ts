@@ -84,6 +84,15 @@ async function handler(
     });
   }
 
+  // 삭제한 상품은 수정·상태 변경·구매확정·재삭제를 막는다(조회는 아래 GET 규칙대로 소유자만).
+  if (req.method === "POST" && product.isDeleted) {
+    return res.status(404).json({
+      success: false,
+      message: "삭제된 상품입니다.",
+      errorCode: "PRODUCT_DELETED",
+    });
+  }
+
   if (req.method === "GET") {
     console.info("[api/products/:id][found]", {
       id: product.id,
@@ -195,9 +204,11 @@ async function handler(
     }
 
     switch (action) {
+      // 소프트 삭제: 목록·검색·관심목록에서는 빠지고 판매·구매 기록은 남는다.
       case "delete":
-        await client.product.delete({
+        await client.product.update({
           where: { id: Number(productId) },
+          data: { isDeleted: true },
         });
         return res.json({ success: true });
 
@@ -219,13 +230,18 @@ async function handler(
             errorCode: validation.errorCode,
           });
         }
+        const { photos } = validation.value;
         const updatedProduct = await client.product.update({
           where: { id: Number(productId) },
           data: {
             name: validation.value.name,
             price: validation.value.price,
             description: validation.value.description,
-            photos: validation.value.photos,
+            photos,
+            category: validation.value.category,
+            productType: validation.value.productType,
+            // 사진을 보냈으면 대표 이미지도 첫 장으로 맞춘다(등록과 같은 규칙).
+            ...(photos ? { mainImage: photos[0] ?? null } : {}),
           },
         });
         return res.json({ success: true, product: updatedProduct });

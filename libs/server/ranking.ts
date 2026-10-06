@@ -633,50 +633,73 @@ export const getFreeGiveawayProducts = async ({
   }));
 };
 
+/** HOT 토론 후보 기간(일). null 은 전체 기간. 앞 기간에서 모자라면 다음 기간으로 넓혀 채운다. */
+const HOT_DISCUSSION_WINDOW_DAYS = [7, 30, null] as const;
+/** 이 개수 미만이면 다음(더 넓은) 기간 글로 남은 자리를 채운다. */
+const HOT_DISCUSSION_MIN_RESULTS = 3;
+const DAY_MS = 24 * 60 * 60 * 1000;
+
 export const getHotDiscussions = async ({
   limit = 5,
 }: { limit?: number } = {}): Promise<HotDiscussionItem[]> => {
-  const posts = await client.post.findMany({
-    where: {
-      category: { in: ["질문", "자유", "정보"] },
-      user: { status: "ACTIVE" },
-    },
-    select: {
-      id: true,
-      title: true,
-      description: true,
-      image: true,
-      category: true,
-      createdAt: true,
-      _count: {
-        select: { comments: true, Likes: true },
+  const findRankedPosts = async (since: Date | null) => {
+    const posts = await client.post.findMany({
+      where: {
+        category: { in: ["질문", "자유", "정보"] },
+        user: { status: "ACTIVE" },
+        ...(since ? { createdAt: { gte: since } } : {}),
       },
-      user: {
-        select: { id: true, name: true, avatar: true },
+      select: {
+        id: true,
+        title: true,
+        description: true,
+        image: true,
+        category: true,
+        createdAt: true,
+        _count: {
+          select: { comments: true, Likes: true },
+        },
+        user: {
+          select: { id: true, name: true, avatar: true },
+        },
       },
-    },
-    orderBy: [{ comments: { _count: "desc" } }, { createdAt: "desc" }],
-    take: limit * 3,
-  });
+      orderBy: [{ comments: { _count: "desc" } }, { createdAt: "desc" }],
+      take: limit * 3,
+    });
 
-  return posts
-    .filter((p) => p._count.comments > 0 || p._count.Likes > 0)
-    .sort(
-      (a, b) =>
-        b._count.comments * 2 +
-        b._count.Likes -
-        (a._count.comments * 2 + a._count.Likes)
-    )
-    .slice(0, limit)
-    .map((p) => ({
-      id: p.id,
-      title: p.title,
-      description: p.description,
-      image: p.image,
-      category: p.category,
-      createdAt: p.createdAt.toISOString(),
-      commentsCount: p._count.comments,
-      wonderCount: p._count.Likes,
-      user: p.user,
-    }));
+    return posts
+      .filter((p) => p._count.comments > 0 || p._count.Likes > 0)
+      .sort(
+        (a, b) =>
+          b._count.comments * 2 +
+          b._count.Likes -
+          (a._count.comments * 2 + a._count.Likes)
+      );
+  };
+
+  // 최근 7일 → 30일 → 전체 순으로, 앞 기간 글을 먼저 두고 모자란 자리만 넓은 기간 글로 채운다.
+  // 역대 인기글이 최근 토론을 밀어내지 않게 하려는 것이다.
+  const now = Date.now();
+  const picked: Awaited<ReturnType<typeof findRankedPosts>> = [];
+  for (const days of HOT_DISCUSSION_WINDOW_DAYS) {
+    if (picked.length >= Math.min(limit, HOT_DISCUSSION_MIN_RESULTS)) break;
+    const since = days === null ? null : new Date(now - days * DAY_MS);
+    const pickedIds = new Set(picked.map((p) => p.id));
+    const ranked = await findRankedPosts(since);
+    picked.push(
+      ...ranked.filter((p) => !pickedIds.has(p.id)).slice(0, limit - picked.length)
+    );
+  }
+
+  return picked.map((p) => ({
+    id: p.id,
+    title: p.title,
+    description: p.description,
+    image: p.image,
+    category: p.category,
+    createdAt: p.createdAt.toISOString(),
+    commentsCount: p._count.comments,
+    wonderCount: p._count.Likes,
+    user: p.user,
+  }));
 };
