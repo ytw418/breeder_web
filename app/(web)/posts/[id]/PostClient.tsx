@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useLayoutEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import useSWR, { useSWRConfig } from "swr";
@@ -123,6 +123,13 @@ function NoticeLink({
   );
 }
 
+/** 댓글 입력칸은 여러 줄로 늘어나다 이 높이(약 5줄)부터 안에서 스크롤한다(채팅 입력창과 같은 값). */
+const COMMENT_MAX_HEIGHT = 112;
+
+/** 터치가 주 입력인 기기(모바일). 이 기기의 키보드 Enter 는 줄바꿈으로 둔다. */
+const isCoarsePointer = () =>
+  typeof window !== "undefined" && Boolean(window.matchMedia?.("(pointer: coarse)").matches);
+
 const PostClient = ({
   post: initialPost,
   prevNotice: initialPrevNotice,
@@ -143,6 +150,7 @@ const PostClient = ({
   const [comment, setComment] = useState("");
   const [likeLoading, setLikeLoading] = useState(false);
   const [commentLoading, setCommentLoading] = useState(false);
+  const commentInputRef = useRef<HTMLTextAreaElement>(null);
   const [sheetOpen, setSheetOpen] = useState(false);
   const [commentSheet, setCommentSheet] = useState<PostComment | null>(null);
   const [reportTarget, setReportTarget] = useState<ReportTarget | null>(null);
@@ -173,6 +181,14 @@ const PostClient = ({
     () => (post ? (post.images?.length ? post.images : post.image ? [post.image] : []) : []),
     [post]
   );
+
+  // 댓글 입력칸 높이를 글 줄 수에 맞춘다(등록 후 비우면 한 줄로 돌아온다).
+  useLayoutEffect(() => {
+    const el = commentInputRef.current;
+    if (!el) return;
+    el.style.height = "auto";
+    el.style.height = `${Math.min(el.scrollHeight, COMMENT_MAX_HEIGHT)}px`;
+  }, [comment]);
   const safeImageIndex = imageIndex < photos.length ? imageIndex : 0;
   const authorBlocked = Boolean(authorId && !isNotice && isBlocked(authorId));
   const loggedOut = !user && !userLoading;
@@ -573,21 +589,35 @@ const PostClient = ({
                 }}
                 className="flex items-center gap-2 px-3 pb-[max(calc(env(safe-area-inset-bottom)+8px),16px)] pt-2"
               >
-                <div className="flex h-11 flex-1 items-center rounded-[22px] bg-app-surface pl-4 pr-1.5">
-                  <input
+                <div className="flex min-h-[44px] flex-1 items-end rounded-[22px] bg-app-surface pl-4 pr-1.5">
+                  {/* 여러 줄 입력(모바일 키보드 Enter 는 줄바꿈). 데스크톱은 Enter 로 등록, Shift+Enter 로 줄바꿈. */}
+                  <textarea
+                    ref={commentInputRef}
+                    rows={1}
                     value={comment}
                     onChange={(event) => setComment(event.target.value)}
+                    onKeyDown={(event) => {
+                      if (
+                        event.key === "Enter" &&
+                        !event.shiftKey &&
+                        !event.nativeEvent.isComposing &&
+                        !isCoarsePointer()
+                      ) {
+                        event.preventDefault();
+                        void handleCommentSubmit();
+                      }
+                    }}
                     placeholder="댓글을 입력해주세요"
                     aria-label="댓글 입력"
                     disabled={commentLoading}
-                    className="h-11 min-w-0 flex-1 border-0 bg-transparent p-0 text-[15px] text-app-text outline-none placeholder:text-app-caption focus:ring-0"
+                    className="max-h-[112px] min-h-[44px] min-w-0 flex-1 resize-none border-0 bg-transparent p-0 py-[11px] text-[15px] leading-[22px] text-app-text outline-none placeholder:text-app-caption focus:ring-0"
                   />
                   <button
                     type="submit"
                     aria-label="댓글 등록"
                     disabled={!canSubmitComment}
                     className={cn(
-                      "grid h-8 w-8 shrink-0 place-items-center rounded-full bg-app-brand text-white",
+                      "mb-1.5 grid h-8 w-8 shrink-0 place-items-center rounded-full bg-app-brand text-white",
                       canSubmitComment ? "opacity-100" : "opacity-40"
                     )}
                   >
