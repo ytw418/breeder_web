@@ -5,13 +5,13 @@ import { getHomeBanners, getHomeFeed, getProductsResponse } from "@libs/server/h
 import { normalizeDeletedUserNames } from "@libs/shared/deletedUser";
 
 export const metadata: Metadata = {
-  title: "브리디 | 반려동물 경매 플랫폼",
+  title: "브리디 | 브리더들의 SNS · 분양 · 거래",
   description:
-    "브리디는 반려동물 경매, 혈통카드, 상품 공유 기능을 한 번에 이용할 수 있는 링크형 경매 플랫폼입니다. 내 상품과 인기 게시글을 빠르게 확인하세요.",
+    "브리더들이 소통하는 반려동물 SNS. 분양·거래부터 랭킹, 무료경매, 동네 브리더 찾기까지 브리디에서 한 번에.",
   openGraph: {
-    title: "브리디 | 반려동물 경매 플랫폼",
+    title: "브리디 | 브리더들의 SNS · 분양 · 거래",
     description:
-      "반려동물 커뮤니티와 링크형 경매 기능을 한 곳에서. 인기 경매, 혈통카드, 커뮤니티 소식을 한 번에 확인하세요.",
+      "브리더들이 소통하는 반려동물 SNS. 분양·거래부터 랭킹, 무료경매, 동네 브리더 찾기까지 브리디에서 한 번에.",
     url: "https://bredy.app",
     siteName: "Bredy",
     type: "website",
@@ -20,15 +20,15 @@ export const metadata: Metadata = {
         url: "/opengraph-image",
         width: 1200,
         height: 630,
-        alt: "브리디 반려동물 경매 플랫폼",
+        alt: "브리디 - 브리더들의 SNS. 분양·거래·랭킹·무료경매·동네 브리더 찾기",
       },
     ],
   },
   twitter: {
     card: "summary_large_image",
-    title: "브리디 | 반려동물 경매 플랫폼",
+    title: "브리디 | 브리더들의 SNS · 분양 · 거래",
     description:
-      "브리디에서 반려동물 거래와 경매 도구를 빠르게 시작하세요.",
+      "브리더들이 소통하는 반려동물 SNS. 분양·거래부터 랭킹, 무료경매, 동네 브리더 찾기까지 브리디에서 한 번에.",
     images: ["/opengraph-image"],
   },
   alternates: {
