@@ -35,7 +35,7 @@ async function loadKoreanFont(weight: number, text: string) {
 }
 
 export default async function OpenGraphImage() {
-  const allText = [HEADLINE, SUBLINE, ...FEATURES, "SNS 소통", "bredy.app", "BREDY"].join("");
+  const allText = [HEADLINE, SUBLINE, ...FEATURES, "bredy.app"].join("");
   const [bold, black, logo] = await Promise.all([
     loadKoreanFont(700, allText),
     loadKoreanFont(900, allText),
@@ -88,28 +88,13 @@ export default async function OpenGraphImage() {
           }}
         />
 
-        <div style={{ display: "flex", alignItems: "center", gap: 18 }}>
-          <img
-            src={logoSrc}
-            alt=""
-            width={84}
-            height={84}
-            style={{ borderRadius: 22, border: "4px solid rgba(255,255,255,0.9)" }}
-          />
-          <div
-            style={{
-              display: "flex",
-              borderRadius: 9999,
-              background: "#ffffff",
-              color: BRAND_DEEP,
-              padding: "10px 24px",
-              fontSize: 30,
-              fontWeight: 900,
-            }}
-          >
-            SNS 소통
-          </div>
-        </div>
+        <img
+          src={logoSrc}
+          alt=""
+          width={88}
+          height={88}
+          style={{ borderRadius: 22, border: "4px solid rgba(255,255,255,0.9)" }}
+        />
 
         <div
           style={{
