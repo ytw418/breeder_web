@@ -7,8 +7,11 @@ import {
   AUCTION_HIGH_PRICE_REQUIRE_CONTACT,
   AUCTION_MAX_ACTIVE_PER_USER,
   AUCTION_MIN_START_PRICE,
+  AUCTION_BID_INCREMENT_RANGE_TEXT,
   isAuctionDurationValid,
+  isBidIncrementValid,
   getBidIncrement,
+  readRequestedBidIncrement,
   AUCTION_PHOTOS_MAX,
   AUCTION_PHOTOS_MIN,
 } from "@libs/auctionRules";
@@ -163,6 +166,7 @@ async function handler(
       sellerProofImage,
       sellerTrustNote,
       bloodlineRootId,
+      minBidIncrement: requestedBidIncrement,
     } = req.body;
     const isToolMode = req.cookies?.[TOOL_MODE_COOKIE] === "1";
 
@@ -225,7 +229,16 @@ async function handler(
       });
     }
 
-    const minBidIncrement = getBidIncrement(normalizedStartPrice);
+    // 입찰 단위는 판매자가 정한다. 보내지 않는 구 앱은 예전처럼 시작가 구간값으로 등록한다.
+    const minBidIncrement =
+      readRequestedBidIncrement(requestedBidIncrement) ?? getBidIncrement(normalizedStartPrice);
+    if (!isBidIncrementValid(minBidIncrement)) {
+      return res.status(400).json({
+        success: false,
+        error: `최소 입찰 단위는 ${AUCTION_BID_INCREMENT_RANGE_TEXT}로 정해주세요.`,
+        errorCode: "AUCTION_INVALID_BID_INCREMENT",
+      });
+    }
 
     try {
       const seller = await client.user.findUnique({

@@ -28,8 +28,8 @@ import { extractAuctionIdFromPath, toAuctionPath } from "@libs/auction-route";
 import {
   AUCTION_EXTENSION_MS,
   AUCTION_EXTENSION_WINDOW_MS,
-  getBidIncrement,
   isBidAmountValid,
+  resolveBidIncrement,
 } from "@libs/auctionRules";
 import type { AuctionDetailResponse } from "pages/api/auctions/[id]";
 import type { BidResponse } from "pages/api/auctions/[id]/bid";
@@ -239,7 +239,8 @@ const AuctionDetailClient = () => {
   const safeImageIndex = photos.length ? Math.min(imageIndex, photos.length - 1) : 0;
   const countdown = getCountdown(auction?.endAt, now);
   const isUrgent = auction?.status === "진행중" && !countdown.isEnded && countdown.diff <= URGENT_MS;
-  const bidIncrement = auction ? getBidIncrement(auction.currentPrice) : 0;
+  // 입찰 단위는 판매자가 등록 때 정한 값(경매 내내 고정).
+  const bidIncrement = auction ? resolveBidIncrement(auction) : 0;
   const minimumBid = auction ? auction.currentPrice + bidIncrement : 0;
   const selectedBidAmount = bidInput && bidInput > 0 ? bidInput : minimumBid;
   const isOwner = Boolean(data?.isOwner);
@@ -297,7 +298,11 @@ const AuctionDetailClient = () => {
     // 서버 BID_AMOUNT_RULE_VIOLATION 과 같은 기준·문구(최소 금액 이상 + 입찰 단위 배수).
     if (
       !Number.isInteger(selectedBidAmount) ||
-      !isBidAmountValid({ currentPrice: auction.currentPrice, bidAmount: selectedBidAmount })
+      !isBidAmountValid({
+        currentPrice: auction.currentPrice,
+        bidAmount: selectedBidAmount,
+        increment: bidIncrement,
+      })
     ) {
       toast.error(
         `입찰 금액은 최소 ${minimumBid.toLocaleString()}원 이상이며 ${bidIncrement.toLocaleString()}원 단위여야 합니다.`
@@ -598,7 +603,7 @@ const AuctionDetailClient = () => {
         <div className="px-4">
           <CollapsibleRow title="경매 규칙" open={rulesOpen} onToggle={() => setRulesOpen((v) => !v)}>
             <div className="flex flex-col gap-1.5 text-[13px] leading-5 text-app-muted">
-              <p>현재가 기준 입찰 단위 {formatPrice(bidIncrement)}</p>
+              <p>입찰 단위 {formatPrice(bidIncrement)}</p>
               <p>
                 마감 {extensionWindowMinutes}분 이내 입찰 시 종료 시간이 {extensionMinutes}분 연장됩니다.
               </p>

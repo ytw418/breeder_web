@@ -549,7 +549,6 @@ async function handler(req: NextApiRequest, res: NextApiResponse<ResponseType>) 
         where: { id: savedAuction.id },
         data: {
           currentPrice: topBid?.amount ?? auction.startPrice,
-          minBidIncrement: getBidIncrement(topBid?.amount ?? auction.startPrice),
           winnerId: safeStatus === "종료" ? topBid?.userId ?? null : null,
           status: safeStatus,
           endAt,

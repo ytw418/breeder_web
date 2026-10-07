@@ -17,9 +17,9 @@ import {
   AUCTION_MIN_START_PRICE,
   AUCTION_PHOTOS_MAX,
   getAuctionEditLockReason,
-  getBidIncrement,
   getPresetEndAtMs,
   isAuctionDurationValid,
+  resolveBidIncrement,
   type AuctionEditLockReason,
 } from "@libs/auctionRules";
 import { getAuctionResultMessage } from "@libs/client/auctionErrorMessage";
@@ -27,6 +27,8 @@ import { extractAuctionIdFromPath, toAuctionPath } from "@libs/auction-route";
 import { TOP_LEVEL_CATEGORIES, findCategoryBranch, getSubcategories } from "@libs/categoryTaxonomy";
 import type { BloodlineCardsResponse } from "@libs/shared/bloodline-card";
 import {
+  BID_INCREMENT_ERROR,
+  BidIncrementField,
   BottomCta,
   ChipRow,
   DURATION_PRESETS,
@@ -41,6 +43,7 @@ import {
   fieldBorder,
   formatConfirmDateTime,
   uploadImageFile,
+  useBidIncrementInput,
 } from "../../AuctionFormParts";
 
 type Auction = NonNullable<AuctionDetailResponse["auction"]>;
@@ -55,7 +58,7 @@ type TextKey =
   | "sellerBandNick"
   | "sellerTrustNote";
 type FormState = Record<TextKey, string>;
-type ErrorKey = "photos" | "category" | "title" | "description" | "startPrice" | "endAt";
+type ErrorKey = "photos" | "category" | "title" | "description" | "startPrice" | "bidIncrement" | "endAt";
 type ErrorState = Partial<Record<ErrorKey, string>>;
 
 interface AuctionUpdateResponse {
@@ -159,7 +162,8 @@ function AuctionEditFormBody({
   const [updateAuction, { loading: submitting }] = useMutation<AuctionUpdateResponse>(`/api/auctions/${auctionId}`);
   const { data: bloodlineData } = useSWR<BloodlineCardsResponse>("/api/bloodline-cards");
 
-  const currentBidIncrement = getBidIncrement(startPrice ?? 0);
+  // 수정은 저장된 입찰 단위로 채우고, 시작가를 바꿔도 따라 바꾸지 않는다.
+  const bidIncrement = useBidIncrementInput(resolveBidIncrement(auction));
   const subcategories = selectedCategory ? getSubcategories(selectedCategory) : [];
   const categoryForSubmit = selectedSubcategory || selectedCategory;
   const bloodlineOptions = useMemo(
@@ -175,6 +179,7 @@ function AuctionEditFormBody({
     errors.title,
     errors.description,
     errors.startPrice,
+    errors.bidIncrement,
     errors.endAt,
   ].filter((message): message is string => Boolean(message));
   const busy = submitting || uploading || proofUploading;
@@ -231,6 +236,7 @@ function AuctionEditFormBody({
     if (startPrice === null || startPrice < AUCTION_MIN_START_PRICE) {
       next.startPrice = `최소 ${AUCTION_MIN_START_PRICE.toLocaleString()}원 이상`;
     }
+    if (!bidIncrement.isValid) next.bidIncrement = BID_INCREMENT_ERROR;
     const endAtIso = toIsoDateTimeValue(endAtInput);
     if (!endAtIso) next.endAt = "유효한 종료 시각을 입력해주세요.";
     else if (changed && !isAuctionDurationValid(endAtIso)) {
@@ -260,6 +266,7 @@ function AuctionEditFormBody({
           photos,
           sellerProofImage,
           startPrice: startPrice ?? 0,
+          minBidIncrement: bidIncrement.value ?? 0,
           endAt: changed ? toIsoDateTimeValue(endAtInput) : initialEndAt.iso,
           sellerPhone: normalizeText(form.sellerPhone),
           sellerEmail: normalizeText(form.sellerEmail),
@@ -408,13 +415,15 @@ function AuctionEditFormBody({
         </div>
 
         {/* 최소 입찰 단위 */}
-        <div>
-          <FieldLabel label="최소 입찰 단위" />
-          <div className="flex h-12 items-center rounded-lg border border-app-border bg-app-surface px-3.5 text-[15px] text-app-text">
-            ₩ {currentBidIncrement.toLocaleString()}
-          </div>
-          <HelpText>시작가에 따라 자동으로 정해져요.</HelpText>
-        </div>
+        <BidIncrementField
+          value={bidIncrement.value}
+          onChange={(value) => {
+            bidIncrement.onChange(value);
+            setErrors((prev) => ({ ...prev, bidIncrement: undefined }));
+          }}
+          onBlur={bidIncrement.onBlur}
+          error={errors.bidIncrement}
+        />
 
         {/* 종료 시각 */}
         <div>

@@ -11,7 +11,9 @@ import {
   canEditAuction,
   getAuctionEditDeadline,
   isAuctionDurationValid,
-  getBidIncrement,
+  isBidIncrementValid,
+  readRequestedBidIncrement,
+  AUCTION_BID_INCREMENT_RANGE_TEXT,
   AUCTION_PHOTOS_MAX,
   AUCTION_PHOTOS_MIN,
 } from "@libs/auctionRules";
@@ -155,6 +157,7 @@ async function handler(
       sellerProofImage,
       sellerTrustNote,
       bloodlineRootId,
+      minBidIncrement: requestedBidIncrement,
     } = req.body;
 
     if (action !== "update") {
@@ -219,6 +222,16 @@ async function handler(
           success: false,
           error: `시작가는 최소 ${AUCTION_MIN_START_PRICE.toLocaleString()}원 이상이어야 합니다.`,
           errorCode: "AUCTION_INVALID_START_PRICE",
+        });
+      }
+
+      // 입찰 단위를 보내지 않는 구 앱의 수정은 저장된 단위를 그대로 둔다(웹·새 앱에서 정한 값을 덮어쓰지 않게).
+      const nextBidIncrement = readRequestedBidIncrement(requestedBidIncrement);
+      if (nextBidIncrement !== undefined && !isBidIncrementValid(nextBidIncrement)) {
+        return res.status(400).json({
+          success: false,
+          error: `최소 입찰 단위는 ${AUCTION_BID_INCREMENT_RANGE_TEXT}로 정해주세요.`,
+          errorCode: "AUCTION_INVALID_BID_INCREMENT",
         });
       }
 
@@ -319,7 +332,7 @@ async function handler(
           bloodlineRootId: normalizedBloodlineRootId,
           startPrice: normalizedStartPrice,
           currentPrice: normalizedStartPrice,
-          minBidIncrement: getBidIncrement(normalizedStartPrice),
+          ...(nextBidIncrement !== undefined ? { minBidIncrement: nextBidIncrement } : {}),
           endAt: endDate,
         },
       });

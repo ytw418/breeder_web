@@ -45,8 +45,8 @@ const quickStats = [
   },
   {
     label: "호가 단위",
-    value: "자동",
-    desc: "현재가 기준 입찰 단위 계산",
+    value: "직접 설정",
+    desc: "판매자가 정한 입찰 단위로 검증",
   },
 ];
 

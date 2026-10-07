@@ -1,9 +1,14 @@
-import { AUCTION_PHOTOS_MAX, AUCTION_PHOTOS_MIN } from "@libs/auctionRules";
+import {
+  AUCTION_BID_INCREMENT_RANGE_TEXT,
+  AUCTION_PHOTOS_MAX,
+  AUCTION_PHOTOS_MIN,
+} from "@libs/auctionRules";
 
 const AUCTION_ERROR_MESSAGES: Record<string, string> = {
   AUCTION_AUTH_REQUIRED: "로그인이 필요합니다.",
   AUCTION_REQUIRED_FIELDS: "필수 항목을 모두 입력해주세요.",
   AUCTION_INVALID_START_PRICE: "시작가를 확인해주세요.",
+  AUCTION_INVALID_BID_INCREMENT: `최소 입찰 단위는 ${AUCTION_BID_INCREMENT_RANGE_TEXT}로 정해주세요.`,
   AUCTION_INVALID_END_AT: "유효한 종료 시간을 선택해주세요.",
   AUCTION_DURATION_OUT_OF_RANGE:
     "경매 기간은 등록 시점 기준 1시간~72시간 사이여야 합니다.",
