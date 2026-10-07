@@ -20,7 +20,7 @@ const websiteJsonLd = {
   "@type": "WebSite",
   name: "Bredy",
   url: siteUrl,
-  description: "반려동물 링크형 경매와 거래 도구를 제공하는 커뮤니티 플랫폼",
+  description: "브리더들이 소통하는 반려동물 SNS. 분양·거래·랭킹·무료경매·동네 브리더 찾기",
   potentialAction: {
     "@type": "SearchAction",
     target: `${siteUrl}/search?q={search_term_string}`,
@@ -50,13 +50,19 @@ export const viewport: Viewport = {
 export const metadata: Metadata = {
   metadataBase: new URL(siteUrl),
   title: {
-    default: "Bredy | 반려동물 경매·혈통카드",
+    default: "브리디 | 브리더들의 SNS · 분양 · 거래",
     template: "%s | Bredy",
   },
   description:
-    "카페·밴드는 그대로, 경매 링크만 올리세요. 브리디에서 곤충·파충류 경매와 혈통카드를 관리할 수 있습니다.",
+    "브리더들이 소통하는 반려동물 SNS. 분양·거래부터 랭킹, 무료경매, 동네 브리더 찾기까지 브리디에서 한 번에.",
   keywords: [
     "브리디",
+    "브리더",
+    "반려동물 SNS",
+    "분양",
+    "동네 브리더",
+    "브리더 랭킹",
+    "무료 경매",
     "곤충 경매",
     "파충류 경매",
     "혈통카드",
@@ -71,23 +77,23 @@ export const metadata: Metadata = {
     locale: "ko_KR",
     url: "https://bredy.app",
     siteName: "Bredy",
-    title: "Bredy | 반려동물 경매·혈통카드",
+    title: "브리디 | 브리더들의 SNS · 분양 · 거래",
     description:
-      "카페·밴드는 그대로, 경매 링크만 올리세요. 브리디에서 곤충·파충류 경매와 혈통카드를 관리할 수 있습니다.",
+      "브리더들이 소통하는 반려동물 SNS. 분양·거래부터 랭킹, 무료경매, 동네 브리더 찾기까지 브리디에서 한 번에.",
     images: [
       {
         url: "/opengraph-image",
         width: 1200,
         height: 630,
-        alt: "브리디 반려동물 경매 공유 이미지",
+        alt: "브리디 - 브리더들의 SNS. 분양·거래·랭킹·무료경매·동네 브리더 찾기",
       },
     ],
   },
   twitter: {
     card: "summary_large_image",
-    title: "Bredy | 반려동물 경매·혈통카드",
+    title: "브리디 | 브리더들의 SNS · 분양 · 거래",
     description:
-      "카페·밴드는 그대로, 경매 링크만 올리세요. 브리디에서 곤충·파충류 경매와 혈통카드를 관리할 수 있습니다.",
+      "브리더들이 소통하는 반려동물 SNS. 분양·거래부터 랭킹, 무료경매, 동네 브리더 찾기까지 브리디에서 한 번에.",
     images: ["/twitter-image"],
     site: "@bredy",
     creator: "@bredy",
