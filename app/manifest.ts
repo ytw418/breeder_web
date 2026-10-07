@@ -5,7 +5,7 @@ export default function manifest(): MetadataRoute.Manifest {
     name: "Bredy",
     short_name: "Bredy",
     description:
-      "반려동물 경매·혈통카드 브리디",
+      "브리더들의 SNS 브리디 - 분양·거래·랭킹·무료경매",
     start_url: "/",
     scope: "/",
     display: "standalone",

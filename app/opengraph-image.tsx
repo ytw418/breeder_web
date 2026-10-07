@@ -1,3 +1,5 @@
+import { readFile } from "node:fs/promises";
+import { join } from "node:path";
 import { ImageResponse } from "next/og";
 
 export const size = {
@@ -6,8 +8,46 @@ export const size = {
 };
 
 export const contentType = "image/png";
+export const alt = "브리디 - 브리더들의 SNS. 분양·거래·랭킹·무료경매·동네 브리더 찾기";
 
-export default function OpenGraphImage() {
+// 앱 브랜드 주황(#F97316, 앱 palette brand / 웹 --primary)
+const BRAND = "#F97316";
+const BRAND_DEEP = "#EA580C";
+const BRAND_SOFT = "#FFF4EC";
+
+const HEADLINE = "브리더들의 SNS, 브리디";
+const SUBLINE = "반려동물 이야기를 나누고, 분양부터 거래까지 한 곳에서";
+const FEATURES = ["분양", "거래", "랭킹", "무료경매", "동네 브리더 찾기"];
+
+// 카톡·인스타 미리보기에서 한글이 굵게 나오도록 이미지에 쓰는 글자만 받아 온다.
+// 실패해도 이미지는 만들어지게 폰트 없이 진행한다(next/og 기본 폰트로 대체).
+async function loadKoreanFont(weight: number, text: string) {
+  try {
+    const css = await fetch(
+      `https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@${weight}&text=${encodeURIComponent(text)}`
+    ).then((res) => res.text());
+    const url = css.match(/src: url\((.+?)\) format\('(opentype|truetype)'\)/)?.[1];
+    if (!url) return null;
+    return await fetch(url).then((res) => res.arrayBuffer());
+  } catch {
+    return null;
+  }
+}
+
+export default async function OpenGraphImage() {
+  const allText = [HEADLINE, SUBLINE, ...FEATURES, "SNS 소통", "bredy.app", "BREDY"].join("");
+  const [bold, black, logo] = await Promise.all([
+    loadKoreanFont(700, allText),
+    loadKoreanFont(900, allText),
+    readFile(join(process.cwd(), "public/images/pwa/icon-512.png")),
+  ]);
+  const logoSrc = `data:image/png;base64,${logo.toString("base64")}`;
+
+  const fonts = [
+    bold && { name: "NotoSansKR", data: bold, weight: 700 as const, style: "normal" as const },
+    black && { name: "NotoSansKR", data: black, weight: 900 as const, style: "normal" as const },
+  ].filter((font): font is NonNullable<typeof font> => Boolean(font));
+
   return new ImageResponse(
     (
       <div
@@ -15,145 +55,120 @@ export default function OpenGraphImage() {
           width: "100%",
           height: "100%",
           display: "flex",
+          flexDirection: "column",
+          alignItems: "center",
+          justifyContent: "center",
           position: "relative",
           overflow: "hidden",
-          background: "linear-gradient(130deg, #0b1327 0%, #162446 56%, #1d4ed8 100%)",
+          background: `linear-gradient(140deg, #FB923C 0%, ${BRAND} 48%, ${BRAND_DEEP} 100%)`,
           color: "#ffffff",
-          fontFamily: "Inter, Pretendard, sans-serif",
-          padding: "62px 68px",
+          fontFamily: "NotoSansKR, sans-serif",
         }}
       >
         <div
           style={{
             position: "absolute",
-            top: -120,
+            top: -160,
             right: -120,
-            width: 420,
-            height: 420,
+            width: 460,
+            height: 460,
             borderRadius: 9999,
-            background: "rgba(125, 229, 255, 0.16)",
-            filter: "blur(42px)",
+            background: "rgba(255,255,255,0.12)",
           }}
         />
         <div
           style={{
             position: "absolute",
-            left: -90,
-            bottom: -130,
-            width: 360,
-            height: 360,
+            left: -140,
+            bottom: -180,
+            width: 420,
+            height: 420,
             borderRadius: 9999,
-            background: "rgba(250, 204, 21, 0.16)",
-            filter: "blur(36px)",
+            background: "rgba(255,255,255,0.10)",
           }}
         />
 
+        <div style={{ display: "flex", alignItems: "center", gap: 18 }}>
+          <img
+            src={logoSrc}
+            alt=""
+            width={84}
+            height={84}
+            style={{ borderRadius: 22, border: "4px solid rgba(255,255,255,0.9)" }}
+          />
+          <div
+            style={{
+              display: "flex",
+              borderRadius: 9999,
+              background: "#ffffff",
+              color: BRAND_DEEP,
+              padding: "10px 24px",
+              fontSize: 30,
+              fontWeight: 900,
+            }}
+          >
+            SNS 소통
+          </div>
+        </div>
+
         <div
           style={{
-            width: "100%",
-            height: "100%",
+            marginTop: 30,
             display: "flex",
-            justifyContent: "space-between",
-            alignItems: "center",
-            gap: 36,
+            fontSize: 78,
+            fontWeight: 900,
+            letterSpacing: -2,
+            lineHeight: 1.1,
           }}
         >
-          <div style={{ display: "flex", flexDirection: "column", maxWidth: 780 }}>
+          {HEADLINE}
+        </div>
+        <div
+          style={{
+            marginTop: 18,
+            display: "flex",
+            fontSize: 32,
+            fontWeight: 700,
+            color: BRAND_SOFT,
+          }}
+        >
+          {SUBLINE}
+        </div>
+
+        <div style={{ display: "flex", gap: 14, marginTop: 42 }}>
+          {FEATURES.map((label) => (
             <div
+              key={label}
               style={{
                 display: "flex",
-                alignItems: "center",
-                alignSelf: "flex-start",
                 borderRadius: 9999,
-                border: "1px solid rgba(255,255,255,0.2)",
-                background: "rgba(255,255,255,0.12)",
-                padding: "8px 18px",
-                fontSize: 23,
+                background: "rgba(255,255,255,0.18)",
+                border: "2px solid rgba(255,255,255,0.55)",
+                padding: "12px 26px",
+                fontSize: 30,
                 fontWeight: 700,
               }}
             >
-              BREDY
+              {label}
             </div>
-            <div
-              style={{
-                marginTop: 28,
-                display: "flex",
-                flexDirection: "column",
-                fontSize: 68,
-                lineHeight: 1.1,
-                letterSpacing: -1.2,
-                fontWeight: 800,
-              }}
-            >
-              <span>반려동물 경매</span>
-              <span>브리디</span>
-            </div>
-            <div
-              style={{
-                marginTop: 18,
-                display: "flex",
-                flexDirection: "column",
-                fontSize: 30,
-                lineHeight: 1.35,
-                color: "#d8e7ff",
-              }}
-            >
-              링크형 경매 도구와 거래 기능을
-              <br />
-              쉽고 신뢰감 있게 시작하세요
-            </div>
-            <div style={{ display: "flex", gap: 14, marginTop: 28 }}>
-              {["카카오 로그인", "자동 연장", "신고/제재 처리"].map((label) => (
-                <div
-                  key={label}
-                  style={{
-                    borderRadius: 9999,
-                    border: "1px solid rgba(255,255,255,0.22)",
-                    background: "rgba(255,255,255,0.12)",
-                    padding: "10px 16px",
-                    fontSize: 21,
-                    fontWeight: 700,
-                  }}
-                >
-                  {label}
-                </div>
-              ))}
-            </div>
-          </div>
+          ))}
+        </div>
 
-          <div
-            style={{
-              width: 260,
-              height: 352,
-              borderRadius: 28,
-              border: "1px solid rgba(255,255,255,0.25)",
-              background: "linear-gradient(170deg, rgba(255,255,255,0.24), rgba(255,255,255,0.08))",
-              padding: 18,
-              display: "flex",
-            }}
-          >
-            <div
-              style={{
-                width: "100%",
-                height: "100%",
-                borderRadius: 22,
-                background: "rgba(255,255,255,0.94)",
-                display: "flex",
-                flexDirection: "column",
-                alignItems: "center",
-                justifyContent: "center",
-                color: "#1d4ed8",
-                gap: 10,
-              }}
-            >
-              <div style={{ fontSize: 28, fontWeight: 800 }}>BREDY</div>
-              <div style={{ fontSize: 20, fontWeight: 700, color: "#334155" }}>경매 · 거래 · 커뮤니티</div>
-              <div style={{ fontSize: 18, fontWeight: 700, color: "#475569" }}>실시간 참여형 도구</div>
-            </div>
-          </div>
+        <div
+          style={{
+            position: "absolute",
+            bottom: 34,
+            display: "flex",
+            fontSize: 24,
+            fontWeight: 700,
+            color: "rgba(255,255,255,0.85)",
+            letterSpacing: 1,
+          }}
+        >
+          bredy.app
         </div>
       </div>
     ),
-    size
+    { ...size, fonts }
   );
 }
