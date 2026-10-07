@@ -7,6 +7,8 @@ import { notifyFollowers } from "@libs/server/notification";
 import { fetchProductsResponse, PRICE_FILTER_MAX } from "@libs/server/home";
 import { validateProductInput } from "@libs/productRules";
 import { setViewerCacheHeader } from "@libs/server/blocks";
+import { resolveCategoryIdByName } from "@libs/server/categories";
+import { DEFAULT_DEAL_TYPE } from "@libs/shared/categories";
 
 const handler = async (
   req: NextApiRequest,
@@ -14,7 +16,7 @@ const handler = async (
 ) => {
   if (req.method === "POST") {
     const {
-      body: { name, price, description, photos, category, productType },
+      body: { name, price, description, photos, category, productType, dealType },
       user,
     } = req;
 
@@ -24,7 +26,7 @@ const handler = async (
 
     // 웹·앱 등록 화면 모두 카테고리·상품 타입을 필수로 보낸다.
     const validation = validateProductInput(
-      { name, price, description, photos, category, productType },
+      { name, price, description, photos, category, productType, dealType },
       { requireCategory: true }
     );
     if (!validation.ok) {
@@ -43,7 +45,10 @@ const handler = async (
         description: validation.value.description!,
         photos: validation.value.photos ?? [],
         category: validation.value.category!,
+        // 카테고리 고정 범위 조회용 id. 문자열 category 와 같은 종을 가리킨다.
+        categoryId: await resolveCategoryIdByName(validation.value.category),
         productType: validation.value.productType!,
+        dealType: validation.value.dealType ?? DEFAULT_DEAL_TYPE,
         mainImage: validation.value.photos?.[0] || null,
         user: {
           connect: {
@@ -77,7 +82,7 @@ const handler = async (
 
   if (req.method === "GET") {
     const {
-      query: { page = 1, size = 10, category, productType, status, price, minPrice, maxPrice, sort },
+      query: { page = 1, size = 10, category, productType, status, price, minPrice, maxPrice, sort, categoryPath },
     } = req;
 
     // 캐싱 전략: 필터 없는 기본 목록은 60초 캐시
@@ -95,6 +100,7 @@ const handler = async (
     const sortValue = typeof sort === "string" ? sort : undefined;
     const hasFilters =
       (category && category !== "전체") ||
+      (typeof categoryPath === "string" && categoryPath) ||
       productType ||
       status ||
       priceFilter !== undefined ||
@@ -114,6 +120,7 @@ const handler = async (
       page: Number(page),
       size: Number(size),
       category: typeof category === "string" ? category : undefined,
+      categoryPath: typeof categoryPath === "string" ? categoryPath : undefined,
       productType: typeof productType === "string" ? productType : undefined,
       status: typeof status === "string" ? status : undefined,
       price: priceFilter,

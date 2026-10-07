@@ -1,6 +1,8 @@
 import type { NextApiRequest, NextApiResponse } from "next";
 
 const mockClient = {
+  // 카테고리 고정 범위 헬퍼(libs/server/categories)가 읽는 트리. 비우면 범위 조건을 붙이지 않는다.
+  category: { findMany: jest.fn(async () => []) },
   product: { findUnique: jest.fn(), create: jest.fn(), update: jest.fn(), delete: jest.fn() },
   user: { findUnique: jest.fn() },
   purchase: { findFirst: jest.fn(), create: jest.fn(), findMany: jest.fn() },
@@ -138,6 +140,8 @@ describe("POST /api/products/:id (update)", () => {
         description: validData.description,
         photos: validData.photos,
         category: "구피",
+        // 테스트 트리가 비어 있어 종 → Category.id 매핑은 null 이다.
+        categoryId: null,
         productType: "생물",
         mainImage: "img-1",
       },

@@ -14,6 +14,7 @@ import { canWriteNoticePost, isNoticePostInput } from "@libs/server/postNotice";
 import { excludedAuthorIds } from "@libs/server/blocks";
 import { isModeratorUser } from "@libs/server/adminAccess";
 import { Prisma, type Post } from "@prisma/client";
+import { resolveCategoryIdByName } from "@libs/server/categories";
 
 interface PostDetail {
   user: {
@@ -205,6 +206,7 @@ async function mutatePost(
       description,
       category: category || null,
       type: species || null,
+      categoryId: await resolveCategoryIdByName(species),
       ...(resolvedImages
         ? { image: resolvedImages.image, images: resolvedImages.images }
         : {}),

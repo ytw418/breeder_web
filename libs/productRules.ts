@@ -1,5 +1,6 @@
 import { findCategoryBranch } from "@libs/categoryTaxonomy";
 import { PRODUCT_TYPES } from "@libs/constants";
+import { isDealType } from "@libs/shared/categories";
 
 export const PRODUCT_NAME_MIN_LENGTH = 2;
 export const PRODUCT_NAME_MAX_LENGTH = 60;
@@ -22,7 +23,8 @@ export type ProductValidationErrorCode =
   | "PRODUCT_INVALID_PHOTOS"
   | "PRODUCT_TOO_MANY_PHOTOS"
   | "PRODUCT_INVALID_CATEGORY"
-  | "PRODUCT_INVALID_PRODUCT_TYPE";
+  | "PRODUCT_INVALID_PRODUCT_TYPE"
+  | "PRODUCT_INVALID_DEAL_TYPE";
 
 export interface ProductInputValue {
   name?: string;
@@ -31,6 +33,8 @@ export interface ProductInputValue {
   photos?: string[];
   category?: string;
   productType?: string;
+  /** 거래 유형(sale/adoption/rehoming). 보내지 않으면 서버 기본값 sale. */
+  dealType?: string;
 }
 
 export type ProductValidationResult =
@@ -59,6 +63,7 @@ export const validateProductInput = (
     photos?: unknown;
     category?: unknown;
     productType?: unknown;
+    dealType?: unknown;
   },
   {
     partial = false,
@@ -144,6 +149,14 @@ export const validateProductInput = (
       return fail("PRODUCT_INVALID_PRODUCT_TYPE", "상품 타입은 생물·용품 중에서 선택해주세요.");
     }
     value.productType = productType;
+  }
+
+  if (sent(input.dealType)) {
+    const dealType = trimmed(input.dealType);
+    if (!isDealType(dealType)) {
+      return fail("PRODUCT_INVALID_DEAL_TYPE", "거래 유형을 다시 선택해주세요.");
+    }
+    value.dealType = dealType;
   }
 
   return { ok: true, value };

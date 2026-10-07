@@ -5,6 +5,7 @@ import { withAuth } from "@libs/server/auth";
 import { isModeratorUser } from "@libs/server/adminAccess";
 import { Product, User } from "@prisma/client";
 import { validateProductInput } from "@libs/productRules";
+import { resolveCategoryIdByName } from "@libs/server/categories";
 import { excludedAuthorIds } from "@libs/server/blocks";
 
 export interface ProductWithUser extends Product {
@@ -245,7 +246,11 @@ async function handler(
             description: validation.value.description,
             photos,
             category: validation.value.category,
+            ...(validation.value.category !== undefined
+              ? { categoryId: await resolveCategoryIdByName(validation.value.category) }
+              : {}),
             productType: validation.value.productType,
+            dealType: validation.value.dealType,
             // 사진을 보냈으면 대표 이미지도 첫 장으로 맞춘다(등록과 같은 규칙).
             ...(photos ? { mainImage: photos[0] ?? null } : {}),
           },

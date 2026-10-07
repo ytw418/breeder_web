@@ -5,6 +5,8 @@ import type { NextApiRequest, NextApiResponse } from "next";
 import { Prisma } from "@prisma/client";
 
 const mockClient = {
+  // 카테고리 고정 범위 헬퍼(libs/server/categories)가 읽는 트리. 비우면 범위 조건을 붙이지 않는다.
+  category: { findMany: jest.fn(async () => []) },
   post: {
     create: jest.fn(),
     findUnique: jest.fn(),
@@ -195,6 +197,8 @@ describe("POST /api/posts/:id action=update", () => {
       title: "새 제목",
       description: "새 내용",
       category: "정보",
+      // 테스트 트리가 비어 있어 종 → Category.id 매핑은 null 이다.
+      categoryId: null,
       type: "장수풍뎅이",
       image: "cf-old",
       images: ["cf-old", "cf-new-1", "cf-new-2"],
