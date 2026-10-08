@@ -9,7 +9,14 @@ const mockClient = {
     updateMany: jest.fn(),
   },
   post: { findMany: jest.fn(), findUnique: jest.fn(), update: jest.fn(), delete: jest.fn() },
-  comment: { findMany: jest.fn(), findUnique: jest.fn(), delete: jest.fn() },
+  // 댓글 삭제는 답글까지 지운다(deleteMany parentId) — libs/server/comments.deleteCommentWithReplies
+  comment: {
+    findMany: jest.fn(),
+    findUnique: jest.fn(),
+    delete: jest.fn(),
+    deleteMany: jest.fn(),
+    count: jest.fn(),
+  },
   product: { findMany: jest.fn(), findUnique: jest.fn(), update: jest.fn() },
   moderationLog: { create: jest.fn() },
   user: { findMany: jest.fn(), update: jest.fn(), updateMany: jest.fn() },
