@@ -13,6 +13,7 @@ const mockClient = {
   follow: { deleteMany: jest.fn() },
   alertSubscription: { deleteMany: jest.fn() },
   bloodlineFollow: { deleteMany: jest.fn() },
+  profileAlbum: { deleteMany: jest.fn() },
   notification: { deleteMany: jest.fn() },
   voiceInquiry: { updateMany: jest.fn() },
   guinnessSubmission: { updateMany: jest.fn() },
@@ -236,6 +237,7 @@ describe("deleteAccount", () => {
         email: null,
         phone: null,
         avatar: null,
+        bio: null,
         snsId: `deleted:${hashSnsId("kakao-123")}`,
         // 탈퇴하면 모든 기기의 access/refresh 토큰을 즉시 무효화한다.
         tokenVersion: { increment: 1 },
@@ -269,6 +271,7 @@ describe("deleteAccount", () => {
     });
     expect(mockClient.alertSubscription.deleteMany).toHaveBeenCalledWith({ where: { userId: USER_ID } });
     expect(mockClient.bloodlineFollow.deleteMany).toHaveBeenCalledWith({ where: { userId: USER_ID } });
+    expect(mockClient.profileAlbum.deleteMany).toHaveBeenCalledWith({ where: { userId: USER_ID } });
     expect(mockClient.notification.deleteMany).toHaveBeenCalledWith({ where: { userId: USER_ID } });
     // 보낸 알림 문구("브리더님이 회원님을 팔로우했습니다.")에 박힌 원래 닉네임도 남기지 않는다.
     expect(mockClient.notification.deleteMany).toHaveBeenCalledWith({

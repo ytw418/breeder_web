@@ -133,6 +133,36 @@ describe("POST /api/users/me 닉네임", () => {
   });
 });
 
+describe("POST /api/users/me 소개(bio) — 앱 docs/prd/profile.md AC-2", () => {
+  it("bio 키가 없으면 소개를 건드리지 않는다", async () => {
+    await save({ avatarId: "img-1" });
+    expect(mockClient.user.update).not.toHaveBeenCalledWith(
+      expect.objectContaining({ data: expect.objectContaining({ bio: expect.anything() }) })
+    );
+  });
+
+  it("정규화한 소개를 저장하고 응답에 돌려준다", async () => {
+    const res = await save({ bio: "  왕사슴 키워요\n\n\n\n문의는 채팅  " });
+    expect(res.body).toEqual({ success: true, bio: "왕사슴 키워요\n\n문의는 채팅" });
+    expect(mockClient.user.update).toHaveBeenCalledWith({
+      where: { id: 7 },
+      data: { bio: "왕사슴 키워요\n\n문의는 채팅" },
+    });
+  });
+
+  it("빈 문자열이면 null 로 지운다", async () => {
+    const res = await save({ bio: "   " });
+    expect(res.body).toEqual({ success: true, bio: null });
+    expect(mockClient.user.update).toHaveBeenCalledWith({ where: { id: 7 }, data: { bio: null } });
+  });
+
+  it("151자 이상이면 저장하지 않고 BIO_TOO_LONG(다른 필드도 저장하지 않는다)", async () => {
+    const res = await save({ bio: "가".repeat(151), avatarId: "img-1" });
+    expect(res.body).toMatchObject({ success: false, errorCode: "BIO_TOO_LONG" });
+    expect(mockClient.user.update).not.toHaveBeenCalled();
+  });
+});
+
 describe("GET /api/users/me", () => {
   it("tokenVersion·suspendedUntil 은 내려주지 않는다", async () => {
     mockClient.user.findUnique.mockResolvedValue({ id: 7, name: "브리디", status: "ACTIVE" });

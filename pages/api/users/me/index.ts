@@ -13,6 +13,7 @@ import {
 } from "@libs/shared/regions";
 import { sanitizePinnedCategoryIds } from "@libs/server/categories";
 import { MAX_PINNED_CATEGORIES } from "@libs/shared/categories";
+import { normalizeBio } from "@libs/shared/profile";
 
 async function handler(
   req: NextApiRequest,
@@ -53,6 +54,20 @@ async function handler(
         body: { name, avatarId, regionSido, regionSigungu, regionVisible },
       } = req;
       const body = (req.body ?? {}) as Record<string, unknown>;
+
+      // 프로필 소개. 키가 있을 때만 바꾼다(null·빈 값이면 지운다). 이 API 의 다른 검증 실패처럼 200 + success:false.
+      let savedBio: string | null | undefined;
+      if ("bio" in body) {
+        const result = normalizeBio(body.bio);
+        if (!result.ok) {
+          return res.json({
+            success: false,
+            error: result.message,
+            errorCode: result.errorCode,
+          });
+        }
+        savedBio = result.bio;
+      }
 
       // 관심 카테고리 고정 목록(복수). 빈 배열이면 해제. 없는 id·숨긴 id 는 조용히 뺀다.
       let savedPinnedCategoryIds: number[] | undefined;
@@ -156,6 +171,12 @@ async function handler(
           }
         }
       }
+      if (savedBio !== undefined) {
+        await client.user.update({
+          where: { id: user?.id },
+          data: { bio: savedBio },
+        });
+      }
       if (avatarId) {
         await client.user.update({
           where: {
@@ -171,6 +192,7 @@ async function handler(
         ...(savedPinnedCategoryIds !== undefined
           ? { pinnedCategoryIds: savedPinnedCategoryIds }
           : {}),
+        ...(savedBio !== undefined ? { bio: savedBio } : {}),
       });
     }
   } catch (error) {
