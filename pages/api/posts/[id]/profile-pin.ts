@@ -3,6 +3,7 @@ import withHandler, { ResponseType } from "@libs/server/withHandler";
 import client from "@libs/server/client";
 import { withAuth } from "@libs/server/auth";
 import { parsePositiveIntId } from "@libs/shared/normalize";
+import { photoPostWhere } from "@libs/server/profileSpecies";
 import {
   POST_NOT_PINNABLE_MESSAGE,
   PROFILE_PIN_LIMIT_MESSAGE,
@@ -76,11 +77,17 @@ async function handler(
   }
 
   // 작성자 행을 잠근 뒤 세고 저장한다. 같은 사람이 동시에 여러 글을 고정해도 4개가 되지 않는다.
-  // 한도를 넘으면 null 을 돌려준다(트랜잭션은 그대로 끝난다).
+  // 잠금을 기다리는 사이 같은 글이 먼저 고정됐으면 그 값을 그대로 돌려준다(멱등).
+  // 고정한 뒤 사진을 모두 지운 글은 그리드에 없으므로 한도에 세지 않는다.
   const updated = await client.$transaction(async (tx) => {
     await tx.$queryRaw`SELECT id FROM "User" WHERE id = ${userId} FOR UPDATE`;
+    const current = await tx.post.findUnique({
+      where: { id: postId },
+      select: { profilePinnedAt: true },
+    });
+    if (current?.profilePinnedAt) return current;
     const count = await tx.post.count({
-      where: { userId, profilePinnedAt: { not: null } },
+      where: { ...photoPostWhere(userId, true), profilePinnedAt: { not: null } },
     });
     if (count >= PROFILE_PIN_MAX) return null;
     return tx.post.update({

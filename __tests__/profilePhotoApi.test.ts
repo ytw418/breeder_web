@@ -10,7 +10,7 @@ import type { NextApiRequest, NextApiResponse } from "next";
 
 const mockTx = {
   $queryRaw: jest.fn(),
-  post: { count: jest.fn(), update: jest.fn() },
+  post: { count: jest.fn(), update: jest.fn(), findUnique: jest.fn() },
 };
 const mockClient = {
   user: { findUnique: jest.fn() },
@@ -280,6 +280,7 @@ describe("POST /api/posts/:id/profile-pin (AC-7)", () => {
 
   beforeEach(() => {
     mockClient.post.findUnique.mockResolvedValue({ ...photoPost });
+    mockTx.post.findUnique.mockResolvedValue({ profilePinnedAt: null });
     mockTx.post.count.mockResolvedValue(0);
     mockTx.post.update.mockResolvedValue({ profilePinnedAt: day(8) });
   });
@@ -333,10 +334,25 @@ describe("POST /api/posts/:id/profile-pin (AC-7)", () => {
     expect(res.statusCode).toBe(200);
     expect(res.body).toEqual({ success: true, pinned: true, profilePinnedAt: day(8).toISOString() });
     expect(mockTx.$queryRaw).toHaveBeenCalledTimes(1);
+    // 사진 없는(고정 뒤 사진을 지운) 글·공지는 한도에 세지 않는다.
     expect(mockTx.post.count).toHaveBeenCalledWith({
-      where: { userId: OWNER, profilePinnedAt: { not: null } },
+      where: {
+        userId: OWNER,
+        NOT: { category: "공지" },
+        OR: [{ images: { isEmpty: false } }, { image: { not: "" } }],
+        profilePinnedAt: { not: null },
+      },
     });
     expect(mockTx.post.update.mock.calls[0][0].where).toEqual({ id: 10 });
+  });
+
+  it("잠금을 기다리는 사이 같은 글이 먼저 고정됐으면 409 가 아니라 그 값으로 200", async () => {
+    mockTx.post.findUnique.mockResolvedValue({ profilePinnedAt: day(3) });
+    mockTx.post.count.mockResolvedValue(3);
+    const res = await pin({ pinned: true });
+    expect(res.statusCode).toBe(200);
+    expect(res.body).toEqual({ success: true, pinned: true, profilePinnedAt: day(3).toISOString() });
+    expect(mockTx.post.update).not.toHaveBeenCalled();
   });
 
   it("이미 고정된 글을 다시 고정하면 그대로 200(멱등)", async () => {
