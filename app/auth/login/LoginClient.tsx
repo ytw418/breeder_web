@@ -7,7 +7,15 @@ import KakaoRound from "@images/KakaoRound.svg";
 import GoogleRound from "@images/GoogleRound.svg";
 
 import Link from "next/link";
-import { useSearchParams } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
+import AccountRestrictedNotice from "@components/features/moderation/AccountRestrictedNotice";
+import {
+  clearAccountRestriction,
+  readAccountRestriction,
+  saveAccountRestriction,
+  toAccountRestriction,
+  type AccountRestriction,
+} from "@libs/client/accountRestriction";
 import useMutation from "hooks/useMutation";
 import useSWR from "swr";
 import { LoginReqBody, LoginResponseType } from "pages/api/auth/login";
@@ -86,6 +94,18 @@ const isReactNativeWebViewWindow = () => {
 
 const LoginClient = ({ shouldShowTestLogin }: LoginClientProps) => {
   const searchParams = useSearchParams();
+  const router = useRouter();
+  // 정지·영구 정지 안내(S-6). refresh·카카오 로그인이 /auth/login?restricted=1 로 보내면 저장된 안내를 연다.
+  const [restriction, setRestriction] = useState<AccountRestriction | null>(null);
+  const restrictedParam = searchParams?.get("restricted") === "1";
+  useEffect(() => {
+    if (restrictedParam) setRestriction(readAccountRestriction());
+  }, [restrictedParam]);
+  const closeRestriction = () => {
+    clearAccountRestriction();
+    setRestriction(null);
+    if (restrictedParam) router.replace("/auth/login");
+  };
   const [login] = useMutation<LoginResponseType>("/api/auth/login");
   const { data: foundingData } = useSWR<FoundingCountResponseType>(
     "/api/breeder-programs/founding-count",
@@ -258,6 +278,12 @@ const LoginClient = ({ shouldShowTestLogin }: LoginClientProps) => {
             void navigateAfterSessionReady(nextPath);
             return;
           }
+          const blocked = toAccountRestriction(result);
+          if (blocked) {
+            saveAccountRestriction(blocked);
+            setRestriction(blocked);
+            return;
+          }
           alert(`로그인에 실패했습니다:${result.error}`);
         },
         onError(error) {
@@ -311,6 +337,10 @@ const LoginClient = ({ shouldShowTestLogin }: LoginClientProps) => {
       setSwitchingTestUserId(null);
     }
   };
+
+  if (restriction) {
+    return <AccountRestrictedNotice restriction={restriction} onConfirm={closeRestriction} />;
+  }
 
   return (
     <div className="flex min-h-screen w-full flex-col overflow-y-auto bg-app-bg px-5 py-8">

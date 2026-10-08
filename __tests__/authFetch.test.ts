@@ -1,3 +1,9 @@
+const mockOpenNotice = jest.fn();
+jest.mock("@libs/client/accountRestriction", () => ({
+  ...jest.requireActual("@libs/client/accountRestriction"),
+  openAccountRestrictedNotice: () => mockOpenNotice(),
+}));
+
 import { authFetch } from "@libs/client/authFetch";
 import { getAccessToken, getRefreshToken, setTokens } from "@libs/client/authToken";
 
@@ -53,5 +59,40 @@ describe("authFetch refresh 실패 처리", () => {
     expect(getRefreshToken()).toBe("new-refresh");
     const retryInit = fetchMock.mock.calls[2][1] as RequestInit;
     expect(new Headers(retryInit.headers).get("Authorization")).toBe("Bearer new-access");
+  });
+});
+
+describe("authFetch 쓰는 중 정지(refresh 403 ACCOUNT_*)", () => {
+  beforeEach(() => {
+    mockOpenNotice.mockReset();
+    window.sessionStorage.clear();
+  });
+
+  it("사유·해제일을 저장하고 로그인 화면의 이용 제한 안내로 보낸다(AC-25)", async () => {
+    fetchMock.mockResolvedValueOnce(response(401)).mockResolvedValueOnce(
+      response(403, {
+        success: false,
+        errorCode: "ACCOUNT_SUSPENDED",
+        message: "이용이 정지된 계정이에요. 2026.10.12 이후 다시 로그인할 수 있어요. 사유: 스팸·광고",
+        reasonLabel: "스팸·광고",
+        suspendedUntil: "2026-10-12T00:30:00.000Z",
+      })
+    );
+
+    const res = await authFetch("/api/posts");
+
+    expect(res.status).toBe(401);
+    expect(getAccessToken()).toBeNull();
+    expect(JSON.parse(window.sessionStorage.getItem("bredy:account-restriction") || "{}")).toEqual(
+      expect.objectContaining({ errorCode: "ACCOUNT_SUSPENDED", reasonLabel: "스팸·광고" })
+    );
+    expect(mockOpenNotice).toHaveBeenCalledTimes(1);
+  });
+
+  it("403 이어도 이용 제한 응답이 아니면 안내로 보내지 않는다", async () => {
+    fetchMock.mockResolvedValueOnce(response(401)).mockResolvedValueOnce(response(403, { success: false }));
+    await authFetch("/api/posts");
+    expect(mockOpenNotice).not.toHaveBeenCalled();
+    expect(window.sessionStorage.getItem("bredy:account-restriction")).toBeNull();
   });
 });
