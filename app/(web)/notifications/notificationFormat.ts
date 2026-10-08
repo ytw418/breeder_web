@@ -1,7 +1,7 @@
 import type { NotificationType } from "@prisma/client";
 import { toAuctionPath } from "@libs/auction-route";
 import { getProductPath } from "@libs/product-route";
-import { toPostPath } from "@libs/post-route";
+import { toPostCommentPath } from "@libs/post-route";
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 
@@ -61,12 +61,16 @@ const ICON_BY_TYPE: Partial<Record<NotificationType, NotificationIconName>> = {
 export const getNotificationIcon = (type: NotificationType | string): NotificationIconName =>
   ICON_BY_TYPE[type as NotificationType] ?? "bell";
 
-/** 알림 대상 경로. 갈 곳이 없으면 null. */
-export function getNotificationHref(targetType: string | null, targetId: number | null): string | null {
+/** 알림 대상 경로. 갈 곳이 없으면 null. 댓글 알림은 그 댓글까지 스크롤한다(?commentId=). */
+export function getNotificationHref(
+  targetType: string | null,
+  targetId: number | null,
+  commentId?: number | null
+): string | null {
   if (!targetType || !targetId) return null;
   switch (targetType) {
     case "post":
-      return toPostPath(targetId);
+      return toPostCommentPath(targetId, commentId);
     case "product":
       return getProductPath(targetId);
     case "chatRoom":

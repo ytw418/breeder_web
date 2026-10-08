@@ -4,7 +4,7 @@ import Link from "next/link";
 import { getTimeAgoString } from "@libs/client/utils";
 import { formatProductPrice } from "@libs/shared/price";
 import { toAuctionPath } from "@libs/auction-route";
-import { toPostPath } from "@libs/post-route";
+import { toPostCommentPath, toPostPath } from "@libs/post-route";
 import type { ProductListResponse } from "pages/api/users/[id]/productList";
 import type { UserPostListResponse } from "pages/api/users/[id]/posts";
 import type { UserCommentListResponse } from "pages/api/users/[id]/comments";
@@ -186,6 +186,15 @@ export function ProfilePostRows({
   );
 }
 
+/** 댓글 행 위 작은 회색 pill('답글'·'비공개'). 앱 HiddenPill 과 같은 모양 */
+function RowPill({ children }: { children: string }) {
+  return (
+    <span className="shrink-0 rounded-full bg-app-surface px-1.5 py-px text-[11px] font-semibold text-app-muted">
+      {children}
+    </span>
+  );
+}
+
 export function ProfileCommentRows({ list }: { list: PagedListState<ProfileComment> }) {
   if (list.isLoading) return <LoadingBlock />;
   if (list.isError) {
@@ -207,8 +216,25 @@ export function ProfileCommentRows({ list }: { list: PagedListState<ProfileComme
   return (
     <div>
       {list.items.map((item) => (
-        <Link key={item.id} href={toPostPath(item.post.id, item.post.title)} className={LIST_ROW_CLASS}>
+        // 누르면 글을 열고 그 댓글까지 스크롤한다.
+        <Link
+          key={item.id}
+          href={toPostCommentPath(item.post.id, item.id, item.post.title)}
+          className={LIST_ROW_CLASS}
+        >
           <div className="min-w-0 flex-1">
+            {/* 답글이면 '답글' pill + 'OO님 댓글에', 운영자가 숨겼으면 '비공개'(앱 마이페이지 댓글 목록과 같음) */}
+            {item.parentId != null || item.isHidden ? (
+              <div className="mb-1 flex min-w-0 items-center gap-1.5">
+                {item.parentId != null ? <RowPill>답글</RowPill> : null}
+                {item.replyTo ? (
+                  <span className="min-w-0 truncate text-[13px] text-app-muted">
+                    {`${item.replyTo.name}님 댓글에`}
+                  </span>
+                ) : null}
+                {item.isHidden ? <RowPill>비공개</RowPill> : null}
+              </div>
+            ) : null}
             <p className="line-clamp-2 break-keep text-[15px] leading-[21px] text-app-text">{item.comment}</p>
             <p className="mt-1.5 truncate text-[13px] text-app-muted">
               {item.post.title} · {getTimeAgoString(new Date(item.createdAt))}

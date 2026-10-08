@@ -18,6 +18,8 @@ export interface UserCommentListResponse {
     id: number;
     comment: string;
     createdAt: Date;
+    /** 운영자 숨김. 본인·관리자에게만 내려온다. */
+    isHidden: boolean;
     /** 답글이면 루트 댓글 id */
     parentId: number | null;
     /** 답글이면 답글을 단 댓글의 작성자('OO님에게 답글'). 그 댓글이 없어졌으면 null */

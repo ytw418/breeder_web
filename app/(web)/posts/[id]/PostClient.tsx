@@ -1,6 +1,6 @@
 "use client";
 
-import { useLayoutEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import useSWR, { useSWRConfig } from "swr";
@@ -28,7 +28,7 @@ import { PostBody } from "../_components/PostBody";
 import { useProfilePin } from "@components/features/profile/ProfilePinSheet";
 import HiddenContentNotice from "@components/app/moderation/HiddenContentNotice";
 import useAdminModeration from "hooks/useAdminModeration";
-import { PostCommentItem } from "../_components/PostCommentItem";
+import { commentAnchorId, PostCommentItem } from "../_components/PostCommentItem";
 import { COMMENT_MAX_LENGTH, groupCommentThreads } from "@libs/shared/comment";
 
 type PostComment = NonNullable<PostDetailResponse["post"]>["comments"][number];
@@ -39,7 +39,15 @@ type ComposerMode =
   | { kind: "reply"; rootId: number; name: string }
   | { kind: "edit"; comment: PostComment };
 
-type CommentMutationResult = { success?: boolean; error?: string; message?: string } | null;
+type CommentMutationResult = {
+  success?: boolean;
+  error?: string;
+  message?: string;
+  answer?: { id?: number };
+} | null;
+type CommentLikeResult = { success?: boolean; liked?: boolean; likeCount?: number; error?: string } | null;
+/** 그 댓글로 이동했을 때 회색 배경을 보여 주는 시간 */
+const COMMENT_HIGHLIGHT_MS = 1600;
 
 const timeAgo = (value: string | Date) => {
   const date = new Date(value);
@@ -141,7 +149,11 @@ const PostClient = ({
   post: initialPost,
   prevNotice: initialPrevNotice,
   nextNotice: initialNextNotice,
-}: PostDetailResponse) => {
+  focusCommentId,
+}: PostDetailResponse & {
+  /** 알림·프로필 댓글 목록에서 ?commentId= 로 열면 그 댓글까지 스크롤한다. */
+  focusCommentId?: number;
+}) => {
   const params = useParams();
   const postId = extractPostIdFromPath(params?.id);
   const postApiId = Number.isNaN(postId) ? null : postId;
@@ -168,6 +180,10 @@ const PostClient = ({
   const [composerMode, setComposerMode] = useState<ComposerMode | null>(null);
   const [commentDelete, setCommentDelete] = useState<PostComment | null>(null);
   const [commentDeleting, setCommentDeleting] = useState(false);
+  // 스크롤할 댓글(알림·프로필에서 열었거나 방금 등록함). 한 번 스크롤하면 비워 다시 받아도 다시 움직이지 않는다.
+  const [scrollTargetId, setScrollTargetId] = useState<number | null>(focusCommentId ?? null);
+  const [highlightedCommentId, setHighlightedCommentId] = useState<number | null>(null);
+  const commentLikePending = useRef(new Set<number>());
   const [reportTarget, setReportTarget] = useState<ReportTarget | null>(null);
   const [blockTarget, setBlockTarget] = useState<BlockTarget | null>(null);
   const [deleteOpen, setDeleteOpen] = useState(false);
@@ -195,6 +211,30 @@ const PostClient = ({
   // 내 사진 글은 프로필 사진 그리드 맨 앞에 고정할 수 있다(사진형 프로필 PRD F-6).
   const { setPin: setProfilePin } = useProfilePin();
   const commentThreads = useMemo(() => groupCommentThreads(post?.comments ?? []), [post?.comments]);
+
+  // 같은 글에서 다른 댓글 알림으로 들어오면 그 댓글로 다시 스크롤한다.
+  useEffect(() => {
+    if (focusCommentId) setScrollTargetId(focusCommentId);
+  }, [focusCommentId]);
+
+  useEffect(() => {
+    if (scrollTargetId == null) return;
+    const element = document.getElementById(commentAnchorId(scrollTargetId));
+    if (!element) {
+      // 지웠거나 볼 수 없는 댓글이면 최신 응답을 받은 뒤 포기하고 글 맨 위에 둔다.
+      if (data) setScrollTargetId(null);
+      return;
+    }
+    element.scrollIntoView({ block: "center", behavior: "smooth" });
+    setHighlightedCommentId(scrollTargetId);
+    setScrollTargetId(null);
+  }, [scrollTargetId, commentThreads, data]);
+
+  useEffect(() => {
+    if (highlightedCommentId == null) return;
+    const timer = window.setTimeout(() => setHighlightedCommentId(null), COMMENT_HIGHLIGHT_MS);
+    return () => window.clearTimeout(timer);
+  }, [highlightedCommentId]);
   const photos = useMemo(
     () => (post ? (post.images?.length ? post.images : post.image ? [post.image] : []) : []),
     [post]
@@ -305,6 +345,8 @@ const PostClient = ({
         setComment("");
         setComposerMode(null);
         await mutate();
+        // 새 댓글·답글로 스크롤한다(수정은 제자리).
+        if (mode?.kind !== "edit" && result.answer?.id) setScrollTargetId(result.answer.id);
         // 게시글 목록 댓글 수와 마이페이지·내 프로필 댓글 목록·수(앱 invalidateMyActivity)
         revalidateMyPostActivity();
         toast.success(
@@ -321,6 +363,48 @@ const PostClient = ({
       toast.error(failMessage);
     } finally {
       setCommentLoading(false);
+    }
+  };
+
+  /** 댓글 좋아요 토글(낙관적 반영, 실패하면 되돌린다). */
+  const handleCommentLike = async (item: PostComment) => {
+    if (!post) return;
+    if (!user) return goLogin();
+    // 서버 초기값에는 내 좋아요 여부가 없으니 클라이언트 응답이 온 뒤에만 누를 수 있다(글 좋아요와 같음).
+    if (!likeReady || commentLikePending.current.has(item.id)) return;
+    commentLikePending.current.add(item.id);
+    const setLike = (liked: boolean, likeCount: number) =>
+      mutate(
+        (current) => {
+          const base = current ?? { success: true, post };
+          if (!base.post) return base;
+          return {
+            ...base,
+            post: {
+              ...base.post,
+              comments: base.post.comments.map((comment) =>
+                comment.id === item.id ? { ...comment, isLiked: liked, likeCount } : comment
+              ),
+            },
+          };
+        },
+        { revalidate: false }
+      );
+    const wasLiked = Boolean(item.isLiked);
+    const previousCount = item.likeCount ?? 0;
+    void setLike(!wasLiked, Math.max(0, previousCount + (wasLiked ? -1 : 1)));
+    try {
+      const response = await authFetch(`/api/posts/${post.id}/comments/${item.id}/like`, {
+        method: "POST",
+      });
+      const result = (await response.json().catch(() => null)) as CommentLikeResult;
+      if (!response.ok || !result?.success) throw new Error(result?.error || "like failed");
+      void setLike(Boolean(result.liked), result.likeCount ?? 0);
+    } catch {
+      void setLike(wasLiked, previousCount);
+      toast.error("좋아요 처리에 실패했습니다. 잠시 후 다시 시도해주세요.");
+    } finally {
+      commentLikePending.current.delete(item.id);
     }
   };
 
@@ -463,11 +547,15 @@ const PostClient = ({
           },
         ]
       : [
+          // 관리자는 남의 댓글에서 숨기기·숨김 해제·삭제를 맨 앞에 본다(앱과 같음).
           ...moderation.actionsFor({
             targetType: "COMMENT",
             targetId: commentSheet.id,
             isHidden: Boolean(commentSheet.isHidden),
-            refreshDetail: () => void mutate(),
+            refreshDetail: () => {
+              void mutate();
+              revalidateMyPostActivity();
+            },
           }),
           {
             key: "report",
@@ -649,7 +737,10 @@ const PostClient = ({
                       key={item.id}
                       item={item}
                       isReply={item !== root}
+                      isPostAuthor={Boolean(authorId && item.user?.id === authorId)}
+                      highlighted={highlightedCommentId === item.id}
                       onMore={() => setCommentSheet(item)}
+                      onLike={() => void handleCommentLike(item)}
                       // 답글의 답글도 루트에 달고, 입력바에는 누른 댓글의 작성자를 보여 준다.
                       onReply={() =>
                         startComposer({ kind: "reply", rootId: root.id, name: item.user?.name ?? "" })
