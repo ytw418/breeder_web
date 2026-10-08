@@ -12,6 +12,19 @@ export const PRODUCT_TYPES = [
 
 export type ProductType = (typeof PRODUCT_TYPES)[number]["id"];
 
+/** 상품 거래 유형. 1단계는 판매·분양만 고를 수 있고 파양(rehoming)은 비노출이다(앱 constants/categories.ts). */
+export const DEAL_TYPE_OPTIONS = [
+  { id: "sale", name: "판매" },
+  { id: "adoption", name: "분양" },
+] as const;
+
+/** 거래 유형 표시 이름(파양은 옛 데이터·관리자 입력용). */
+export const DEAL_TYPE_LABELS: Record<string, string> = {
+  sale: "판매",
+  adoption: "분양",
+  rehoming: "파양",
+};
+
 /** 상품 카테고리 (경매와 동일한 대분류) */
 export const CATEGORIES = [
   ...TOP_LEVEL_CATEGORIES,
