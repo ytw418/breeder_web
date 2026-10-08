@@ -27,7 +27,7 @@ export function RetryFooter({
   if (error) {
     return (
       <div className="flex flex-col items-center gap-2 py-4">
-        <p className="text-[13px] text-app-muted">목록을 더 불러오지 못했어요.</p>
+        <p className="text-[13px] text-app-muted">더 불러오지 못했어요</p>
         <button
           type="button"
           onClick={onRetry}

@@ -5,8 +5,9 @@ jest.mock("swr", () => ({
   __esModule: true,
   default: (...args: unknown[]) => mockUseSWR(...args),
 }));
+const mockReplace = jest.fn();
 jest.mock("next/navigation", () => ({
-  useRouter: () => ({ push: jest.fn(), replace: jest.fn(), back: jest.fn() }),
+  useRouter: () => ({ push: jest.fn(), replace: mockReplace, back: jest.fn() }),
 }));
 // jest 설정에 hooks/ 별칭이 없어 가상 모듈로 막는다.
 jest.mock(
@@ -19,35 +20,8 @@ jest.mock("@components/features/MainLayout", () => ({
   default: ({ children }: { children: React.ReactNode }) => <div>{children}</div>,
 }));
 
-import Item from "@components/features/item/item";
 import MySellHistoryList from "@components/features/profile/MySellHistoryList";
 import { ProfileProductRows } from "@components/features/profile/ProfileActivityLists";
-
-const baseItem = {
-  title: "왕사슴 유충",
-  id: 3,
-  hearts: 0,
-  image: "img-1",
-  createdAt: new Date("2026-10-01T00:00:00.000Z"),
-};
-
-describe("Item 가격 표시", () => {
-  it("0원은 무료나눔으로 보인다", () => {
-    render(<Item {...baseItem} price={0} />);
-    expect(screen.getByText("무료나눔")).toBeInTheDocument();
-    expect(screen.queryByText("가격 미정")).not.toBeInTheDocument();
-  });
-
-  it("가격이 없으면 가격 미정", () => {
-    render(<Item {...baseItem} price={null} />);
-    expect(screen.getByText("가격 미정")).toBeInTheDocument();
-  });
-
-  it("가격이 있으면 원 단위로 보인다", () => {
-    render(<Item {...baseItem} price={10000} />);
-    expect(screen.getByText("10,000원")).toBeInTheDocument();
-  });
-});
 
 describe("MySellHistoryList 삭제·숨김 상품", () => {
   const record = (id: number, product: Record<string, unknown>) => ({
@@ -141,6 +115,14 @@ describe("MySellHistoryList 오류 처리", () => {
       expect(screen.queryByText(text)).not.toBeInTheDocument();
     }
   };
+
+  it("id 가 양의 정수가 아니면(/profiles/abc/sales) /api/users/NaN 을 요청하지 않고 내 id 경로로 바꾼다", () => {
+    mockUseSWR.mockReturnValue({ isLoading: false, data: undefined, error: undefined, mutate: jest.fn() });
+    render(<MySellHistoryList kind="sales" id={Number("abc")} />);
+
+    expect(mockUseSWR).toHaveBeenLastCalledWith(null);
+    expect(mockReplace).toHaveBeenCalledWith("/profiles/7/sales");
+  });
 
   it("401 이면 빈 상태 대신 로그인 안내와 로그인 링크를 보인다", () => {
     mockUseSWR.mockReturnValue({

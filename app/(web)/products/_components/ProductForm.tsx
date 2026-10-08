@@ -407,7 +407,7 @@ export function ProductForm({
         </div>
 
         {/* 하단 고정 CTA */}
-        <div className="fixed inset-x-0 bottom-0 z-30 border-t border-app-line bg-app-bg pb-[env(safe-area-inset-bottom)]">
+        <div className="fixed inset-x-0 bottom-0 mx-auto max-w-xl z-30 border-t border-app-line bg-app-bg pb-[env(safe-area-inset-bottom)]">
           <div className="mx-auto max-w-xl px-5 py-2">
             <button
               type="submit"

@@ -12,7 +12,6 @@ import ImageLightbox from "@components/features/image/ImageLightbox";
 import { ActionSheet, type ActionSheetAction } from "@components/app/ActionSheet";
 import { HeaderIconButton } from "@components/app/HeaderIconButton";
 import { ImageCarousel } from "@components/app/ImageCarousel";
-import { ProductCard } from "@components/app/ProductCard";
 import { ReportSheet } from "@components/app/moderation/ReportSheet";
 import { BlockConfirmDialog } from "@components/app/moderation/BlockConfirmDialog";
 import { ItemDetailResponse } from "pages/api/products/[id]";
@@ -676,27 +675,37 @@ const ProductClient = ({ product: initialProduct, relatedProducts: initialRelate
 
             {relatedProducts.length > 0 ? (
               <section className="mt-6 border-t-8 border-app-gap pt-6">
-                <h2 className="mb-2 px-4 text-[17px] font-bold text-app-text">연관 상품</h2>
-                {relatedProducts.slice(0, 20).map((item) => (
-                  <ProductCard
-                    key={item.id}
-                    product={{
-                      id: item.id,
-                      name: item.name,
-                      price: item.price,
-                      image: item.photos?.[0],
-                      createdAt: item.createdAt,
-                      category: item.category,
-                      status: item.status,
-                    }}
-                  />
-                ))}
+                <h2 className="mb-4 px-4 text-[17px] font-bold text-app-text">연관 상품</h2>
+                {/* 앱 products/[id] 연관 상품: 2열 정사각 썸네일 그리드(이름 15 · 가격 15/700). */}
+                <div className="grid grid-cols-2 gap-4 px-4">
+                  {relatedProducts.slice(0, 20).map((item) => (
+                    <Link key={item.id} href={getProductPath(item.id, item.name)} className="flex min-w-0 flex-col gap-1.5">
+                      <div className="flex aspect-square w-full items-center justify-center overflow-hidden rounded-lg bg-app-surface">
+                        {item.photos?.[0] ? (
+                          <Image
+                            src={makeImageUrl(item.photos[0], "product")}
+                            alt={item.name}
+                            width={240}
+                            height={240}
+                            className="h-full w-full object-cover"
+                          />
+                        ) : (
+                          <svg width={24} height={24} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.5} className="text-app-caption" aria-hidden="true">
+                            <path strokeLinecap="round" strokeLinejoin="round" d="m2.25 15.75 5.159-5.159a2.25 2.25 0 0 1 3.182 0l5.159 5.159m-1.5-1.5 1.409-1.409a2.25 2.25 0 0 1 3.182 0l2.909 2.909m-18 3.75h16.5a1.5 1.5 0 0 0 1.5-1.5V6a1.5 1.5 0 0 0-1.5-1.5H3.75A1.5 1.5 0 0 0 2.25 6v12a1.5 1.5 0 0 0 1.5 1.5Zm10.5-11.25h.008v.008h-.008V8.25Zm.375 0a.375.375 0 1 1-.75 0 .375.375 0 0 1 .75 0Z" />
+                          </svg>
+                        )}
+                      </div>
+                      <p className="truncate text-[15px] text-app-text">{item.name}</p>
+                      <p className="text-[15px] font-bold text-app-text">{formatProductPrice(item.price)}</p>
+                    </Link>
+                  ))}
+                </div>
               </section>
             ) : null}
           </div>
 
           {/* 하단 고정 바: 찜 · 가격 · 채팅하기(판매자는 ⋮ 시트나 본문 관리 블록을 쓴다) */}
-          <div className="fixed inset-x-0 bottom-0 z-40 border-t border-app-border bg-app-bg pb-[env(safe-area-inset-bottom)]">
+          <div className="fixed inset-x-0 bottom-0 mx-auto max-w-xl z-40 border-t border-app-border bg-app-bg pb-[env(safe-area-inset-bottom)]">
             <div className="mx-auto flex max-w-xl items-center gap-3 px-4 py-2.5">
               <button
                 type="button"

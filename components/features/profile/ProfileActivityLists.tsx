@@ -1,9 +1,8 @@
 "use client";
 
 import Link from "next/link";
-import { PostCard } from "@components/app/PostCard";
-import { ProductCard } from "@components/app/ProductCard";
 import { getTimeAgoString } from "@libs/client/utils";
+import { formatProductPrice } from "@libs/shared/price";
 import { toAuctionPath } from "@libs/auction-route";
 import { toPostPath } from "@libs/post-route";
 import type { ProductListResponse } from "pages/api/users/[id]/productList";
@@ -15,7 +14,7 @@ import type { PagedListState } from "./usePagedList";
 import { usePagedList } from "./usePagedList";
 import { EmptyBlock, EmptyMessage, LoadingBlock, RetryBlock, Thumb } from "./ProfileRows";
 
-export type ProfilePost = UserPostListResponse["posts"][number];
+export type ProfilePost = UserPostListResponse["posts"][number] & { isHidden?: boolean | null };
 export type ProfileComment = UserCommentListResponse["comments"][number];
 export type ProfileProduct = ProductListResponse["products"][number] & {
   category?: string | null;
@@ -25,7 +24,7 @@ export type ProfileProduct = ProductListResponse["products"][number] & {
 export type ProfileAuction = UserAuctionsResponse["auctions"][number];
 export type ProfileBloodlineCard = UserBloodlineCardsResponse["cards"][number];
 
-const pickPosts = (page: UserPostListResponse) => page.posts;
+const pickPosts = (page: UserPostListResponse) => page.posts as ProfilePost[];
 const pickComments = (page: UserCommentListResponse) => page.comments;
 const pickProducts = (page: ProductListResponse) => page.products as ProfileProduct[];
 const pickAuctions = (page: UserAuctionsResponse) => page.auctions;
@@ -106,6 +105,15 @@ export function LoadMoreFooter({ state, label }: { state: LoadMoreState; label: 
 /* 행 목록                                                              */
 /* ------------------------------------------------------------------ */
 
+/** 비공개(숨김) 글·상품 표시(앱 HiddenPill). */
+function HiddenPill() {
+  return (
+    <span className="shrink-0 rounded-full bg-app-surface px-1.5 py-px text-[11px] font-semibold text-app-muted">
+      비공개
+    </span>
+  );
+}
+
 const LIST_ROW_CLASS =
   "flex items-start gap-3 border-b border-app-line px-4 py-3.5 transition-colors hover:bg-app-surface";
 
@@ -137,19 +145,21 @@ export function ProfilePostRows({
   return (
     <div>
       {list.items.map((post) => (
-        <PostCard
-          key={post.id}
-          post={{
-            id: post.id,
-            title: post.title,
-            description: post.description,
-            category: post.category,
-            image: post.image,
-            images: post.images,
-            createdAt: post.createdAt,
-            _count: post._count,
-          }}
-        />
+        <Link key={post.id} href={toPostPath(post.id, post.title)} className={LIST_ROW_CLASS}>
+          <div className="min-w-0 flex-1">
+            <div className="flex items-center gap-1.5">
+              <p className="min-w-0 shrink truncate text-[16px] font-semibold text-app-text">{post.title}</p>
+              {post.isHidden ? <HiddenPill /> : null}
+            </div>
+            <p className="mt-0.5 truncate text-[14px] text-app-muted">{post.description}</p>
+            <p className="mt-1.5 truncate text-[13px] text-app-muted">
+              {post.category ? `${post.category} · ` : ""}
+              {getTimeAgoString(new Date(post.createdAt))} · 댓글 {post._count?.comments ?? 0} · 좋아요{" "}
+              {post._count?.Likes ?? 0}
+            </p>
+          </div>
+          {post.image ? <Thumb imageId={post.image} variant="public" alt={post.title} /> : null}
+        </Link>
       ))}
       <LoadMoreFooter state={list} label="게시물" />
     </div>
@@ -191,12 +201,18 @@ export function ProfileCommentRows({ list }: { list: PagedListState<ProfileComme
   );
 }
 
+/**
+ * 56 썸네일 상품 행(앱 profiles/[id] ProductList · 마이페이지 ProductGrid).
+ * showMeta: 프로필은 "상대시간 · 관심 N" 줄을 두고, 마이페이지는 이름·가격만 둔다(앱과 같다).
+ */
 export function ProfileProductRows({
   list,
   emptyMessage = "등록된 상품이 없습니다",
+  showMeta = true,
 }: {
   list: PagedListState<ProfileProduct>;
   emptyMessage?: string;
+  showMeta?: boolean;
 }) {
   if (list.isLoading) return <LoadingBlock />;
   if (list.isError) {
@@ -211,20 +227,21 @@ export function ProfileProductRows({
   return (
     <div>
       {list.items.map((product) => (
-        <ProductCard
-          key={product.id}
-          product={{
-            id: product.id,
-            name: product.name,
-            price: product.price ?? null,
-            image: product.photos?.[0] ?? null,
-            createdAt: product.createdAt,
-            category: product.category ?? null,
-            status: product.status ?? null,
-            isHidden: product.isHidden ?? null,
-            wishCount: product._count?.favs ?? 0,
-          }}
-        />
+        <Link key={product.id} href={`/products/${product.id}`} className={LIST_ROW_CLASS}>
+          <Thumb imageId={product.photos?.[0]} variant="product" alt={product.name} />
+          <div className="min-w-0 flex-1">
+            <div className="flex items-center gap-1.5">
+              <p className="min-w-0 shrink truncate text-[16px] font-medium text-app-text">{product.name}</p>
+              {product.isHidden ? <HiddenPill /> : null}
+            </div>
+            <p className="mt-1 text-[15px] font-bold text-app-text">{formatProductPrice(product.price ?? null)}</p>
+            {showMeta ? (
+              <p className="mt-1 truncate text-[13px] text-app-muted">
+                {getTimeAgoString(new Date(product.createdAt))} · 관심 {product._count?.favs ?? 0}
+              </p>
+            ) : null}
+          </div>
+        </Link>
       ))}
       <LoadMoreFooter state={list} label="상품" />
     </div>
