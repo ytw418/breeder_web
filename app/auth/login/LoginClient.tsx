@@ -19,23 +19,7 @@ import {
 } from "@libs/constants";
 import { setTokens } from "@libs/client/authToken";
 import { authFetch } from "@libs/client/authFetch";
-
-const getSafeNextPath = (rawPath: string | null) => {
-  if (!rawPath) return "/";
-  let normalized = rawPath.trim();
-
-  try {
-    normalized = decodeURIComponent(normalized);
-  } catch {
-    // noop
-  }
-
-  if (!normalized.startsWith("/") || normalized.startsWith("//")) {
-    return "/";
-  }
-
-  return normalized;
-};
+import { getSafeNextPath, navigateAfterSessionReady } from "@libs/client/postLogin";
 
 const getKakaoRedirectUri = () => {
   if (typeof window !== "undefined" && window.location?.origin) {
@@ -51,31 +35,6 @@ const markPostLoginGuide = () => {
   } catch {
     // noop
   }
-};
-
-const wait = (ms: number) =>
-  new Promise<void>((resolve) => {
-    setTimeout(() => resolve(), ms);
-  });
-
-const navigateAfterSessionReady = async (nextPath: string) => {
-  for (let attempt = 0; attempt < 4; attempt += 1) {
-    try {
-      const meRes = await authFetch("/api/users/me", {
-        method: "GET",
-        cache: "no-store",
-      });
-      if (meRes.ok) {
-        window.location.assign(nextPath);
-        return;
-      }
-    } catch {
-      // noop
-    }
-    await wait(100);
-  }
-
-  window.location.assign(nextPath);
 };
 
 // 구글 버튼은 브랜드 가이드(흰 버튼)대로 테마와 무관하게 라이트 색 고정.

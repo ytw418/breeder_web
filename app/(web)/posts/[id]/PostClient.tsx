@@ -24,6 +24,7 @@ import type { PostDetailResponse } from "pages/api/posts/[id]";
 import { MY_ACTIVITY_KEY_PREFIXES, POST_KEY_PREFIXES, revalidateByPrefix } from "@libs/client/swrRevalidate";
 import { getPostMenuActionKeys, isNoticePost, type PostMenuActionKey } from "../_lib/postComposer";
 import { PostAvatar } from "../_components/PostAvatar";
+import { useProfilePin } from "@components/features/profile/ProfilePinSheet";
 
 type PostComment = NonNullable<PostDetailResponse["post"]>["comments"][number];
 type ReportTarget = { type: "POST" | "COMMENT"; id: number };
@@ -174,6 +175,8 @@ const PostClient = ({
   const headerTitle = isNotice ? "공지" : post?.category || "게시글";
   const likeCount = post?._count?.Likes ?? 0;
   const commentCount = post?._count?.comments ?? 0;
+  // 내 사진 글은 프로필 사진 그리드 맨 앞에 고정할 수 있다(사진형 프로필 PRD F-6).
+  const { setPin: setProfilePin } = useProfilePin();
   const photos = useMemo(
     () => (post ? (post.images?.length ? post.images : post.image ? [post.image] : []) : []),
     [post]
@@ -306,7 +309,13 @@ const PostClient = ({
   const sheetActions = useMemo<ActionSheetAction[]>(() => {
     if (!post) return [];
     const path = toPostPath(post.id, post.title);
+    const isProfilePinned = Boolean((post as { profilePinnedAt?: string | Date | null }).profilePinnedAt);
     const byKey: Record<PostMenuActionKey, ActionSheetAction> = {
+      "profile-pin": {
+        key: isProfilePinned ? "profile-unpin" : "profile-pin",
+        label: isProfilePinned ? "프로필 고정 해제" : "프로필에 고정",
+        onSelect: () => void setProfilePin(post.id, !isProfilePinned),
+      },
       edit: { key: "edit", label: "수정하기", onSelect: () => router.push(`/posts/${post.id}/edit`) },
       delete: { key: "delete", label: "삭제하기", destructive: true, onSelect: () => setDeleteOpen(true) },
       share: {
@@ -340,8 +349,9 @@ const PostClient = ({
       isNotice,
       hasAuthor: Boolean(post.user?.id),
       authorBlocked,
+      canProfilePin: photos.length > 0,
     }).map((key) => byKey[key]);
-  }, [post, isOwnPost, isNotice, authorBlocked, user]);
+  }, [post, isOwnPost, isNotice, authorBlocked, user, photos.length, setProfilePin]);
 
   const commentSheetActions: ActionSheetAction[] = commentSheet
     ? [

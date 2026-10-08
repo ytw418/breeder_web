@@ -4,8 +4,12 @@ import { authFetch } from "@libs/client/authFetch";
 import { setTokens } from "@libs/client/authToken";
 import { canUseTestAccountSwitcher } from "@libs/shared/test-accounts";
 import ConfirmDialog from "@components/atoms/ConfirmDialog";
-import { FilterChip, FilterChipRail } from "@components/app/FilterChip";
-import { BreederProgramBadgeList } from "@components/features/breeder/BreederProgramDecorators";
+import AlbumRow, { useSpeciesAlbums, useUserAlbums } from "@components/features/profile/AlbumRow";
+import PhotoGrid from "@components/features/profile/PhotoGrid";
+import { ProfileBlock, ProfileSecondaryButton } from "@components/features/profile/ProfileBlock";
+import ProfilePinSheet from "@components/features/profile/ProfilePinSheet";
+import UnderlineTabs from "@components/features/profile/UnderlineTabs";
+import { shareOrCopy } from "@libs/client/share";
 import { BloodlineVisualCard } from "@components/features/bloodline/BloodlineVisualCard";
 import {
   bloodlineRowMeta,
@@ -16,10 +20,8 @@ import {
   LineIcon,
   LoadingBlock,
   MenuRow,
-  ProfileAvatar,
   RetryBlock,
   SectionGap,
-  SMALL_BUTTON_CLASS,
   TransactionMenu,
 } from "@components/features/profile/ProfileRows";
 import {
@@ -27,8 +29,10 @@ import {
   ProfilePostRows,
   ProfileProductRows,
   useUserCommentsList,
+  useUserPhotoPostsList,
   useUserPostsList,
   useUserProductsList,
+  type ProfilePost,
 } from "@components/features/profile/ProfileActivityLists";
 import { USER_INFO } from "@libs/constants";
 import useUser from "hooks/useUser";
@@ -51,13 +55,16 @@ import { useEffect, useMemo, useState, type ReactNode } from "react";
 import useLogout from "../../../hooks/useLogout";
 
 type ActivityTab = "posts" | "comments" | "products" | "bloodline" | "guinness";
+type MyTab = "photos" | ActivityTab;
 
-const TAB_META: { id: ActivityTab; name: string }[] = [
-  { id: "posts", name: "게시물" },
-  { id: "comments", name: "댓글" },
-  { id: "products", name: "상품" },
-  { id: "bloodline", name: "혈통" },
-  { id: "guinness", name: "브리디북" },
+/** 내 콘텐츠 밑줄 탭(앱 myPage TAB_META): 사진 · 기록 · 분양 · 혈통 · 댓글 · 브리디북(가로 스크롤). */
+const TAB_META: { id: MyTab; label: string }[] = [
+  { id: "photos", label: "사진" },
+  { id: "posts", label: "기록" },
+  { id: "products", label: "분양" },
+  { id: "bloodline", label: "혈통" },
+  { id: "comments", label: "댓글" },
+  { id: "guinness", label: "브리디북" },
 ];
 
 const GUINNESS_STATUS_TEXT: Record<GuinnessSubmission["status"], string> = {
@@ -273,7 +280,9 @@ const MyPageClient = () => {
   const { user, isAdmin, mutate: mutateUser } = useUser();
   const router = useRouter();
   const handleLogout = useLogout();
-  const [activeTab, setActiveTab] = useState<ActivityTab>("posts");
+  const [activeTab, setActiveTab] = useState<MyTab>("photos");
+  // 사진 칸 ⋯ 를 누르면 프로필 고정/해제 시트
+  const [pinTarget, setPinTarget] = useState<ProfilePost | null>(null);
   const [logoutOpen, setLogoutOpen] = useState(false);
   const [devOpen, setDevOpen] = useState(false);
   const [switchError, setSwitchError] = useState("");
@@ -293,9 +302,11 @@ const MyPageClient = () => {
   const postsList = useUserPostsList(userId);
   const commentsList = useUserCommentsList(userId);
   const productsList = useUserProductsList(userId);
+  const photosList = useUserPhotoPostsList(userId, undefined, activeTab === "photos");
+  const albumsQuery = useSpeciesAlbums(userId);
+  const userAlbumsQuery = useUserAlbums(userId);
 
   const profileUser = profileQuery.data?.user;
-  const profileBreederPrograms = profileUser?.breederPrograms ?? [];
   const profileName = profileUser?.name || user?.name || "";
   const profileLoading = profileQuery.isLoading;
   // 이전에 받은 값이 있으면 계속 보여 주고, 처음부터 못 받았을 때만 오류 줄을 띄운다.
@@ -326,32 +337,6 @@ const MyPageClient = () => {
 
   // "받은 출처 카드": 남이 보내 준 출처 카드(지금 내가 보유).
   const receivedLines = useMemo(() => bloodlineData?.receivedLines ?? [], [bloodlineData]);
-
-  // 목록을 받기 전에는 프로필의 보유 카드 수(지금 보유한 ACTIVE 카드, 혈통 v2 currentOwnerId 기준)를 쓴다.
-  // 예전에는 만든 카드 수 + 보유 카드 수를 더했는데, 만든 혈통을 넘기면 목록은 비어도 수가 남아 어긋났다.
-  const bloodlineCountFallback = profileUser?._count?.ownedBloodlineCards;
-
-  // 프로필(_count)이나 목록을 아직 받지 못했거나 실패했으면 0 대신 '–' 로 둔다.
-  const countOrDash = (profileCount: number | undefined, listLoaded: boolean, listLength: number) => {
-    if (profileCount !== undefined) return profileCount;
-    return listLoaded ? listLength : "–";
-  };
-  const tabCountMap: Record<ActivityTab, number | string> = {
-    posts: countOrDash(profileUser?._count?.posts, postsList.isLoaded, postsList.items.length),
-    comments: countOrDash(profileUser?._count?.Comments, commentsList.isLoaded, commentsList.items.length),
-    products: countOrDash(profileUser?._count?.products, productsList.isLoaded, productsList.items.length),
-    bloodline:
-      bloodlineData !== undefined
-        ? myBloodlines.length + receivedLines.length
-        : bloodlineCountFallback ?? "–",
-    guinness: guinnessQuery.data !== undefined ? mySubmissions.length : "–",
-  };
-
-  const profileStats = [
-    { label: "게시물", value: profileUser?._count?.posts },
-    { label: "공식 기록", value: profileUser?._count?.insectRecords },
-    { label: "팔로워", value: profileUser?._count?.followers },
-  ];
 
   /* ---------------- 개발자 도구 ---------------- */
   const canSwitchTestAccount = canUseTestAccountSwitcher(user, Boolean(isAdmin));
@@ -510,53 +495,38 @@ const MyPageClient = () => {
 
   return (
     <div className="flex flex-col bg-app-bg pb-8">
-      {/* 프로필 */}
-      <div className="px-4 py-5">
-        <div className="flex items-center gap-3">
-          <ProfileAvatar avatar={profileUser?.avatar ?? user?.avatar} name={profileName} programs={profileBreederPrograms} />
-          <div className="min-w-0 flex-1">
-            <h2 className="truncate text-[18px] font-bold text-app-text">{profileName}</h2>
-            {user?.email ? <p className="mt-0.5 truncate text-[13px] text-app-muted">{user.email}</p> : null}
-            {profileLoading ? (
-              <div className="mt-2 h-5 w-[72px] animate-pulse rounded bg-app-surface" />
-            ) : (
-              <BreederProgramBadgeList className="mt-2" programs={profileBreederPrograms} />
-            )}
-          </div>
-          <Link href="/editProfile" className={SMALL_BUTTON_CLASS}>
-            프로필 수정
-          </Link>
-        </div>
-
-        {profileFailed ? (
-          <button
-            type="button"
-            onClick={() => void profileQuery.mutate()}
-            className="mt-3 flex min-h-[42px] w-full items-center justify-center text-[13px] text-app-muted"
-          >
-            프로필 정보를 불러오지 못했어요 ·&nbsp;<span className="font-semibold text-app-text">다시 시도</span>
-          </button>
-        ) : (
-          <div className="mt-3 flex justify-around">
-            {profileStats.map((stat) => (
-              <div
-                key={stat.label}
-                className="flex flex-col items-center"
-                aria-label={profileLoading ? `${stat.label} 불러오는 중` : `${stat.label} ${stat.value ?? 0}`}
-              >
-                {profileLoading ? (
-                  <div className="flex h-6 items-center">
-                    <div className="h-4 w-7 animate-pulse rounded bg-app-surface" />
-                  </div>
-                ) : (
-                  <span className="text-[18px] font-bold leading-6 text-app-text">{stat.value ?? 0}</span>
-                )}
-                <span className="mt-0.5 text-[12px] leading-4 text-app-muted">{stat.label}</span>
-              </div>
-            ))}
-          </div>
-        )}
-      </div>
+      {/* 프로필 블록 · 앨범 줄(사진형 A안, 시안 #mine) */}
+      {userId ? (
+        <>
+          <ProfileBlock
+            userId={userId}
+            user={profileUser}
+            fallbackName={profileName}
+            fallbackAvatar={user?.avatar}
+            loading={profileLoading}
+            failed={profileFailed}
+            onRetry={() => void profileQuery.mutate()}
+            isMine
+            actions={
+              <>
+                <ProfileSecondaryButton label="프로필 수정" href="/editProfile" />
+                <ProfileSecondaryButton
+                  label="프로필 공유"
+                  onClick={() =>
+                    void shareOrCopy({ title: `${profileName}님의 브리디 프로필`, url: `/profiles/${userId}` })
+                  }
+                />
+              </>
+            }
+          />
+          <AlbumRow
+            userId={userId}
+            albums={albumsQuery.data?.albums}
+            userAlbums={userAlbumsQuery.data?.albums}
+            isOwner
+          />
+        </>
+      ) : null}
 
       <SectionGap />
 
@@ -574,22 +544,19 @@ const MyPageClient = () => {
 
       <SectionGap />
 
-      {/* 내 활동 */}
-      <div className="pt-4">
-        <h3 className="mb-1.5 px-4 text-[16px] font-semibold text-app-text">내 활동</h3>
-        <FilterChipRail>
-          {TAB_META.map((tab) => (
-            <FilterChip
-              key={tab.id}
-              label={tab.name}
-              count={tabCountMap[tab.id]}
-              selected={activeTab === tab.id}
-              onClick={() => setActiveTab(tab.id)}
-            />
-          ))}
-        </FilterChipRail>
-        <div className="mt-1.5">{activityContent}</div>
-      </div>
+      {/* 내 콘텐츠: 사진 · 기록 · 분양 · 혈통 · 댓글 · 브리디북 */}
+      <UnderlineTabs tabs={TAB_META} active={activeTab} onChange={setActiveTab} scrollable />
+      {activeTab === "photos" ? (
+        <PhotoGrid
+          list={photosList}
+          emptyMessage="사진을 올려 프로필을 채워 보세요"
+          emptyAction={{ label: "글쓰기", href: "/posts/upload" }}
+          onPinPost={setPinTarget}
+        />
+      ) : (
+        activityContent
+      )}
+      <ProfilePinSheet post={pinTarget} onClose={() => setPinTarget(null)} />
 
       {/* 개발자 도구 (테스트 계정·관리자 전용) */}
       {showDevTools ? (

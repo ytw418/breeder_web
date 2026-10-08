@@ -132,11 +132,18 @@ export function isNoticePost(post?: { category?: string | null; title?: string |
   return post?.category === "공지" || String(post?.title || "").startsWith("[공지]");
 }
 
-export type PostMenuActionKey = "edit" | "delete" | "share" | "copy-link" | "report" | "block";
+export type PostMenuActionKey =
+  | "edit"
+  | "delete"
+  | "profile-pin"
+  | "share"
+  | "copy-link"
+  | "report"
+  | "block";
 
 /**
  * 상세 ⋯ 시트 행 순서(앱 sheetActions):
- * - 본인 글(공지 제외): 수정하기 · 삭제하기 · 공유하기 · 링크 복사
+ * - 본인 글(공지 제외): 수정하기 · 삭제하기 · (사진 글이면) 프로필에 고정/해제 · 공유하기 · 링크 복사
  * - 공지·작성자 없음: 공유하기 · 링크 복사
  * - 남의 글: 공유하기 · 링크 복사 · 신고하기 · 작성자 차단(이미 차단했으면 뺀다)
  */
@@ -145,14 +152,19 @@ export function getPostMenuActionKeys({
   isNotice,
   hasAuthor,
   authorBlocked,
+  canProfilePin = false,
 }: {
   isOwn: boolean;
   isNotice: boolean;
   hasAuthor: boolean;
   authorBlocked: boolean;
+  /** 내 사진 글이면 프로필 사진 그리드 맨 앞 고정/해제(사진형 프로필 PRD F-6). */
+  canProfilePin?: boolean;
 }): PostMenuActionKey[] {
   const base: PostMenuActionKey[] = ["share", "copy-link"];
-  if (isOwn && !isNotice) return ["edit", "delete", ...base];
+  if (isOwn && !isNotice) {
+    return ["edit", "delete", ...(canProfilePin ? (["profile-pin"] as const) : []), ...base];
+  }
   if (isNotice || !hasAuthor) return base;
   return authorBlocked ? [...base, "report"] : [...base, "report", "block"];
 }

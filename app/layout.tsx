@@ -8,6 +8,7 @@ import ClientComp from "./ClientComp";
 import { Analytics } from "@vercel/analytics/next";
 import { ThemeProvider } from "@components/features/theme-provider";
 import AppToastContainer from "@components/features/AppToastContainer";
+import CategoryScopeSync from "@components/features/category/CategoryScopeSync";
 
 const inter = Inter({ subsets: ["latin"] });
 const posthogKey = process.env.NEXT_PUBLIC_POSTHOG_KEY;
@@ -195,6 +196,7 @@ export default function RootLayout({
         >
           <VariousProvider>
             <ClientComp />
+            <CategoryScopeSync />
             <Analytics />
             {children}
           </VariousProvider>

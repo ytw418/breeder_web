@@ -39,7 +39,9 @@ export const AuthGuard = ({ children }: { children: ReactNode }) => {
   }, [tokenPresent, isLoading, user]);
 
   function redirectToLogin() {
-    const next = encodeURIComponent(pathname || "/");
+    // 쿼리(예: /albums/edit?albumId=3)까지 넘겨 로그인 뒤 같은 화면으로 돌아온다.
+    const search = typeof window === "undefined" ? "" : window.location.search;
+    const next = encodeURIComponent(`${pathname || "/"}${search}`);
     router.replace(`/auth/login?next=${next}`);
   }
 
