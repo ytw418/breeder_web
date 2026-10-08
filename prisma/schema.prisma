@@ -147,6 +147,7 @@ model User {
   insectRecords   InsectRecord[]
   guinnessSubmissions GuinnessSubmission[]
   moderationLogs  ModerationLog[] @relation("ModerationLogActor")
+  profileAlbums   ProfileAlbum[]
 
   @@index([status, deletedAt])
   @@index([regionSido, regionSigungu, regionVisible])
@@ -194,6 +195,20 @@ model Message {
 
 
 
+
+/// 프로필 앨범(사용자가 만든 하이라이트). 사진 글 id 를 고른 순서대로 담는다(앱 docs/prd/profile.md F-9).
+/// 지워졌거나 사진이 없어진 글 id 는 읽을 때 걸러 낸다. 한 사람당 10개, 앨범당 30장(libs/shared/profile.ts).
+model ProfileAlbum {
+  id        Int      @id @default(autoincrement())
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId    Int
+  title     String
+  postIds   Int[]    @default([])
+
+  @@index([userId, createdAt])
+}
 
 model Follow {
   id           Int      @id @default(autoincrement())

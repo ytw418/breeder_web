@@ -57,6 +57,12 @@
 - **Body**: `pinned` (boolean)
 - **Response**: `pinned`, `profilePinnedAt`. 멱등. 오류: 403 `NOT_POST_OWNER`, 400 `POST_NOT_PINNABLE`(사진 없음·공지), 409 `PROFILE_PIN_LIMIT`(3개 초과)
 
+### 2-5. 사용자 앨범
+
+- **URL**: `/api/users/[id]/albums` (GET) — 최근 만든 순 `{ albums: { id, title, cover, count }[] }`. 남이 볼 때 사진 0장 앨범은 빠진다.
+- **URL**: `/api/albums` (POST, 로그인) — `{ title(1~12자), postIds(내 사진 글 1~30개) }` → `{ album }`. 오류: 400 `ALBUM_TITLE_INVALID`/`ALBUM_POSTS_INVALID`, 409 `ALBUM_LIMIT`(10개)
+- **URL**: `/api/albums/[id]` — GET(공개) `{ album, posts }`(넣은 순서), POST `{ title?, postIds? }`·DELETE 는 주인만(403 `NOT_ALBUM_OWNER`), 없으면 404 `ALBUM_NOT_FOUND`
+
 ### 3. 특정 유저의 상품 목록 조회
 
 - **URL**: `/api/users/[id]/productList`

@@ -38,3 +38,33 @@ export function normalizeBio(input: unknown): NormalizeBioResult {
   }
   return { ok: true, bio };
 }
+
+/** 사용자 앨범(앱 docs/prd/profile.md F-9). */
+export const ALBUM_MAX = 10;
+export const ALBUM_POST_MAX = 30;
+export const ALBUM_TITLE_MAX = 12;
+
+export const ALBUM_LIMIT_MESSAGE = `앨범은 ${ALBUM_MAX}개까지 만들 수 있어요.`;
+export const ALBUM_TITLE_INVALID_MESSAGE = `앨범 이름은 1~${ALBUM_TITLE_MAX}자로 적어 주세요.`;
+export const ALBUM_POSTS_INVALID_MESSAGE = `앨범에는 사진이 있는 내 게시글을 1~${ALBUM_POST_MAX}개 넣을 수 있어요.`;
+export const ALBUM_NOT_FOUND_MESSAGE = "앨범을 찾을 수 없어요.";
+export const NOT_ALBUM_OWNER_MESSAGE = "내 앨범만 고칠 수 있어요.";
+
+/** 앨범 이름: 공백을 하나로 접고 앞뒤를 지운 뒤 코드포인트 1~12자. 아니면 null. */
+export function normalizeAlbumTitle(input: unknown): string | null {
+  if (typeof input !== "string") return null;
+  const title = input.replace(/\s+/g, " ").trim();
+  const length = Array.from(title).length;
+  return length >= 1 && length <= ALBUM_TITLE_MAX ? title : null;
+}
+
+/** 앨범 글 id 목록: 정수만, 처음 나온 순서를 지켜 중복을 뺀다. 형식이 틀리면 null. */
+export function normalizeAlbumPostIds(input: unknown): number[] | null {
+  if (!Array.isArray(input)) return null;
+  const ids: number[] = [];
+  for (const value of input) {
+    if (!Number.isInteger(value) || (value as number) <= 0) return null;
+    if (!ids.includes(value as number)) ids.push(value as number);
+  }
+  return ids;
+}

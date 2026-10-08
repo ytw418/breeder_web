@@ -192,6 +192,8 @@ export async function deleteAccount(
         email: null,
         phone: null,
         avatar: null,
+        // 프로필 소개도 개인이 쓴 글이라 지운다(앱 docs/prd/profile.md AC-31).
+        bio: null,
         snsId: `${ANONYMIZED_SNS_ID_PREFIX}${snsIdHash}`,
         tokenVersion: { increment: 1 },
         suspendedUntil: null,
@@ -206,6 +208,8 @@ export async function deleteAccount(
     });
     await tx.alertSubscription.deleteMany({ where: { userId } });
     await tx.bloodlineFollow.deleteMany({ where: { userId } });
+    // 프로필 앨범(내가 고른 사진 묶음)은 프로필 꾸미기 설정이라 지운다. 글 자체는 그대로 둔다.
+    await tx.profileAlbum.deleteMany({ where: { userId } });
     await tx.notification.deleteMany({ where: { userId } });
     // 보낸 알림 문구("<닉네임>님이 회원님을 팔로우했습니다." 등)에 박힌 원래 닉네임도 남기지 않는다.
     if (user.name) {
