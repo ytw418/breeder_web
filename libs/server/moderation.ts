@@ -11,6 +11,7 @@ import {
   contentHiddenMessage,
   contentUnhiddenMessage,
 } from "@libs/shared/sanction";
+import { toPostPlainText } from "@libs/shared/post-body";
 
 /**
  * 운영자 조치(숨김·숨김 해제·삭제)를 적용하고 ModerationLog 에 남긴다.
@@ -128,7 +129,7 @@ async function findTarget(
         post && {
           userId: post.userId,
           title: post.title,
-          excerpt: post.description,
+          excerpt: toPostPlainText(post.description),
           noticeTitle: post.title,
           link: { targetType: "post", targetId: id },
         }

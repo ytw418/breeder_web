@@ -7,6 +7,7 @@ import { cn, getTimeAgoString, makeImageUrl } from "@libs/client/utils";
 import { toPostPath } from "@libs/post-route";
 import { postCategoryLabel } from "@libs/shared/postCategory";
 import type { BreederProgramSummary } from "@libs/shared/breeder-program";
+import { toPostPlainText } from "@libs/shared/post-body";
 
 export type PostCardData = {
   id: number;
@@ -61,7 +62,7 @@ const toExcerpt = (value?: string | null) =>
  */
 export function PostCard({ post, className }: { post: PostCardData; className?: string }) {
   const thumbnail = post.images?.[0] ?? post.image ?? null;
-  const excerpt = toExcerpt(post.content ?? post.description);
+  const excerpt = toExcerpt(post.content ?? toPostPlainText(post.description ?? ""));
   const author = [postCategoryLabel(post), post.user?.name].filter(Boolean).join(" · ");
   const stats = getPostCardStats(post);
 

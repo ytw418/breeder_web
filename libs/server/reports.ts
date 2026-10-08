@@ -12,6 +12,7 @@ import { toPostPath } from "@libs/post-route";
 import { getProductPath } from "@libs/product-route";
 import { displayUserName } from "@libs/shared/deletedUser";
 import { REPORT_TARGET_LABEL, isRemovableReportTarget } from "@libs/shared/report";
+import { toPostPlainText } from "@libs/shared/post-body";
 
 /** 관리자 화면 채팅 신고 스냅샷에 보여줄 최근 메시지 수 */
 export const REPORT_CHAT_SNAPSHOT_SIZE = 20;
@@ -235,7 +236,7 @@ export async function buildTargetSnapshots(
     snapshots.set(key("POST", post.id), {
       exists: true,
       title: `${post.isHidden ? "[숨김] " : ""}${post.title}`,
-      excerpt: toExcerpt(post.description),
+      excerpt: toExcerpt(toPostPlainText(post.description)),
       href: toPostPath(post.id, post.title),
     });
   }

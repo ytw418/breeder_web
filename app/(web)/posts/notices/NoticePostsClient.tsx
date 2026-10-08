@@ -12,6 +12,7 @@ import { useInfiniteScroll } from "hooks/useInfiniteScroll";
 import { makeImageUrl } from "@libs/client/utils";
 import { toPostPath } from "@libs/post-route";
 import type { NoticePostsResponse } from "pages/api/posts/notices";
+import { toPostPlainText } from "@libs/shared/post-body";
 
 const PAGE_SIZE = 10;
 
@@ -95,7 +96,7 @@ export default function NoticePostsClient() {
               >
                 <div className="min-w-0 flex-1">
                   <p className="truncate text-[16px] font-medium text-app-text">{post.title}</p>
-                  <p className="mt-1 truncate text-[14px] text-app-muted">{post.description}</p>
+                  <p className="mt-1 truncate text-[14px] text-app-muted">{toPostPlainText(post.description)}</p>
                   <p className="mt-1.5 text-[13px] text-app-muted">{date ? `공지 · ${date}` : "공지"}</p>
                 </div>
                 {thumbnail ? (

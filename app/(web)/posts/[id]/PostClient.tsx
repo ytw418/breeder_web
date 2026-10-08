@@ -8,7 +8,6 @@ import useSWR, { useSWRConfig } from "swr";
 import Layout, { toLoginHref } from "@components/features/MainLayout";
 import ConfirmDialog from "@components/atoms/ConfirmDialog";
 import { ActionSheet, type ActionSheetAction } from "@components/app/ActionSheet";
-import { ImageCarousel } from "@components/app/ImageCarousel";
 import { ReportSheet } from "@components/app/moderation/ReportSheet";
 import { BlockConfirmDialog } from "@components/app/moderation/BlockConfirmDialog";
 import ImageLightbox from "@components/features/image/ImageLightbox";
@@ -25,6 +24,7 @@ import type { PostDetailResponse } from "pages/api/posts/[id]";
 import { MY_ACTIVITY_KEY_PREFIXES, POST_KEY_PREFIXES, revalidateByPrefix } from "@libs/client/swrRevalidate";
 import { getPostMenuActionKeys, isNoticePost, type PostMenuActionKey } from "../_lib/postComposer";
 import { PostAvatar } from "../_components/PostAvatar";
+import { PostBody } from "../_components/PostBody";
 import { useProfilePin } from "@components/features/profile/ProfilePinSheet";
 import HiddenContentNotice from "@components/app/moderation/HiddenContentNotice";
 import useAdminModeration from "hooks/useAdminModeration";
@@ -475,28 +475,16 @@ const PostClient = ({
             <h2 className="break-keep text-[18px] font-bold leading-[26px] text-app-text">
               {post.title}
             </h2>
-            <p className="whitespace-pre-line break-words text-[16px] leading-6 text-app-text">
-              {post.description}
-            </p>
+            {/* 글과 사진(최대 10장)을 쓴 자리 그대로. 사진을 누르면 크게 보기 */}
+            <PostBody
+              description={post.description}
+              images={photos}
+              onOpenImage={(i) => {
+                setImageIndex(i);
+                setViewerOpen(true);
+              }}
+            />
           </div>
-
-          {/* 사진(최대 10장) — 4:3 r8, 누르면 크게 보기 */}
-          {photos.length ? (
-            <div className="px-4 pb-3">
-              <ImageCarousel
-                images={photos}
-                index={safeImageIndex}
-                onIndexChange={setImageIndex}
-                onOpen={(i) => {
-                  setImageIndex(i);
-                  setViewerOpen(true);
-                }}
-                aspect="4/3"
-                alt="게시글 이미지"
-                className="rounded-lg"
-              />
-            </div>
-          ) : null}
 
           {/* 카운트 + 좋아요 버튼 */}
           <div className="flex items-center justify-between px-4 pb-3.5">
