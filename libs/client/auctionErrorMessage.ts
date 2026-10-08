@@ -37,7 +37,7 @@ const AUCTION_ERROR_MESSAGES: Record<string, string> = {
   BID_SELF_NOT_ALLOWED: "본인 경매에는 입찰할 수 없습니다.",
   BID_TOP_BIDDER_CANNOT_REBID: "현재 최고 입찰자는 다시 입찰할 수 없습니다.",
   BID_AMOUNT_NOT_INTEGER: "입찰 금액은 1원 이상의 정수여야 합니다.",
-  BID_AMOUNT_RULE_VIOLATION: "입찰 금액 단위를 확인해주세요.",
+  // BID_AMOUNT_RULE_VIOLATION 은 넣지 않는다: 경매마다 입찰 단위가 달라 서버 문구(최소가·단위)를 그대로 보여준다.
   BID_PROCESS_FAILED: "입찰 처리 중 오류가 발생했습니다.",
   REPORT_AUTH_REQUIRED: "로그인이 필요합니다.",
   REPORT_INVALID_AUCTION_ID: "유효하지 않은 경매입니다.",

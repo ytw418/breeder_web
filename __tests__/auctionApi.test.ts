@@ -295,6 +295,7 @@ describe("판매자가 정하는 입찰 단위", () => {
       status: "진행중",
       createdAt,
       endAt: new Date(createdAt.getTime() + HOUR),
+      startPrice: 50_000,
       minBidIncrement: 3_000,
       _count: { bids: 0 },
     });
@@ -312,7 +313,7 @@ describe("판매자가 정하는 입찰 단위", () => {
     expect(mockClient.auction.create.mock.calls[0][0].data.minBidIncrement).toBe(10_000);
   });
 
-  it.each([900, 1_050, 1_000_100, "abc"])(
+  it.each([900, 1_050, 1_000_100, "abc", 0, -1_000, 1e12])(
     "등록: 허용 범위 밖 입찰 단위 %p 는 400 AUCTION_INVALID_BID_INCREMENT",
     async (value) => {
       const res = await create({ minBidIncrement: value });
@@ -328,10 +329,27 @@ describe("판매자가 정하는 입찰 단위", () => {
     expect(mockClient.auction.update.mock.calls[0][0].data.minBidIncrement).toBe(5_000);
   });
 
-  it("수정: 보내지 않으면(구 앱) 저장된 입찰 단위를 그대로 둔다", async () => {
-    const res = await update({});
+  it("수정: 보내지 않아도(구 앱) 판매자가 따로 정한 단위(3,000)는 그대로 둔다", async () => {
+    const res = await update({ startPrice: 400_000 });
     expect(res.statusCode).toBe(200);
     expect(mockClient.auction.update.mock.calls[0][0].data).not.toHaveProperty("minBidIncrement");
+  });
+
+  it("수정: 보내지 않고(구 앱) 단위를 따로 정한 적 없으면 새 시작가 구간값으로 다시 계산한다(예전 동작)", async () => {
+    const createdAt = new Date(NOW.getTime() - 5 * 60 * 1000);
+    mockClient.auction.findUnique.mockResolvedValue({
+      id: 5,
+      userId: 7,
+      status: "진행중",
+      createdAt,
+      endAt: new Date(createdAt.getTime() + HOUR),
+      startPrice: 5_000,
+      minBidIncrement: 1_000,
+      _count: { bids: 0 },
+    });
+    const res = await update({ startPrice: 400_000 });
+    expect(res.statusCode).toBe(200);
+    expect(mockClient.auction.update.mock.calls[0][0].data.minBidIncrement).toBe(50_000);
   });
 
   it("수정: 허용 범위 밖이면 400 AUCTION_INVALID_BID_INCREMENT", async () => {

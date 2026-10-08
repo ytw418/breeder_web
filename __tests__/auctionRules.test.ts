@@ -38,6 +38,9 @@ describe("판매자가 정하는 입찰 단위", () => {
     expect(isBidIncrementValid(1_000_100)).toBe(false);
     expect(isBidIncrementValid(1_500.5)).toBe(false);
     expect(isBidIncrementValid(Number.NaN)).toBe(false);
+    expect(isBidIncrementValid(0)).toBe(false);
+    expect(isBidIncrementValid(-1_000)).toBe(false);
+    expect(isBidIncrementValid(1e12)).toBe(false);
   });
 
   it("추천 구간값은 모두 허용 범위 안이다", () => {
@@ -50,6 +53,8 @@ describe("판매자가 정하는 입찰 단위", () => {
     expect(readRequestedBidIncrement(undefined)).toBeUndefined();
     expect(readRequestedBidIncrement(null)).toBeUndefined();
     expect(readRequestedBidIncrement("")).toBeUndefined();
+    // 0 은 "안 보냄"이 아니라 잘못된 값으로 읽어 400 이 나게 한다.
+    expect(readRequestedBidIncrement(0)).toBe(0);
     expect(readRequestedBidIncrement(3_000)).toBe(3_000);
     expect(readRequestedBidIncrement("3000")).toBe(3_000);
     expect(readRequestedBidIncrement("abc")).toBeNaN();
