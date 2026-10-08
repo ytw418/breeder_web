@@ -2,6 +2,7 @@ import type { NextApiRequest, NextApiResponse } from "next";
 
 const mockClient = {
   user: { findUnique: jest.fn(), update: jest.fn(), updateMany: jest.fn() },
+  userSanction: { findFirst: jest.fn() },
 };
 jest.mock("@libs/server/client", () => ({
   __esModule: true,
@@ -120,9 +121,30 @@ beforeEach(() => {
     existing(data)
   );
   mockClient.user.updateMany.mockResolvedValue({ count: 1 });
+  mockClient.userSanction.findFirst.mockResolvedValue(null);
 });
 
 describe("/api/auth/login 계정 상태 가드", () => {
+  it("새 기간 정지(SUSPENDED)는 최근 정지 사유·운영자 메시지를 붙여 막는다(AC-26)", async () => {
+    const until = new Date(Date.now() + 3 * DAY_MS);
+    mockClient.user.findUnique.mockResolvedValue(existing({ status: "SUSPENDED", suspendedUntil: until }));
+    mockClient.userSanction.findFirst.mockResolvedValue({ reasonCode: "SPAM", messageToUser: "도배 글이 반복됐어요." });
+    const res = await login(body);
+
+    expect(res.statusCode).toBe(403);
+    expect(res.body).toEqual(
+      expect.objectContaining({
+        errorCode: "ACCOUNT_SUSPENDED",
+        suspendedUntil: until.toISOString(),
+        reasonLabel: "스팸·광고",
+        messageToUser: "도배 글이 반복됐어요.",
+      })
+    );
+    expect(res.body.error).toMatch(/이후 다시 로그인할 수 있어요\. 사유: 스팸·광고$/);
+    expect(JSON.stringify(res.body)).not.toMatch(/internalNote|actorId|reporter/);
+    expect(mockIssueTokens).not.toHaveBeenCalled();
+  });
+
   it("BANNED 는 403 ACCOUNT_BANNED, error·message 를 모두 담고 토큰·프로필 동기화를 하지 않는다", async () => {
     mockClient.user.findUnique.mockResolvedValue(existing({ status: "BANNED" }));
     const res = await login(body);
