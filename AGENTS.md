@@ -2,6 +2,19 @@
 
 이 문서는 이 저장소에서 Codex/GPT가 항상 참고해야 하는 프로젝트 운영 규칙이다.
 
+## DB 안전 규칙 (MANDATORY — 다른 모든 규칙보다 우선)
+2026-10-08 22:15 KST, 에이전트가 `npx prisma migrate diff --from-migrations ... --shadow-database-url <.env 의 DIRECT_URL>` 를 실행해 **dev DB(Supabase breeder2) 데이터가 전부 지워졌다.** Prisma 의 shadow DB 는 실행할 때마다 비워진다. dev·운영 Supabase 모두 백업이 없어(PITR 꺼짐, 백업 0개) 되살리지 못했다.
+
+- **실제 DB 를 비우거나 구조를 직접 바꾸는 명령은 어떤 이유로도 실행하지 않는다.**
+  - `prisma migrate reset`, `prisma migrate dev`, `prisma db push`, `prisma db execute`
+  - `prisma migrate diff` 에 `--shadow-database-url`·`--from-migrations`·`--to-migrations` 를 붙이는 것(실제 DB 주소를 shadow 로 넘기면 그 DB 가 비워진다)
+  - `--force-reset`, `--accept-data-loss`, `supabase db reset`, `supabase db push`, `npm run seed:dummy:reset`, `dropdb`, `pg_restore --clean`
+  - DB 클라이언트·스크립트로 `DROP TABLE/SCHEMA/DATABASE`, `TRUNCATE`, WHERE 없는 `DELETE FROM`, 조건 없는 `deleteMany()`
+- **스키마 변경은 마이그레이션 파일 + `npx prisma migrate deploy` 만** 쓴다(Vercel 빌드도 같은 명령을 쓴다). SQL 점검은 `npx prisma validate` 와 손으로 쓴 `migration.sql` 검토로 하고, 비교가 꼭 필요하면 DB 없이 `--from-schema-datamodel <old> --to-schema-datamodel <new> --script` 만 쓴다.
+- 로컬 `.env` 의 `DATABASE_URL`/`DIRECT_URL` 은 **공유 dev DB** 다. 로컬 실험용 DB 가 아니다. 테스트 데이터를 넣고 지울 때는 내가 만든 행만 id 로 지운다.
+- 백업 복원(`supabase backups restore`)·`prisma migrate resolve` 는 사용자가 직접 확인한 뒤에만 한다.
+- 이 규칙은 Claude Code 훅(`.claude/hooks/db-guard.py`, `.claude/settings.json` PreToolUse)이 강제한다. 훅이 막으면 우회하지 말고 사용자에게 보고한다. 규칙을 바꿀 때는 `~/.claude/hooks/db-guard.py`, bredy_app·breeder_web 의 `.claude/hooks/db-guard.py` 를 함께 고친다.
+
 ## 스레드 간 일관성 규칙
 - 다른 대화 스레드에서 시작하더라도 이 `AGENTS.md` 규칙을 동일하게 적용한다.
 - 새 스레드의 첫 작업 전에 현재 저장소의 `AGENTS.md`를 우선 확인하고, 본 문서 기준으로 작업한다.
