@@ -29,6 +29,8 @@ import type { CreateAuctionResponse } from "pages/api/auctions";
 import type { BloodlineCardsResponse } from "@libs/shared/bloodline-card";
 import {
   AgreeRow,
+  BID_INCREMENT_ERROR,
+  BidIncrementField,
   BottomCta,
   CenterModal,
   ChipRow,
@@ -45,6 +47,7 @@ import {
   fieldBorder,
   formatConfirmDateTime,
   uploadImageFile,
+  useBidIncrementInput,
 } from "../AuctionFormParts";
 
 type TextKey =
@@ -57,7 +60,15 @@ type TextKey =
   | "sellerBandNick"
   | "sellerTrustNote";
 type FormState = Record<TextKey, string>;
-type ErrorKey = "photos" | "category" | "title" | "description" | "startPrice" | "agreement" | "duration";
+type ErrorKey =
+  | "photos"
+  | "category"
+  | "title"
+  | "description"
+  | "startPrice"
+  | "bidIncrement"
+  | "agreement"
+  | "duration";
 type ErrorState = Partial<Record<ErrorKey, string>>;
 
 interface CreateAuctionPayload extends FormState {
@@ -65,6 +76,7 @@ interface CreateAuctionPayload extends FormState {
   photos: string[];
   sellerProofImage: string | null;
   startPrice: number;
+  minBidIncrement: number;
   endAt: string;
   bloodlineRootId: number | null;
 }
@@ -138,15 +150,17 @@ const CreateAuctionClient = () => {
     return () => clearInterval(timer);
   }, [selectedDuration]);
 
+  // 입찰 단위는 직접 고치기 전까지 시작가 구간 추천값을 따른다.
+  const bidIncrement = useBidIncrementInput(getBidIncrement(startPrice ?? 0));
   const dirty =
     !createdAuctionId &&
     (photos.length > 0 ||
       (!isToolRoute && Boolean(selectedCategory)) ||
       startPrice !== null ||
+      bidIncrement.touched ||
       Object.entries(form).some(([key, value]) => value !== initialForm[key as TextKey]));
   const { leave, dialog: leaveDialog } = useConfirmLeave(dirty);
 
-  const currentBidIncrement = getBidIncrement(startPrice ?? 0);
   const subcategories = !isToolRoute && selectedCategory ? getSubcategories(selectedCategory) : [];
   const categoryForSubmit = isToolRoute ? TOOL_FIXED_CATEGORY : selectedSubcategory || selectedCategory;
   const selectedEndAt = selectedDuration ? new Date(getPresetEndAtMs(selectedDuration, nowTick)).toISOString() : "";
@@ -163,6 +177,7 @@ const CreateAuctionClient = () => {
     errors.title,
     errors.description,
     errors.startPrice,
+    errors.bidIncrement,
     errors.agreement,
     errors.duration,
   ].filter((message): message is string => Boolean(message));
@@ -214,6 +229,7 @@ const CreateAuctionClient = () => {
     if (startPrice === null || startPrice < AUCTION_MIN_START_PRICE) {
       next.startPrice = `최소 ${AUCTION_MIN_START_PRICE.toLocaleString()}원 이상`;
     }
+    if (!bidIncrement.isValid) next.bidIncrement = BID_INCREMENT_ERROR;
     if (!agreedAuctionNotice || !agreedDisputePolicy) {
       next.agreement = "경매 주의사항 및 분쟁 정책 동의가 필요합니다.";
     }
@@ -240,6 +256,7 @@ const CreateAuctionClient = () => {
     photos,
     sellerProofImage,
     startPrice: startPrice ?? 0,
+    minBidIncrement: bidIncrement.value ?? 0,
     endAt: selectedDuration ? toIsoPresetEndAt(selectedDuration) : "",
     sellerPhone: normalizeText(form.sellerPhone),
     sellerEmail: normalizeText(form.sellerEmail),
@@ -462,13 +479,15 @@ const CreateAuctionClient = () => {
         </div>
 
         {/* 최소 입찰 단위 */}
-        <div>
-          <FieldLabel label="최소 입찰 단위" />
-          <div className="flex h-12 items-center rounded-lg border border-app-border bg-app-surface px-3.5 text-[15px] text-app-text">
-            ₩ {currentBidIncrement.toLocaleString()}
-          </div>
-          <HelpText>시작가에 따라 자동으로 정해져요.</HelpText>
-        </div>
+        <BidIncrementField
+          value={bidIncrement.value}
+          onChange={(value) => {
+            bidIncrement.onChange(value);
+            setErrors((prev) => ({ ...prev, bidIncrement: undefined }));
+          }}
+          onBlur={bidIncrement.onBlur}
+          error={errors.bidIncrement}
+        />
 
         {/* 종료 시각 */}
         <div>
@@ -662,6 +681,10 @@ const CreateAuctionClient = () => {
             <div className="flex items-center justify-between">
               <dt className="text-app-muted">시작가</dt>
               <dd className="font-semibold text-app-text">{confirmPayload.startPrice.toLocaleString()}원</dd>
+            </div>
+            <div className="flex items-center justify-between">
+              <dt className="text-app-muted">입찰 단위</dt>
+              <dd className="font-semibold text-app-text">{confirmPayload.minBidIncrement.toLocaleString()}원</dd>
             </div>
             <div className="flex items-center justify-between">
               <dt className="text-app-muted">종료 시각</dt>

@@ -172,7 +172,6 @@ async function addBid(auctionId: number, userId: number, amount: number) {
     where: { id: auctionId },
     data: {
       currentPrice: amount,
-      minBidIncrement: getBidIncrement(amount),
     },
   });
 }

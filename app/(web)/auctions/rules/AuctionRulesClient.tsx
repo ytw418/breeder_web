@@ -4,6 +4,7 @@ import type { ReactNode } from "react";
 import Link from "next/link";
 import Layout from "@components/features/MainLayout";
 import {
+  AUCTION_BID_INCREMENT_RANGE_TEXT,
   AUCTION_BID_INCREMENT_RULES,
   AUCTION_EDIT_WINDOW_MS,
   AUCTION_EXTENSION_MS,
@@ -55,7 +56,10 @@ export default function AuctionRulesClient() {
           <Bullet>
             경매 기간은 {hourText(AUCTION_MIN_DURATION_MS)} ~ {hourText(AUCTION_MAX_DURATION_MS)} 사이로 설정됩니다.
           </Bullet>
-          <Bullet>입찰 단위는 현재가 기준으로 자동 계산됩니다.</Bullet>
+          <Bullet>
+            입찰 단위는 판매자가 등록할 때 정합니다({AUCTION_BID_INCREMENT_RANGE_TEXT}). 입찰은 현재가에서 이
+            단위만큼 올라갑니다.
+          </Bullet>
           <Bullet>
             마감 {minuteText(AUCTION_EXTENSION_WINDOW_MS)} 이내 입찰이 들어오면 경매 시간이{" "}
             <Strong>{minuteText(AUCTION_EXTENSION_MS)} 자동 연장</Strong>됩니다.
@@ -64,7 +68,7 @@ export default function AuctionRulesClient() {
           <Bullet>카카오 로그인 기반 계정은 정책 위반 시 영구 참여 제한될 수 있습니다.</Bullet>
         </ul>
 
-        <SectionTitle>입찰 단위</SectionTitle>
+        <SectionTitle>추천 입찰 단위(시작가 기준)</SectionTitle>
         <ul>
           {AUCTION_BID_INCREMENT_RULES.map((rule) => (
             <Bullet key={rule.label}>

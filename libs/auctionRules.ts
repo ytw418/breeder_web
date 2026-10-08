@@ -12,6 +12,17 @@ export const AUCTION_PHOTOS_MAX = 10;
 /** 낙찰 후 결제·배송 모델이 없어, 종료 후 이 기간을 거래 진행 중으로 본다(회원탈퇴 차단 등). */
 export const AUCTION_SETTLEMENT_GRACE_DAYS = 7;
 
+/**
+ * 입찰 단위는 판매자가 등록·수정 때 정하고 경매가 끝날 때까지 고정이다(Auction.minBidIncrement).
+ * 범위는 1,000원~1,000,000원, 100원 단위. 서버 검증과 웹·앱 등록 화면이 같은 값을 쓴다.
+ */
+export const AUCTION_MIN_BID_INCREMENT = 1_000;
+export const AUCTION_MAX_BID_INCREMENT = 1_000_000;
+export const AUCTION_BID_INCREMENT_STEP = 100;
+/** 등록 화면 안내·오류·룰 화면 공용 문구: "1,000원~1,000,000원, 100원 단위". */
+export const AUCTION_BID_INCREMENT_RANGE_TEXT = `${AUCTION_MIN_BID_INCREMENT.toLocaleString("ko-KR")}원~${AUCTION_MAX_BID_INCREMENT.toLocaleString("ko-KR")}원, ${AUCTION_BID_INCREMENT_STEP}원 단위`;
+
+/** 시작가 구간별 추천 입찰 단위. 등록 화면 기본값이고, 입찰 단위를 보내지 않는 구 앱 등록에도 쓴다. */
 export const AUCTION_BID_INCREMENT_RULES = [
   { label: "1만원 미만", maxExclusive: 10_000, increment: 1_000 },
   { label: "10만원 미만", maxExclusive: 100_000, increment: 10_000 },
@@ -19,6 +30,7 @@ export const AUCTION_BID_INCREMENT_RULES = [
   { label: "100만원 이상", maxExclusive: null, increment: 100_000 },
 ] as const;
 
+/** 가격 구간별 추천 입찰 단위(AUCTION_BID_INCREMENT_RULES). */
 export const getBidIncrement = (price: number) => {
   const normalizedPrice = Math.max(0, Math.floor(Number(price) || 0));
 
@@ -30,8 +42,33 @@ export const getBidIncrement = (price: number) => {
   return matchedRule?.increment ?? 1_000;
 };
 
-export const getMinimumBid = (currentPrice: number) => {
-  return Math.max(0, Number(currentPrice) || 0) + getBidIncrement(currentPrice);
+/** 판매자가 정한 입찰 단위가 허용 범위(AUCTION_BID_INCREMENT_RANGE_TEXT)인지. */
+export const isBidIncrementValid = (value: number) =>
+  Number.isInteger(value) &&
+  value >= AUCTION_MIN_BID_INCREMENT &&
+  value <= AUCTION_MAX_BID_INCREMENT &&
+  value % AUCTION_BID_INCREMENT_STEP === 0;
+
+/** 요청 body 의 입찰 단위. 보내지 않았으면(구 앱) undefined, 보냈으면 숫자(검사는 isBidIncrementValid). */
+export const readRequestedBidIncrement = (value: unknown): number | undefined => {
+  if (value === undefined || value === null || value === "") return undefined;
+  return Number(value);
+};
+
+/**
+ * 경매의 입찰 단위. 저장값이 0 이하·없음일 때만 현재가 구간값으로 대신한다.
+ * 범위 밖 저장값(예전 시드)도 그대로 믿는다 — 규칙이 바뀌어도 진행 중 경매가 깨지지 않게.
+ */
+export const resolveBidIncrement = (auction: {
+  minBidIncrement?: number | null;
+  currentPrice: number;
+}) => {
+  const stored = Number(auction.minBidIncrement);
+  return Number.isInteger(stored) && stored > 0 ? stored : getBidIncrement(auction.currentPrice);
+};
+
+export const getMinimumBid = (currentPrice: number, increment: number) => {
+  return Math.max(0, Number(currentPrice) || 0) + increment;
 };
 
 export const isAuctionDurationValid = (endAt: Date | string, baseTime = new Date()) => {
@@ -39,14 +76,16 @@ export const isAuctionDurationValid = (endAt: Date | string, baseTime = new Date
   return diff >= AUCTION_MIN_DURATION_MS && diff <= AUCTION_MAX_DURATION_MS;
 };
 
+/** 현재가 + 입찰 단위 이상이고, 현재가에서 입찰 단위의 배수만큼 올린 금액인지. */
 export const isBidAmountValid = ({
   currentPrice,
   bidAmount,
+  increment,
 }: {
   currentPrice: number;
   bidAmount: number;
+  increment: number;
 }) => {
-  const increment = getBidIncrement(currentPrice);
   const diff = bidAmount - currentPrice;
   return diff >= increment && diff % increment === 0;
 };

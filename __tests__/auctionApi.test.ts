@@ -9,7 +9,9 @@ const mockClient = {
     create: jest.fn(),
     update: jest.fn(),
   },
+  bid: { create: jest.fn() },
   bloodlineCard: { findFirst: jest.fn() },
+  $transaction: jest.fn(),
 };
 jest.mock("@libs/server/client", () => ({
   __esModule: true,
@@ -25,9 +27,16 @@ jest.mock("@libs/server/breeder-programs", () => ({
   breederProgramSummarySelect: {},
   getSortedActiveBreederProgramSummaries: () => [],
 }));
+jest.mock("@libs/server/notification", () => ({
+  createNotification: jest.fn(),
+}));
+jest.mock("@libs/server/growth", () => ({
+  incrementUserMissionProgress: jest.fn(),
+}));
 
 import createHandler from "../pages/api/auctions/index";
 import detailHandler from "../pages/api/auctions/[id]/index";
+import bidHandler from "../pages/api/auctions/[id]/bid";
 import { AUCTION_PHOTOS_MAX, AUCTION_PHOTOS_MIN } from "@libs/auctionRules";
 
 function createRes() {
@@ -82,6 +91,7 @@ beforeEach(() => {
   mockClient.auction.update.mockImplementation(({ data }) =>
     Promise.resolve({ id: 5, ...data })
   );
+  mockClient.$transaction.mockResolvedValue([]);
 });
 
 afterEach(() => {
@@ -258,5 +268,130 @@ describe("경매 사진 장수(최소 1, 최대 10)", () => {
     const res = await update(count);
     expect(res.statusCode).toBe(status);
     if (status === 400) expect(res.body.errorCode).toBe("AUCTION_INVALID_PHOTO_COUNT");
+  });
+});
+
+describe("판매자가 정하는 입찰 단위", () => {
+  const endAt = () => new Date(NOW.getTime() + 2 * HOUR).toISOString();
+  const create = (body: Record<string, unknown>) =>
+    call(createHandler, {
+      method: "POST",
+      user: me,
+      body: { ...baseBody, startPrice: 50_000, endAt: endAt(), ...body },
+    });
+  const update = (body: Record<string, unknown>) =>
+    call(detailHandler, {
+      method: "POST",
+      user: me,
+      query: { id: "5" },
+      body: { action: "update", ...baseBody, startPrice: 50_000, ...body },
+    });
+
+  beforeEach(() => {
+    const createdAt = new Date(NOW.getTime() - 5 * 60 * 1000);
+    mockClient.auction.findUnique.mockResolvedValue({
+      id: 5,
+      userId: 7,
+      status: "진행중",
+      createdAt,
+      endAt: new Date(createdAt.getTime() + HOUR),
+      startPrice: 50_000,
+      minBidIncrement: 3_000,
+      _count: { bids: 0 },
+    });
+  });
+
+  it("등록: 보낸 입찰 단위로 저장한다(시작가 5만원이어도 1만원 강제 아님)", async () => {
+    const res = await create({ minBidIncrement: 1_000 });
+    expect(res.statusCode).toBe(200);
+    expect(mockClient.auction.create.mock.calls[0][0].data.minBidIncrement).toBe(1_000);
+  });
+
+  it("등록: 보내지 않으면(구 앱) 시작가 구간 추천값으로 저장한다", async () => {
+    const res = await create({});
+    expect(res.statusCode).toBe(200);
+    expect(mockClient.auction.create.mock.calls[0][0].data.minBidIncrement).toBe(10_000);
+  });
+
+  it.each([900, 1_050, 1_000_100, "abc", 0, -1_000, 1e12])(
+    "등록: 허용 범위 밖 입찰 단위 %p 는 400 AUCTION_INVALID_BID_INCREMENT",
+    async (value) => {
+      const res = await create({ minBidIncrement: value });
+      expect(res.statusCode).toBe(400);
+      expect(res.body.errorCode).toBe("AUCTION_INVALID_BID_INCREMENT");
+      expect(mockClient.auction.create).not.toHaveBeenCalled();
+    }
+  );
+
+  it("수정: 보낸 입찰 단위로 바꾼다", async () => {
+    const res = await update({ minBidIncrement: 5_000 });
+    expect(res.statusCode).toBe(200);
+    expect(mockClient.auction.update.mock.calls[0][0].data.minBidIncrement).toBe(5_000);
+  });
+
+  it("수정: 보내지 않아도(구 앱) 판매자가 따로 정한 단위(3,000)는 그대로 둔다", async () => {
+    const res = await update({ startPrice: 400_000 });
+    expect(res.statusCode).toBe(200);
+    expect(mockClient.auction.update.mock.calls[0][0].data).not.toHaveProperty("minBidIncrement");
+  });
+
+  it("수정: 보내지 않고(구 앱) 단위를 따로 정한 적 없으면 새 시작가 구간값으로 다시 계산한다(예전 동작)", async () => {
+    const createdAt = new Date(NOW.getTime() - 5 * 60 * 1000);
+    mockClient.auction.findUnique.mockResolvedValue({
+      id: 5,
+      userId: 7,
+      status: "진행중",
+      createdAt,
+      endAt: new Date(createdAt.getTime() + HOUR),
+      startPrice: 5_000,
+      minBidIncrement: 1_000,
+      _count: { bids: 0 },
+    });
+    const res = await update({ startPrice: 400_000 });
+    expect(res.statusCode).toBe(200);
+    expect(mockClient.auction.update.mock.calls[0][0].data.minBidIncrement).toBe(50_000);
+  });
+
+  it("수정: 허용 범위 밖이면 400 AUCTION_INVALID_BID_INCREMENT", async () => {
+    const res = await update({ minBidIncrement: 500 });
+    expect(res.statusCode).toBe(400);
+    expect(res.body.errorCode).toBe("AUCTION_INVALID_BID_INCREMENT");
+    expect(mockClient.auction.update).not.toHaveBeenCalled();
+  });
+});
+
+describe("POST /api/auctions/:id/bid 입찰 단위 검사", () => {
+  const bid = (amount: number) =>
+    call(bidHandler, { method: "POST", user: me, query: { id: "5" }, body: { amount } });
+
+  beforeEach(() => {
+    mockClient.auction.findUnique.mockResolvedValue({
+      id: 5,
+      userId: 99,
+      title: "왕사슴 유충 경매",
+      status: "진행중",
+      endAt: new Date(NOW.getTime() + 2 * HOUR),
+      currentPrice: 50_000,
+      minBidIncrement: 1_000,
+      bids: [],
+    });
+  });
+
+  it("경매에 저장된 입찰 단위로 검사하고, 입찰해도 입찰 단위는 바꾸지 않는다", async () => {
+    const res = await bid(51_000);
+    expect(res.statusCode).toBe(200);
+    expect(res.body.success).toBe(true);
+    const data = mockClient.auction.update.mock.calls[0][0].data;
+    expect(data.currentPrice).toBe(51_000);
+    expect(data).not.toHaveProperty("minBidIncrement");
+  });
+
+  it("입찰 단위의 배수가 아니면 400 BID_AMOUNT_RULE_VIOLATION 과 정확한 최소가·단위 문구", async () => {
+    const res = await bid(51_500);
+    expect(res.statusCode).toBe(400);
+    expect(res.body.errorCode).toBe("BID_AMOUNT_RULE_VIOLATION");
+    expect(res.body.error).toContain("51,000원");
+    expect(res.body.error).toContain("1,000원 단위");
+    expect(mockClient.$transaction).not.toHaveBeenCalled();
   });
 });

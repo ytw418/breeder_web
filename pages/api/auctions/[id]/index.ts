@@ -12,6 +12,9 @@ import {
   getAuctionEditDeadline,
   isAuctionDurationValid,
   getBidIncrement,
+  isBidIncrementValid,
+  readRequestedBidIncrement,
+  AUCTION_BID_INCREMENT_RANGE_TEXT,
   AUCTION_PHOTOS_MAX,
   AUCTION_PHOTOS_MIN,
 } from "@libs/auctionRules";
@@ -155,6 +158,7 @@ async function handler(
       sellerProofImage,
       sellerTrustNote,
       bloodlineRootId,
+      minBidIncrement: requestedBidIncrement,
     } = req.body;
 
     if (action !== "update") {
@@ -221,6 +225,22 @@ async function handler(
           errorCode: "AUCTION_INVALID_START_PRICE",
         });
       }
+
+      const sentBidIncrement = readRequestedBidIncrement(requestedBidIncrement);
+      if (sentBidIncrement !== undefined && !isBidIncrementValid(sentBidIncrement)) {
+        return res.status(400).json({
+          success: false,
+          error: `최소 입찰 단위는 ${AUCTION_BID_INCREMENT_RANGE_TEXT}로 정해주세요.`,
+          errorCode: "AUCTION_INVALID_BID_INCREMENT",
+        });
+      }
+      // 입찰 단위를 보내지 않는 구 앱의 수정: 단위를 따로 정한 적 없으면(저장값 = 기존 시작가 구간값) 예전처럼
+      // 새 시작가 구간값으로 다시 계산하고, 웹·새 앱에서 따로 정한 값은 덮어쓰지 않는다.
+      const nextBidIncrement =
+        sentBidIncrement ??
+        (auction.minBidIncrement === getBidIncrement(auction.startPrice)
+          ? getBidIncrement(normalizedStartPrice)
+          : undefined);
 
       // endAt 을 생략하거나 기존 값과 같은 시각(밀리초 timestamp 비교)을 보내면
       // 종료 시각을 바꾸지 않는 수정으로 보고 기간 검사를 건너뛴다(#140).
@@ -319,7 +339,7 @@ async function handler(
           bloodlineRootId: normalizedBloodlineRootId,
           startPrice: normalizedStartPrice,
           currentPrice: normalizedStartPrice,
-          minBidIncrement: getBidIncrement(normalizedStartPrice),
+          ...(nextBidIncrement !== undefined ? { minBidIncrement: nextBidIncrement } : {}),
           endAt: endDate,
         },
       });
