@@ -14,6 +14,7 @@ import { QueryErrorState } from "@components/app/QueryErrorState";
 import { RetryFooter } from "@components/app/RetryFooter";
 import { useInfiniteScroll } from "hooks/useInfiniteScroll";
 import useBlocks from "hooks/useBlocks";
+import useCategoryScope, { withCategoryPath } from "hooks/useCategoryScope";
 
 import { cn, makeImageUrl } from "@libs/client/utils";
 import { toPostPath } from "@libs/post-route";
@@ -108,6 +109,20 @@ export default function PostsClient() {
   const [selectedSpecies, setSelectedSpecies] = useState("전체");
   const [pickedTab, setPickedTab] = useState<HighlightTab | null>(null);
   const { blockedIds } = useBlocks();
+  // 관심 카테고리 고정 범위(앱 category-pin). 목록·HOT 토론·TOP 브리더가 같은 범위를 쓴다.
+  const scope = useCategoryScope();
+  // 종 드롭다운은 범위 안 대분류만 보여 주고, 고른 종이 범위 밖이면 전체 종으로 돌린다.
+  const speciesOptions = useMemo(
+    () =>
+      SPECIES_OPTIONS.filter(
+        (option) =>
+          option.value === "전체" || !scope.topLevelNames || scope.topLevelNames.has(option.value)
+      ),
+    [scope.topLevelNames]
+  );
+  const activeSpecies = speciesOptions.some((option) => option.value === selectedSpecies)
+    ? selectedSpecies
+    : "전체";
 
   const getKey = (pageIndex: number, previousPageData: PostsListResponse | null) => {
     if (previousPageData && (!previousPageData.posts.length || pageIndex >= previousPageData.pages)) {
@@ -115,8 +130,11 @@ export default function PostsClient() {
     }
     const categoryParam = selectedCategory !== "전체" ? `&category=${selectedCategory}` : "";
     const sortParam = selectedSort !== "latest" ? `&sort=${selectedSort}` : "";
-    const speciesParam = selectedSpecies !== "전체" ? `&species=${selectedSpecies}` : "";
-    return `/api/posts?page=${pageIndex + 1}${categoryParam}${sortParam}${speciesParam}`;
+    const speciesParam = activeSpecies !== "전체" ? `&species=${activeSpecies}` : "";
+    return withCategoryPath(
+      `/api/posts?page=${pageIndex + 1}${categoryParam}${sortParam}${speciesParam}`,
+      scope.categoryPath
+    );
   };
 
   const {
@@ -137,9 +155,10 @@ export default function PostsClient() {
     data: homeFeedData,
     error: homeFeedError,
     mutate: mutateHomeFeed,
-  } = useSWR<{ hotDiscussions: HotDiscussionItem[] }>("/api/home/feed?scope=public", {
-    revalidateOnFocus: false,
-  });
+  } = useSWR<{ hotDiscussions: HotDiscussionItem[] }>(
+    withCategoryPath("/api/home/feed?scope=public", scope.categoryPath),
+    { revalidateOnFocus: false }
+  );
   const page = useInfiniteScroll();
 
   useEffect(() => {
@@ -170,10 +189,10 @@ export default function PostsClient() {
     resetList();
   };
   const handleSpeciesChange = (species: string) => {
-    if (selectedSpecies === species) return;
+    if (activeSpecies === species) return;
     trackEvent(ANALYTICS_EVENTS.postsSpeciesChanged, {
       selected_species: species,
-      previous_species: selectedSpecies,
+      previous_species: activeSpecies,
     });
     setSelectedSpecies(species);
     resetList();
@@ -502,10 +521,10 @@ export default function PostsClient() {
         {/* 6. 종 필터 + 정렬(우측 텍스트 드롭다운) */}
         <div className="flex items-center justify-end gap-2 px-4 pb-3 pt-1">
           <PostFilterDropdown
-            value={selectedSpecies}
+            value={activeSpecies}
             onChange={handleSpeciesChange}
             ariaLabel="종 필터"
-            options={SPECIES_OPTIONS}
+            options={speciesOptions}
           />
           <span className="text-[13px] text-app-caption" aria-hidden="true">
             ·

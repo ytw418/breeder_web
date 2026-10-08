@@ -19,6 +19,8 @@ import { withoutBlocked } from "@libs/shared/blockFilter";
 import { uniqueById } from "@libs/productFilters";
 import useUser from "hooks/useUser";
 import useBlocks from "hooks/useBlocks";
+import useCategoryScope, { withCategoryPath, withinScope } from "hooks/useCategoryScope";
+import CategoryScopeBar from "@components/features/category/CategoryScopeBar";
 import { BreederRankingItem, HomeFeedResponse } from "@libs/shared/ranking";
 import { filterHomeFeedForBlocked, HomeBanner, ProductsResponse } from "@libs/shared/home";
 import { ProductRowSkeleton } from "../products/_components/ProductRowSkeleton";
@@ -247,12 +249,19 @@ function HeroBreederCard({
         </button>
       </div>
       <div className="flex divide-x divide-app-line border-t border-app-line">
-        {[
-          { label: "게시", value: hero.postsCount },
-          { label: "댓글", value: hero.commentsCount },
-          { label: "입찰", value: hero.bidsCount },
-          { label: "낙찰", value: hero.auctionWinsCount },
-        ].map((stat) => (
+        {(hero.productsCount !== undefined
+          ? // 관심 카테고리 범위 랭킹은 범위 안 게시글·상품만 센다(앱 a158757).
+            [
+              { label: "게시", value: hero.postsCount },
+              { label: "상품", value: hero.productsCount },
+            ]
+          : [
+              { label: "게시", value: hero.postsCount },
+              { label: "댓글", value: hero.commentsCount },
+              { label: "입찰", value: hero.bidsCount },
+              { label: "낙찰", value: hero.auctionWinsCount },
+            ]
+        ).map((stat) => (
           <div key={stat.label} className="flex-1 py-2.5 text-center">
             <p className="text-sm font-bold text-app-strong">{stat.value}</p>
             <p className="text-[10px] text-app-muted">{stat.label}</p>
@@ -276,6 +285,14 @@ const MainClient = ({
   const { user, isLoading: isUserLoading } = useUser();
   const { blockedIds } = useBlocks();
   const [selectedCategory, setSelectedCategory] = useState("전체");
+  // 관심 카테고리 고정 범위(앱 category-pin). 홈 상품·피드가 같은 범위를 쓴다.
+  const scope = useCategoryScope();
+  // 범위 밖 대분류 칩은 숨기고, 고른 칩이 범위 밖으로 나가면 전체로 돌린다.
+  const tabs = useMemo(
+    () => withinScope(TABS, scope.topLevelNames, (tab) => tab.id, (tab) => tab.id === "전체"),
+    [scope.topLevelNames]
+  );
+  const activeCategory = tabs.some((tab) => tab.id === selectedCategory) ? selectedCategory : "전체";
   const [activeBannerIndex, setActiveBannerIndex] = useState(0);
   const [showPostLoginGuide, setShowPostLoginGuide] = useState(false);
   const [deferredInstallPrompt, setDeferredInstallPrompt] =
@@ -288,12 +305,12 @@ const MainClient = ({
   const getKey = (pageIndex: number, previousPageData: ProductsResponse | null) => {
     if (previousPageData && pageIndex >= (previousPageData.pages ?? 0)) return null;
     const categoryParam =
-      selectedCategory !== "전체" ? `&category=${encodeURIComponent(selectedCategory)}` : "";
-    return `/api/products?page=${pageIndex + 1}${categoryParam}`;
+      activeCategory !== "전체" ? `&category=${encodeURIComponent(activeCategory)}` : "";
+    return withCategoryPath(`/api/products?page=${pageIndex + 1}${categoryParam}`, scope.categoryPath);
   };
-  // SSR 1페이지는 "전체" 목록이다. 다른 카테고리에 그 값을 보여주지 않게 전체일 때만 넘긴다.
+  // SSR 1페이지는 범위 없는 "전체" 목록이다. 다른 카테고리·범위에 그 값을 보여주지 않게 그때만 넘긴다.
   const productFallback =
-    selectedCategory === "전체" && initialProducts ? [initialProducts] : undefined;
+    activeCategory === "전체" && !scope.categoryPath && initialProducts ? [initialProducts] : undefined;
   const {
     data: productPages,
     error: productsError,
@@ -314,10 +331,10 @@ const MainClient = ({
     data: rawFeed,
     error: feedFetchError,
     mutate: reloadFeed,
-  } = useSWR<HomeFeedResponse>(HOME_FEED_KEY, {
-    fallbackData: initialHomeFeed ?? undefined,
+  } = useSWR<HomeFeedResponse>(withCategoryPath(HOME_FEED_KEY, scope.categoryPath), {
+    fallbackData: scope.categoryPath ? undefined : initialHomeFeed ?? undefined,
     revalidateOnFocus: false,
-    revalidateOnMount: !initialHomeFeed,
+    revalidateOnMount: Boolean(scope.categoryPath) || !initialHomeFeed,
     revalidateIfStale: false,
   });
   const feedOk = rawFeed?.success ? rawFeed : undefined;
@@ -331,7 +348,12 @@ const MainClient = ({
   );
   // 1위 브리더를 차단했으면 같은 기간 랭킹에서 차단하지 않은 다음 브리더로 바꾼다.
   const { data: replacementRanking } = useSWR<{ success: boolean; items: BreederRankingItem[] }>(
-    feed?.heroBlocked ? `/api/rankings/breeders?limit=10&period=${feed.heroBreederMode}` : null
+    feed?.heroBlocked
+      ? withCategoryPath(
+          `/api/rankings/breeders?limit=10&period=${feed.heroBreederMode}`,
+          scope.categoryPath
+        )
+      : null
   );
   const hero =
     feed?.heroBreeder ??
@@ -373,10 +395,10 @@ const MainClient = ({
   }, [hasMore, productsError, productsValidating, loadedPages, setSize]);
 
   const handleCategoryChange = (categoryId: string) => {
-    if (categoryId === selectedCategory) return;
+    if (categoryId === activeCategory) return;
     trackEvent(ANALYTICS_EVENTS.homeCategorySelected, {
       selected_category: categoryId,
-      previous_category: selectedCategory,
+      previous_category: activeCategory,
       user_id: user?.id || null,
     });
     setSelectedCategory(categoryId);
@@ -537,12 +559,16 @@ const MainClient = ({
     });
 
   const productsHref =
-    selectedCategory === "전체"
+    activeCategory === "전체"
       ? "/products"
-      : `/products?category=${encodeURIComponent(selectedCategory)}`;
+      : `/products?category=${encodeURIComponent(activeCategory)}`;
 
   return (
     <div className="flex h-full flex-col bg-app-bg">
+      {/* 현재 관심 분야(고정 범위). 앱처럼 헤더 바로 아래에 고정하고, 누르면 설정 > 관심 카테고리. */}
+      <div className="sticky top-14 z-20">
+        <CategoryScopeBar />
+      </div>
       {/* 배너 슬라이더(관리자 배너 API, 웹 그라데이션 카드 유지 — 좌우 여백만 16) */}
       <section className="relative bg-app-bg pb-1 pt-3">
         <div
@@ -743,13 +769,13 @@ const MainClient = ({
       ) : null}
 
       {/* 카테고리 칩(sticky). 고정 중에도 아래가 비치지 않게 불투명 배경 + 하단 1px line. */}
-      <div className="sticky top-14 z-10 border-b border-app-line bg-app-bg py-1">
+      <div className="sticky top-[100px] z-10 border-b border-app-line bg-app-bg py-1">
         <FilterChipRail>
-          {TABS.map((tab) => (
+          {tabs.map((tab) => (
             <FilterChip
               key={tab.id}
               label={tab.name}
-              selected={selectedCategory === tab.id}
+              selected={activeCategory === tab.id}
               onClick={() => handleCategoryChange(tab.id)}
             />
           ))}
@@ -760,7 +786,7 @@ const MainClient = ({
       <section id="all-products" className="flex items-end justify-between bg-app-bg px-4 pb-2 pt-6">
         <div>
           <h2 className="text-[18px] font-bold tracking-tight text-app-strong">
-            {selectedCategory === "전체" ? "전체 상품" : `${selectedCategory} 상품`}
+            {activeCategory === "전체" ? "전체 상품" : `${activeCategory} 상품`}
           </h2>
           <p className="mt-1 text-[12px] font-medium text-app-muted">최신 등록 순으로 노출됩니다.</p>
         </div>
