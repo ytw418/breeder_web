@@ -14,7 +14,7 @@ import {
 
 /**
  * 운영자 조치(숨김·숨김 해제·삭제)를 적용하고 ModerationLog 에 남긴다.
- * 앱 ⋯ 메뉴(POST /api/admin/moderation)와 신고 처리(applyReportAction)가 함께 쓴다.
+ * 앱 ⋯ 메뉴(POST /api/admin/moderation), 관리자 게시글·상품 삭제, 신고 처리(resolveReport)가 함께 쓴다.
  *
  * 삭제 의미는 기존 관리자 삭제와 같다: 게시글·댓글·경매는 hard delete,
  * 상품은 Sale/Purchase 가 참조하고 relationMode=prisma 라 isDeleted 로 둔다.

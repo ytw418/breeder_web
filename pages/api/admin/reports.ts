@@ -12,15 +12,16 @@ import {
 } from "@prisma/client";
 import {
   ReportTargetSnapshot,
-  applyReportAction,
   buildTargetSnapshots,
+  fromLegacyAction,
+  isReportContentAction,
+  isReportResolutionError,
+  isReportUserActionType,
+  resolveReport,
+  type ReportContentAction,
+  type ReportUserAction,
 } from "@libs/server/reports";
-import {
-  isRemovableReportTarget,
-  isReportAction,
-  isReportStatus,
-  isReportTargetType,
-} from "@libs/shared/report";
+import { isReportAction, isReportStatus, isReportTargetType } from "@libs/shared/report";
 
 export type { ReportTargetSnapshot };
 
@@ -34,6 +35,8 @@ export interface AdminReportItem {
   detail: string | null;
   status: ReportStatus;
   resolutionAction: ReportAction;
+  contentAction: "HIDE" | "UNHIDE" | "DELETE" | null;
+  sanctionId: number | null;
   resolutionNote: string | null;
   resolvedBy: number | null;
   resolvedAt: string | Date | null;
@@ -56,6 +59,11 @@ export interface AdminReportItem {
 export interface AdminReportsResponse extends ResponseType {
   reports: AdminReportItem[];
   counts: Record<ReportStatus, number>;
+  /** POST 만: 함께 닫은 신고 id, 콘텐츠가 이미 없어 콘텐츠 조치를 건너뛰었는지, 만든 제재 id */
+  closedReportIds?: number[];
+  contentSkipped?: boolean;
+  sanctionId?: number | null;
+  errorCode?: string;
   /** GET 만: 현재 페이지(1부터)와 다음 페이지 존재 여부 */
   page?: number;
   hasMore?: boolean;
@@ -143,10 +151,15 @@ async function handler(req: NextApiRequest, res: NextApiResponse<AdminReportsRes
   }
 
   if (req.method === "POST") {
-    const { reportId, decision, action = "NONE", note = "" } = req.body || {};
+    /**
+     * body: { reportId, decision: RESOLVED|REJECTED, contentAction?: NONE|HIDE|DELETE,
+     *         userAction?: { type: WARNING|SUSPENSION|BAN, days?, reasonCode?, messageToUser?, internalNote? },
+     *         closeSameTarget?: boolean, note? }
+     * 구 방식 action(NONE|REMOVE_CONTENT|BAN_USER|REMOVE_CONTENT_AND_BAN)도 받는다(콘텐츠 삭제는 숨김으로 바뀐다).
+     */
+    const { reportId, decision, action, contentAction, userAction, closeSameTarget, note = "" } = req.body || {};
     const parsedReportId = Number(reportId);
     const parsedDecision = String(decision || "");
-    const parsedAction = String(action || "");
     const parsedNote = String(note || "").trim().slice(0, 500);
 
     if (!Number.isInteger(parsedReportId) || parsedReportId < 1) {
@@ -157,59 +170,70 @@ async function handler(req: NextApiRequest, res: NextApiResponse<AdminReportsRes
       return fail(400, "처리 상태는 RESOLVED 또는 REJECTED만 가능합니다.");
     }
 
-    if (!isReportAction(parsedAction)) {
-      return fail(400, "유효하지 않은 처리 액션입니다.");
+    let parsedContentAction: ReportContentAction = "NONE";
+    let parsedUserAction: ReportUserAction | null = null;
+    const usesNewShape = contentAction != null || userAction != null;
+    if (usesNewShape) {
+      if (contentAction != null && !isReportContentAction(contentAction)) {
+        return fail(400, "유효하지 않은 콘텐츠 조치입니다.");
+      }
+      parsedContentAction = contentAction ?? "NONE";
+      if (userAction != null) {
+        if (typeof userAction !== "object" || !isReportUserActionType(userAction.type)) {
+          return fail(400, "유효하지 않은 사용자 조치입니다.");
+        }
+        parsedUserAction = {
+          type: userAction.type,
+          days: userAction.days == null ? null : Number(userAction.days),
+          reasonCode: typeof userAction.reasonCode === "string" ? userAction.reasonCode : null,
+          messageToUser: typeof userAction.messageToUser === "string" ? userAction.messageToUser : null,
+          internalNote: typeof userAction.internalNote === "string" ? userAction.internalNote : null,
+        };
+      }
+    } else {
+      const legacy = String(action || "NONE");
+      if (!isReportAction(legacy)) {
+        return fail(400, "유효하지 않은 처리 액션입니다.");
+      }
+      ({ contentAction: parsedContentAction, userAction: parsedUserAction } = fromLegacyAction(legacy));
     }
 
-    if (parsedDecision === "REJECTED" && parsedAction !== "NONE") {
-      return fail(400, "신고 기각(REJECTED) 처리에서는 제재 액션을 함께 사용할 수 없습니다.");
+    try {
+      const result = await resolveReport({
+        reportId: parsedReportId,
+        actorId: adminUserId!,
+        decision: parsedDecision,
+        contentAction: parsedContentAction,
+        userAction: parsedUserAction,
+        closeSameTarget: closeSameTarget === true,
+        note: parsedNote || null,
+      });
+
+      const [rows, counts] = await Promise.all([
+        client.report.findMany({
+          where: { id: { in: result.reportIds } },
+          include: reportInclude,
+          orderBy: [{ createdAt: "desc" }, { id: "desc" }],
+        }),
+        getReportCounts(),
+      ]);
+
+      return res.json({
+        success: true,
+        reports: await withTargets(rows),
+        counts,
+        closedReportIds: result.reportIds,
+        contentSkipped: result.contentSkipped,
+        sanctionId: result.sanctionId,
+      });
+    } catch (error) {
+      if (isReportResolutionError(error)) {
+        return res
+          .status(error.status)
+          .json({ success: false, error: error.message, errorCode: error.code, reports: [], counts: EMPTY_COUNTS });
+      }
+      throw error;
     }
-
-    const target = await client.report.findUnique({
-      where: { id: parsedReportId },
-      select: {
-        id: true,
-        status: true,
-        targetType: true,
-        targetId: true,
-        reportedUserId: true,
-      },
-    });
-    if (!target) {
-      return fail(404, "신고를 찾을 수 없습니다.");
-    }
-
-    if (target.status !== "OPEN") {
-      return fail(400, "이미 처리된 신고입니다.");
-    }
-
-    const removesContent =
-      parsedAction === "REMOVE_CONTENT" || parsedAction === "REMOVE_CONTENT_AND_BAN";
-    if (removesContent && !isRemovableReportTarget(target.targetType)) {
-      return fail(400, "채팅·사용자 신고에는 콘텐츠 삭제를 적용할 수 없습니다.");
-    }
-
-    await applyReportAction(target, parsedAction, adminUserId!);
-
-    const next = await client.report.update({
-      where: { id: parsedReportId },
-      data: {
-        status: parsedDecision,
-        resolutionAction: parsedAction,
-        resolutionNote: parsedNote || null,
-        resolvedBy: adminUserId || null,
-        resolvedAt: new Date(),
-      },
-      include: reportInclude,
-    });
-
-    const counts = await getReportCounts();
-
-    return res.json({
-      success: true,
-      reports: await withTargets([next]),
-      counts,
-    });
   }
 
   return fail(405, "지원하지 않는 메서드입니다.");
