@@ -246,6 +246,19 @@ export function planInitialScopeSync(
   return "push";
 }
 
+export type OnboardedSyncPlan = "adopt" | "push" | "none";
+
+/**
+ * 온보딩을 마쳤다는 표시(계정 categoryOnboardedAt ↔ 이 브라우저 onboarded)를 맞춘다.
+ * 계정이 이미 마쳤으면 이 브라우저도 마친 것으로 두고, 이 브라우저만 마쳤으면 계정에 올린다(앱·웹 공유, 대응표 O-1).
+ */
+export function planOnboardedSync(localOnboarded: boolean, serverOnboardedAt: unknown): OnboardedSyncPlan {
+  const serverDone = Boolean(serverOnboardedAt);
+  if (serverDone && !localOnboarded) return "adopt";
+  if (!serverDone && localOnboarded) return "push";
+  return "none";
+}
+
 /** 테스트용: 모듈 상태를 처음으로 되돌린다. */
 export function resetCategoryScopeForTest() {
   emit(SERVER_STATE);

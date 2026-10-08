@@ -35,18 +35,30 @@ export interface BreederRankingItem {
 /**
  * 카테고리 범위 탑브리더 점수 가중치(PRD 5.5 초안: 게시글 수 + 상품 수 × 3).
  * 최종 가중치는 미정이라 설정값으로 떼어 둔다. 범위가 없는 전체 랭킹은 scoreBreeder 를 그대로 쓴다.
+ * 경매·혈통은 구조만 잡아 두었다(2026-10-09): 경매·혈통 카드에 categoryId 를 쌓기 시작했고, 데이터가 모이면
+ * 가중치를 올린다. 0 이면 서버가 그 수를 세지 않는다.
  */
-export const SCOPED_BREEDER_SCORE_WEIGHTS = { post: 1, product: 3 } as const;
+export const SCOPED_BREEDER_SCORE_WEIGHTS: Readonly<
+  Record<"post" | "product" | "auction" | "bloodline", number>
+> = { post: 1, product: 3, auction: 0, bloodline: 0 };
 
 export const scoreScopedBreeder = ({
   postsCount,
   productsCount,
+  auctionsCount = 0,
+  bloodlinesCount = 0,
 }: {
   postsCount: number;
   productsCount: number;
+  /** 범위 안 경매 수(가중치가 0 이면 세지 않아 0). */
+  auctionsCount?: number;
+  /** 범위 안 만든 혈통 수(가중치가 0 이면 세지 않아 0). */
+  bloodlinesCount?: number;
 }) =>
   postsCount * SCOPED_BREEDER_SCORE_WEIGHTS.post +
-  productsCount * SCOPED_BREEDER_SCORE_WEIGHTS.product;
+  productsCount * SCOPED_BREEDER_SCORE_WEIGHTS.product +
+  auctionsCount * SCOPED_BREEDER_SCORE_WEIGHTS.auction +
+  bloodlinesCount * SCOPED_BREEDER_SCORE_WEIGHTS.bloodline;
 
 export interface BloodlineRankingItem {
   rank: number;

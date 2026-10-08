@@ -17,6 +17,7 @@ import { captureServerEvent } from "@libs/server/analytics";
 import { bloodlineNameKey, validateBloodlineName } from "@libs/shared/bloodline-names";
 import { formatRegionShort, parseOptionalRegion } from "@libs/shared/regions";
 import { DELETED_USER_LABEL } from "@libs/shared/deletedUser";
+import { resolveCategoryIdByName } from "@libs/server/categories";
 import type { BloodlineErrorCode } from "@libs/shared/bloodline-errors";
 import type {
   AttachableBloodline,
@@ -226,6 +227,8 @@ async function handleCreate(req: NextApiRequest, res: NextApiResponse, userId: n
   try {
     const species = await resolveBloodlineSpecies(body.speciesType);
     if (!species.ok) return reject(species.errorCode);
+    // 관심 카테고리 범위용 Category.id(구조만 — 아직 목록에서 쓰지 않는다).
+    const categoryId = await resolveCategoryIdByName(species.speciesType);
 
     const image = typeof body.image === "string" ? body.image.trim().slice(0, IMAGE_MAX_LENGTH) : "";
     if (!image) return reject("BLOODLINE_IMAGE_REQUIRED");
@@ -258,6 +261,7 @@ async function handleCreate(req: NextApiRequest, res: NextApiResponse, userId: n
             cardType: "BLOODLINE",
             name: name.name,
             speciesType: species.speciesType,
+            categoryId,
             image,
             description,
             originSido: origin?.sido ?? null,

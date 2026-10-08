@@ -22,6 +22,7 @@ import {
 } from "@libs/shared/ranking";
 import useBlocks from "hooks/useBlocks";
 import useCategoryScope, { withCategoryPath } from "hooks/useCategoryScope";
+import { CATEGORY_SCOPE_SURFACES } from "@libs/shared/categories";
 
 const RANKING_TABS = [
   { id: "breeders", label: "브리더" },
@@ -99,14 +100,22 @@ const getSummary = (
 };
 
 const getApiUrl = (tab: RankingTab, period: RankingPeriod, categoryPath?: string) => {
-  // 관심 카테고리 범위는 탑브리더만 탄다(경매·혈통·커뮤니티 랭킹은 전체 — 앱과 같음).
+  // 관심 카테고리 범위는 화면별 스위치(CATEGORY_SCOPE_SURFACES)를 따른다. 지금은 탑브리더만 켜져 있고
+  // 경매·혈통은 구조만 잡아 두었다(커뮤니티 랭킹은 범위 없음 — 앱과 같음).
+  const scoped = (surface: keyof typeof CATEGORY_SCOPE_SURFACES) =>
+    CATEGORY_SCOPE_SURFACES[surface] ? categoryPath : undefined;
   if (tab === "breeders") {
-    return withCategoryPath(`/api/rankings/breeders?limit=50&period=${period}`, categoryPath);
+    return withCategoryPath(`/api/rankings/breeders?limit=50&period=${period}`, scoped("breeders"));
   }
   if (tab === "auctions") {
-    return `/api/rankings/auctions?limit=50&periodScope=${period === "weekly" ? "week" : "all"}`;
+    return withCategoryPath(
+      `/api/rankings/auctions?limit=50&periodScope=${period === "weekly" ? "week" : "all"}`,
+      scoped("auctions")
+    );
   }
-  if (tab === "bloodlines") return `/api/rankings/bloodlines?limit=50&period=${period}`;
+  if (tab === "bloodlines") {
+    return withCategoryPath(`/api/rankings/bloodlines?limit=50&period=${period}`, scoped("bloodlines"));
+  }
   return `/api/rankings/community?limit=50&window=${period === "weekly" ? "24h" : "all"}`;
 };
 

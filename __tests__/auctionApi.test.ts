@@ -17,6 +17,11 @@ jest.mock("@libs/server/client", () => ({
   __esModule: true,
   default: mockClient,
 }));
+// 관심 카테고리 범위 구조(경매 categoryId): 카테고리 트리는 이 테스트 밖이다.
+jest.mock("@libs/server/categories", () => ({
+  resolveCategoryIdByName: jest.fn(async () => null),
+  resolveScopeCategoryIds: jest.fn(async () => null),
+}));
 jest.mock("@libs/server/auth", () => ({
   withAuth: (handler: unknown) => handler,
 }));

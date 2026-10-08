@@ -39,6 +39,7 @@ const e2eProduct: NonNullable<ItemDetailResponse["product"]> = {
     provider: "kakao",
     phone: null,
     pinnedCategoryIds: [],
+    categoryOnboardedAt: null,
     email: "seller@e2e.local",
     name: "테스트 판매자",
     avatar: null,

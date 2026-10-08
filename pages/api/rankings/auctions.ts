@@ -24,7 +24,9 @@ async function handler(
     const periodScope = isAuctionPeriodScope(String(req.query.periodScope || "week"))
       ? (req.query.periodScope as AuctionPeriodScope)
       : "week";
-    const items = await getAuctionRanking({ category, periodScope, limit });
+    const categoryPath =
+      typeof req.query.categoryPath === "string" ? req.query.categoryPath : undefined;
+    const items = await getAuctionRanking({ category, periodScope, limit, categoryPath });
 
     res.setHeader("Cache-Control", "public, s-maxage=60, stale-while-revalidate=120");
     return res.json({

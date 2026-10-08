@@ -12,6 +12,8 @@ import { cn } from "@libs/client/utils";
 import { uniqueAuctionsById } from "@libs/auctionRules";
 import { TOP_LEVEL_CATEGORIES } from "@libs/categoryTaxonomy";
 import type { AuctionsListResponse } from "pages/api/auctions";
+import useCategoryScope from "hooks/useCategoryScope";
+import { CATEGORY_SCOPE_SURFACES } from "@libs/shared/categories";
 import { AuctionCard, AuctionSkeletonGrid } from "./AuctionCard";
 
 const STATUS_TABS = ["전체", "진행중", "종료"] as const;
@@ -98,12 +100,17 @@ export default function AuctionsClient() {
     return () => clearInterval(timer);
   }, []);
 
+  // 관심 카테고리 범위: 경매는 구조만(CATEGORY_SCOPE_SURFACES.auctions 가 켜지면 범위를 보낸다).
+  const scope = useCategoryScope();
+  const scopePath = CATEGORY_SCOPE_SURFACES.auctions ? scope.categoryPath : undefined;
+
   const getKey = (pageIndex: number, previous: AuctionsListResponse | null) => {
     if (previous && pageIndex >= (previous.pages ?? 1)) return null;
     const params = new URLSearchParams({ page: String(pageIndex + 1) });
     if (status !== "전체") params.set("status", status);
     if (category !== "전체") params.set("category", category);
     if (q) params.set("q", q);
+    if (scopePath) params.set("categoryPath", scopePath);
     return `/api/auctions?${params.toString()}`;
   };
 

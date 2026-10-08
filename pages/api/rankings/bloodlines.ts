@@ -25,7 +25,9 @@ async function handler(
     const period = isRankingPeriod(String(req.query.period || "weekly"))
       ? (req.query.period as RankingPeriod)
       : "weekly";
-    const items = await getBloodlineRanking({ limit, speciesType, period });
+    const categoryPath =
+      typeof req.query.categoryPath === "string" ? req.query.categoryPath : undefined;
+    const items = await getBloodlineRanking({ limit, speciesType, period, categoryPath });
 
     res.setHeader("Cache-Control", "public, s-maxage=60, stale-while-revalidate=120");
     return res.json({
