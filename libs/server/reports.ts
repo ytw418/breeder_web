@@ -34,6 +34,7 @@ const found = (reportedUserId: number) => ({ ok: true, reportedUserId }) as cons
 /**
  * 신고 대상을 확인하고 피신고자(콘텐츠 작성자·채팅 상대·대상 사용자)를 찾는다.
  * 채팅방은 신고자가 멤버인 방만 신고할 수 있고, 피신고자는 상대 멤버다.
+ * 혈통은 ACTIVE 인 카드만 신고할 수 있고, 피신고자는 만든 사람(creatorId)이다.
  */
 export async function resolveReportTarget(
   type: ReportTargetType,
@@ -86,6 +87,13 @@ export async function resolveReportTarget(
       });
       return user ? found(user.id) : TARGET_NOT_FOUND;
     }
+    case "BLOODLINE_CARD": {
+      const card = await client.bloodlineCard.findUnique({
+        where: { id: targetId },
+        select: { creatorId: true, status: true },
+      });
+      return card && card.status === "ACTIVE" ? found(card.creatorId) : TARGET_NOT_FOUND;
+    }
     default:
       return TARGET_NOT_FOUND;
   }
@@ -111,6 +119,9 @@ type SnapshotSource = Pick<Report, "targetType" | "targetId">;
 
 const toExcerpt = (text: string) =>
   text.length > EXCERPT_MAX ? `${text.slice(0, EXCERPT_MAX)}…` : text;
+
+/** 혈통 상세 경로(뿌리·출처 카드 공통). 앱 딥링크도 같은 경로를 쓴다. */
+const bloodlineCardPath = (id: number) => `/bloodline-management/card/${id}`;
 
 const missingSnapshot = (type: ReportTargetType): ReportTargetSnapshot => ({
   exists: false,
@@ -158,8 +169,9 @@ export async function buildTargetSnapshots(
   const productIds = uniqueTargetIds(reports, "PRODUCT");
   const userIds = uniqueTargetIds(reports, "USER");
   const roomIds = uniqueTargetIds(reports, "CHAT_ROOM");
+  const bloodlineIds = uniqueTargetIds(reports, "BLOODLINE_CARD");
 
-  const [posts, comments, products, users, rooms] = await Promise.all([
+  const [posts, comments, products, users, rooms, bloodlineCards] = await Promise.all([
     postIds.length
       ? client.post.findMany({
           where: { id: { in: postIds } },
@@ -192,6 +204,19 @@ export async function buildTargetSnapshots(
       : [],
     roomIds.length
       ? client.chatRoom.findMany({ where: { id: { in: roomIds } }, select: { id: true } })
+      : [],
+    bloodlineIds.length
+      ? client.bloodlineCard.findMany({
+          where: { id: { in: bloodlineIds } },
+          select: {
+            id: true,
+            cardType: true,
+            status: true,
+            name: true,
+            description: true,
+            speciesType: true,
+          },
+        })
       : [],
   ]);
 
@@ -237,6 +262,17 @@ export async function buildTargetSnapshots(
       href: `/profiles/${user.id}`,
     });
   }
+  for (const card of bloodlineCards) {
+    const state =
+      card.status === "REVOKED" ? "[회수] " : card.status === "INACTIVE" ? "[숨김] " : "";
+    snapshots.set(key("BLOODLINE_CARD", card.id), {
+      exists: true,
+      title: `${state}${card.name}${card.cardType === "LINE" ? " (출처 카드)" : ""}`,
+      excerpt: toExcerpt(card.description || card.speciesType || ""),
+      // 숨김·회수된 혈통은 상세가 404(BLOODLINE_REVOKED)라 링크를 주지 않는다.
+      href: state ? null : bloodlineCardPath(card.id),
+    });
+  }
   for (const [roomId, messages] of Array.from(roomMessages.entries())) {
     const last = messages[messages.length - 1];
     snapshots.set(key("CHAT_ROOM", roomId), {
@@ -265,7 +301,12 @@ async function removeReportedContent(
   actorId: number
 ) {
   const { targetType } = report;
-  if (targetType !== "POST" && targetType !== "COMMENT" && targetType !== "PRODUCT") {
+  if (
+    targetType !== "POST" &&
+    targetType !== "COMMENT" &&
+    targetType !== "PRODUCT" &&
+    targetType !== "BLOODLINE_CARD"
+  ) {
     throw new Error(`콘텐츠 삭제를 적용할 수 없는 신고 대상입니다: ${targetType}`);
   }
   try {
@@ -274,6 +315,7 @@ async function removeReportedContent(
       targetType,
       targetId: report.targetId,
       // 상품은 기존처럼 숨김으로 내린다(Sale/Purchase 참조 때문에 지우지 않음).
+      // 혈통의 delete 는 회수(REVOKED, 하위 출처 카드 포함)다.
       action: targetType === "PRODUCT" ? "hide" : "delete",
       reportId: report.id,
     });

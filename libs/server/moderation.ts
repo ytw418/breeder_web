@@ -1,7 +1,8 @@
+import { Prisma } from "@prisma/client";
 import type {
+  BloodlineCardType,
   ModerationActionType,
   ModerationTargetType,
-  Prisma,
 } from "@prisma/client";
 import client from "@libs/server/client";
 import { createNotification } from "@libs/server/notification";
@@ -13,9 +14,20 @@ import { createNotification } from "@libs/server/notification";
  * 삭제 의미는 기존 관리자 삭제와 같다: 게시글·댓글·경매는 hard delete,
  * 상품은 Sale/Purchase 가 참조하고 relationMode=prisma 라 isDeleted 로 둔다.
  * 경매는 숨길 때 진행중이면 취소해 입찰이 더 붙지 않게 한다(숨김 해제 시 상태는 되돌리지 않음).
+ *
+ * 혈통(BLOODLINE_CARD)은 status 로 다룬다: 숨김 = INACTIVE, 숨김 해제 = ACTIVE,
+ * 삭제 = 회수(REVOKED, 되돌리지 않음). 뿌리 혈통을 회수하면 같은 뿌리의 출처 카드(LINE)도
+ * 함께 회수하고 카드마다 CARD_REVOKED 이력을 남긴다. 이미 회수된 카드는 대상이 없는 것으로 본다.
+ * 상품·경매의 bloodlineRootId 는 그대로 두며, 요약 조회가 ACTIVE 를 요구하므로 혈통 행만 사라진다.
  */
 
-export const MODERATION_TARGET_TYPES = ["POST", "COMMENT", "PRODUCT", "AUCTION"] as const;
+export const MODERATION_TARGET_TYPES = [
+  "POST",
+  "COMMENT",
+  "PRODUCT",
+  "AUCTION",
+  "BLOODLINE_CARD",
+] as const satisfies readonly ModerationTargetType[];
 export const MODERATION_ACTIONS = ["hide", "unhide", "delete"] as const;
 export type ModerationAction = (typeof MODERATION_ACTIONS)[number];
 
@@ -77,7 +89,13 @@ interface TargetInfo {
   excerpt: string;
   /** 경매만: 숨길 때 취소 여부 판단 */
   status?: string;
+  /** 혈통만: 회수 연쇄 여부(뿌리만 출처 카드까지)와 이력의 이전 보유자 */
+  bloodline?: { cardType: BloodlineCardType; currentOwnerId: number };
 }
+
+/** 혈통 회수 이력 메모(CARD_REVOKED.note). 운영자 사유는 이력에 싣지 않고 ModerationLog 에만 남긴다. */
+export const BLOODLINE_REVOKE_NOTE = "운영 정책으로 회수";
+export const BLOODLINE_CASCADE_REVOKE_NOTE = "혈통 회수에 따라 함께 회수";
 
 async function findTarget(
   type: ModerationTargetType,
@@ -127,9 +145,41 @@ async function findTarget(
         }
       );
     }
+    case "BLOODLINE_CARD": {
+      const card = await client.bloodlineCard.findUnique({
+        where: { id },
+        select: {
+          cardType: true,
+          status: true,
+          creatorId: true,
+          currentOwnerId: true,
+          name: true,
+          description: true,
+          speciesType: true,
+        },
+      });
+      // 회수는 되돌리지 않는 삭제라 상품 isDeleted 처럼 대상이 없는 것으로 본다.
+      return card && card.status !== "REVOKED"
+        ? {
+            userId: card.creatorId,
+            title: card.name,
+            excerpt: card.description || card.speciesType || "",
+            bloodline: { cardType: card.cardType, currentOwnerId: card.currentOwnerId },
+          }
+        : null;
+    }
     default:
       return null;
   }
+}
+
+/** 혈통 숨김(INACTIVE)·숨김 해제(ACTIVE). 그 사이 회수됐으면 되살리지 않고 대상 없음으로 본다. */
+async function setBloodlineVisible(id: number, isHidden: boolean) {
+  const { count } = await client.bloodlineCard.updateMany({
+    where: { id, status: { not: "REVOKED" } },
+    data: { status: isHidden ? "INACTIVE" : "ACTIVE" },
+  });
+  if (count === 0) throw targetNotFoundError();
 }
 
 async function setHidden(type: ModerationTargetType, id: number, isHidden: boolean) {
@@ -137,7 +187,72 @@ async function setHidden(type: ModerationTargetType, id: number, isHidden: boole
   if (type === "POST") await client.post.update({ where: { id }, data });
   else if (type === "COMMENT") await client.comment.update({ where: { id }, data });
   else if (type === "PRODUCT") await client.product.update({ where: { id }, data });
+  else if (type === "BLOODLINE_CARD") await setBloodlineVisible(id, isHidden);
   else await client.auction.update({ where: { id }, data });
+}
+
+/**
+ * 혈통 회수. 뿌리 혈통이면 같은 뿌리의 출처 카드(ACTIVE·INACTIVE)도 REVOKED 로 바꾸고
+ * 카드마다 CARD_REVOKED 이력을 남긴다. 회수 도중 새 출처 카드가 발급돼 살아남지 않게
+ * 출처 카드 발급(issue-line)과 같은 Serializable 트랜잭션으로 묶는다.
+ */
+async function revokeBloodlineCard(id: number, target: TargetInfo) {
+  const bloodline = target.bloodline;
+  if (!bloodline) throw targetNotFoundError();
+
+  await client.$transaction(
+    async (tx) => {
+      const revoked = await tx.bloodlineCard.updateMany({
+        where: { id, status: { not: "REVOKED" } },
+        data: { status: "REVOKED" },
+      });
+      // 조회 뒤 다른 요청이 먼저 회수했다.
+      if (revoked.count === 0) throw targetNotFoundError();
+
+      const lines =
+        bloodline.cardType === "BLOODLINE"
+          ? await tx.bloodlineCard.findMany({
+              where: {
+                cardType: "LINE",
+                bloodlineReferenceId: id,
+                status: { in: ["ACTIVE", "INACTIVE"] },
+              },
+              select: { id: true, currentOwnerId: true },
+            })
+          : [];
+
+      if (lines.length > 0) {
+        await tx.bloodlineCard.updateMany({
+          where: { id: { in: lines.map((line) => line.id) }, status: { not: "REVOKED" } },
+          data: { status: "REVOKED" },
+        });
+      }
+
+      // 운영자는 이력에 드러내지 않는다(actorUserId null). 누가 조치했는지는 ModerationLog 에 남는다.
+      await tx.bloodlineCardEvent.createMany({
+        data: [
+          {
+            cardId: id,
+            action: "CARD_REVOKED",
+            actorUserId: null,
+            fromUserId: bloodline.currentOwnerId,
+            toUserId: null,
+            note: BLOODLINE_REVOKE_NOTE,
+          },
+          ...lines.map((line) => ({
+            cardId: line.id,
+            action: "CARD_REVOKED" as const,
+            actorUserId: null,
+            fromUserId: line.currentOwnerId,
+            toUserId: null,
+            relatedCardId: id,
+            note: BLOODLINE_CASCADE_REVOKE_NOTE,
+          })),
+        ],
+      });
+    },
+    { isolationLevel: Prisma.TransactionIsolationLevel.Serializable }
+  );
 }
 
 async function hideAuction(id: number, actorId: number, target: TargetInfo) {
@@ -171,6 +286,8 @@ async function deleteTarget(
   else if (type === "COMMENT") await client.comment.delete({ where: { id } });
   else if (type === "PRODUCT") {
     await client.product.update({ where: { id }, data: { isDeleted: true } });
+  } else if (type === "BLOODLINE_CARD") {
+    await revokeBloodlineCard(id, target);
   } else {
     await client.auction.delete({ where: { id } });
     await createNotification({

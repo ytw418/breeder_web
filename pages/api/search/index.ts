@@ -4,6 +4,7 @@ import client from "@libs/server/client";
 import { withAuth } from "@libs/server/auth";
 import { getCategorySearchKeywords } from "@libs/categoryTaxonomy";
 import { excludedAuthorIds, setViewerCacheHeader } from "@libs/server/blocks";
+import { speciesCategoryWhere } from "@libs/server/categories";
 
 export interface SearchResponse {
   success: boolean;
@@ -67,6 +68,9 @@ async function handler(
 
     const keyword = (q as string).trim();
     const categoryKeywords = getCategorySearchKeywords(keyword);
+    // 검색어가 종 이름이면 그 카테고리 하위 글도 찾는다(글에 '강아지'처럼 소분류 이름이 저장돼도 '포유류'로 찾게).
+    const speciesWhere = await speciesCategoryWhere(keyword);
+    const postSpeciesConditions = "categoryId" in speciesWhere ? [speciesWhere] : [];
 
     // viewer 가 차단한 사람의 상품·게시글과 그 사람 자체를 결과에서 뺀다.
     const viewerId = req.user?.id;
@@ -125,6 +129,7 @@ async function handler(
                 ...(categoryKeywords.length
                   ? [{ type: { in: categoryKeywords } }]
                   : []),
+                ...postSpeciesConditions,
               ],
             },
             select: {

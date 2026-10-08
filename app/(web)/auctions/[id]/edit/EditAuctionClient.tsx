@@ -25,7 +25,7 @@ import {
 import { getAuctionResultMessage } from "@libs/client/auctionErrorMessage";
 import { extractAuctionIdFromPath, toAuctionPath } from "@libs/auction-route";
 import { TOP_LEVEL_CATEGORIES, findCategoryBranch, getSubcategories } from "@libs/categoryTaxonomy";
-import type { BloodlineCardsResponse } from "@libs/shared/bloodline-card";
+import { PEDIGREE_NOTE_INVALID_MESSAGE, type PedigreeNote } from "@libs/shared/pedigree-note";
 import {
   BID_INCREMENT_ERROR,
   BidIncrementField,
@@ -45,6 +45,11 @@ import {
   uploadImageFile,
   useBidIncrementInput,
 } from "../../AuctionFormParts";
+import {
+  AuctionBloodlineField,
+  attachableOptionLabel,
+  auctionPedigreePayload,
+} from "../../AuctionBloodlineParts";
 
 type Auction = NonNullable<AuctionDetailResponse["auction"]>;
 type TextKey =
@@ -58,7 +63,15 @@ type TextKey =
   | "sellerBandNick"
   | "sellerTrustNote";
 type FormState = Record<TextKey, string>;
-type ErrorKey = "photos" | "category" | "title" | "description" | "startPrice" | "bidIncrement" | "endAt";
+type ErrorKey =
+  | "photos"
+  | "category"
+  | "title"
+  | "description"
+  | "startPrice"
+  | "bidIncrement"
+  | "endAt"
+  | "pedigreeNote";
 type ErrorState = Partial<Record<ErrorKey, string>>;
 
 interface AuctionUpdateResponse {
@@ -153,6 +166,8 @@ function AuctionEditFormBody({
   const [selectedBloodlineRootId, setSelectedBloodlineRootId] = useState(
     auction.bloodlineRootId ? String(auction.bloodlineRootId) : ""
   );
+  // 저장된 부모·누대로 채운다. 저장할 때 늘 지금 칸 값을 함께 보낸다(서버는 보낸 때만 바꾼다).
+  const [pedigreeNote, setPedigreeNote] = useState<PedigreeNote>(() => ({ ...(auction.pedigreeNote ?? {}) }));
   const [selectedDuration, setSelectedDuration] = useState<number | null>(null);
   const [errors, setErrors] = useState<ErrorState>({});
   const [uploading, setUploading] = useState(false);
@@ -160,19 +175,18 @@ function AuctionEditFormBody({
   const submitLockRef = useRef(false);
 
   const [updateAuction, { loading: submitting }] = useMutation<AuctionUpdateResponse>(`/api/auctions/${auctionId}`);
-  const { data: bloodlineData } = useSWR<BloodlineCardsResponse>("/api/bloodline-cards");
 
   // 수정은 저장된 입찰 단위로 채우고, 시작가를 바꿔도 따라 바꾸지 않는다.
   const bidIncrement = useBidIncrementInput(resolveBidIncrement(auction));
   const subcategories = selectedCategory ? getSubcategories(selectedCategory) : [];
   const categoryForSubmit = selectedSubcategory || selectedCategory;
-  const bloodlineOptions = useMemo(
-    () =>
-      (bloodlineData?.myBloodlines?.length ? bloodlineData.myBloodlines : bloodlineData?.ownedCards || []).filter(
-        (card) => card.cardType === "BLOODLINE"
-      ),
-    [bloodlineData]
-  );
+  const bloodlineRootId = selectedBloodlineRootId ? Number(selectedBloodlineRootId) : null;
+  // 혈통이 없거나 칸이 비면 null, 규칙에 안 맞으면 "invalid"(저장을 막는다).
+  const pedigreePayload = auctionPedigreePayload(bloodlineRootId, pedigreeNote);
+  // 지금 연결된 혈통을 넘겼거나 숨겨져 붙일 수 있는 목록에 없을 때 select 에 남길 라벨.
+  const currentBloodlineLabel = auction.bloodline
+    ? attachableOptionLabel({ ...auction.bloodline, relation: "mine" })
+    : null;
   const customErrorMessages = [
     errors.photos,
     errors.category,
@@ -181,6 +195,7 @@ function AuctionEditFormBody({
     errors.startPrice,
     errors.bidIncrement,
     errors.endAt,
+    errors.pedigreeNote,
   ].filter((message): message is string => Boolean(message));
   const busy = submitting || uploading || proofUploading;
   const locked = lockReason !== null;
@@ -242,6 +257,7 @@ function AuctionEditFormBody({
     else if (changed && !isAuctionDurationValid(endAtIso)) {
       next.endAt = "종료 시각은 지금부터 1시간~72시간 사이로 정해주세요.";
     }
+    if (pedigreePayload === "invalid") next.pedigreeNote = PEDIGREE_NOTE_INVALID_MESSAGE;
     setErrors(next);
     return Object.keys(next).length === 0;
   };
@@ -274,7 +290,8 @@ function AuctionEditFormBody({
           sellerCafeNick: normalizeText(form.sellerCafeNick),
           sellerBandNick: normalizeText(form.sellerBandNick),
           sellerTrustNote: normalizeText(form.sellerTrustNote),
-          bloodlineRootId: selectedBloodlineRootId ? Number(selectedBloodlineRootId) : null,
+          bloodlineRootId,
+          pedigreeNote: pedigreePayload === "invalid" ? null : pedigreePayload,
         },
       });
       if (!result.success) {
@@ -462,25 +479,21 @@ function AuctionEditFormBody({
           <ErrorText message={errors.endAt} />
         </div>
 
-        {/* 연결 혈통카드(선택) */}
-        <div>
-          <FieldLabel label="연결 혈통카드" caption="선택" htmlFor="auction-bloodline" />
-          <select
-            id="auction-bloodline"
-            value={selectedBloodlineRootId}
-            onChange={(event) => setSelectedBloodlineRootId(event.target.value)}
-            className={cn(FIELD_INPUT_CLASS, "border-app-border")}
-          >
-            <option value="">혈통 연결 안 함</option>
-            {bloodlineOptions.map((card) => (
-              <option key={card.id} value={String(card.id)}>
-                {card.name}
-                {card.speciesType ? ` · ${card.speciesType}` : ""}
-              </option>
-            ))}
-          </select>
-          <HelpText>혈통을 연결하면 해당 경매의 낙찰가가 혈통 랭킹 집계에 반영돼요.</HelpText>
-        </div>
+        {/* 혈통(선택) + 부모·누대 */}
+        <AuctionBloodlineField
+          value={selectedBloodlineRootId}
+          onChange={(value) => {
+            setSelectedBloodlineRootId(value);
+            setErrors((prev) => ({ ...prev, pedigreeNote: undefined }));
+          }}
+          note={pedigreeNote}
+          onNoteChange={(note) => {
+            setPedigreeNote(note);
+            setErrors((prev) => ({ ...prev, pedigreeNote: undefined }));
+          }}
+          currentRootId={auction.bloodlineRootId}
+          currentLabel={currentBloodlineLabel}
+        />
 
         {/* 판매자 신뢰 정보(선택) */}
         <div>

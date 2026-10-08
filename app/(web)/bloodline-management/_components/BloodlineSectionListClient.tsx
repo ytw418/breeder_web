@@ -1,11 +1,11 @@
 "use client";
 
 /**
- * 혈통 하위 목록(내 혈통 / 내 라인 / 받은 카드) — 당근 톤(A안) 1:1
+ * 혈통 하위 목록(내 혈통 / 내 출처 카드 / 받은 출처 카드) — 기존 웹 톤(A안), 혈통 v2 용어(설계 §4.4 WB-3)
  * 원본: bredy_app src/components/features/bloodline/BloodlineSectionListScreen.tsx
  *
  * 헤더(뒤로 + 제목 18/700) → 설명 13/muted → 검색 인풋 → 1열 카드 리스트(gap 12)
- * → (내 혈통만) 하단 고정 CTA "새 혈통 만들기".
+ * → (내 혈통만) 하단 고정 CTA "혈통 만들기". 검색은 가린 닉네임("닉네임 비공개")을 대상에서 뺀다.
  */
 import { useMemo, useState } from "react";
 import Link from "next/link";
@@ -21,11 +21,12 @@ import {
   BloodlinePrimaryButton,
   BloodlineSpinner,
   bloodlineInputClass,
+  bloodlineRowMeta,
+  bloodlineUserLabel,
   useBloodlineLoginRedirect,
 } from "@components/features/bloodline/BloodlineScreenParts";
 import useUser from "hooks/useUser";
 import {
-  bloodlineCardMeta,
   bloodlineCardTypeLabel,
   groupBloodlineCards,
   searchBloodlineCards,
@@ -36,22 +37,25 @@ type SectionMode = "myBloodlines" | "createdLines" | "receivedCards";
 
 const sectionMeta: Record<
   SectionMode,
-  { title: string; sub: string; path: string; cta?: string }
+  { title: string; sub: string; empty: string; path: string; cta?: string }
 > = {
   myBloodlines: {
     title: "내 혈통",
-    sub: "내가 만든 원본 혈통카드예요.",
+    sub: "지금 내가 가진 혈통이에요.",
+    empty: "아직 만든 혈통이 없어요.",
     path: "/bloodline-management/my-bloodlines",
-    cta: "새 혈통 만들기",
+    cta: "혈통 만들기",
   },
   createdLines: {
-    title: "내 라인",
-    sub: "혈통에서 파생한 라인카드예요.",
+    title: "내 출처 카드",
+    sub: "내 혈통에서 만들어 내가 가진 출처 카드예요.",
+    empty: "아직 출처 카드가 없어요.",
     path: "/bloodline-management/created-lines",
   },
   receivedCards: {
-    title: "받은 카드",
-    sub: "다른 브리더에게 받은 혈통·라인카드예요.",
+    title: "받은 출처 카드",
+    sub: "다른 브리더에게 받은 혈통·출처 카드예요.",
+    empty: "아직 받은 카드가 없어요.",
     path: "/bloodline-management/received-cards",
   },
 };
@@ -96,8 +100,8 @@ export default function BloodlineSectionListClient({ mode }: { mode: SectionMode
         <Input
           value={query}
           onChange={(event) => setQuery(event.target.value)}
-          placeholder="카드명 · 닉네임 검색"
-          aria-label="카드명 · 닉네임 검색"
+          placeholder="혈통 이름 · 닉네임 검색"
+          aria-label="혈통 이름 · 닉네임 검색"
           autoComplete="off"
           className={bloodlineInputClass}
         />
@@ -115,14 +119,14 @@ export default function BloodlineSectionListClient({ mode }: { mode: SectionMode
             <Link
               key={card.id}
               href={`/bloodline-management/card/${card.id}`}
-              aria-label={`${card.name} 카드`}
+              aria-label={`${card.name} ${bloodlineCardTypeLabel(card.cardType)}`}
               className="block rounded-xl focus-visible:outline focus-visible:outline-2 focus-visible:outline-app-text"
             >
               <BloodlineVisualCard
                 cardId={card.id}
                 name={card.name}
-                subtitle={bloodlineCardMeta(card)}
-                ownerName={card.currentOwner.name}
+                subtitle={bloodlineRowMeta(card)}
+                ownerName={bloodlineUserLabel(card.currentOwner)}
                 typeLabel={bloodlineCardTypeLabel(card.cardType)}
                 issuedAt={card.createdAt}
                 image={card.image}
@@ -131,7 +135,7 @@ export default function BloodlineSectionListClient({ mode }: { mode: SectionMode
           ))
         ) : (
           <p className="py-12 text-center text-[14px] tracking-[-0.2px] text-app-muted">
-            {query.trim() ? "검색 결과가 없어요." : "아직 카드가 없어요."}
+            {query.trim() ? "검색 결과가 없어요." : meta.empty}
           </p>
         )}
       </div>

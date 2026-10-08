@@ -8,6 +8,10 @@ import { FilterChip, FilterChipRail } from "@components/app/FilterChip";
 import { BreederProgramBadgeList } from "@components/features/breeder/BreederProgramDecorators";
 import { BloodlineVisualCard } from "@components/features/bloodline/BloodlineVisualCard";
 import {
+  bloodlineRowMeta,
+  bloodlineUserLabel,
+} from "@components/features/bloodline/BloodlineScreenParts";
+import {
   EmptyBlock,
   LineIcon,
   LoadingBlock,
@@ -38,7 +42,11 @@ import type {
 import type { LoginReqBody, LoginResponseType } from "pages/api/auth/login";
 import useSWR from "swr";
 import type { UserResponse } from "pages/api/users/[id]";
-import type { BloodlineCardItem, BloodlineCardsResponse } from "@libs/shared/bloodline-card";
+import {
+  bloodlineCardTypeLabel,
+  type BloodlineCardItem,
+  type BloodlineCardsResponse,
+} from "@libs/shared/bloodline-card";
 import { useEffect, useMemo, useState, type ReactNode } from "react";
 import useLogout from "../../../hooks/useLogout";
 
@@ -48,7 +56,7 @@ const TAB_META: { id: ActivityTab; name: string }[] = [
   { id: "posts", name: "게시물" },
   { id: "comments", name: "댓글" },
   { id: "products", name: "상품" },
-  { id: "bloodline", name: "보유 혈통 카드" },
+  { id: "bloodline", name: "혈통" },
   { id: "guinness", name: "브리디북" },
 ];
 
@@ -78,7 +86,7 @@ type TestAccountSwitchResponse = {
 };
 
 /* ------------------------------------------------------------------ */
-/* 브리디북 · 혈통 카드                                                  */
+/* 브리디북 · 혈통                                                       */
 /* ------------------------------------------------------------------ */
 
 function GuinnessSubmissionList({
@@ -144,32 +152,33 @@ function GuinnessSubmissionList({
   );
 }
 
+/** 내 혈통 / 받은 출처 카드 미리보기. 메타는 혈통 화면 행과 같다(종 · 산지 · 받은 사람 N명 / 종 · ○○님에게서 · 날짜). */
 function BloodlineCardPreview({ card, kind }: { card: BloodlineCardItem; kind: "created" | "received" }) {
-  const subtitle = card.description || card.speciesType || "설명이 아직 등록되지 않았습니다.";
   return (
     <Link href={`/bloodline-management/card/${card.id}`} className="block">
       <BloodlineVisualCard
         cardId={card.id}
         name={card.name}
-        ownerName={card.currentOwner.name}
-        subtitle={subtitle}
+        ownerName={bloodlineUserLabel(card.currentOwner)}
+        subtitle={bloodlineRowMeta(card)}
         image={card.image}
         variant={card.visualStyle ?? "noir"}
-        typeLabel={card.cardType === "LINE" ? "라인" : "혈통"}
+        typeLabel={bloodlineCardTypeLabel(card.cardType)}
         issuedAt={card.createdAt}
         compact
       />
       {kind === "received" ? (
         <>
           <p className="mt-2 text-[13px] text-app-muted">
-            제작자 {card.creator.name} · 전달 {card.transfers?.length || 0}건
+            처음 보낸 사람 {bloodlineUserLabel(card.creator)} · 전달 {card.transfers?.length || 0}건
           </p>
           {card.transfers?.length ? (
             <div className="mt-1.5 space-y-1">
               {card.transfers.map((transfer) => (
                 <p key={transfer.id} className="text-[13px] text-app-muted">
                   {new Date(transfer.createdAt).toLocaleDateString("ko-KR")} ·{" "}
-                  {transfer.fromUser ? transfer.fromUser.name : "시스템"} → {transfer.toUser.name}
+                  {transfer.fromUser ? bloodlineUserLabel(transfer.fromUser) : "시스템"} →{" "}
+                  {bloodlineUserLabel(transfer.toUser)}
                   {transfer.note ? ` · ${transfer.note}` : ""}
                 </p>
               ))}
@@ -183,11 +192,13 @@ function BloodlineCardPreview({ card, kind }: { card: BloodlineCardItem; kind: "
 
 function BloodlineSection({
   title,
+  countText,
   cards,
   kind,
   emptyText,
 }: {
   title: string;
+  countText: string;
   cards: BloodlineCardItem[];
   kind: "created" | "received";
   emptyText: string;
@@ -196,7 +207,7 @@ function BloodlineSection({
     <section>
       <div className="mb-2 flex items-center justify-between">
         <h4 className="text-[14px] font-bold text-app-text">{title}</h4>
-        <span className="text-[13px] text-app-muted">{cards.length}장</span>
+        <span className="text-[13px] text-app-muted">{countText}</span>
       </div>
       {cards.length ? (
         <div className="space-y-3">
@@ -299,30 +310,26 @@ const MyPageClient = () => {
   );
 
   const bloodlineData = bloodlineQuery.data;
-  const receivedCards = useMemo(() => {
+  // "내 혈통": 지금 내가 가진 혈통(넘겨받은 혈통 포함). 혈통 v2 서버는 myBloodlines 에 모두 담고
+  // receivedBloodlines 는 그 부분집합이다(앱 myPage 와 같다). id 로 한 번만 남긴다.
+  const myBloodlines = useMemo(() => {
     if (!bloodlineData) return [];
-    if (bloodlineData.receivedBloodlines?.length) return bloodlineData.receivedBloodlines;
-    if (bloodlineData.receivedCards?.length) {
-      return bloodlineData.receivedCards.filter((card) => card.cardType === "BLOODLINE");
-    }
-    return (bloodlineData.ownedCards || []).filter(
-      (card) => card.creator.id !== userId && card.cardType === "BLOODLINE"
+    const seen = new Set<number>();
+    return [...(bloodlineData.myBloodlines ?? []), ...(bloodlineData.receivedBloodlines ?? [])].filter(
+      (card) => {
+        if (card.cardType !== "BLOODLINE" || seen.has(card.id)) return false;
+        seen.add(card.id);
+        return true;
+      }
     );
-  }, [bloodlineData, userId]);
+  }, [bloodlineData]);
 
-  const myCreatedCards = useMemo(() => {
-    if (!bloodlineData) return [];
-    if (bloodlineData.myBloodlines?.length) return bloodlineData.myBloodlines;
-    if (bloodlineData.myCreatedCards?.length) {
-      return bloodlineData.myCreatedCards.filter((card) => card.cardType === "BLOODLINE");
-    }
-    return (bloodlineData.ownedCards || []).filter(
-      (card) => card.creator.id === userId && card.cardType === "BLOODLINE"
-    );
-  }, [bloodlineData, userId]);
+  // "받은 출처 카드": 남이 보내 준 출처 카드(지금 내가 보유).
+  const receivedLines = useMemo(() => bloodlineData?.receivedLines ?? [], [bloodlineData]);
 
-  const bloodlineCountFallback =
-    (profileUser?._count?.createdBloodlineCards ?? 0) + (profileUser?._count?.ownedBloodlineCards ?? 0);
+  // 목록을 받기 전에는 프로필의 보유 카드 수(지금 보유한 ACTIVE 카드, 혈통 v2 currentOwnerId 기준)를 쓴다.
+  // 예전에는 만든 카드 수 + 보유 카드 수를 더했는데, 만든 혈통을 넘기면 목록은 비어도 수가 남아 어긋났다.
+  const bloodlineCountFallback = profileUser?._count?.ownedBloodlineCards;
 
   // 프로필(_count)이나 목록을 아직 받지 못했거나 실패했으면 0 대신 '–' 로 둔다.
   const countOrDash = (profileCount: number | undefined, listLoaded: boolean, listLength: number) => {
@@ -335,10 +342,8 @@ const MyPageClient = () => {
     products: countOrDash(profileUser?._count?.products, productsList.isLoaded, productsList.items.length),
     bloodline:
       bloodlineData !== undefined
-        ? myCreatedCards.length + receivedCards.length || bloodlineCountFallback
-        : profileUser
-          ? bloodlineCountFallback
-          : "–",
+        ? myBloodlines.length + receivedLines.length
+        : bloodlineCountFallback ?? "–",
     guinness: guinnessQuery.data !== undefined ? mySubmissions.length : "–",
   };
 
@@ -468,23 +473,25 @@ const MyPageClient = () => {
         {bloodlineQuery.isLoading ? <LoadingBlock height={112} /> : null}
         {bloodlineQuery.error && !bloodlineData ? (
           <RetryBlock
-            message="혈통카드 정보를 불러오지 못했습니다. 잠시 후 다시 시도해주세요."
+            message="혈통 정보를 불러오지 못했습니다. 잠시 후 다시 시도해주세요."
             onRetry={() => void bloodlineQuery.mutate()}
           />
         ) : null}
         {!bloodlineQuery.isLoading && bloodlineData ? (
           <>
             <BloodlineSection
-              title="내가 만든 카드"
-              cards={myCreatedCards}
+              title="내 혈통"
+              countText={`${myBloodlines.length}개`}
+              cards={myBloodlines}
               kind="created"
-              emptyText="아직 만든 혈통카드가 없습니다."
+              emptyText="아직 만든 혈통이 없습니다."
             />
             <BloodlineSection
-              title="내가 전달받은 카드"
-              cards={receivedCards}
+              title="받은 출처 카드"
+              countText={`${receivedLines.length}장`}
+              cards={receivedLines}
               kind="received"
-              emptyText="아직 전달받은 카드가 없습니다."
+              emptyText="아직 받은 출처 카드가 없습니다."
             />
           </>
         ) : null}

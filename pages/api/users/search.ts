@@ -8,6 +8,8 @@ interface UserSearchResponse {
   users: Array<{
     id: number;
     name: string;
+    /** 프로필 사진(Cloudflare 이미지 id). 받는 사람 검색 행 아바타용 */
+    avatar: string | null;
   }>;
   error?: string;
 }
@@ -45,6 +47,7 @@ async function handler(req: NextApiRequest, res: NextApiResponse<UserSearchRespo
     select: {
       id: true,
       name: true,
+      avatar: true,
     },
     orderBy: { createdAt: "desc" },
     take: limit,
@@ -52,7 +55,7 @@ async function handler(req: NextApiRequest, res: NextApiResponse<UserSearchRespo
 
   return res.json({
     success: true,
-    users: users.map((item) => ({ id: item.id, name: item.name })),
+    users: users.map((item) => ({ id: item.id, name: item.name, avatar: item.avatar ?? null })),
   });
 }
 

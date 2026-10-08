@@ -44,3 +44,71 @@ export function formatRegion(region: Partial<Region> | null | undefined): string
   if (!region?.sido || !region.sigungu) return null;
   return region.sido === region.sigungu ? region.sido : `${region.sido} ${region.sigungu}`;
 }
+
+/** 목록에 있는 시/도 이름이면 true. */
+export function isValidSido(sido: unknown): boolean {
+  return typeof sido === "string" && REGIONS.some((r) => r.sido === sido);
+}
+
+/**
+ * 선택 입력 지역(혈통 산지 등): 시·도만 또는 시·도 + 시·군·구.
+ * 둘 다 비면 null, 시·군·구만 오거나 목록 밖 조합·문자열이 아닌 값이면 "invalid". 앞뒤 공백은 지운다.
+ */
+export function parseOptionalRegion(
+  sido: unknown,
+  sigungu: unknown
+): { sido: string; sigungu: string | null } | null | "invalid" {
+  const read = (value: unknown): string | null | "invalid" => {
+    if (value === undefined || value === null) return null;
+    if (typeof value !== "string") return "invalid";
+    return value.trim() || null;
+  };
+  const s = read(sido);
+  const g = read(sigungu);
+  if (s === "invalid" || g === "invalid") return "invalid";
+  if (!s) return g ? "invalid" : null;
+  if (!isValidSido(s)) return "invalid";
+  if (g && !isValidRegion(s, g)) return "invalid";
+  return { sido: s, sigungu: g };
+}
+
+/** 시/도 짧은 이름. 앱 src/constants/regions.ts 와 같은 표. */
+const SIDO_SHORT: Record<string, string> = {
+  서울특별시: "서울",
+  부산광역시: "부산",
+  대구광역시: "대구",
+  인천광역시: "인천",
+  광주광역시: "광주",
+  대전광역시: "대전",
+  울산광역시: "울산",
+  세종특별자치시: "세종",
+  경기도: "경기",
+  강원특별자치도: "강원",
+  충청북도: "충북",
+  충청남도: "충남",
+  전북특별자치도: "전북",
+  전라남도: "전남",
+  경상북도: "경북",
+  경상남도: "경남",
+  제주특별자치도: "제주",
+};
+
+/** 특별시·광역시·특별자치시는 구 단위까지 쓰지 않는다. */
+const isMetropolitanSido = (sido: string) => /(특별시|광역시|특별자치시)$/.test(sido);
+
+/**
+ * 짧은 지역 표시. "충청남도 공주시" → "충남 공주", 특별시·광역시·세종은 시·도 축약만("서울", "세종"),
+ * 시·도만 있으면 축약("충남"). 시·군 이름이 시·도 축약과 같으면 한 번만("제주"). 목록 밖 시·도는 받은 그대로.
+ * 앱 src/constants/regions.ts 와 같은 함수다.
+ */
+export function formatRegionShort(
+  region: { sido?: string | null; sigungu?: string | null } | null | undefined
+): string | null {
+  const sido = region?.sido?.trim();
+  if (!sido) return null;
+  const short = SIDO_SHORT[sido] ?? sido;
+  const sigungu = region?.sigungu?.trim();
+  if (!sigungu || isMetropolitanSido(sido)) return short;
+  const local = sigungu.length > 2 ? sigungu.replace(/(시|군)$/, "") : sigungu;
+  return local === short ? short : `${short} ${local}`;
+}

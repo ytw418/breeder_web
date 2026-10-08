@@ -1,9 +1,9 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import Link from "next/link";
-import useSWR, { useSWRConfig } from "swr";
+import { useSWRConfig } from "swr";
 
 import Image from "@components/atoms/Image";
 import Layout from "@components/features/MainLayout";
@@ -26,7 +26,7 @@ import {
 import { getAuctionResultMessage } from "@libs/client/auctionErrorMessage";
 import { TOP_LEVEL_CATEGORIES, getSubcategories } from "@libs/categoryTaxonomy";
 import type { CreateAuctionResponse } from "pages/api/auctions";
-import type { BloodlineCardsResponse } from "@libs/shared/bloodline-card";
+import { PEDIGREE_NOTE_INVALID_MESSAGE, type PedigreeNote } from "@libs/shared/pedigree-note";
 import {
   AgreeRow,
   BID_INCREMENT_ERROR,
@@ -40,7 +40,6 @@ import {
   FIELD_TEXTAREA_CLASS,
   FieldLabel,
   FormChip,
-  HelpText,
   PhotoAddTile,
   PhotoTile,
   SheetButton,
@@ -49,6 +48,7 @@ import {
   uploadImageFile,
   useBidIncrementInput,
 } from "../AuctionFormParts";
+import { AuctionBloodlineField, auctionPedigreePayload } from "../AuctionBloodlineParts";
 
 type TextKey =
   | "title"
@@ -68,7 +68,8 @@ type ErrorKey =
   | "startPrice"
   | "bidIncrement"
   | "agreement"
-  | "duration";
+  | "duration"
+  | "pedigreeNote";
 type ErrorState = Partial<Record<ErrorKey, string>>;
 
 interface CreateAuctionPayload extends FormState {
@@ -79,6 +80,8 @@ interface CreateAuctionPayload extends FormState {
   minBidIncrement: number;
   endAt: string;
   bloodlineRootId: number | null;
+  /** 혈통이 없거나 칸이 비면 null */
+  pedigreeNote: PedigreeNote | null;
 }
 
 const initialForm: FormState = {
@@ -115,6 +118,7 @@ const CreateAuctionClient = () => {
   const [selectedCategory, setSelectedCategory] = useState(isToolRoute ? TOOL_FIXED_CATEGORY : "");
   const [selectedSubcategory, setSelectedSubcategory] = useState("");
   const [selectedBloodlineRootId, setSelectedBloodlineRootId] = useState("");
+  const [pedigreeNote, setPedigreeNote] = useState<PedigreeNote>({});
   const [selectedDuration, setSelectedDuration] = useState<number | null>(null);
   const [agreedAuctionNotice, setAgreedAuctionNotice] = useState(false);
   const [agreedDisputePolicy, setAgreedDisputePolicy] = useState(false);
@@ -133,7 +137,6 @@ const CreateAuctionClient = () => {
   const [createAuction, { loading: submitting }] = useMutation<
     CreateAuctionResponse & { message?: string; status?: number }
   >("/api/auctions");
-  const { data: bloodlineData } = useSWR<BloodlineCardsResponse>(user?.id ? "/api/bloodline-cards" : null);
 
   // 비로그인은 로그인으로 보낸다(앱 LoginRedirect).
   useEffect(() => {
@@ -158,19 +161,17 @@ const CreateAuctionClient = () => {
       (!isToolRoute && Boolean(selectedCategory)) ||
       startPrice !== null ||
       bidIncrement.touched ||
+      Boolean(selectedBloodlineRootId) ||
+      Object.keys(pedigreeNote).length > 0 ||
       Object.entries(form).some(([key, value]) => value !== initialForm[key as TextKey]));
   const { leave, dialog: leaveDialog } = useConfirmLeave(dirty);
 
   const subcategories = !isToolRoute && selectedCategory ? getSubcategories(selectedCategory) : [];
   const categoryForSubmit = isToolRoute ? TOOL_FIXED_CATEGORY : selectedSubcategory || selectedCategory;
   const selectedEndAt = selectedDuration ? new Date(getPresetEndAtMs(selectedDuration, nowTick)).toISOString() : "";
-  const bloodlineOptions = useMemo(
-    () =>
-      (bloodlineData?.myBloodlines?.length ? bloodlineData.myBloodlines : bloodlineData?.ownedCards || []).filter(
-        (card) => card.cardType === "BLOODLINE"
-      ),
-    [bloodlineData]
-  );
+  const bloodlineRootId = selectedBloodlineRootId ? Number(selectedBloodlineRootId) : null;
+  // 혈통이 없거나 칸이 비면 null, 규칙에 안 맞으면 "invalid"(제출을 막는다).
+  const pedigreePayload = auctionPedigreePayload(bloodlineRootId, pedigreeNote);
   const customErrorMessages = [
     errors.photos,
     errors.category,
@@ -180,6 +181,7 @@ const CreateAuctionClient = () => {
     errors.bidIncrement,
     errors.agreement,
     errors.duration,
+    errors.pedigreeNote,
   ].filter((message): message is string => Boolean(message));
   const busy = submitting || uploading || proofUploading;
 
@@ -245,6 +247,9 @@ const CreateAuctionClient = () => {
     ) {
       next.startPrice = `시작가 ${AUCTION_HIGH_PRICE_REQUIRE_CONTACT.toLocaleString()}원 이상 경매는 연락처(전화/이메일) 정보가 필요합니다.`;
     }
+    if (pedigreePayload === "invalid") {
+      next.pedigreeNote = PEDIGREE_NOTE_INVALID_MESSAGE;
+    }
     setErrors(next);
     return Object.keys(next).length === 0;
   };
@@ -264,7 +269,8 @@ const CreateAuctionClient = () => {
     sellerCafeNick: normalizeText(form.sellerCafeNick),
     sellerBandNick: normalizeText(form.sellerBandNick),
     sellerTrustNote: normalizeText(form.sellerTrustNote),
-    bloodlineRootId: selectedBloodlineRootId ? Number(selectedBloodlineRootId) : null,
+    bloodlineRootId,
+    pedigreeNote: pedigreePayload === "invalid" ? null : pedigreePayload,
   });
 
   const submit = () => {
@@ -517,25 +523,19 @@ const CreateAuctionClient = () => {
           <ErrorText message={errors.duration} />
         </div>
 
-        {/* 연결 혈통카드(선택) */}
-        <div>
-          <FieldLabel label="연결 혈통카드" caption="선택" htmlFor="auction-bloodline" />
-          <select
-            id="auction-bloodline"
-            value={selectedBloodlineRootId}
-            onChange={(event) => setSelectedBloodlineRootId(event.target.value)}
-            className={cn(FIELD_INPUT_CLASS, "border-app-border")}
-          >
-            <option value="">혈통 연결 안 함</option>
-            {bloodlineOptions.map((card) => (
-              <option key={card.id} value={String(card.id)}>
-                {card.name}
-                {card.speciesType ? ` · ${card.speciesType}` : ""}
-              </option>
-            ))}
-          </select>
-          <HelpText>혈통을 연결하면 해당 경매가 인기 혈통 랭킹 집계에 반영돼요.</HelpText>
-        </div>
+        {/* 혈통(선택) + 부모·누대 */}
+        <AuctionBloodlineField
+          value={selectedBloodlineRootId}
+          onChange={(value) => {
+            setSelectedBloodlineRootId(value);
+            setErrors((prev) => ({ ...prev, pedigreeNote: undefined }));
+          }}
+          note={pedigreeNote}
+          onNoteChange={(note) => {
+            setPedigreeNote(note);
+            setErrors((prev) => ({ ...prev, pedigreeNote: undefined }));
+          }}
+        />
 
         {/* 판매자 신뢰 정보(선택) */}
         <div>

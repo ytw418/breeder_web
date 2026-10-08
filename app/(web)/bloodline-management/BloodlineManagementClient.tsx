@@ -1,12 +1,11 @@
 "use client";
 
 /**
- * 혈통관리 — 채택 시안(A안, 당근 톤) 1:1
- * 원본: bredy_app design/mockups/bloodline-card/A-karrot.html, docs/prd/bloodline-card.md,
- *       src/app/bloodline-management/index.tsx
+ * 혈통관리 — 기존 웹 톤(A안) 유지, 혈통 v2 용어만 맞춘다(설계 §4.4 WB-3: 혈통 / 출처 카드).
+ * 원본: bredy_app design/mockups/bloodline-card/A-karrot.html, src/app/bloodline-management/index.tsx
  *
  * 헤더(뒤로/제목/검색) → 요약 행 → 8px 섹션 갭 → 리스트바(제목 + 이벤트 + 전체보기)
- * → 칩 4개 → 1열 카드 리스트 → 하단 고정 CTA "새 혈통 만들기".
+ * → 칩 4개 → 1열 카드 리스트(메타: 종 · 산지 · 받은 사람 N명) → 하단 고정 CTA "혈통 만들기".
  * 상태: 로딩(요약 회색 바 + 카드 스켈레톤 2장) / 오류 + 다시 시도 / 빈 / 비로그인 → 로그인 이동.
  */
 import { useEffect, useMemo, useState } from "react";
@@ -25,11 +24,12 @@ import {
   BloodlinePrimaryButton,
   BloodlineSpinner,
   ChevronRightIcon,
+  bloodlineRowMeta,
+  bloodlineUserLabel,
   useBloodlineLoginRedirect,
 } from "@components/features/bloodline/BloodlineScreenParts";
 import useUser from "hooks/useUser";
 import {
-  bloodlineCardMeta,
   bloodlineCardTypeLabel,
   bloodlineFilterFromFocus,
   cardsForBloodlineFilter,
@@ -41,7 +41,7 @@ import {
 const FILTERS: { key: BloodlineManagementFilter; label: string }[] = [
   { key: "all", label: "전체" },
   { key: "bloodline", label: "혈통" },
-  { key: "line", label: "라인" },
+  { key: "line", label: "출처 카드" },
   { key: "received", label: "받은 카드" },
 ];
 
@@ -49,7 +49,7 @@ const FILTERS: { key: BloodlineManagementFilter; label: string }[] = [
 const LIST_META: Record<BloodlineManagementFilter, { title: string; href: string }> = {
   all: { title: "내 혈통", href: "/bloodline-management/my-bloodlines" },
   bloodline: { title: "내 혈통", href: "/bloodline-management/my-bloodlines" },
-  line: { title: "내 라인", href: "/bloodline-management/created-lines" },
+  line: { title: "내 출처 카드", href: "/bloodline-management/created-lines" },
   received: { title: "받은 카드", href: "/bloodline-management/received-cards" },
 };
 
@@ -115,7 +115,8 @@ export default function BloodlineManagementClient() {
         ) : (
           <p className="text-[14px] tracking-[-0.2px] text-app-muted">
             내 혈통 <b className="font-semibold text-app-text">{groups.myBloodlines.length}</b>
-            {" · "}내 라인 <b className="font-semibold text-app-text">{groups.createdLines.length}</b>
+            {" · "}내 출처 카드{" "}
+            <b className="font-semibold text-app-text">{groups.createdLines.length}</b>
             {" · "}받은 카드{" "}
             <b className="font-semibold text-app-text">{groups.receivedCards.length}</b>
           </p>
@@ -163,8 +164,8 @@ export default function BloodlineManagementClient() {
           <QueryErrorState onRetry={() => void mutate()} />
         ) : visibleCards.length === 0 ? (
           <EmptyState
-            title="아직 카드가 없어요"
-            description="새 혈통을 만들면 여기에 카드가 쌓여요."
+            title="아직 혈통이 없어요"
+            description="혈통을 만들면 여기에 쌓여요."
             className="py-10"
           />
         ) : (
@@ -172,14 +173,14 @@ export default function BloodlineManagementClient() {
             <Link
               key={card.id}
               href={`/bloodline-management/card/${card.id}`}
-              aria-label={`${card.name} 혈통카드`}
+              aria-label={`${card.name} ${bloodlineCardTypeLabel(card.cardType)}`}
               className="block rounded-xl focus-visible:outline focus-visible:outline-2 focus-visible:outline-app-text"
             >
               <BloodlineVisualCard
                 cardId={card.id}
                 name={card.name}
-                subtitle={bloodlineCardMeta(card)}
-                ownerName={card.currentOwner.name}
+                subtitle={bloodlineRowMeta(card)}
+                ownerName={bloodlineUserLabel(card.currentOwner)}
                 typeLabel={bloodlineCardTypeLabel(card.cardType)}
                 issuedAt={card.createdAt}
                 image={card.image}
@@ -191,7 +192,7 @@ export default function BloodlineManagementClient() {
 
       <BloodlineBottomBarSpacer />
       <BloodlineBottomBar>
-        <BloodlinePrimaryButton href="/bloodline-cards/create">새 혈통 만들기</BloodlinePrimaryButton>
+        <BloodlinePrimaryButton href="/bloodline-cards/create">혈통 만들기</BloodlinePrimaryButton>
       </BloodlineBottomBar>
     </Layout>
   );

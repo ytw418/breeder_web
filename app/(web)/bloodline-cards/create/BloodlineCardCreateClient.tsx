@@ -1,15 +1,17 @@
 "use client";
 
 /**
- * 혈통카드 만들기 — 당근 톤(A안)
+ * 혈통 만들기 — 기존 웹 톤(A안) 유지, 혈통 v2 입력 규칙만 맞춘다(설계 §4.4 WB-3, PRD S-9).
  * 원본: bredy_app src/app/bloodline-cards/create.tsx
  *
- * 헤더(뒤로 + 제목 18/700) → 단일 폼(라벨 15/600 + 글자 수, 입력 h48 r8, 소개 textarea,
- * 사진 행 80px) → 하단 고정 52 주황 CTA "혈통카드 만들기".
- * 사진 행 아래 카드 스타일 32px 칩 1줄(앱과 같음, 기본 noir) → visualStyle 로 보낸다. 미리보기 카드는 두지 않는다.
+ * 헤더(뒤로 + 제목 18/700) → 단일 폼: 혈통 이름(공유 규칙, 띄어쓰기 허용) → 종(필수, 분류 → 종 2단 select,
+ * `/api/categories`) → 사진(필수 1장) → 산지(선택, 시·도 → 시·군·구 select) → 혈통 소개(선택)
+ * → 하단 고정 52 주황 CTA "혈통 만들기". 카드 스타일·생성 확인창은 없다(만들기는 되돌릴 수 있다).
+ * 서버 오류는 errorCode 로 칸에 붙인다(중복 이름 → 이름 칸).
  */
-import { ChangeEvent, FormEvent, useEffect, useRef, useState } from "react";
+import { ChangeEvent, FormEvent, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
+import useSWR from "swr";
 import { authFetch } from "@libs/client/authFetch";
 import Layout from "@components/features/MainLayout";
 import { Input } from "@components/ui/input";
@@ -20,30 +22,43 @@ import {
   BloodlineHeader,
   BloodlinePrimaryButton,
   BloodlineSpinner,
+  bloodlineErrorText,
   bloodlineInputClass,
+  bloodlineSelectClass,
   bloodlineTextareaClass,
   useBloodlineLoginRedirect,
 } from "@components/features/bloodline/BloodlineScreenParts";
-import useConfirmDialog from "hooks/useConfirmDialog";
 import useUser from "hooks/useUser";
-import type { BloodlineCardsResponse } from "@libs/shared/bloodline-card";
+import type { BloodlineCardsResponse, CreateBloodlineCardBody } from "@libs/shared/bloodline-card";
+import type { CategoriesResponse, CategoryItem } from "@libs/shared/categories";
+import { BLOODLINE_ERRORS, type BloodlineErrorCode } from "@libs/shared/bloodline-errors";
+import {
+  BLOODLINE_NAME_HELP,
+  BLOODLINE_NAME_MAX_LENGTH,
+  BLOODLINE_NAME_RULE_MESSAGE,
+  validateBloodlineName,
+} from "@libs/shared/bloodline-names";
+import { REGIONS } from "@libs/shared/regions";
 import { cn } from "@libs/client/utils";
-import { FilterChip } from "@components/app/FilterChip";
-import type { BloodlineCardVisualStyle } from "@libs/shared/bloodline-card";
 
-/** 앱 create.tsx CARD_VARIANT_LABELS 와 같은 라벨·순서. 기본값 noir. */
-const CARD_VARIANT_LABELS: { value: BloodlineCardVisualStyle; label: string }[] = [
-  { value: "noir", label: "모던" },
-  { value: "clean", label: "클린" },
-  { value: "editorial", label: "에디토리얼" },
-];
-
-const allowedNamePattern = /^[A-Za-z0-9가-힣]+$/;
-const NAME_MAX_LENGTH = 40;
 const DESCRIPTION_MAX_LENGTH = 300;
 const MAX_IMAGE_SIZE = 10 * 1024 * 1024;
 const ALLOWED_IMAGE_EXTENSIONS = [".jpg", ".jpeg", ".png", ".webp", ".heic", ".heif"] as const;
-const DUPLICATED_NAME_MESSAGE = "이미 사용 중인 혈통 카드 이름입니다.";
+
+const SPECIES_REQUIRED_MESSAGE = BLOODLINE_ERRORS.BLOODLINE_SPECIES_REQUIRED.message;
+const IMAGE_REQUIRED_MESSAGE = BLOODLINE_ERRORS.BLOODLINE_IMAGE_REQUIRED.message;
+
+/** 서버 오류 코드 → 오류를 붙일 칸. 목록 밖은 폼 위 오류. */
+const FIELD_BY_ERROR: Partial<Record<BloodlineErrorCode, "name" | "species" | "image" | "origin">> = {
+  BLOODLINE_INVALID_NAME: "name",
+  BLOODLINE_DUPLICATE_NAME: "name",
+  BLOODLINE_SPECIES_REQUIRED: "species",
+  BLOODLINE_INVALID_SPECIES: "species",
+  BLOODLINE_IMAGE_REQUIRED: "image",
+  BLOODLINE_INVALID_ORIGIN: "origin",
+};
+
+const bySortOrder = (a: CategoryItem, b: CategoryItem) => a.sortOrder - b.sortOrder || a.id - b.id;
 
 const getFileExtension = (name: string) => {
   const pointIndex = name.lastIndexOf(".");
@@ -51,11 +66,16 @@ const getFileExtension = (name: string) => {
 };
 
 function FieldLabel({ label, count, htmlFor }: { label: string; count?: string; htmlFor?: string }) {
+  const labelClass = "text-[15px] font-semibold tracking-[-0.2px] text-app-text";
   return (
     <div className="mb-2 flex items-center justify-between">
-      <label htmlFor={htmlFor} className="text-[15px] font-semibold tracking-[-0.2px] text-app-text">
-        {label}
-      </label>
+      {htmlFor ? (
+        <label htmlFor={htmlFor} className={labelClass}>
+          {label}
+        </label>
+      ) : (
+        <span className={labelClass}>{label}</span>
+      )}
       {count ? <span className="text-[13px] text-app-muted">{count}</span> : null}
     </div>
   );
@@ -63,10 +83,14 @@ function FieldLabel({ label, count, htmlFor }: { label: string; count?: string; 
 
 function FieldError({ id, message }: { id?: string; message: string }) {
   return (
-    <p id={id} role="alert" className="mt-1.5 text-[13px] tracking-[-0.2px] text-app-brand">
+    <p id={id} role="alert" className="mt-1.5 text-[13px] tracking-[-0.2px] text-app-danger">
       {message}
     </p>
   );
+}
+
+function FieldHelp({ children }: { children: string }) {
+  return <p className="mt-1.5 text-[13px] tracking-[-0.2px] text-app-muted">{children}</p>;
 }
 
 function CameraIcon() {
@@ -116,12 +140,14 @@ async function uploadCardImage(file: File) {
 export default function BloodlineCardCreateClient() {
   const { user, isLoading: userLoading } = useUser();
   const router = useRouter();
-  const { confirm, confirmDialog } = useConfirmDialog();
   const imageInputRef = useRef<HTMLInputElement | null>(null);
 
   const [cardName, setCardName] = useState("");
+  const [speciesGroup, setSpeciesGroup] = useState("");
+  const [speciesName, setSpeciesName] = useState("");
+  const [originSido, setOriginSido] = useState("");
+  const [originSigungu, setOriginSigungu] = useState("");
   const [cardDescription, setCardDescription] = useState("");
-  const [variant, setVariant] = useState<BloodlineCardVisualStyle>("noir");
   const [imageFile, setImageFile] = useState<File | null>(null);
   const [imagePreview, setImagePreview] = useState("");
   // 고르는 즉시 업로드한다(앱 pickImage). 업로드 중에는 CTA 를 막는다.
@@ -129,13 +155,37 @@ export default function BloodlineCardCreateClient() {
   const [imageUploading, setImageUploading] = useState(false);
   const uploadSeqRef = useRef(0);
   const [nameError, setNameError] = useState("");
-  const [descriptionError, setDescriptionError] = useState("");
+  const [speciesError, setSpeciesError] = useState("");
   const [imageError, setImageError] = useState("");
+  const [originError, setOriginError] = useState("");
   const [formError, setFormError] = useState("");
   const [creating, setCreating] = useState(false);
 
   const loggedOut = !user && !userLoading;
   useBloodlineLoginRedirect(loggedOut, "/bloodline-cards/create");
+
+  // 종 선택지: 노출 카테고리 트리(강아지·고양이 포함). 상위 → 하위 2단이고, 하위가 없는 상위(기타)는 그 자체가 종이다.
+  const categoriesQuery = useSWR<CategoriesResponse>("/api/categories");
+  const categoryList = categoriesQuery.data?.categories;
+  const speciesGroups = useMemo(
+    () => (categoryList ?? []).filter((item) => item.parentId === null).sort(bySortOrder),
+    [categoryList]
+  );
+  const selectedGroup = speciesGroups.find((item) => item.name === speciesGroup) ?? null;
+  const speciesOptions = useMemo(
+    () =>
+      selectedGroup
+        ? (categoryList ?? []).filter((item) => item.parentId === selectedGroup.id).sort(bySortOrder)
+        : [],
+    [categoryList, selectedGroup]
+  );
+  const speciesType = selectedGroup
+    ? speciesOptions.length > 0
+      ? speciesName
+      : selectedGroup.name
+    : "";
+  const categoriesFailed = Boolean(categoriesQuery.error) && !categoriesQuery.data;
+  const sigunguOptions = REGIONS.find((region) => region.sido === originSido)?.sigungu ?? [];
 
   useEffect(() => {
     if (!imageFile) {
@@ -194,66 +244,64 @@ export default function BloodlineCardCreateClient() {
     event?.preventDefault();
     if (creating || imageUploading) return;
     setFormError("");
-    setNameError("");
-    setDescriptionError("");
 
-    const nextName = cardName.trim();
-    const nextDescription = cardDescription.trim();
-    if (!nextName) return setNameError("이름은 필수 항목입니다.");
-    if (nextName.length < 2) return setNameError("이름은 2자 이상 입력해주세요.");
-    if (!allowedNamePattern.test(nextName)) {
-      return setNameError(
-        "이름은 영문, 숫자, 한글만 입력 가능하며 공백/특수문자는 허용되지 않습니다."
-      );
-    }
-    if (!nextDescription) return setDescriptionError("설명은 필수 항목입니다.");
+    // 서버와 같은 순서로 본다: 이름 → 종 → 사진 → 산지. 한 번에 모든 칸의 오류를 보인다.
+    const name = validateBloodlineName(cardName);
+    const nextNameError = name.ok ? "" : BLOODLINE_NAME_RULE_MESSAGE;
+    const nextSpeciesError = speciesType ? "" : SPECIES_REQUIRED_MESSAGE;
+    const nextImageError = imageId ? "" : IMAGE_REQUIRED_MESSAGE;
+    setNameError(nextNameError);
+    setSpeciesError(nextSpeciesError);
+    setImageError(nextImageError);
+    setOriginError("");
+    if (!name.ok || nextSpeciesError || nextImageError) return;
 
-    const ok = await confirm({
-      title: "혈통카드 생성",
-      description: `"${nextName}" 혈통카드를 정말로 만드시겠어요?`,
-      confirmText: "생성",
-    });
-    if (!ok) return;
+    const description = cardDescription.trim();
+    const body: CreateBloodlineCardBody = {
+      name: name.name,
+      speciesType,
+      image: imageId,
+      ...(originSido ? { originSido } : {}),
+      ...(originSido && originSigungu ? { originSigungu } : {}),
+      ...(description ? { description } : {}),
+    };
 
     setCreating(true);
     try {
-      const image = imageId;
       const response = await authFetch("/api/bloodline-cards", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          name: nextName,
-          description: nextDescription,
-          visualStyle: variant,
-          ...(image ? { image } : {}),
-        }),
+        body: JSON.stringify(body),
       });
       const payload = (await response.json().catch(() => null)) as BloodlineCardsResponse | null;
       if (!response.ok || !payload?.success) {
-        throw new Error(
-          payload?.error ||
-            (response.status === 401
-              ? "로그인이 필요합니다."
-              : response.status === 400
-                ? "입력 값을 확인해주세요."
-                : "혈통카드 생성에 실패했습니다.")
-        );
+        const message = bloodlineErrorText(payload, "혈통을 만들지 못했어요");
+        const field = payload?.errorCode
+          ? FIELD_BY_ERROR[payload.errorCode as BloodlineErrorCode]
+          : undefined;
+        if (field === "name") setNameError(message);
+        else if (field === "species") setSpeciesError(message);
+        else if (field === "image") setImageError(message);
+        else if (field === "origin") setOriginError(message);
+        else setFormError(message);
+        return;
       }
       const createdId =
         payload.myBloodlines?.[0]?.id || payload.myCreatedCards?.[0]?.id || payload.ownedCards?.[0]?.id;
-      if (!createdId) throw new Error("생성된 카드 정보를 확인할 수 없습니다.");
+      if (!createdId) {
+        setFormError("만든 혈통을 확인하지 못했어요");
+        return;
+      }
 
       setCardName("");
       setCardDescription("");
       setImageFile(null);
       setImageId("");
       router.replace(
-        `/bloodline-management/card/${createdId}?celebration=card-created&name=${encodeURIComponent(nextName)}`
+        `/bloodline-management/card/${createdId}?celebration=card-created&name=${encodeURIComponent(name.name)}`
       );
-    } catch (error) {
-      const message = error instanceof Error ? error.message : "요청 처리 중 오류가 발생했습니다.";
-      if (message.includes(DUPLICATED_NAME_MESSAGE)) setNameError(message);
-      else setFormError(message);
+    } catch {
+      setFormError("혈통을 만들지 못했어요");
     } finally {
       setCreating(false);
     }
@@ -261,8 +309,8 @@ export default function BloodlineCardCreateClient() {
 
   if (userLoading || loggedOut) {
     return (
-      <Layout headerVariant="none" seoTitle="혈통카드 만들기">
-        <BloodlineHeader title="혈통카드 만들기" />
+      <Layout headerVariant="none" seoTitle="혈통 만들기">
+        <BloodlineHeader title="혈통 만들기" />
         <div className="flex min-h-[60vh] items-center justify-center">
           <BloodlineSpinner />
         </div>
@@ -271,8 +319,8 @@ export default function BloodlineCardCreateClient() {
   }
 
   return (
-    <Layout headerVariant="none" seoTitle="혈통카드 만들기">
-      <BloodlineHeader title="혈통카드 만들기" />
+    <Layout headerVariant="none" seoTitle="혈통 만들기">
+      <BloodlineHeader title="혈통 만들기" />
 
       <form id="bloodline-card-create" onSubmit={handleSubmit} className="px-4 pb-8 pt-4" noValidate>
         {formError ? (
@@ -284,47 +332,86 @@ export default function BloodlineCardCreateClient() {
         <FieldLabel
           label="혈통 이름"
           htmlFor="bloodline-card-name"
-          count={`${cardName.length}/${NAME_MAX_LENGTH}`}
+          count={`${cardName.length}/${BLOODLINE_NAME_MAX_LENGTH}`}
         />
         <Input
           id="bloodline-card-name"
           value={cardName}
-          maxLength={NAME_MAX_LENGTH}
+          maxLength={BLOODLINE_NAME_MAX_LENGTH}
           onChange={(event) => {
             setCardName(event.target.value);
             if (nameError) setNameError("");
           }}
-          placeholder="혈통 이름을 입력해주세요"
+          placeholder="혈통 이름"
           disabled={creating}
           aria-invalid={Boolean(nameError)}
-          aria-describedby={nameError ? "bloodline-card-name-error" : undefined}
+          aria-describedby={nameError ? "bloodline-card-name-error" : "bloodline-card-name-help"}
           className={bloodlineInputClass}
         />
-        {nameError ? <FieldError id="bloodline-card-name-error" message={nameError} /> : null}
+        {nameError ? (
+          <FieldError id="bloodline-card-name-error" message={nameError} />
+        ) : (
+          <p id="bloodline-card-name-help" className="mt-1.5 text-[13px] tracking-[-0.2px] text-app-muted">
+            {BLOODLINE_NAME_HELP}
+          </p>
+        )}
 
         <div className="mt-5">
-          <FieldLabel
-            label="소개"
-            htmlFor="bloodline-card-description"
-            count={`${cardDescription.length}/${DESCRIPTION_MAX_LENGTH}`}
-          />
-          <Textarea
-            id="bloodline-card-description"
-            value={cardDescription}
-            maxLength={DESCRIPTION_MAX_LENGTH}
-            onChange={(event) => {
-              setCardDescription(event.target.value);
-              if (descriptionError) setDescriptionError("");
-            }}
-            placeholder="이 혈통카드의 소개를 적어주세요"
-            disabled={creating}
-            aria-invalid={Boolean(descriptionError)}
-            aria-describedby={descriptionError ? "bloodline-card-description-error" : undefined}
-            className={bloodlineTextareaClass}
-          />
-          {descriptionError ? (
-            <FieldError id="bloodline-card-description-error" message={descriptionError} />
+          <FieldLabel label="종" />
+          <div className="grid grid-cols-2 gap-2">
+            <select
+              aria-label="분류"
+              value={speciesGroup}
+              onChange={(event) => {
+                setSpeciesGroup(event.target.value);
+                setSpeciesName("");
+                if (speciesError) setSpeciesError("");
+              }}
+              disabled={creating || !categoryList}
+              aria-invalid={Boolean(speciesError)}
+              className={cn(bloodlineSelectClass, speciesError && !speciesGroup && "border-app-danger")}
+            >
+              <option value="">{categoryList ? "분류 선택" : "불러오는 중..."}</option>
+              {speciesGroups.map((item) => (
+                <option key={item.id} value={item.name}>
+                  {item.name}
+                </option>
+              ))}
+            </select>
+            {speciesOptions.length > 0 ? (
+              <select
+                aria-label="종"
+                value={speciesName}
+                onChange={(event) => {
+                  setSpeciesName(event.target.value);
+                  if (speciesError) setSpeciesError("");
+                }}
+                disabled={creating}
+                aria-invalid={Boolean(speciesError)}
+                className={cn(bloodlineSelectClass, speciesError && !speciesName && "border-app-danger")}
+              >
+                <option value="">종 선택</option>
+                {speciesOptions.map((item) => (
+                  <option key={item.id} value={item.name}>
+                    {item.name}
+                  </option>
+                ))}
+              </select>
+            ) : null}
+          </div>
+          {categoriesFailed ? (
+            <p role="alert" className="mt-1.5 text-[13px] tracking-[-0.2px] text-app-danger">
+              종 목록을 불러오지 못했어요.{" "}
+              <button
+                type="button"
+                onClick={() => void categoriesQuery.mutate()}
+                className="font-semibold text-app-text underline"
+              >
+                다시 시도
+              </button>
+            </p>
           ) : null}
+          {speciesError ? <FieldError message={speciesError} /> : null}
         </div>
 
         <div className="mt-5">
@@ -335,7 +422,7 @@ export default function BloodlineCardCreateClient() {
               aria-label="사진 추가"
               className={cn(
                 "flex h-20 w-20 cursor-pointer flex-col items-center justify-center rounded-lg border bg-app-bg",
-                imageError ? "border-app-brand" : "border-app-border",
+                imageError ? "border-app-danger" : "border-app-border",
                 (creating || imageUploading) && "pointer-events-none opacity-60"
               )}
             >
@@ -381,24 +468,66 @@ export default function BloodlineCardCreateClient() {
             ) : null}
           </div>
           {imageError ? <FieldError message={imageError} /> : null}
-          <p className="mt-2 text-[13px] text-app-muted">JPG · PNG · WEBP, 최대 10MB. 선택 항목이에요.</p>
+          <FieldHelp>대표 개체 사진 1장이 필요해요. JPG · PNG · WEBP, 최대 10MB.</FieldHelp>
         </div>
 
         <div className="mt-5">
-          <FieldLabel label="카드 스타일" />
-          <div className="flex gap-1.5">
-            {CARD_VARIANT_LABELS.map((item) => (
-              <FilterChip
-                key={item.value}
-                label={item.label}
-                selected={item.value === variant}
-                onClick={() => {
-                  if (!creating) setVariant(item.value);
-                }}
-                className="px-3"
-              />
-            ))}
+          <FieldLabel label="산지 (선택)" />
+          <div className="grid grid-cols-2 gap-2">
+            <select
+              aria-label="시·도"
+              value={originSido}
+              onChange={(event) => {
+                setOriginSido(event.target.value);
+                setOriginSigungu("");
+                if (originError) setOriginError("");
+              }}
+              disabled={creating}
+              className={bloodlineSelectClass}
+            >
+              <option value="">시·도</option>
+              {REGIONS.map((region) => (
+                <option key={region.sido} value={region.sido}>
+                  {region.sido}
+                </option>
+              ))}
+            </select>
+            <select
+              aria-label="시·군·구"
+              value={originSigungu}
+              onChange={(event) => {
+                setOriginSigungu(event.target.value);
+                if (originError) setOriginError("");
+              }}
+              disabled={creating || !originSido}
+              className={bloodlineSelectClass}
+            >
+              <option value="">시·군·구</option>
+              {sigunguOptions.map((sigungu) => (
+                <option key={sigungu} value={sigungu}>
+                  {sigungu}
+                </option>
+              ))}
+            </select>
           </div>
+          {originError ? <FieldError message={originError} /> : null}
+        </div>
+
+        <div className="mt-5">
+          <FieldLabel
+            label="혈통 소개 (선택)"
+            htmlFor="bloodline-card-description"
+            count={`${cardDescription.length}/${DESCRIPTION_MAX_LENGTH}`}
+          />
+          <Textarea
+            id="bloodline-card-description"
+            value={cardDescription}
+            maxLength={DESCRIPTION_MAX_LENGTH}
+            onChange={(event) => setCardDescription(event.target.value)}
+            placeholder="시작한 페어, 누대, 평균 크기처럼 분양받을 분이 궁금해할 내용을 적어 주세요."
+            disabled={creating}
+            className={bloodlineTextareaClass}
+          />
         </div>
       </form>
 
@@ -408,10 +537,9 @@ export default function BloodlineCardCreateClient() {
           disabled={creating || imageUploading}
           onClick={() => void handleSubmit()}
         >
-          {creating ? "만드는 중..." : "혈통카드 만들기"}
+          {creating ? "만드는 중..." : "혈통 만들기"}
         </BloodlinePrimaryButton>
       </BloodlineBottomBar>
-      {confirmDialog}
     </Layout>
   );
 }

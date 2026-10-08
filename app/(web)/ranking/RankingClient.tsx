@@ -76,9 +76,9 @@ const getSummary = (tab: RankingTab, period: RankingPeriod) => {
   }
   if (tab === "bloodlines") {
     return {
-      note: period === "weekly" ? "실제 보유자 수가 많은 혈통카드 순" : "보유자 수와 총 발급 수 기준 인기 혈통 순",
+      note: period === "weekly" ? "실제 보유자 수가 많은 혈통 순" : "보유자 수와 출처 카드 수 기준 인기 혈통 순",
       ctaHref: "/bloodline-cards/create",
-      ctaLabel: "혈통카드 만들기",
+      ctaLabel: "혈통 만들기",
     };
   }
   return {
@@ -283,7 +283,7 @@ const RankingClient = () => {
               rank={item.rank}
               imageId={item.image}
               title={item.name}
-              meta={`${item.speciesType || "종 미지정"} · 보유자 ${item.ownerCount} · 발급 ${item.issuedCount}`}
+              meta={`${item.speciesType || "종 미지정"} · 보유자 ${item.ownerCount} · 출처 카드 ${item.issuedCount}`}
               right={formatRankDelta(item.rankDelta)}
               href={`/bloodline-management/card/${item.bloodlineRootId}`}
             />

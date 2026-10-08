@@ -74,6 +74,12 @@ export default function EditClient({ productId }: { productId: string }) {
           photos: product.photos ?? [],
           category: product.category,
           productType: product.productType,
+          // 붙인 혈통은 상세 응답의 요약으로 채운다. 회수·숨김된 혈통은 요약이 null 이라 "붙이기"로 보이고,
+          // 손대지 않으면 저장 때 혈통 필드를 보내지 않아 서버 값이 그대로 남는다.
+          bloodlineRootId: product.bloodline?.id ?? null,
+          bloodlineName: product.bloodline?.name ?? null,
+          pedigreeNote: product.bloodline ? product.pedigreeNote ?? null : null,
+          bloodlineSummary: product.bloodline ?? null,
         }}
       />
     );

@@ -35,6 +35,8 @@ const mockClient = {
   auction: { findMany: jest.fn(), count: jest.fn() },
   follow: { findFirst: jest.fn() },
   userBadge: { findMany: jest.fn() },
+  // 프로필 보유 혈통 수(countProfileBloodlineCards)
+  bloodlineCard: { findMany: jest.fn(async () => []) },
 };
 jest.mock("@libs/server/client", () => ({
   __esModule: true,

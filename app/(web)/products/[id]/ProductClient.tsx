@@ -14,6 +14,7 @@ import { HeaderIconButton } from "@components/app/HeaderIconButton";
 import { ImageCarousel } from "@components/app/ImageCarousel";
 import { ReportSheet } from "@components/app/moderation/ReportSheet";
 import { BlockConfirmDialog } from "@components/app/moderation/BlockConfirmDialog";
+import { BloodlineLinkRow } from "@components/features/bloodline/BloodlineLinkRow";
 import { ItemDetailResponse } from "pages/api/products/[id]";
 import useUser from "hooks/useUser";
 import useBlocks from "hooks/useBlocks";
@@ -84,7 +85,7 @@ function ImagePlaceholderIcon({ className }: { className: string }) {
 /**
  * 상품 상세(앱 src/app/products/[id].tsx).
  * 헤더 ⋮ 시트(공유·링크 복사 / 소유자 수정·삭제 / 그 외 신고·판매자 차단), 사진 캐러셀 + 라이트박스,
- * 판매자 행, "조회 N · 찜 N", 소유자 관리 블록, 하단 고정 바(찜·가격·채팅하기), 연관 상품.
+ * 판매자 행, 혈통 행(붙인 혈통이 있을 때), "조회 N · 찜 N", 소유자 관리 블록, 하단 고정 바(찜·가격·채팅하기), 연관 상품.
  * SSR 은 비로그인 조회라 삭제·숨김 상품은 product 없이 오고, 소유자 토큰으로 다시 받아 안내만 보인다.
  */
 const ProductClient = ({ product: initialProduct, relatedProducts: initialRelated }: ItemDetailResponse) => {
@@ -544,6 +545,11 @@ const ProductClient = ({ product: initialProduct, relatedProducts: initialRelate
                 <ChevronRight />
               </span>
             </Link>
+
+            {/* 혈통(판매자 행 바로 아래, PRD S-6). 연결이 없거나 회수·숨김된 혈통이면 행도 자리도 없다. */}
+            {product.bloodline ? (
+              <BloodlineLinkRow bloodline={product.bloodline} pedigreeNote={product.pedigreeNote} />
+            ) : null}
 
             <div className="px-4 pt-4">
               <h1 className="break-keep text-[18px] font-bold text-app-text">{product.name}</h1>
