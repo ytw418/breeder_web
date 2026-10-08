@@ -57,6 +57,8 @@ type FindManyArgs = {
 
 // prisma 의 where/orderBy/take 를 흉내 내는 가짜 post.findMany
 const mockClient = {
+  // 카테고리 고정 범위 헬퍼(libs/server/categories)가 읽는 트리. 비우면 범위 조건을 붙이지 않는다.
+  category: { findMany: jest.fn(async () => []) },
   post: {
     findMany: jest.fn(async ({ where, take }: FindManyArgs) => {
       const rows = posts

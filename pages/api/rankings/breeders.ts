@@ -23,7 +23,10 @@ async function handler(
     const period = isRankingPeriod(String(req.query.period || "weekly"))
       ? (req.query.period as RankingPeriod)
       : "weekly";
-    const items = await getBreederRanking({ limit, period });
+    // 관심 카테고리 고정 범위(path 쉼표 목록). 있으면 범위 안 게시글·상품만 집계한다.
+    const categoryPath =
+      typeof req.query.categoryPath === "string" ? req.query.categoryPath : undefined;
+    const items = await getBreederRanking({ limit, period, categoryPath });
 
     res.setHeader("Cache-Control", "public, s-maxage=60, stale-while-revalidate=120");
     return res.json({

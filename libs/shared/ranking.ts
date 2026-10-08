@@ -22,6 +22,8 @@ export interface BreederRankingItem {
   bidsCount: number;
   auctionWinsCount: number;
   sellerEndedAuctionsCount: number;
+  /** 카테고리 범위 랭킹(categoryPath)에서만 채운다: 범위 안 상품 수. */
+  productsCount?: number;
   user: {
     id: number;
     name: string;
@@ -29,6 +31,22 @@ export interface BreederRankingItem {
   };
   badges: SeasonBadgeItem[];
 }
+
+/**
+ * 카테고리 범위 탑브리더 점수 가중치(PRD 5.5 초안: 게시글 수 + 상품 수 × 3).
+ * 최종 가중치는 미정이라 설정값으로 떼어 둔다. 범위가 없는 전체 랭킹은 scoreBreeder 를 그대로 쓴다.
+ */
+export const SCOPED_BREEDER_SCORE_WEIGHTS = { post: 1, product: 3 } as const;
+
+export const scoreScopedBreeder = ({
+  postsCount,
+  productsCount,
+}: {
+  postsCount: number;
+  productsCount: number;
+}) =>
+  postsCount * SCOPED_BREEDER_SCORE_WEIGHTS.post +
+  productsCount * SCOPED_BREEDER_SCORE_WEIGHTS.product;
 
 export interface BloodlineRankingItem {
   rank: number;
