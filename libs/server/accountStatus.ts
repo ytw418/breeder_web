@@ -1,35 +1,41 @@
 import type { Prisma, PrismaClient, User, UserStatus } from "@prisma/client";
+import { formatKstDate } from "@libs/shared/sanction";
+
+export { formatKstDate };
 
 /**
  * 계정 상태(정지·차단) 전환과 로그인 차단 판정.
  * - 정지·차단은 tokenVersion 을 올려 이미 발급된 access/refresh 토큰을 즉시 무효화한다.
- * - 기간 정지(SUSPENDED_*)는 suspendedUntil 에 만료 시각을 두고, 로그인 때 지났으면 ACTIVE 로 되돌린다(cron 불필요).
+ * - 기간 정지는 suspendedUntil 에 만료 시각을 두고, 로그인 때 지났으면 ACTIVE 로 되돌린다(cron 불필요).
+ *   새 정지는 SUSPENDED(기간은 운영자가 고른 일수, libs/server/sanctions.ts)이고, SUSPENDED_7D·30D 는 옛 행 호환용이다.
  * - 탈퇴(DELETED)는 개인정보 분리 보관이 필요해 accountDeletion.deleteAccount 가 담당한다.
  */
 
 type Db = PrismaClient | Prisma.TransactionClient;
-type SuspendedStatus = "SUSPENDED_7D" | "SUSPENDED_30D";
+type FixedSuspendedStatus = "SUSPENDED_7D" | "SUSPENDED_30D";
+type SuspendedStatus = FixedSuspendedStatus | "SUSPENDED";
 
 const DAY_MS = 24 * 60 * 60 * 1000;
-const KST_OFFSET_MS = 9 * 60 * 60 * 1000;
 
-export const SUSPENSION_DAYS: Record<SuspendedStatus, number> = {
+export const SUSPENSION_DAYS: Record<FixedSuspendedStatus, number> = {
   SUSPENDED_7D: 7,
   SUSPENDED_30D: 30,
 };
 
-const isSuspendedStatus = (status: UserStatus): status is SuspendedStatus =>
-  status === "SUSPENDED_7D" || status === "SUSPENDED_30D";
+/** 기간 정지 상태인지(새 SUSPENDED + 옛 SUSPENDED_7D·30D) */
+export const isSuspendedStatus = (status: UserStatus): status is SuspendedStatus =>
+  status === "SUSPENDED" || status === "SUSPENDED_7D" || status === "SUSPENDED_30D";
 
-/** 기간 정지의 만료 시각. 기간 정지가 아니면 null */
+/** 옛 고정 기간 정지(7일·30일)의 만료 시각. 그 외는 null(SUSPENDED 는 호출부가 만료 시각을 넘긴다) */
 export function suspensionEndsAt(status: UserStatus, now: Date = new Date()): Date | null {
-  if (!isSuspendedStatus(status)) return null;
+  if (status !== "SUSPENDED_7D" && status !== "SUSPENDED_30D") return null;
   return new Date(now.getTime() + SUSPENSION_DAYS[status] * DAY_MS);
 }
 
 /**
- * 관리자·신고 처리에서 계정 상태를 바꾼다.
+ * 관리자·신고 처리에서 계정 상태를 바꾼다. 제재 이력이 필요한 곳은 libs/server/sanctions.ts issueSanction 을 쓴다.
  * ACTIVE 가 아니면 tokenVersion 을 올려 모든 기기의 토큰을 끊는다.
+ * SUSPENDED 는 suspendedUntil(만료 시각)을 함께 넘겨야 한다.
  * 탈퇴(DELETED) 계정은 개인정보를 분리한 행이라 건드리지 않는다(신고 BAN 이 탈퇴 계정을 되살리지 않게).
  * @returns 상태를 바꿨으면 true, 대상이 없거나 탈퇴 계정이면 false
  */
@@ -37,14 +43,18 @@ export async function setUserStatus(
   db: Db,
   userId: number,
   status: Exclude<UserStatus, "DELETED">,
-  now: Date = new Date()
+  now: Date = new Date(),
+  suspendedUntil?: Date
 ): Promise<boolean> {
+  if (status === "SUSPENDED" && !suspendedUntil) {
+    throw new Error("SUSPENDED 는 suspendedUntil 이 필요합니다.");
+  }
   const data =
     status === "ACTIVE"
       ? { status, suspendedUntil: null }
       : {
           status,
-          suspendedUntil: suspensionEndsAt(status, now),
+          suspendedUntil: status === "SUSPENDED" ? suspendedUntil : suspensionEndsAt(status, now),
           tokenVersion: { increment: 1 },
         };
 
@@ -72,14 +82,6 @@ export async function liftExpiredSuspension(
   return count > 0;
 }
 
-/** KST 기준 'YYYY.MM.DD' */
-export function formatKstDate(date: Date): string {
-  return new Date(date.getTime() + KST_OFFSET_MS)
-    .toISOString()
-    .slice(0, 10)
-    .replace(/-/g, ".");
-}
-
 export type LoginBlock = {
   status: 403;
   errorCode: "ACCOUNT_BANNED" | "ACCOUNT_SUSPENDED" | "ACCOUNT_DELETED";
@@ -87,6 +89,10 @@ export type LoginBlock = {
   error: string;
   message: string;
   suspendedUntil?: string;
+  /** 가장 최근 정지·영구 정지 제재의 사유 문구(libs/server/sanctions.ts withRestrictionNotice). 이력이 없으면 없다. */
+  reasonLabel?: string;
+  /** 운영자가 대상자에게 남긴 메시지 */
+  messageToUser?: string;
 };
 
 const block = (
@@ -112,6 +118,7 @@ export function getLoginBlock(
       return block("ACCOUNT_BANNED", "이용이 영구 정지된 계정이에요.");
     case "DELETED":
       return block("ACCOUNT_DELETED", "탈퇴 처리된 계정이에요.");
+    case "SUSPENDED":
     case "SUSPENDED_7D":
     case "SUSPENDED_30D": {
       const until = user.suspendedUntil;
