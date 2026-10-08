@@ -10,6 +10,7 @@ import {
   normalizePins,
   parseStoredPins,
   planInitialScopeSync,
+  planOnboardedSync,
   readStoredCategoryScope,
   reconcilePinsWithCategories,
   resetCategoryScopeForTest,
@@ -117,6 +118,15 @@ describe("브라우저 저장·복원", () => {
     const state = getCategoryScopeState();
     expect(state.pins.map((p) => p.label)).toEqual(["파충류 > 거북", "포유류"]);
     expect(state.onboarded).toBe(true);
+  });
+});
+
+describe("온보딩 마침 표시(계정 ↔ 브라우저)", () => {
+  it("계정이 마쳤으면 브라우저도 마친 것으로, 브라우저만 마쳤으면 계정에 올린다", () => {
+    expect(planOnboardedSync(false, "2026-10-09T00:00:00.000Z")).toBe("adopt");
+    expect(planOnboardedSync(true, null)).toBe("push");
+    expect(planOnboardedSync(true, "2026-10-09T00:00:00.000Z")).toBe("none");
+    expect(planOnboardedSync(false, undefined)).toBe("none");
   });
 });
 

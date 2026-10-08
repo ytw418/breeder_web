@@ -39,6 +39,7 @@ import {
   type PedigreeNote,
 } from "@libs/shared/pedigree-note";
 import type { AuctionBloodlineLinkSummary } from "@libs/shared/bloodline-card";
+import { resolveCategoryIdByName } from "@libs/server/categories";
 
 /** Prisma Int(INT4) 최대값. 이보다 큰 혈통 id 는 잘못된 값(null)으로 본다. */
 const INT4_MAX = 2_147_483_647;
@@ -396,6 +397,7 @@ async function handler(
           description,
           photos: normalizedPhotos,
           category: category || null,
+          categoryId: await resolveCategoryIdByName(category || null),
           sellerPhone: normalizeOptionalText(sellerPhone, 40),
           sellerEmail: normalizeOptionalText(sellerEmail, 120),
           sellerBlogUrl: normalizeOptionalUrl(sellerBlogUrl),

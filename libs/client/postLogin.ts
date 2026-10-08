@@ -22,21 +22,25 @@ export const getSafeNextPath = (rawPath: string | null | undefined) => {
 };
 
 /**
- * 로그인 뒤 갈 곳. 계정(서버)과 이 브라우저 모두 고정이 없고, 이 브라우저에서 온보딩을 아직 안 봤으면 온보딩을 거친다.
+ * 로그인 뒤 갈 곳. 계정이 온보딩을 마쳤거나(앱에서 '전체 보기'를 고른 것 포함) 계정·브라우저에 고정이 있거나
+ * 이 브라우저에서 이미 봤으면 바로 간다. 아니면 온보딩을 거친다.
  */
 export function resolvePostLoginDestination({
   next,
   serverPinnedIds,
+  serverOnboarded = false,
   localPinCount,
   onboarded,
 }: {
   next: string;
   serverPinnedIds: readonly number[] | undefined;
+  /** 계정 categoryOnboardedAt 이 있다. */
+  serverOnboarded?: boolean;
   localPinCount: number;
   onboarded: boolean;
 }) {
   const target = getSafeNextPath(next);
-  if (onboarded || localPinCount > 0 || (serverPinnedIds?.length ?? 0) > 0) return target;
+  if (serverOnboarded || onboarded || localPinCount > 0 || (serverPinnedIds?.length ?? 0) > 0) return target;
   if (target === ONBOARDING_PATH || target.startsWith(`${ONBOARDING_PATH}?`)) return target;
   return target === "/"
     ? ONBOARDING_PATH
@@ -56,12 +60,13 @@ export async function navigateAfterSessionReady(nextPath: string) {
       const meRes = await authFetch("/api/users/me", { method: "GET", cache: "no-store" });
       if (meRes.ok) {
         const me = (await meRes.json().catch(() => null)) as {
-          profile?: { pinnedCategoryIds?: number[] };
+          profile?: { pinnedCategoryIds?: number[]; categoryOnboardedAt?: string | null };
         } | null;
         window.location.assign(
           resolvePostLoginDestination({
             next: nextPath,
             serverPinnedIds: me?.profile?.pinnedCategoryIds,
+            serverOnboarded: Boolean(me?.profile?.categoryOnboardedAt),
             localPinCount: local.pins.length,
             onboarded: local.onboarded,
           })

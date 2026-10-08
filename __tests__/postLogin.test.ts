@@ -23,6 +23,10 @@ describe("로그인 뒤 이동 경로", () => {
     expect(resolvePostLoginDestination({ ...base, next: "/posts", onboarded: true })).toBe("/posts");
   });
 
+  it("앱에서 '전체 보기'로 마친 계정(고정 없음 + 마침 표시)은 다시 묻지 않는다", () => {
+    expect(resolvePostLoginDestination({ ...base, next: "/posts", serverOnboarded: true })).toBe("/posts");
+  });
+
   it("서버 값을 못 읽어도 온보딩으로 보내고, 온보딩으로 가는 길이면 감싸지 않는다", () => {
     expect(resolvePostLoginDestination({ ...base, next: "/", serverPinnedIds: undefined })).toBe(
       "/onboarding"

@@ -12,7 +12,9 @@ import { CATEGORIES_KEY } from "hooks/useCategoryScope";
 import { authFetch } from "@libs/client/authFetch";
 import {
   adoptServerPins,
+  markCategoryOnboardingDone,
   planInitialScopeSync,
+  planOnboardedSync,
   reconcilePinsWithCategories,
   restoreCategoryScope,
   useCategoryScopeState,
@@ -20,21 +22,23 @@ import {
 import { toast } from "@libs/client/toast";
 import type { CategoriesResponse } from "@libs/shared/categories";
 
-async function pushPinnedCategories(ids: number[]) {
+async function postMe(body: Record<string, unknown>) {
   const res = await authFetch("/api/users/me", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ pinnedCategoryIds: ids }),
+    body: JSON.stringify(body),
   });
   const data = (await res.json().catch(() => null)) as { success?: boolean } | null;
   if (!res.ok || !data?.success) throw new Error("pinned categories sync failed");
 }
 
 export default function CategoryScopeSync() {
-  const { pins, hydrated } = useCategoryScopeState();
+  const { pins, onboarded, hydrated } = useCategoryScopeState();
   const { user } = useUser();
   const userId = user?.id;
   const serverIds = (user as { pinnedCategoryIds?: number[] } | undefined)?.pinnedCategoryIds;
+  const serverOnboardedAt = (user as { categoryOnboardedAt?: string | Date | null } | undefined)
+    ?.categoryOnboardedAt;
 
   // ① 첫 클라이언트 렌더 뒤 복원한다(서버 렌더와 같은 첫 화면을 유지).
   useEffect(() => {
@@ -86,11 +90,28 @@ export default function CategoryScopeSync() {
     }
     if (lastPushedRef.current === localKey) return;
     lastPushedRef.current = localKey;
-    void pushPinnedCategories(localIds).catch(() => {
+    void postMe({ pinnedCategoryIds: localIds }).catch(() => {
       // 다음에 고정을 바꾸거나 다시 로그인할 때 다시 올린다.
       lastPushedRef.current = "";
     });
   }, [userId, hydrated, pins, serverIds, categories]);
+
+  // ④ 온보딩을 마쳤다는 표시를 계정과 맞춘다. 앱에서 마쳤으면(전체 보기 포함) 웹에서 다시 묻지 않고,
+  //    이 브라우저에서만 마쳤으면 계정에 올린다(실패하면 다음 로그인 때 다시).
+  const onboardedPushedRef = useRef<number | null>(null);
+  useEffect(() => {
+    if (!userId || !hydrated) return;
+    const plan = planOnboardedSync(onboarded, serverOnboardedAt);
+    if (plan === "adopt") {
+      markCategoryOnboardingDone();
+      return;
+    }
+    if (plan !== "push" || onboardedPushedRef.current === userId) return;
+    onboardedPushedRef.current = userId;
+    void postMe({ categoryOnboarded: true }).catch(() => {
+      onboardedPushedRef.current = null;
+    });
+  }, [userId, hydrated, onboarded, serverOnboardedAt]);
 
   return null;
 }

@@ -17,7 +17,7 @@ const TREE = [
 
 const mockClient = {
   category: { findMany: jest.fn(async () => TREE) },
-  user: { findUnique: jest.fn(), findMany: jest.fn(), update: jest.fn() },
+  user: { findUnique: jest.fn(), findMany: jest.fn(), update: jest.fn(), updateMany: jest.fn() },
   post: { findMany: jest.fn(), count: jest.fn(), groupBy: jest.fn(), create: jest.fn() },
   product: { groupBy: jest.fn() },
   userBlock: { findMany: jest.fn() },
@@ -127,6 +127,21 @@ describe("/api/users/me 관심 카테고리 고정", () => {
   it("POST: 빈 배열이면 해제", async () => {
     const res = await call(meHandler, { method: "POST", user: me, body: { pinnedCategoryIds: [] } });
     expect(res.body).toEqual({ success: true, pinnedCategoryIds: [] });
+  });
+
+  it("POST: 온보딩을 마쳤다는 표시는 처음 한 번만 기록한다(앱·웹 공유)", async () => {
+    const res = await call(meHandler, { method: "POST", user: me, body: { categoryOnboarded: true } });
+    expect(res.body).toEqual({ success: true, categoryOnboarded: true });
+    expect(mockClient.user.updateMany).toHaveBeenCalledWith({
+      where: { id: 7, categoryOnboardedAt: null },
+      data: { categoryOnboardedAt: expect.any(Date) },
+    });
+  });
+
+  it("POST: categoryOnboarded 가 true 가 아니면 기록하지 않는다", async () => {
+    const res = await call(meHandler, { method: "POST", user: me, body: { categoryOnboarded: "yes" } });
+    expect(res.body).toEqual({ success: true });
+    expect(mockClient.user.updateMany).not.toHaveBeenCalled();
   });
 
   it("POST: 배열이 아니거나 정수가 아니면 400", async () => {

@@ -164,8 +164,10 @@ jest.mock("@libs/server/analytics", () => ({
 }));
 // 노출 카테고리(#173 트리). 포유류 아래 강아지·고양이, 하위가 없는 기타.
 const mockVisibleCategories = jest.fn();
+const mockResolveCategoryIdByName = jest.fn(async (_name: string | null) => 41 as number | null);
 jest.mock("@libs/server/categories", () => ({
   getVisibleCategories: () => mockVisibleCategories(),
+  resolveCategoryIdByName: (name: string | null) => mockResolveCategoryIdByName(name),
 }));
 
 import handler from "../pages/api/bloodline-cards/index";
@@ -278,12 +280,15 @@ describe("POST /api/bloodline-cards — 만들기", () => {
     expect(res.body.errorCode).toBeUndefined();
     expect(mockClient.bloodlineCard.create).toHaveBeenCalledTimes(1);
     const { data } = mockClient.bloodlineCard.create.mock.calls[0][0];
+    expect(mockResolveCategoryIdByName).toHaveBeenCalledWith("사슴벌레");
     expect(data).toEqual({
       creatorId: ME,
       currentOwnerId: ME,
       cardType: "BLOODLINE",
       name: "강산 라인",
       speciesType: "사슴벌레",
+      // 관심 카테고리 범위 구조: 종 이름에서 푼 Category.id 를 함께 저장한다.
+      categoryId: 41,
       image: "cf-image-1",
       description: "공주 산 왕사슴 혈통",
       originSido: "충청남도",
