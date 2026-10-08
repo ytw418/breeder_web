@@ -52,7 +52,7 @@
 
 | 층 | 방식 | 주기 · 보관 | 비용 | 상태 |
 |---|---|---|---|---|
-| A. 자동 일간 백업 | 비공개 저장소 `ytw418/bredy-db-backups` 의 GitHub Actions 가 운영 DB 를 읽기 전용 역할로 `pg_dump` 한다. 복원 검사를 하고 age 로 암호화해 artifact 로 보관한다. | 매일 03:00 KST. 일간 35일, 일요일 것은 90일 | 0원(무료 한도 안) | **사용자 승인 대기**(3.4) |
+| A. 자동 일간 백업 | 비공개 저장소 `ytw418/bredy-db-backups` 의 GitHub Actions 가 운영 DB 를 읽기 전용 역할로 `pg_dump` 한다. 복원 검사를 하고 age 로 암호화해 artifact 로 보관한다. | 매일 03:00 KST. 일간 35일, 일요일 것은 90일 | 0원(GitHub Free 비공개 저장소: Actions 2,000분/월·artifact 500MB 안. 하루 약 3분, 보관 약 15MB) | **켜짐**(2026-10-08 사용자 승인, 첫 실행·복원 연습 통과) |
 | B. 수동 스냅샷 | `npm run db:backup -- prod` → `~/bredy-backups/prod/*.dump`(권한 600) + `npm run db:restore-check -- <덤프>` | 운영 배포·파괴적 마이그레이션·데이터 이전 **직전마다** | 0원 | 사용 가능. 2026-10-08 첫 백업 완료(256KB, 43테이블, 복원 검사 통과) |
 | C. Supabase 관리형 백업 | 조직을 Pro 로 올리면 매일 자동 백업이 생기고 7일 보관한다. 대시보드 Database → Backups 에서 클릭으로 복원한다. PITR(초 단위 복원)은 +$100/월 이고 Small 컴퓨트 이상이 필요하다. | 매일 · 7일 | $25/월 + 프로젝트 컴퓨트 | **사용자 결정**. 사용자가 늘면 켠다. |
 
@@ -64,90 +64,26 @@ dev DB 는 운영 사본이라 따로 매일 백업하지 않는다. 운영 백�
   - 자동 백업은 비공개 저장소에 **age 공개키로 암호화한 파일만** 둔다.
 - 복호화 개인키는 대표가 비밀번호 관리자 + 오프라인 사본으로 보관한다. GitHub·Vercel·저장소에는 두지 않는다.
 - 백업용 DB 계정은 **읽기 전용 역할 `backup_reader`** 다. 운영에 쓰기 권한이 있는 비밀번호는 Vercel 환경변수에만 둔다.
-  - 로컬 `.env` 의 운영 주석 줄은 지운다.
-  - 로컬 `~/.config/bredy-backup/prod.url` 도 `backup_reader` 로 바꾼다.
+  - 로컬 `~/.config/bredy-backup/prod.url` 은 `backup_reader` 주소다(2026-10-08 교체).
+  - 로컬 `.env` 의 운영 주석 줄은 지운다(운영 비밀번호 교체 때 함께).
 - 탈퇴한 사용자 데이터는 백업 보관 기간(최대 90일)이 지나면 사라진다. 개인정보 처리방침의 보관 기간과 맞춘다.
 
-### 3.4 자동 백업 켜기(사용자 승인 후 한 번)
-1. **운영에 읽기 전용 역할을 만든다**(운영 DB 에 SQL 실행 — 승인 필요).
-   ```sql
-   CREATE ROLE backup_reader WITH LOGIN PASSWORD '<무작위 32자>';
-   GRANT USAGE ON SCHEMA public TO backup_reader;
-   GRANT SELECT ON ALL TABLES IN SCHEMA public TO backup_reader;
-   GRANT SELECT ON ALL SEQUENCES IN SCHEMA public TO backup_reader;
-   ALTER DEFAULT PRIVILEGES FOR ROLE postgres IN SCHEMA public GRANT SELECT ON TABLES TO backup_reader;
-   ALTER DEFAULT PRIVILEGES FOR ROLE postgres IN SCHEMA public GRANT SELECT ON SEQUENCES TO backup_reader;
-   ```
-   - 접속 주소는 세션 풀러(5432), 사용자 이름은 `backup_reader.<project ref>` 다.
-   - GitHub 러너는 IPv6 직접 접속이 안 되므로 풀러를 쓴다.
-2. **암호화 키를 만든다.**
-   - `brew install age && age-keygen -o ~/.config/bredy-backup/age-key.txt`
-   - 공개키(`age1…`)는 저장소 변수 `AGE_RECIPIENT` 에 넣는다.
-   - 개인키 파일은 비밀번호 관리자에 옮기고, 로컬 사본은 지운다.
-3. **비공개 저장소 `ytw418/bredy-db-backups` 를 만든다.**
-   - 아래 워크플로를 넣는다.
-   - 비밀값 `PROD_BACKUP_DATABASE_URL`(backup_reader 주소)을 등록한다.
-4. `workflow_dispatch` 로 한 번 돌려 artifact 가 생기는지 본다. 그 파일을 내려받아 복호화하고 복원 검사를 한다(3.6).
-
-```yaml
-# ytw418/bredy-db-backups/.github/workflows/backup.yml
-name: 운영 DB 백업
-on:
-  schedule:
-    - cron: "0 18 * * *" # 매일 03:00 KST
-  workflow_dispatch:
-permissions:
-  contents: read
-concurrency:
-  group: db-backup
-  cancel-in-progress: false
-jobs:
-  backup:
-    runs-on: ubuntu-24.04
-    timeout-minutes: 20
-    steps:
-      - name: 백업 스크립트 받기(breeder_web 공개 저장소)
-        uses: actions/checkout@v4
-        with:
-          repository: ytw418/breeder_web
-          ref: main
-          path: breeder_web
-      - name: PostgreSQL 17 · age 설치
-        run: |
-          sudo install -d /usr/share/postgresql-common/pgdg
-          sudo curl -fsSL -o /usr/share/postgresql-common/pgdg/apt.postgresql.org.asc https://www.postgresql.org/media/keys/ACCC4CF8.asc
-          echo "deb [signed-by=/usr/share/postgresql-common/pgdg/apt.postgresql.org.asc] https://apt.postgresql.org/pub/repos/apt noble-pgdg main" | sudo tee /etc/apt/sources.list.d/pgdg.list
-          sudo apt-get update -q && sudo apt-get install -y -q postgresql-17 age
-      - name: 덤프(읽기 전용 역할)
-        env:
-          BACKUP_DATABASE_URL: ${{ secrets.PROD_BACKUP_DATABASE_URL }}
-          PG_BIN: /usr/lib/postgresql/17/bin
-        run: breeder_web/scripts/db-backup.sh prod "$RUNNER_TEMP/out"
-      - name: 복원 검사(러너 안 임시 Postgres)
-        env:
-          PG_SERVER_BIN: /usr/lib/postgresql/17/bin
-        run: breeder_web/scripts/db-restore-check.sh "$RUNNER_TEMP"/out/*.dump
-      - name: 암호화(평문 덤프는 남기지 않는다)
-        env:
-          AGE_RECIPIENT: ${{ vars.AGE_RECIPIENT }}
-        run: |
-          cd "$RUNNER_TEMP/out"
-          for f in *.dump; do age -r "$AGE_RECIPIENT" -o "$f.age" "$f" && rm -f "$f"; done
-          echo "WEEKDAY=$(date -u -d '+9 hours' +%u)" >> "$GITHUB_ENV"
-      - name: 보관(일간 35일)
-        uses: actions/upload-artifact@v4
-        with:
-          name: prod-daily-${{ github.run_id }}
-          path: ${{ runner.temp }}/out/
-          retention-days: 35
-      - name: 보관(주간 90일, 일요일 KST)
-        if: env.WEEKDAY == '7'
-        uses: actions/upload-artifact@v4
-        with:
-          name: prod-weekly-${{ github.run_id }}
-          path: ${{ runner.temp }}/out/
-          retention-days: 90
-```
+### 3.4 자동 백업 구성(2026-10-08 켬)
+- **저장소**: 비공개 `ytw418/bredy-db-backups`
+  - 워크플로: `.github/workflows/backup.yml`
+  - 스크립트: `scripts/db-backup.sh`·`db-restore-check.sh`. 이 저장소 scripts 의 사본이다. 비밀값을 공개 저장소 코드에 넘기지 않으려고 복사해 둔다. 원본을 고치면 사본도 맞춘다.
+- **순서**(러너 안): PostgreSQL 17·age 설치 → `backup_reader` 로 덤프 → 임시 Postgres 복원 검사 → age 암호화(평문 삭제) → artifact 업로드
+- **읽기 전용 역할 `backup_reader`**(운영)
+  - 권한: public 스키마 SELECT. 이후 생기는 테이블·시퀀스도 SELECT 가 자동으로 붙는다(`ALTER DEFAULT PRIVILEGES FOR ROLE postgres`).
+  - 쓰기 권한은 없다. `has_table_privilege` 로 확인했다.
+  - 접속: 세션 풀러(5432), 사용자 이름 `backup_reader.<project ref>`. GitHub 러너는 IPv6 직접 접속이 안 돼서 풀러를 쓴다.
+  - 비밀번호를 바꿀 때: 운영에서 `ALTER ROLE backup_reader PASSWORD …` → 저장소 비밀값과 로컬 `prod.url` 을 함께 갱신한다.
+- **GitHub 설정**: 비밀값 `PROD_BACKUP_DATABASE_URL`(backup_reader 주소), 변수 `AGE_RECIPIENT`(age 공개키 `age1dkp2a69ke2frvx75v0v7p4auylm8smxnn0lfgm0qkq3ruv9ulyhqj5znxs`)
+- **개인키**
+  - 지금 위치: `~/.config/bredy-backup/age-key.txt`(600)
+  - 대표가 비밀번호 관리자에 옮기고 오프라인 사본을 만든 뒤 로컬 파일을 정리한다.
+  - **개인키를 잃으면 자동 백업을 하나도 열 수 없다.**
+- **첫 실행**: 2026-10-08 수동 실행이 성공했다(run 37796707408). artifact 를 내려받아 복호화하고 복원 검사까지 통과했다(User 80·Post 105).
 
 - 실패하면 GitHub 가 워크플로를 마지막으로 바꾼 사람에게 메일을 보낸다.
 - 90일보다 오래 보관하려면 월 1회 artifact 를 Cloudflare R2 같은 곳으로 옮긴다(후속 결정).
