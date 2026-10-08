@@ -25,9 +25,10 @@ function prismaLikeFindFirst(owner: { postId?: number; productId?: number }) {
 }
 
 const mockClient = {
-  post: { findUnique: jest.fn(), findFirst: jest.fn() },
+  // 프로필 주력 종(getTopSpecies)이 게시글·상품을 groupBy 한다.
+  post: { findUnique: jest.fn(), findFirst: jest.fn(), groupBy: jest.fn(() => Promise.resolve([])) },
   like: { findFirst: prismaLikeFindFirst({ postId: 10 }) },
-  product: { findUnique: jest.fn(), findMany: jest.fn() },
+  product: { findUnique: jest.fn(), findMany: jest.fn(), groupBy: jest.fn(() => Promise.resolve([])) },
   fav: { findFirst: prismaLikeFindFirst({ productId: 20 }) },
   purchase: { findFirst: jest.fn() },
   user: { findUnique: jest.fn() },

@@ -1,0 +1,51 @@
+name: DB 안전 검사
+
+# 마이그레이션·DB 보호 하네스가 바뀌면 검사한다(AGENTS.md 'DB 안전 규칙', docs/ops/db-safety-and-backup.md).
+# 실제 DB 는 쓰지 않는다. 일치 검사는 러너 안에서 임시 Postgres 를 띄워 shadow DB 로 쓴다.
+on:
+  pull_request:
+    paths:
+      - "prisma/**"
+      - "scripts/check-migration*"
+      - "scripts/migration-*"
+      - "scripts/db-*.sh"
+      - ".claude/hooks/db-guard*.py"
+      - "vercel.json"
+      - ".github/workflows/db-safety.yml"
+  push:
+    branches: [dev, main]
+    paths:
+      - "prisma/**"
+      - "scripts/check-migration*"
+      - "scripts/migration-*"
+      - ".claude/hooks/db-guard*.py"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  migrations:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: 표시 없는 파괴적 마이그레이션 검사
+        run: node scripts/check-migration-safety.mjs
+
+      - name: 마이그레이션 ↔ schema.prisma 일치 검사(임시 Postgres)
+        run: scripts/check-migrations-local.sh
+
+      - name: DB 보호 훅 테스트
+        run: python3 .claude/hooks/db-guard_test.py

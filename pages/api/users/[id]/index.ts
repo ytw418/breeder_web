@@ -8,6 +8,7 @@ import {
 } from "@libs/server/breeder-programs";
 import type { BreederProgramSummary } from "@libs/shared/breeder-program";
 import { withAuth } from "@libs/server/auth";
+import { getTopSpecies } from "@libs/server/profileSpecies";
 import { parsePositiveIntId } from "@libs/shared/normalize";
 import { countProfileBloodlineCards } from "@libs/server/bloodline-visibility";
 import { User } from "@prisma/client";
@@ -26,8 +27,12 @@ type UserWithCounts = Omit<User, "tokenVersion" | "suspendedUntil" | "snsId" | "
     receivedReviews: number;
     createdBloodlineCards: number;
     ownedBloodlineCards: number;
+    /** 숨기지 않은 경매 수(프로필 '경매' 탭을 보일지 정한다). */
+    auctions: number;
   };
   maskedEmail?: string | null;
+  /** 게시글 종·상품 카테고리에서 자동 계산한 주력 종(최대 2개, 많이 쓴 순). */
+  topSpecies?: string[];
   badges?: Array<{
     id: number;
     badgeType: string;
@@ -108,6 +113,7 @@ async function handler(
             insectRecords: true,
             receivedReviews: true,
             createdBloodlineCards: true,
+            auctions: { where: { isHidden: false } },
           },
         },
       },
@@ -164,7 +170,7 @@ async function handler(
       ? { ...userWithCounts, maskedEmail: maskEmail(user.email) }
       : { ...publicUser, email: null, maskedEmail: maskEmail(user.email) };
 
-  const [badges, breederPrograms] = await Promise.all([
+  const [badges, breederPrograms, topSpecies] = await Promise.all([
     client.userBadge.findMany({
       where: { userId },
       select: {
@@ -178,6 +184,7 @@ async function handler(
       take: 3,
     }),
     getActiveBreederProgramsByUserId(userId),
+    getTopSpecies(userId),
   ]);
 
   return res.json({
@@ -189,6 +196,7 @@ async function handler(
         createdAt: badge.createdAt.toISOString(),
       })),
       breederPrograms: getSortedActiveBreederProgramSummaries(breederPrograms),
+      topSpecies,
     },
     isFollowing,
     isBlocked,

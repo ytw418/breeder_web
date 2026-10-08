@@ -95,7 +95,8 @@ const mockClient: Row = {
   product: {
     groupBy: jest.fn(async () => []),
   },
-  // 프로필(GET /api/users/:id) 뱃지 수 테스트용
+  // 프로필(GET /api/users/:id) 뱃지 수 테스트용(post.groupBy 는 주력 종 getTopSpecies)
+  post: { groupBy: jest.fn(async () => []) },
   user: { findUnique: jest.fn() },
   userBadge: { findMany: jest.fn(async () => []) },
   follow: { findFirst: jest.fn(async () => null) },

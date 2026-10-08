@@ -15,9 +15,21 @@ const mockClient = {
   category: { findMany: jest.fn(async () => []) },
   user: { findUnique: jest.fn(), findMany: jest.fn() },
   userBlock: { findMany: jest.fn(), findFirst: jest.fn() },
-  post: { findMany: jest.fn(), count: jest.fn(), findUnique: jest.fn(), findFirst: jest.fn() },
+  // 프로필 주력 종(getTopSpecies)이 게시글·상품을 groupBy 한다.
+  post: {
+    findMany: jest.fn(),
+    count: jest.fn(),
+    findUnique: jest.fn(),
+    findFirst: jest.fn(),
+    groupBy: jest.fn(() => Promise.resolve([])),
+  },
   like: { findFirst: jest.fn() },
-  product: { findMany: jest.fn(), count: jest.fn(), findUnique: jest.fn() },
+  product: {
+    findMany: jest.fn(),
+    count: jest.fn(),
+    findUnique: jest.fn(),
+    groupBy: jest.fn(() => Promise.resolve([])),
+  },
   fav: { findFirst: jest.fn() },
   purchase: { findFirst: jest.fn() },
   auction: { findMany: jest.fn(), count: jest.fn() },

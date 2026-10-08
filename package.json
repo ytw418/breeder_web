@@ -11,6 +11,10 @@
   "scripts": {
     "dev": "next dev",
     "build": "npm run lint && npm run typecheck && next build",
+    "vercel-build": "node scripts/check-migration-safety.mjs && prisma migrate deploy && prisma generate && next build",
+    "db:check-migrations": "node scripts/check-migration-safety.mjs && scripts/check-migrations-local.sh",
+    "db:backup": "scripts/db-backup.sh",
+    "db:restore-check": "scripts/db-restore-check.sh",
     "start": "next start",
     "lint": "eslint .",
     "typecheck": "tsc --noEmit",
