@@ -89,17 +89,22 @@ describe("getVisibleCategories", () => {
 });
 
 describe("resolveScopeCategoryIds / categoryScopeWhere", () => {
-  it("햄스터 고정이면 햄스터만", async () => {
-    expect(await resolveScopeCategoryIds("/mammal/hamster/")).toEqual([30]);
+  it("햄스터 고정이면 햄스터 + 대분류(포유류)에만 단 글. 다른 소분류는 뺀다", async () => {
+    mockClient.category.findMany.mockResolvedValue([
+      ...ROWS,
+      row(32, "고슴도치", "/mammal/hedgehog/", 5),
+    ]);
+    expect(await resolveScopeCategoryIds("/mammal/hamster/")).toEqual([5, 30]);
   });
   it("포유류 고정이면 포유류 하위 전부(숨긴 강아지 제외)", async () => {
     expect(await resolveScopeCategoryIds("/mammal/")).toEqual([5, 30]);
     expect(await categoryScopeWhere("/mammal/")).toEqual({ categoryId: { in: [5, 30] } });
   });
   it("복수 고정은 합집합", async () => {
-    expect(await resolveScopeCategoryIds("/mammal/hamster/,/reptile/")).toEqual([3, 20, 30]);
+    expect(await resolveScopeCategoryIds("/mammal/hamster/,/reptile/")).toEqual([3, 20, 5, 30]);
   });
   it("범위에 맞는 카테고리가 없으면 빈 배열(아무것도 안 보인다)", async () => {
+    // 숨긴 강아지를 고정해도 상위(포유류)를 끌어오지 않는다.
     expect(await resolveScopeCategoryIds("/mammal/dog/")).toEqual([]);
     expect(await categoryScopeWhere("/nope/")).toEqual({ categoryId: { in: [] } });
   });

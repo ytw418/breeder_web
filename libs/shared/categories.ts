@@ -60,3 +60,7 @@ export const joinCategoryPaths = (paths: readonly string[]) =>
 /** path 가 roots 중 하나의 하위(자기 자신 포함)인지. */
 export const isUnderCategoryPaths = (path: string, roots: readonly string[]) =>
   roots.some((root) => path.startsWith(root));
+
+/** path 가 roots 중 하나의 상위(자기 자신 제외)인지. */
+export const isAncestorOfCategoryPaths = (path: string, roots: readonly string[]) =>
+  roots.some((root) => root !== path && root.startsWith(path));

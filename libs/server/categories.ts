@@ -4,8 +4,10 @@
  * - 쓰기 API 는 `resolveCategoryIdByName(종 이름)` 으로 categoryId 를 함께 저장한다.
  */
 import client from "@libs/server/client";
+import { getCategoryFilterValues } from "@libs/categoryTaxonomy";
 import {
   CategoryItem,
+  isAncestorOfCategoryPaths,
   isUnderCategoryPaths,
   parseCategoryPathParam,
 } from "@libs/shared/categories";
@@ -103,6 +105,9 @@ export const sanitizePinnedCategoryIds = async (ids: readonly number[]): Promise
 /**
  * categoryPath 쿼리 값 → 범위에 드는 노출 카테고리 id 목록.
  * 범위가 없으면 null. 범위는 있는데 맞는 카테고리가 없으면 [] (아무것도 안 보인다).
+ * - 고정한 카테고리와 그 하위 전부.
+ * - 고정한 카테고리의 상위 분류 자체(그 형제는 빼고). 소분류 없이 '포유류'로만 단 글·상품이
+ *   강아지·햄스터 고정 화면에도 보이게 하려는 것이다(2026-10-09 결정).
  */
 export const resolveScopeCategoryIds = async (
   categoryPath: string | string[] | undefined | null
@@ -110,7 +115,15 @@ export const resolveScopeCategoryIds = async (
   const roots = parseCategoryPathParam(categoryPath);
   if (!roots) return null;
   const visible = await getVisibleCategories();
-  return visible.filter((row) => isUnderCategoryPaths(row.path, roots)).map((row) => row.id);
+  const visiblePaths = new Set(visible.map((row) => row.path));
+  // 숨겼거나 없는 카테고리를 고정했으면 상위를 끌어오지 않는다.
+  const liveRoots = roots.filter((root) => visiblePaths.has(root));
+  return visible
+    .filter(
+      (row) =>
+        isUnderCategoryPaths(row.path, roots) || isAncestorOfCategoryPaths(row.path, liveRoots)
+    )
+    .map((row) => row.id);
 };
 
 /**
@@ -126,6 +139,25 @@ export const categoryScopeWhere = async (
   const hidden = await getHiddenCategoryIds();
   if (!hidden.length) return {};
   return { OR: [{ categoryId: null }, { categoryId: { notIn: hidden } }] };
+};
+
+/**
+ * 반려생활 종 드롭다운(`species=포유류`) → 목록 where 조건.
+ * 트리에 있는 이름이면 그 카테고리와 하위 전부를 categoryId 로 찾는다(글에 '강아지'처럼 소분류 이름이
+ * 저장돼도 '포유류'로 찾게 하려는 것이다). 트리에 없는 이름이면 예전처럼 이름으로 비교한다.
+ */
+export const speciesCategoryWhere = async (
+  species: string
+): Promise<Record<string, unknown>> => {
+  const rows = await getAllCategories();
+  const target = LEGACY_NAME_ALIASES[species] ?? species;
+  const found = rows.find((row) => row.name === target);
+  if (!found) return { type: { in: getCategoryFilterValues(species) } };
+  return {
+    categoryId: {
+      in: rows.filter((row) => isUnderCategoryPaths(row.path, [found.path])).map((row) => row.id),
+    },
+  };
 };
 
 /**
