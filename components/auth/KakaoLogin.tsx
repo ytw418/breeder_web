@@ -8,24 +8,7 @@ import { LoginReqBody, LoginResponseType } from "pages/api/auth/login";
 import { USER_INFO } from "@libs/constants";
 import { Spinner } from "@components/atoms/Spinner";
 import { setTokens } from "@libs/client/authToken";
-import { authFetch } from "@libs/client/authFetch";
-
-const getSafeRedirectPath = (rawPath: string | null) => {
-  if (!rawPath) return "/";
-  let normalized = rawPath.trim();
-
-  try {
-    normalized = decodeURIComponent(normalized);
-  } catch {
-    // noop
-  }
-
-  if (!normalized.startsWith("/") || normalized.startsWith("//")) {
-    return "/";
-  }
-
-  return normalized;
-};
+import { getSafeNextPath, navigateAfterSessionReady } from "@libs/client/postLogin";
 
 const getKakaoRedirectUri = () => {
   if (typeof window !== "undefined" && window.location?.origin) {
@@ -41,31 +24,6 @@ const markPostLoginGuide = () => {
   } catch {
     // noop
   }
-};
-
-const wait = (ms: number) =>
-  new Promise<void>((resolve) => {
-    setTimeout(() => resolve(), ms);
-  });
-
-const navigateAfterSessionReady = async (nextPath: string) => {
-  for (let attempt = 0; attempt < 4; attempt += 1) {
-    try {
-      const meRes = await authFetch("/api/users/me", {
-        method: "GET",
-        cache: "no-store",
-      });
-      if (meRes.ok) {
-        window.location.assign(nextPath);
-        return;
-      }
-    } catch {
-      // noop
-    }
-    await wait(100);
-  }
-
-  window.location.assign(nextPath);
 };
 
 export const KakaoLogin = () => {
@@ -160,7 +118,7 @@ export const KakaoLogin = () => {
               });
             }
             markPostLoginGuide();
-            const redirectPath = getSafeRedirectPath(
+            const redirectPath = getSafeNextPath(
               searchParams.get("state") || searchParams.get("next")
             );
             void navigateAfterSessionReady(redirectPath);
