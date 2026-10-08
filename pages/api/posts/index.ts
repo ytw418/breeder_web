@@ -5,7 +5,6 @@ import client from "@libs/server/client";
 import { withAuth } from "@libs/server/auth";
 import { notifyFollowers } from "@libs/server/notification";
 import { Post, Prisma, User } from "@prisma/client";
-import { getCategoryFilterValues } from "@libs/categoryTaxonomy";
 import { incrementUserMissionProgress } from "@libs/server/growth";
 import {
   breederProgramSummarySelect,
@@ -15,7 +14,11 @@ import type { BreederProgramSummary } from "@libs/shared/breeder-program";
 import { resolvePostImagesInput, withPostImages } from "@libs/postImages";
 import { canWriteNoticePost, isNoticePostInput } from "@libs/server/postNotice";
 import { excludedAuthorIds, setViewerCacheHeader } from "@libs/server/blocks";
-import { categoryScopeWhere, resolveCategoryIdByName } from "@libs/server/categories";
+import {
+  categoryScopeWhere,
+  resolveCategoryIdByName,
+  speciesCategoryWhere,
+} from "@libs/server/categories";
 import { REGION_REQUIRED_MESSAGE } from "@libs/shared/regions";
 
 /** 동네 글 카테고리. 앱 전용이라 POST_CATEGORIES(웹 UI 목록)에는 넣지 않는다. 등록 시 작성자 동네를 글에 복사한다. */
@@ -73,15 +76,18 @@ const handler = async (
       }
     }
 
-    if (species && species !== "전체") {
-      where.type = { in: getCategoryFilterValues(String(species)) };
-    }
-
     // 관심 카테고리 고정 범위(path 쉼표 목록). 없으면 숨긴 카테고리 글만 뺀다.
+    const and: Record<string, unknown>[] = [];
     const scope = await categoryScopeWhere(categoryPath);
-    if (Object.keys(scope).length) {
-      where.AND = [scope];
+    if (Object.keys(scope).length) and.push(scope);
+
+    // 종 드롭다운. 소분류 이름으로 저장된 글도 상위 종으로 찾는다.
+    if (species && species !== "전체") {
+      const speciesWhere = await speciesCategoryWhere(String(species));
+      if ("type" in speciesWhere) where.type = speciesWhere.type;
+      else and.push(speciesWhere);
     }
+    if (and.length) where.AND = and;
 
     // 동네 글: 시/도만 주면 시/도 전체, 시/군/구까지 주면 그 동네만.
     if (typeof regionSido === "string" && regionSido) {

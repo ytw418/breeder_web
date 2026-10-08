@@ -162,14 +162,39 @@ describe("GET /api/posts?categoryPath=", () => {
     expect(whereOf().AND).toEqual([{ categoryId: { in: [5, 30] } }]);
   });
 
-  it("복수 고정은 합집합", async () => {
+  it("복수 고정은 합집합(햄스터의 상위 포유류 자체 포함)", async () => {
     await call(postsHandler, { method: "GET", query: { categoryPath: "/mammal/hamster/,/reptile/" } });
-    expect(whereOf().AND).toEqual([{ categoryId: { in: [3, 30] } }]);
+    expect(whereOf().AND).toEqual([{ categoryId: { in: [3, 5, 30] } }]);
   });
 
   it("범위가 없으면 숨긴 카테고리 글만 뺀다", async () => {
     await call(postsHandler, { method: "GET", query: {} });
     expect(whereOf().AND).toEqual([{ OR: [{ categoryId: null }, { categoryId: { notIn: [31] } }] }]);
+  });
+
+  it("종 드롭다운(species=포유류)은 소분류 이름으로 저장된 글까지 카테고리 하위로 찾는다", async () => {
+    await call(postsHandler, { method: "GET", query: { species: "포유류" } });
+    expect(whereOf().type).toBeUndefined();
+    expect(whereOf().AND).toEqual([
+      { OR: [{ categoryId: null }, { categoryId: { notIn: [31] } }] },
+      { categoryId: { in: [5, 30, 31] } },
+    ]);
+  });
+
+  it("트리에 없는 종 이름은 예전처럼 이름으로 비교한다", async () => {
+    await call(postsHandler, { method: "GET", query: { species: "없는종" } });
+    expect(whereOf().type).toEqual({ in: ["없는종"] });
+  });
+
+  it("POST: 소분류(강아지) 이름도 그 categoryId 로 저장한다", async () => {
+    mockClient.post.create = jest.fn(async () => ({ id: 1 }));
+    mockClient.user.findUnique.mockResolvedValue({ name: "브리디" });
+    await call(postsHandler, {
+      method: "POST",
+      user: me,
+      body: { title: "제목", description: "내용", image: "img", category: "자유", species: "강아지" },
+    });
+    expect(mockClient.post.create.mock.calls[0][0].data).toMatchObject({ type: "강아지", categoryId: 31 });
   });
 
   it("POST: 종(species)에 맞는 categoryId 를 함께 저장한다", async () => {

@@ -2,17 +2,18 @@
 
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
-import { useSWRConfig } from "swr";
+import useSWR, { useSWRConfig } from "swr";
 
 import Layout from "@components/features/MainLayout";
 import { authFetch } from "@libs/client/authFetch";
 import { toast } from "@libs/client/toast";
 import { cn, makeImageUrl } from "@libs/client/utils";
 import { POST_CATEGORIES } from "@libs/constants";
-import { TOP_LEVEL_CATEGORIES } from "@libs/categoryTaxonomy";
 import { toPostPath } from "@libs/post-route";
 import { toLoginHref } from "@components/features/MainLayout";
 import useConfirmLeave from "hooks/useConfirmLeave";
+import useUser from "hooks/useUser";
+import type { CategoriesResponse } from "@libs/shared/categories";
 import { MY_ACTIVITY_KEY_PREFIXES, POST_KEY_PREFIXES, revalidateByPrefix } from "@libs/client/swrRevalidate";
 import {
   POST_COMPOSER_IMAGE_MAX,
@@ -25,6 +26,7 @@ import {
   type PostFormErrors,
 } from "../_lib/postComposer";
 import { PostPickerSheet } from "./PostPickerSheet";
+import { SpeciesPickerSheet, defaultSpeciesFromPins } from "./SpeciesPickerSheet";
 
 /**
  * 게시글 작성·수정 공용 폼(앱 PostComposer). 시안: bredy_app design/mockups/post-upload/A-karrot.html
@@ -214,6 +216,18 @@ export function PostComposer(props: PostComposerProps) {
 
   const [category, setCategory] = useState(initial?.category ?? "");
   const [species, setSpecies] = useState(initial?.species ?? "");
+  // 새 글은 관심 카테고리를 하나만 고정했으면 그 값을 미리 채운다(바꾸거나 비울 수 있다).
+  // 계정·카테고리 목록이 늦게 오므로 받은 뒤 한 번만 채우고, 그 전에 직접 고르면 채우지 않는다.
+  const { user } = useUser();
+  const pinnedCategoryIds = user?.pinnedCategoryIds;
+  const { data: categoriesData } = useSWR<CategoriesResponse>(isEdit ? null : "/api/categories");
+  const speciesTouchedRef = useRef(isEdit);
+  useEffect(() => {
+    if (speciesTouchedRef.current || !user || !categoriesData) return;
+    speciesTouchedRef.current = true;
+    const preset = defaultSpeciesFromPins(categoriesData.categories, pinnedCategoryIds);
+    if (preset) setSpecies(preset);
+  }, [user, categoriesData, pinnedCategoryIds]);
   const [title, setTitle] = useState(initial?.title ?? "");
   const [description, setDescription] = useState(initial?.description ?? "");
   const [photos, setPhotos] = useState<ComposerPhoto[]>(() =>
@@ -441,7 +455,7 @@ export function PostComposer(props: PostComposerProps) {
         <div className="mx-4 h-px bg-app-line" />
         <SelectRow
           label="관심 생물군"
-          value={TOP_LEVEL_CATEGORIES.find((o) => o.id === species)?.name ?? species}
+          value={species}
           placeholder="선택"
           disabled={isSubmitting}
           onClick={() => setPicker("species")}
@@ -553,14 +567,14 @@ export function PostComposer(props: PostComposerProps) {
         }}
         onClose={() => setPicker(null)}
       />
-      <PostPickerSheet
+      <SpeciesPickerSheet
         open={picker === "species"}
         title="관심 생물군"
-        options={TOP_LEVEL_CATEGORIES}
-        selectedId={species}
-        allowClear
-        onSelect={(id) => {
-          setSpecies(id);
+        value={species}
+        suggestedIds={pinnedCategoryIds}
+        onSelect={(name) => {
+          speciesTouchedRef.current = true;
+          setSpecies(name);
           setPicker(null);
         }}
         onClose={() => setPicker(null)}
