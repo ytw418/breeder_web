@@ -1,4 +1,4 @@
-import type { ModerationTargetType, ReportTargetType, SanctionType } from "@prisma/client";
+import type { ModerationTargetType, ReportTargetType, SanctionType, UserStatus } from "@prisma/client";
 import { REPORT_TARGET_LABEL } from "@libs/shared/report";
 
 /**
@@ -102,6 +102,16 @@ export const REPORT_REASON_TO_SANCTION_REASON: Record<string, SanctionReasonCode
 
 export const defaultSanctionReason = (reportReason: string | null | undefined): SanctionReasonCode =>
   (reportReason && REPORT_REASON_TO_SANCTION_REASON[reportReason]) || "OTHER";
+
+/** 관리자 화면 계정 상태 문구. 기간 정지(새 SUSPENDED·옛 7일·30일)는 모두 '기간 정지'. */
+export const USER_STATUS_LABEL: Record<UserStatus, string> = {
+  ACTIVE: "정상",
+  SUSPENDED: "기간 정지",
+  SUSPENDED_7D: "기간 정지",
+  SUSPENDED_30D: "기간 정지",
+  BANNED: "영구 정지",
+  DELETED: "탈퇴",
+};
 
 // ------------------------------------------------------------
 // 권장 조치 — 최근 180일 경고·정지 수에 따라 다음 단계를 권한다(자동 적용하지 않는다).
