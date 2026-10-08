@@ -7,6 +7,7 @@ import { cn } from "@libs/client/utils";
 import { toast } from "@libs/client/toast";
 import { PRIVACY_POLICY_URL, TERMS_OF_SERVICE_URL } from "@libs/constants";
 import useUser from "hooks/useUser";
+import useCategoryScope from "hooks/useCategoryScope";
 import useLogout from "hooks/useLogout";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -49,6 +50,9 @@ const THEME_OPTIONS: { value: ThemePreference; label: string }[] = [
 /* ------------------------------------------------------------------ */
 
 const ICON_PATHS = {
+  grid: [
+    "M3.75 6A2.25 2.25 0 016 3.75h2.25A2.25 2.25 0 0110.5 6v2.25a2.25 2.25 0 01-2.25 2.25H6a2.25 2.25 0 01-2.25-2.25V6zM3.75 15.75A2.25 2.25 0 016 13.5h2.25a2.25 2.25 0 012.25 2.25V18a2.25 2.25 0 01-2.25 2.25H6A2.25 2.25 0 013.75 18v-2.25zM13.5 6a2.25 2.25 0 012.25-2.25H18A2.25 2.25 0 0120.25 6v2.25A2.25 2.25 0 0118 10.5h-2.25a2.25 2.25 0 01-2.25-2.25V6zM13.5 15.75a2.25 2.25 0 012.25-2.25H18a2.25 2.25 0 012.25 2.25V18A2.25 2.25 0 0118 20.25h-2.25A2.25 2.25 0 0113.5 18v-2.25z",
+  ],
   user: ["M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"],
   box: ["M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"],
   support: [
@@ -215,6 +219,7 @@ function Toggle({
 const SettingsClient = () => {
   const router = useRouter();
   const { user, isAdmin } = useUser();
+  const scope = useCategoryScope();
   const handleLogout = useLogout();
   const { theme, resolvedTheme, setTheme } = useTheme();
   const [themeMounted, setThemeMounted] = useState(false);
@@ -419,6 +424,7 @@ const SettingsClient = () => {
           chevron
           href={user?.id ? `/profiles/${user.id}/sales` : "/myPage"}
         />
+        <Row label="관심 카테고리" icon="grid" value={scope.label} chevron href="/settings/categories" />
         <Row label="차단 관리" icon="shield" chevron href="/settings/blocked-users" />
         <Row label="회원탈퇴" icon="support" chevron href="/settings/delete-account" />
 
