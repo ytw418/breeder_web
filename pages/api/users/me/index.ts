@@ -11,6 +11,8 @@ import {
   REGION_REQUIRED_MESSAGE,
   isValidRegion,
 } from "@libs/shared/regions";
+import { sanitizePinnedCategoryIds } from "@libs/server/categories";
+import { MAX_PINNED_CATEGORIES } from "@libs/shared/categories";
 
 async function handler(
   req: NextApiRequest,
@@ -25,6 +27,19 @@ async function handler(
       });
       const isAdmin = profile ? await hasAdminAccess(profile.id) : false;
 
+      // 고정한 카테고리가 그 사이 숨겨졌거나 없어졌으면 빼고 저장한다(PRD 8: 자동으로 전체 보기).
+      if (profile) {
+        const currentPinned = profile.pinnedCategoryIds ?? [];
+        const pinned = await sanitizePinnedCategoryIds(currentPinned);
+        if (pinned.length !== currentPinned.length) {
+          await client.user.update({
+            where: { id: profile.id },
+            data: { pinnedCategoryIds: pinned },
+          });
+          profile.pinnedCategoryIds = pinned;
+        }
+      }
+
       // console.log("profile :>> ", profile);
       res.json({
         success: true,
@@ -38,6 +53,29 @@ async function handler(
         body: { name, avatarId, regionSido, regionSigungu, regionVisible },
       } = req;
       const body = (req.body ?? {}) as Record<string, unknown>;
+
+      // 관심 카테고리 고정 목록(복수). 빈 배열이면 해제. 없는 id·숨긴 id 는 조용히 뺀다.
+      let savedPinnedCategoryIds: number[] | undefined;
+      if ("pinnedCategoryIds" in body) {
+        const raw = body.pinnedCategoryIds;
+        if (
+          !Array.isArray(raw) ||
+          !raw.every((id) => Number.isInteger(id) && (id as number) > 0)
+        ) {
+          return res.status(400).json({
+            success: false,
+            error: "관심 카테고리 값이 올바르지 않습니다.",
+            errorCode: "INVALID_PINNED_CATEGORIES",
+          });
+        }
+        savedPinnedCategoryIds = (
+          await sanitizePinnedCategoryIds(raw as number[])
+        ).slice(0, MAX_PINNED_CATEGORIES);
+        await client.user.update({
+          where: { id: user?.id },
+          data: { pinnedCategoryIds: savedPinnedCategoryIds },
+        });
+      }
 
       // 내 동네: 두 값을 함께 보낸다. 둘 다 null 이면 해제(노출도 같이 끈다), 목록에 없는 조합은 400.
       const hasRegion = "regionSido" in body || "regionSigungu" in body;
@@ -128,7 +166,12 @@ async function handler(
           },
         });
       }
-      res.json({ success: true });
+      res.json({
+        success: true,
+        ...(savedPinnedCategoryIds !== undefined
+          ? { pinnedCategoryIds: savedPinnedCategoryIds }
+          : {}),
+      });
     }
   } catch (error) {
     console.error("users.me.error", error);

@@ -6,8 +6,9 @@ import { createNotification } from "@libs/server/notification";
 import {
   AUCTION_EXTENSION_MS,
   AUCTION_EXTENSION_WINDOW_MS,
+  getMinimumBid,
   isBidAmountValid,
-  getBidIncrement,
+  resolveBidIncrement,
 } from "@libs/auctionRules";
 import { settleExpiredAuctions } from "@libs/server/auctionSettlement";
 import { extractAuctionIdFromPath } from "@libs/auction-route";
@@ -108,9 +109,9 @@ async function handler(
       });
     }
 
-    // 최소 입찰가 확인
-    const minBidIncrement = getBidIncrement(auction.currentPrice);
-    const minimumBid = auction.currentPrice + minBidIncrement;
+    // 최소 입찰가 확인 — 입찰 단위는 판매자가 등록 때 정한 값(경매 내내 고정)이다.
+    const minBidIncrement = resolveBidIncrement(auction);
+    const minimumBid = getMinimumBid(auction.currentPrice, minBidIncrement);
     if (!Number.isInteger(bidAmount) || bidAmount <= 0) {
       return res.status(400).json({
         success: false,
@@ -119,7 +120,13 @@ async function handler(
       });
     }
 
-    if (!isBidAmountValid({ currentPrice: auction.currentPrice, bidAmount })) {
+    if (
+      !isBidAmountValid({
+        currentPrice: auction.currentPrice,
+        bidAmount,
+        increment: minBidIncrement,
+      })
+    ) {
       return res.status(400).json({
         success: false,
         error: `입찰 금액은 최소 ${minimumBid.toLocaleString()}원 이상이며 ${minBidIncrement.toLocaleString()}원 단위여야 합니다.`,
@@ -147,7 +154,6 @@ async function handler(
         where: { id: auctionId },
         data: {
           currentPrice: bidAmount,
-          minBidIncrement: getBidIncrement(bidAmount),
           endAt: nextEndAt,
         },
       }),

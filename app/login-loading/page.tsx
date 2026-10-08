@@ -11,7 +11,7 @@ export async function generateMetadata(): Promise<Metadata> {
 const Page = async () => {
   return (
     <Suspense>
-      <div className="flex h-full min-h-screen w-full items-center justify-center">
+      <div className="flex h-full min-h-screen w-full items-center justify-center bg-app-bg">
         <KakaoLogin />
       </div>
     </Suspense>

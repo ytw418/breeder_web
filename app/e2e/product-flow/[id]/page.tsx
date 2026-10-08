@@ -29,6 +29,8 @@ const e2eProduct: NonNullable<ItemDetailResponse["product"]> = {
   isFeatured: false,
   reportCount: 0,
   productType: "생물",
+  categoryId: null,
+  dealType: "sale",
   user: {
     id: 999,
     role: "USER",
@@ -36,6 +38,7 @@ const e2eProduct: NonNullable<ItemDetailResponse["product"]> = {
     snsId: "e2e-seller",
     provider: "kakao",
     phone: null,
+    pinnedCategoryIds: [],
     email: "seller@e2e.local",
     name: "테스트 판매자",
     avatar: null,

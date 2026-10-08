@@ -3,6 +3,7 @@ import { unstable_cache } from "next/cache";
 import client from "@libs/server/client";
 import { excludedAuthorIds } from "@libs/server/blocks";
 import { getCategoryFilterValues } from "@libs/categoryTaxonomy";
+import { categoryScopeWhere } from "@libs/server/categories";
 import { HomeBanner, ProductsResponse } from "@libs/shared/home";
 import { HomeFeedResponse } from "@libs/shared/ranking";
 import {
@@ -74,12 +75,16 @@ const SAMPLE_HOME_FEED: HomeFeedResponse = {
 type HomeFeedOptions = {
   userId?: number;
   includePersonalized?: boolean;
+  /** 관심 카테고리 고정 범위(path 쉼표 목록). 있으면 공개 캐시를 거치지 않는다. */
+  categoryPath?: string;
 };
 
 type ProductQueryOptions = {
   page?: number;
   size?: number;
   category?: string;
+  /** 관심 카테고리 고정 범위(path 쉼표 목록). category(이름 필터)와 함께 쓸 수 있다. */
+  categoryPath?: string;
   productType?: string;
   status?: string;
   /** 정확한 가격(원). 0 이면 무료나눔 목록. 0 이상의 정수만 쓴다. */
@@ -117,6 +122,7 @@ const getCachedHomeBanners = unstable_cache(
 const buildHomeFeed = async ({
   userId,
   includePersonalized = true,
+  categoryPath,
 }: HomeFeedOptions = {}): Promise<HomeFeedResponse> => {
   if (!process.env.DATABASE_URL) {
     return SAMPLE_HOME_FEED;
@@ -135,14 +141,14 @@ const buildHomeFeed = async ({
     freeGiveawayProducts,
     hotDiscussions,
   ] = await Promise.all([
-    getBreederRanking({ limit: 10, period: "weekly", userId: resolvedUserId }),
+    getBreederRanking({ limit: 10, period: "weekly", userId: resolvedUserId, categoryPath }),
     getAuctionRanking({ periodScope: "week", limit: 20 }),
     getBloodlineRanking({ limit: 10, period: "weekly" }),
-    getTrendingCommunityPosts({ limit: 6, window: "24h" }),
+    getTrendingCommunityPosts({ limit: 6, window: "24h", categoryPath }),
     resolvedUserId ? getMyRankingSummary(resolvedUserId) : Promise.resolve(null),
     resolvedUserId ? getUserMissionSummary(resolvedUserId) : Promise.resolve([]),
-    getFreeGiveawayProducts({ limit: 6 }),
-    getHotDiscussions({ limit: 5 }),
+    getFreeGiveawayProducts({ limit: 6, categoryPath }),
+    getHotDiscussions({ limit: 5, categoryPath }),
   ]);
 
   const [
@@ -153,7 +159,7 @@ const buildHomeFeed = async ({
   ] = await Promise.all([
     weeklyBreeders.length > 0
       ? Promise.resolve(weeklyBreeders)
-      : getBreederRanking({ limit: 10, period: "all", userId: resolvedUserId }),
+      : getBreederRanking({ limit: 10, period: "all", userId: resolvedUserId, categoryPath }),
     weeklyAuctions.length > 0
       ? Promise.resolve(weeklyAuctions)
       : getAuctionRanking({ periodScope: "all", limit: 20 }),
@@ -162,7 +168,7 @@ const buildHomeFeed = async ({
       : getBloodlineRanking({ limit: 10, period: "all" }),
     recentTrendingPosts.length > 0
       ? Promise.resolve(recentTrendingPosts)
-      : getTrendingCommunityPosts({ limit: 6, window: "all" }),
+      : getTrendingCommunityPosts({ limit: 6, window: "all", categoryPath }),
   ]);
 
   const heroBreederMode = weeklyBreeders.length > 0 ? "weekly" : "all";
@@ -268,6 +274,7 @@ const buildProductsResponse = async ({
   page = 1,
   size = 10,
   category,
+  categoryPath,
   productType,
   status,
   price,
@@ -289,6 +296,11 @@ const buildProductsResponse = async ({
   const where: Record<string, unknown> = { isHidden: false, isDeleted: false };
   if (category && category !== "전체") {
     where.category = { in: getCategoryFilterValues(String(category)) };
+  }
+  // 관심 카테고리 고정 범위. 없으면 숨긴 카테고리 상품만 뺀다.
+  const scope = await categoryScopeWhere(categoryPath);
+  if (Object.keys(scope).length) {
+    where.AND = [scope];
   }
   if (productType && productType !== "전체") {
     where.productType = productType;
@@ -380,7 +392,9 @@ export async function fetchHomeBanners(): Promise<HomeBanner[]> {
 
 export async function getHomeFeed(options: HomeFeedOptions = {}) {
   if (!options.includePersonalized || !options.userId) {
-    return getCachedPublicHomeFeed();
+    return options.categoryPath
+      ? buildHomeFeed({ includePersonalized: false, categoryPath: options.categoryPath })
+      : getCachedPublicHomeFeed();
   }
 
   return buildHomeFeed(options);
@@ -389,6 +403,7 @@ export async function getHomeFeed(options: HomeFeedOptions = {}) {
 export async function getProductsResponse(options: ProductQueryOptions = {}) {
   const isDefaultFirstPage =
     !options.viewerId &&
+    !options.categoryPath &&
     (!options.category || options.category === "전체") &&
     !options.productType &&
     !options.status &&
@@ -412,7 +427,10 @@ export async function getProductsResponse(options: ProductQueryOptions = {}) {
 
 export async function fetchHomeFeed(options: HomeFeedOptions = {}) {
   if (!options.includePersonalized || !options.userId) {
-    return buildHomeFeed({ includePersonalized: false });
+    return buildHomeFeed({
+      includePersonalized: false,
+      categoryPath: options.categoryPath,
+    });
   }
 
   return buildHomeFeed(options);

@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useLayoutEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import useSWR, { useSWRConfig } from "swr";
@@ -21,6 +21,7 @@ import { copyText, absoluteUrl, shareOrCopy } from "@libs/client/share";
 import { cn, getTimeAgoString, makeImageUrl } from "@libs/client/utils";
 import { extractPostIdFromPath, toPostPath } from "@libs/post-route";
 import type { PostDetailResponse } from "pages/api/posts/[id]";
+import { MY_ACTIVITY_KEY_PREFIXES, POST_KEY_PREFIXES, revalidateByPrefix } from "@libs/client/swrRevalidate";
 import { getPostMenuActionKeys, isNoticePost, type PostMenuActionKey } from "../_lib/postComposer";
 import { PostAvatar } from "../_components/PostAvatar";
 
@@ -31,12 +32,6 @@ type BlockTarget = { id: number; name: string };
 const timeAgo = (value: string | Date) => {
   const date = new Date(value);
   return Number.isNaN(date.getTime()) ? "" : getTimeAgoString(date);
-};
-
-/** 게시글 목록 키(무한 목록 포함)·마이페이지 활동 키를 다시 받는다. */
-const isPostListKey = (key: unknown) => {
-  const raw = Array.isArray(key) ? key[0] : key;
-  return typeof raw === "string" && raw.replace(/^\$inf\$/, "").startsWith("/api/posts");
 };
 
 function MoreIcon() {
@@ -123,6 +118,13 @@ function NoticeLink({
   );
 }
 
+/** 댓글 입력칸은 여러 줄로 늘어나다 이 높이(약 5줄)부터 안에서 스크롤한다(채팅 입력창과 같은 값). */
+const COMMENT_MAX_HEIGHT = 112;
+
+/** 터치가 주 입력인 기기(모바일). 이 기기의 키보드 Enter 는 줄바꿈으로 둔다. */
+const isCoarsePointer = () =>
+  typeof window !== "undefined" && Boolean(window.matchMedia?.("(pointer: coarse)").matches);
+
 const PostClient = ({
   post: initialPost,
   prevNotice: initialPrevNotice,
@@ -133,7 +135,9 @@ const PostClient = ({
   const postApiId = Number.isNaN(postId) ? null : postId;
   const router = useRouter();
   const { user, isLoading: userLoading } = useUser();
-  const { mutate: globalMutate } = useSWRConfig();
+  const { mutate: globalMutate, cache: swrCache } = useSWRConfig();
+  const revalidateMyPostActivity = () =>
+    revalidateByPrefix({ cache: swrCache, mutate: globalMutate }, [...POST_KEY_PREFIXES, ...MY_ACTIVITY_KEY_PREFIXES]);
   const { isBlocked, unblock, isPending: blockPending } = useBlocks();
 
   const { data, error, mutate } = useSWR<PostDetailResponse>(
@@ -143,6 +147,7 @@ const PostClient = ({
   const [comment, setComment] = useState("");
   const [likeLoading, setLikeLoading] = useState(false);
   const [commentLoading, setCommentLoading] = useState(false);
+  const commentInputRef = useRef<HTMLTextAreaElement>(null);
   const [sheetOpen, setSheetOpen] = useState(false);
   const [commentSheet, setCommentSheet] = useState<PostComment | null>(null);
   const [reportTarget, setReportTarget] = useState<ReportTarget | null>(null);
@@ -173,6 +178,14 @@ const PostClient = ({
     () => (post ? (post.images?.length ? post.images : post.image ? [post.image] : []) : []),
     [post]
   );
+
+  // 댓글 입력칸 높이를 글 줄 수에 맞춘다(등록 후 비우면 한 줄로 돌아온다).
+  useLayoutEffect(() => {
+    const el = commentInputRef.current;
+    if (!el) return;
+    el.style.height = "auto";
+    el.style.height = `${Math.min(el.scrollHeight, COMMENT_MAX_HEIGHT)}px`;
+  }, [comment]);
   const safeImageIndex = imageIndex < photos.length ? imageIndex : 0;
   const authorBlocked = Boolean(authorId && !isNotice && isBlocked(authorId));
   const loggedOut = !user && !userLoading;
@@ -218,7 +231,7 @@ const PostClient = ({
         body: JSON.stringify({}),
       });
       if (!response.ok) throw new Error("like failed");
-      void globalMutate(isPostListKey);
+      revalidateByPrefix({ cache: swrCache, mutate: globalMutate }, POST_KEY_PREFIXES);
       await mutate();
     } catch {
       void mutate(previous, { revalidate: false });
@@ -248,7 +261,8 @@ const PostClient = ({
       if (response.ok && result?.success) {
         setComment("");
         await mutate();
-        void globalMutate(isPostListKey);
+        // 게시글 목록 댓글 수와 마이페이지·내 프로필 댓글 목록·수(앱 invalidateMyActivity)
+        revalidateMyPostActivity();
         toast.success("댓글이 등록되었습니다.");
         return;
       }
@@ -280,7 +294,7 @@ const PostClient = ({
       }
       setDeleteOpen(false);
       toast.success("게시글이 삭제되었습니다.");
-      void globalMutate(isPostListKey);
+      revalidateMyPostActivity();
       router.replace("/posts");
     } catch {
       toast.error("게시글 삭제에 실패했습니다.");
@@ -554,7 +568,7 @@ const PostClient = ({
         </div>
 
         {/* 입력바: pill 44 surface + 32 주황 원형 전송 */}
-        <div className="fixed inset-x-0 bottom-0 z-30 border-t border-app-line bg-app-bg">
+        <div className="fixed inset-x-0 bottom-0 mx-auto max-w-xl z-30 border-t border-app-line bg-app-bg">
           <div className="mx-auto max-w-xl">
             {loggedOut ? (
               <button
@@ -573,21 +587,35 @@ const PostClient = ({
                 }}
                 className="flex items-center gap-2 px-3 pb-[max(calc(env(safe-area-inset-bottom)+8px),16px)] pt-2"
               >
-                <div className="flex h-11 flex-1 items-center rounded-[22px] bg-app-surface pl-4 pr-1.5">
-                  <input
+                <div className="flex min-h-[44px] flex-1 items-end rounded-[22px] bg-app-surface pl-4 pr-1.5">
+                  {/* 여러 줄 입력(모바일 키보드 Enter 는 줄바꿈). 데스크톱은 Enter 로 등록, Shift+Enter 로 줄바꿈. */}
+                  <textarea
+                    ref={commentInputRef}
+                    rows={1}
                     value={comment}
                     onChange={(event) => setComment(event.target.value)}
+                    onKeyDown={(event) => {
+                      if (
+                        event.key === "Enter" &&
+                        !event.shiftKey &&
+                        !event.nativeEvent.isComposing &&
+                        !isCoarsePointer()
+                      ) {
+                        event.preventDefault();
+                        void handleCommentSubmit();
+                      }
+                    }}
                     placeholder="댓글을 입력해주세요"
                     aria-label="댓글 입력"
                     disabled={commentLoading}
-                    className="h-11 min-w-0 flex-1 border-0 bg-transparent p-0 text-[15px] text-app-text outline-none placeholder:text-app-caption focus:ring-0"
+                    className="max-h-[112px] min-h-[44px] min-w-0 flex-1 resize-none border-0 bg-transparent p-0 py-[11px] text-[15px] leading-[22px] text-app-text outline-none placeholder:text-app-caption focus:ring-0"
                   />
                   <button
                     type="submit"
                     aria-label="댓글 등록"
                     disabled={!canSubmitComment}
                     className={cn(
-                      "grid h-8 w-8 shrink-0 place-items-center rounded-full bg-app-brand text-white",
+                      "mb-1.5 grid h-8 w-8 shrink-0 place-items-center rounded-full bg-app-brand text-white",
                       canSubmitComment ? "opacity-100" : "opacity-40"
                     )}
                   >

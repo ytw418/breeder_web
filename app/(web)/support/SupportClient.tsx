@@ -4,9 +4,15 @@ import { authFetch } from "@libs/client/authFetch";
 import { FormEvent, useEffect, useMemo, useState } from "react";
 import Layout from "@components/features/MainLayout";
 import { cn } from "@libs/client/utils";
+import { useSearchParams } from "next/navigation";
 import useUser from "hooks/useUser";
-
-type VoiceType = "BUG_REPORT" | "FEATURE_REQUEST" | "DEV_TEAM_REQUEST";
+import {
+  EMPTY_SUPPORT_PREFILL,
+  parseSupportPrefill,
+  supportPrefillKey,
+  type SupportPrefill,
+  type VoiceType,
+} from "./supportPrefill";
 
 const FEEDBACK_TYPE_OPTIONS: { value: VoiceType; label: string; hint: string }[] = [
   {
@@ -33,13 +39,25 @@ const LABEL_CLASS = "block text-[15px] font-semibold text-app-text";
 const INPUT_CLASS =
   "mt-2.5 w-full rounded-lg border border-app-border bg-app-bg px-3.5 text-[15px] text-app-text outline-none placeholder:text-app-caption focus:border-app-text focus:ring-0";
 
-/** 고객의 소리(앱 support/index.tsx): 유형 칩 + 안내, 제목·내용·회신 이메일, 하단 고정 '접수하기'. */
+/**
+ * 고객의 소리(앱 support/index.tsx): ?type=&title=&description=&contactEmail= 프리필.
+ * useSearchParams 를 쓰므로 page.tsx 에서 Suspense(fallback=빈 폼)로 감싼다.
+ */
 export default function SupportClient() {
+  const searchParams = useSearchParams();
+  const prefill = useMemo(() => parseSupportPrefill(searchParams), [searchParams]);
+  return <SupportForm key={supportPrefillKey(prefill)} initial={prefill} />;
+}
+
+/** 유형 칩 + 안내, 제목·내용·회신 이메일, 하단 고정 '접수하기'. */
+export function SupportForm({ initial = EMPTY_SUPPORT_PREFILL }: { initial?: SupportPrefill }) {
   const { user } = useUser();
-  const [type, setType] = useState<VoiceType>("BUG_REPORT");
-  const [title, setTitle] = useState("");
-  const [description, setDescription] = useState("");
-  const [contactEmail, setContactEmail] = useState(String(user?.email || ""));
+  const [type, setType] = useState<VoiceType>(initial.type);
+  const [title, setTitle] = useState(initial.title);
+  const [description, setDescription] = useState(initial.description);
+  const [contactEmail, setContactEmail] = useState(
+    initial.contactEmail || String(user?.email || ""),
+  );
   const [emailTouched, setEmailTouched] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [message, setMessage] = useState("");
@@ -201,7 +219,7 @@ export default function SupportClient() {
         </div>
 
         {/* 하단 고정 CTA */}
-        <div className="fixed inset-x-0 bottom-0 z-30 border-t border-app-border bg-app-bg">
+        <div className="fixed inset-x-0 bottom-0 z-30 mx-auto max-w-xl border-t border-app-border bg-app-bg">
           <div className="mx-auto max-w-xl px-5 pb-[calc(12px+env(safe-area-inset-bottom))] pt-3">
             <button
               type="submit"

@@ -13,6 +13,7 @@ import { TOP_LEVEL_CATEGORIES } from "@libs/categoryTaxonomy";
 import { toPostPath } from "@libs/post-route";
 import { toLoginHref } from "@components/features/MainLayout";
 import useConfirmLeave from "hooks/useConfirmLeave";
+import { MY_ACTIVITY_KEY_PREFIXES, POST_KEY_PREFIXES, revalidateByPrefix } from "@libs/client/swrRevalidate";
 import {
   POST_COMPOSER_IMAGE_MAX,
   canSubmitPost,
@@ -47,12 +48,6 @@ interface PostMutationResponse {
   error?: string;
   message?: string;
 }
-
-/** /api/posts 로 시작하는 SWR 키(무한 목록 포함)를 다시 받는다. */
-const isPostListKey = (key: unknown) => {
-  const raw = Array.isArray(key) ? key[0] : key;
-  return typeof raw === "string" && raw.replace(/^\$inf\$/, "").startsWith("/api/posts");
-};
 
 async function uploadPostImage(file: File, title: string): Promise<string> {
   const urlResponse = await authFetch("/api/files");
@@ -211,7 +206,9 @@ const nextPhotoKey = () => {
 
 export function PostComposer(props: PostComposerProps) {
   const router = useRouter();
-  const { mutate: globalMutate } = useSWRConfig();
+  const { mutate: globalMutate, cache: swrCache } = useSWRConfig();
+  const revalidateMyPostActivity = () =>
+    revalidateByPrefix({ cache: swrCache, mutate: globalMutate }, [...POST_KEY_PREFIXES, ...MY_ACTIVITY_KEY_PREFIXES]);
   const initial = props.mode === "edit" ? props.initial : null;
   const isEdit = initial !== null;
 
@@ -358,7 +355,7 @@ export function PostComposer(props: PostComposerProps) {
           toast.error(result?.error || result?.message || "게시글 수정에 실패했습니다.");
           return;
         }
-        void globalMutate(isPostListKey);
+        revalidateMyPostActivity();
         toast.success("게시글이 수정되었습니다.");
         const postPath = toPostPath(initial.postId, title.trim());
         leaving = true;
@@ -370,7 +367,7 @@ export function PostComposer(props: PostComposerProps) {
         toast.error(result?.error || result?.message || "게시글 등록에 실패했습니다.");
         return;
       }
-      void globalMutate(isPostListKey);
+      revalidateMyPostActivity();
       toast.success("게시글이 등록되었습니다.");
       const postPath = toPostPath(result.post.id, result.post.title);
       leaving = true;
@@ -519,7 +516,7 @@ export function PostComposer(props: PostComposerProps) {
       </div>
 
       {/* 하단 바: 카메라 + n/10 */}
-      <div className="fixed inset-x-0 bottom-0 z-30 border-t border-app-line bg-app-bg pb-[env(safe-area-inset-bottom)]">
+      <div className="fixed inset-x-0 bottom-0 mx-auto max-w-xl z-30 border-t border-app-line bg-app-bg pb-[env(safe-area-inset-bottom)]">
         <div className="mx-auto flex h-[52px] max-w-xl items-center gap-1.5 px-4">
           <button
             type="button"

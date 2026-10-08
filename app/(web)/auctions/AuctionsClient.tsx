@@ -7,8 +7,6 @@ import useSWRInfinite from "swr/infinite";
 import Layout from "@components/features/MainLayout";
 import FloatingButton from "@components/atoms/floating-button";
 import { FilterChip, FilterChipRail } from "@components/app/FilterChip";
-import { QueryErrorState } from "@components/app/QueryErrorState";
-import { EmptyState } from "@components/app/EmptyState";
 import { RetryFooter } from "@components/app/RetryFooter";
 import { cn } from "@libs/client/utils";
 import { uniqueAuctionsById } from "@libs/auctionRules";
@@ -57,6 +55,33 @@ function ChevronRight() {
     <svg width={12} height={12} viewBox="0 0 24 24" fill="none" aria-hidden>
       <path d="m9 5 7 7-7 7" stroke="currentColor" strokeWidth={1.5} strokeLinecap="round" strokeLinejoin="round" />
     </svg>
+  );
+}
+
+/** 목록 조회 실패(앱 AuctionListStates AuctionErrorState 와 같은 문구·모양). */
+function AuctionErrorState({ onRetry }: { onRetry: () => void }) {
+  return (
+    <div role="alert" className="flex flex-col items-center rounded-lg border border-app-border bg-app-elevated px-4 py-8">
+      <p className="text-[14px] font-semibold text-app-strong">경매 목록을 불러오지 못했습니다</p>
+      <p className="mt-1 text-center text-[12px] leading-relaxed text-app-muted">잠시 후 다시 시도해주세요.</p>
+      <button
+        type="button"
+        onClick={onRetry}
+        className="mt-4 h-9 rounded-lg bg-app-inverse px-3 text-[12px] font-semibold text-app-inverse-text"
+      >
+        다시 불러오기
+      </button>
+    </div>
+  );
+}
+
+/** 빈 목록(앱 AuctionEmptyState). */
+function AuctionEmptyState() {
+  return (
+    <div className="flex flex-col items-center justify-center py-20">
+      <p className="text-[18px] font-medium text-app-muted">조건에 맞는 경매가 없습니다</p>
+      <p className="mt-1 text-[14px] text-app-muted">첫 경매를 등록해 보세요!</p>
+    </div>
   );
 }
 
@@ -227,17 +252,11 @@ export default function AuctionsClient() {
           {isLoading ? (
             <AuctionSkeletonGrid />
           ) : error && auctions.length === 0 ? (
-            <QueryErrorState
-              className="py-12"
-              title="경매 목록을 불러오지 못했어요"
-              onRetry={() => void mutate()}
-            />
+            <div className="py-4">
+              <AuctionErrorState onRetry={() => void mutate()} />
+            </div>
           ) : auctions.length === 0 ? (
-            <EmptyState
-              className="py-20"
-              title="조건에 맞는 경매가 없습니다"
-              description="첫 경매를 등록해 보세요!"
-            />
+            <AuctionEmptyState />
           ) : (
             <>
               <div className="grid grid-cols-2 gap-3 py-4">

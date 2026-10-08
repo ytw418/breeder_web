@@ -15,6 +15,7 @@ import type { BreederProgramSummary } from "@libs/shared/breeder-program";
 import { resolvePostImagesInput, withPostImages } from "@libs/postImages";
 import { canWriteNoticePost, isNoticePostInput } from "@libs/server/postNotice";
 import { excludedAuthorIds, setViewerCacheHeader } from "@libs/server/blocks";
+import { categoryScopeWhere, resolveCategoryIdByName } from "@libs/server/categories";
 import { REGION_REQUIRED_MESSAGE } from "@libs/shared/regions";
 
 /** 동네 글 카테고리. 앱 전용이라 POST_CATEGORIES(웹 UI 목록)에는 넣지 않는다. 등록 시 작성자 동네를 글에 복사한다. */
@@ -46,7 +47,7 @@ const handler = async (
 ) => {
   if (req.method === "GET") {
     const {
-      query: { page = 1, category, sort, species, regionSido, regionSigungu },
+      query: { page = 1, category, sort, species, regionSido, regionSigungu, categoryPath },
     } = req;
     const selectedSort =
       typeof sort === "string" && ["latest", "popular", "comments"].includes(sort)
@@ -74,6 +75,12 @@ const handler = async (
 
     if (species && species !== "전체") {
       where.type = { in: getCategoryFilterValues(String(species)) };
+    }
+
+    // 관심 카테고리 고정 범위(path 쉼표 목록). 없으면 숨긴 카테고리 글만 뺀다.
+    const scope = await categoryScopeWhere(categoryPath);
+    if (Object.keys(scope).length) {
+      where.AND = [scope];
     }
 
     // 동네 글: 시/도만 주면 시/도 전체, 시/군/구까지 주면 그 동네만.
@@ -212,6 +219,7 @@ const handler = async (
         description,
         category: category || null,
         type: species || null,
+        categoryId: await resolveCategoryIdByName(species),
         ...(region ?? {}),
         user: {
           connect: {

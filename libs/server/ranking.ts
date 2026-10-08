@@ -11,7 +11,9 @@ import {
   RankingPeriod,
   SeasonBadgeItem,
   TrendingPostItem,
+  scoreScopedBreeder,
 } from "@libs/shared/ranking";
+import { categoryScopeWhere, resolveScopeCategoryIds } from "@libs/server/categories";
 import {
   findCategoryBranch,
   getCategoryFilterValues,
@@ -107,6 +109,7 @@ const fetchUserBadges = async (userIds: number[]) => {
 const countByGroup = async (
   model:
     | "post"
+    | "product"
     | "comment"
     | "bid"
     | "auctionByWinner"
@@ -118,6 +121,10 @@ const countByGroup = async (
 ): Promise<CountRow[]> => {
   if (model === "post") {
     const rows = await client.post.groupBy({ by: ["userId"], where, _count: { _all: true } });
+    return rows.map((row) => ({ key: row.userId, count: row._count._all }));
+  }
+  if (model === "product") {
+    const rows = await client.product.groupBy({ by: ["userId"], where, _count: { _all: true } });
     return rows.map((row) => ({ key: row.userId, count: row._count._all }));
   }
   if (model === "comment") {
@@ -157,17 +164,125 @@ const countByGroup = async (
 const getRankMap = <T extends { key: number; score: number }>(items: T[]) =>
   new Map(items.map((item, index) => [item.key, { rank: index + 1, score: item.score }]));
 
+/**
+ * 카테고리 범위(고정) 탑브리더. 범위 안 게시글·상품만 세고 scoreScopedBreeder 로 점수를 매긴다.
+ * 전체 랭킹(scoreBreeder)과 점수식이 달라 섞어 비교하지 않는다.
+ */
+const getScopedBreederRanking = async ({
+  limit,
+  period,
+  baseDate,
+  categoryIds,
+}: {
+  limit: number;
+  period: RankingPeriod;
+  baseDate?: Date;
+  categoryIds: number[];
+}): Promise<BreederRankingItem[]> => {
+  if (categoryIds.length === 0) return [];
+  const current = getKstWeekWindow(baseDate);
+  const previous = getPreviousKstWeekWindow(baseDate);
+  const scopeFilter = { categoryId: { in: categoryIds } };
+  const postBase = { ...scopeFilter, isHidden: false, category: { not: "공지" } };
+  const productBase = { ...scopeFilter, isHidden: false, isDeleted: false };
+  const windowOf = (window: { startAt: Date; endAt: Date }) => ({
+    createdAt: { gte: window.startAt, lte: window.endAt },
+  });
+
+  const [users, currentPosts, currentProducts] = await Promise.all([
+    client.user.findMany({
+      where: { status: "ACTIVE" },
+      select: { id: true, name: true, avatar: true },
+    }),
+    countByGroup("post", {
+      ...postBase,
+      ...(period === "weekly" ? windowOf(current) : {}),
+    }),
+    countByGroup("product", {
+      ...productBase,
+      ...(period === "weekly" ? windowOf(current) : {}),
+    }),
+  ]);
+  const [previousPosts, previousProducts] =
+    period === "weekly"
+      ? await Promise.all([
+          countByGroup("post", { ...postBase, ...windowOf(previous) }),
+          countByGroup("product", { ...productBase, ...windowOf(previous) }),
+        ])
+      : [[], []];
+
+  const maps = {
+    currentPosts: toCountMap(currentPosts),
+    currentProducts: toCountMap(currentProducts),
+    previousPosts: toCountMap(previousPosts),
+    previousProducts: toCountMap(previousProducts),
+  };
+
+  const currentScored = users
+    .map((user) => {
+      const counts = {
+        postsCount: maps.currentPosts.get(user.id) ?? 0,
+        productsCount: maps.currentProducts.get(user.id) ?? 0,
+      };
+      return { key: user.id, user, ...counts, score: scoreScopedBreeder(counts) };
+    })
+    .filter((item) => item.score > 0)
+    .sort((a, b) => b.score - a.score || a.user.name.localeCompare(b.user.name, "ko"));
+
+  const previousScored = users
+    .map((user) => ({
+      key: user.id,
+      score: scoreScopedBreeder({
+        postsCount: maps.previousPosts.get(user.id) ?? 0,
+        productsCount: maps.previousProducts.get(user.id) ?? 0,
+      }),
+    }))
+    .filter((item) => item.score > 0)
+    .sort((a, b) => b.score - a.score || a.key - b.key);
+
+  const previousRankMap = getRankMap(previousScored);
+  const top = currentScored.slice(0, limit);
+  const badgeMap = await fetchUserBadges(top.map((item) => item.key));
+
+  return top.map((item, index) => {
+    const previousMeta = previousRankMap.get(item.key);
+    return {
+      rank: index + 1,
+      previousRank: previousMeta?.rank ?? null,
+      rankDelta: previousMeta ? previousMeta.rank - (index + 1) : 0,
+      score: item.score,
+      scoreDelta: item.score - (previousMeta?.score ?? 0),
+      postsCount: item.postsCount,
+      commentsCount: 0,
+      bidsCount: 0,
+      auctionWinsCount: 0,
+      sellerEndedAuctionsCount: 0,
+      productsCount: item.productsCount,
+      user: item.user,
+      badges: badgeMap.get(item.key) ?? [],
+    };
+  });
+};
+
 export const getBreederRanking = async ({
   limit = 20,
   period = "weekly",
   userId,
   baseDate,
+  categoryPath,
 }: {
   limit?: number;
   period?: RankingPeriod;
   userId?: number;
   baseDate?: Date;
+  /** 관심 카테고리 고정 범위(path 쉼표 목록). 있으면 범위 안 게시글·상품만 집계한다. */
+  categoryPath?: string;
 } = {}): Promise<BreederRankingItem[]> => {
+  const scopedIds = await resolveScopeCategoryIds(categoryPath);
+  if (scopedIds) {
+    return getScopedBreederRanking({ limit, period, baseDate, categoryIds: scopedIds });
+  }
+
   // KST 현재 주/직전 주를 같은 기준으로 잘라야 rankDelta와 scoreDelta가 흔들리지 않는다.
   const current = getKstWeekWindow(baseDate);
   const previous = getPreviousKstWeekWindow(baseDate);
@@ -311,13 +426,16 @@ export const getBreederRanking = async ({
 export const getTrendingCommunityPosts = async ({
   limit = 10,
   window = "24h",
+  categoryPath,
 }: {
   limit?: number;
   window?: CommunityWindow;
+  categoryPath?: string;
 } = {}): Promise<TrendingPostItem[]> => {
   const now = new Date();
   const recentBoundary = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
   const windowStart = new Date(now.getTime() - 24 * 60 * 60 * 1000);
+  const scope = await categoryScopeWhere(categoryPath);
 
   const [likeRows, commentRows, posts] = await Promise.all([
     countByGroup(
@@ -334,6 +452,7 @@ export const getTrendingCommunityPosts = async ({
         NOT: { category: "공지" },
         isHidden: false,
         user: { status: "ACTIVE" },
+        AND: [scope],
       },
       select: {
         id: true,
@@ -604,13 +723,16 @@ export const getMyRankingSummary = async (userId: number): Promise<RankingMeSumm
 
 export const getFreeGiveawayProducts = async ({
   limit = 6,
-}: { limit?: number } = {}): Promise<FreeProductItem[]> => {
+  categoryPath,
+}: { limit?: number; categoryPath?: string } = {}): Promise<FreeProductItem[]> => {
+  const scope = await categoryScopeWhere(categoryPath);
   const products = await client.product.findMany({
     where: {
       price: 0,
       status: "판매중",
       isDeleted: false,
       isHidden: false,
+      AND: [scope],
     },
     select: {
       id: true,
@@ -643,13 +765,16 @@ const DAY_MS = 24 * 60 * 60 * 1000;
 
 export const getHotDiscussions = async ({
   limit = 5,
-}: { limit?: number } = {}): Promise<HotDiscussionItem[]> => {
+  categoryPath,
+}: { limit?: number; categoryPath?: string } = {}): Promise<HotDiscussionItem[]> => {
+  const scope = await categoryScopeWhere(categoryPath);
   const findRankedPosts = async (since: Date | null) => {
     const posts = await client.post.findMany({
       where: {
         category: { in: ["질문", "자유", "정보"] },
         isHidden: false,
         user: { status: "ACTIVE" },
+        AND: [scope],
         ...(since ? { createdAt: { gte: since } } : {}),
       },
       select: {

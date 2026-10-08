@@ -172,7 +172,7 @@ export default function DeleteAccountClient() {
         {section}
       </div>
 
-      <div className="fixed inset-x-0 bottom-0 z-30 border-t border-app-line bg-app-bg">
+      <div className="fixed inset-x-0 bottom-0 mx-auto max-w-xl z-30 border-t border-app-line bg-app-bg">
         <div className="mx-auto max-w-xl px-4 pb-[calc(8px+env(safe-area-inset-bottom))] pt-2">
           <button
             type="button"

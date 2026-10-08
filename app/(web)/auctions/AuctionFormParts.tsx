@@ -1,9 +1,15 @@
 "use client";
 
-import { useEffect, type ReactNode } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import Image from "@components/atoms/Image";
+import { PriceInput } from "@components/app/PriceInput";
 import { authFetch } from "@libs/client/authFetch";
 import { cn, makeImageUrl } from "@libs/client/utils";
+import {
+  AUCTION_BID_INCREMENT_RANGE_TEXT,
+  AUCTION_MAX_BID_INCREMENT,
+  isBidIncrementValid,
+} from "@libs/auctionRules";
 
 /** 경매 등록·수정 폼 공용 조각(앱 AuctionCreateForm / edit.tsx 와 같은 치수). */
 
@@ -65,6 +71,61 @@ export function ErrorText({ message }: { message?: string }) {
 
 export function HelpText({ children }: { children: ReactNode }) {
   return <p className="mt-1.5 text-[13px] text-app-muted">{children}</p>;
+}
+
+export const BID_INCREMENT_ERROR = `최소 입찰 단위는 ${AUCTION_BID_INCREMENT_RANGE_TEXT}로 정해주세요.`;
+
+/**
+ * 최소 입찰 단위 입력 상태(앱 useBidIncrementInput). 직접 고치기 전에는 base(등록: 시작가 추천값,
+ * 수정: 저장값)를 따르고, 비운 채 칸을 나가면 다시 base 를 따른다.
+ */
+export function useBidIncrementInput(base: number) {
+  const [input, setInput] = useState<number | null>(null);
+  const [touched, setTouched] = useState(false);
+  const value = touched ? input : base;
+  return {
+    value,
+    touched,
+    isValid: value !== null && isBidIncrementValid(value),
+    onChange: (next: number | null) => {
+      setTouched(true);
+      setInput(next);
+    },
+    onBlur: () => {
+      if (input === null) setTouched(false);
+    },
+  };
+}
+
+/** 최소 입찰 단위 입력칸(시작가와 같은 PriceInput). 판매자가 정하고, 입찰은 현재가에서 이 단위로 올라간다. */
+export function BidIncrementField({
+  value,
+  onChange,
+  onBlur,
+  error,
+}: {
+  value: number | null;
+  onChange: (value: number | null) => void;
+  onBlur: () => void;
+  error?: string;
+}) {
+  return (
+    <div>
+      <FieldLabel label="최소 입찰 단위" htmlFor="auction-bid-increment" />
+      <PriceInput
+        id="auction-bid-increment"
+        value={value}
+        onChange={onChange}
+        onBlur={onBlur}
+        max={AUCTION_MAX_BID_INCREMENT}
+        prefix="₩"
+        placeholder="1,000"
+        className={error ? "border-app-danger" : undefined}
+      />
+      <HelpText>입찰가는 이 금액 단위로 올라가요. {AUCTION_BID_INCREMENT_RANGE_TEXT}로 정할 수 있어요.</HelpText>
+      <ErrorText message={error} />
+    </div>
+  );
 }
 
 /** 폼 칩(앱 Chip): h32 r16 px14 14px 500, 선택 text 채움. */
@@ -280,7 +341,7 @@ export function BottomCta({
   type?: "button" | "submit";
 }) {
   return (
-    <div className="fixed inset-x-0 bottom-0 z-40 border-t border-app-line bg-app-bg">
+    <div className="fixed inset-x-0 bottom-0 mx-auto max-w-xl z-40 border-t border-app-line bg-app-bg">
       <div className="mx-auto max-w-xl px-5 pt-2 pb-[calc(8px+env(safe-area-inset-bottom))]">
         {errorText ? <p className="mb-2 text-[13px] text-app-danger">{errorText}</p> : null}
         <button

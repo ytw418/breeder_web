@@ -10,6 +10,8 @@ import type { NextApiRequest, NextApiResponse } from "next";
 process.env.DATABASE_URL = process.env.DATABASE_URL || "postgresql://test";
 
 const mockClient = {
+  // 카테고리 고정 범위 헬퍼(libs/server/categories)가 읽는 트리. 비우면 범위 조건을 붙이지 않는다.
+  category: { findMany: jest.fn(async () => []) },
   product: { findMany: jest.fn(), count: jest.fn() },
   userBlock: { findMany: jest.fn() },
 };

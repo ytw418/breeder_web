@@ -11,9 +11,10 @@
 import { FormEvent, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
-import useSWR from "swr";
+import useSWR, { useSWRConfig } from "swr";
 import { authFetch } from "@libs/client/authFetch";
 import { fetchBloodlineCardEvents } from "@libs/client/bloodlineCardEvents";
+import { BLOODLINE_LIST_KEY_PREFIXES, revalidateByPrefix } from "@libs/client/swrRevalidate";
 import Layout from "@components/features/MainLayout";
 import { Input } from "@components/ui/input";
 import { QueryErrorState } from "@components/app/QueryErrorState";
@@ -163,6 +164,10 @@ export default function BloodlineCardDetailClient({ cardId }: { cardId: number }
   } = useSWR<BloodlineCardDetailResponse>(`/api/bloodline-cards/${cardId}`, {
     shouldRetryOnError: false,
   });
+  const { mutate: globalMutate, cache: swrCache } = useSWRConfig();
+  /** 카드를 보내거나 라인을 만들면 혈통관리·마이페이지·이벤트·프로필 혈통 목록을 다시 받는다(앱 invalidateBloodlineLists). */
+  const invalidateBloodlineLists = () =>
+    revalidateByPrefix({ cache: swrCache, mutate: globalMutate }, BLOODLINE_LIST_KEY_PREFIXES);
 
   const card = detailData?.card || null;
   const bloodlineSourceCard = detailData?.bloodlineSourceCard || null;
@@ -368,6 +373,7 @@ export default function BloodlineCardDetailClient({ cardId }: { cardId: number }
       setToUserId(undefined);
       setTransferNote("");
       setCandidates([]);
+      invalidateBloodlineLists();
       await mutateCard();
     } catch (error) {
       setErrorMsg(error instanceof Error ? error.message : "카드 보내기 중 오류가 발생했습니다.");
@@ -394,6 +400,7 @@ export default function BloodlineCardDetailClient({ cardId }: { cardId: number }
       setSuccessMsg(`라인 카드 발급 완료: ${payload.card?.name || "요청한 라인"}`);
       setActiveAction(null);
       setLineName("");
+      invalidateBloodlineLists();
       await mutateCard();
     } catch (error) {
       setErrorMsg(

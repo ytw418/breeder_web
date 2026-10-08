@@ -4,6 +4,8 @@
 import type { NextApiRequest, NextApiResponse } from "next";
 
 const mockClient = {
+  // 카테고리 고정 범위 헬퍼(libs/server/categories)가 읽는 트리. 비우면 범위 조건을 붙이지 않는다.
+  category: { findMany: jest.fn(async () => []) },
   post: { create: jest.fn(), findMany: jest.fn(), count: jest.fn() },
   user: { findUnique: jest.fn() },
   userBlock: { findMany: jest.fn() },

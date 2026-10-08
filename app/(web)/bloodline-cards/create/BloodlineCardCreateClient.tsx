@@ -124,6 +124,10 @@ export default function BloodlineCardCreateClient() {
   const [variant, setVariant] = useState<BloodlineCardVisualStyle>("noir");
   const [imageFile, setImageFile] = useState<File | null>(null);
   const [imagePreview, setImagePreview] = useState("");
+  // 고르는 즉시 업로드한다(앱 pickImage). 업로드 중에는 CTA 를 막는다.
+  const [imageId, setImageId] = useState("");
+  const [imageUploading, setImageUploading] = useState(false);
+  const uploadSeqRef = useRef(0);
   const [nameError, setNameError] = useState("");
   const [descriptionError, setDescriptionError] = useState("");
   const [imageError, setImageError] = useState("");
@@ -143,10 +147,10 @@ export default function BloodlineCardCreateClient() {
     return () => URL.revokeObjectURL(url);
   }, [imageFile]);
 
-  const handleImageChange = (event: ChangeEvent<HTMLInputElement>) => {
+  const handleImageChange = async (event: ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     event.target.value = "";
-    if (!file) return;
+    if (!file || imageUploading || creating) return;
     const type = file.type?.toLowerCase() || "";
     const ext = getFileExtension(file.name || "");
     const isImage =
@@ -162,16 +166,33 @@ export default function BloodlineCardCreateClient() {
     }
     setImageError("");
     setImageFile(file);
+    setImageId("");
+
+    const seq = ++uploadSeqRef.current;
+    setImageUploading(true);
+    try {
+      const id = await uploadCardImage(file);
+      if (seq === uploadSeqRef.current) setImageId(id);
+    } catch (error) {
+      if (seq !== uploadSeqRef.current) return;
+      setImageError(error instanceof Error ? error.message : "이미지 업로드에 실패했습니다.");
+      setImageFile(null);
+    } finally {
+      if (seq === uploadSeqRef.current) setImageUploading(false);
+    }
   };
 
   const removeImage = () => {
+    uploadSeqRef.current += 1;
     setImageFile(null);
+    setImageId("");
+    setImageUploading(false);
     setImageError("");
   };
 
   const handleSubmit = async (event?: FormEvent) => {
     event?.preventDefault();
-    if (creating) return;
+    if (creating || imageUploading) return;
     setFormError("");
     setNameError("");
     setDescriptionError("");
@@ -196,7 +217,7 @@ export default function BloodlineCardCreateClient() {
 
     setCreating(true);
     try {
-      const image = imageFile ? await uploadCardImage(imageFile) : "";
+      const image = imageId;
       const response = await authFetch("/api/bloodline-cards", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -225,6 +246,7 @@ export default function BloodlineCardCreateClient() {
       setCardName("");
       setCardDescription("");
       setImageFile(null);
+      setImageId("");
       router.replace(
         `/bloodline-management/card/${createdId}?celebration=card-created&name=${encodeURIComponent(nextName)}`
       );
@@ -314,11 +336,17 @@ export default function BloodlineCardCreateClient() {
               className={cn(
                 "flex h-20 w-20 cursor-pointer flex-col items-center justify-center rounded-lg border bg-app-bg",
                 imageError ? "border-app-brand" : "border-app-border",
-                creating && "pointer-events-none opacity-60"
+                (creating || imageUploading) && "pointer-events-none opacity-60"
               )}
             >
-              <CameraIcon />
-              <span className="mt-1 text-[12px] text-app-muted">{imageFile ? "1/1" : "0/1"}</span>
+              {imageUploading ? (
+                <BloodlineSpinner className="h-5 w-5" />
+              ) : (
+                <>
+                  <CameraIcon />
+                  <span className="mt-1 text-[12px] text-app-muted">{imageFile ? "1/1" : "0/1"}</span>
+                </>
+              )}
             </label>
             <input
               id="bloodline-card-image"
@@ -326,8 +354,8 @@ export default function BloodlineCardCreateClient() {
               type="file"
               accept="image/*"
               className="sr-only"
-              onChange={handleImageChange}
-              disabled={creating}
+              onChange={(event) => void handleImageChange(event)}
+              disabled={creating || imageUploading}
             />
             {imagePreview ? (
               <div className="relative h-20 w-20">
@@ -377,7 +405,7 @@ export default function BloodlineCardCreateClient() {
       <BloodlineBottomBarSpacer />
       <BloodlineBottomBar>
         <BloodlinePrimaryButton
-          disabled={creating}
+          disabled={creating || imageUploading}
           onClick={() => void handleSubmit()}
         >
           {creating ? "만드는 중..." : "혈통카드 만들기"}

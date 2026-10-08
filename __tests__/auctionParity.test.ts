@@ -86,6 +86,10 @@ describe("getAuctionResultMessage", () => {
       "이미 종료된 경매입니다."
     );
   });
+  it("입찰 단위 위반은 경매마다 단위가 달라 서버 문구(최소가·단위)를 그대로 보여준다", () => {
+    const error = "입찰 금액은 최소 60,000원 이상이며 5,000원 단위여야 합니다.";
+    expect(getAuctionResultMessage({ errorCode: "BID_AMOUNT_RULE_VIOLATION", error, status: 400 }, "f")).toBe(error);
+  });
   it("4xx 서버 문구", () => {
     expect(getAuctionResultMessage({ error: "서버 사유", status: 409 }, "f")).toBe("서버 사유");
   });

@@ -11,6 +11,7 @@ import { formatAmountInput, parseAmount, toAmountDigits } from "@libs/shared/pri
 export function PriceInput({
   value,
   onChange,
+  onBlur,
   placeholder,
   max,
   disabled,
@@ -21,6 +22,7 @@ export function PriceInput({
 }: {
   value: number | null;
   onChange: (value: number | null) => void;
+  onBlur?: () => void;
   placeholder?: string;
   max?: number;
   disabled?: boolean;
@@ -52,7 +54,10 @@ export function PriceInput({
         placeholder={placeholder}
         value={display}
         onFocus={() => setFocused(true)}
-        onBlur={() => setFocused(false)}
+        onBlur={() => {
+          setFocused(false);
+          onBlur?.();
+        }}
         onChange={(event) => {
           const digits = toAmountDigits(event.target.value);
           const next = parseAmount(digits);

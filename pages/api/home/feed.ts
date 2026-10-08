@@ -12,10 +12,14 @@ async function handler(
   try {
     const isPublicScope = req.query.scope === "public";
     const userId = isPublicScope ? undefined : req.user?.id;
+    // 관심 카테고리 고정 범위. URL 이 달라 공유 캐시도 범위별로 나뉜다.
+    const categoryPath =
+      typeof req.query.categoryPath === "string" ? req.query.categoryPath : undefined;
 
     const payload = await fetchHomeFeed({
       userId,
       includePersonalized: !isPublicScope,
+      categoryPath,
     });
 
     res.setHeader(

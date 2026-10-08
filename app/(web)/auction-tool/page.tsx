@@ -1,6 +1,5 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { buttonVariants } from "@components/ui/button";
 
 const AUCTION_TOOL_OG_IMAGE = "/auction-tool/opengraph-image";
 const AUCTION_TOOL_TWITTER_IMAGE = "/auction-tool/twitter-image";
@@ -45,8 +44,8 @@ const quickStats = [
   },
   {
     label: "호가 단위",
-    value: "자동",
-    desc: "현재가 기준 입찰 단위 계산",
+    value: "직접 설정",
+    desc: "판매자가 정한 입찰 단위로 검증",
   },
 ];
 
@@ -80,66 +79,54 @@ const faqs = [
   },
 ];
 
+const PRIMARY_CTA =
+  "inline-flex h-[52px] w-full items-center justify-center rounded-md bg-app-brand px-6 text-[16px] font-semibold text-white sm:w-auto sm:min-w-[200px]";
+const SECONDARY_CTA =
+  "inline-flex h-[52px] w-full items-center justify-center rounded-md bg-app-surface px-6 text-[16px] font-semibold text-app-text sm:w-auto sm:min-w-[200px]";
+const NEUTRAL_PILL =
+  "inline-flex shrink-0 items-center rounded-md bg-app-surface px-2 py-1 text-[12px] font-semibold text-app-muted";
+const SECTION_TITLE = "text-[20px] font-bold text-app-text sm:text-[24px]";
+
+// 플랫 토큰(design/mockups/REFERENCE.md): 그라데이션·글로우·영문 장식 라벨 없음, 주황은 주 CTA 에만.
 export default function AuctionToolLandingPage() {
   return (
-    <div className="app-page">
-      <section className="app-section app-reveal border-b border-slate-100 bg-gradient-to-br from-white via-white to-rose-50/45 relative overflow-hidden">
-        <div className="pointer-events-none absolute inset-x-0 -mt-12 h-32">
-          <div className="mx-auto h-full w-[620px] rounded-full bg-[hsl(var(--accent))]/8 blur-3xl" />
-        </div>
+    <div className="min-h-screen bg-app-bg text-app-text">
+      <section className="border-b border-app-line bg-app-bg">
         <div className="mx-auto flex w-full max-w-[1020px] flex-col gap-8 px-4 py-10 sm:px-6 sm:py-12 lg:flex-row lg:items-end lg:justify-between lg:gap-10">
           <div className="max-w-[560px]">
-            <p className="app-kicker">Bredy Auction Tool</p>
-            <h1 className="mt-2 app-title-xl text-slate-900 dark:text-slate-50">
+            <p className="text-[13px] font-semibold text-app-muted">
+              브리디 경매도구
+            </p>
+            <h1 className="mt-2 text-[24px] font-bold leading-[1.3] text-app-text sm:text-[28px]">
               링크 하나로 시작하는 경매 운영
             </h1>
-            <p className="mt-4 app-body-md text-slate-600 dark:text-slate-300">
+            <p className="mt-3 text-[16px] leading-6 text-app-sub">
               카페와 밴드로 흩어진 경매 글을 하나의 흐름으로 묶어 입찰·마감·신고 운영까지
               한 번에 정리합니다.
             </p>
-            <div className="mt-5 inline-flex items-center gap-2 rounded-full bg-[hsl(var(--accent))]/10 px-3 py-1 text-[11px] font-semibold text-[hsl(var(--accent))]">
-              30초로 시작, 실시간 운영까지
+            <div className="mt-4">
+              <span className={NEUTRAL_PILL}>30초로 시작, 실시간 운영까지</span>
             </div>
-            <div className="mt-7 flex flex-col gap-3 sm:flex-row">
-              <Link
-                href="/auth/login?next=%2Fauctions%2Fcreate"
-                className={buttonVariants({
-                  className:
-                    "h-11 rounded-xl text-sm font-semibold bg-[hsl(var(--accent))] text-white hover:bg-[#ef6f2a] sm:min-w-[200px] sm:w-auto",
-                })}
-              >
+            <div className="mt-6 flex flex-col gap-2 sm:flex-row">
+              <Link href="/auth/login?next=%2Fauctions%2Fcreate" className={PRIMARY_CTA}>
                 시작하기
               </Link>
-              <Link
-                href="/auctions"
-                className={buttonVariants({
-                  variant: "outline",
-                  className:
-                    "h-11 rounded-xl border-slate-300 text-sm font-semibold text-slate-700 hover:bg-[hsl(var(--accent))]/10 hover:border-[hsl(var(--accent))] sm:min-w-[200px] sm:w-auto",
-                })}
-              >
+              <Link href="/auctions" className={SECONDARY_CTA}>
                 진행중 경매 보기
               </Link>
             </div>
           </div>
 
-          <div className="w-full max-w-[380px] space-y-2">
-            <div className="relative rounded-xl border border-slate-200 bg-white overflow-hidden">
-              <span className="absolute inset-y-0 left-0 w-1 bg-gradient-to-b from-[hsl(var(--accent))] to-[#ffad58]" />
+          <div className="w-full max-w-[380px]">
+            <div className="overflow-hidden rounded-xl border border-app-border bg-app-elevated">
               {quickStats.map((item, idx) => (
                 <article
                   key={item.label}
-                  className={`pl-4 pr-4 py-3 ${idx === 0 ? "" : "border-t border-slate-100"}`}
+                  className={`px-4 py-3 ${idx === 0 ? "" : "border-t border-app-line"}`}
                 >
-                  <p className="text-xs font-semibold uppercase tracking-[0.12em] text-slate-500 dark:text-slate-400">
-                    {item.label}
-                  </p>
-                  <p className="mt-1 text-2xl font-semibold text-slate-900 dark:text-slate-100">
-                    {item.value}
-                  </p>
-                  <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
-                    {item.desc}
-                  </p>
+                  <p className="text-[13px] font-semibold text-app-muted">{item.label}</p>
+                  <p className="mt-1 text-[22px] font-bold text-app-text">{item.value}</p>
+                  <p className="mt-0.5 text-[13px] text-app-muted">{item.desc}</p>
                 </article>
               ))}
             </div>
@@ -147,114 +134,86 @@ export default function AuctionToolLandingPage() {
         </div>
       </section>
 
-      <section className="app-section app-reveal app-reveal-1 border-b border-slate-100 bg-slate-50/70">
+      <div className="app-section-gap" />
+
+      <section className="bg-app-bg">
         <div className="mx-auto w-full max-w-[1020px] px-4 py-10 sm:px-6">
           <div className="flex items-center justify-between gap-3">
             <div>
-              <h2 className="text-2xl font-bold text-slate-900 dark:text-slate-100 sm:text-3xl">
-                핵심 기능
-              </h2>
-              <p className="mt-1 app-body-md text-slate-600 dark:text-slate-300">
+              <h2 className={SECTION_TITLE}>핵심 기능</h2>
+              <p className="mt-1 text-[15px] text-app-muted">
                 핵심만 정리한 경매 운영 포인트입니다.
               </p>
             </div>
-            <span className="inline-flex shrink-0 rounded-full bg-[hsl(var(--accent))]/10 px-2 py-1 text-[11px] font-semibold text-[hsl(var(--accent))]">
-              바로 시작
-            </span>
+            <span className={NEUTRAL_PILL}>바로 시작</span>
           </div>
-          <div className="mt-5 grid gap-3 sm:grid-cols-3">
+          <div className="mt-5 grid gap-2.5 sm:grid-cols-3">
             {features.map((item) => (
               <article
                 key={item.title}
-                className="app-card p-4 border-slate-200 bg-white"
+                className="rounded-xl border border-app-border bg-app-elevated p-4"
               >
-                <span className="mb-2 inline-flex h-1.5 w-10 rounded-full bg-[hsl(var(--accent))]" />
-                <p className="text-sm font-semibold text-slate-900 dark:text-slate-100">
-                  {item.title}
-                </p>
-                <p className="mt-2 app-body-sm text-slate-600 dark:text-slate-300">
-                  {item.desc}
-                </p>
+                <p className="text-[16px] font-semibold text-app-text">{item.title}</p>
+                <p className="mt-1.5 text-[14px] leading-[21px] text-app-muted">{item.desc}</p>
               </article>
             ))}
           </div>
         </div>
       </section>
 
-      <section className="app-section app-reveal app-reveal-2 border-b border-slate-100 bg-white">
+      <div className="app-section-gap" />
+
+      <section className="bg-app-bg">
         <div className="mx-auto w-full max-w-[1020px] px-4 py-10 sm:px-6">
-          <h2 className="text-2xl font-bold text-slate-900 dark:text-slate-100 sm:text-3xl">
-            4단계 운영 방식
-          </h2>
-          <div className="mt-4 grid gap-2 sm:grid-cols-4">
+          <h2 className={SECTION_TITLE}>4단계 운영 방식</h2>
+          <ol className="mt-4 grid gap-2 sm:grid-cols-4">
             {steps.map((step, idx) => (
-              <div key={step} className="rounded-lg border border-slate-200 bg-slate-50 px-4 py-3">
-                <p className="text-xs font-semibold text-slate-500 dark:text-slate-400">
-                  Step {idx + 1}
-                </p>
-                <p className="mt-1 text-sm font-semibold text-slate-900 dark:text-slate-100">
-                  {step}
-                </p>
-                <div className="mt-2 h-1 rounded-full bg-gradient-to-r from-[hsl(var(--accent))]/0 via-[hsl(var(--accent))] to-[hsl(var(--accent))]/0" />
-              </div>
+              <li
+                key={step}
+                className="flex items-center gap-3 rounded-xl border border-app-border bg-app-elevated px-4 py-3 sm:flex-col sm:items-start sm:gap-1"
+              >
+                <span className="text-[13px] font-semibold text-app-muted">
+                  {idx + 1}단계
+                </span>
+                <span className="text-[16px] font-semibold text-app-text">{step}</span>
+              </li>
             ))}
-          </div>
+          </ol>
         </div>
       </section>
 
-      <section className="app-section app-reveal app-reveal-3 bg-slate-50/70 border-b border-slate-100">
+      <div className="app-section-gap" />
+
+      <section className="bg-app-bg">
         <div className="mx-auto w-full max-w-[1020px] px-4 py-10 sm:px-6">
-          <h2 className="text-2xl font-bold text-slate-900 dark:text-slate-100 sm:text-3xl">
-            간단한 확인
-          </h2>
-          <div className="mt-4 grid gap-3 sm:grid-cols-2">
+          <h2 className={SECTION_TITLE}>간단한 확인</h2>
+          <div className="mt-4 grid gap-2.5 sm:grid-cols-2">
             {faqs.map((faq) => (
               <article
                 key={faq.q}
-                className="rounded-lg border border-slate-200 bg-white px-4 py-3"
+                className="rounded-xl border border-app-border bg-app-elevated px-4 py-3.5"
               >
-                <span className="inline-flex h-7 w-7 items-center justify-center rounded-full bg-[hsl(var(--accent))]/15 text-[11px] font-bold text-[hsl(var(--accent))]">
-                  Q
-                </span>
-                <p className="text-[15px] font-semibold text-slate-900 dark:text-slate-100">
-                  {faq.q}
-                </p>
-                <p className="mt-2 app-body-sm text-slate-600 dark:text-slate-300">
-                  {faq.a}
-                </p>
+                <p className="text-[16px] font-semibold text-app-text">{faq.q}</p>
+                <p className="mt-1.5 text-[14px] leading-[21px] text-app-muted">{faq.a}</p>
               </article>
             ))}
           </div>
         </div>
       </section>
 
-      <section className="app-section app-reveal">
-        <div className="mx-auto w-full max-w-[1020px] px-4 py-10 sm:px-6">
-          <p className="app-kicker">마지막 한 번</p>
-          <h3 className="mt-2 text-2xl font-semibold leading-tight text-slate-900 sm:text-3xl dark:text-slate-100">
-            경매 운영을 더 깔끔하게 바꿔보세요.
-          </h3>
-          <p className="mt-2 max-w-2xl text-sm text-slate-600 dark:text-slate-300 sm:text-base">
+      <div className="app-section-gap" />
+
+      <section className="bg-app-bg">
+        <div className="mx-auto w-full max-w-[1020px] px-4 pb-12 pt-10 sm:px-6">
+          <h2 className={SECTION_TITLE}>경매 운영을 더 깔끔하게 바꿔보세요</h2>
+          <p className="mt-2 max-w-2xl text-[15px] leading-[22px] text-app-muted">
             링크 하나로 경매를 등록하고, 운영하고, 낙찰을 정리할 수 있습니다.
           </p>
-          <div className="mt-6 flex flex-col gap-3 sm:flex-row">
-            <Link
-              href="/auth/login?next=%2Fauctions%2Fcreate"
-              className={buttonVariants({
-                className:
-                  "h-11 rounded-xl text-sm font-semibold bg-[hsl(var(--accent))] text-white hover:bg-[#ef6f2a]",
-              })}
-            >
+          <div className="mt-6 flex flex-col gap-2 sm:flex-row">
+            <Link href="/auth/login?next=%2Fauctions%2Fcreate" className={PRIMARY_CTA}>
               무료로 시작하기
             </Link>
-            <Link
-              href="/auctions/rules"
-              className={buttonVariants({
-                variant: "outline",
-                className:
-                  "h-11 rounded-xl border-slate-300 text-sm font-semibold text-slate-700 hover:bg-slate-50",
-              })}
-            >
+            <Link href="/auctions/rules" className={SECONDARY_CTA}>
               운영 정책 보기
             </Link>
           </div>

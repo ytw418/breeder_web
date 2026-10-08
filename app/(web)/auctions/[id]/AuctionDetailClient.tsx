@@ -25,11 +25,12 @@ import { absoluteUrl, copyText, shareOrCopy } from "@libs/client/share";
 import { getAuctionResultMessage } from "@libs/client/auctionErrorMessage";
 import { ANALYTICS_EVENTS, trackEvent } from "@libs/client/analytics";
 import { extractAuctionIdFromPath, toAuctionPath } from "@libs/auction-route";
+import { DELETED_USER_LABEL, isDeletedUserName } from "@libs/shared/deletedUser";
 import {
   AUCTION_EXTENSION_MS,
   AUCTION_EXTENSION_WINDOW_MS,
-  getBidIncrement,
   isBidAmountValid,
+  resolveBidIncrement,
 } from "@libs/auctionRules";
 import type { AuctionDetailResponse } from "pages/api/auctions/[id]";
 import type { BidResponse } from "pages/api/auctions/[id]/bid";
@@ -239,7 +240,8 @@ const AuctionDetailClient = () => {
   const safeImageIndex = photos.length ? Math.min(imageIndex, photos.length - 1) : 0;
   const countdown = getCountdown(auction?.endAt, now);
   const isUrgent = auction?.status === "진행중" && !countdown.isEnded && countdown.diff <= URGENT_MS;
-  const bidIncrement = auction ? getBidIncrement(auction.currentPrice) : 0;
+  // 입찰 단위는 판매자가 등록 때 정한 값(경매 내내 고정).
+  const bidIncrement = auction ? resolveBidIncrement(auction) : 0;
   const minimumBid = auction ? auction.currentPrice + bidIncrement : 0;
   const selectedBidAmount = bidInput && bidInput > 0 ? bidInput : minimumBid;
   const isOwner = Boolean(data?.isOwner);
@@ -297,7 +299,11 @@ const AuctionDetailClient = () => {
     // 서버 BID_AMOUNT_RULE_VIOLATION 과 같은 기준·문구(최소 금액 이상 + 입찰 단위 배수).
     if (
       !Number.isInteger(selectedBidAmount) ||
-      !isBidAmountValid({ currentPrice: auction.currentPrice, bidAmount: selectedBidAmount })
+      !isBidAmountValid({
+        currentPrice: auction.currentPrice,
+        bidAmount: selectedBidAmount,
+        increment: bidIncrement,
+      })
     ) {
       toast.error(
         `입찰 금액은 최소 ${minimumBid.toLocaleString()}원 이상이며 ${bidIncrement.toLocaleString()}원 단위여야 합니다.`
@@ -469,13 +475,17 @@ const AuctionDetailClient = () => {
       auction.sellerProofImage
   );
   const bidDisabled = bidLoading || !isBiddable || !agreedBidRule || !agreedDisputePolicy;
-  const programs = auction.user?.breederPrograms;
+  // 판매자가 탈퇴해 user 가 없거나 탈퇴 이름이면 프로필 링크 없이 "탈퇴한 사용자"로 보인다.
+  const sellerId = auction.user?.id;
+  const sellerDeleted = !sellerId || isDeletedUserName(auction.user?.name);
+  const sellerName = sellerDeleted ? DELETED_USER_LABEL : auction.user?.name;
+  const programs = sellerDeleted ? undefined : auction.user?.breederPrograms;
   const framed = hasBreederProgramFrame(programs);
 
   const sellerInner = (
     <>
       <div className={cn("shrink-0", framed && "rounded-full p-0.5", framed && getBreederProgramFrameClassName(programs))}>
-        {auction.user?.avatar ? (
+        {!sellerDeleted && auction.user?.avatar ? (
           <Image
             src={makeImageUrl(auction.user.avatar, "avatar")}
             className="h-11 w-11 rounded-full object-cover"
@@ -488,7 +498,7 @@ const AuctionDetailClient = () => {
         )}
       </div>
       <div className="flex min-w-0 flex-1 flex-col gap-0.5">
-        <p className="truncate text-[16px] font-semibold text-app-text">{auction.user?.name}</p>
+        <p className="truncate text-[16px] font-semibold text-app-text">{sellerName}</p>
         <p className="text-[13px] text-app-muted">경매 등록자</p>
         <BreederProgramBadge programs={programs} className="mt-1" />
       </div>
@@ -523,10 +533,10 @@ const AuctionDetailClient = () => {
         </div>
 
         {/* 판매자 행 */}
-        {isToolRoute ? (
+        {isToolRoute || sellerDeleted ? (
           <div className="flex items-center gap-3 p-4">{sellerInner}</div>
         ) : (
-          <Link href={`/profiles/${auction.user?.id}`} className="flex items-center gap-3 p-4">
+          <Link href={`/profiles/${sellerId}`} className="flex items-center gap-3 p-4">
             {sellerInner}
             <Icon name="chevronRight" size={20} className="shrink-0 text-app-caption" />
           </Link>
@@ -598,7 +608,7 @@ const AuctionDetailClient = () => {
         <div className="px-4">
           <CollapsibleRow title="경매 규칙" open={rulesOpen} onToggle={() => setRulesOpen((v) => !v)}>
             <div className="flex flex-col gap-1.5 text-[13px] leading-5 text-app-muted">
-              <p>현재가 기준 입찰 단위 {formatPrice(bidIncrement)}</p>
+              <p>입찰 단위 {formatPrice(bidIncrement)}</p>
               <p>
                 마감 {extensionWindowMinutes}분 이내 입찰 시 종료 시간이 {extensionMinutes}분 연장됩니다.
               </p>
@@ -727,7 +737,7 @@ const AuctionDetailClient = () => {
       </div>
 
       {/* 하단 고정 입찰 바 */}
-      <div className="fixed inset-x-0 bottom-0 z-40 border-t border-app-line bg-app-bg">
+      <div className="fixed inset-x-0 bottom-0 mx-auto max-w-xl z-40 border-t border-app-line bg-app-bg">
         <div className="mx-auto flex max-w-xl flex-col gap-2 px-4 pt-2.5 pb-[max(14px,calc(env(safe-area-inset-bottom)+10px))]">
           {isBiddable ? (
             <div className="flex flex-col gap-1.5">
