@@ -1,7 +1,8 @@
 import type { NextApiRequest, NextApiResponse } from "next";
 
 const mockClient = {
-  user: { findUnique: jest.fn(), findMany: jest.fn(), update: jest.fn(), updateMany: jest.fn() },
+  user: { findUnique: jest.fn(), findMany: jest.fn(), count: jest.fn(), update: jest.fn(), updateMany: jest.fn() },
+  userSanction: { groupBy: jest.fn() },
 };
 jest.mock("@libs/server/client", () => ({
   __esModule: true,
@@ -12,10 +13,30 @@ jest.mock("@libs/server/auth", () => ({
 }));
 
 const mockHasAdminAccess = jest.fn();
+const mockCanRunSensitive = jest.fn();
 jest.mock("@libs/server/adminAccess", () => ({
   hasAdminAccess: (...args: unknown[]) => mockHasAdminAccess(...args),
-  canRunSensitiveAdminAction: () => false,
+  canRunSensitiveAdminAction: (...args: unknown[]) => mockCanRunSensitive(...args),
 }));
+
+const mockIssueSanction = jest.fn();
+jest.mock("@libs/server/sanctions", () => {
+  class SanctionError extends Error {
+    constructor(
+      readonly status: number,
+      message: string,
+      readonly code: string
+    ) {
+      super(message);
+      Object.setPrototypeOf(this, SanctionError.prototype);
+    }
+  }
+  return {
+    SanctionError,
+    isSanctionError: (error: unknown) => error instanceof SanctionError,
+    issueSanction: (...args: unknown[]) => mockIssueSanction(...args),
+  };
+});
 
 const mockDeleteAccount = jest.fn();
 jest.mock("@libs/server/accountDeletion", () => ({
@@ -58,6 +79,15 @@ function createRes() {
 
 const admin = { id: 1, name: "관리자" } as NextApiRequest["user"];
 
+async function get(query: Record<string, string> = {}) {
+  const res = createRes();
+  await adminUsersHandler(
+    { method: "GET", headers: {}, query, body: {}, user: admin } as unknown as NextApiRequest,
+    res as unknown as NextApiResponse
+  );
+  return res;
+}
+
 async function post(body: Record<string, unknown>) {
   const res = createRes();
   await adminUsersHandler(
@@ -90,6 +120,8 @@ const target = (overrides: Record<string, unknown> = {}) => ({
 beforeEach(() => {
   jest.clearAllMocks();
   mockHasAdminAccess.mockResolvedValue(true);
+  mockCanRunSensitive.mockReturnValue(true);
+  mockIssueSanction.mockResolvedValue({ sanction: { id: 100 }, user: { status: "SUSPENDED", suspendedUntil: null } });
   mockClient.user.findUnique.mockResolvedValue(target());
   mockClient.user.updateMany.mockResolvedValue({ count: 1 });
   mockIssueTokens.mockResolvedValue({ accessToken: "a", refreshToken: "r", expiresIn: 1800 });
@@ -122,36 +154,64 @@ describe("/api/admin/users update_status", () => {
     expect(res.statusCode).toBe(404);
   });
 
-  it("SUSPENDED_7D 는 만료 시각을 기록하고 tokenVersion 을 올린다", async () => {
-    const before = Date.now();
+  it("SUSPENDED_7D 는 7일 기간 정지 제재로 보낸다(이력·알림, AC-31)", async () => {
     const res = await post({ userId: 9, action: "update_status", status: "SUSPENDED_7D" });
-    const after = Date.now();
 
     expect(res.statusCode).toBe(200);
-    expect(mockClient.user.updateMany).toHaveBeenCalledTimes(1);
-    const { where, data } = mockClient.user.updateMany.mock.calls[0][0];
-    expect(where).toEqual({ id: 9, status: { not: "DELETED" } });
-    expect(data.status).toBe("SUSPENDED_7D");
-    expect(data.tokenVersion).toEqual({ increment: 1 });
-    expect(data.suspendedUntil.getTime()).toBeGreaterThanOrEqual(before + 7 * DAY_MS);
-    expect(data.suspendedUntil.getTime()).toBeLessThanOrEqual(after + 7 * DAY_MS);
-  });
-
-  it("BANNED 는 tokenVersion 을 올린다", async () => {
-    await post({ userId: 9, action: "update_status", status: "BANNED" });
-    expect(mockClient.user.updateMany).toHaveBeenCalledWith({
-      where: { id: 9, status: { not: "DELETED" } },
-      data: { status: "BANNED", suspendedUntil: null, tokenVersion: { increment: 1 } },
+    expect(mockIssueSanction).toHaveBeenCalledWith({
+      actorId: 1,
+      userId: 9,
+      type: "SUSPENSION",
+      days: 7,
+      reasonCode: "OTHER",
+      messageToUser: "운영정책 위반이 확인되었어요.",
+      internalNote: null,
     });
+    expect(mockClient.user.updateMany).not.toHaveBeenCalled();
   });
 
-  it("ACTIVE 로 되돌리면 정지 만료 시각을 지운다", async () => {
+  it("SUSPENDED 는 days 와 사유를 그대로 넘긴다", async () => {
+    await post({
+      userId: 9,
+      action: "update_status",
+      status: "SUSPENDED",
+      days: 10,
+      reasonCode: "SPAM",
+      messageToUser: "도배 글",
+      internalNote: "메모",
+    });
+    expect(mockIssueSanction).toHaveBeenCalledWith(
+      expect.objectContaining({ type: "SUSPENSION", days: 10, reasonCode: "SPAM", messageToUser: "도배 글", internalNote: "메모" })
+    );
+  });
+
+  it("BANNED 는 영구 정지 제재로 보낸다", async () => {
+    await post({ userId: 9, action: "update_status", status: "BANNED", reasonCode: "FRAUD" });
+    expect(mockIssueSanction).toHaveBeenCalledWith(
+      expect.objectContaining({ type: "BAN", reasonCode: "FRAUD", messageToUser: null })
+    );
+  });
+
+  it("정지 계정을 ACTIVE 로 되돌리면 해제 제재로 보낸다", async () => {
     mockClient.user.findUnique.mockResolvedValue(target({ status: "SUSPENDED_30D" }));
     await post({ userId: 9, action: "update_status", status: "ACTIVE" });
-    expect(mockClient.user.updateMany).toHaveBeenCalledWith({
-      where: { id: 9, status: { not: "DELETED" } },
-      data: { status: "ACTIVE", suspendedUntil: null },
-    });
+    expect(mockIssueSanction).toHaveBeenCalledWith(
+      expect.objectContaining({ type: "LIFT", reasonCode: "OTHER", messageToUser: null })
+    );
+  });
+
+  it("정상 계정을 ACTIVE 로 바꾸면 할 일 없이 성공", async () => {
+    const res = await post({ userId: 9, action: "update_status", status: "ACTIVE" });
+    expect(res.statusCode).toBe(200);
+    expect(mockIssueSanction).not.toHaveBeenCalled();
+  });
+
+  it("제재 서비스의 거절은 상태 코드와 문구를 그대로 돌려준다", async () => {
+    const { SanctionError } = jest.requireMock("@libs/server/sanctions");
+    mockIssueSanction.mockRejectedValue(new SanctionError(409, "이미 영구 정지된 계정이에요.", "ALREADY_BANNED"));
+    const res = await post({ userId: 9, action: "update_status", status: "BANNED" });
+    expect(res.statusCode).toBe(409);
+    expect(res.body).toEqual({ success: false, error: "이미 영구 정지된 계정이에요.", errorCode: "ALREADY_BANNED" });
   });
 
   it("탈퇴한 계정의 상태는 바꿀 수 없다(400)", async () => {
@@ -171,7 +231,7 @@ describe("/api/admin/users update_status", () => {
     mockClient.user.findUnique.mockResolvedValue(null);
     const res = await post({ userId: 9, action: "update_status", status: "BANNED" });
     expect(res.statusCode).toBe(404);
-    expect(mockClient.user.updateMany).not.toHaveBeenCalled();
+    expect(mockIssueSanction).not.toHaveBeenCalled();
   });
 
   it("잘못된 상태 값은 400", async () => {
@@ -183,7 +243,85 @@ describe("/api/admin/users update_status", () => {
   it("자기 자신은 비활성화할 수 없다", async () => {
     const res = await post({ userId: 1, action: "update_status", status: "BANNED" });
     expect(res.statusCode).toBe(400);
-    expect(mockClient.user.updateMany).not.toHaveBeenCalled();
+    expect(mockIssueSanction).not.toHaveBeenCalled();
+  });
+});
+
+describe("/api/admin/users 최고 관리자 전용 동작(AC-35)", () => {
+  it.each([
+    [{ userId: 9, action: "update_role", role: "ADMIN" }],
+    [{ userId: 9, action: "switch_user_session" }],
+    [{ userId: 9, action: "delete" }],
+    [{ userId: 9, action: "update_status", status: "DELETED" }],
+  ])("허용 목록 밖 관리자는 403 이고 DB 를 바꾸지 않는다: %o", async (body) => {
+    mockCanRunSensitive.mockReturnValue(false);
+    const res = await post(body);
+    expect(res.statusCode).toBe(403);
+    expect(res.body.error).toBe("최고 관리자만 할 수 있어요.");
+    expect(mockClient.user.update).not.toHaveBeenCalled();
+    expect(mockIssueTokens).not.toHaveBeenCalled();
+    expect(mockDeleteAccount).not.toHaveBeenCalled();
+  });
+
+  it("최고 관리자는 역할을 바꿀 수 있다", async () => {
+    const res = await post({ userId: 9, action: "update_role", role: "ADMIN" });
+    expect(res.statusCode).toBe(200);
+    expect(mockClient.user.update).toHaveBeenCalledWith({ where: { id: 9 }, data: { role: "ADMIN" } });
+  });
+});
+
+describe("/api/admin/users GET 검색·페이지(AC-29)", () => {
+  beforeEach(() => {
+    mockClient.user.count.mockResolvedValue(41);
+    mockClient.user.findMany.mockResolvedValue([{ id: 9, name: "구번" }, { id: 10, name: "십번" }]);
+    mockClient.userSanction.groupBy.mockResolvedValue([{ userId: 9, _count: { _all: 2 } }]);
+  });
+
+  it("닉네임·이메일·ID 로 찾고 20명 단위로 자른다", async () => {
+    const res = await get({ q: " 9 ", status: "SUSPENDED", page: "3" });
+
+    const where = {
+      AND: [
+        {
+          OR: [
+            { name: { contains: "9", mode: "insensitive" } },
+            { email: { contains: "9", mode: "insensitive" } },
+            { id: 9 },
+          ],
+        },
+        { status: { in: ["SUSPENDED", "SUSPENDED_7D", "SUSPENDED_30D"] } },
+      ],
+    };
+    expect(mockClient.user.count).toHaveBeenCalledWith({ where });
+    expect(mockClient.user.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({ where, skip: 40, take: 20 })
+    );
+    expect(res.body).toEqual({
+      success: true,
+      users: [
+        { id: 9, name: "구번", recentSanctionCount: 2 },
+        { id: 10, name: "십번", recentSanctionCount: 0 },
+      ],
+      total: 41,
+      page: 3,
+      pageSize: 20,
+    });
+  });
+
+  it("검색어가 숫자가 아니면 ID 조건을 넣지 않고, 조건이 없으면 전체를 본다", async () => {
+    await get({ q: "구" });
+    expect(mockClient.user.count).toHaveBeenLastCalledWith({
+      where: { AND: [{ OR: [{ name: { contains: "구", mode: "insensitive" } }, { email: { contains: "구", mode: "insensitive" } }] }] },
+    });
+    await get();
+    expect(mockClient.user.count).toHaveBeenLastCalledWith({ where: {} });
+  });
+
+  it("비관리자는 403", async () => {
+    mockHasAdminAccess.mockResolvedValue(false);
+    const res = await get();
+    expect(res.statusCode).toBe(403);
+    expect(mockClient.user.findMany).not.toHaveBeenCalled();
   });
 });
 
