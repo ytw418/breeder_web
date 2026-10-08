@@ -4,6 +4,7 @@
  */
 
 import { POST_IMAGES_MAX } from "@libs/postImages";
+import { countPostBodyText } from "@libs/shared/post-body";
 
 export const POST_TITLE_MIN = 2;
 export const POST_TITLE_MAX = 80;
@@ -46,12 +47,19 @@ export function validatePostForm(values: PostFormValues): PostFormErrors {
   if (!title) errors.title = "제목을 입력해주세요.";
   else if (title.length < POST_TITLE_MIN) errors.title = "제목은 2자 이상 입력해주세요.";
   else if (title.length > POST_TITLE_MAX) errors.title = "제목은 80자 이하로 입력해주세요.";
+  // 글자 수는 사진 자리·크게·굵게 표시를 뺀 글자로 센다(libs/shared/post-body.ts, 앱과 같음).
+  const bodyLength = countPostBodyText(description);
   if (!description) errors.description = "내용을 입력해주세요.";
-  else if (description.length < POST_DESCRIPTION_MIN)
+  else if (bodyLength < POST_DESCRIPTION_MIN)
     errors.description = "내용을 10자 이상 입력해주세요.";
-  else if (description.length > POST_DESCRIPTION_MAX)
+  else if (bodyLength > POST_DESCRIPTION_MAX)
     errors.description = "내용은 2000자 이하로 입력해주세요.";
   return errors;
+}
+
+/** 앱에서 쓴 글처럼 본문에 사진 자리·크게·굵게 표시가 있는지(웹 글쓰기 안내 줄 노출). */
+export function hasPostBodyMarks(description: string): boolean {
+  return /^(\[\[photo:[1-9]\d*\]\]$|## |\*\*.+\*\*$)/m.test(description);
 }
 
 /** 작성은 입력한 내용이 있으면, 수정은 불러온 값에서 바뀐 게 있으면 true. */

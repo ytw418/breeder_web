@@ -3,6 +3,7 @@ import {
   filterPickedPhotos,
   getPostMenuActionKeys,
   hasComposerChanges,
+  hasPostBodyMarks,
   isNoticePost,
   validatePostForm,
   type ComposerPhoto,
@@ -124,5 +125,23 @@ describe("post menu", () => {
     expect(isNoticePost({ category: "공지", title: "x" })).toBe(true);
     expect(isNoticePost({ category: "자유", title: "[공지] x" })).toBe(true);
     expect(isNoticePost({ category: "자유", title: "x" })).toBe(false);
+  });
+});
+
+describe("사진·글 블록 본문(앱에서 쓴 글) 호환", () => {
+  it("글자 수는 사진 자리·크게·굵게 표시를 빼고 센다", () => {
+    expect(validatePostForm(values({ description: "## **짧아요**\n[[photo:1]]" })).description).toBe(
+      "내용을 10자 이상 입력해주세요."
+    );
+    expect(
+      validatePostForm(values({ description: `[[photo:1]]\n${"가".repeat(2000)}\n[[photo:2]]` }))
+    ).toEqual({});
+  });
+
+  it("표시가 있는 본문에서만 안내 줄을 띄운다", () => {
+    expect(hasPostBodyMarks("설명\n[[photo:1]]")).toBe(true);
+    expect(hasPostBodyMarks("## 준비물")).toBe(true);
+    expect(hasPostBodyMarks("**굵은 줄**")).toBe(true);
+    expect(hasPostBodyMarks("옛 평문 글 #해시태그 **일부** 굵게")).toBe(false);
   });
 });

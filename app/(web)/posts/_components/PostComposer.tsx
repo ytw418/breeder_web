@@ -23,6 +23,7 @@ import {
   canSubmitPost,
   filterPickedPhotos,
   hasComposerChanges,
+  hasPostBodyMarks,
   validatePostForm,
   type ComposerPhoto,
   type PostComposerInitial,
@@ -30,6 +31,7 @@ import {
 } from "../_lib/postComposer";
 import { PostPickerSheet } from "./PostPickerSheet";
 import { SpeciesPickerSheet, defaultSpeciesFromPins } from "./SpeciesPickerSheet";
+import { removePostBodyImage } from "@libs/shared/post-body";
 
 /**
  * 게시글 작성·수정 공용 폼(앱 PostComposer). 시안: bredy_app design/mockups/post-upload/A-karrot.html
@@ -332,11 +334,13 @@ export function PostComposer(props: PostComposerProps) {
   };
 
   const removePhoto = (key: string) => {
-    setPhotos((prev) => {
-      const target = prev.find((photo) => photo.key === key);
-      if (target?.kind === "local") URL.revokeObjectURL(target.previewUrl);
-      return prev.filter((photo) => photo.key !== key);
-    });
+    const index = photos.findIndex((photo) => photo.key === key);
+    if (index < 0) return;
+    const target = photos[index];
+    if (target.kind === "local") URL.revokeObjectURL(target.previewUrl);
+    setPhotos((prev) => prev.filter((photo) => photo.key !== key));
+    // 앱에서 쓴 글이면 본문의 사진 자리 표시도 지우고 뒤 번호를 당긴다.
+    setDescription((prev) => removePostBodyImage(prev, index));
   };
 
   const submit = async () => {
@@ -554,6 +558,11 @@ export function PostComposer(props: PostComposerProps) {
             className="block min-h-[260px] w-full resize-none overflow-hidden border-0 bg-transparent p-0 text-[16px] leading-[1.6] text-app-text outline-none placeholder:text-app-caption focus:ring-0"
           />
           <ErrorText>{errors.description}</ErrorText>
+          {hasPostBodyMarks(description) ? (
+            <p className="mt-1.5 text-[13px] text-app-muted">
+              [[photo:N]] 줄은 사진 자리, ## 는 크게, ** 는 굵게 표시예요. 지우지 않으면 상세에서 그대로 보여요.
+            </p>
+          ) : null}
         </div>
       </div>
 
