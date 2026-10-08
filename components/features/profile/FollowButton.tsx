@@ -10,6 +10,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { useSWRConfig } from "swr";
+import { updateInfiniteWhere } from "@libs/client/swrRevalidate";
 import { ActionSheet } from "@components/app/ActionSheet";
 import { toLoginHref } from "@components/features/MainLayout";
 import { authFetch } from "@libs/client/authFetch";
@@ -29,7 +30,7 @@ import useUser from "hooks/useUser";
 function useFollowMutation(targetUserId: number, returnPath: string) {
   const router = useRouter();
   const { user: me } = useUser();
-  const { mutate } = useSWRConfig();
+  const { mutate, cache } = useSWRConfig();
   const [pending, setPending] = useState(false);
 
   const apply = (isFollowing: boolean, delta: number) => {
@@ -45,10 +46,9 @@ function useFollowMutation(targetUserId: number, returnPath: string) {
         { revalidate: false }
       );
     }
-    void mutate(
-      (key) => isFollowListKey(key),
-      (pages?: FollowListPageLike[]) => withFollowListRow(pages, targetUserId, isFollowing),
-      { revalidate: false }
+    // 팔로워·팔로잉 목록은 무한 목록 키라 전역 필터로는 닿지 않는다. 캐시에서 키를 찾아 바꾼다.
+    updateInfiniteWhere<FollowListPageLike>({ cache, mutate }, isFollowListKey, (pages) =>
+      withFollowListRow(pages, targetUserId, isFollowing)
     );
   };
 

@@ -22,12 +22,35 @@ export function revalidateByPrefix(
   { cache, mutate }: { cache: Cache; mutate: GlobalMutate },
   prefixes: readonly string[]
 ): void {
-  void mutate((key: unknown) => swrKeyHasPrefix(key, prefixes));
+  revalidateWhere({ cache, mutate }, (key) => swrKeyHasPrefix(key, prefixes));
+}
+
+/** revalidateByPrefix 와 같되 조건 함수로 고른다(무한 목록 "$inf$" 키 포함). */
+export function revalidateWhere(
+  { cache, mutate }: { cache: Cache; mutate: GlobalMutate },
+  match: (key: string) => boolean
+): void {
+  void mutate((key: unknown) => typeof key === "string" && match(key));
   for (const key of Array.from(cache.keys())) {
-    if (!key.startsWith(INFINITE_PREFIX) || !swrKeyHasPrefix(key, prefixes)) continue;
+    if (!key.startsWith(INFINITE_PREFIX) || !match(key)) continue;
     const entry = cache.get(key);
     if (entry) cache.set(key, { ...entry, _i: true } as typeof entry);
     void mutate(key);
+  }
+}
+
+/**
+ * 무한 목록 키("$inf$…") 중 조건에 맞는 캐시의 데이터를 바로 바꾼다(다시 받지 않음).
+ * 전역 mutate 필터는 "$inf$" 키를 건너뛰어, 목록 행 낙관적 갱신은 키를 직접 찾아야 한다.
+ */
+export function updateInfiniteWhere<T>(
+  { cache, mutate }: { cache: Cache; mutate: GlobalMutate },
+  match: (key: string) => boolean,
+  updater: (pages: T[] | undefined) => T[] | undefined
+): void {
+  for (const key of Array.from(cache.keys())) {
+    if (!key.startsWith(INFINITE_PREFIX) || !match(key)) continue;
+    void mutate(key, (pages?: T[]) => updater(pages), { revalidate: false });
   }
 }
 
