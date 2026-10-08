@@ -13,7 +13,7 @@ import useUser from "hooks/useUser";
 import useLogout from "hooks/useLogout";
 import { version as APP_VERSION } from "../../package.json";
 
-export type HeaderVariant = "default" | "chat-list" | "none";
+export type HeaderVariant = "default" | "chat-list" | "profile" | "none";
 
 interface LayoutProps {
   title?: string;
@@ -32,6 +32,7 @@ interface LayoutProps {
   /**
    * default: 기존 헤더(로고/뒤로가기 + 가운데 제목 + 오른쪽 아이콘)
    * chat-list: 제목 좌측 18/700 + headerRight(검색 토글) + 알림 벨
+   * profile: 뒤로 · 제목 좌측 18/700 · headerRight(공유·더보기·완료). 알림 벨·메뉴 없음(앱 ProfileHeader, 사진형 A안)
    * none: 헤더를 그리지 않는다(화면이 자체 헤더를 그릴 때)
    */
   headerVariant?: HeaderVariant;
@@ -532,6 +533,22 @@ export default function MainLayout({
 
   const renderHeader = () => {
     if (headerVariant === "none") return null;
+
+    if (headerVariant === "profile") {
+      return (
+        <header className="sticky top-0 z-30 h-14 w-full bg-app-bg">
+          <div className="mx-auto flex h-full max-w-xl items-center px-3">
+            <HeaderIconButton label="뒤로가기" onClick={() => router.back()}>
+              <StrokeIcon d={ICON.back} />
+            </HeaderIconButton>
+            <h1 className="ml-1 min-w-0 flex-1 truncate text-[18px] font-bold leading-6 text-app-text">
+              {title ?? ""}
+            </h1>
+            {headerRight ? <div className="flex shrink-0 items-center">{headerRight}</div> : null}
+          </div>
+        </header>
+      );
+    }
 
     if (headerVariant === "chat-list") {
       return (
