@@ -57,9 +57,10 @@ async function handler(
 
   // 숨긴 댓글·숨긴 글의 댓글은 작성자 본인과 관리자에게만 보인다.
   const canSeeHidden = req.user?.id === userId || isModeratorUser(req.user);
+  // '삭제된 댓글' 자리(답글이 남은 루트)는 프로필 목록에서 뺀다.
   const where = canSeeHidden
-    ? { userId }
-    : { userId, isHidden: false, post: { isHidden: false } };
+    ? { userId, deletedAt: null }
+    : { userId, deletedAt: null, isHidden: false, post: { isHidden: false } };
 
   const [comments, commentCount] = await Promise.all([
     client.comment.findMany({

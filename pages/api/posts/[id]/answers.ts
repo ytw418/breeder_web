@@ -8,6 +8,9 @@ import { isModeratorUser } from "@libs/server/adminAccess";
 import { createNotification } from "@libs/server/notification";
 import { incrementUserMissionProgress } from "@libs/server/growth";
 import { getBlockRelation } from "@libs/server/blocks";
+import { sendCommentError } from "@libs/server/comments";
+import { validateCommentBody } from "@libs/shared/comment";
+import { parsePositiveIntId } from "@libs/shared/normalize";
 
 async function handler(
   req: NextApiRequest,
@@ -16,7 +19,7 @@ async function handler(
   const {
     query: { id = "" },
     user,
-    body: { comment },
+    body,
   } = req;
 
   const postId = extractPostIdFromPath(id);
@@ -39,6 +42,40 @@ async function handler(
     });
   }
 
+  const validation = validateCommentBody(body?.comment);
+  if (!validation.ok) {
+    return sendCommentError(res, 400, validation.errorCode, validation.message);
+  }
+
+  // 대댓글은 1단계다. 답글에 답글을 달면 그 루트에 붙인다.
+  let parent: { id: number; notifyUserId: number | null } | null = null;
+  if (body?.parentId != null) {
+    const parentId = parsePositiveIntId(body.parentId);
+    if (parentId === null) {
+      return sendCommentError(res, 400, "COMMENT_INVALID_PARENT", "답글을 남길 댓글이 올바르지 않습니다.");
+    }
+    const target = await client.comment.findUnique({
+      where: { id: parentId },
+      select: { id: true, userId: true, postId: true, parentId: true, isHidden: true, deletedAt: true },
+    });
+    const root =
+      target?.parentId != null
+        ? await client.comment.findUnique({
+            where: { id: target.parentId },
+            select: { id: true, userId: true, postId: true, parentId: true, isHidden: true, deletedAt: true },
+          })
+        : target;
+    // 숨긴 댓글은 작성자·관리자에게만 보이므로 다른 사람에겐 없는 댓글과 같다.
+    const hiddenFromViewer =
+      root?.isHidden && root.userId !== user?.id && !isModeratorUser(user);
+    if (!root || root.postId !== postId || hiddenFromViewer) {
+      return sendCommentError(res, 404, "COMMENT_PARENT_NOT_FOUND", "답글을 남길 댓글을 찾을 수 없습니다.");
+    }
+    // 답글의 답글은 그 답글 작성자에게 알린다(입력창 대상 표시와 같은 사람). 지운 댓글 작성자에겐 알리지 않는다.
+    const replyTo = target ?? root;
+    parent = { id: root.id, notifyUserId: replyTo.deletedAt ? null : replyTo.userId };
+  }
+
   const newAnswer = await client.comment.create({
     data: {
       user: {
@@ -51,23 +88,35 @@ async function handler(
           id: postId,
         },
       },
-      comment: comment,
+      comment: validation.comment,
+      parentId: parent?.id ?? null,
     },
   });
 
-  // 댓글 알림 생성 (게시글 작성자에게)
   const senderUser = await client.user.findUnique({
     where: { id: user?.id },
     select: { name: true },
   });
 
   if (user?.id && senderUser) {
-    // 게시글 작성자가 차단한 사람의 댓글은 작성자에게 숨겨지므로 알림·푸시도 보내지 않는다.
-    const { blockedByMe: authorBlockedCommenter } =
-      post.userId === user.id
-        ? { blockedByMe: false }
-        : await getBlockRelation(post.userId, user.id);
-    if (!authorBlockedCommenter) {
+    // 받는 사람이 차단한 사람의 댓글은 그 사람에게 숨겨지므로 알림·푸시도 보내지 않는다.
+    const blockedBy = async (receiverId: number) =>
+      receiverId !== user.id && (await getBlockRelation(receiverId, user.id)).blockedByMe;
+
+    // 답글 알림(부모 댓글 작성자에게)
+    const replyReceiverId = parent?.notifyUserId ?? null;
+    if (replyReceiverId !== null && !(await blockedBy(replyReceiverId))) {
+      await createNotification({
+        type: "COMMENT",
+        userId: replyReceiverId,
+        senderId: user.id,
+        message: `${senderUser.name}님이 회원님의 댓글에 답글을 남겼습니다.`,
+        targetId: postId,
+        targetType: "post",
+      });
+    }
+    // 댓글 알림(게시글 작성자에게). 답글 알림을 이미 받은 사람이면 한 번만 보낸다.
+    if (replyReceiverId !== post.userId && !(await blockedBy(post.userId))) {
       await createNotification({
         type: "COMMENT",
         userId: post.userId,

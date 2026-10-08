@@ -338,9 +338,17 @@ model Comment {
   comment String
   /// 운영자 숨김. 작성자·관리자에게만 보인다.
   isHidden Boolean @default(false)
+  /// 대댓글이면 루트 댓글 id(1단계만). relationMode = "prisma" 의 자기 참조는 Cascade 를 흉내 내지 못해
+  /// 관계 없이 id 만 둔다. 루트를 지울 때 답글은 코드에서 같이 지운다(libs/server/comments.ts).
+  parentId Int?
+  /// 작성자가 지운 시각. 답글이 남은 루트만 '삭제된 댓글입니다' 자리로 남기고 본문은 비운다.
+  deletedAt DateTime?
+  /// 작성자가 고친 시각. updatedAt 은 운영자 숨김에도 바뀌어 '수정됨' 표시에 쓰지 않는다.
+  editedAt  DateTime?
 
   @@index([userId])
   @@index([postId])
+  @@index([parentId])
 
 }
 

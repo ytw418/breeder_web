@@ -16,6 +16,7 @@ import { excludedAuthorIds } from "@libs/server/blocks";
 import { isModeratorUser } from "@libs/server/adminAccess";
 import { Prisma, type Post } from "@prisma/client";
 import { resolveCategoryIdByName } from "@libs/server/categories";
+import { DELETED_COMMENT_TEXT } from "@libs/shared/comment";
 
 interface PostDetail {
   user: {
@@ -36,6 +37,12 @@ interface PostDetail {
     createdAt: Date;
     /** 운영자 숨김. 작성자·관리자에게만 내려온다. */
     isHidden: boolean;
+    /** 대댓글이면 루트 댓글 id. 목록은 작성순 flat 이고 클라이언트가 groupCommentThreads 로 묶는다. */
+    parentId: number | null;
+    /** 작성자가 고친 시각('수정됨' 표시) */
+    editedAt: Date | null;
+    /** 답글이 남아 '삭제된 댓글' 자리로 남은 루트. comment 는 DELETED_COMMENT_TEXT 로 내려간다. */
+    deletedAt: Date | null;
   }[];
   _count: {
     comments: number;
@@ -268,6 +275,10 @@ async function getPostDetail(
       : commentConditions.length === 1
         ? commentConditions[0]
         : { AND: commentConditions };
+  // 댓글 수에서는 '삭제된 댓글' 자리를 뺀다(목록에는 답글을 묶으려고 내려 준다).
+  const commentCountWhere: Prisma.CommentWhereInput = {
+    AND: [...commentConditions, { deletedAt: null }],
+  };
 
   const post = await client.post.findUnique({
     where: {
@@ -292,6 +303,9 @@ async function getPostDetail(
           id: true,
           createdAt: true,
           isHidden: true,
+          parentId: true,
+          editedAt: true,
+          deletedAt: true,
           user: {
             select: {
               id: true,
@@ -308,7 +322,7 @@ async function getPostDetail(
       },
       _count: {
         select: {
-          comments: commentWhere ? { where: commentWhere } : true,
+          comments: { where: commentCountWhere },
           Likes: true,
         },
       },
@@ -410,6 +424,8 @@ async function getPostDetail(
     },
     comments: post.comments.map((comment) => ({
       ...comment,
+      // 구버전 앱은 deletedAt 을 모르고 본문을 그대로 그리므로 자리 문구를 본문으로 내려 준다.
+      comment: comment.deletedAt ? DELETED_COMMENT_TEXT : comment.comment,
       user: {
         ...comment.user,
         breederPrograms: getSortedActiveBreederProgramSummaries(

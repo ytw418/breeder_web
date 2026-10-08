@@ -12,6 +12,7 @@ import {
   contentUnhiddenMessage,
 } from "@libs/shared/sanction";
 import { toPostPlainText } from "@libs/shared/post-body";
+import { deleteCommentWithReplies } from "@libs/server/comments";
 
 /**
  * 운영자 조치(숨김·숨김 해제·삭제)를 적용하고 ModerationLog 에 남긴다.
@@ -321,7 +322,8 @@ function authorNoticeMessage(
 
 async function deleteTarget(type: ModerationTargetType, id: number, target: TargetInfo) {
   if (type === "POST") await client.post.delete({ where: { id } });
-  else if (type === "COMMENT") await client.comment.delete({ where: { id } });
+  // 루트 댓글이면 답글까지 지운다.
+  else if (type === "COMMENT") await deleteCommentWithReplies(id);
   else if (type === "PRODUCT") {
     await client.product.update({ where: { id }, data: { isDeleted: true } });
   } else if (type === "BLOODLINE_CARD") {
