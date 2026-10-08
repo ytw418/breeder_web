@@ -3,7 +3,6 @@ import {
   filterPickedPhotos,
   getPostMenuActionKeys,
   hasComposerChanges,
-  hasPostBodyMarks,
   isNoticePost,
   validatePostForm,
   type ComposerPhoto,
@@ -138,10 +137,22 @@ describe("사진·글 블록 본문(앱에서 쓴 글) 호환", () => {
     ).toEqual({});
   });
 
-  it("표시가 있는 본문에서만 안내 줄을 띄운다", () => {
-    expect(hasPostBodyMarks("설명\n[[photo:1]]")).toBe(true);
-    expect(hasPostBodyMarks("## 준비물")).toBe(true);
-    expect(hasPostBodyMarks("**굵은 줄**")).toBe(true);
-    expect(hasPostBodyMarks("옛 평문 글 #해시태그 **일부** 굵게")).toBe(false);
+  it("사진만 있는 본문은 '완료'를 켜지 않는다", () => {
+    expect(
+      canSubmitPost({
+        values: values({ description: "[[photo:1]]" }),
+        submitting: false,
+        isEdit: false,
+        changed: true,
+      })
+    ).toBe(false);
+    expect(
+      canSubmitPost({
+        values: values({ description: "설명\n[[photo:1]]" }),
+        submitting: false,
+        isEdit: false,
+        changed: true,
+      })
+    ).toBe(true);
   });
 });

@@ -57,11 +57,6 @@ export function validatePostForm(values: PostFormValues): PostFormErrors {
   return errors;
 }
 
-/** 앱에서 쓴 글처럼 본문에 사진 자리·크게·굵게 표시가 있는지(웹 글쓰기 안내 줄 노출). */
-export function hasPostBodyMarks(description: string): boolean {
-  return /^(\[\[photo:[1-9]\d*\]\]$|## |\*\*.+\*\*$)/m.test(description);
-}
-
 /** 작성은 입력한 내용이 있으면, 수정은 불러온 값에서 바뀐 게 있으면 true. */
 export function hasComposerChanges(
   values: PostFormValues,
@@ -100,7 +95,8 @@ export function canSubmitPost({
     (!isEdit || changed) &&
     Boolean(values.category) &&
     Boolean(values.title.trim()) &&
-    Boolean(values.description.trim())
+    // 사진만 있는 본문은 글자가 없어 '완료'를 켜지 않는다(앱 editor.textCount > 0 과 같음).
+    countPostBodyText(values.description) > 0
   );
 }
 
