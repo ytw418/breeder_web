@@ -23,13 +23,104 @@ import {
   AdminAuctionReportItem,
   AdminAuctionReportsResponse,
 } from "pages/api/admin/auction-reports";
+import { defaultSanctionReason, sanctionActionLabel } from "@libs/shared/sanction";
+import SanctionFields, {
+  initialSanctionFields,
+  toSanctionPayload,
+  validateSanctionFields,
+  type SanctionFieldsValue,
+} from "@components/features/moderation/SanctionFields";
 
 const STATUS_OPTIONS = ["전체", "진행중", "종료", "유찰", "취소"] as const;
-type ReportAction =
-  | "NONE"
-  | "STOP_AUCTION"
-  | "BAN_USER"
-  | "STOP_AUCTION_AND_BAN";
+
+interface AuctionResolveDraft {
+  stopAuction: boolean;
+  sanction: SanctionFieldsValue;
+  note: string;
+}
+
+/** 경매 신고 처리 패널(S-9): 경매 조치(없음·중단)와 사용자 조치(경고·기간 정지·영구 정지)를 따로 고른다. */
+function AuctionResolvePanel({
+  report,
+  busy,
+  onSubmit,
+}: {
+  report: AdminAuctionReportItem;
+  busy: boolean;
+  onSubmit: (report: AdminAuctionReportItem, decision: "RESOLVED" | "REJECTED", draft: AuctionResolveDraft) => void;
+}) {
+  const [draft, setDraft] = useState<AuctionResolveDraft>(() => ({
+    stopAuction: false,
+    sanction: initialSanctionFields(defaultSanctionReason(report.reason)),
+    note: "",
+  }));
+  const running = report.auction?.status === "진행중";
+
+  return (
+    <div className="mt-3 space-y-3 rounded-md border border-rose-100 bg-rose-50/40 p-3">
+      <fieldset disabled={busy} className="flex flex-wrap items-center gap-x-3 text-sm">
+        <legend className="mb-1 text-xs font-semibold text-slate-700">경매 조치</legend>
+        <label className="inline-flex items-center gap-1">
+          <input
+            type="radio"
+            name={`auction-report-${report.id}-stop`}
+            checked={!draft.stopAuction}
+            onChange={() => setDraft({ ...draft, stopAuction: false })}
+          />
+          없음
+        </label>
+        <label className="inline-flex items-center gap-1">
+          <input
+            type="radio"
+            name={`auction-report-${report.id}-stop`}
+            checked={draft.stopAuction}
+            disabled={!running}
+            onChange={() => setDraft({ ...draft, stopAuction: true })}
+          />
+          경매 중단(취소)
+        </label>
+        {!running ? <span className="text-xs text-slate-500">진행 중인 경매만 중단할 수 있어요.</span> : null}
+      </fieldset>
+
+      <SanctionFields
+        name={`auction-report-${report.id}`}
+        value={draft.sanction}
+        onChange={(sanction) => setDraft({ ...draft, sanction })}
+        disabled={busy}
+        hideInternalNote
+      />
+      <Link href={`/admin/users/${report.reportedUserId}`} className="inline-block text-xs text-slate-600 underline">
+        피신고자 상세 보기
+      </Link>
+
+      <label className="block">
+        <span className="text-xs font-semibold text-slate-700">내부 메모 (운영자만 봄)</span>
+        <textarea
+          className="mt-1 w-full rounded border border-slate-300 px-2 py-1 text-sm"
+          rows={2}
+          maxLength={500}
+          disabled={busy}
+          value={draft.note}
+          onChange={(event) => setDraft({ ...draft, note: event.target.value })}
+        />
+      </label>
+
+      <div className="flex flex-wrap gap-2">
+        <Button
+          size="sm"
+          variant={draft.sanction.type === "BAN" ? "destructive" : "default"}
+          disabled={busy || Boolean(validateSanctionFields(draft.sanction))}
+          onClick={() => onSubmit(report, "RESOLVED", draft)}
+        >
+          처리
+        </Button>
+        <Button size="sm" variant="outline" disabled={busy} onClick={() => onSubmit(report, "REJECTED", draft)}>
+          기각 (위반 아님)
+        </Button>
+      </div>
+    </div>
+  );
+}
 
 const hourText = (ms: number) => `${Math.floor(ms / (1000 * 60 * 60))}시간`;
 const minuteText = (ms: number) => `${Math.floor(ms / (1000 * 60))}분`;
@@ -41,6 +132,7 @@ export default function AdminAuctionsPage() {
   const [status, setStatus] = useState<(typeof STATUS_OPTIONS)[number]>("전체");
   const [updatingId, setUpdatingId] = useState<number | null>(null);
   const [reportUpdatingId, setReportUpdatingId] = useState<number | null>(null);
+  const [expandedReportId, setExpandedReportId] = useState<number | null>(null);
   const { confirm, confirmDialog } = useConfirmDialog();
 
   const { data, mutate } = useSWR<AdminAuctionsResponse>(
@@ -143,64 +235,33 @@ export default function AdminAuctionsPage() {
   const handleReportDecision = async (
     report: AdminAuctionReportItem,
     decision: "RESOLVED" | "REJECTED",
-    action: ReportAction
+    draft: AuctionResolveDraft
   ) => {
     const targetUserLabel = report.reportedUser?.name || `ID ${report.reportedUserId}`;
-    const reporterLabel = report.reporter?.name || `ID ${report.reporterId}`;
     const auctionLabel = report.auction?.title || `경매 #${report.auctionId}`;
-
-    const decisionSummary = (() => {
-      if (decision === "REJECTED") return "결과: 신고 기각(제재 없음)";
-      if (action === "STOP_AUCTION")
-        return "결과: 신고 처리 + 대상 경매 취소(중단)";
-      if (action === "BAN_USER")
-        return `결과: 신고 처리 + 피신고자(${targetUserLabel}) 영구정지`;
-      if (action === "STOP_AUCTION_AND_BAN")
-        return `결과: 경매 취소(중단) + 피신고자(${targetUserLabel}) 영구정지`;
-      return "결과: 신고 처리 완료(제재 없음)";
-    })();
+    const stop = decision === "RESOLVED" && draft.stopAuction;
+    const userAction = decision === "RESOLVED" ? toSanctionPayload(draft.sanction) : null;
+    const banning = userAction?.type === "BAN";
 
     const confirmed = await confirm({
-      title:
-        action === "STOP_AUCTION_AND_BAN"
-          ? "신고 처리와 함께 경매 중단 + 피신고자 영구정지를 실행할까요?"
-          : action === "STOP_AUCTION"
-            ? "신고 처리와 함께 대상 경매를 즉시 중단(취소)할까요?"
-            : action === "BAN_USER"
-          ? "신고 처리와 함께 피신고 계정을 영구정지할까요?"
-          : decision === "REJECTED"
-            ? "신고를 기각할까요?"
-            : "신고를 처리 완료로 변경할까요?",
+      title: decision === "REJECTED" ? "신고를 기각할까요?" : "이 내용으로 신고를 처리할까요?",
       description: [
         `신고 #${report.id}`,
         `대상 경매: ${auctionLabel}`,
-        `신고자: ${reporterLabel}`,
-        `피신고자: ${targetUserLabel}`,
-        decisionSummary,
-        action === "BAN_USER" || action === "STOP_AUCTION_AND_BAN"
-          ? "아래 입력칸에 BAN을 정확히 입력해야 실행됩니다."
-          : "",
-        "처리 결과는 즉시 반영되며 되돌리기 어렵습니다.",
+        decision === "REJECTED"
+          ? "결과: 신고 기각(조치 없음, 신고자에게 알리지 않음)"
+          : `경매: ${stop ? "중단(취소)" : "조치 없음"} / 피신고자(${targetUserLabel}): ${
+              userAction ? sanctionActionLabel(userAction) : "조치 없음"
+            }`,
+        banning ? "아래 입력칸에 BAN을 정확히 입력해야 실행됩니다." : "",
+        "처리 결과는 즉시 반영됩니다.",
       ]
         .filter(Boolean)
         .join("\n"),
-      confirmText:
-        action === "BAN_USER"
-          ? "유저 영구정지 실행"
-          : action === "STOP_AUCTION_AND_BAN"
-            ? "경매중단+영구정지 실행"
-            : action === "STOP_AUCTION"
-              ? "경매 중단 실행"
-              : "처리 실행",
-      tone:
-        action === "BAN_USER" || action === "STOP_AUCTION_AND_BAN"
-          ? "danger"
-          : "default",
-      confirmKeyword:
-        action === "BAN_USER" || action === "STOP_AUCTION_AND_BAN"
-          ? "BAN"
-          : "",
-      confirmKeywordLabel: "영구정지 실행 키워드",
+      confirmText: decision === "REJECTED" ? "기각" : "처리 실행",
+      tone: banning ? "danger" : "default",
+      confirmKeyword: banning ? "BAN" : "",
+      confirmKeywordLabel: "영구 정지 실행 키워드",
     });
     if (!confirmed) return;
 
@@ -212,25 +273,20 @@ export default function AdminAuctionsPage() {
         body: JSON.stringify({
           reportId: report.id,
           decision,
-          action,
-          note:
-            action === "BAN_USER"
-              ? "운영자 판단으로 영구정지 처리"
-              : decision === "REJECTED"
-                ? "신고 사유 불충분으로 기각"
-                : "운영자 검토 완료",
+          action: stop ? "STOP_AUCTION" : "NONE",
+          userAction,
+          note: draft.note.trim(),
         }),
       });
       const result = await res.json();
       if (!result.success) {
         return toast.error(result.error || "신고 처리에 실패했습니다.");
       }
-      toast.success(
-        action === "BAN_USER" ? "신고 처리 및 영구정지가 완료되었습니다." : "신고가 처리되었습니다."
-      );
+      toast.success("신고를 처리했어요.");
+      setExpandedReportId(null);
       mutateReports();
     } catch {
-      toast.error("오류가 발생했습니다.");
+      toast.error("처리하지 못했어요. 다시 시도해 주세요.");
     } finally {
       setReportUpdatingId(null);
     }
@@ -299,10 +355,9 @@ export default function AdminAuctionsPage() {
           </div>
           <div className="mt-2 rounded-md border border-rose-200 bg-white/80 px-2.5 py-2 text-[11px] leading-relaxed text-rose-900">
             <p>정책: 신고 접수만으로 경매/유저가 자동 제재되지는 않습니다.</p>
-            <p>처리 완료(제재 없음): 신고만 종결합니다.</p>
-            <p>경매 중단: 대상 경매를 취소 상태로 전환합니다.</p>
-            <p>유저 영구정지: 피신고자 계정을 BANNED 처리합니다.</p>
-            <p>중단+정지: 경매 취소와 계정 영구정지를 동시에 실행합니다.</p>
+            <p>경매 조치: 진행 중인 경매를 취소 상태로 중단할 수 있습니다.</p>
+            <p>사용자 조치: 경고 → 3일 → 10일 → 30일 → 영구 정지 순서를 권장합니다(최근 180일 기준).</p>
+            <p>신고자에게는 조치가 적용됐을 때만 알림이 갑니다(기각은 알리지 않음).</p>
           </div>
 
           <div className="mt-3 space-y-2">
@@ -326,65 +381,19 @@ export default function AdminAuctionsPage() {
                   </p>
                     <p className="mt-1 text-sm text-slate-700">사유: {report.reason}</p>
                   <p className="mt-1 text-sm text-slate-600 whitespace-pre-line">{report.detail}</p>
-                  <div className="mt-2 rounded-md border border-rose-100 bg-rose-50/60 px-2.5 py-2 text-[11px] leading-relaxed text-rose-900">
-                    <p>처리 완료(제재 없음): 신고를 인정하고 종료합니다.</p>
-                    <p>신고 기각: 근거 부족/운영기준 미충족으로 종료합니다.</p>
-                    <p>경매 중단: 대상 경매를 취소 상태로 중단합니다.</p>
-                    <p>유저 영구정지: 피신고자를 즉시 영구정지합니다.</p>
-                    <p>중단 + 영구정지: 경매 취소와 유저 영구정지를 동시에 실행합니다.</p>
-                  </div>
-                  <div className="mt-3 flex flex-wrap gap-2">
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      disabled={reportUpdatingId === report.id}
-                      onClick={() =>
-                        handleReportDecision(report, "RESOLVED", "NONE")
-                      }
-                    >
-                      처리 완료 (제재 없음)
-                    </Button>
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      disabled={reportUpdatingId === report.id}
-                      onClick={() =>
-                        handleReportDecision(report, "REJECTED", "NONE")
-                      }
-                    >
-                      신고 기각 (근거 부족)
-                    </Button>
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      disabled={reportUpdatingId === report.id}
-                      onClick={() =>
-                        handleReportDecision(report, "RESOLVED", "STOP_AUCTION")
-                      }
-                    >
-                      경매 중단 (취소 처리)
-                    </Button>
-                    <Button
-                      size="sm"
-                      variant="destructive"
-                      disabled={reportUpdatingId === report.id}
-                      onClick={() =>
-                        handleReportDecision(report, "RESOLVED", "BAN_USER")
-                      }
-                    >
-                      유저 영구정지 (즉시)
-                    </Button>
-                    <Button
-                      size="sm"
-                      variant="destructive"
-                      disabled={reportUpdatingId === report.id}
-                      onClick={() =>
-                        handleReportDecision(report, "RESOLVED", "STOP_AUCTION_AND_BAN")
-                      }
-                    >
-                      중단 + 영구정지 (즉시)
-                    </Button>
-                  </div>
+                  {expandedReportId === report.id ? (
+                    <AuctionResolvePanel
+                      report={report}
+                      busy={reportUpdatingId === report.id}
+                      onSubmit={handleReportDecision}
+                    />
+                  ) : (
+                    <div className="mt-3">
+                      <Button size="sm" variant="outline" onClick={() => setExpandedReportId(report.id)}>
+                        처리하기
+                      </Button>
+                    </div>
+                  )}
                 </div>
               ))
             ) : (
