@@ -1,6 +1,12 @@
 import { findCategoryBranch } from "@libs/categoryTaxonomy";
 import { PRODUCT_TYPES } from "@libs/constants";
 import { isDealType } from "@libs/shared/categories";
+import {
+  parsePedigreeNote,
+  PEDIGREE_NOTE_INVALID_MESSAGE,
+  PEDIGREE_WITHOUT_BLOODLINE_MESSAGE,
+  type PedigreeNote,
+} from "@libs/shared/pedigree-note";
 
 export const PRODUCT_NAME_MIN_LENGTH = 2;
 export const PRODUCT_NAME_MAX_LENGTH = 60;
@@ -24,7 +30,15 @@ export type ProductValidationErrorCode =
   | "PRODUCT_TOO_MANY_PHOTOS"
   | "PRODUCT_INVALID_CATEGORY"
   | "PRODUCT_INVALID_PRODUCT_TYPE"
-  | "PRODUCT_INVALID_DEAL_TYPE";
+  | "PRODUCT_INVALID_DEAL_TYPE"
+  | "PRODUCT_INVALID_BLOODLINE_ROOT"
+  | "PRODUCT_INVALID_PEDIGREE_NOTE"
+  | "PRODUCT_PEDIGREE_WITHOUT_BLOODLINE";
+
+/** 상품 혈통 연결 오류 문구(앱 src/lib/bloodlineErrors.ts BLOODLINE_LINK_ERROR_MESSAGES 와 같다). */
+export const PRODUCT_INVALID_BLOODLINE_ROOT_MESSAGE = "연결할 혈통을 찾을 수 없어요";
+export const PRODUCT_BLOODLINE_FORBIDDEN_MESSAGE =
+  "내가 보유했거나 출처 카드를 받은 혈통만 연결할 수 있어요";
 
 export interface ProductInputValue {
   name?: string;
@@ -35,6 +49,13 @@ export interface ProductInputValue {
   productType?: string;
   /** 거래 유형(sale/adoption/rehoming). 보내지 않으면 서버 기본값 sale. */
   dealType?: string;
+  /**
+   * 연결한 뿌리 혈통 id. 보내지 않았으면 키가 없다(수정: 기존 값 유지).
+   * null 은 해제다(이때 pedigreeNote 도 null 로 맞춘다).
+   */
+  bloodlineRootId?: number | null;
+  /** 부·모 크기·누대. 보내지 않았으면 키가 없다. 비었거나 null 이면 null(지움). */
+  pedigreeNote?: PedigreeNote | null;
 }
 
 export type ProductValidationResult =
@@ -46,6 +67,24 @@ const fail = (
   message: string
 ): ProductValidationResult => ({ ok: false, errorCode, message });
 
+/** Prisma Int(INT4) 최대값. 이보다 큰 id 는 조회 전에 잘못된 값으로 거른다. */
+const INT4_MAX = 2_147_483_647;
+
+/**
+ * 요청의 bloodlineRootId. null·빈 문자열이면 null(해제), 양의 정수(숫자 또는 숫자 문자열)면 그 값,
+ * 그 밖이면 undefined(잘못된 값).
+ */
+const readBloodlineRootId = (raw: unknown): number | null | undefined => {
+  if (raw === null || raw === "") return null;
+  const id =
+    typeof raw === "number"
+      ? raw
+      : typeof raw === "string" && /^\d+$/.test(raw.trim())
+        ? Number(raw.trim())
+        : Number.NaN;
+  return Number.isInteger(id) && id > 0 && id <= INT4_MAX ? id : undefined;
+};
+
 /**
  * 상품 등록/수정 공통 검증.
  * - 상품명·설명은 앞뒤 공백을 제거한 길이로 검사한다.
@@ -54,6 +93,11 @@ const fail = (
  * - 카테고리는 대분류·하위분류·레거시 별칭만, 상품 타입은 생물·용품만 받는다.
  *   requireCategory(등록 API)면 둘 다 필수, 아니면 보냈을 때만 검사한다.
  *   (웹 수정 화면은 카테고리 없이 이 함수로 사전 검사하므로 기본값은 선택이다.)
+ * - 혈통(bloodlineRootId·pedigreeNote)은 보냈을 때만 검사한다(구 앱은 보내지 않는다).
+ *   bloodlineRootId 는 양의 정수 또는 null(해제). null 이면 pedigreeNote 도 null 이다.
+ *   등록(partial 아님)에서 혈통 없이 부모 정보만 오면 PRODUCT_PEDIGREE_WITHOUT_BLOODLINE.
+ *   수정에서 부모 정보만 오면 기존 혈통이 있는지는 API 가 본다(이 함수는 기존 값을 모른다).
+ *   붙일 권한(보유·출처 카드)은 API 가 libs/server/bloodline-link canAttachBloodline 으로 본다.
  */
 export const validateProductInput = (
   input: {
@@ -64,6 +108,8 @@ export const validateProductInput = (
     category?: unknown;
     productType?: unknown;
     dealType?: unknown;
+    bloodlineRootId?: unknown;
+    pedigreeNote?: unknown;
   },
   {
     partial = false,
@@ -157,6 +203,30 @@ export const validateProductInput = (
       return fail("PRODUCT_INVALID_DEAL_TYPE", "거래 유형을 다시 선택해주세요.");
     }
     value.dealType = dealType;
+  }
+
+  if (input.bloodlineRootId !== undefined) {
+    const rootId = readBloodlineRootId(input.bloodlineRootId);
+    if (rootId === undefined) {
+      return fail("PRODUCT_INVALID_BLOODLINE_ROOT", PRODUCT_INVALID_BLOODLINE_ROOT_MESSAGE);
+    }
+    value.bloodlineRootId = rootId;
+  }
+
+  if (input.pedigreeNote !== undefined) {
+    const pedigree = parsePedigreeNote(input.pedigreeNote);
+    if (!pedigree.ok) {
+      return fail("PRODUCT_INVALID_PEDIGREE_NOTE", PEDIGREE_NOTE_INVALID_MESSAGE);
+    }
+    value.pedigreeNote = pedigree.value;
+  }
+
+  // 혈통을 해제하면 부모 정보도 지운다(남아 있던 화면 값이 와도 저장하지 않는다).
+  if (value.bloodlineRootId === null) {
+    value.pedigreeNote = null;
+  }
+  if (!partial && value.pedigreeNote && typeof value.bloodlineRootId !== "number") {
+    return fail("PRODUCT_PEDIGREE_WITHOUT_BLOODLINE", PEDIGREE_WITHOUT_BLOODLINE_MESSAGE);
   }
 
   return { ok: true, value };

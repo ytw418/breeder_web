@@ -49,9 +49,11 @@ const ICON_BY_TYPE: Partial<Record<NotificationType, NotificationIconName>> = {
   AUCTION_RECORD_BROKEN: "hammer",
   CHAT: "bubble",
   COMMENT: "bubble",
+  // 출처 카드·혈통 받음(혈통 v2). 이동은 targetType "bloodline" → /bloodline-management/card/{id}
+  BLOODLINE_RECEIVED: "bell",
 };
 
-/** 경매 계열은 망치, 채팅·댓글은 말풍선, 나머지는 종. */
+/** 경매 계열은 망치, 채팅·댓글은 말풍선, 혈통 받음 등 나머지는 종. */
 export const getNotificationIcon = (type: NotificationType | string): NotificationIconName =>
   ICON_BY_TYPE[type as NotificationType] ?? "bell";
 

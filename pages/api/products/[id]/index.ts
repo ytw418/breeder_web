@@ -4,12 +4,37 @@ import client from "@libs/server/client";
 import { withAuth } from "@libs/server/auth";
 import { isModeratorUser } from "@libs/server/adminAccess";
 import { Product, User } from "@prisma/client";
-import { validateProductInput } from "@libs/productRules";
+import {
+  PRODUCT_BLOODLINE_FORBIDDEN_MESSAGE,
+  PRODUCT_INVALID_BLOODLINE_ROOT_MESSAGE,
+  validateProductInput,
+} from "@libs/productRules";
 import { resolveCategoryIdByName } from "@libs/server/categories";
 import { excludedAuthorIds } from "@libs/server/blocks";
+import {
+  canAttachBloodline,
+  getBloodlineLinkSummary,
+  pedigreeNoteDbValue,
+  readStoredPedigreeNote,
+} from "@libs/server/bloodline-link";
+import { captureServerEvent } from "@libs/server/analytics";
+import {
+  PEDIGREE_WITHOUT_BLOODLINE_MESSAGE,
+  type PedigreeNote,
+} from "@libs/shared/pedigree-note";
+import type { BloodlineLinkSummary } from "@libs/shared/bloodline-card";
 
-export interface ProductWithUser extends Product {
+export interface ProductWithUser extends Omit<Product, "pedigreeNote" | "bloodlineRootId"> {
   user: User;
+  /** 연결한 뿌리 혈통 id. 새 응답 필드라 optional 이다(구 응답·테스트 픽스처 호환). */
+  bloodlineRootId?: number | null;
+  /** 부·모 크기·누대(규칙에 맞는 키만). 혈통을 붙이지 않았으면 null. */
+  pedigreeNote?: PedigreeNote | null;
+  /**
+   * 상세 GET 에서만: 연결한 혈통 요약. 연결이 없거나 혈통이 ACTIVE 가 아니면(회수·숨김) null.
+   * 뷰어와 무관한 값이라 웹 SSR(비로그인 fetch)과 같은 결과다.
+   */
+  bloodline?: BloodlineLinkSummary | null;
 }
 
 export interface ItemDetailResponse {
@@ -118,7 +143,7 @@ async function handler(
         errorCode: "PRODUCT_HIDDEN",
       });
     }
-    const [isLikedResult, hasPurchasedResult] = await Promise.all([
+    const [isLikedResult, hasPurchasedResult, bloodline] = await Promise.all([
       // 비로그인이면 조회하지 않는다. userId: undefined 는 Prisma 가 조건을 무시해
       // 다른 사람의 찜이 잡힌다(#139).
       user?.id
@@ -131,6 +156,14 @@ async function handler(
         ? client.purchase.findFirst({
             where: { productId: product.id, userId: user.id },
             select: { id: true },
+          })
+        : null,
+      // 연결한 혈통 요약(판매자 관계 포함). ACTIVE 가 아니면 null 이라 상세에서 행이 사라진다.
+      // 곁가지 정보라 조회가 실패해도 상품 상세는 그대로 준다(행만 빠진다).
+      product.bloodlineRootId
+        ? getBloodlineLinkSummary(product.bloodlineRootId, product.userId).catch((error) => {
+            console.error("[api/products/:id][bloodline-summary]", error);
+            return null;
           })
         : null,
     ]);
@@ -163,7 +196,11 @@ async function handler(
 
     return res.json({
       success: true,
-      product,
+      product: {
+        ...product,
+        pedigreeNote: readStoredPedigreeNote(product.pedigreeNote),
+        bloodline,
+      },
       isLiked,
       hasPurchased,
       relatedProducts,
@@ -237,7 +274,41 @@ async function handler(
             errorCode: validation.errorCode,
           });
         }
-        const { photos } = validation.value;
+        const { photos, bloodlineRootId, pedigreeNote } = validation.value;
+        const storedRootId = product.bloodlineRootId ?? null;
+
+        // 부모 정보만 보내면 이미 붙어 있는 혈통이 있어야 한다.
+        if (bloodlineRootId === undefined && pedigreeNote && !storedRootId) {
+          return res.status(400).json({
+            success: false,
+            error: PEDIGREE_WITHOUT_BLOODLINE_MESSAGE,
+            message: PEDIGREE_WITHOUT_BLOODLINE_MESSAGE,
+            errorCode: "PRODUCT_PEDIGREE_WITHOUT_BLOODLINE",
+          });
+        }
+
+        // 새 혈통을 붙이거나 바꿀 때만 권한을 본다. 이미 붙어 있던 혈통을 그대로 보내는 수정은
+        // (그 뒤 혈통을 넘겼거나 회수됐어도) 가격·설명 수정을 막지 않는다.
+        let attachRelation: "mine" | "received" | null = null;
+        if (typeof bloodlineRootId === "number" && bloodlineRootId !== storedRootId) {
+          const decision = await canAttachBloodline(bloodlineRootId, user.id);
+          if (!decision.ok) {
+            const notFound = decision.reason === "not_found";
+            const message = notFound
+              ? PRODUCT_INVALID_BLOODLINE_ROOT_MESSAGE
+              : PRODUCT_BLOODLINE_FORBIDDEN_MESSAGE;
+            return res.status(notFound ? 400 : 403).json({
+              success: false,
+              error: message,
+              message,
+              errorCode: notFound
+                ? "PRODUCT_INVALID_BLOODLINE_ROOT"
+                : "PRODUCT_BLOODLINE_FORBIDDEN",
+            });
+          }
+          attachRelation = decision.relation;
+        }
+
         const updatedProduct = await client.product.update({
           where: { id: Number(productId) },
           data: {
@@ -253,8 +324,27 @@ async function handler(
             dealType: validation.value.dealType,
             // 사진을 보냈으면 대표 이미지도 첫 장으로 맞춘다(등록과 같은 규칙).
             ...(photos ? { mainImage: photos[0] ?? null } : {}),
+            // 혈통은 보낸 때만 바꾼다(구 앱 수정은 기존 값 유지). null 이면 해제 + 부모 정보도 지움.
+            ...(bloodlineRootId !== undefined ? { bloodlineRootId } : {}),
+            ...(pedigreeNote !== undefined
+              ? { pedigreeNote: pedigreeNoteDbValue(pedigreeNote) }
+              : {}),
           },
         });
+
+        // 혈통이 없던 상품에 새로 붙였을 때만 계측한다(응답 직전, 1.5초 상한, 실패해도 무시).
+        if (typeof bloodlineRootId === "number" && !storedRootId && attachRelation) {
+          const attachedNote = pedigreeNote !== undefined
+            ? pedigreeNote
+            : readStoredPedigreeNote(product.pedigreeNote);
+          await captureServerEvent(user.id, "product_bloodline_attached", {
+            product_id: product.id,
+            bloodline_id: bloodlineRootId,
+            relation: attachRelation,
+            has_pedigree: Boolean(attachedNote),
+            generation: attachedNote?.generation ?? null,
+          });
+        }
         return res.json({ success: true, product: updatedProduct });
       }
 

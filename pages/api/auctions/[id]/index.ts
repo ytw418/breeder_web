@@ -25,18 +25,42 @@ import {
   getSortedActiveBreederProgramSummaries,
 } from "@libs/server/breeder-programs";
 import type { BreederProgramSummary } from "@libs/shared/breeder-program";
+import {
+  canAttachBloodline,
+  getBloodlineLinkSummary,
+  pedigreeNoteDbValue,
+  readStoredPedigreeNote,
+} from "@libs/server/bloodline-link";
+import { captureServerEvent } from "@libs/server/analytics";
+import {
+  parsePedigreeNote,
+  PEDIGREE_NOTE_INVALID_MESSAGE,
+  PEDIGREE_WITHOUT_BLOODLINE_MESSAGE,
+  type PedigreeNote,
+} from "@libs/shared/pedigree-note";
+import type { AuctionBloodlineLinkSummary } from "@libs/shared/bloodline-card";
+
+/** Prisma Int(INT4) 최대값. 이보다 큰 혈통 id 는 잘못된 값(null)으로 본다. */
+const INT4_MAX = 2_147_483_647;
 
 /** 경매 상세 응답 타입 */
 export interface AuctionDetailResponse {
   success: boolean;
   error?: string;
   errorCode?: string;
-  auction?: Auction & {
+  auction?: Omit<Auction, "pedigreeNote"> & {
     user: Pick<User, "id" | "name" | "avatar"> & {
       breederPrograms: BreederProgramSummary[];
     };
     bids: (Bid & { user: Pick<User, "id" | "name" | "avatar"> })[];
     _count: { bids: number };
+    /** 부·모 크기·누대(규칙에 맞는 키만). 혈통을 붙이지 않았으면 null. */
+    pedigreeNote?: PedigreeNote | null;
+    /**
+     * 연결한 혈통 요약. 연결이 없거나 혈통이 ACTIVE 가 아니면 null.
+     * winnerReceived 는 판매자 + 종료 + 낙찰자 있음일 때만 싣는다(낙찰자가 이미 출처 카드·혈통을 가졌는지).
+     */
+    bloodline?: AuctionBloodlineLinkSummary | null;
   };
   isOwner?: boolean;
   canEdit?: boolean;
@@ -114,6 +138,29 @@ async function handler(
       bidCount: auction._count.bids,
     });
 
+    // 연결한 혈통 요약(판매자 관계 포함, 뷰어와 무관). 판매자에게는 종료 경매의 낙찰자 보내기 제안용으로
+    // 낙찰자가 이미 그 혈통의 출처 카드(또는 혈통 자체)를 가졌는지도 알려 준다.
+    // 판매자가 지금 보낼 수 없으면(혈통을 넘겼고 출처 카드도 없음) winnerReceived 를 싣지 않는다 → 제안 행이 없다.
+    // 곁가지 정보라 조회가 실패해도 경매 상세는 그대로 준다(행만 빠진다).
+    let bloodline: AuctionBloodlineLinkSummary | null = null;
+    if (auction.bloodlineRootId) {
+      try {
+        const summary = await getBloodlineLinkSummary(auction.bloodlineRootId, auction.userId);
+        bloodline = summary;
+        if (summary && isOwner && auction.status === "종료" && auction.winnerId) {
+          // 보낼 수 있다 = 뿌리 보유(출처 카드 보내기) 또는 그 뿌리의 출처 카드 보유(다음 분에게 보내기)
+          const sellerCanSend = await canAttachBloodline(summary.id, auction.userId);
+          if (sellerCanSend.ok) {
+            const winnerHolds = await canAttachBloodline(summary.id, auction.winnerId);
+            bloodline = { ...summary, winnerReceived: winnerHolds.ok };
+          }
+        }
+      } catch (error) {
+        console.error("[api/auctions/:id][bloodline-summary]", error);
+        bloodline = null;
+      }
+    }
+
     const serializedAuction = {
       ...auction,
       user: {
@@ -122,6 +169,8 @@ async function handler(
           auction.user.breederPrograms
         ),
       },
+      pedigreeNote: readStoredPedigreeNote(auction.pedigreeNote),
+      bloodline,
     };
 
     return res.json({
@@ -159,6 +208,7 @@ async function handler(
       sellerTrustNote,
       bloodlineRootId,
       minBidIncrement: requestedBidIncrement,
+      pedigreeNote: requestedPedigreeNote,
     } = req.body;
 
     if (action !== "update") {
@@ -266,7 +316,9 @@ async function handler(
       const normalizedPhotos = Array.isArray(photos) ? photos : [];
       const parsedBloodlineRootId = Number(bloodlineRootId);
       const normalizedBloodlineRootId =
-        Number.isInteger(parsedBloodlineRootId) && parsedBloodlineRootId > 0
+        Number.isInteger(parsedBloodlineRootId) &&
+        parsedBloodlineRootId > 0 &&
+        parsedBloodlineRootId <= INT4_MAX
           ? parsedBloodlineRootId
           : null;
       if (
@@ -280,32 +332,47 @@ async function handler(
         });
       }
 
-      if (normalizedBloodlineRootId) {
-        const linkedBloodline = await client.bloodlineCard.findFirst({
-          where: {
-            id: normalizedBloodlineRootId,
-            cardType: "BLOODLINE",
-            status: "ACTIVE",
-          },
-          select: { id: true, creatorId: true, currentOwnerId: true },
+      // 부·모 크기·누대는 보낸 때만 바꾼다(구 앱은 보내지 않아 기존 값 유지, #174 입찰 단위와 같은 방식).
+      // 혈통 id 는 예전처럼 전체 교체라 안 보내면 해제되고, 해제되면 부모 정보도 지운다.
+      const pedigreeSent = requestedPedigreeNote !== undefined;
+      const pedigree = parsePedigreeNote(requestedPedigreeNote);
+      if (!pedigree.ok) {
+        return res.status(400).json({
+          success: false,
+          error: PEDIGREE_NOTE_INVALID_MESSAGE,
+          errorCode: "AUCTION_INVALID_PEDIGREE_NOTE",
         });
-        if (!linkedBloodline) {
-          return res.status(400).json({
+      }
+      if (pedigree.value && bloodlineRootId === undefined) {
+        return res.status(400).json({
+          success: false,
+          error: PEDIGREE_WITHOUT_BLOODLINE_MESSAGE,
+          errorCode: "AUCTION_PEDIGREE_WITHOUT_BLOODLINE",
+        });
+      }
+      const nextPedigree: { pedigreeNote: PedigreeNote | null } | null = !normalizedBloodlineRootId
+        ? { pedigreeNote: null }
+        : pedigreeSent
+          ? { pedigreeNote: pedigree.value }
+          : null;
+
+      // 새 혈통을 붙이거나 바꿀 때만 권한을 본다(지금 보유 또는 출처 카드 보유). 이미 연결된 혈통을
+      // 그대로 보내는 수정은 그 뒤 혈통을 넘겼거나 회수됐어도 막지 않는다. 오류 코드는 그대로다.
+      const storedBloodlineRootId = auction.bloodlineRootId ?? null;
+      let attachRelation: "mine" | "received" | null = null;
+      if (normalizedBloodlineRootId && normalizedBloodlineRootId !== storedBloodlineRootId) {
+        const decision = await canAttachBloodline(normalizedBloodlineRootId, user.id);
+        if (!decision.ok) {
+          const notFound = decision.reason === "not_found";
+          return res.status(notFound ? 400 : 403).json({
             success: false,
-            error: "연결할 원본 혈통카드를 찾을 수 없습니다.",
-            errorCode: "AUCTION_INVALID_BLOODLINE_ROOT",
+            error: notFound
+              ? "연결할 혈통을 찾을 수 없어요"
+              : "내가 보유했거나 출처 카드를 받은 혈통만 연결할 수 있어요",
+            errorCode: notFound ? "AUCTION_INVALID_BLOODLINE_ROOT" : "AUCTION_BLOODLINE_FORBIDDEN",
           });
         }
-        if (
-          linkedBloodline.creatorId !== user.id &&
-          linkedBloodline.currentOwnerId !== user.id
-        ) {
-          return res.status(403).json({
-            success: false,
-            error: "내가 생성하거나 보유한 혈통카드만 경매에 연결할 수 있습니다.",
-            errorCode: "AUCTION_BLOODLINE_FORBIDDEN",
-          });
-        }
+        attachRelation = decision.relation;
       }
 
       if (
@@ -337,12 +404,27 @@ async function handler(
           sellerProofImage: normalizeOptionalText(sellerProofImage, 120),
           sellerTrustNote: normalizeOptionalText(sellerTrustNote, 300),
           bloodlineRootId: normalizedBloodlineRootId,
+          ...(nextPedigree ? { pedigreeNote: pedigreeNoteDbValue(nextPedigree.pedigreeNote) } : {}),
           startPrice: normalizedStartPrice,
           currentPrice: normalizedStartPrice,
           ...(nextBidIncrement !== undefined ? { minBidIncrement: nextBidIncrement } : {}),
           endAt: endDate,
         },
       });
+
+      // 혈통이 없던 경매에 새로 붙였을 때만 계측한다(응답 직전, 1.5초 상한, 실패해도 무시).
+      if (normalizedBloodlineRootId && !storedBloodlineRootId && attachRelation) {
+        const attachedNote = nextPedigree
+          ? nextPedigree.pedigreeNote
+          : readStoredPedigreeNote(auction.pedigreeNote);
+        await captureServerEvent(user.id, "auction_bloodline_attached", {
+          auction_id: auction.id,
+          bloodline_id: normalizedBloodlineRootId,
+          relation: attachRelation,
+          has_pedigree: Boolean(attachedNote),
+          generation: attachedNote?.generation ?? null,
+        });
+      }
 
       return res.json({ success: true, auction: updatedAuction });
     } catch (error) {

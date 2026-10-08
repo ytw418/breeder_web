@@ -33,3 +33,13 @@ export function validateNickname(raw: unknown): NicknameValidation {
   if (isReservedUserName(name)) return reject("RESERVED");
   return { ok: true, name };
 }
+
+/**
+ * 두 닉네임이 같은지(앞뒤 공백·유니코드 조합 차이만 무시). 혈통 보내기에서 toUserId 로 찾은 사람과
+ * 함께 온 toUserName(링크로 미리 채운 닉네임 등)이 같은 사람인지 확인할 때 쓴다.
+ */
+export function isSameNickname(a: string | null | undefined, b: string | null | undefined): boolean {
+  const left = (a ?? "").normalize("NFC").trim();
+  const right = (b ?? "").normalize("NFC").trim();
+  return left.length > 0 && left === right;
+}

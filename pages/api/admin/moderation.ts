@@ -18,8 +18,9 @@ export interface AdminModerationResponse extends ResponseType {
 }
 
 /**
- * 운영자 조치: 게시글·댓글·상품·경매 숨김 / 숨김 해제 / 삭제.
- * body: { targetType: "POST"|"COMMENT"|"PRODUCT"|"AUCTION", targetId, action: "hide"|"unhide"|"delete", reason? }
+ * 운영자 조치: 게시글·댓글·상품·경매·혈통 숨김 / 숨김 해제 / 삭제.
+ * body: { targetType: "POST"|"COMMENT"|"PRODUCT"|"AUCTION"|"BLOODLINE_CARD", targetId, action: "hide"|"unhide"|"delete", reason? }
+ * 혈통(BLOODLINE_CARD)의 delete 는 회수(REVOKED)이고, 뿌리 혈통이면 그 출처 카드도 함께 회수한다(libs/server/moderation).
  */
 async function handler(req: NextApiRequest, res: NextApiResponse<AdminModerationResponse>) {
   const actorId = req.user?.id;

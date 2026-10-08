@@ -1,12 +1,13 @@
 "use client";
 
 /**
- * 혈통카드 — 채택 시안(A안, 당근 톤) 1:1
+ * 혈통·출처 카드 미리보기 — 채택 시안(A안, 당근 톤) 1:1
  * 원본: bredy_app design/mockups/bloodline-card/A-karrot.html `.card`,
  *       bredy_app src/components/features/bloodline/BloodlineVisualCard.tsx
  *
  * 1px border r12 카드 = 사진(186, 없으면 placeholder + 34 라인 아이콘, 좌상단 태그)
- * + 본문(이름 20/700, 메타 14 muted) + 정보 행(보유자 / 발급일 / 발급번호).
+ * + 본문(이름 20/700, 메타 14 muted) + 정보 행(보유자 / 등록일 / 카드 번호).
+ * 혈통 v2 용어 정리로 "발급일"·"발급번호" 라벨을 "등록일"·"카드 번호"로 바꿨다(값은 그대로).
  */
 import { useState } from "react";
 import Image from "@components/atoms/Image";
@@ -30,9 +31,9 @@ interface BloodlineVisualCardProps {
   /** 이름 아래 메타 줄(예: "장수풍뎅이 · 오닉스 라인") */
   subtitle: string;
   ownerName: string;
-  /** 사진 좌상단 태그("혈통"/"라인"). 없으면 그리지 않는다. */
+  /** 사진 좌상단 태그("혈통"/"출처 카드"). 없으면 그리지 않는다. */
   typeLabel?: string;
-  /** 발급일 원본(ISO). 없으면 발급일 행을 그리지 않는다. */
+  /** 등록일 원본(ISO). 없으면 등록일 행을 그리지 않는다. */
   issuedAt?: string | null;
   /** 좁은 자리에서 사진 높이를 줄인다(132). */
   compact?: boolean;
@@ -90,8 +91,8 @@ export function BloodlineVisualCard({
   const rows: { label: string; value: string }[] = [
     { label: "보유자", value: ownerName || "-" },
   ];
-  if (issuedText) rows.push({ label: "발급일", value: issuedText });
-  if (cardId) rows.push({ label: "발급번호", value: String(cardId) });
+  if (issuedText) rows.push({ label: "등록일", value: issuedText });
+  if (cardId) rows.push({ label: "카드 번호", value: String(cardId) });
 
   return (
     <article

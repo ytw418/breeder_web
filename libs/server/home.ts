@@ -94,6 +94,8 @@ type ProductQueryOptions = {
   maxPrice?: number;
   /** 정렬. 없거나 모르는 값이면 최신순. */
   sort?: string;
+  /** 연결한 뿌리 혈통 id(혈통 상세 "이 혈통 분양글"). 양의 정수만 쓴다. */
+  bloodlineRootId?: number;
   /**
    * 로그인한 viewer. 있으면 viewer 가 차단한 판매자의 상품을 뺀다.
    * unstable_cache 경로(getCachedDefaultProducts)에는 넣지 않는다(공개 캐시).
@@ -281,6 +283,7 @@ const buildProductsResponse = async ({
   minPrice,
   maxPrice,
   sort,
+  bloodlineRootId,
   viewerId,
 }: ProductQueryOptions = {}): Promise<ProductsResponse> => {
   const pageNumber = Number(page);
@@ -307,6 +310,9 @@ const buildProductsResponse = async ({
   }
   if (status && status !== "전체") {
     where.status = status;
+  }
+  if (typeof bloodlineRootId === "number" && Number.isInteger(bloodlineRootId) && bloodlineRootId > 0) {
+    where.bloodlineRootId = bloodlineRootId;
   }
   if (typeof price === "number") {
     where.price = clampPrice(price);
@@ -411,6 +417,7 @@ export async function getProductsResponse(options: ProductQueryOptions = {}) {
     options.minPrice === undefined &&
     options.maxPrice === undefined &&
     (!options.sort || options.sort === "latest") &&
+    options.bloodlineRootId === undefined &&
     Number(options.page ?? 1) === 1 &&
     Number(options.size ?? 10) === 10;
 

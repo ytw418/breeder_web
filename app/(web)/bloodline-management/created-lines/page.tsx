@@ -2,8 +2,8 @@ import type { Metadata } from "next";
 import BloodlineSectionListClient from "../_components/BloodlineSectionListClient";
 
 export const metadata: Metadata = {
-  title: "내 라인 목록 | 브리디",
-  description: "내가 만든 라인카드를 관리하고, 필요 시 다시 보내거나 발급할 수 있습니다.",
+  title: "내 출처 카드 | 브리디",
+  description: "내 혈통에서 만들어 내가 가진 출처 카드를 확인하세요.",
   alternates: {
     canonical: "https://bredy.app/bloodline-management/created-lines",
   },

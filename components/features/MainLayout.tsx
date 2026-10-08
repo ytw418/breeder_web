@@ -215,7 +215,7 @@ function buildMenuSections(userId: number | null): { title: string; rows: MenuRo
       rows: [
         { label: "혈통관리", icon: "graph", href: "/bloodline-management" },
         {
-          label: "혈통카드 만들기",
+          label: "혈통 만들기",
           icon: "card",
           href: "/bloodline-cards/create",
           requiresAuth: true,

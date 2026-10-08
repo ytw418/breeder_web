@@ -30,9 +30,16 @@ const isBanAction = (action: ReportAction) =>
 const isRemoveAction = (action: ReportAction) =>
   action === "REMOVE_CONTENT" || action === "REMOVE_CONTENT_AND_BAN";
 
-/** 대상별 콘텐츠 삭제의 실제 의미. 상품은 거래 기록이 참조하므로 숨김 처리한다. */
+/**
+ * 대상별 콘텐츠 삭제의 실제 의미. 상품은 거래 기록이 참조하므로 숨김 처리하고,
+ * 혈통은 회수(REVOKED)한다(뿌리 혈통이면 그 혈통의 출처 카드도 함께 회수).
+ */
 const removeContentText = (type: ReportTargetType) =>
-  type === "PRODUCT" ? "상품 숨김" : `${REPORT_TARGET_LABEL[type]} 삭제`;
+  type === "PRODUCT"
+    ? "상품 숨김"
+    : type === "BLOODLINE_CARD"
+      ? "혈통 회수"
+      : `${REPORT_TARGET_LABEL[type]} 삭제`;
 
 export default function AdminReportsPage() {
   const [status, setStatus] = useState<ReportStatus>("OPEN");
@@ -154,7 +161,7 @@ export default function AdminReportsPage() {
           <div>
             <h2 className="text-2xl font-bold text-gray-900">신고 관리</h2>
             <p className="mt-1 text-sm text-gray-500">
-              게시글·댓글·상품·채팅·사용자 신고를 검토하고 처리합니다.
+              게시글·댓글·상품·채팅·사용자·혈통 신고를 검토하고 처리합니다.
             </p>
           </div>
         </div>
@@ -212,7 +219,11 @@ export default function AdminReportsPage() {
           <div className="mt-2 rounded-md border border-rose-200 bg-white/80 px-2.5 py-2 text-[11px] leading-relaxed text-rose-900">
             <p>정책: 신고 접수만으로 콘텐츠/유저가 자동 제재되지는 않습니다.</p>
             <p>처리 완료(제재 없음): 신고만 종결합니다.</p>
-            <p>콘텐츠 삭제: 게시글·댓글은 삭제하고, 상품은 숨김 처리합니다(채팅·사용자 신고는 해당 없음).</p>
+            <p>
+              콘텐츠 삭제: 게시글·댓글은 삭제하고, 상품은 숨김 처리하며, 혈통은 회수합니다(채팅·사용자
+              신고는 해당 없음).
+            </p>
+            <p>혈통 회수: 되돌릴 수 없고, 그 혈통으로 보낸 출처 카드도 함께 회수됩니다.</p>
             <p>유저 영구정지: 피신고자 계정을 BANNED 처리합니다.</p>
             <p>삭제+정지: 콘텐츠 삭제와 계정 영구정지를 동시에 실행합니다.</p>
           </div>

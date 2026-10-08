@@ -605,7 +605,7 @@ const MainClient = ({
         ) : null}
       </section>
 
-      {/* 혈통카드 공유 챌린지 */}
+      {/* 내 혈통 만들기(혈통 v2: 카드·버튼은 그대로 두고 문구만 바꿨다) */}
       <section className="py-2">
         <div className="mx-4 rounded-sm border border-app-border bg-app-elevated px-4 py-3">
           <div className="flex items-center gap-2">
@@ -613,11 +613,11 @@ const MainClient = ({
               이벤트
             </span>
             <h3 className="text-sm font-extrabold tracking-normal text-app-strong">
-              혈통카드 공유 챌린지
+              내 혈통 만들기
             </h3>
           </div>
           <p className="mt-1.5 text-xs font-medium tracking-normal text-app-muted">
-            내 혈통카드를 공유하고 특별 배지를 받아보세요.
+            혈통 이름을 지키고, 분양할 때 출처 카드를 함께 보내 보세요.
           </p>
           <div className="mt-3 grid grid-cols-2 gap-2">
             <Link

@@ -48,7 +48,7 @@ const PROFILE_ACTIVITY_TABS: { id: ActivityTab; name: string }[] = [
   { id: "products", name: "상품" },
   { id: "posts", name: "게시물" },
   { id: "auctions", name: "경매" },
-  { id: "bloodlines", name: "보유혈통" },
+  { id: "bloodlines", name: "혈통" },
 ];
 
 /** 응답 정규화 후 탈퇴 사용자 이름은 "탈퇴한 사용자"(접미사 없음)로 온다. */

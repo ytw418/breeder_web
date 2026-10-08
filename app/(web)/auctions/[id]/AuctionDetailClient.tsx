@@ -34,6 +34,7 @@ import {
 } from "@libs/auctionRules";
 import type { AuctionDetailResponse } from "pages/api/auctions/[id]";
 import type { BidResponse } from "pages/api/auctions/[id]/bid";
+import { AuctionBloodlineRows } from "../AuctionBloodlineParts";
 
 interface AuctionReportResponse {
   success: boolean;
@@ -543,6 +544,19 @@ const AuctionDetailClient = () => {
         )}
 
         <Divider />
+
+        {/* 혈통 행(판매자 행 바로 아래) + 판매자에게만 낙찰자 출처 카드 보내기 제안. 경매 도구에는 두지 않는다. */}
+        {!isToolRoute ? (
+          <AuctionBloodlineRows
+            auctionId={auction.id}
+            bloodline={auction.bloodline}
+            pedigreeNote={auction.pedigreeNote}
+            isOwner={isOwner}
+            status={auction.status}
+            winnerId={auction.winnerId}
+            winnerName={winnerBid?.user?.name}
+          />
+        ) : null}
 
         {/* 제목·설명 */}
         <div className="flex flex-col gap-2.5 p-4">
