@@ -1,0 +1,39 @@
+{
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "Bash|mcp__plugin_desktop-commander_desktop-commander__(start_process|interact_with_process)|mcp__paseo__send_terminal_keys",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3 \"$CLAUDE_PROJECT_DIR/.claude/hooks/db-guard.py\"",
+            "timeout": 20,
+            "statusMessage": "DB 보호 하네스 확인"
+          }
+        ]
+      },
+      {
+        "matcher": "Write|Edit|MultiEdit|NotebookEdit|mcp__plugin_desktop-commander_desktop-commander__(write_file|edit_block)",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3 \"$CLAUDE_PROJECT_DIR/.claude/hooks/db-guard.py\"",
+            "timeout": 20,
+            "statusMessage": "DB 보호 하네스 확인"
+          }
+        ]
+      },
+      {
+        "matcher": "mcp__claude_ai_Vercel__(edit_project_env|create_project_env|update_project|create_deployment|request_promote|request_rollback|pause_project|assign_alias)",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3 \"$CLAUDE_PROJECT_DIR/.claude/hooks/db-guard.py\"",
+            "timeout": 20,
+            "statusMessage": "DB 보호 하네스 확인"
+          }
+        ]
+      }
+    ]
+  }
+}

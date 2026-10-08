@@ -4,12 +4,18 @@ import client from "@libs/server/client";
 import { withAuth } from "@libs/server/auth";
 import { isModeratorUser } from "@libs/server/adminAccess";
 import { withPostImages } from "@libs/postImages";
+import { photoPostWhere } from "@libs/server/profileSpecies";
+import type { Prisma } from "@prisma/client";
 
 export interface UserPostsQuery {
   id?: string | string[];
   page?: string | string[];
   size?: string | string[];
   order?: string | string[];
+  /** "photo" 면 사진 있는 글만, 프로필 고정 글을 먼저 준다(앱 프로필 '사진' 탭). */
+  media?: string | string[];
+  /** 종(Post.type)으로 거른다(앱 종별 앨범). */
+  species?: string | string[];
 }
 
 export interface UserPostListResponse {
@@ -21,7 +27,9 @@ export interface UserPostListResponse {
     image: string;
     images: string[];
     category: string | null;
+    type: string | null;
     createdAt: Date;
+    profilePinnedAt: Date | null;
     _count: {
       comments: number;
       Likes: number;
@@ -37,7 +45,7 @@ async function handler(
   if (req.method !== "GET") return;
 
   const {
-    query: { id = "", page = 1, size = 20, order = "desc" },
+    query: { id = "", page = 1, size = 20, order = "desc", media, species },
   } = req as { query: UserPostsQuery };
   const viewer = req.user;
 
@@ -61,11 +69,26 @@ async function handler(
 
   // 운영자가 숨긴 글은 작성자 본인과 관리자에게만 보인다.
   const canSeeHidden = viewer?.id === userId || isModeratorUser(viewer);
-  const where = {
-    userId,
-    NOT: { category: "공지" as const },
-    ...(canSeeHidden ? {} : { isHidden: false }),
+  const photoOnly = media === "photo";
+  const speciesFilter = typeof species === "string" ? species.trim() : "";
+  const where: Prisma.PostWhereInput = {
+    ...(photoOnly
+      ? photoPostWhere(userId, canSeeHidden)
+      : {
+          userId,
+          NOT: { category: "공지" },
+          ...(canSeeHidden ? {} : { isHidden: false }),
+        }),
+    ...(speciesFilter ? { type: speciesFilter } : {}),
   };
+  // 사진 탭은 고정 글(최대 3개)이 늘 첫 페이지 맨 앞에 온다. Postgres DESC 는 NULL 이 먼저라 nulls:last 가 필요하다.
+  const orderBy: Prisma.PostOrderByWithRelationInput[] = photoOnly
+    ? [
+        { profilePinnedAt: { sort: "desc", nulls: "last" } },
+        { createdAt: "desc" },
+        { id: "desc" },
+      ]
+    : [{ createdAt: order as "asc" | "desc" }];
 
   const [posts, postCount] = await Promise.all([
     client.post.findMany({
@@ -77,7 +100,9 @@ async function handler(
         image: true,
         images: true,
         category: true,
+        type: true,
         createdAt: true,
+        profilePinnedAt: true,
         isHidden: true,
         _count: {
           select: {
@@ -86,9 +111,7 @@ async function handler(
           },
         },
       },
-      orderBy: {
-        createdAt: order as "asc" | "desc",
-      },
+      orderBy,
       take: pageSize,
       skip: (pageNumber - 1) * pageSize,
     }),
