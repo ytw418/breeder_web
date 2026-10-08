@@ -215,13 +215,6 @@ export async function issueSanction(input: IssueSanctionInput): Promise<IssueSan
 
 const windowStart = (now: Date) => new Date(now.getTime() - SANCTION_COUNT_WINDOW_DAYS * 24 * 60 * 60 * 1000);
 
-/** 최근 180일 경고·기간 정지 수(권장 조치 계산용) */
-export async function countRecentSanctions(userId: number, now: Date = new Date()): Promise<number> {
-  return client.userSanction.count({
-    where: { userId, type: { in: ["WARNING", "SUSPENSION"] }, createdAt: { gte: windowStart(now) } },
-  });
-}
-
 export interface SanctionSummary {
   recentWarningCount: number;
   recentSuspensionCount: number;

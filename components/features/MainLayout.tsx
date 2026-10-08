@@ -10,6 +10,7 @@ import logo from "@images/logo.png";
 import useSWR from "swr";
 import { cn, makeImageUrl } from "@libs/client/utils";
 import useUser from "hooks/useUser";
+import SanctionNoticeModal from "@components/features/moderation/SanctionNoticeModal";
 import useLogout from "hooks/useLogout";
 import { version as APP_VERSION } from "../../package.json";
 
@@ -637,6 +638,9 @@ export default function MainLayout({
         installLoading={installLoading}
         onInstall={handleInstallAppClick}
       />
+
+      {/* 확인하지 않은 경고·끝난 정지 안내(앱 docs/prd/admin-moderation.md S-5). 로그인했을 때만 조회한다. */}
+      <SanctionNoticeModal enabled={Boolean(user)} />
 
       <div
         className={cn(

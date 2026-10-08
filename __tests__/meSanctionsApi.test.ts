@@ -1,7 +1,7 @@
 import type { NextApiRequest, NextApiResponse } from "next";
 
 const mockClient = {
-  userSanction: { findMany: jest.fn(), count: jest.fn(), updateMany: jest.fn(), findFirst: jest.fn() },
+  userSanction: { findMany: jest.fn(), groupBy: jest.fn(), updateMany: jest.fn(), findFirst: jest.fn() },
 };
 jest.mock("@libs/server/client", () => ({
   __esModule: true,
@@ -66,7 +66,7 @@ const row = (overrides: Record<string, unknown> = {}) => ({
 beforeEach(() => {
   jest.clearAllMocks();
   mockClient.userSanction.findMany.mockResolvedValue([row()]);
-  mockClient.userSanction.count.mockResolvedValue(1);
+  mockClient.userSanction.groupBy.mockResolvedValue([{ type: "WARNING", _count: { _all: 1 } }]);
   mockClient.userSanction.updateMany.mockResolvedValue({ count: 1 });
 });
 
@@ -96,8 +96,10 @@ describe("GET /api/users/me/sanctions", () => {
           createdAt: NOW.toISOString(),
         },
       ],
-      recentSanctionCount: 1,
+      recentWarningCount: 1,
+      recentSuspensionCount: 0,
     });
+    expect(res.body).not.toHaveProperty("recommendation");
     expect(JSON.stringify(res.body)).not.toMatch(/internalNote|actorId|reportId|홍길동/);
   });
 

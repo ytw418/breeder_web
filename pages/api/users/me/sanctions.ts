@@ -2,7 +2,15 @@ import { NextApiRequest, NextApiResponse } from "next";
 import withHandler, { ResponseType } from "@libs/server/withHandler";
 import { withAuth } from "@libs/server/auth";
 import client from "@libs/server/client";
-import { countRecentSanctions, toUserSanctionView } from "@libs/server/sanctions";
+import { getSanctionSummary, toUserSanctionView, type UserSanctionView } from "@libs/server/sanctions";
+
+export interface MySanctionsResponse {
+  success: boolean;
+  sanctions: UserSanctionView[];
+  recentWarningCount: number;
+  recentSuspensionCount: number;
+  error?: string;
+}
 
 /**
  * 내 제재 내역·확인 처리.
@@ -21,7 +29,7 @@ async function handler(req: NextApiRequest, res: NextApiResponse<ResponseType>) 
 
   if (req.method === "GET") {
     const unacknowledgedOnly = req.query.unacknowledged === "1";
-    const [rows, recentCount] = await Promise.all([
+    const [rows, summary] = await Promise.all([
       client.userSanction.findMany({
         where: unacknowledgedOnly
           ? { userId, type: { in: [...NOTICE_TYPES] }, acknowledgedAt: null }
@@ -29,12 +37,14 @@ async function handler(req: NextApiRequest, res: NextApiResponse<ResponseType>) 
         orderBy: { createdAt: unacknowledgedOnly ? "asc" : "desc" },
         take: HISTORY_LIMIT,
       }),
-      countRecentSanctions(userId),
+      getSanctionSummary(userId),
     ]);
+    // 확인 모달의 "최근 180일 경고 n회" 문구에 쓴다. 권장 조치는 운영자용이라 내려주지 않는다.
     return res.json({
       success: true,
       sanctions: rows.map(toUserSanctionView),
-      recentSanctionCount: recentCount,
+      recentWarningCount: summary.recentWarningCount,
+      recentSuspensionCount: summary.recentSuspensionCount,
     });
   }
 
