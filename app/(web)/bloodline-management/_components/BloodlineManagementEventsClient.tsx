@@ -1,11 +1,12 @@
 "use client";
 
 /**
- * 혈통 이벤트 — 당근 톤(A안) 1:1
+ * 혈통 이벤트 — 기존 웹 톤(A안), 혈통 v2 용어(설계 §4.4 WB-3)
  * 원본: bredy_app src/app/bloodline-management/events.tsx
  *
- * 헤더(뒤로 + 제목 18/700) → 설명 13/muted → 검색 인풋 → 필터 칩
- * → 플랫 이벤트 행(44 원형 아이콘 + 제목 15/600 + 보조 13 muted + 시간 13 muted, 1px line).
+ * 헤더(뒤로 + 제목 18/700) → 설명 13/muted → 검색 인풋 → 필터 칩(전체/만들기/보내기/회수)
+ * → 플랫 이벤트 행(44 원형 아이콘 + 문장 15/600 "도윤파파님에게 보냈어요" + 혈통 이름·메모 13 muted + 시간 13 muted).
+ * 서버가 가린 사용자(masked)는 "닉네임 비공개 분"으로 보이고 검색 대상에서 빠진다. LINE_CREATED(중복 기록)는 숨긴다.
  */
 import { useMemo, useState } from "react";
 import Link from "next/link";
@@ -16,35 +17,31 @@ import { FilterChip } from "@components/app/FilterChip";
 import { QueryErrorState } from "@components/app/QueryErrorState";
 import {
   BloodlineHeader,
+  BLOODLINE_EVENT_LABELS,
   BloodlineSpinner,
+  bloodlineEventSearchText,
   bloodlineInputClass,
   useBloodlineLoginRedirect,
 } from "@components/features/bloodline/BloodlineScreenParts";
 import useUser from "hooks/useUser";
 import { loadMergedBloodlineEvents } from "@libs/client/bloodlineCardEvents";
 import {
+  bloodlineEventSentence,
   formatBloodlineEventTime,
+  isHiddenBloodlineEvent,
   type BloodlineCardEventItem,
   type BloodlineCardItem,
   type BloodlineCardsResponse,
 } from "@libs/shared/bloodline-card";
 
-const actionLabel: Record<string, string> = {
-  BLOODLINE_CREATED: "혈통카드 생성",
-  BLOODLINE_TRANSFER: "혈통카드 보내기",
-  LINE_CREATED: "라인 생성",
-  LINE_ISSUED: "라인 발급",
-  LINE_TRANSFER: "라인 보내기",
-  CARD_REVOKED: "카드 철회",
-};
+type FilterKey = "all" | "created" | "sent" | "revoked";
 
-type FilterKey = "all" | "created" | "transfer" | "revoked";
-
+/** 앱 events.tsx 와 같은 칩. 보내기 = 출처 카드 보내기·다음 분에게 보내기·혈통 넘기기. */
 const FILTERS: { key: FilterKey; label: string; actions?: string[] }[] = [
   { key: "all", label: "전체" },
-  { key: "created", label: "발급", actions: ["BLOODLINE_CREATED", "LINE_CREATED", "LINE_ISSUED"] },
-  { key: "transfer", label: "보내기", actions: ["BLOODLINE_TRANSFER", "LINE_TRANSFER"] },
-  { key: "revoked", label: "철회", actions: ["CARD_REVOKED"] },
+  { key: "created", label: "만들기", actions: ["BLOODLINE_CREATED"] },
+  { key: "sent", label: "보내기", actions: ["LINE_ISSUED", "LINE_TRANSFER", "BLOODLINE_TRANSFER"] },
+  { key: "revoked", label: "회수", actions: ["CARD_REVOKED"] },
 ];
 
 function EventIcon({ action }: { action: string }) {
@@ -61,14 +58,14 @@ function EventIcon({ action }: { action: string }) {
   );
 }
 
+/** 둘째 줄: 혈통 이름 · 메모. 사람 이름은 첫 줄 문장에 있다. */
 function eventSubtitle(event: BloodlineCardEventItem) {
-  const who = event.actorUser?.name || "시스템";
-  const flow = event.toUser ? `${event.fromUser?.name ?? who} → ${event.toUser.name}` : null;
-  return [event.relatedCard?.name, flow ?? who, event.note].filter(Boolean).join(" · ");
+  return [event.relatedCard?.name, event.note?.trim()].filter(Boolean).join(" · ");
 }
 
 function EventRow({ event, first }: { event: BloodlineCardEventItem; first: boolean }) {
   const subtitle = eventSubtitle(event);
+  const title = bloodlineEventSentence(event) || BLOODLINE_EVENT_LABELS[event.action] || event.action;
   const body = (
     <>
       <span className="grid h-11 w-11 shrink-0 place-items-center rounded-full bg-app-surface text-app-text">
@@ -76,7 +73,7 @@ function EventRow({ event, first }: { event: BloodlineCardEventItem; first: bool
       </span>
       <span className="min-w-0 flex-1">
         <span className="block truncate text-[15px] font-semibold tracking-[-0.2px] text-app-text">
-          {actionLabel[event.action] || event.action}
+          {title}
         </span>
         {subtitle ? (
           <span className="mt-[3px] block truncate text-[13px] tracking-[-0.2px] text-app-muted">
@@ -94,7 +91,7 @@ function EventRow({ event, first }: { event: BloodlineCardEventItem; first: bool
   return (
     <Link
       href={`/bloodline-management/card/${event.relatedCard.id}`}
-      aria-label={actionLabel[event.action] || event.action}
+      aria-label={title}
       className={`${rowClass} transition-colors hover:bg-app-surface`}
     >
       {body}
@@ -132,18 +129,13 @@ export default function BloodlineManagementEventsClient() {
   );
 
   const filteredEvents = useMemo(() => {
-    const events = eventsQuery.data ?? [];
+    const events = (eventsQuery.data ?? []).filter((event) => !isHiddenBloodlineEvent(event.action));
     const actions = FILTERS.find((item) => item.key === filter)?.actions;
     const byAction = actions ? events.filter((event) => actions.includes(event.action)) : events;
     const normalized = query.trim().toLowerCase();
     if (!normalized) return byAction;
-    return byAction.filter((event) =>
-      `${event.action} ${actionLabel[event.action] || ""} ${event.actorUser?.name || ""} ${
-        event.fromUser?.name || ""
-      } ${event.toUser?.name || ""} ${event.relatedCard?.name || ""} ${event.note || ""}`
-        .toLowerCase()
-        .includes(normalized)
-    );
+    // 가린 닉네임은 검색 대상에서 뺀다
+    return byAction.filter((event) => bloodlineEventSearchText(event).includes(normalized));
   }, [eventsQuery.data, filter, query]);
 
   if (userLoading || loggedOut) {
@@ -166,15 +158,15 @@ export default function BloodlineManagementEventsClient() {
       <BloodlineHeader title="혈통 이벤트" />
 
       <p className="truncate px-4 pt-3 text-[13px] tracking-[-0.2px] text-app-muted">
-        보유 카드의 활동 이력을 최신순으로 모았어요.
+        내 혈통과 받은 출처 카드의 이력을 최신순으로 모았어요.
       </p>
 
       <div className="px-4 pt-3">
         <Input
           value={query}
           onChange={(event) => setQuery(event.target.value)}
-          placeholder="액션 · 닉네임 · 카드명 검색"
-          aria-label="액션 · 닉네임 · 카드명 검색"
+          placeholder="닉네임 · 혈통 이름 검색"
+          aria-label="닉네임 · 혈통 이름 검색"
           autoComplete="off"
           className={bloodlineInputClass}
         />

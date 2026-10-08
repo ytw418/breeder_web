@@ -10,6 +10,12 @@ import type { UserPostListResponse } from "pages/api/users/[id]/posts";
 import type { UserCommentListResponse } from "pages/api/users/[id]/comments";
 import type { UserAuctionsResponse } from "pages/api/users/[id]/auctions";
 import type { UserBloodlineCardsResponse } from "pages/api/users/[id]/bloodline-cards";
+import {
+  BLOODLINE_MASKED_USER_NAME,
+  bloodlineCardTypeLabel,
+  type BloodlineCardItem,
+} from "@libs/shared/bloodline-card";
+import { formatRegionShort } from "@libs/shared/regions";
 import type { PagedListState } from "./usePagedList";
 import { usePagedList } from "./usePagedList";
 import { EmptyBlock, EmptyMessage, LoadingBlock, RetryBlock, Thumb } from "./ProfileRows";
@@ -281,6 +287,25 @@ export function ProfileAuctionRows({ list }: { list: PagedListState<ProfileAucti
   );
 }
 
+/** 프로필 혈통 행 둘째 줄: 소개, 없으면 "종 · 산지"(종이 없으면 "종 미지정"). */
+function profileBloodlineSubtitle(card: BloodlineCardItem) {
+  const description = card.description?.trim();
+  if (description) return description;
+  const origin =
+    card.originLabel?.trim() || formatRegionShort({ sido: card.originSido, sigungu: card.originSigungu });
+  return [card.speciesType?.trim() || "종 미지정", origin].filter(Boolean).join(" · ");
+}
+
+/** 셋째 줄: "혈통 · 보유 강산 · 받은 사람 3명" / "출처 카드 · 보유 도윤파파". 받은 사람 수가 없거나 0 이면 뺀다. */
+function profileBloodlineMeta(card: BloodlineCardItem) {
+  const owner = card.currentOwner.masked ? BLOODLINE_MASKED_USER_NAME : card.currentOwner.name;
+  const received =
+    card.cardType === "BLOODLINE" && typeof card.receivedCount === "number" && card.receivedCount > 0
+      ? `받은 사람 ${card.receivedCount}명`
+      : null;
+  return [bloodlineCardTypeLabel(card.cardType), `보유 ${owner}`, received].filter(Boolean).join(" · ");
+}
+
 export function ProfileBloodlineRows({
   data,
   isLoading,
@@ -296,12 +321,12 @@ export function ProfileBloodlineRows({
   if (isError && !data) {
     return (
       <RetryBlock
-        message="혈통 카드를 불러오지 못했습니다. 잠시 후 다시 시도해주세요."
+        message="혈통을 불러오지 못했습니다. 잠시 후 다시 시도해주세요."
         onRetry={onRetry}
       />
     );
   }
-  if (!data?.cards?.length) return <EmptyMessage message="등록한 혈통 카드가 없습니다" />;
+  if (!data?.cards?.length) return <EmptyMessage message="보유한 혈통이 없습니다" />;
   return (
     <div>
       {data.cards.map((card) => (
@@ -310,13 +335,9 @@ export function ProfileBloodlineRows({
           <div className="min-w-0 flex-1">
             <p className="truncate text-[16px] font-semibold text-app-text">{card.name}</p>
             <p className="mt-0.5 truncate text-[14px] text-app-muted">
-              {card.description ||
-                `${card.speciesType ? `${card.speciesType} · ` : ""}BC-${String(card.id).padStart(6, "0")}`}
+              {profileBloodlineSubtitle(card)}
             </p>
-            <p className="mt-1.5 truncate text-[13px] text-app-muted">
-              {card.cardType === "BLOODLINE" ? "혈통" : "라인"} · 소유 {card.currentOwner.name}
-              {card.issueCount > 0 ? ` · 발급 ${card.issueCount}회` : ""}
-            </p>
+            <p className="mt-1.5 truncate text-[13px] text-app-muted">{profileBloodlineMeta(card)}</p>
           </div>
         </Link>
       ))}

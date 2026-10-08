@@ -9,6 +9,7 @@ import {
 import type { BreederProgramSummary } from "@libs/shared/breeder-program";
 import { withAuth } from "@libs/server/auth";
 import { parsePositiveIntId } from "@libs/shared/normalize";
+import { countProfileBloodlineCards } from "@libs/server/bloodline-visibility";
 import { User } from "@prisma/client";
 
 type UserWithCounts = Omit<User, "tokenVersion" | "suspendedUntil" | "snsId" | "phone"> & {
@@ -90,27 +91,31 @@ async function handler(
   }
   const myId = req.user?.id;
 
-  const user = await client.user.findUnique({
-    where: { id: userId },
-    // 토큰 무효화·정지 만료 같은 서버 내부 필드는 내려주지 않는다.
-    omit: { tokenVersion: true, suspendedUntil: true },
-    include: {
-      _count: {
-        select: {
-          followers: true,
-          following: true,
-          // 삭제한 상품은 세지 않는다(상품 삭제는 isDeleted 소프트 삭제).
-          products: { where: { isDeleted: false } },
-          posts: true,
-          Comments: true,
-          insectRecords: true,
-          receivedReviews: true,
-          createdBloodlineCards: true,
-          ownedBloodlineCards: true,
+  const [user, ownedBloodlineCards] = await Promise.all([
+    client.user.findUnique({
+      where: { id: userId },
+      // 토큰 무효화·정지 만료 같은 서버 내부 필드는 내려주지 않는다.
+      omit: { tokenVersion: true, suspendedUntil: true },
+      include: {
+        _count: {
+          select: {
+            followers: true,
+            following: true,
+            // 삭제한 상품은 세지 않는다(상품 삭제는 isDeleted 소프트 삭제).
+            products: { where: { isDeleted: false } },
+            posts: true,
+            Comments: true,
+            insectRecords: true,
+            receivedReviews: true,
+            createdBloodlineCards: true,
+          },
         },
       },
-    },
-  });
+    }),
+    // 프로필 "보유 혈통" 목록과 같은 기준(지금 보유한 ACTIVE 카드, 비공개 출처 카드는 본인에게만,
+    // 뿌리가 숨김·회수된 출처 카드 제외). 뿌리 상태는 Prisma 관계 필터로 걸 수 없어 따로 센다.
+    countProfileBloodlineCards(userId, myId),
+  ]);
 
   if (!user) {
     return res.status(404).json({
@@ -148,6 +153,7 @@ async function handler(
       ...user._count,
       followers: user._count.following,
       following: user._count.followers,
+      ownedBloodlineCards,
     },
   };
 

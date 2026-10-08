@@ -1,7 +1,7 @@
 import type { ReportAction, ReportStatus, ReportTargetType } from "@prisma/client";
 
 /**
- * 통합 신고(게시글·댓글·상품·채팅방·사용자) 공용 상수.
+ * 통합 신고(게시글·댓글·상품·채팅방·사용자·혈통) 공용 상수.
  * 서버 API 와 관리자 페이지가 함께 쓰고, 앱(bredy_app)은 같은 값을 복사해 쓴다.
  * 사유 문구를 바꾸면 앱 상수도 함께 바꿔야 한다(서버가 목록 밖 사유를 400 으로 거절).
  */
@@ -14,6 +14,7 @@ export const REPORT_TARGET_TYPES = [
   "PRODUCT",
   "CHAT_ROOM",
   "USER",
+  "BLOODLINE_CARD",
 ] as const satisfies readonly ReportTargetType[];
 
 export const REPORT_STATUSES = [
@@ -54,6 +55,13 @@ export const REPORT_REASONS: Record<ReportTargetType, readonly string[]> = {
   ],
   CHAT_ROOM: ["욕설·협박", "사기 의심", "스팸·광고", "음란 메시지", OTHER_REASON],
   USER: ["사칭", "사기 이력 의심", "반복적 욕설·괴롭힘", "스팸 계정", OTHER_REASON],
+  BLOODLINE_CARD: [
+    "남의 혈통 이름 도용",
+    "허위 정보",
+    "욕설·부적절 내용",
+    "스팸·광고",
+    OTHER_REASON,
+  ],
 };
 
 export const isReportTargetType = (value: unknown): value is ReportTargetType =>
@@ -69,9 +77,12 @@ export const isReportAction = (value: unknown): value is ReportAction =>
 export const isValidReportReason = (type: ReportTargetType, reason: string) =>
   REPORT_REASONS[type].includes(reason);
 
-/** 콘텐츠 삭제(REMOVE_CONTENT*) 를 적용할 수 있는 대상인지. 채팅방·사용자는 지울 콘텐츠가 없다. */
+/**
+ * 콘텐츠 삭제(REMOVE_CONTENT*) 를 적용할 수 있는 대상인지. 채팅방·사용자는 지울 콘텐츠가 없다.
+ * 혈통은 지우지 않고 회수(REVOKED, 하위 출처 카드 포함)한다(libs/server/moderation.ts).
+ */
 export const isRemovableReportTarget = (type: ReportTargetType) =>
-  type === "POST" || type === "COMMENT" || type === "PRODUCT";
+  type === "POST" || type === "COMMENT" || type === "PRODUCT" || type === "BLOODLINE_CARD";
 
 export const REPORT_TARGET_LABEL: Record<ReportTargetType, string> = {
   POST: "게시글",
@@ -79,6 +90,7 @@ export const REPORT_TARGET_LABEL: Record<ReportTargetType, string> = {
   PRODUCT: "상품",
   CHAT_ROOM: "채팅",
   USER: "사용자",
+  BLOODLINE_CARD: "혈통",
 };
 
 export const REPORT_STATUS_LABEL: Record<ReportStatus, string> = {
@@ -101,4 +113,5 @@ export const REPORT_SHEET_TITLE: Record<ReportTargetType, string> = {
   PRODUCT: "상품 신고",
   CHAT_ROOM: "채팅 신고",
   USER: "사용자 신고",
+  BLOODLINE_CARD: "혈통 신고",
 };

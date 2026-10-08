@@ -3,6 +3,10 @@ import {
   AUCTION_PHOTOS_MAX,
   AUCTION_PHOTOS_MIN,
 } from "@libs/auctionRules";
+import {
+  PEDIGREE_NOTE_INVALID_MESSAGE,
+  PEDIGREE_WITHOUT_BLOODLINE_MESSAGE,
+} from "@libs/shared/pedigree-note";
 
 const AUCTION_ERROR_MESSAGES: Record<string, string> = {
   AUCTION_AUTH_REQUIRED: "로그인이 필요합니다.",
@@ -47,9 +51,11 @@ const AUCTION_ERROR_MESSAGES: Record<string, string> = {
   REPORT_AUCTION_NOT_FOUND: "경매를 찾을 수 없습니다.",
   REPORT_SELF_NOT_ALLOWED: "본인 경매는 신고할 수 없습니다.",
   REPORT_ALREADY_EXISTS: "이미 접수된 신고가 있습니다. 운영자 검토를 기다려주세요.",
-  AUCTION_INVALID_BLOODLINE_ROOT: "연결할 원본 혈통카드를 찾을 수 없습니다.",
-  AUCTION_BLOODLINE_FORBIDDEN:
-    "내가 생성하거나 보유한 혈통카드만 경매에 연결할 수 있습니다.",
+  // 혈통 연결(E-15): 지금 보유했거나 출처 카드를 받은 혈통만 붙일 수 있다(만든 사람도 넘긴 뒤에는 못 붙인다).
+  AUCTION_INVALID_BLOODLINE_ROOT: "연결할 혈통을 찾을 수 없어요",
+  AUCTION_BLOODLINE_FORBIDDEN: "내가 보유했거나 출처 카드를 받은 혈통만 연결할 수 있어요",
+  AUCTION_INVALID_PEDIGREE_NOTE: PEDIGREE_NOTE_INVALID_MESSAGE,
+  AUCTION_PEDIGREE_WITHOUT_BLOODLINE: PEDIGREE_WITHOUT_BLOODLINE_MESSAGE,
 };
 
 export const getAuctionErrorMessage = (

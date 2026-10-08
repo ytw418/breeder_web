@@ -8,6 +8,12 @@ import { FilterChip } from "@components/app/FilterChip";
 import { PhotoGridEditor } from "@components/app/PhotoGridEditor";
 import { PriceInput } from "@components/app/PriceInput";
 import MarkdownEditor from "@components/features/product/MarkdownEditor";
+import {
+  BloodlineAttachSheet,
+  formatBloodlineAttachValue,
+  type BloodlineAttachResult,
+} from "@components/features/bloodline/BloodlineAttachSheet";
+import { ChevronRightIcon } from "@components/features/bloodline/BloodlineScreenParts";
 import { useConfirmLeave } from "hooks/useConfirmLeave";
 import { authFetch } from "@libs/client/authFetch";
 import { cn } from "@libs/client/utils";
@@ -22,6 +28,8 @@ import {
   validateProductForm,
   type ProductFormErrors,
 } from "@libs/productRules";
+import { parsePedigreeNote, type PedigreeNote } from "@libs/shared/pedigree-note";
+import type { BloodlineLinkSummary } from "@libs/shared/bloodline-card";
 import {
   markProductPhotoUploaded,
   resolveProductPhotoIds,
@@ -40,7 +48,66 @@ export type ProductFormInitial = {
   photos: string[];
   category: string | null;
   productType: string | null;
+  /**
+   * 붙어 있는 뿌리 혈통 id. 상세 응답의 `bloodline` 요약이 있을 때만 넘긴다
+   * (회수·숨김돼 요약이 없는 연결은 화면에 없는 것으로 두고, 저장 때도 건드리지 않는다).
+   */
+  bloodlineRootId?: number | null;
+  /** 붙어 있는 혈통 이름(혈통 행 값 표시용). */
+  bloodlineName?: string | null;
+  /** 부·모 크기·누대. 혈통이 없으면 무시한다. */
+  pedigreeNote?: PedigreeNote | null;
+  /**
+   * 붙어 있는 혈통의 서버 요약(상세 응답 `bloodline`). 그 뒤 혈통을 넘겼거나 출처 카드를 보내 붙이기 목록에 없어도
+   * 시트에서 "지금 연결된 혈통"으로 남겨 부모·누대를 고칠 수 있게 한다.
+   */
+  bloodlineSummary?: BloodlineLinkSummary | null;
 };
+
+/** 혈통을 붙일 수 있는 상품 타입(PRD S-7: 생물일 때만 행을 보인다). */
+const BLOODLINE_PRODUCT_TYPE = "생물";
+
+/** 규칙에 맞는 부모 정보(비면 null). 시트가 정리해 준 값이라 규칙 밖이면 보내지 않는다. */
+const normalizePedigreeNote = (note: PedigreeNote | null | undefined): PedigreeNote | null => {
+  const parsed = parsePedigreeNote(note ?? null);
+  return parsed.ok ? parsed.value : null;
+};
+
+const pedigreeNoteKey = (note: PedigreeNote | null | undefined) => {
+  const value = normalizePedigreeNote(note);
+  return value ? `${value.sireMm ?? ""}|${value.damMm ?? ""}|${value.generation ?? ""}` : "";
+};
+
+/**
+ * 등록·수정 요청에 실을 혈통 필드(서버 §3.5 "보낸 때만 갱신").
+ * - 등록: 생물이고 붙였을 때만 `bloodlineRootId`·`pedigreeNote`(없으면 null)를 싣는다.
+ * - 수정: 용품이면 `bloodlineRootId: null`(해제). 생물이면 바뀐 때만 싣는다 — 붙인 혈통·3칸이 그대로면 키가 없어
+ *   기존 연결이 남고, 해제했으면 `bloodlineRootId: null`(서버가 부모 정보도 지운다), 바꿨으면 id 와 부모 정보를 싣는다.
+ */
+export function buildProductBloodlineFields({
+  isEdit,
+  productType,
+  rootId,
+  note,
+  initialRootId,
+  initialNote,
+}: {
+  isEdit: boolean;
+  productType: string;
+  rootId: number | null;
+  note: PedigreeNote | null;
+  initialRootId: number | null;
+  initialNote: PedigreeNote | null;
+}): { bloodlineRootId?: number | null; pedigreeNote?: PedigreeNote | null } {
+  if (productType !== BLOODLINE_PRODUCT_TYPE) return isEdit ? { bloodlineRootId: null } : {};
+  if (rootId == null) return isEdit && initialRootId != null ? { bloodlineRootId: null } : {};
+  if (isEdit && rootId === initialRootId && pedigreeNoteKey(note) === pedigreeNoteKey(initialNote)) {
+    return {};
+  }
+  return { bloodlineRootId: rootId, pedigreeNote: normalizePedigreeNote(note) };
+}
+
+type BloodlineState = { rootId: number | null; name: string | null; note: PedigreeNote };
 
 function FieldLabel({ label, count }: { label: string; count?: string }) {
   return (
@@ -63,7 +130,7 @@ function ChipRow({ children }: { children: ReactNode }) {
 /**
  * 상품 등록·수정 당근 단일 폼(앱 src/app/products/upload.tsx · [id]/edit.tsx).
  * 사진(대표·순서·10장·10MB) → 상품명 0/60 → 카테고리(대분류·하위분류 칩) → 상품 타입 세그먼트
- * → 가격(₩, 무료나눔 칩) → 설명 0/3000. 하단 고정 CTA 52, 업로드 진행 오버레이, 이탈 확인.
+ * → 혈통 행(생물만, 붙이기 시트) → 가격(₩, 무료나눔 칩) → 설명 0/3000. 하단 고정 CTA 52, 업로드 진행 오버레이, 이탈 확인.
  */
 export function ProductForm({
   product,
@@ -83,6 +150,8 @@ export function ProductForm({
     const productType = PRODUCT_TYPES.some((type) => type.id === product?.productType)
       ? (product?.productType as string)
       : "";
+    // 이름을 모르는 연결(요약 없음)은 붙지 않은 것으로 둔다. 손대지 않으면 저장 때도 보내지 않는다.
+    const attached = product?.bloodlineRootId != null && product.bloodlineName ? product : null;
     return {
       name: product?.name ?? "",
       category: branch.parent,
@@ -92,6 +161,9 @@ export function ProductForm({
       price: product ? product.price : initialFree ? 0 : null,
       description: product?.description ?? "",
       photos: product?.photos ?? [],
+      bloodlineRootId: attached?.bloodlineRootId ?? null,
+      bloodlineName: attached?.bloodlineName ?? null,
+      pedigreeNote: attached ? normalizePedigreeNote(attached.pedigreeNote) : null,
     };
   }, [product, initialFree]);
 
@@ -103,6 +175,12 @@ export function ProductForm({
   const [price, setPrice] = useState<number | null>(initial.price);
   const [isFree, setIsFree] = useState(initial.price === 0);
   const [description, setDescription] = useState(initial.description);
+  const [bloodline, setBloodline] = useState<BloodlineState>(() => ({
+    rootId: initial.bloodlineRootId,
+    name: initial.bloodlineName,
+    note: initial.pedigreeNote ?? {},
+  }));
+  const [attachOpen, setAttachOpen] = useState(false);
   const [errors, setErrors] = useState<ProductFormErrors>({});
   const [submitStep, setSubmitStep] = useState<SubmitStep>("idle");
   const busy = submitStep !== "idle";
@@ -122,6 +200,9 @@ export function ProductForm({
   const photosChanged =
     photos.length !== initial.photos.length ||
     photos.some((photo, index) => photo.remoteId !== initial.photos[index]);
+  const bloodlineChanged =
+    bloodline.rootId !== initial.bloodlineRootId ||
+    pedigreeNoteKey(bloodline.note) !== pedigreeNoteKey(initial.pedigreeNote);
   const dirty =
     name !== initial.name ||
     category !== initial.category ||
@@ -129,7 +210,8 @@ export function ProductForm({
     productType !== initial.productType ||
     price !== initial.price ||
     description !== initial.description ||
-    photosChanged;
+    photosChanged ||
+    bloodlineChanged;
   const { leave, dialog } = useConfirmLeave(dirty && submitStep !== "submit");
 
   const clearError = (field: keyof ProductFormErrors) =>
@@ -161,6 +243,15 @@ export function ProductForm({
     setPhotos((prev) => [...prev, ...added]);
   };
 
+  const applyBloodline = (result: BloodlineAttachResult) => {
+    setBloodline({
+      rootId: result.rootId,
+      name: result.bloodline?.name ?? null,
+      note: result.rootId == null ? {} : result.note,
+    });
+    setAttachOpen(false);
+  };
+
   const submit = async () => {
     if (busy) return;
     const nextErrors = validateProductForm({ name, price, description, category, productType });
@@ -189,6 +280,14 @@ export function ProductForm({
         photos: photoIds,
         category: subcategory || category,
         productType,
+        ...buildProductBloodlineFields({
+          isEdit,
+          productType,
+          rootId: bloodline.rootId,
+          note: bloodline.note,
+          initialRootId: initial.bloodlineRootId,
+          initialNote: initial.pedigreeNote,
+        }),
       };
       const res = await authFetch(isEdit ? `/api/products/${product!.id}` : "/api/products", {
         method: "POST",
@@ -242,6 +341,9 @@ export function ProductForm({
     subcategory || TOP_LEVEL_CATEGORIES.find((cat) => cat.id === category)?.name || "";
   const uploadedCount = photos.filter((photo) => photo.remoteId).length;
   const ctaLabel = isEdit ? "수정하기" : "상품 등록하기";
+  const showBloodlineRow = productType === BLOODLINE_PRODUCT_TYPE;
+  const bloodlineValue =
+    bloodline.rootId != null ? formatBloodlineAttachValue(bloodline.name ?? "", bloodline.note) : "";
 
   return (
     <>
@@ -363,6 +465,28 @@ export function ProductForm({
           <ErrorText>{errors.productType}</ErrorText>
         </div>
 
+        {/* 혈통(생물만, 시안 A2 #S5-attach .formrow) */}
+        {showBloodlineRow ? (
+          <button
+            type="button"
+            disabled={busy}
+            aria-haspopup="dialog"
+            onClick={() => setAttachOpen(true)}
+            className="-my-2 flex h-14 w-full min-w-0 items-center gap-1 text-left disabled:opacity-50"
+          >
+            <span className="shrink-0 text-[15px] font-semibold text-app-text">혈통</span>
+            <span
+              className={cn(
+                "ml-auto min-w-0 truncate pl-3 text-[15px]",
+                bloodlineValue ? "text-app-text" : "text-app-muted"
+              )}
+            >
+              {bloodlineValue || "붙이기"}
+            </span>
+            <ChevronRightIcon className="h-[18px] w-[18px] shrink-0 text-app-caption" />
+          </button>
+        ) : null}
+
         {/* 가격 */}
         <div className="-mt-1.5">
           <div className="mb-0.5 flex h-11 items-center justify-between">
@@ -442,6 +566,17 @@ export function ProductForm({
           <p className="relative mt-1.5 text-[14px] text-app-muted">화면을 닫지 말고 잠시만 기다려주세요.</p>
         </div>
       ) : null}
+      <BloodlineAttachSheet
+        open={attachOpen}
+        onClose={() => setAttachOpen(false)}
+        value={{ rootId: bloodline.rootId, note: bloodline.note }}
+        onApply={applyBloodline}
+        current={
+          initial.bloodlineRootId != null && product?.bloodlineSummary?.id === initial.bloodlineRootId
+            ? product.bloodlineSummary
+            : null
+        }
+      />
       {dialog}
     </>
   );

@@ -3,195 +3,296 @@ import { Prisma } from "@prisma/client";
 import withHandler from "@libs/server/withHandler";
 import { withAuth } from "@libs/server/auth";
 import client from "@libs/server/client";
-import { ensureBloodlineSchema } from "@libs/server/bloodline-schema";
+import { sendBloodlineError, sendResolvedBloodlineError } from "@libs/server/bloodline-error";
 import {
+  bloodlineCardInclude,
+  fetchListingCounts,
+  fetchReceivedCounts,
+  toBloodlineCardItem,
+  type BloodlineCardWithRelations,
+} from "@libs/server/bloodline-mapper";
+import {
+  loadBloodlineVisibility,
+  rootIdOf,
+  type BloodlineVisibility,
+} from "@libs/server/bloodline-visibility";
+import { resolveBloodlineSpecies } from "@libs/server/bloodline-species";
+import { parseOptionalRegion } from "@libs/shared/regions";
+import type { BloodlineErrorCode } from "@libs/shared/bloodline-errors";
+import type {
   BloodlineCardDetailResponse,
   BloodlineCardItem,
-  BloodlineCardVisualStyle,
+  BloodlineCardPatchResponse,
+  BloodlineViewerRelation,
 } from "@libs/shared/bloodline-card";
 
-type RawVisualStyleRow = { id: number; visualStyle: string | null };
+/**
+ * 혈통 상세(GET, 공개)와 일부 고치기(PATCH, 로그인) — 설계 §3.4.
+ * - GET: 뷰어별 닉네임 비공개(libs/server/bloodline-visibility). 회수·숨김(REVOKED/INACTIVE)은 404 BLOODLINE_REVOKED.
+ *   출처 카드를 열었는데 그 뿌리가 회수·숨김이어도 같다. 뿌리에는 receivedCount·listingCount 를 싣는다.
+ *   viewerRelation: owner(뿌리 지금 보유자) / holder(그 뿌리의 출처 카드 보유) / none. holder 면 viewerLineCard.
+ * - PATCH: 보낸 필드만 바꾼다. ownerNameVisible 은 출처 카드의 지금 보유자만, 종·소개·산지는 혈통의
+ *   만든 사람 = 지금 보유자 = 나 일 때만. 이름·사진은 바꾸지 않는다(이름은 전역 유일 약속).
+ *   권한 조건을 쓰기(where)에도 그대로 걸어, 읽은 뒤 넘기기·회수가 끝났으면 쓰지 않는다(403/404).
+ *   뿌리의 종·산지를 바꾸면 그 아래 출처 카드의 종·산지도 같이 맞춘다.
+ */
 
-const bloodlineVisualStyles = ["noir", "clean", "editorial"] as const;
+const DESCRIPTION_MAX_LENGTH = 300;
 
-const isVisualStyle = (value: unknown): value is BloodlineCardVisualStyle =>
-  typeof value === "string" &&
-  (bloodlineVisualStyles as readonly string[]).includes(value);
+const EMPTY_DETAIL = { card: null, bloodlineSourceCard: null, parentLineCard: null };
 
-const normalizeVisualStyle = (value: unknown): BloodlineCardVisualStyle =>
-  isVisualStyle(value) ? value : "noir";
+/** Prisma "조건에 맞는 행 없음"(update 의 where 불일치). */
+const isRecordNotFound = (error: unknown) =>
+  typeof error === "object" && error !== null && (error as { code?: unknown }).code === "P2025";
 
-const includeWithTransfers = {
-  creator: { select: { id: true, name: true } },
-  currentOwner: { select: { id: true, name: true } },
-  transfers: {
-    orderBy: { createdAt: "desc" } as const,
-    take: 5,
-    include: {
-      fromUser: { select: { id: true, name: true } },
-      toUser: { select: { id: true, name: true } },
-    },
-  },
+const parseCardId = (value: unknown): number | null => {
+  const id = Number(Array.isArray(value) ? value[0] : value);
+  return Number.isInteger(id) && id > 0 ? id : null;
 };
 
-const fetchVisualStyles = async (cardIds: number[]) => {
-  if (!cardIds.length) return new Map<number, BloodlineCardVisualStyle>();
-  const rows = await client.$queryRaw<RawVisualStyleRow[]>`
-    SELECT id, "visualStyle"
-    FROM "BloodlineCard"
-    WHERE id IN (${Prisma.join(cardIds)})
-  `;
+const findCard = (id: number) =>
+  client.bloodlineCard.findUnique({ where: { id }, include: bloodlineCardInclude });
 
-  return rows.reduce((acc, row) => {
-    acc.set(row.id, normalizeVisualStyle(row.visualStyle));
-    return acc;
-  }, new Map<number, BloodlineCardVisualStyle>());
+/** 뿌리 혈통의 받은 사람 수·분양글 수(뿌리가 BLOODLINE 일 때만). */
+async function loadRootCounts(root: BloodlineCardWithRelations) {
+  if (root.cardType !== "BLOODLINE") return {};
+  const [received, listings] = await Promise.all([
+    fetchReceivedCounts([{ id: root.id, creatorId: root.creatorId }]),
+    fetchListingCounts([root.id]),
+  ]);
+  return {
+    receivedCount: received.get(root.id) ?? 0,
+    listingCount: listings.get(root.id) ?? 0,
+  };
+}
+
+/**
+ * 뿌리 보유자가 아닌 로그인 뷰어가 가진 그 뿌리의 출처 카드.
+ * 열어 본 카드가 자기 출처 카드면 그 카드, 아니면 가장 먼저 받은 것.
+ */
+const findViewerLine = (
+  card: BloodlineCardWithRelations,
+  root: BloodlineCardWithRelations,
+  viewerId: number | null
+): Promise<BloodlineCardWithRelations | null> => {
+  if (!viewerId || root.currentOwnerId === viewerId) return Promise.resolve(null);
+  if (card.cardType === "LINE" && card.currentOwnerId === viewerId) return Promise.resolve(card);
+  return client.bloodlineCard.findFirst({
+    where: { cardType: "LINE", bloodlineReferenceId: root.id, status: "ACTIVE", currentOwnerId: viewerId },
+    orderBy: [{ createdAt: "asc" }, { id: "asc" }],
+    include: bloodlineCardInclude,
+  });
 };
 
-const toCardItem = (
-  card: {
-    id: number;
-    name: string;
-    description: string | null;
-    image: string | null;
-    cardType: "BLOODLINE" | "LINE";
-    speciesType: string | null;
-    bloodlineReferenceId: number | null;
-    parentCardId: number | null;
-    status: "ACTIVE" | "INACTIVE" | "REVOKED";
-    transferPolicy: "NONE" | "ONE_TIME" | "LIMITED_CHAIN" | "LIMITED_COUNT" | "VERIFIED_ONLY";
-    issueCount: number;
-    transferCount: number;
-    creator: { id: number; name: string };
-    currentOwner: { id: number; name: string };
-    createdAt: Date;
-    updatedAt: Date;
-    transfers: Array<{
-      id: number;
-      fromUser: { id: number; name: string } | null;
-      toUser: { id: number; name: string };
-      note: string | null;
-      createdAt: Date;
-    }>;
-  },
-  visualStyleMap: Map<number, BloodlineCardVisualStyle>,
-  userId?: number
-): BloodlineCardItem => ({
-  id: card.id,
-  name: card.name,
-  description: card.description,
-  image: card.image,
-  cardType: card.cardType,
-  speciesType: card.speciesType,
-  bloodlineReferenceId: card.bloodlineReferenceId,
-  parentCardId: card.parentCardId,
-  status: card.status,
-  transferPolicy: card.transferPolicy,
-  issueCount: card.issueCount,
-  transferCount: card.transferCount,
-  creator: card.creator,
-  currentOwner: card.currentOwner,
-  isOwnedByMe: Boolean(userId && card.currentOwner.id === userId),
-  createdAt: card.createdAt.toISOString(),
-  updatedAt: card.updatedAt.toISOString(),
-  transfers: card.transfers.map((transfer) => ({
-    id: transfer.id,
-    fromUser: transfer.fromUser,
-    toUser: transfer.toUser,
-    note: transfer.note,
-    createdAt: transfer.createdAt.toISOString(),
-  })),
-  visualStyle: visualStyleMap.get(card.id),
-});
+const toItem = (
+  card: BloodlineCardWithRelations,
+  viewerId: number | null,
+  visibility: BloodlineVisibility,
+  counts: { receivedCount?: number; listingCount?: number } = {}
+): BloodlineCardItem => toBloodlineCardItem(card, { viewerId, visibility, ...counts });
 
-async function handler(
-  req: NextApiRequest,
-  res: NextApiResponse<BloodlineCardDetailResponse>
-) {
-  if (req.method !== "GET") {
-    return res.status(405).json({
-      success: false,
-      card: null,
-      bloodlineSourceCard: null,
-      parentLineCard: null,
-      error: "허용되지 않은 메서드입니다.",
-    });
-  }
+/* ------------------------------------------------------------------ */
+/* GET                                                                */
+/* ------------------------------------------------------------------ */
 
-  const cardId = Number(req.query.id);
-  if (!cardId) {
-    return res.status(400).json({
-      success: false,
-      card: null,
-      bloodlineSourceCard: null,
-      parentLineCard: null,
-      error: "유효하지 않은 카드 ID입니다.",
-    });
-  }
-
+async function handleDetail(req: NextApiRequest, res: NextApiResponse, cardId: number) {
+  const viewerId = req.user?.id ?? null;
   try {
-    await ensureBloodlineSchema();
-    const userId = req.user?.id;
-    const card = await client.bloodlineCard.findFirst({
-      where: { id: cardId, status: "ACTIVE" },
-      include: includeWithTransfers,
-    });
+    const card = await findCard(cardId);
+    if (!card) return sendBloodlineError(res, "BLOODLINE_NOT_FOUND", { body: EMPTY_DETAIL });
+    if (card.status !== "ACTIVE") return sendBloodlineError(res, "BLOODLINE_REVOKED", { body: EMPTY_DETAIL });
 
-    if (!card) {
-      return res.status(404).json({
-        success: false,
-        card: null,
-        bloodlineSourceCard: null,
-        parentLineCard: null,
-        error: "카드를 찾을 수 없습니다.",
-      });
-    }
+    const rootId = rootIdOf(card);
+    const root = rootId === card.id ? card : await findCard(rootId);
+    if (!root) return sendBloodlineError(res, "BLOODLINE_NOT_FOUND", { body: EMPTY_DETAIL });
+    if (root.status !== "ACTIVE") return sendBloodlineError(res, "BLOODLINE_REVOKED", { body: EMPTY_DETAIL });
 
-    const relatedIds = [card.id, card.bloodlineReferenceId, card.parentCardId].filter(
-      (value): value is number => Boolean(value)
-    );
+    const viewerIsRootOwner = Boolean(viewerId && root.currentOwnerId === viewerId);
+    // 보통 출처 카드의 parentCardId 는 뿌리다. 다를 때만(호환용 parentLineCard) 따로 읽는다
+    const parentId = card.parentCardId && card.parentCardId !== root.id ? card.parentCardId : null;
 
-    const [visualStyleMap, bloodlineSourceCard, parentLineCard] = await Promise.all([
-      fetchVisualStyles(relatedIds),
-      card.bloodlineReferenceId
+    const [visibility, rootCounts, viewerLine, parent] = await Promise.all([
+      loadBloodlineVisibility(root.id, viewerId),
+      loadRootCounts(root),
+      findViewerLine(card, root, viewerId),
+      parentId
         ? client.bloodlineCard.findFirst({
-            where: { id: card.bloodlineReferenceId, status: "ACTIVE" },
-            include: includeWithTransfers,
-          })
-        : Promise.resolve(null),
-      card.parentCardId
-        ? client.bloodlineCard.findFirst({
-            where: { id: card.parentCardId, status: "ACTIVE" },
-            include: includeWithTransfers,
+            where: { id: parentId, status: "ACTIVE" },
+            include: bloodlineCardInclude,
           })
         : Promise.resolve(null),
     ]);
 
-    return res.json({
+    const rootItem = toItem(root, viewerId, visibility, rootCounts);
+    const cardItem = card.id === root.id ? rootItem : toItem(card, viewerId, visibility);
+    const itemOf = (target: BloodlineCardWithRelations) => {
+      if (target.id === root.id) return rootItem;
+      if (target.id === card.id) return cardItem;
+      return toItem(target, viewerId, visibility);
+    };
+
+    let parentLineCard: BloodlineCardItem | null = null;
+    if (card.parentCardId === root.id) parentLineCard = rootItem;
+    else if (parent) parentLineCard = itemOf(parent);
+
+    const viewerRelation: BloodlineViewerRelation = viewerIsRootOwner
+      ? "owner"
+      : viewerLine
+        ? "holder"
+        : "none";
+
+    const body: BloodlineCardDetailResponse = {
       success: true,
-      card: toCardItem(card, visualStyleMap, userId),
-      bloodlineSourceCard: bloodlineSourceCard
-        ? toCardItem(bloodlineSourceCard, visualStyleMap, userId)
-        : null,
-      parentLineCard: parentLineCard
-        ? toCardItem(parentLineCard, visualStyleMap, userId)
-        : null,
-    });
+      card: cardItem,
+      bloodlineSourceCard: card.id === root.id ? null : rootItem,
+      parentLineCard,
+      viewerLineCard: viewerLine ? itemOf(viewerLine) : null,
+      viewerRelation,
+    };
+    return res.json(body);
   } catch (error) {
     console.error("[bloodline-cards][detail][GET]", error);
-    return res.status(500).json({
-      success: false,
-      card: null,
-      bloodlineSourceCard: null,
-      parentLineCard: null,
-      error: "카드 정보를 불러오지 못했습니다.",
-    });
+    return sendResolvedBloodlineError(res, error, "혈통을 불러오지 못했어요", EMPTY_DETAIL);
   }
+}
+
+/* ------------------------------------------------------------------ */
+/* PATCH                                                              */
+/* ------------------------------------------------------------------ */
+
+async function handlePatch(
+  req: NextApiRequest,
+  res: NextApiResponse,
+  cardId: number,
+  viewerId: number
+) {
+  const body: Record<string, unknown> =
+    req.body && typeof req.body === "object" ? (req.body as Record<string, unknown>) : {};
+  const reject = (errorCode: BloodlineErrorCode) =>
+    sendBloodlineError(res, errorCode, { body: { card: null } });
+
+  try {
+    const card = await findCard(cardId);
+    if (!card) return reject("BLOODLINE_NOT_FOUND");
+    if (card.status !== "ACTIVE") return reject("BLOODLINE_REVOKED");
+
+    // 보낸 필드만(undefined 는 안 보낸 것). 이름·사진은 읽지 않는다
+    const wantsOwnerName = typeof body.ownerNameVisible === "boolean";
+    const wantsSpecies = body.speciesType !== undefined;
+    const wantsDescription = body.description === null || typeof body.description === "string";
+    const wantsOrigin = body.originSido !== undefined || body.originSigungu !== undefined;
+    const wantsRootFields = wantsSpecies || wantsDescription || wantsOrigin;
+
+    const isLineHolder = card.cardType === "LINE" && card.currentOwnerId === viewerId;
+    const isMakerHolder =
+      card.cardType === "BLOODLINE" && card.creatorId === viewerId && card.currentOwnerId === viewerId;
+    if (wantsOwnerName && !isLineHolder) return reject("BLOODLINE_FORBIDDEN");
+    if (wantsRootFields && !isMakerHolder) return reject("BLOODLINE_FORBIDDEN");
+    if (!wantsOwnerName && !wantsRootFields && card.currentOwnerId !== viewerId) {
+      return reject("BLOODLINE_FORBIDDEN");
+    }
+
+    const data: Prisma.BloodlineCardUpdateInput = {};
+    if (wantsSpecies) {
+      // 종은 지울 수 없다(null·빈 값은 BLOODLINE_SPECIES_REQUIRED)
+      const species = await resolveBloodlineSpecies(body.speciesType);
+      if (!species.ok) return reject(species.errorCode);
+      data.speciesType = species.speciesType;
+    }
+    if (wantsDescription) {
+      data.description =
+        typeof body.description === "string"
+          ? body.description.trim().slice(0, DESCRIPTION_MAX_LENGTH) || null
+          : null;
+    }
+    if (wantsOrigin) {
+      // 산지는 짝으로 바꾼다: 시·도만 보내면 시·군·구는 지운다, 둘 다 null 이면 산지를 지운다
+      const origin = parseOptionalRegion(body.originSido, body.originSigungu);
+      if (origin === "invalid") return reject("BLOODLINE_INVALID_ORIGIN");
+      data.originSido = origin?.sido ?? null;
+      data.originSigungu = origin?.sigungu ?? null;
+    }
+    if (wantsOwnerName) data.ownerNameVisible = body.ownerNameVisible as boolean;
+
+    // 쓰기 조건 = 위 권한 조건. 읽은 뒤 넘기기·회수가 먼저 끝났으면 0건이라 P2025 로 끝난다
+    // (넘겨받은 새 보유자의 닉네임 공개가 이전 보유자 요청으로 켜지지 않게).
+    const guard: Prisma.BloodlineCardWhereUniqueInput = {
+      id: card.id,
+      status: "ACTIVE",
+      currentOwnerId: viewerId,
+      ...(wantsOwnerName ? { cardType: "LINE" as const } : {}),
+      ...(wantsRootFields ? { cardType: "BLOODLINE" as const, creatorId: viewerId } : {}),
+    };
+
+    // 출처 카드의 종·산지는 보낼 때 뿌리에서 복사한 값이다. 뿌리 값을 바꾸면 출처 카드도 같이 맞춘다
+    // (산지를 지운 것도 맞춘다. 산지가 없던 레거시 출처 카드는 처음 산지를 정할 때 채워진다).
+    const lineSync: Prisma.BloodlineCardUpdateManyMutationInput = {};
+    if (data.speciesType !== undefined) lineSync.speciesType = data.speciesType as string;
+    if (wantsOrigin) {
+      lineSync.originSido = data.originSido as string | null;
+      lineSync.originSigungu = data.originSigungu as string | null;
+    }
+
+    let saved = card;
+    try {
+      if (Object.keys(lineSync).length > 0) {
+        saved = await client.$transaction(async (tx) => {
+          const updated = await tx.bloodlineCard.update({
+            where: guard,
+            data,
+            include: bloodlineCardInclude,
+          });
+          await tx.bloodlineCard.updateMany({
+            where: { cardType: "LINE", bloodlineReferenceId: card.id },
+            data: lineSync,
+          });
+          return updated;
+        });
+      } else if (Object.keys(data).length > 0) {
+        saved = await client.bloodlineCard.update({
+          where: guard,
+          data,
+          include: bloodlineCardInclude,
+        });
+      }
+    } catch (error) {
+      if (!isRecordNotFound(error)) throw error;
+      // 그 사이 상태가 바뀌었다: 회수·숨김이면 BLOODLINE_REVOKED, 아니면(넘어감) BLOODLINE_FORBIDDEN
+      const latest = await client.bloodlineCard.findUnique({ where: { id: card.id }, select: { status: true } });
+      if (!latest) return reject("BLOODLINE_NOT_FOUND");
+      return reject(latest.status !== "ACTIVE" ? "BLOODLINE_REVOKED" : "BLOODLINE_FORBIDDEN");
+    }
+
+    const [visibility, counts] = await Promise.all([
+      loadBloodlineVisibility(rootIdOf(saved), viewerId),
+      loadRootCounts(saved),
+    ]);
+    const response: BloodlineCardPatchResponse = {
+      success: true,
+      card: toItem(saved, viewerId, visibility, counts),
+    };
+    return res.json(response);
+  } catch (error) {
+    console.error("[bloodline-cards][detail][PATCH]", error);
+    return sendResolvedBloodlineError(res, error, "바꾸지 못했어요", { card: null });
+  }
+}
+
+async function handler(req: NextApiRequest, res: NextApiResponse) {
+  const cardId = parseCardId(req.query.id);
+  if (req.method === "PATCH") {
+    const viewerId = req.user?.id;
+    if (!viewerId) return sendBloodlineError(res, "BLOODLINE_AUTH_REQUIRED", { body: { card: null } });
+    if (!cardId) return sendBloodlineError(res, "BLOODLINE_NOT_FOUND", { body: { card: null } });
+    return handlePatch(req, res, cardId, viewerId);
+  }
+  if (!cardId) return sendBloodlineError(res, "BLOODLINE_NOT_FOUND", { body: EMPTY_DETAIL });
+  return handleDetail(req, res, cardId);
 }
 
 export default withAuth(
   withHandler({
-    methods: ["GET"],
+    methods: ["GET", "PATCH"],
     handler,
     isPrivate: false,
   })

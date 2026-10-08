@@ -14,7 +14,7 @@ import {
 } from "@libs/shared/report";
 
 /**
- * POST /api/reports — 게시글·댓글·상품·채팅방·사용자 통합 신고 접수.
+ * POST /api/reports — 게시글·댓글·상품·채팅방·사용자·혈통 통합 신고 접수.
  * 경매 신고는 /api/auctions/[id]/report 를 그대로 쓴다.
  */
 export interface ReportResponse extends ResponseType {

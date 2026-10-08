@@ -142,6 +142,7 @@ model User {
   bloodlineCardEventsTo        BloodlineCardEvent[] @relation("BloodlineCardEventTo")
   bloodlineCardTransfersFrom BloodlineCardTransfer[] @relation("BloodlineCardTransferFrom")
   bloodlineCardTransfersTo   BloodlineCardTransfer[] @relation("BloodlineCardTransferTo")
+  bloodlineCardOwnerRows     BloodlineCardOwner[]    @relation("BloodlineCardOwnerRows")
   insectRecords   InsectRecord[]
   guinnessSubmissions GuinnessSubmission[]
   moderationLogs  ModerationLog[] @relation("ModerationLogActor")
@@ -244,11 +245,16 @@ model Product {
   categoryId     Int?
   /// 거래 유형: sale(판매) / adoption(분양) / rehoming(파양)
   dealType       String     @default("sale")
+  /// 연결한 혈통(BloodlineCard, cardType=BLOODLINE). FK 없음(relationMode=prisma). 회수되면 상세 요약만 사라진다.
+  bloodlineRootId Int?
+  /// { sireMm?: number; damMm?: number; generation?: "F1".."F9" | "unknown" } — libs/shared/pedigree-note.ts
+  pedigreeNote    Json?
 
   @@index([userId])
   @@index([category])
   @@index([status])
   @@index([categoryId])
+  @@index([bloodlineRootId])
 }
 
 model Post {
@@ -419,6 +425,7 @@ enum NotificationType {
   BREEDER_OVERTAKEN
   BLOODLINE_OVERTAKEN
   AUCTION_RECORD_BROKEN
+  BLOODLINE_RECEIVED   // 출처 카드를 받았거나 혈통을 넘겨받음
 }
 
 enum SeasonKind {
@@ -642,6 +649,8 @@ model Auction {
   winnerId        Int?      // 낙찰자 ID
   /// 운영자 숨김. 작성자·관리자에게만 보인다. 숨길 때 진행중이면 취소한다.
   isHidden        Boolean   @default(false)
+  /// { sireMm?, damMm?, generation? } — libs/shared/pedigree-note.ts. bloodlineRootId 가 없으면 null.
+  pedigreeNote    Json?
 
   createdAt       DateTime  @default(now())
   updatedAt       DateTime  @updatedAt
@@ -715,6 +724,7 @@ enum ModerationTargetType {
   COMMENT
   PRODUCT
   AUCTION
+  BLOODLINE_CARD
 }
 
 enum ModerationActionType {
@@ -755,6 +765,7 @@ enum ReportTargetType {
   PRODUCT
   CHAT_ROOM
   USER
+  BLOODLINE_CARD
 }
 
 enum ReportStatus {
@@ -914,6 +925,11 @@ model BloodlineCard {
   name                 String
   description          String?
   image                String?
+  /// 산지. libs/shared/regions.ts REGIONS 의 sido / sigungu 값. sigungu 는 sido 가 있을 때만.
+  originSido           String?
+  originSigungu        String?
+  /// 출처 카드(LINE) 보유자가 켜면 혈통 페이지·프로필에 닉네임이 보인다. 카드가 다음 사람에게 옮겨가면 false 로 돌아간다.
+  ownerNameVisible     Boolean                  @default(false)
   createdAt            DateTime                 @default(now())
   updatedAt            DateTime                 @updatedAt
 
@@ -921,6 +937,7 @@ model BloodlineCard {
   currentOwner             User                  @relation("BloodlineCardOwner", fields: [currentOwnerId], references: [id], onDelete: Cascade)
   events                   BloodlineCardEvent[]
   transfers                BloodlineCardTransfer[]
+  owners                   BloodlineCardOwner[]
 
   @@index([cardType, currentOwnerId, createdAt])
   @@index([cardType, creatorId, createdAt])
@@ -966,6 +983,20 @@ model BloodlineCardTransfer {
 
   @@index([cardId, createdAt])
   @@index([toUserId, createdAt])
+}
+
+/// 보유자 테이블. 예전 런타임 DDL 로 만들던 것을 편입한다(20261009000100_bloodline_v2_schema).
+/// currentOwnerId 의 거울일 뿐 권한 판정에는 쓰지 않는다(libs/server/bloodline-ownership.ts). P2 에서 삭제 후보.
+model BloodlineCardOwner {
+  bloodlineCardId Int
+  userId          Int
+  grantedAt       DateTime @default(now())
+
+  card BloodlineCard @relation(fields: [bloodlineCardId], references: [id], onDelete: Cascade)
+  user User          @relation("BloodlineCardOwnerRows", fields: [userId], references: [id], onDelete: Cascade)
+
+  @@id([bloodlineCardId, userId])
+  @@index([userId, bloodlineCardId])
 }
 
 enum BloodlineCardType {

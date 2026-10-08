@@ -24,6 +24,13 @@ import {
 } from "@libs/server/breeder-programs";
 import type { BreederProgramSummary } from "@libs/shared/breeder-program";
 import { excludedAuthorIds, setViewerCacheHeader } from "@libs/server/blocks";
+import { canAttachBloodline, pedigreeNoteDbValue } from "@libs/server/bloodline-link";
+import { captureServerEvent } from "@libs/server/analytics";
+import {
+  parsePedigreeNote,
+  PEDIGREE_NOTE_INVALID_MESSAGE,
+  PEDIGREE_WITHOUT_BLOODLINE_MESSAGE,
+} from "@libs/shared/pedigree-note";
 
 /** 경매 목록 응답 타입 */
 export interface AuctionWithUser extends Auction {
@@ -48,6 +55,8 @@ export interface CreateAuctionResponse {
 }
 
 const AUCTION_DUPLICATE_GUARD_WINDOW_MS = 10 * 60 * 1000; // 10분
+/** Prisma Int(INT4) 최대값. 이보다 큰 혈통 id 는 잘못된 값(null)으로 본다. */
+const INT4_MAX = 2_147_483_647;
 const TOOL_MODE_COOKIE = "bredy_tool_mode";
 const TOOL_FIXED_CATEGORY = "기타";
 
@@ -167,6 +176,7 @@ async function handler(
       sellerTrustNote,
       bloodlineRootId,
       minBidIncrement: requestedBidIncrement,
+      pedigreeNote: requestedPedigreeNote,
     } = req.body;
     const isToolMode = req.cookies?.[TOOL_MODE_COOKIE] === "1";
 
@@ -185,7 +195,9 @@ async function handler(
     const normalizedSellerTrustNote = normalizeOptionalText(sellerTrustNote, 300);
     const parsedBloodlineRootId = Number(bloodlineRootId);
     const normalizedBloodlineRootId =
-      Number.isInteger(parsedBloodlineRootId) && parsedBloodlineRootId > 0
+      Number.isInteger(parsedBloodlineRootId) &&
+      parsedBloodlineRootId > 0 &&
+      parsedBloodlineRootId <= INT4_MAX
         ? parsedBloodlineRootId
         : null;
     const normalizedPhotos = Array.isArray(photos)
@@ -240,6 +252,25 @@ async function handler(
       });
     }
 
+    // 부·모 크기·누대. 구 앱은 보내지 않는다. 혈통을 안 보냈는데 부모 정보만 오면 400,
+    // 혈통이 비어 있으면(잘못된 id 포함) 부모 정보도 저장하지 않는다.
+    const pedigree = parsePedigreeNote(requestedPedigreeNote);
+    if (!pedigree.ok) {
+      return res.status(400).json({
+        success: false,
+        error: PEDIGREE_NOTE_INVALID_MESSAGE,
+        errorCode: "AUCTION_INVALID_PEDIGREE_NOTE",
+      });
+    }
+    if (pedigree.value && bloodlineRootId === undefined) {
+      return res.status(400).json({
+        success: false,
+        error: PEDIGREE_WITHOUT_BLOODLINE_MESSAGE,
+        errorCode: "AUCTION_PEDIGREE_WITHOUT_BLOODLINE",
+      });
+    }
+    const linkedPedigree = normalizedBloodlineRootId ? pedigree.value : null;
+
     try {
       const seller = await client.user.findUnique({
         where: { id: user.id },
@@ -289,32 +320,22 @@ async function handler(
         });
       }
 
+      // 붙일 수 있는 혈통: 지금 보유한 혈통 또는 그 뿌리의 출처 카드를 받은 혈통(libs/server/bloodline-link).
+      // 만든 사람이라도 혈통을 넘긴 뒤에는 못 붙인다. 오류 코드는 그대로다(앱·웹이 코드로 문구를 고른다).
+      let attachRelation: "mine" | "received" | null = null;
       if (normalizedBloodlineRootId) {
-        const linkedBloodline = await client.bloodlineCard.findFirst({
-          where: {
-            id: normalizedBloodlineRootId,
-            cardType: "BLOODLINE",
-            status: "ACTIVE",
-          },
-          select: { id: true, creatorId: true, currentOwnerId: true },
-        });
-        if (!linkedBloodline) {
-          return res.status(400).json({
+        const decision = await canAttachBloodline(normalizedBloodlineRootId, user.id);
+        if (!decision.ok) {
+          const notFound = decision.reason === "not_found";
+          return res.status(notFound ? 400 : 403).json({
             success: false,
-            error: "연결할 원본 혈통카드를 찾을 수 없습니다.",
-            errorCode: "AUCTION_INVALID_BLOODLINE_ROOT",
+            error: notFound
+              ? "연결할 혈통을 찾을 수 없어요"
+              : "내가 보유했거나 출처 카드를 받은 혈통만 연결할 수 있어요",
+            errorCode: notFound ? "AUCTION_INVALID_BLOODLINE_ROOT" : "AUCTION_BLOODLINE_FORBIDDEN",
           });
         }
-        if (
-          linkedBloodline.creatorId !== user.id &&
-          linkedBloodline.currentOwnerId !== user.id
-        ) {
-          return res.status(403).json({
-            success: false,
-            error: "내가 생성하거나 보유한 혈통카드만 경매에 연결할 수 있습니다.",
-            errorCode: "AUCTION_BLOODLINE_FORBIDDEN",
-          });
-        }
+        attachRelation = decision.relation;
       }
 
       const duplicatedAuction = await client.auction.findFirst({
@@ -366,6 +387,7 @@ async function handler(
           sellerProofImage: normalizedSellerProofImage,
           sellerTrustNote: normalizedSellerTrustNote,
           bloodlineRootId: normalizedBloodlineRootId,
+          ...(linkedPedigree ? { pedigreeNote: pedigreeNoteDbValue(linkedPedigree) } : {}),
           startPrice: normalizedStartPrice,
           currentPrice: normalizedStartPrice,
           minBidIncrement,
@@ -373,6 +395,17 @@ async function handler(
           user: { connect: { id: user.id } },
         },
       });
+
+      // 계측은 응답 직전에 기다린다(1.5초 상한, 실패해도 무시).
+      if (normalizedBloodlineRootId && attachRelation) {
+        await captureServerEvent(user.id, "auction_bloodline_attached", {
+          auction_id: auction.id,
+          bloodline_id: normalizedBloodlineRootId,
+          relation: attachRelation,
+          has_pedigree: Boolean(linkedPedigree),
+          generation: linkedPedigree?.generation ?? null,
+        });
+      }
 
       return res.json({ success: true, auction });
     } catch (error) {

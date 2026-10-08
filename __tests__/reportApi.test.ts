@@ -88,8 +88,15 @@ beforeEach(() => {
 });
 
 describe("신고 사유 상수(libs/shared/report)", () => {
-  it("대상 유형 5종과 대상별 사유 목록, 모든 목록 끝은 기타", () => {
-    expect(REPORT_TARGET_TYPES).toEqual(["POST", "COMMENT", "PRODUCT", "CHAT_ROOM", "USER"]);
+  it("대상 유형 6종과 대상별 사유 목록, 모든 목록 끝은 기타", () => {
+    expect(REPORT_TARGET_TYPES).toEqual([
+      "POST",
+      "COMMENT",
+      "PRODUCT",
+      "CHAT_ROOM",
+      "USER",
+      "BLOODLINE_CARD",
+    ]);
     expect(REPORT_REASONS.POST).toEqual([
       "스팸·광고",
       "욕설·비하·혐오 표현",
@@ -118,6 +125,13 @@ describe("신고 사유 상수(libs/shared/report)", () => {
       "사기 이력 의심",
       "반복적 욕설·괴롭힘",
       "스팸 계정",
+      "기타",
+    ]);
+    expect(REPORT_REASONS.BLOODLINE_CARD).toEqual([
+      "남의 혈통 이름 도용",
+      "허위 정보",
+      "욕설·부적절 내용",
+      "스팸·광고",
       "기타",
     ]);
     for (const type of REPORT_TARGET_TYPES) {
