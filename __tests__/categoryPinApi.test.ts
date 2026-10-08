@@ -18,7 +18,7 @@ const TREE = [
 const mockClient = {
   category: { findMany: jest.fn(async () => TREE) },
   user: { findUnique: jest.fn(), findMany: jest.fn(), update: jest.fn() },
-  post: { findMany: jest.fn(), count: jest.fn(), groupBy: jest.fn() },
+  post: { findMany: jest.fn(), count: jest.fn(), groupBy: jest.fn(), create: jest.fn() },
   product: { groupBy: jest.fn() },
   userBlock: { findMany: jest.fn() },
   userBadge: { findMany: jest.fn() },
