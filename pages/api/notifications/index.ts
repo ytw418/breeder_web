@@ -14,6 +14,8 @@ export interface NotificationItem {
   isRead: boolean;
   targetId: number | null;
   targetType: string | null;
+  /** 게시글 댓글 알림이면 그 댓글 id(누르면 /posts/:id?commentId= 로 그 댓글까지 스크롤) */
+  commentId: number | null;
   createdAt: string;
   sender: {
     id: number;
@@ -56,6 +58,7 @@ async function handler(
             isRead: true,
             targetId: true,
             targetType: true,
+            commentId: true,
             createdAt: true,
             sender: {
               select: { id: true, name: true, avatar: true },

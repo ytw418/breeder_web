@@ -1,5 +1,31 @@
-import type { NextApiResponse } from "next";
+import type { NextApiRequest, NextApiResponse } from "next";
+import type { Prisma } from "@prisma/client";
 import client from "@libs/server/client";
+import { excludedAuthorIds } from "@libs/server/blocks";
+import { isModeratorUser } from "@libs/server/adminAccess";
+
+/**
+ * viewer 가 볼 수 있는 댓글 조건. 게시글 상세 댓글 목록과 댓글 좋아요가 같이 쓴다.
+ * - viewer 가 차단한 사람의 댓글은 뺀다.
+ * - 숨긴 댓글은 작성자 본인과 관리자에게만 보인다.
+ * 조건이 없으면(관리자·차단 없음) null.
+ */
+export async function commentVisibilityWhere(
+  viewer: NextApiRequest["user"] | undefined
+): Promise<Prisma.CommentWhereInput | null> {
+  const excluded = await excludedAuthorIds(viewer?.id);
+  const hiddenCommentWhere: Prisma.CommentWhereInput | null = isModeratorUser(viewer)
+    ? null
+    : viewer?.id
+      ? { OR: [{ isHidden: false }, { userId: viewer.id }] }
+      : { isHidden: false };
+  const conditions: Prisma.CommentWhereInput[] = [
+    ...(excluded.length ? [{ userId: { notIn: excluded } }] : []),
+    ...(hiddenCommentWhere ? [hiddenCommentWhere] : []),
+  ];
+  if (conditions.length === 0) return null;
+  return conditions.length === 1 ? conditions[0] : { AND: conditions };
+}
 
 /** 댓글 API 오류 응답. 게시글 API 와 같은 { success:false, error, message, errorCode } 형식이다. */
 export function sendCommentError(

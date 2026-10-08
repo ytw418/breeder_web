@@ -138,6 +138,8 @@ describe("대댓글", () => {
         message: "나님이 회원님의 댓글에 답글을 남겼습니다.",
         targetId: POST_ID,
         targetType: "post",
+        // 알림을 누르면 새 답글로 스크롤한다.
+        commentId: 999,
       })
     );
     expect(mockCreateNotification).toHaveBeenCalledWith(

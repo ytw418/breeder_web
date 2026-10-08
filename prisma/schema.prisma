@@ -112,6 +112,7 @@ model User {
   posts           Post[]
   Likes           Like[]
   Comments        Comment[]
+  commentLikes    CommentLike[]
   writtenReviews  Review[]    @relation(name: "writtenReviews")
   receivedReviews Review[]    @relation(name: "receivedReviews")
   fav             Fav[]
@@ -345,6 +346,7 @@ model Comment {
   deletedAt DateTime?
   /// 작성자가 고친 시각. updatedAt 은 운영자 숨김에도 바뀌어 '수정됨' 표시에 쓰지 않는다.
   editedAt  DateTime?
+  likes     CommentLike[]
 
   @@index([userId])
   @@index([postId])
@@ -352,6 +354,19 @@ model Comment {
 
 }
 
+
+/// 댓글 좋아요. 사용자당 댓글 하나에 한 번(토글).
+model CommentLike {
+  id        Int      @id @default(autoincrement())
+  createdAt DateTime @default(now())
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId    Int
+  comment   Comment  @relation(fields: [commentId], references: [id], onDelete: Cascade)
+  commentId Int
+
+  @@unique([userId, commentId])
+  @@index([commentId])
+}
 
 model Like {
   id        Int      @id @default(autoincrement())
@@ -501,6 +516,7 @@ model Notification {
   senderId   Int              // 알림을 발생시킨 유저
   targetId   Int?             // 대상 ID (게시글, 상품, 채팅방, 경매 등)
   targetType String?          // 대상 타입 ("post", "product", "chatRoom", "auction")
+  commentId  Int?             // 게시글 댓글 알림이면 그 댓글 id(눌렀을 때 그 댓글로 스크롤)
   createdAt  DateTime         @default(now())
   updatedAt  DateTime         @updatedAt
 

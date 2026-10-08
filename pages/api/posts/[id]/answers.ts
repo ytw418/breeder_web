@@ -113,6 +113,7 @@ async function handler(
         message: `${senderUser.name}님이 회원님의 댓글에 답글을 남겼습니다.`,
         targetId: postId,
         targetType: "post",
+        commentId: newAnswer.id,
       });
     }
     // 댓글 알림(게시글 작성자에게). 답글 알림을 이미 받은 사람이면 한 번만 보낸다.
@@ -124,6 +125,7 @@ async function handler(
         message: `${senderUser.name}님이 회원님의 게시글에 댓글을 남겼습니다.`,
         targetId: postId,
         targetType: "post",
+        commentId: newAnswer.id,
       });
     }
     await incrementUserMissionProgress(user.id, "comment_write");
