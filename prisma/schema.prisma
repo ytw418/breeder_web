@@ -771,7 +771,10 @@ model ModerationLog {
   /// 콘텐츠 작성자. 삭제 뒤에도 추적한다.
   targetUserId Int?
   action       ModerationActionType
+  /// 운영자 메모(자유 입력)
   reason       String?
+  /// 제재 사유 코드(libs/shared/sanction.ts SANCTION_REASONS). 작성자 알림에 사유 문구로 쓴다
+  reasonCode   String?
   /// 신고 처리에서 온 조치면 Report.id
   reportId     Int?
   /// 삭제 시 원문 보존용 { title, excerpt }

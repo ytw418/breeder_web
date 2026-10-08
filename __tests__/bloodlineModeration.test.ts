@@ -149,8 +149,9 @@ describe("POST /api/admin/moderation — 혈통", () => {
         targetUserId: 9,
         action: "HIDE",
         reason: "이름 도용 신고",
+        reasonCode: null,
         reportId: null,
-        snapshot: undefined,
+        snapshot: { title: "강산 라인", excerpt: "충남 공주 왕사슴 혈통" },
       },
     });
     expect(res.body.result).toEqual({
@@ -221,6 +222,7 @@ describe("POST /api/admin/moderation — 혈통", () => {
         targetUserId: 9,
         action: "DELETE",
         reason: null,
+        reasonCode: null,
         reportId: null,
         snapshot: { title: "강산 라인", excerpt: "충남 공주 왕사슴 혈통" },
       },

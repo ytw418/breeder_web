@@ -7,6 +7,9 @@ CREATE TYPE "SanctionType" AS ENUM ('WARNING', 'SUSPENSION', 'BAN', 'LIFT');
 ALTER TABLE "AuctionReport" ADD COLUMN     "sanctionId" INTEGER;
 
 -- AlterTable
+ALTER TABLE "ModerationLog" ADD COLUMN     "reasonCode" TEXT;
+
+-- AlterTable
 ALTER TABLE "Report" ADD COLUMN     "contentAction" "ModerationActionType",
 ADD COLUMN     "sanctionId" INTEGER;
 
