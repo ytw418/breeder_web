@@ -10,6 +10,7 @@ import {
 } from "@libs/server/breeder-programs";
 import type { BreederProgramSummary } from "@libs/shared/breeder-program";
 import { resolvePostImagesInput, withPostImages } from "@libs/postImages";
+import { validatePostDescription } from "@libs/shared/post-body";
 import { canWriteNoticePost, isNoticePostInput } from "@libs/server/postNotice";
 import { excludedAuthorIds } from "@libs/server/blocks";
 import { isModeratorUser } from "@libs/server/adminAccess";
@@ -120,7 +121,7 @@ async function mutatePost(
 
   const post = await client.post.findUnique({
     where: { id: postId },
-    select: { id: true, userId: true },
+    select: { id: true, userId: true, image: true, images: true },
   });
   if (!post) {
     return sendPostError(res, 404, "POST_NOT_FOUND", NOT_FOUND_MESSAGE);
@@ -184,6 +185,15 @@ async function mutatePost(
       resolvedImages.errorCode,
       resolvedImages.message
     );
+  }
+
+  // 본문 검사는 작성과 같다. 사진을 그대로 두는 요청은 저장된 사진 수로 자리 표시 번호를 본다.
+  const imageCount = resolvedImages
+    ? resolvedImages.images.length
+    : (post.images ?? []).length || (post.image ? 1 : 0);
+  const bodyCheck = validatePostDescription(description, imageCount);
+  if (!bodyCheck.ok) {
+    return sendPostError(res, 400, bodyCheck.errorCode, bodyCheck.message);
   }
 
   if (

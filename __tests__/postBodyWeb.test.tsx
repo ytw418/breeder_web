@@ -23,7 +23,7 @@ describe("웹 게시글 PostBody", () => {
     );
     expect(order).toEqual(["준비물", "앞 설명", "게시글 이미지 2", "가운데", "게시글 이미지 1", "뒤 설명"]);
     expect(container.textContent).not.toMatch(/\[\[photo:|## |\*\*/);
-    expect(screen.getByText("준비물").closest("p")).toHaveClass("text-[20px]", "font-bold");
+    expect(screen.getByText("준비물").closest("p")).toHaveClass("text-[20px] font-bold");
   });
 
   it("자리 표시 없는 사진은 본문 뒤에 순서대로 나열한다", () => {
