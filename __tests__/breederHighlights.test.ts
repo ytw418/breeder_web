@@ -9,7 +9,7 @@ const post = (id: number, userId: number, images: string[], likes = 0, image = i
 });
 
 describe("TOP 브리더 highlight", () => {
-  it("최신순 사진 글 4개, 사진 장수, 받은 좋아요, 팔로워를 사람별로 모은다", () => {
+  it("최신순 사진 글 4개, 사진 장수, 받은 좋아요, 팔로워, 상품 수를 사람별로 모은다", () => {
     const result = buildBreederHighlights(
       [1, 2],
       [
@@ -23,6 +23,7 @@ describe("TOP 브리더 highlight", () => {
         post(3, 9, ["x"], 5),
       ],
       [{ key: 2, count: 4 }],
+      [{ key: 1, count: 5 }],
     );
     expect(result.get(1)).toEqual({
       photos: [
@@ -34,18 +35,20 @@ describe("TOP 브리더 highlight", () => {
       photosCount: 6,
       likesReceivedCount: 3,
       followersCount: 0,
+      productsCount: 5,
     });
     expect(result.get(2)).toEqual({
       photos: [{ postId: 7, image: "d" }],
       photosCount: 1,
       likesReceivedCount: 3,
       followersCount: 4,
+      productsCount: 0,
     });
     expect(result.has(9)).toBe(false);
   });
 
   it("images 가 비어 있으면 예전 단일 image 를 쓴다", () => {
-    const result = buildBreederHighlights([1], [post(1, 1, [], 0, "old")], []);
+    const result = buildBreederHighlights([1], [post(1, 1, [], 0, "old")], [], []);
     expect(result.get(1)?.photos).toEqual([{ postId: 1, image: "old" }]);
     expect(result.get(1)?.photosCount).toBe(1);
   });

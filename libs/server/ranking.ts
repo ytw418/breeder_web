@@ -468,17 +468,25 @@ type HighlightPostRow = {
   _count: { Likes: number };
 };
 
-/** 최신순 게시글 행·팔로워 수로 사람별 TOP 브리더 사진 줄·키워드 정보를 만든다(테스트용으로 뺀 순수 함수). */
+/** 최신순 게시글 행·팔로워 수·상품 수로 사람별 TOP 브리더 사진 줄·칭호 정보를 만든다(테스트용으로 뺀 순수 함수). */
 export const buildBreederHighlights = (
   userIds: number[],
   posts: HighlightPostRow[],
-  followers: CountRow[]
+  followers: CountRow[],
+  products: CountRow[]
 ): Map<number, BreederHighlight> => {
   const followerMap = toCountMap(followers);
+  const productMap = toCountMap(products);
   const highlights = new Map<number, BreederHighlight>(
     userIds.map((id) => [
       id,
-      { photos: [], photosCount: 0, likesReceivedCount: 0, followersCount: followerMap.get(id) ?? 0 },
+      {
+        photos: [],
+        photosCount: 0,
+        likesReceivedCount: 0,
+        followersCount: followerMap.get(id) ?? 0,
+        productsCount: productMap.get(id) ?? 0,
+      },
     ])
   );
   for (const post of posts) {
@@ -495,8 +503,8 @@ export const buildBreederHighlights = (
 };
 
 /**
- * 상위 `count` 명에게 반려생활 TOP 브리더 사진 줄·키워드용 정보(최근 사진·사진 장수·받은 좋아요·팔로워)를 붙인다.
- * 숨김·공지 글은 세지 않는다. 랭킹 점수에는 영향이 없다.
+ * 상위 `count` 명에게 TOP 브리더 사진 줄·칭호용 정보(최근 사진·사진 장수·받은 좋아요·팔로워·상품 수)를 붙인다.
+ * 숨김·공지 글, 삭제·숨김 상품은 세지 않는다. 랭킹 점수에는 영향이 없다.
  */
 export const attachBreederHighlights = async (
   items: BreederRankingItem[],
@@ -504,7 +512,7 @@ export const attachBreederHighlights = async (
 ): Promise<BreederRankingItem[]> => {
   const userIds = items.slice(0, count).map((item) => item.user.id);
   if (userIds.length === 0) return items;
-  const [posts, followers] = await Promise.all([
+  const [posts, followers, products] = await Promise.all([
     client.post.findMany({
       where: {
         userId: { in: userIds },
@@ -519,11 +527,13 @@ export const attachBreederHighlights = async (
       where: { followingId: { in: userIds } },
       _count: { _all: true },
     }),
+    countByGroup("product", { userId: { in: userIds }, isDeleted: false, isHidden: false }),
   ]);
   const highlights = buildBreederHighlights(
     userIds,
     posts,
-    followers.map((row) => ({ key: row.followingId, count: row._count._all }))
+    followers.map((row) => ({ key: row.followingId, count: row._count._all })),
+    products
   );
   return items.map((item) => {
     const highlight = highlights.get(item.user.id);

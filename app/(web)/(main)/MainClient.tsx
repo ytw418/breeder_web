@@ -22,6 +22,7 @@ import useBlocks from "hooks/useBlocks";
 import useCategoryScope, { withCategoryPath, withinScope } from "hooks/useCategoryScope";
 import CategoryScopeBar from "@components/features/category/CategoryScopeBar";
 import { BreederRankingItem, HomeFeedResponse } from "@libs/shared/ranking";
+import { pickBreederKeywords, type BreederKeyword, type BreederTitleKey } from "@libs/shared/breederKeywords";
 import { filterHomeFeedForBlocked, HomeBanner, ProductsResponse } from "@libs/shared/home";
 import { ProductRowSkeleton } from "../products/_components/ProductRowSkeleton";
 import { ProductFeedEmpty } from "../products/_components/ProductFeedEmpty";
@@ -210,51 +211,78 @@ function FreeGiveawayEmptyCard() {
   );
 }
 
+/** 칭호 → 아래 숫자 칸 중 강조할 칸(앱 index.tsx HERO_TITLE_STATS). */
+const HERO_TITLE_STATS: Partial<Record<BreederTitleKey, string[]>> = {
+  auction: ["입찰", "낙찰"],
+  talk: ["댓글"],
+  post: ["게시"],
+  listing: ["분양"],
+};
+
 function HeroBreederCard({
   hero,
+  keyword,
   onChallenge,
 }: {
   hero: BreederRankingItem;
+  /** '○○왕' 칭호(왜 1위인지). 구 서버면 없다. */
+  keyword: BreederKeyword | null;
   onChallenge: () => void;
 }) {
   const badge = hero.badges?.[0];
+  const profileHref = `/profiles/${hero.user.id}`;
+  const highlighted = (keyword && HERO_TITLE_STATS[keyword.key]) || [];
   return (
     <div className="overflow-hidden rounded-xl border border-app-border bg-app-elevated shadow-card">
       <div className="flex items-center gap-3 px-4 pb-3 pt-3.5">
-        <div className="relative">
-          <div className="h-11 w-11 overflow-hidden rounded-full bg-app-placeholder ring-2 ring-amber-400/60">
-            {hero.user.avatar ? (
-              <Image
-                src={makeImageUrl(hero.user.avatar, "avatar")}
-                alt={hero.user.name}
-                width={44}
-                height={44}
-                className="h-full w-full object-cover"
-              />
-            ) : (
-              <div className="flex h-full w-full items-center justify-center bg-app-border text-sm font-bold text-app-muted">
-                {hero.user.name.charAt(0)}
+        <Link
+          href={profileHref}
+          aria-label={`${hero.rank}위 ${hero.user.name}${keyword ? `, ${keyword.label} ${keyword.detail}` : ""}, ${hero.score.toLocaleString()}점, 프로필 보기`}
+          className="flex min-w-0 flex-1 items-center gap-3"
+        >
+          <div className="relative shrink-0">
+            <div className="h-11 w-11 overflow-hidden rounded-full bg-app-placeholder ring-2 ring-amber-400/60">
+              {hero.user.avatar ? (
+                <Image
+                  src={makeImageUrl(hero.user.avatar, "avatar")}
+                  alt={hero.user.name}
+                  width={44}
+                  height={44}
+                  className="h-full w-full object-cover"
+                />
+              ) : (
+                <div className="flex h-full w-full items-center justify-center bg-app-border text-sm font-bold text-app-muted">
+                  {hero.user.name.charAt(0)}
+                </div>
+              )}
+            </div>
+            {/* 다크에서도 amber 위 글자가 읽히도록 테마와 무관한 어두운 잉크를 쓴다(앱 S.onAccent). */}
+            <span className="absolute -bottom-0.5 -right-0.5 flex h-5 w-5 items-center justify-center rounded-full bg-app-warning text-[9px] font-black text-neutral-900">
+              {hero.rank}
+            </span>
+          </div>
+          <div className="min-w-0 flex-1">
+            <div className="flex items-center gap-1.5">
+              <h3 className="truncate text-sm font-bold text-app-strong">{hero.user.name}</h3>
+              {badge ? (
+                <span className="shrink-0 rounded bg-app-warning-soft px-1.5 py-0.5 text-[9px] font-semibold text-app-warning-text">
+                  {badge.label}
+                </span>
+              ) : null}
+            </div>
+            {keyword ? (
+              <div className="mt-1 flex min-w-0 items-center gap-1.5">
+                <span className="shrink-0 rounded-full bg-app-brand-soft px-2 py-[2px] text-[12px] font-semibold leading-4 text-app-brand">
+                  {keyword.emoji} {keyword.label}
+                </span>
+                <span className="truncate text-[12px] text-app-muted">{keyword.detail}</span>
               </div>
-            )}
-          </div>
-          {/* 다크에서도 amber 위 글자가 읽히도록 테마와 무관한 어두운 잉크를 쓴다(앱 S.onAccent). */}
-          <span className="absolute -bottom-0.5 -right-0.5 flex h-5 w-5 items-center justify-center rounded-full bg-app-warning text-[9px] font-black text-neutral-900">
-            {hero.rank}
-          </span>
-        </div>
-        <div className="min-w-0 flex-1">
-          <div className="flex items-center gap-1.5">
-            <h3 className="truncate text-sm font-bold text-app-strong">{hero.user.name}</h3>
-            {badge ? (
-              <span className="shrink-0 rounded bg-app-warning-soft px-1.5 py-0.5 text-[9px] font-semibold text-app-warning-text">
-                {badge.label}
-              </span>
             ) : null}
+            <p className="mt-0.5 text-xs text-app-muted">
+              {hero.score.toLocaleString()}점 · {formatRankDelta(hero.rankDelta)}
+            </p>
           </div>
-          <p className="mt-0.5 text-xs text-app-muted">
-            {hero.score.toLocaleString()}점 · {formatRankDelta(hero.rankDelta)}
-          </p>
-        </div>
+        </Link>
         <button
           type="button"
           onClick={onChallenge}
@@ -263,12 +291,17 @@ function HeroBreederCard({
           도전하기
         </button>
       </div>
-      <div className="flex divide-x divide-app-line border-t border-app-line">
+      <Link
+        href={profileHref}
+        tabIndex={-1}
+        aria-hidden="true"
+        className="flex divide-x divide-app-line border-t border-app-line"
+      >
         {(hero.productsCount !== undefined
-          ? // 관심 카테고리 범위 랭킹은 범위 안 게시글·상품만 센다(앱 a158757).
+          ? // 관심 카테고리 범위 랭킹은 범위 안 게시글·분양글만 센다(앱 a158757).
             [
               { label: "게시", value: hero.postsCount },
-              { label: "상품", value: hero.productsCount },
+              { label: "분양", value: hero.productsCount },
             ]
           : [
               { label: "게시", value: hero.postsCount },
@@ -276,13 +309,16 @@ function HeroBreederCard({
               { label: "입찰", value: hero.bidsCount },
               { label: "낙찰", value: hero.auctionWinsCount },
             ]
-        ).map((stat) => (
-          <div key={stat.label} className="flex-1 py-2.5 text-center">
-            <p className="text-sm font-bold text-app-strong">{stat.value}</p>
-            <p className="text-[10px] text-app-muted">{stat.label}</p>
-          </div>
-        ))}
-      </div>
+        ).map((stat) => {
+          const on = highlighted.includes(stat.label);
+          return (
+            <div key={stat.label} className="flex-1 py-2.5 text-center">
+              <p className={cn("text-sm font-bold", on ? "text-app-brand" : "text-app-strong")}>{stat.value}</p>
+              <p className={cn("text-[10px]", on ? "font-semibold text-app-brand" : "text-app-muted")}>{stat.label}</p>
+            </div>
+          );
+        })}
+      </Link>
     </div>
   );
 }
@@ -365,16 +401,26 @@ const MainClient = ({
   const { data: replacementRanking } = useSWR<{ success: boolean; items: BreederRankingItem[] }>(
     feed?.heroBlocked
       ? withCategoryPath(
-          `/api/rankings/breeders?limit=10&period=${feed.heroBreederMode}`,
+          `/api/rankings/breeders?limit=10&period=${feed.heroBreederMode}&highlights=10`,
           scope.categoryPath
         )
       : null
   );
-  const hero =
-    feed?.heroBreeder ??
-    (feed?.heroBlocked
-      ? replacementRanking?.items?.find((item) => !blockedIds.has(item.user.id)) ?? null
-      : null);
+  const replacementPeers = useMemo(
+    () => replacementRanking?.items?.filter((item) => !blockedIds.has(item.user.id)) ?? [],
+    [replacementRanking, blockedIds]
+  );
+  const hero = feed?.heroBreeder ?? (feed?.heroBlocked ? replacementPeers[0] ?? null : null);
+  // 1위의 '○○왕' 칭호: 서버가 계산해 준다. 1위를 차단해 바꿨으면 같은 기간 랭킹으로 다시 고른다.
+  const heroKeyword = useMemo(
+    () =>
+      feed?.heroBreeder
+        ? feed.heroBreederKeyword ?? null
+        : feed?.heroBlocked
+          ? pickBreederKeywords(replacementPeers, [], 1)[0] ?? null
+          : null,
+    [feed, replacementPeers]
+  );
   const banners = initialBanners;
 
   const products = useMemo(
@@ -707,6 +753,7 @@ const MainClient = ({
             ) : hero ? (
               <HeroBreederCard
                 hero={hero}
+                keyword={heroKeyword}
                 onChallenge={() => {
                   trackEvent(ANALYTICS_EVENTS.challengeJoin, {
                     challenge_id: "weekly_breeder_rank",

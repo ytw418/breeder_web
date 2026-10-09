@@ -1,3 +1,5 @@
+import type { BreederKeyword } from "@libs/shared/breederKeywords";
+
 export type RankingPeriod = "weekly" | "all";
 export type AuctionPeriodScope = "week" | "month" | "all";
 export type CommunityWindow = "24h" | "all";
@@ -47,6 +49,8 @@ export interface BreederHighlight {
   /** 게시글이 받은 좋아요 수. */
   likesReceivedCount: number;
   followersCount: number;
+  /** 올린 상품(분양·판매) 수. 삭제·숨김 제외, 기간과 관계없이 전체. '분양왕' 칭호용. */
+  productsCount: number;
 }
 
 /** 전체 랭킹(범위 없음) 브리더 점수 가중치. 반려생활 '점수 기준' 시트도 이 값을 보여 준다. */
@@ -190,6 +194,8 @@ export interface HotDiscussionItem {
 export interface HomeFeedResponse {
   success: boolean;
   heroBreeder: BreederRankingItem | null;
+  /** 1위의 '○○왕' 칭호. 같은 기간 상위 10명끼리 비교한다(pickBreederKeywords). 구 서버엔 없다. */
+  heroBreederKeyword?: BreederKeyword | null;
   heroBreederMode: RankingPeriod;
   topAuctionsByCategory: AuctionRankingItem[];
   topAuctionsMode: AuctionPeriodScope;
