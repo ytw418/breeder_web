@@ -52,31 +52,39 @@ describe("computeProfileCompletion", () => {
   const none = {
     hasAvatar: false,
     hasBio: false,
+    hasBanner: false,
+    hasLink: false,
     hasPinnedPhoto: false,
     hasAlbum: false,
     hasListing: false,
   };
 
-  it("순서대로 다음 할 일을 고른다", () => {
-    expect(computeProfileCompletion(none)).toMatchObject({ done: 0, total: 5, next: "avatar" });
+  it("순서대로 다음 할 일을 고른다(v6: 소개 다음 커버·대표 링크)", () => {
+    expect(computeProfileCompletion(none)).toMatchObject({ done: 0, total: 7, next: "avatar" });
     expect(computeProfileCompletion({ ...none, hasAvatar: true, hasBio: true })).toMatchObject({
       done: 2,
-      next: "pin",
+      next: "banner",
+    });
+    expect(computeProfileCompletion({ ...none, hasAvatar: true, hasBio: true, hasBanner: true })).toMatchObject({
+      done: 3,
+      next: "link",
     });
     expect(
-      computeProfileCompletion({ ...none, hasAvatar: true, hasBio: true, hasPinnedPhoto: true, hasAlbum: true })
-    ).toMatchObject({ done: 4, next: "listing" });
+      computeProfileCompletion({ ...none, hasAvatar: true, hasBio: true, hasBanner: true, hasLink: true })
+    ).toMatchObject({ done: 4, next: "pin" });
   });
 
   it("다 채우면 next 가 없다", () => {
-    const all = { hasAvatar: true, hasBio: true, hasPinnedPhoto: true, hasAlbum: true, hasListing: true };
-    expect(computeProfileCompletion(all)).toMatchObject({ done: 5, total: 5, next: null });
+    const all = Object.fromEntries(Object.keys(none).map((key) => [key, true])) as typeof none;
+    expect(computeProfileCompletion(all)).toMatchObject({ done: 7, total: 7, next: null });
   });
 
-  it("항목 이름은 프로필 사진·소개·대표 사진 고정·앨범 만들기·첫 분양 글", () => {
+  it("항목 이름", () => {
     expect(computeProfileCompletion(none).items.map((item) => item.label)).toEqual([
       "프로필 사진",
       "소개",
+      "커버 사진",
+      "대표 링크",
       "대표 사진 고정",
       "앨범 만들기",
       "첫 분양 글",
