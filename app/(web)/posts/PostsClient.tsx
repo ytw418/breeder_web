@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import useSWR from "swr";
 import useSWRInfinite from "swr/infinite";
@@ -12,7 +12,6 @@ import { FilterChip, FilterChipRail } from "@components/app/FilterChip";
 import { PostCard } from "@components/app/PostCard";
 import { QueryErrorState } from "@components/app/QueryErrorState";
 import { RetryFooter } from "@components/app/RetryFooter";
-import { useInfiniteScroll } from "hooks/useInfiniteScroll";
 import useBlocks from "hooks/useBlocks";
 import useCategoryScope, { withCategoryPath } from "hooks/useCategoryScope";
 import useUser from "hooks/useUser";
@@ -167,13 +166,15 @@ export default function PostsClient() {
 
   // 동네 글은 먼저 시/군/구로 받고, 1페이지가 0건이면 시/도 전체로 넓혀 다시 받는다(앱 AC-14).
   const sigunguList = useSWRInfinite<PostsListResponse>(
-    isRegionCategory && !myRegion ? () => null : makeGetKey(isRegionCategory ? myRegion : null)
+    isRegionCategory && !myRegion ? () => null : makeGetKey(isRegionCategory ? myRegion : null),
+    { revalidateFirstPage: false }
   );
   const widenToSido = Boolean(
     isRegionCategory && myRegion && sigunguList.data && (sigunguList.data[0]?.posts.length ?? 0) === 0
   );
   const sidoList = useSWRInfinite<PostsListResponse>(
-    widenToSido && myRegion ? makeGetKey({ sido: myRegion.sido }) : () => null
+    widenToSido && myRegion ? makeGetKey({ sido: myRegion.sido }) : () => null,
+    { revalidateFirstPage: false }
   );
   const {
     data,
@@ -211,11 +212,7 @@ export default function PostsClient() {
     withCategoryPath("/api/home/feed?scope=public", scope.categoryPath),
     { revalidateOnFocus: false }
   );
-  const page = useInfiniteScroll();
-
-  useEffect(() => {
-    setSize(page);
-  }, [setSize, page]);
+  const sentinelRef = useRef<HTMLDivElement>(null);
 
   const resetList = () => {
     setSize(1);
@@ -295,6 +292,25 @@ export default function PostsClient() {
   const hasMore = Boolean(data && lastPage?.posts.length && data.length < totalPages);
   const isInitialLoading = !data && !listError;
   const isLoadingMore = Boolean(data && size > data.length && isValidating && !listError);
+  const loadedPages = data?.length ?? 0;
+
+  // 바닥 감시 칸이 보이면 다음 페이지 하나만 받는다. 더 없거나 받는 중이면 부르지 않는다
+  // (스크롤마다 페이지 수를 올리면 바닥에서 1페이지를 계속 다시 받아 목록이 깜박였다).
+  useEffect(() => {
+    const target = sentinelRef.current;
+    if (!target || !hasMore || listError) return;
+    const observer = new IntersectionObserver(
+      (entries, self) => {
+        if (!entries[0]?.isIntersecting || isValidating) return;
+        // setSize 는 같은 크기로 불러도 다시 받는다. 한 번 부르면 끊고, 받은 뒤 새 감시가 이어 간다.
+        self.disconnect();
+        void setSize(loadedPages + 1);
+      },
+      { rootMargin: "600px 0px" }
+    );
+    observer.observe(target);
+    return () => observer.disconnect();
+  }, [hasMore, listError, isValidating, loadedPages, setSize]);
 
   const selectHighlightTab = (tab: HighlightTab) => {
     trackEvent(ANALYTICS_EVENTS.postsHighlightTabChanged, { tab });
@@ -614,6 +630,7 @@ export default function PostsClient() {
             onRetry={() => void mutateList()}
           />
         ) : null}
+        <div ref={sentinelRef} aria-hidden="true" />
 
         <FloatingButton href="/posts/upload" label="글쓰기">
           <svg className="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">

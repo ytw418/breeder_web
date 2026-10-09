@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo } from "react";
+import { useEffect, useMemo, useRef } from "react";
 import Link from "next/link";
 import useSWRInfinite from "swr/infinite";
 
@@ -8,7 +8,6 @@ import Image from "@components/atoms/Image";
 import Layout from "@components/features/MainLayout";
 import { QueryErrorState } from "@components/app/QueryErrorState";
 import { RetryFooter } from "@components/app/RetryFooter";
-import { useInfiniteScroll } from "hooks/useInfiniteScroll";
 import { makeImageUrl } from "@libs/client/utils";
 import { toPostPath } from "@libs/post-route";
 import type { NoticePostsResponse } from "pages/api/posts/notices";
@@ -37,7 +36,7 @@ function SkeletonItem() {
 }
 
 export default function NoticePostsClient() {
-  const page = useInfiniteScroll();
+  const sentinelRef = useRef<HTMLDivElement>(null);
 
   const getKey = (pageIndex: number, previousPageData: NoticePostsResponse | null) => {
     if (previousPageData && (previousPageData.posts.length === 0 || pageIndex >= previousPageData.pages)) {
@@ -47,11 +46,27 @@ export default function NoticePostsClient() {
   };
 
   const { data, error, size, setSize, isValidating, mutate } =
-    useSWRInfinite<NoticePostsResponse>(getKey);
+    useSWRInfinite<NoticePostsResponse>(getKey, { revalidateFirstPage: false });
+  const loadedPages = data?.length ?? 0;
+  const hasMore =
+    Boolean(data?.[loadedPages - 1]?.posts.length) && loadedPages < (data?.[0]?.pages ?? 0);
 
+  // 바닥 감시 칸이 보이면 다음 페이지 하나만 받는다(반려생활 목록과 같음).
   useEffect(() => {
-    setSize(page);
-  }, [page, setSize]);
+    const target = sentinelRef.current;
+    if (!target || !hasMore || error) return;
+    const observer = new IntersectionObserver(
+      (entries, self) => {
+        if (!entries[0]?.isIntersecting || isValidating) return;
+        // setSize 는 같은 크기로 불러도 다시 받는다. 한 번 부르면 끊고, 받은 뒤 새 감시가 이어 간다.
+        self.disconnect();
+        void setSize(loadedPages + 1);
+      },
+      { rootMargin: "600px 0px" }
+    );
+    observer.observe(target);
+    return () => observer.disconnect();
+  }, [hasMore, error, isValidating, loadedPages, setSize]);
 
   const notices = useMemo(() => {
     const seen = new Set<number>();
@@ -121,6 +136,7 @@ export default function NoticePostsClient() {
             onRetry={() => void mutate()}
           />
         ) : null}
+        <div ref={sentinelRef} aria-hidden="true" />
       </div>
     </Layout>
   );
