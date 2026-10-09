@@ -91,13 +91,3 @@ export function parseSeen(raw: string | null | undefined, now: number): SeenMap 
     return {};
   }
 }
-
-/** 목록 중 하나라도 안 본 것이 있는지(하단 탭 점). */
-export function hasUnreadItems(
-  items: readonly UnreadItem[],
-  seen: SeenMap,
-  viewerId: number | null | undefined,
-  now: number
-): boolean {
-  return items.some((item) => isUnreadItem(item, seen, viewerId, now));
-}
