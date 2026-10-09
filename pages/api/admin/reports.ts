@@ -62,6 +62,7 @@ export interface AdminReportsResponse extends ResponseType {
   /** POST 만: 함께 닫은 신고 id, 콘텐츠가 이미 없어 콘텐츠 조치를 건너뛰었는지, 만든 제재 id */
   closedReportIds?: number[];
   contentSkipped?: boolean;
+  contentFailed?: boolean;
   sanctionId?: number | null;
   errorCode?: string;
   /** GET 만: 현재 페이지(1부터)와 다음 페이지 존재 여부 */
@@ -224,6 +225,7 @@ async function handler(req: NextApiRequest, res: NextApiResponse<AdminReportsRes
         counts,
         closedReportIds: result.reportIds,
         contentSkipped: result.contentSkipped,
+        contentFailed: result.contentFailed,
         sanctionId: result.sanctionId,
       });
     } catch (error) {

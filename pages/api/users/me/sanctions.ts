@@ -2,7 +2,12 @@ import { NextApiRequest, NextApiResponse } from "next";
 import withHandler, { ResponseType } from "@libs/server/withHandler";
 import { withAuth } from "@libs/server/auth";
 import client from "@libs/server/client";
-import { getSanctionSummary, toUserSanctionView, type UserSanctionView } from "@libs/server/sanctions";
+import {
+  getSanctionSummary,
+  toNoticeViews,
+  toUserSanctionView,
+  type UserSanctionView,
+} from "@libs/server/sanctions";
 
 export interface MySanctionsResponse {
   success: boolean;
@@ -23,7 +28,6 @@ export interface MySanctionsResponse {
 
 const NOTICE_TYPES = ["WARNING", "SUSPENSION"] as const;
 const HISTORY_LIMIT = 50;
-
 async function handler(req: NextApiRequest, res: NextApiResponse<ResponseType>) {
   const userId = req.user!.id;
 
@@ -42,7 +46,7 @@ async function handler(req: NextApiRequest, res: NextApiResponse<ResponseType>) 
     // 확인 모달의 "최근 180일 경고 n회" 문구에 쓴다. 권장 조치는 운영자용이라 내려주지 않는다.
     return res.json({
       success: true,
-      sanctions: rows.map(toUserSanctionView),
+      sanctions: unacknowledgedOnly ? toNoticeViews(rows) : rows.map(toUserSanctionView),
       recentWarningCount: summary.recentWarningCount,
       recentSuspensionCount: summary.recentSuspensionCount,
     });
@@ -53,17 +57,19 @@ async function handler(req: NextApiRequest, res: NextApiResponse<ResponseType>) 
   if (!Number.isInteger(id) || id <= 0) {
     return res.status(400).json({ success: false, error: "잘못된 요청이에요." });
   }
-  const { count } = await client.userSanction.updateMany({
-    where: { id, userId, type: { in: [...NOTICE_TYPES] }, acknowledgedAt: null },
+  const target = await client.userSanction.findFirst({
+    where: { id, userId, type: { in: [...NOTICE_TYPES] } },
+    select: { id: true, type: true, createdAt: true },
+  });
+  if (!target) return res.status(404).json({ success: false, error: "확인할 안내를 찾을 수 없어요." });
+  // 정지는 합쳐서 보여 주므로 그보다 앞선 미확인 정지 기록도 함께 확인 처리한다(이미 확인했으면 그대로 성공).
+  await client.userSanction.updateMany({
+    where:
+      target.type === "SUSPENSION"
+        ? { userId, type: "SUSPENSION", acknowledgedAt: null, createdAt: { lte: target.createdAt } }
+        : { id, userId, acknowledgedAt: null },
     data: { acknowledgedAt: new Date() },
   });
-  if (count === 0) {
-    const existing = await client.userSanction.findFirst({
-      where: { id, userId, type: { in: [...NOTICE_TYPES] } },
-      select: { id: true },
-    });
-    if (!existing) return res.status(404).json({ success: false, error: "확인할 안내를 찾을 수 없어요." });
-  }
   return res.json({ success: true });
 }
 

@@ -162,10 +162,10 @@ describe("issueSanction — 기간 정지", () => {
 });
 
 describe("issueSanction — 영구 정지·해제", () => {
-  it("영구 정지는 BANNED·tokenVersion+1", async () => {
+  it("영구 정지는 BANNED·tokenVersion+1(읽은 상태 그대로일 때만)", async () => {
     const result = await issueSanction({ ...base, type: "BAN", reasonCode: "FRAUD" });
     expect(mockClient.user.updateMany).toHaveBeenCalledWith({
-      where: { id: TARGET, status: { not: "DELETED" } },
+      where: { id: TARGET, status: "ACTIVE", suspendedUntil: null },
       data: { status: "BANNED", suspendedUntil: null, tokenVersion: { increment: 1 } },
     });
     expect(result.user.status).toBe("BANNED");
@@ -177,15 +177,28 @@ describe("issueSanction — 영구 정지·해제", () => {
   });
 
   it("해제는 ACTIVE·만료 시각 삭제·LIFT 1건·해제 알림(AC-11)", async () => {
-    mockClient.user.findUnique.mockResolvedValue({ status: "SUSPENDED", suspendedUntil: new Date(NOW.getTime() + DAY_MS) });
+    const until = new Date(NOW.getTime() + DAY_MS);
+    mockClient.user.findUnique.mockResolvedValue({ status: "SUSPENDED", suspendedUntil: until });
     const result = await issueSanction({ ...base, type: "LIFT", reasonCode: "OTHER" });
     expect(mockClient.user.updateMany).toHaveBeenCalledWith({
-      where: { id: TARGET, status: { not: "DELETED" } },
+      where: { id: TARGET, status: "SUSPENDED", suspendedUntil: until },
       data: { status: "ACTIVE", suspendedUntil: null },
     });
     expect(mockClient.userSanction.create).toHaveBeenCalledWith({ data: expect.objectContaining({ type: "LIFT" }) });
     expect(result.user).toEqual({ status: "ACTIVE", suspendedUntil: null });
     expect(mockCreateNotification.mock.calls[0][0].message).toBe("이용 정지가 해제되었어요.");
+  });
+
+  it("해제·영구 정지도 그 사이 상태가 바뀌었으면 409 이고 제재를 남기지 않는다", async () => {
+    mockClient.user.findUnique.mockResolvedValue({ status: "SUSPENDED", suspendedUntil: new Date(NOW.getTime() + DAY_MS) });
+    mockClient.user.updateMany.mockResolvedValue({ count: 0 });
+    await expect(issueSanction({ ...base, type: "LIFT", reasonCode: "OTHER" })).rejects.toMatchObject({
+      status: 409,
+      code: "STATUS_CHANGED",
+    });
+    await expect(issueSanction({ ...base, type: "BAN", reasonCode: "FRAUD" })).rejects.toMatchObject({ status: 409 });
+    expect(mockClient.userSanction.create).not.toHaveBeenCalled();
+    expect(mockCreateNotification).not.toHaveBeenCalled();
   });
 
   it("정지 중이 아니면 해제는 409(E-8)", async () => {

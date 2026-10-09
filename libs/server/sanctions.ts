@@ -1,6 +1,6 @@
 import type { ModerationTargetType, Prisma, SanctionType, UserSanction, UserStatus } from "@prisma/client";
 import client from "@libs/server/client";
-import { isSuspendedStatus, setUserStatus, type LoginBlock } from "@libs/server/accountStatus";
+import { isSuspendedStatus, type LoginBlock } from "@libs/server/accountStatus";
 import { createNotification } from "@libs/server/notification";
 import {
   LIFT_NOTICE_MESSAGE,
@@ -83,6 +83,25 @@ const snapshotOf = (target: SanctionTarget | null | undefined): Prisma.InputJson
   return { title: target.title ?? null, excerpt: target.excerpt ?? null };
 };
 
+/**
+ * 읽은 상태(status·suspendedUntil) 그대로일 때만 바꾼다. 그 사이 다른 운영자가 정지·해제·연장했으면 409.
+ * 정지 연장과 해제가 동시에 들어와 한쪽이 다른 쪽을 덮어쓰지 않게 한다.
+ */
+async function updateIfUnchanged(
+  tx: Db,
+  userId: number,
+  user: { status: UserStatus; suspendedUntil: Date | null },
+  data: Prisma.UserUpdateManyMutationInput
+) {
+  const { count } = await tx.user.updateMany({
+    where: { id: userId, status: user.status, suspendedUntil: user.suspendedUntil },
+    data,
+  });
+  if (count === 0) {
+    throw new SanctionError(409, "다른 운영자가 방금 계정 상태를 바꿨어요. 새로고침 후 다시 시도해 주세요.", "STATUS_CHANGED");
+  }
+}
+
 async function applyStatusChange(
   tx: Db,
   input: IssueSanctionInput,
@@ -99,14 +118,11 @@ async function applyStatusChange(
     }
     const current = isSuspendedStatus(user.status) ? user.suspendedUntil : null;
     const until = extendSuspensionUntil(now, current, input.days as number);
-    // 읽은 상태 그대로일 때만 바꾼다(동시에 다른 운영자가 바꿨으면 409).
-    const { count } = await tx.user.updateMany({
-      where: { id: userId, status: user.status, suspendedUntil: user.suspendedUntil },
-      data: { status: "SUSPENDED", suspendedUntil: until, tokenVersion: { increment: 1 } },
+    await updateIfUnchanged(tx, userId, user, {
+      status: "SUSPENDED",
+      suspendedUntil: until,
+      tokenVersion: { increment: 1 },
     });
-    if (count === 0) {
-      throw new SanctionError(409, "다른 운영자가 방금 계정 상태를 바꿨어요. 새로고침 후 다시 시도해 주세요.", "STATUS_CHANGED");
-    }
     const extended = Boolean(current && current.getTime() > now.getTime());
     return { status: "SUSPENDED", suspendedUntil: until, extended };
   }
@@ -115,7 +131,11 @@ async function applyStatusChange(
     if (user.status === "BANNED") {
       throw new SanctionError(409, "이미 영구 정지된 계정이에요.", "ALREADY_BANNED");
     }
-    await setUserStatus(tx, userId, "BANNED", now);
+    await updateIfUnchanged(tx, userId, user, {
+      status: "BANNED",
+      suspendedUntil: null,
+      tokenVersion: { increment: 1 },
+    });
     return { status: "BANNED", suspendedUntil: null, extended: false };
   }
 
@@ -123,7 +143,7 @@ async function applyStatusChange(
   if (user.status !== "BANNED" && !isSuspendedStatus(user.status)) {
     throw new SanctionError(409, "정지 중인 계정이 아니에요.", "NOT_RESTRICTED");
   }
-  await setUserStatus(tx, userId, "ACTIVE", now);
+  await updateIfUnchanged(tx, userId, user, { status: "ACTIVE", suspendedUntil: null });
   return { status: "ACTIVE", suspendedUntil: null, extended: false };
 }
 
@@ -282,6 +302,43 @@ export function toUserSanctionView(row: UserSanction): UserSanctionView {
     acknowledgedAt: row.acknowledgedAt ? row.acknowledgedAt.toISOString() : null,
     createdAt: row.createdAt.toISOString(),
   };
+}
+
+const NOTICE_DAY_MS = 24 * 60 * 60 * 1000;
+
+/**
+ * 확인 모달용 목록. 정지 중에 추가 정지로 이어진 정지 기록들은 한 번의 '이용 정지가 끝났어요'로 합친다
+ * (마지막 기록 id, 첫 시작 ~ 마지막 만료, 전체 일수). 경고는 한 건씩. 오래된 순.
+ */
+export function toNoticeViews(rows: UserSanction[]): UserSanctionView[] {
+  const views: { createdAt: Date; view: UserSanctionView }[] = [];
+  let group: { first: UserSanction; last: UserSanction } | null = null;
+  const flush = () => {
+    if (!group) return;
+    const { first, last } = group;
+    const view = toUserSanctionView(last);
+    if (first.id !== last.id && last.endsAt) {
+      view.startsAt = first.startsAt.toISOString();
+      view.days = Math.round((last.endsAt.getTime() - first.startsAt.getTime()) / NOTICE_DAY_MS);
+    }
+    views.push({ createdAt: last.createdAt, view });
+    group = null;
+  };
+  for (const row of rows) {
+    if (row.type !== "SUSPENSION") {
+      views.push({ createdAt: row.createdAt, view: toUserSanctionView(row) });
+      continue;
+    }
+    // 앞 정지가 끝나기 전에 시작한 정지는 같은 정지 기간이다.
+    if (group && group.last.endsAt && row.startsAt.getTime() <= group.last.endsAt.getTime()) {
+      group.last = row;
+    } else {
+      flush();
+      group = { first: row, last: row };
+    }
+  }
+  flush();
+  return views.sort((a, b) => a.createdAt.getTime() - b.createdAt.getTime()).map((item) => item.view);
 }
 
 /**

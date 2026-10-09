@@ -4,6 +4,9 @@ import client from "@libs/server/client";
 import { withAuth } from "@libs/server/auth";
 import { NotificationType } from "@prisma/client";
 
+/** 운영 알림(MODERATION)의 보낸 사람 자리. 실제 운영자 계정 대신 이 값을 준다. */
+const MODERATION_SENDER = { id: 0, name: "브리디 운영팀", avatar: null };
+
 export interface NotificationItem {
   id: number;
   type: NotificationType;
@@ -70,6 +73,9 @@ async function handler(
         success: true,
         notifications: notifications.map((n) => ({
           ...n,
+          // 운영 알림의 senderId 는 조치한 운영자다. 대상자·신고자에게 운영자 계정을 드러내지 않는다
+          // (앱 docs/prd/admin-moderation.md AC-15). 화면은 '브리디 운영팀'으로 그린다.
+          sender: n.type === "MODERATION" ? MODERATION_SENDER : n.sender,
           createdAt: n.createdAt.toISOString(),
         })),
         unreadCount,

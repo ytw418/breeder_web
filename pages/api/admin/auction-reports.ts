@@ -213,14 +213,33 @@ async function handler(
       });
     }
 
-    if (target.status !== "OPEN") {
-      return res.status(400).json({
+    const alreadyResolved = () =>
+      res.status(409).json({
         success: false,
-        error: "이미 처리된 신고입니다.",
+        error: "이미 처리된 신고예요.",
+        errorCode: "REPORT_ALREADY_RESOLVED",
         reports: [],
         counts: EMPTY_COUNTS,
       });
-    }
+    if (target.status !== "OPEN") return alreadyResolved();
+
+    // 먼저 이 신고를 차지한다. 동시에 같은 신고를 처리하면 하나만 이어가고(제재 중복 방지) 나머지는 409.
+    const resolvedAt = new Date();
+    const claimed = await client.auctionReport.updateMany({
+      where: { id: parsedReportId, status: "OPEN" },
+      data: {
+        status: parsedDecision,
+        resolutionNote: parsedNote || null,
+        resolvedBy: adminUserId || null,
+        resolvedAt,
+      },
+    });
+    if (claimed.count === 0) return alreadyResolved();
+    const reopen = () =>
+      client.auctionReport.updateMany({
+        where: { id: parsedReportId, status: parsedDecision, resolvedBy: adminUserId || null },
+        data: { status: "OPEN", resolutionNote: null, resolvedBy: null, resolvedAt: null },
+      });
 
     const legacyBan = parsedAction === "BAN_USER" || parsedAction === "STOP_AUCTION_AND_BAN";
     const shouldStopAuction =
@@ -261,6 +280,8 @@ async function handler(
         });
         sanctionId = sanction.id;
       } catch (error) {
+        // 제재가 거절·실패하면 아무 조치도 없었으니 신고를 다시 연다.
+        await reopen();
         if (isSanctionError(error)) {
           return res.status(error.status).json({
             success: false,
@@ -327,12 +348,8 @@ async function handler(
     const next = await client.auctionReport.update({
       where: { id: parsedReportId },
       data: {
-        status: parsedDecision,
         resolutionAction,
         sanctionId,
-        resolutionNote: parsedNote || null,
-        resolvedBy: adminUserId || null,
-        resolvedAt: new Date(),
       },
       include: {
         auction: {

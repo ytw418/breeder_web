@@ -520,6 +520,49 @@ describe("POST /api/admin/reports 처리", () => {
     expect(reporterNotices.map((arg) => arg.userId).sort()).toEqual([7, 8]);
   });
 
+  it("제재 뒤 콘텐츠 조치가 오류로 실패하면 신고는 처리된 채 contentFailed 로 알린다", async () => {
+    openReport("POST", 30);
+    mockClient.post.update.mockRejectedValueOnce(new Error("db down"));
+    const spy = jest.spyOn(console, "error").mockImplementation(() => {});
+    const res = await decide({ reportId: 5, decision: "RESOLVED", contentAction: "HIDE", userAction: { type: "WARNING" } });
+    spy.mockRestore();
+    expect(res.statusCode).toBe(200);
+    expect(res.body.contentFailed).toBe(true);
+    expect(res.body.contentSkipped).toBe(false);
+    // 제재 id 는 바로 신고에 남고, 신고를 다시 열지 않는다.
+    expect(mockClient.report.update).toHaveBeenCalledWith({
+      where: { id: 5 },
+      data: { sanctionId: 100, resolutionAction: "NONE" },
+    });
+    expect(mockClient.report.updateMany).not.toHaveBeenCalledWith(
+      expect.objectContaining({ data: expect.objectContaining({ status: "OPEN" }) })
+    );
+  });
+
+  it("제재 없이 콘텐츠 조치만 오류로 실패하면 신고를 다시 열고 오류를 낸다", async () => {
+    openReport("POST", 30);
+    mockClient.post.update.mockRejectedValueOnce(new Error("db down"));
+    const spy = jest.spyOn(console, "error").mockImplementation(() => {});
+    const res = await decide({ reportId: 5, decision: "RESOLVED", contentAction: "HIDE" });
+    spy.mockRestore();
+    expect(res.statusCode).toBe(500);
+    expect(mockClient.report.updateMany).toHaveBeenLastCalledWith({
+      where: { id: 5, status: "RESOLVED", resolvedBy: 1 },
+      data: { status: "OPEN", resolvedBy: null, resolvedAt: null, resolutionNote: null },
+    });
+  });
+
+  it("관련 콘텐츠 제목의 상태 접두어([숨김])는 대상자용 제재 기록에 넣지 않는다", async () => {
+    openReport("POST", 30);
+    mockClient.post.findMany.mockResolvedValueOnce([
+      { id: 30, title: "문제 게시글", description: "광고 내용입니다", isHidden: true },
+    ]);
+    await decide({ reportId: 5, decision: "RESOLVED", userAction: { type: "WARNING" } });
+    expect(mockIssueSanction.mock.calls[0][0].target).toEqual(
+      expect.objectContaining({ type: "POST", id: 30, title: "문제 게시글" })
+    );
+  });
+
   it("콘텐츠가 이미 없으면 콘텐츠 조치는 건너뛰고 처리 완료한다(E-5)", async () => {
     openReport("POST", 30);
     mockClient.post.findUnique.mockResolvedValue(null);

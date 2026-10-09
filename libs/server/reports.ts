@@ -345,6 +345,8 @@ export interface ResolveReportResult {
   /** 실제로 적용한 콘텐츠 조치. 콘텐츠가 이미 없었으면 null */
   contentAction: ModerationActionType | null;
   contentSkipped: boolean;
+  /** 제재는 적용됐지만 콘텐츠 조치가 오류로 실패했다(신고는 처리됨, 운영자가 다시 시도해야 함) */
+  contentFailed: boolean;
   sanctionId: number | null;
 }
 
@@ -429,10 +431,12 @@ async function sanctionTargetOf(report: Pick<Report, "targetType" | "targetId">)
   const type = report.targetType;
   if (type !== "POST" && type !== "COMMENT" && type !== "PRODUCT" && type !== "BLOODLINE_CARD") return null;
   const snapshot = await buildTargetSnapshot(report);
+  // 관리자용 스냅샷 제목의 상태 접두어([숨김]·[삭제]·[회수])는 대상자 화면에 보이지 않게 뺀다.
+  const title = snapshot.exists ? snapshot.title.replace(/^\[(숨김|삭제|회수)\]\s*/, "") : null;
   return {
     type,
     id: report.targetId,
-    title: snapshot.exists ? snapshot.title : null,
+    title,
     excerpt: snapshot.exists ? snapshot.excerpt.slice(0, 100) : null,
   };
 }
@@ -481,6 +485,7 @@ export async function resolveReport(input: ResolveReportInput): Promise<ResolveR
 
   let sanctionId: number | null = null;
   let contentApplied = false;
+  let contentFailed = false;
   try {
     // 사용자 조치를 먼저 한다(409 로 거절될 수 있어, 콘텐츠만 바뀌고 끝나는 일을 줄인다).
     if (sanctionDraft) {
@@ -492,12 +497,14 @@ export async function resolveReport(input: ResolveReportInput): Promise<ResolveR
         target: await sanctionTargetOf(report),
       });
       sanctionId = sanction.id;
-    }
-    if (contentAction !== "NONE") {
-      contentApplied = await applyReportContentAction(report, contentAction, actorId, reasonCode);
+      // 제재는 되돌릴 수 없으니 바로 신고에 남긴다(뒤 단계가 실패해도 어떤 제재였는지 남도록).
+      await client.report.update({
+        where: { id: reportId },
+        data: { sanctionId, resolutionAction: legacyResolutionAction(false, sanctionDraft.type) },
+      });
     }
   } catch (error) {
-    // 조치가 실패하면 신고를 다시 연다(제재가 이미 됐으면 이력에 남아 있다).
+    // 제재가 거절·실패하면 아무 조치도 없었으니 신고를 다시 연다.
     if (sanctionId == null) {
       await client.report.updateMany({
         where: { id: reportId, status: decision, resolvedBy: actorId },
@@ -506,6 +513,24 @@ export async function resolveReport(input: ResolveReportInput): Promise<ResolveR
     }
     if (isSanctionError(error)) throw new ReportResolutionError(error.status, error.message, error.code);
     throw error;
+  }
+
+  if (contentAction !== "NONE") {
+    try {
+      contentApplied = await applyReportContentAction(report, contentAction, actorId, reasonCode);
+    } catch (error) {
+      if (sanctionId == null) {
+        // 아무 조치도 적용되지 않았으니 신고를 다시 열고 오류를 그대로 올린다.
+        await client.report.updateMany({
+          where: { id: reportId, status: decision, resolvedBy: actorId },
+          data: { status: "OPEN", resolvedBy: null, resolvedAt: null, resolutionNote: null },
+        });
+        throw error;
+      }
+      // 제재는 이미 적용됐다. 신고는 처리된 것으로 두고 콘텐츠 조치만 실패했다고 알린다(운영자가 목록에서 다시 숨긴다).
+      console.error("Report content action failed after sanction:", error);
+      contentFailed = true;
+    }
   }
 
   const appliedContentAction: ModerationActionType | null = contentApplied
@@ -555,7 +580,8 @@ export async function resolveReport(input: ResolveReportInput): Promise<ResolveR
   return {
     reportIds: [reportId, ...others.map((row) => row.id)],
     contentAction: appliedContentAction,
-    contentSkipped: contentAction !== "NONE" && !contentApplied,
+    contentSkipped: contentAction !== "NONE" && !contentApplied && !contentFailed,
+    contentFailed,
     sanctionId,
   };
 }

@@ -246,6 +246,12 @@ export default function AdminReportsPage() {
         return toast.error(result.error || "신고 처리에 실패했습니다.");
       }
       const closed = result.closedReportIds?.length ?? 1;
+      if (result.contentFailed) {
+        toast.error("사용자 조치는 적용했지만 콘텐츠 조치는 실패했어요. 게시물·상품 관리에서 다시 숨겨 주세요.");
+        setExpandedId(null);
+        mutateReports();
+        return;
+      }
       toast.success(
         result.contentSkipped
           ? "콘텐츠가 이미 없어 사용자 조치만 적용했어요."

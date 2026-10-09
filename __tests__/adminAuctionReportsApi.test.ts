@@ -1,7 +1,7 @@
 import type { NextApiRequest, NextApiResponse } from "next";
 
 const mockClient = {
-  auctionReport: { findUnique: jest.fn(), update: jest.fn(), groupBy: jest.fn() },
+  auctionReport: { findUnique: jest.fn(), update: jest.fn(), updateMany: jest.fn(), groupBy: jest.fn() },
   auction: { findUnique: jest.fn(), update: jest.fn() },
   user: { update: jest.fn(), updateMany: jest.fn() },
 };
@@ -87,6 +87,7 @@ beforeEach(() => {
   mockClient.auction.findUnique.mockResolvedValue({ id: 3, title: "왕사슴 경매", status: "종료", userId: 9 });
   mockIssueSanction.mockResolvedValue({ sanction: { id: 100 }, user: { status: "BANNED", suspendedUntil: null } });
   mockClient.auctionReport.update.mockResolvedValue({ id: 5 });
+  mockClient.auctionReport.updateMany.mockResolvedValue({ count: 1 });
   mockClient.auctionReport.groupBy.mockResolvedValue([]);
   mockClient.user.updateMany.mockResolvedValue({ count: 1 });
 });
@@ -139,13 +140,25 @@ describe("/api/admin/auction-reports 사용자 조치", () => {
     expect(mockIssueSanction).not.toHaveBeenCalled();
   });
 
-  it("제재가 거절되면 그 상태 코드를 돌려주고 신고·경매를 바꾸지 않는다", async () => {
+  it("제재가 거절되면 그 상태 코드를 돌려주고 경매를 바꾸지 않으며 신고를 다시 연다", async () => {
     const { SanctionError } = jest.requireMock("@libs/server/sanctions");
     mockIssueSanction.mockRejectedValue(new SanctionError(409, "이미 영구 정지된 계정이에요.", "ALREADY_BANNED"));
     const res = await decide({ reportId: 5, decision: "RESOLVED", action: "STOP_AUCTION_AND_BAN" });
     expect(res.statusCode).toBe(409);
     expect(mockClient.auction.update).not.toHaveBeenCalled();
     expect(mockClient.auctionReport.update).not.toHaveBeenCalled();
+    expect(mockClient.auctionReport.updateMany).toHaveBeenLastCalledWith({
+      where: { id: 5, status: "RESOLVED", resolvedBy: 1 },
+      data: { status: "OPEN", resolutionNote: null, resolvedBy: null, resolvedAt: null },
+    });
+  });
+
+  it("동시에 처리돼 차지하지 못하면 409 이고 제재하지 않는다", async () => {
+    mockClient.auctionReport.updateMany.mockResolvedValueOnce({ count: 0 });
+    const res = await decide({ reportId: 5, decision: "RESOLVED", userAction: { type: "SUSPENSION", days: 3 } });
+    expect(res.statusCode).toBe(409);
+    expect(res.body.errorCode).toBe("REPORT_ALREADY_RESOLVED");
+    expect(mockIssueSanction).not.toHaveBeenCalled();
   });
 
   it("제재 없는 처리(NONE)는 제재·신고자 알림이 없다", async () => {
