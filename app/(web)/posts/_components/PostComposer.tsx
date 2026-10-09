@@ -468,7 +468,7 @@ export function PostComposer(props: PostComposerProps) {
           <PostBodyEditor
             editor={editor}
             disabled={isSubmitting}
-            placeholder="곤충에 대한 이야기를 자유롭게 나눠보세요"
+            placeholder="내용을 자유롭게 작성해보세요"
           />
           <ErrorText>{errors.description}</ErrorText>
         </div>
