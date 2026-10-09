@@ -281,7 +281,7 @@ const EditProfileClient = () => {
 
   return (
     <form onSubmit={onSubmit} className="bg-app-bg">
-      {/* 커버(v5): 전체 폭 3:1, 오른쪽 아래 '커버 변경'·'커버 삭제' 칩 */}
+      {/* 커버(v5): 전체 폭 3:1, 오른쪽 위 '커버 변경'·'커버 삭제' 칩(아래는 아바타가 40 겹쳐 좁은 폭에서 칩을 가린다) */}
       <div className="relative aspect-[3/1] w-full overflow-hidden bg-app-surface">
         {bannerSrc ? (
           // eslint-disable-next-line @next/next/no-img-element
@@ -298,7 +298,7 @@ const EditProfileClient = () => {
             </svg>
           </span>
         )}
-        <div className="absolute bottom-2.5 right-3 flex gap-1.5">
+        <div className="absolute right-3 top-2.5 flex gap-1.5">
           {bannerSrc ? (
             <button
               type="button"

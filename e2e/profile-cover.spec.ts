@@ -53,6 +53,29 @@ test("커버 칩을 터치하면 사진 선택창이 열리고 변경·삭제할
   await expect(addCover).toBeVisible();
 });
 
+test("360 폭(갤럭시 S24)에서도 커버 칩이 아바타에 가리지 않는다", async ({ page }) => {
+  await page.setViewportSize({ width: 360, height: 780 });
+  const addCover = page.getByRole("button", { name: "커버 추가", exact: true });
+  await expect(addCover).toBeVisible({ timeout: 60_000 });
+
+  const chooserPromise = page.waitForEvent("filechooser");
+  await addCover.tap({ timeout: 5_000 });
+  await (await chooserPromise).setFiles({ name: "cover.svg", mimeType: "image/svg+xml", buffer: COVER_SVG });
+
+  const avatarBox = await page.getByRole("button", { name: "프로필 이미지 변경", exact: true }).locator("..").boundingBox();
+  expect(avatarBox).not.toBeNull();
+  for (const name of ["커버 삭제", "커버 변경"]) {
+    const chipBox = await page.getByRole("button", { name, exact: true }).boundingBox();
+    expect(chipBox).not.toBeNull();
+    const overlaps =
+      chipBox!.x < avatarBox!.x + avatarBox!.width &&
+      avatarBox!.x < chipBox!.x + chipBox!.width &&
+      chipBox!.y < avatarBox!.y + avatarBox!.height &&
+      avatarBox!.y < chipBox!.y + chipBox!.height;
+    expect(overlaps, `${name} 칩이 아바타와 겹친다`).toBe(false);
+  }
+});
+
 test("아바타 카메라를 터치하면 사진 선택창이 열린다", async ({ page }) => {
   const avatarCamera = page.getByRole("button", { name: "프로필 이미지 변경", exact: true });
   await expect(avatarCamera).toBeVisible({ timeout: 60_000 });
