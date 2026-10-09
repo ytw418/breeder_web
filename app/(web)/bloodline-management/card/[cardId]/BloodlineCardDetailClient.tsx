@@ -4,7 +4,8 @@
  * 혈통 / 출처 카드 상세 — 기존 웹 톤(A안) 유지, 혈통 v2 계약·문구만 맞춘다(설계 §4.4 WB-3).
  * 원본: bredy_app src/app/bloodline-management/card/[cardId]/index.tsx
  *
- * 헤더(뒤로 + 제목 18/700 + 공유) → 상단 카드(BloodlineVisualCard)
+ * 헤더(뒤로 + 제목 18/700 + 공유) → 뿌리 혈통 사진 1:1(폭 가득 정사각형, 2026-10-09 사용자 결정) + 정보(앱 S3 와 같다:
+ * 이름 20/700, "종 · 산지" 15, "만든 사람 ○○님 · YYYY.MM.DD 등록" 14, 소개 15 — 없고 고칠 수 있으면 "혈통 소개 쓰기")
  * → 8px 갭 + 정보 표(라벨 14 muted · 값 15, 1px line 행) → (출처 카드 보유자) 내 닉네임 공개 토글
  * → 8px 갭 + "이력" 플랫 리스트 → 신뢰 고지 → 보내기 폼
  * → 하단 고정 바(혈통 보유자: 출처 카드 보내기 / 출처 카드 보유자: 다음 분에게 보내기).
@@ -19,11 +20,11 @@ import { authFetch } from "@libs/client/authFetch";
 import { fetchBloodlineCardEvents } from "@libs/client/bloodlineCardEvents";
 import { shareOrCopy } from "@libs/client/share";
 import { BLOODLINE_LIST_KEY_PREFIXES, revalidateByPrefix } from "@libs/client/swrRevalidate";
-import { cn } from "@libs/client/utils";
+import { cn, makeImageUrl } from "@libs/client/utils";
 import Layout from "@components/features/MainLayout";
 import { Input } from "@components/ui/input";
 import { QueryErrorState } from "@components/app/QueryErrorState";
-import { BloodlineVisualCard } from "@components/features/bloodline/BloodlineVisualCard";
+import Image from "@components/atoms/Image";
 import {
   BLOODLINE_TRUST_NOTICE,
   BloodlineBottomBar,
@@ -51,7 +52,6 @@ import useUser from "hooks/useUser";
 import { normalizeDeletedUserNames } from "@libs/shared/deletedUser";
 import { BLOODLINE_ERRORS } from "@libs/shared/bloodline-errors";
 import {
-  bloodlineCardMeta,
   bloodlineCardTypeLabel,
   bloodlineEventSentence,
   bloodlineUserPhrase,
@@ -68,6 +68,7 @@ import {
   type BloodlineUserRef,
 } from "@libs/shared/bloodline-card";
 import { recipientsSummaryText } from "@libs/client/bloodlineRecipients";
+import { canEditBloodline } from "@libs/shared/bloodline-edit";
 
 interface TransferUserItem {
   id: number;
@@ -110,6 +111,82 @@ async function fetchBloodlineDetail(url: string): Promise<BloodlineCardDetailRes
     throw error;
   }
   return normalizeDeletedUserNames(payload);
+}
+
+function PhotoPlaceholderIcon() {
+  return (
+    <svg
+      width={40}
+      height={40}
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth={1.5}
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+      className="text-app-caption"
+    >
+      <rect x={3} y={4} width={18} height={16} rx={2} />
+      <circle cx={8.5} cy={9.5} r={1.8} />
+      <path d="M4 17l4.5-4.5 3.5 3.5 3-2.5L20 18" />
+    </svg>
+  );
+}
+
+/**
+ * 상단: 뿌리 혈통 사진 1:1(폭 가득) → 정보(패딩 16/16/20). 앱 S3 DetailPhoto·DetailInfo 와 같다.
+ * 뿌리를 못 받아 출처 카드를 그릴 때 그 description 은 보낸 사람의 메모라 소개 자리에 쓰지 않는다.
+ */
+function DetailHero({ hero, editHref }: { hero: BloodlineCardItem; editHref?: string | null }) {
+  const src = hero.image?.trim() ? makeImageUrl(hero.image, "public") : "";
+  const [failedSrc, setFailedSrc] = useState<string | null>(null);
+  const showImage = Boolean(src) && failedSrc !== src;
+  const description = hero.cardType === "LINE" ? "" : hero.description?.trim() ?? "";
+  const speciesOrigin = [hero.speciesType?.trim() || "종 미지정", bloodlineOriginText(hero)]
+    .filter(Boolean)
+    .join(" · ");
+  const createdAt = formatBloodlineEventDate(hero.createdAt);
+  const createdBy = `만든 사람 ${bloodlineUserPhrase(hero.creator)}${createdAt ? ` · ${createdAt} 등록` : ""}`;
+
+  return (
+    <>
+      <div className="relative flex aspect-square w-full items-center justify-center bg-app-placeholder">
+        {showImage ? (
+          <Image
+            src={src}
+            alt={`${hero.name} 대표 사진`}
+            fill
+            sizes="(max-width: 576px) 100vw, 576px"
+            className="object-cover object-center"
+            unoptimized
+            onError={() => setFailedSrc(src)}
+          />
+        ) : (
+          <PhotoPlaceholderIcon />
+        )}
+      </div>
+      <div className="px-4 pb-5 pt-4">
+        <h2 className="break-words text-[20px] font-bold leading-[28px] tracking-[-0.4px] text-app-text">
+          {hero.name}
+        </h2>
+        <p className="mt-1 text-[15px] leading-5 text-app-muted">{speciesOrigin}</p>
+        <p className="mt-0.5 text-[14px] leading-5 text-app-muted">{createdBy}</p>
+        {description ? (
+          <p className="mt-3 whitespace-pre-line break-words text-[15px] leading-[22px] text-app-text">
+            {description}
+          </p>
+        ) : editHref ? (
+          <Link
+            href={editHref}
+            className="mt-3.5 flex h-10 items-center justify-center rounded-md bg-app-surface text-[14px] font-semibold tracking-[-0.2px] text-app-text"
+          >
+            혈통 소개 쓰기
+          </Link>
+        ) : null}
+      </div>
+    </>
+  );
 }
 
 function SectionGap() {
@@ -674,6 +751,11 @@ export default function BloodlineCardDetailClient({ cardId }: { cardId: number }
   }
 
   const typeLabel = bloodlineCardTypeLabel(card.cardType);
+  // 고칠 수 있는 사람(만든 사람 = 지금 보유자)에게만 수정 화면 경로를 준다. 출처 카드로 열어도 뿌리를 고친다.
+  const editRoot = rootCard ?? card;
+  const editHref = canEditBloodline(editRoot, user?.id)
+    ? `/bloodline-management/card/${editRoot.id}/edit`
+    : null;
   const creator: BloodlineUserRef = rootCard?.creator ?? card.creator;
   const originText = bloodlineOriginText(rootCard ?? card);
   const infoRows: { label: string; value: string; href?: string | null }[] = [
@@ -777,20 +859,9 @@ export default function BloodlineCardDetailClient({ cardId }: { cardId: number }
       ) : null}
 
       <form id="bloodline-action-form" onSubmit={handleFormSubmit}>
-        <div className="px-4 pt-3.5">
-          <BloodlineVisualCard
-            // 상세에서는 카드 번호를 보이지 않는다(설계 §4.4 ⑤ 발급번호 삭제)
-            cardId={null}
-            name={card.name}
-            subtitle={bloodlineCardMeta(card)}
-            ownerName={bloodlineUserLabel(card.currentOwner)}
-            typeLabel={typeLabel}
-            issuedAt={card.createdAt}
-            image={card.image}
-          />
-        </div>
+        <DetailHero hero={rootCard ?? card} editHref={editHref} />
 
-        <SectionGap />
+        <div className="h-2 bg-app-gap" />
         <SectionTitle label={`${typeLabel} 정보`} />
         <div>
           {infoRows.map((row, index) => (
@@ -841,11 +912,16 @@ export default function BloodlineCardDetailClient({ cardId }: { cardId: number }
           {BLOODLINE_TRUST_NOTICE}
         </p>
 
-        {isBloodline && canTransfer && activeAction === null ? (
-          <div className="px-4 pt-5">
-            <BloodlineSecondaryButton onClick={() => openAction("transfer")}>
-              혈통 넘기기
-            </BloodlineSecondaryButton>
+        {(editHref || (isBloodline && canTransfer)) && activeAction === null ? (
+          <div className="flex gap-2 px-4 pt-5">
+            {editHref ? (
+              <BloodlineSecondaryButton onClick={() => router.push(editHref)}>혈통 수정</BloodlineSecondaryButton>
+            ) : null}
+            {isBloodline && canTransfer ? (
+              <BloodlineSecondaryButton onClick={() => openAction("transfer")}>
+                혈통 넘기기
+              </BloodlineSecondaryButton>
+            ) : null}
           </div>
         ) : null}
 

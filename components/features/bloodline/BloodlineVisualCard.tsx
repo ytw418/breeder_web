@@ -5,7 +5,8 @@
  * 원본: bredy_app design/mockups/bloodline-card/A-karrot.html `.card`,
  *       bredy_app src/components/features/bloodline/BloodlineVisualCard.tsx
  *
- * 1px border r12 카드 = 사진(186, 없으면 placeholder + 34 라인 아이콘, 좌상단 태그)
+ * 1px border r12 카드 = 사진(1:1 정사각형 — 2026-10-09 사용자 결정 "혈통 사진이 중요하니 크고 정사각형",
+ *   compact 는 132 그대로. 없으면 placeholder + 34 라인 아이콘, 좌상단 태그)
  * + 본문(이름 20/700, 메타 14 muted) + 정보 행(보유자 / 등록일 / 카드 번호).
  * 혈통 v2 용어 정리로 "발급일"·"발급번호" 라벨을 "등록일"·"카드 번호"로 바꿨다(값은 그대로).
  */
@@ -102,7 +103,7 @@ export function BloodlineVisualCard({
     >
       <div
         className={`relative flex items-center justify-center bg-app-placeholder ${
-          compact ? "h-[132px]" : "h-[186px]"
+          compact ? "h-[132px]" : "aspect-square"
         }`}
       >
         {showImage ? (
