@@ -46,6 +46,14 @@ export function formatRegion(region: Partial<Region> | null | undefined): string
 }
 
 /** 목록에 있는 시/도 이름이면 true. */
+/** 프로필(regionSido/regionSigungu)에서 동네를 꺼낸다. 둘 다 있어야 설정된 것으로 본다(앱 constants/regions.ts 와 같음). */
+export function regionOf(
+  user: { regionSido?: string | null; regionSigungu?: string | null } | null | undefined
+): Region | null {
+  if (!user?.regionSido || !user.regionSigungu) return null;
+  return { sido: user.regionSido, sigungu: user.regionSigungu };
+}
+
 export function isValidSido(sido: unknown): boolean {
   return typeof sido === "string" && REGIONS.some((r) => r.sido === sido);
 }

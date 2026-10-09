@@ -27,6 +27,7 @@ import { ANALYTICS_EVENTS, trackEvent } from "@libs/client/analytics";
 import { extractProductId, getProductPath } from "@libs/product-route";
 import { formatProductPrice } from "@libs/productRules";
 import { DEAL_TYPE_LABELS } from "@libs/constants";
+import useAdminModeration from "hooks/useAdminModeration";
 
 type ProductActionPayload =
   | { action: "purchase" }
@@ -119,6 +120,8 @@ const ProductClient = ({ product: initialProduct, relatedProducts: initialRelate
   const hasPurchased = Boolean(data?.hasPurchased);
   const currentStatus = product?.status || "판매중";
   const isOwner = Boolean(user?.id && product?.user?.id === user.id);
+  // 관리자 ⋯ 조치(숨기기·숨김 해제·삭제). 관리자가 아니면 항목이 없다.
+  const moderation = useAdminModeration();
   // 삭제·숨김 상품은 소유자에게만 내려온다. 안내만 보이고 관리 동선(수정·삭제·상태 변경)은 숨긴다.
   const isInactive = Boolean(product?.isDeleted || product?.isHidden);
   const canManage = isOwner && !isInactive;
@@ -445,6 +448,18 @@ const ProductClient = ({ product: initialProduct, relatedProducts: initialRelate
         },
       });
     }
+  }
+  // 관리자는 남의 상품(숨김 포함)에서 숨기기·숨김 해제·삭제를 맨 앞에 본다(앱과 같음).
+  if (!isOwner && !product.isDeleted) {
+    sheetActions.unshift(
+      ...moderation.actionsFor({
+        targetType: "PRODUCT",
+        targetId: product.id,
+        isHidden: Boolean(product.isHidden),
+        refreshDetail: () => void mutate(),
+        onDeleted: () => router.replace("/"),
+      })
+    );
   }
 
   const headerRight =
@@ -777,6 +792,7 @@ const ProductClient = ({ product: initialProduct, relatedProducts: initialRelate
       )}
 
       <ActionSheet open={sheetOpen} onClose={() => setSheetOpen(false)} actions={sheetActions} />
+      {moderation.confirmDialog}
       <ReportSheet
         open={reportOpen}
         targetType="PRODUCT"

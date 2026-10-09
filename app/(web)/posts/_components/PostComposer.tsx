@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import useSWR, { useSWRConfig } from "swr";
 
 import Layout from "@components/features/MainLayout";
+import ConfirmDialog from "@components/atoms/ConfirmDialog";
 import { authFetch } from "@libs/client/authFetch";
 import { toast } from "@libs/client/toast";
 import { cn, makeImageUrl } from "@libs/client/utils";
@@ -14,6 +15,8 @@ import { toLoginHref } from "@components/features/MainLayout";
 import useConfirmLeave from "hooks/useConfirmLeave";
 import useUser from "hooks/useUser";
 import type { CategoriesResponse } from "@libs/shared/categories";
+import { REGION_POST_CATEGORY } from "@libs/shared/postCategory";
+import { regionOf } from "@libs/shared/regions";
 import { MY_ACTIVITY_KEY_PREFIXES, POST_KEY_PREFIXES, revalidateByPrefix } from "@libs/client/swrRevalidate";
 import {
   POST_COMPOSER_IMAGE_MAX,
@@ -37,7 +40,9 @@ import { SpeciesPickerSheet, defaultSpeciesFromPins } from "./SpeciesPickerSheet
 type SubmitStep = "idle" | "image" | "submit";
 type PickerTarget = "category" | "species" | null;
 
-type PostComposerProps = { mode: "create" } | { mode: "edit"; initial: PostComposerInitial };
+type PostComposerProps =
+  | { mode: "create"; defaultCategory?: string }
+  | { mode: "edit"; initial: PostComposerInitial };
 
 interface FileUploadUrlResponse {
   uploadURL?: string;
@@ -49,6 +54,8 @@ interface PostMutationResponse {
   post?: { id: number; title: string };
   error?: string;
   message?: string;
+  /** '동네' 글인데 작성자 동네가 없으면 400 REGION_REQUIRED. */
+  errorCode?: string;
 }
 
 async function uploadPostImage(file: File, title: string): Promise<string> {
@@ -214,11 +221,22 @@ export function PostComposer(props: PostComposerProps) {
   const initial = props.mode === "edit" ? props.initial : null;
   const isEdit = initial !== null;
 
-  const [category, setCategory] = useState(initial?.category ?? "");
+  const { user } = useUser();
+  const myRegion = regionOf(user);
+  // 반려생활 '동네' 빈 상태의 '인사 남기기'(?category=동네)가 주제를 미리 고른 채로 연다.
+  // '동네' 를 미리 고르려면 동네가 있어야 한다(없으면 빈 값으로 두고 시트에서 안내).
+  const defaultCategory = props.mode === "create" ? props.defaultCategory : undefined;
+  const [category, setCategory] = useState(
+    initial?.category ??
+      (defaultCategory &&
+      POST_CATEGORIES.some((o) => o.id === defaultCategory) &&
+      (defaultCategory !== REGION_POST_CATEGORY || myRegion)
+        ? defaultCategory
+        : "")
+  );
   const [species, setSpecies] = useState(initial?.species ?? "");
   // 새 글은 관심 카테고리를 하나만 고정했으면 그 값을 미리 채운다(바꾸거나 비울 수 있다).
   // 계정·카테고리 목록이 늦게 오므로 받은 뒤 한 번만 채우고, 그 전에 직접 고르면 채우지 않는다.
-  const { user } = useUser();
   const pinnedCategoryIds = user?.pinnedCategoryIds;
   const { data: categoriesData } = useSWR<CategoriesResponse>(isEdit ? null : "/api/categories");
   const speciesTouchedRef = useRef(isEdit);
@@ -236,6 +254,8 @@ export function PostComposer(props: PostComposerProps) {
   const [errors, setErrors] = useState<PostFormErrors>({});
   const [submitStep, setSubmitStep] = useState<SubmitStep>("idle");
   const [picker, setPicker] = useState<PickerTarget>(null);
+  // 동네 미설정 안내(앱 PostComposer promptRegionRequired). '설정하기' 는 내 동네 설정으로 보낸다.
+  const [regionPromptOpen, setRegionPromptOpen] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const bodyRef = useRef<HTMLTextAreaElement>(null);
   const photosRef = useRef(photos);
@@ -378,6 +398,10 @@ export function PostComposer(props: PostComposerProps) {
       }
 
       if (!response.ok || !result?.success || !result.post?.id) {
+        if (result?.errorCode === "REGION_REQUIRED") {
+          setRegionPromptOpen(true);
+          return;
+        }
         toast.error(result?.error || result?.message || "게시글 등록에 실패했습니다.");
         return;
       }
@@ -442,7 +466,11 @@ export function PostComposer(props: PostComposerProps) {
         {/* 주제 / 생물군 선택 */}
         <SelectRow
           label="게시글의 주제를 선택해주세요"
-          value={POST_CATEGORIES.find((o) => o.id === category)?.name ?? category}
+          value={
+            category === REGION_POST_CATEGORY && myRegion
+              ? `${REGION_POST_CATEGORY} · ${myRegion.sigungu}`
+              : (POST_CATEGORIES.find((o) => o.id === category)?.name ?? category)
+          }
           placeholder="선택"
           disabled={isSubmitting}
           onClick={() => setPicker("category")}
@@ -561,9 +589,14 @@ export function PostComposer(props: PostComposerProps) {
         options={POST_CATEGORIES}
         selectedId={category}
         onSelect={(id) => {
+          setPicker(null);
+          // '동네' 글은 동네가 있어야 쓸 수 있다. 주제는 이전 값 그대로 둔다.
+          if (id === REGION_POST_CATEGORY && !myRegion) {
+            setRegionPromptOpen(true);
+            return;
+          }
           setCategory(id);
           clearFieldError("category");
-          setPicker(null);
         }}
         onClose={() => setPicker(null)}
       />
@@ -585,6 +618,18 @@ export function PostComposer(props: PostComposerProps) {
         <div className="fixed inset-0 z-[60] bg-app-bg opacity-40" aria-hidden="true" />
       ) : null}
 
+      <ConfirmDialog
+        open={regionPromptOpen}
+        title="동네를 먼저 설정해 주세요"
+        // 웹은 화면을 쌓아 둘 수 없어 설정으로 가면 작성 중인 내용이 사라진다. 그때만 알린다.
+        description={changed ? "지금 이동하면 작성 중인 내용은 사라져요." : undefined}
+        confirmText="설정하기"
+        onCancel={() => setRegionPromptOpen(false)}
+        onConfirm={() => {
+          setRegionPromptOpen(false);
+          leave(() => router.push("/settings/region"));
+        }}
+      />
       {dialog}
     </Layout>
   );

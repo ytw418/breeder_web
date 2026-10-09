@@ -20,11 +20,14 @@ import { toast } from "@libs/client/toast";
 import { copyText, absoluteUrl, shareOrCopy } from "@libs/client/share";
 import { cn, getTimeAgoString, makeImageUrl } from "@libs/client/utils";
 import { extractPostIdFromPath, toPostPath } from "@libs/post-route";
+import { postCategoryLabel } from "@libs/shared/postCategory";
 import type { PostDetailResponse } from "pages/api/posts/[id]";
 import { MY_ACTIVITY_KEY_PREFIXES, POST_KEY_PREFIXES, revalidateByPrefix } from "@libs/client/swrRevalidate";
 import { getPostMenuActionKeys, isNoticePost, type PostMenuActionKey } from "../_lib/postComposer";
 import { PostAvatar } from "../_components/PostAvatar";
 import { useProfilePin } from "@components/features/profile/ProfilePinSheet";
+import HiddenContentNotice from "@components/app/moderation/HiddenContentNotice";
+import useAdminModeration from "hooks/useAdminModeration";
 
 type PostComment = NonNullable<PostDetailResponse["post"]>["comments"][number];
 type ReportTarget = { type: "POST" | "COMMENT"; id: number };
@@ -140,6 +143,9 @@ const PostClient = ({
   const revalidateMyPostActivity = () =>
     revalidateByPrefix({ cache: swrCache, mutate: globalMutate }, [...POST_KEY_PREFIXES, ...MY_ACTIVITY_KEY_PREFIXES]);
   const { isBlocked, unblock, isPending: blockPending } = useBlocks();
+
+  // 관리자 ⋯ 조치(숨기기·숨김 해제·삭제). 관리자가 아니면 항목이 없다.
+  const moderation = useAdminModeration();
 
   const { data, error, mutate } = useSWR<PostDetailResponse>(
     postApiId ? `/api/posts/${postApiId}` : null
@@ -344,17 +350,36 @@ const PostClient = ({
         onSelect: () => post.user?.id && openBlock({ id: post.user.id, name: post.user.name }),
       },
     };
-    return getPostMenuActionKeys({
-      isOwn: isOwnPost,
-      isNotice,
-      hasAuthor: Boolean(post.user?.id),
-      authorBlocked,
-      canProfilePin: photos.length > 0,
-    }).map((key) => byKey[key]);
-  }, [post, isOwnPost, isNotice, authorBlocked, user, photos.length, setProfilePin]);
+    // 관리자는 남의 글(공지 포함)에서 숨기기·삭제를 맨 앞에 본다. 본인 글은 아래 수정·삭제로 충분하다(앱과 같음).
+    const adminActions = isOwnPost
+      ? []
+      : moderation.actionsFor({
+          targetType: "POST",
+          targetId: post.id,
+          isHidden: Boolean(post.isHidden),
+          refreshDetail: () => void mutate(),
+          onDeleted: () => router.replace("/posts"),
+        });
+    return [
+      ...adminActions,
+      ...getPostMenuActionKeys({
+        isOwn: isOwnPost,
+        isNotice,
+        hasAuthor: Boolean(post.user?.id),
+        authorBlocked,
+        canProfilePin: photos.length > 0,
+      }).map((key) => byKey[key]),
+    ];
+  }, [post, isOwnPost, isNotice, authorBlocked, user, photos.length, setProfilePin, moderation, mutate, router]);
 
   const commentSheetActions: ActionSheetAction[] = commentSheet
     ? [
+        ...moderation.actionsFor({
+          targetType: "COMMENT",
+          targetId: commentSheet.id,
+          isHidden: Boolean((commentSheet as { isHidden?: boolean }).isHidden),
+          refreshDetail: () => void mutate(),
+        }),
         {
           key: "report",
           label: "신고하기",
@@ -437,11 +462,13 @@ const PostClient = ({
                 {!isNotice ? <BreederProgramBadge programs={post.user?.breederPrograms} /> : null}
               </div>
               <p className="mt-0.5 text-[13px] text-app-muted">
-                {post.category ? `${post.category} · ` : ""}
+                {postCategoryLabel(post) ? `${postCategoryLabel(post)} · ` : ""}
                 {timeAgo(post.createdAt)}
               </p>
             </div>
           </div>
+
+          {post.isHidden ? <HiddenContentNotice targetType="POST" className="mx-4 mb-3" /> : null}
 
           {/* 본문 */}
           <div className="flex flex-col gap-2 px-4 pb-3">
@@ -667,6 +694,7 @@ const PostClient = ({
 
       {/* 시트·다이얼로그는 차단 게이트에서도 열리도록 분기 밖에 둔다. */}
       <ActionSheet open={sheetOpen} onClose={() => setSheetOpen(false)} actions={sheetActions} />
+      {moderation.confirmDialog}
       <ActionSheet
         open={commentSheet != null}
         onClose={() => setCommentSheet(null)}
