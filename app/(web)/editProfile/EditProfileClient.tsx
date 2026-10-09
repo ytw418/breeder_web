@@ -281,7 +281,7 @@ const EditProfileClient = () => {
 
   return (
     <form onSubmit={onSubmit} className="bg-app-bg">
-      {/* 커버(v5): 전체 폭 3:1, 오른쪽 아래 '커버 변경'·'커버 삭제' 칩 */}
+      {/* 커버(v5): 전체 폭 3:1, 오른쪽 위 '커버 변경'·'커버 삭제' 칩(아래는 아바타가 40 겹쳐 좁은 폭에서 칩을 가린다) */}
       <div className="relative aspect-[3/1] w-full overflow-hidden bg-app-surface">
         {bannerSrc ? (
           // eslint-disable-next-line @next/next/no-img-element
@@ -298,7 +298,7 @@ const EditProfileClient = () => {
             </svg>
           </span>
         )}
-        <div className="absolute bottom-2.5 right-3 flex gap-1.5">
+        <div className="absolute right-3 top-2.5 flex gap-1.5">
           {bannerSrc ? (
             <button
               type="button"
@@ -334,9 +334,9 @@ const EditProfileClient = () => {
       </div>
 
       <div className="px-5 pb-[calc(96px+env(safe-area-inset-bottom))]">
-        {/* 아바타 — 커버 아래로 40 겹친다 */}
-        <div className="relative z-[1] -mt-10 flex justify-center">
-          <div className="relative h-24 w-24 rounded-full bg-app-bg ring-[3px] ring-app-bg">
+        {/* 아바타 — 커버 아래로 40 겹친다. 줄 전체가 커버 칩 위를 덮으니 빈 곳 터치는 커버로 넘긴다 */}
+        <div className="pointer-events-none relative z-[1] -mt-10 flex justify-center">
+          <div className="pointer-events-auto relative h-24 w-24 rounded-full bg-app-bg ring-[3px] ring-app-bg">
             <div className="flex h-24 w-24 items-center justify-center overflow-hidden rounded-full bg-app-surface">
               {previewSrc ? (
                 <Image
