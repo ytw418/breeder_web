@@ -22,7 +22,7 @@ import { POST_CATEGORIES } from "@libs/constants";
 import { ANALYTICS_EVENTS, trackEvent } from "@libs/client/analytics";
 import { TOP_LEVEL_CATEGORIES } from "@libs/categoryTaxonomy";
 import { withoutBlocked } from "@libs/shared/blockFilter";
-import { REGION_POST_CATEGORY } from "@libs/shared/postCategory";
+import { FOLLOWING_POST_FILTER, REGION_POST_CATEGORY } from "@libs/shared/postCategory";
 import { regionOf } from "@libs/shared/regions";
 import type { PostsListResponse } from "pages/api/posts";
 import type { NoticePostsResponse } from "pages/api/posts/notices";
@@ -35,10 +35,15 @@ import type {
 import TopBreederList from "@components/features/post/TopBreederList";
 import NearbyBreederList, { NEARBY_BREEDER_COUNT } from "@components/features/post/NearbyBreederList";
 import RegionGateCard from "@components/features/region/RegionGateCard";
+import FollowingFeedCard from "@components/features/post/FollowingFeedCard";
 import { PostFilterDropdown } from "./_components/PostFilterDropdown";
 
-/** 카테고리 칩 목록 */
-const TABS = [{ id: "전체", name: "전체" }, ...POST_CATEGORIES];
+/** 카테고리 칩 목록. '팔로잉'은 카테고리가 아니라 내가 팔로우한 사람의 글 필터다(앱 posts.tsx). */
+const TABS = [
+  { id: "전체", name: "전체" },
+  { id: FOLLOWING_POST_FILTER, name: FOLLOWING_POST_FILTER },
+  ...POST_CATEGORIES,
+];
 const SORT_TABS = [
   { id: "latest", name: "최신순" },
   { id: "popular", name: "인기순" },
@@ -139,6 +144,9 @@ export default function PostsClient() {
   const { user, isLoading: userLoading } = useUser();
   const myRegion = regionOf(user);
   const isRegionCategory = selectedCategory === REGION_POST_CATEGORY;
+  // '팔로잉' 칩은 로그인해야 받는다(서버도 비로그인 401). 비로그인은 FollowingFeedCard 로 로그인을 안내한다.
+  const isFollowingFilter = selectedCategory === FOLLOWING_POST_FILTER;
+  const showFollowingGate = isFollowingFilter && !user && !userLoading;
   // 계정을 받는 중에는 안내 카드 대신 스켈레톤을 둔다(안내 카드가 잠깐 비치지 않게).
   const showRegionGate = !myRegion && !userLoading;
 
@@ -149,8 +157,11 @@ export default function PostsClient() {
       if (previousPageData && (!previousPageData.posts.length || pageIndex >= previousPageData.pages)) {
         return null;
       }
-      const categoryParam =
-        selectedCategory !== "전체" ? `&category=${encodeURIComponent(selectedCategory)}` : "";
+      const categoryParam = isFollowingFilter
+        ? "&following=1"
+        : selectedCategory !== "전체"
+          ? `&category=${encodeURIComponent(selectedCategory)}`
+          : "";
       const sortParam = selectedSort !== "latest" ? `&sort=${selectedSort}` : "";
       const speciesParam = activeSpecies !== "전체" ? `&species=${activeSpecies}` : "";
       const regionParam = region
@@ -166,7 +177,9 @@ export default function PostsClient() {
 
   // 동네 글은 먼저 시/군/구로 받고, 1페이지가 0건이면 시/도 전체로 넓혀 다시 받는다(앱 AC-14).
   const sigunguList = useSWRInfinite<PostsListResponse>(
-    isRegionCategory && !myRegion ? () => null : makeGetKey(isRegionCategory ? myRegion : null),
+    (isRegionCategory && !myRegion) || (isFollowingFilter && !user)
+      ? () => null
+      : makeGetKey(isRegionCategory ? myRegion : null),
     { revalidateFirstPage: false }
   );
   const widenToSido = Boolean(
@@ -573,6 +586,8 @@ export default function PostsClient() {
         {/* 7. 게시글 목록 */}
         {isRegionCategory && showRegionGate ? (
           <RegionGateCard className="mt-2" />
+        ) : showFollowingGate ? (
+          <FollowingFeedCard variant="login" className="mt-2" />
         ) : isInitialLoading ? (
           <div>
             {[0, 1, 2, 3, 4].map((i) => (
@@ -596,6 +611,12 @@ export default function PostsClient() {
               인사 남기기
             </Link>
           </div>
+        ) : posts.length === 0 && !hasMore && isFollowingFilter ? (
+          // 아무도 팔로우하지 않았으면 '브리더 찾기', 팔로우했는데 글이 없으면 다른 문구(구 서버는 followingCount 가 없다).
+          <FollowingFeedCard
+            variant={data?.[0]?.followingCount === 0 ? "noFollowing" : "noPosts"}
+            className="mt-2"
+          />
         ) : posts.length === 0 && !hasMore ? (
           <div className="bg-app-bg pt-5">
             <p className="px-4 text-[14px] text-app-muted">

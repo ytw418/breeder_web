@@ -1,5 +1,6 @@
 import {
   isFollowListKey,
+  isFollowingFeedKey,
   isProfileKey,
   withFollowListRow,
   withMyFollowingDelta,
@@ -43,6 +44,12 @@ describe("팔로우 캐시 갱신(앱 applyFollowState 와 같은 규칙)", () =
     expect(isProfileKey("/api/users/30", 3)).toBe(false);
     expect(isFollowListKey("$inf$/api/users/3/followers?page=1&size=20")).toBe(true);
     expect(isFollowListKey("/api/users/3/followers?page=1")).toBe(false);
+  });
+
+  it("반려생활 '팔로잉' 목록 키를 가려낸다(팔로우·언팔로우 뒤 다시 받는다)", () => {
+    expect(isFollowingFeedKey("$inf$/api/posts?page=1&following=1&categoryPath=%2Freptile%2F")).toBe(true);
+    expect(isFollowingFeedKey("$inf$/api/posts?page=1&category=%EC%9E%90%EC%9C%A0")).toBe(false);
+    expect(isFollowingFeedKey("/api/users/3")).toBe(false);
   });
 });
 

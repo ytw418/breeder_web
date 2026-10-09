@@ -98,6 +98,8 @@ const mockClient: Row = {
   // 프로필(GET /api/users/:id) 뱃지 수 테스트용(post.groupBy 는 주력 종 getTopSpecies)
   post: { groupBy: jest.fn(async () => []) },
   user: { findUnique: jest.fn() },
+  // 프로필 신뢰 줄 거래 완료 수(_count.completedSales)
+  sale: { count: jest.fn(async () => 0) },
   userBadge: { findMany: jest.fn(async () => []) },
   follow: { findFirst: jest.fn(async () => null) },
   userBlock: { findFirst: jest.fn(async () => null) },

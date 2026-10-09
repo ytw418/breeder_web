@@ -38,6 +38,8 @@ export interface PostsListResponse {
   success: boolean;
   posts: PostWithUser[];
   pages: number;
+  /** following=1 일 때만: 내가 팔로우한 사람 수(차단한 사람 제외). 0 이면 '브리더 찾기' 빈 상태. */
+  followingCount?: number;
 }
 
 /** 목록 한 페이지 크기 */
@@ -51,6 +53,17 @@ const handler = async (
     const {
       query: { page = 1, category, sort, species, regionSido, regionSigungu, categoryPath },
     } = req;
+    const viewerId = req.user?.id;
+    // 반려생활 '팔로잉' 칩: 내가 팔로우한 사람의 글만. 비로그인은 401(공개 캐시에 남지 않게 no-store).
+    const followingOnly = req.query.following === "1";
+    if (followingOnly && !viewerId) {
+      res.setHeader("Cache-Control", "private, no-store, max-age=0");
+      return res.status(401).json({
+        success: false,
+        error: "로그인이 필요합니다.",
+        errorCode: "LOGIN_REQUIRED",
+      });
+    }
     const selectedSort =
       typeof sort === "string" && ["latest", "popular", "comments"].includes(sort)
         ? sort
@@ -68,7 +81,8 @@ const handler = async (
     // 기본 피드에서는 공지 카테고리 제외
     // 운영자가 숨긴 글은 목록에서 모두에게 뺀다(작성자는 프로필에서 본다).
     const where: any = { NOT: { category: "공지" }, isHidden: false };
-    if (category && category !== "전체") {
+    // 팔로잉 피드는 카테고리·동네 조건을 쓰지 않는다(정렬·종·관심 카테고리 범위는 그대로).
+    if (!followingOnly && category && category !== "전체") {
       where.category = String(category);
       if (String(category) === "공지") {
         delete where.NOT;
@@ -89,7 +103,7 @@ const handler = async (
     if (and.length) where.AND = and;
 
     // 동네 글: 시/도만 주면 시/도 전체, 시/군/구까지 주면 그 동네만.
-    if (typeof regionSido === "string" && regionSido) {
+    if (!followingOnly && typeof regionSido === "string" && regionSido) {
       where.regionSido = regionSido;
       if (typeof regionSigungu === "string" && regionSigungu) {
         where.regionSigungu = regionSigungu;
@@ -97,12 +111,29 @@ const handler = async (
     }
 
     // viewer 가 차단한 작성자의 글은 viewer 에게서만 뺀다(목록·페이지 수 모두).
-    const viewerId = req.user?.id;
     const excluded = await excludedAuthorIds(viewerId);
     if (excluded.length) {
       where.userId = { notIn: excluded };
     }
     setViewerCacheHeader(res, viewerId);
+
+    let followingCount: number | undefined;
+    if (followingOnly && viewerId) {
+      const follows = await client.follow.findMany({
+        where: { followerId: viewerId },
+        select: { followingId: true },
+      });
+      const excludedSet = new Set(excluded);
+      // 차단한 사람은 팔로우해 둬도 뺀다. 본인 글은 넣지 않는다.
+      const ids = Array.from(new Set(follows.map((follow) => follow.followingId))).filter(
+        (id) => id !== viewerId && !excludedSet.has(id)
+      );
+      followingCount = ids.length;
+      if (!ids.length) {
+        return res.json({ success: true, posts: [], pages: 0, followingCount: 0 });
+      }
+      where.userId = { in: ids };
+    }
 
     const pageNumber = Number(page);
     // 1e30 같은 값은 DB offset 범위를 넘으므로 안전한 정수만 페이지로 받는다.
@@ -165,6 +196,7 @@ const handler = async (
       success: true,
       posts,
       pages: Math.ceil(postCount / PAGE_SIZE),
+      ...(followingCount === undefined ? {} : { followingCount }),
     });
   }
 

@@ -29,6 +29,8 @@ type UserWithCounts = Omit<User, "tokenVersion" | "suspendedUntil" | "snsId" | "
     ownedBloodlineCards: number;
     /** 숨기지 않은 경매 수(프로필 '경매' 탭을 보일지 정한다). */
     auctions: number;
+    /** 거래 완료 수(프로필 신뢰 줄). 판매자가 판매완료로 바꾼 거래 중 지우거나 숨기지 않은 상품. */
+    completedSales: number;
   };
   maskedEmail?: string | null;
   /** 게시글 종·상품 카테고리에서 자동 계산한 주력 종(최대 2개, 많이 쓴 순). */
@@ -96,7 +98,7 @@ async function handler(
   }
   const myId = req.user?.id;
 
-  const [user, ownedBloodlineCards] = await Promise.all([
+  const [user, ownedBloodlineCards, completedSales] = await Promise.all([
     client.user.findUnique({
       where: { id: userId },
       // 토큰 무효화·정지 만료 같은 서버 내부 필드는 내려주지 않는다.
@@ -121,6 +123,14 @@ async function handler(
     // 프로필 "보유 혈통" 목록과 같은 기준(지금 보유한 ACTIVE 카드, 비공개 출처 카드는 본인에게만,
     // 뿌리가 숨김·회수된 출처 카드 제외). 뿌리 상태는 Prisma 관계 필터로 걸 수 없어 따로 센다.
     countProfileBloodlineCards(userId, myId),
+    // 신뢰 줄 "거래 완료 N": 남이 보는 판매내역 기준(지우거나 숨긴 상품 제외) + 지금도 판매완료인 상품만.
+    client.sale.count({
+      where: {
+        userId,
+        status: "completed",
+        product: { isDeleted: false, isHidden: false, status: "판매완료" },
+      },
+    }),
   ]);
 
   if (!user) {
@@ -160,6 +170,7 @@ async function handler(
       followers: user._count.following,
       following: user._count.followers,
       ownedBloodlineCards,
+      completedSales,
     },
   };
 
@@ -169,6 +180,12 @@ async function handler(
     myId === userId
       ? { ...userWithCounts, maskedEmail: maskEmail(user.email) }
       : { ...publicUser, email: null, maskedEmail: maskEmail(user.email) };
+  // 동네는 opt-in(regionVisible)이다. 공개하지 않았으면 본인 말고는 동네를 내려주지 않는다.
+  if (myId !== userId && !user.regionVisible) {
+    safeUser.regionSido = null;
+    safeUser.regionSigungu = null;
+    safeUser.regionUpdatedAt = null;
+  }
 
   const [badges, breederPrograms, topSpecies] = await Promise.all([
     client.userBadge.findMany({

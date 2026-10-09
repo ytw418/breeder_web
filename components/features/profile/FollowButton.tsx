@@ -10,12 +10,13 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { useSWRConfig } from "swr";
-import { updateInfiniteWhere } from "@libs/client/swrRevalidate";
+import { revalidateWhere, updateInfiniteWhere } from "@libs/client/swrRevalidate";
 import { ActionSheet } from "@components/app/ActionSheet";
 import { toLoginHref } from "@components/features/MainLayout";
 import { authFetch } from "@libs/client/authFetch";
 import {
   isFollowListKey,
+  isFollowingFeedKey,
   isProfileKey,
   withFollowListRow,
   withMyFollowingDelta,
@@ -78,6 +79,8 @@ function useFollowMutation(targetUserId: number, returnPath: string) {
     } finally {
       setPending(false);
       void mutate((key) => isProfileKey(key, targetUserId) || (me?.id ? isProfileKey(key, me.id) : false));
+      // 반려생활 '팔로잉' 목록은 첫 페이지를 다시 받지 않는 무한 목록이라 직접 다시 받게 한다.
+      revalidateWhere({ cache, mutate }, isFollowingFeedKey);
     }
   };
 

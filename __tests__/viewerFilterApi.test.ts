@@ -14,6 +14,8 @@ const mockClient = {
   // 카테고리 고정 범위 헬퍼(libs/server/categories)가 읽는 트리. 비우면 범위 조건을 붙이지 않는다.
   category: { findMany: jest.fn(async () => []) },
   user: { findUnique: jest.fn(), findMany: jest.fn() },
+  // 프로필 신뢰 줄 거래 완료 수(_count.completedSales)
+  sale: { count: jest.fn(async () => 0) },
   userBlock: { findMany: jest.fn(), findFirst: jest.fn() },
   // 프로필 주력 종(getTopSpecies)이 게시글·상품을 groupBy 한다.
   post: {

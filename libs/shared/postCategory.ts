@@ -3,6 +3,12 @@
  * 서버(pages/api/posts)와 화면이 같이 쓴다.
  */
 
+/**
+ * 반려생활 '팔로잉' 칩(앱 docs/prd/profile.md v5 S-11). 카테고리가 아니라 목록 필터라 서버에 category 로 보내지 않고
+ * `/api/posts?following=1` 로 받는다.
+ */
+export const FOLLOWING_POST_FILTER = "팔로잉";
+
 /** 동네 글 카테고리. 등록하면 서버가 작성자 동네를 글에 복사한다. 동네 미설정이면 400 REGION_REQUIRED. */
 export const REGION_POST_CATEGORY = "동네";
 
