@@ -195,6 +195,21 @@ function MiniCard({
   );
 }
 
+/** 무료나눔이 0건일 때 카드(앱 FreeGiveawayEmptyCard, 2026-10-09 사용자 결정: 숨기지 않고 등록을 권한다). */
+function FreeGiveawayEmptyCard() {
+  return (
+    <Link
+      // 등록 화면에서 가격 '무료나눔'을 미리 고른 채로 연다.
+      href="/products/upload?free=1"
+      className="flex min-h-[126px] flex-col items-center justify-center rounded-xl border border-app-border bg-app-elevated p-3 text-center shadow-card"
+    >
+      <h3 className="text-sm font-bold text-app-strong">무료나눔</h3>
+      <p className="mt-2 text-xs text-app-muted">아직 무료나눔이 없어요</p>
+      <p className="mt-1 text-[10px] font-semibold text-app-brand">첫 번째로 등록해보세요 ›</p>
+    </Link>
+  );
+}
+
 function HeroBreederCard({
   hero,
   onChallenge,
@@ -545,9 +560,8 @@ const MainClient = ({
     href: `/products/${f.id}`,
   }));
   const showMini = (rows: MiniCardRow[]) => feedLoading || rows.length > 0;
-  const showGrid =
-    !feedError &&
-    [topAuctionRows, topBloodlineRows, trendingRows, freeGiveawayRows].some(showMini);
+  // 무료나눔 카드는 비어도 등록 권유 카드로 남으므로 그리드는 피드 오류일 때만 숨긴다.
+  const showGrid = !feedError;
   const showTopBreeder = feedError || feedLoading || Boolean(hero);
 
   const trackRankingCard = (rankingType: string, entityId: number | string, sectionId: string) =>
@@ -710,7 +724,7 @@ const MainClient = ({
         </section>
       ) : null}
 
-      {/* 2x2 그리드 — 피드 오류면 위 오류 상태로 대신하고, 빈 카드는 숨긴다 */}
+      {/* 2x2 그리드 — 피드 오류면 위 오류 상태로 대신하고, 빈 카드는 숨긴다(무료나눔만 등록 권유 카드) */}
       {showGrid ? (
         <section className="py-2">
           <div className="grid grid-cols-2 gap-3 px-4">
@@ -763,7 +777,9 @@ const MainClient = ({
                   trackRankingCard("free_giveaway", freeGiveawayRows[0]?.id ?? "", "free_giveaway")
                 }
               />
-            ) : null}
+            ) : (
+              <FreeGiveawayEmptyCard />
+            )}
           </div>
         </section>
       ) : null}
