@@ -44,6 +44,17 @@
             "statusMessage": "앱·웹 동시 개발 하네스 확인"
           }
         ]
+      },
+      {
+        "matcher": "Bash|mcp__plugin_desktop-commander_desktop-commander__start_process",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3 \"$CLAUDE_PROJECT_DIR/.claude/hooks/pr-guard.py\"",
+            "timeout": 20,
+            "statusMessage": "PR 스크린샷 하네스 확인"
+          }
+        ]
       }
     ],
     "Stop": [
