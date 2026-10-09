@@ -2,8 +2,8 @@
  * 프로필 사진형(A안) 공통 규칙. 앱 docs/prd/profile.md 와 같은 값을 쓴다.
  */
 
-/** 소개 최대 글자 수(코드포인트 기준 — 이모지 1개 = 1자). */
-export const BIO_MAX = 150;
+/** 소개 최대 글자 수(코드포인트 기준 — 이모지 1개 = 1자). v5 에서 150 → 300. DB 는 TEXT 라 숫자만 바꾸면 늘릴 수 있다. */
+export const BIO_MAX = 300;
 /** 프로필 사진 그리드 맨 앞에 고정할 수 있는 게시글 수. */
 export const PROFILE_PIN_MAX = 3;
 
@@ -25,7 +25,11 @@ export type NormalizeBioResult =
 export function normalizeBio(input: unknown): NormalizeBioResult {
   if (input === null || input === undefined) return { ok: true, bio: null };
   if (typeof input !== "string") {
-    return { ok: false, errorCode: "BIO_INVALID", message: BIO_INVALID_MESSAGE };
+    return {
+      ok: false,
+      errorCode: "BIO_INVALID",
+      message: BIO_INVALID_MESSAGE,
+    };
   }
   const bio = input
     .replace(/\r\n?/g, "\n")
@@ -34,9 +38,95 @@ export function normalizeBio(input: unknown): NormalizeBioResult {
     .trim();
   if (!bio) return { ok: true, bio: null };
   if (Array.from(bio).length > BIO_MAX) {
-    return { ok: false, errorCode: "BIO_TOO_LONG", message: BIO_TOO_LONG_MESSAGE };
+    return {
+      ok: false,
+      errorCode: "BIO_TOO_LONG",
+      message: BIO_TOO_LONG_MESSAGE,
+    };
   }
   return { ok: true, bio };
+}
+
+/** 대표 링크 최대 길이(프로필 v5, 앱 docs/prd/profile.md). */
+export const PROFILE_LINK_MAX = 300;
+/** 링크 표시 문구 최대 글자 수(말줄임표 포함). */
+const PROFILE_LINK_LABEL_MAX = 40;
+
+export const LINK_INVALID_MESSAGE = "링크 주소가 올바르지 않아요. https:// 로 시작하는 주소를 적어 주세요.";
+export const LINK_TOO_LONG_MESSAGE = `링크는 ${PROFILE_LINK_MAX}자까지 쓸 수 있어요.`;
+export const BANNER_INVALID_MESSAGE = "배너 이미지 값이 올바르지 않습니다.";
+
+export type NormalizeProfileLinkResult =
+  | { ok: true; link: string | null }
+  | { ok: false; errorCode: "LINK_INVALID" | "LINK_TOO_LONG"; message: string };
+
+/**
+ * 저장할 대표 링크로 정규화한다.
+ * - null·빈 문자열(공백만)은 null(링크 지우기).
+ * - 스킴이 없으면 https:// 를 붙인다. http/https 만 받는다(javascript: 등 차단).
+ * - 점이 들어간 호스트만, 공백·자격 증명(user:pw@)·호스트의 한글 자모는 거부한다.
+ */
+export function normalizeProfileLink(input: unknown): NormalizeProfileLinkResult {
+  const invalid = {
+    ok: false as const,
+    errorCode: "LINK_INVALID" as const,
+    message: LINK_INVALID_MESSAGE,
+  };
+  if (input === null || input === undefined) return { ok: true, link: null };
+  if (typeof input !== "string") return invalid;
+  const trimmed = input.trim();
+  if (!trimmed) return { ok: true, link: null };
+  if (/\s/.test(trimmed)) return invalid;
+  // 한글 키보드 상태로 친 주소(ㅆㅐㅕ셔ㅠㄷ.채ㅡ)는 URL 파서가 받아 주지만 실제 도메인이 아니다. 완성형 한글 도메인은 받는다.
+  const rawHost = trimmed.replace(/^https?:\/\//i, "").split(/[/?#]/)[0];
+  if (/[\u1100-\u11FF\u3131-\u318E]/.test(rawHost)) return invalid;
+  const hasScheme = /^[a-z][a-z0-9+.-]*:/i.test(trimmed);
+  if (hasScheme && !/^https?:\/\//i.test(trimmed)) return invalid;
+  const link = hasScheme ? trimmed : `https://${trimmed}`;
+  if (link.length > PROFILE_LINK_MAX) {
+    return {
+      ok: false,
+      errorCode: "LINK_TOO_LONG",
+      message: LINK_TOO_LONG_MESSAGE,
+    };
+  }
+  let url: URL;
+  try {
+    url = new URL(link);
+  } catch {
+    return invalid;
+  }
+  if (url.protocol !== "http:" && url.protocol !== "https:") return invalid;
+  if (url.username || url.password) return invalid;
+  if (!/^[^.]+(\.[^.]+)+$/.test(url.hostname)) return invalid;
+  return { ok: true, link };
+}
+
+/** 프로필에 보여 줄 링크 문구: 스킴·www·끝 슬래시를 빼고 40자를 넘으면 말줄임표. */
+export function profileLinkLabel(link: string): string {
+  const label = link
+    .replace(/^https?:\/\//i, "")
+    .replace(/^www\./i, "")
+    .replace(/\/+$/, "");
+  const chars = Array.from(label);
+  return chars.length > PROFILE_LINK_LABEL_MAX ? `${chars.slice(0, PROFILE_LINK_LABEL_MAX - 1).join("")}…` : label;
+}
+
+export type NormalizeProfileBannerResult =
+  | { ok: true; banner: string | null }
+  | { ok: false; errorCode: "BANNER_INVALID"; message: string };
+
+/** 커버 이미지 Cloudflare id. null·빈 값은 지우기, 영문·숫자·-·_ 1~100자만 받는다. */
+export function normalizeProfileBanner(input: unknown): NormalizeProfileBannerResult {
+  if (input === null || input === undefined || input === "") return { ok: true, banner: null };
+  if (typeof input !== "string" || !/^[A-Za-z0-9_-]{1,100}$/.test(input)) {
+    return {
+      ok: false,
+      errorCode: "BANNER_INVALID",
+      message: BANNER_INVALID_MESSAGE,
+    };
+  }
+  return { ok: true, banner: input };
 }
 
 /** 사용자 앨범(앱 docs/prd/profile.md F-9). */

@@ -388,8 +388,37 @@ describe("PATCH /api/bloodline-cards/:id", () => {
     expect(updateData().description).toHaveLength(300);
   });
 
-  it("이름·사진은 바꾸지 않는다", async () => {
-    const res = await patch(20, 1, { name: "바꾼 이름", image: "cf-new", description: "소개" });
+  it("사진은 만든 보유자만 바꾸고, 그 혈통의 출처 카드 사진도 같이 바뀐다", async () => {
+    const res = await patch(20, 1, { image: "  cf-new  " });
+    expect(res.statusCode).toBe(200);
+    expect(updateData()).toEqual({ image: "cf-new" });
+    expect(res.body.card).toMatchObject({ id: 20, image: "cf-new" });
+    expect(mockClient.$transaction).toHaveBeenCalledTimes(1);
+    expect(mockClient.bloodlineCard.updateMany).toHaveBeenCalledWith({
+      where: { cardType: "LINE", bloodlineReferenceId: 20 },
+      data: { image: "cf-new" },
+    });
+    expect(db.cards.find((c) => c.id === 21)?.image).toBe("cf-new");
+    // 다른 혈통의 출처 카드는 그대로
+    expect(db.cards.find((c) => c.id === 11)?.image).toBe("cf-original");
+
+    // 넘긴 뒤의 만든 사람, 넘겨받은 보유자, 출처 카드 보유자는 못 바꾼다
+    jest.clearAllMocks();
+    expectRejected(await patch(10, 1, { image: "cf-x" }), 403, "BLOODLINE_FORBIDDEN");
+    expectRejected(await patch(10, 4, { image: "cf-x" }), 403, "BLOODLINE_FORBIDDEN");
+    expectRejected(await patch(11, 5, { image: "cf-x" }), 403, "BLOODLINE_FORBIDDEN");
+  });
+
+  it("사진은 지울 수 없다(빈 값·null 은 400 BLOODLINE_IMAGE_REQUIRED)", async () => {
+    expectRejected(await patch(20, 1, { image: "" }), 400, "BLOODLINE_IMAGE_REQUIRED");
+    expectRejected(await patch(20, 1, { image: "   " }), 400, "BLOODLINE_IMAGE_REQUIRED");
+    expectRejected(await patch(20, 1, { image: null }), 400, "BLOODLINE_IMAGE_REQUIRED");
+    expectRejected(await patch(20, 1, { image: 123 }), 400, "BLOODLINE_IMAGE_REQUIRED");
+    expect(db.cards.find((c) => c.id === 20)?.image).toBe("cf-original");
+  });
+
+  it("이름은 바꾸지 않는다", async () => {
+    const res = await patch(20, 1, { name: "바꾼 이름", description: "소개" });
     expect(res.statusCode).toBe(200);
     expect(updateData()).toEqual({ description: "소개" });
     expect(res.body.card).toMatchObject({ name: "강산 라인", image: "cf-original" });

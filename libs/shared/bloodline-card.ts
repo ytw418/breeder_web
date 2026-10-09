@@ -158,9 +158,11 @@ export interface SendBloodlineCardBody {
   source?: BloodlineSendSource;
 }
 
-/** `PATCH /api/bloodline-cards/[id]` 요청. 이름·사진은 바꿀 수 없다. */
+/** `PATCH /api/bloodline-cards/[id]` 요청. 이름은 바꿀 수 없다. 사진은 바꿀 수만 있다(지울 수 없다). */
 export interface BloodlineCardPatchBody {
   speciesType?: string;
+  /** 대표 사진 Cloudflare id. 바꾸면 그 혈통의 출처 카드 사진도 같이 바뀐다. */
+  image?: string;
   description?: string | null;
   originSido?: string | null;
   originSigungu?: string | null;

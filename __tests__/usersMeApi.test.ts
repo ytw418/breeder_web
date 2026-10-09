@@ -156,9 +156,61 @@ describe("POST /api/users/me 소개(bio) — 앱 docs/prd/profile.md AC-2", () =
     expect(mockClient.user.update).toHaveBeenCalledWith({ where: { id: 7 }, data: { bio: null } });
   });
 
-  it("151자 이상이면 저장하지 않고 BIO_TOO_LONG(다른 필드도 저장하지 않는다)", async () => {
-    const res = await save({ bio: "가".repeat(151), avatarId: "img-1" });
+  it("300자까지 저장한다(v5)", async () => {
+    const res = await save({ bio: "가".repeat(300) });
+    expect(res.body).toEqual({ success: true, bio: "가".repeat(300) });
+  });
+
+  it("301자 이상이면 저장하지 않고 BIO_TOO_LONG(다른 필드도 저장하지 않는다)", async () => {
+    const res = await save({ bio: "가".repeat(301), avatarId: "img-1" });
     expect(res.body).toMatchObject({ success: false, errorCode: "BIO_TOO_LONG" });
+    expect(mockClient.user.update).not.toHaveBeenCalled();
+  });
+});
+
+describe("POST /api/users/me 대표 링크·커버(v5) — 앱 docs/prd/profile.md §10", () => {
+  it("링크를 정규화해 저장하고 응답에 돌려준다", async () => {
+    const res = await save({ profileLink: " youtube.com/@bredy " });
+    expect(res.body).toEqual({ success: true, profileLink: "https://youtube.com/@bredy" });
+    expect(mockClient.user.update).toHaveBeenCalledWith({
+      where: { id: 7 },
+      data: { profileLink: "https://youtube.com/@bredy" },
+    });
+  });
+
+  it("javascript: 링크는 저장하지 않고 LINK_INVALID(다른 필드도 저장하지 않는다)", async () => {
+    const res = await save({ profileLink: "javascript:alert(1)", bio: "안녕" });
+    expect(res.body).toMatchObject({ success: false, errorCode: "LINK_INVALID" });
+    expect(mockClient.user.update).not.toHaveBeenCalled();
+  });
+
+  it("커버 id 를 저장하고 null 이면 지운다", async () => {
+    const saved = await save({ bannerId: "cover-1" });
+    expect(saved.body).toEqual({ success: true, profileBanner: "cover-1" });
+    expect(mockClient.user.update).toHaveBeenCalledWith({
+      where: { id: 7 },
+      data: { profileBanner: "cover-1" },
+    });
+    mockClient.user.update.mockClear();
+    const removed = await save({ bannerId: null });
+    expect(removed.body).toEqual({ success: true, profileBanner: null });
+    expect(mockClient.user.update).toHaveBeenCalledWith({
+      where: { id: 7 },
+      data: { profileBanner: null },
+    });
+  });
+
+  it("소개·링크·커버를 한 번에 저장한다", async () => {
+    await save({ bio: "소개", profileLink: "https://blog.naver.com/x", bannerId: "c2" });
+    expect(mockClient.user.update).toHaveBeenCalledWith({
+      where: { id: 7 },
+      data: { bio: "소개", profileLink: "https://blog.naver.com/x", profileBanner: "c2" },
+    });
+  });
+
+  it("커버 id 형식이 아니면 BANNER_INVALID", async () => {
+    const res = await save({ bannerId: "https://evil.example/x.png" });
+    expect(res.body).toMatchObject({ success: false, errorCode: "BANNER_INVALID" });
     expect(mockClient.user.update).not.toHaveBeenCalled();
   });
 });
