@@ -21,14 +21,26 @@
  */
 import fs from "node:fs";
 import path from "node:path";
+import { fileURLToPath } from "node:url";
 
 const ROOT = process.cwd();
+const SCRIPT_DIR = path.dirname(fileURLToPath(import.meta.url));
 const STATE_DIR = path.join(ROOT, ".crew");
 const LOG_DIR = path.join(STATE_DIR, "log");
 const ROSTER_FILE = path.join(STATE_DIR, "roster.json");
 const HISTORY_FILE = path.join(STATE_DIR, "history.jsonl");
 const SNAPSHOT_FILE = path.join(STATE_DIR, "snapshot.json");
-const PERSONAS_FILE = path.join(ROOT, ".claude/skills/crew-activity/personas.json");
+/**
+ * 페르소나 파일: CREW_PERSONAS → 스킬 저장소 배치(skills/<스킬>/scripts/crew.mjs 옆 ../personas.json)
+ * → breeder_web 배치(.claude/skills/crew-activity/personas.json) 순서로 찾는다.
+ */
+const PERSONAS_FILE =
+  [
+    process.env.CREW_PERSONAS && path.resolve(ROOT, process.env.CREW_PERSONAS),
+    path.join(SCRIPT_DIR, "..", "personas.json"),
+    path.join(ROOT, ".claude/skills/crew-activity/personas.json"),
+  ].find((file) => file && fs.existsSync(file)) ??
+  path.join(ROOT, ".claude/skills/crew-activity/personas.json");
 
 /** 서버 규칙과 같은 값(libs/shared/nickname.ts, post-body.ts, comment.ts, profile.ts, bloodline-names.ts). */
 const NICKNAME_MAX = 10;
