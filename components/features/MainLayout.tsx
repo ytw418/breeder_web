@@ -9,6 +9,7 @@ import { HeaderIconButton } from "@components/app/HeaderIconButton";
 import logo from "@images/logo.png";
 import useSWR from "swr";
 import { cn, makeImageUrl } from "@libs/client/utils";
+import useUnreadTabDots from "hooks/useUnreadTabDots";
 import useUser from "hooks/useUser";
 import SanctionNoticeModal from "@components/features/moderation/SanctionNoticeModal";
 import useLogout from "hooks/useLogout";
@@ -486,6 +487,8 @@ export default function MainLayout({
     user ? "/api/notifications/unread-count" : null,
     { revalidateOnFocus: false, refreshInterval: UNREAD_REFRESH_MS }
   );
+  // 반려생활·경매 탭 빨간 점(안 본 새 글·경매). 탭바가 있는 화면에서만 받는다.
+  const unreadTabDots = useUnreadTabDots(Boolean(hasTabBar) && !isToolPath);
   void _seoTitle;
 
   const notificationUnread =
@@ -666,6 +669,11 @@ export default function MainLayout({
               const active = item.isActive(pathname || "");
               const href = item.requiresAuth && loggedOut ? toLoginHref(item.href) : item.href;
               const showChatBadge = item.href === "/chat" && chatUnread > 0;
+              // 지금 보고 있는 탭은 카드마다 점이 있으니 탭 점은 달지 않는다.
+              const showUnreadDot =
+                !active &&
+                ((item.href === "/posts" && unreadTabDots.posts) ||
+                  (item.href === "/auctions" && unreadTabDots.auctions));
               return (
                 <Link
                   href={href}
@@ -678,6 +686,12 @@ export default function MainLayout({
                 >
                   <span className="relative inline-flex h-6 w-6 items-center justify-center">
                     <StrokeIcon d={item.d} className="h-6 w-6" strokeWidth={1.5} />
+                    {showUnreadDot ? (
+                      <span
+                        aria-label="안 본 새 글"
+                        className="absolute -right-[3px] -top-px h-2 w-2 rounded-full border-[1.5px] border-app-bg bg-app-danger"
+                      />
+                    ) : null}
                     {showChatBadge ? (
                       <span className="absolute -right-2 -top-1 flex h-4 min-w-[16px] items-center justify-center rounded-full bg-app-danger px-1 text-[10px] font-semibold leading-none text-white">
                         {chatUnread > 9 ? "9+" : chatUnread}

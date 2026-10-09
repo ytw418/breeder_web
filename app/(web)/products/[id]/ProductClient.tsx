@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import useSWR, { useSWRConfig } from "swr";
+import { useMarkSeenOnView } from "@libs/client/unreadMarks";
 
 import Layout from "@components/features/MainLayout";
 import Image from "@components/atoms/Image";
@@ -115,6 +116,8 @@ const ProductClient = ({ product: initialProduct, relatedProducts: initialRelate
   const [chatPending, setChatPending] = useState(false);
 
   const product = (data?.product ?? initialProduct) as DetailProduct | undefined;
+  // 목록의 '안 본 상품' 빨간 점을 지운다(이 브라우저 기록).
+  useMarkSeenOnView("product", product);
   const relatedProducts = data?.relatedProducts ?? initialRelated ?? [];
   const isLiked = Boolean(data?.isLiked);
   const hasPurchased = Boolean(data?.hasPurchased);

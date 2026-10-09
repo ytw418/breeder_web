@@ -276,7 +276,11 @@ export default function ProductsClient({ initialParams }: { initialParams: Produ
                   category: product.category,
                   status: product.status,
                   wishCount: product._count?.favs,
+                  viewCount: product.viewCount,
+                  photoCount: product.photos?.length ?? 0,
+                  sellerId: product.userId,
                 }}
+                markUnread
               />
             ))
           : renderState()}

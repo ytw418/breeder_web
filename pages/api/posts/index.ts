@@ -4,6 +4,7 @@ import withHandler, { ResponseType } from "@libs/server/withHandler";
 import client from "@libs/server/client";
 import { withAuth } from "@libs/server/auth";
 import { notifyFollowers } from "@libs/server/notification";
+import { notifyQuestionToInterestedUsers } from "@libs/server/questionAlert";
 import { Post, Prisma, User } from "@prisma/client";
 import { incrementUserMissionProgress } from "@libs/server/growth";
 import {
@@ -32,6 +33,14 @@ export interface PostWithUser extends Post {
     comments: number;
     Likes: number;
   };
+  /** 목록 카드 '최신 댓글 한 줄'. 보이는 댓글이 없으면 null(목록 API 만 싣는다). */
+  latestComment?: PostLatestComment | null;
+}
+
+export interface PostLatestComment {
+  id: number;
+  comment: string;
+  user: Pick<User, "id" | "name">;
 }
 
 export interface PostsListResponse {
@@ -171,6 +180,17 @@ const handler = async (
             Likes: true,
           },
         },
+        // 목록 카드의 '최신 댓글 한 줄'. 숨김·삭제·viewer 가 차단한 사람의 댓글은 뺀다.
+        comments: {
+          where: {
+            isHidden: false,
+            deletedAt: null,
+            ...(excluded.length ? { userId: { notIn: excluded } } : {}),
+          },
+          orderBy: [{ createdAt: "desc" as const }, { id: "desc" as const }],
+          take: 1,
+          select: { id: true, comment: true, user: { select: { id: true, name: true } } },
+        },
       },
       orderBy,
       skip,
@@ -182,8 +202,9 @@ const handler = async (
       client.post.count({ where }),
     ]);
 
-    const posts = pagePosts.map((post) => ({
+    const posts = pagePosts.map(({ comments, ...post }) => ({
       ...withPostImages(post),
+      latestComment: comments?.[0] ?? null,
       user: {
         ...post.user,
         breederPrograms: getSortedActiveBreederProgramSummaries(
@@ -287,12 +308,24 @@ const handler = async (
       : null;
 
     if (author && user?.id) {
+      // 질문 글은 그 분야를 관심 카테고리로 고정한 사람에게 '답변을 기다리는 질문' 알림·푸시를 보낸다.
+      const questionRecipients =
+        category === "질문"
+          ? await notifyQuestionToInterestedUsers({
+              postId: post.id,
+              authorId: user.id,
+              title,
+              categoryId: post.categoryId ?? null,
+            })
+          : [];
       notifyFollowers({
         senderId: user.id,
         type: "NEW_POST",
         message: `${author.name}님이 새 글을 작성했습니다: ${title}`,
         targetId: post.id,
         targetType: "post",
+        // 질문 알림을 받은 팔로워에게 같은 글 알림이 두 번 쌓이지 않게 한다.
+        excludeUserIds: questionRecipients,
       });
       await incrementUserMissionProgress(user.id, "post_create");
     }
