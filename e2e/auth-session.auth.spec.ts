@@ -8,5 +8,6 @@ test("@auth 저장된 로그인 상태로 마이페이지 접근이 가능하다
   await page.goto("/myPage");
 
   await expect(page).toHaveURL(/\/myPage$/);
-  await expect(page.getByRole("button", { name: "로그아웃" })).toBeVisible();
+  // 로그아웃은 2026-10-09 프로필 v4 부터 사이드 메뉴에만 있다(마이페이지 메뉴 행 제거). 본인 프로필 블록 버튼으로 확인한다.
+  await expect(page.getByRole("link", { name: "프로필 수정" })).toBeVisible();
 });

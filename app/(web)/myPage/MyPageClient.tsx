@@ -3,7 +3,6 @@
 import { authFetch } from "@libs/client/authFetch";
 import { setTokens } from "@libs/client/authToken";
 import { canUseTestAccountSwitcher } from "@libs/shared/test-accounts";
-import ConfirmDialog from "@components/atoms/ConfirmDialog";
 import AlbumRow, { useSpeciesAlbums, useUserAlbums } from "@components/features/profile/AlbumRow";
 import PhotoGrid from "@components/features/profile/PhotoGrid";
 import { ProfileBlock, ProfileSecondaryButton } from "@components/features/profile/ProfileBlock";
@@ -19,30 +18,26 @@ import {
   EmptyBlock,
   LineIcon,
   LoadingBlock,
-  MenuRow,
   RetryBlock,
   SectionGap,
   TransactionMenu,
 } from "@components/features/profile/ProfileRows";
 import {
-  ProfileCommentRows,
+  ProfileAuctionRows,
   ProfilePostRows,
   ProfileProductRows,
-  useUserCommentsList,
+  useUserAuctionsList,
   useUserPhotoPostsList,
   useUserPostsList,
   useUserProductsList,
   type ProfilePost,
 } from "@components/features/profile/ProfileActivityLists";
+import { PROFILE_TABS, type ProfileTab } from "@libs/client/profileTabs";
 import { USER_INFO } from "@libs/constants";
 import useUser from "hooks/useUser";
 import useMutation from "hooks/useMutation";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import type {
-  GuinnessSubmission,
-  GuinnessSubmissionsResponse,
-} from "pages/api/guinness/submissions";
 import type { LoginReqBody, LoginResponseType } from "pages/api/auth/login";
 import useSWR from "swr";
 import type { UserResponse } from "pages/api/users/[id]";
@@ -52,29 +47,10 @@ import {
   type BloodlineCardsResponse,
 } from "@libs/shared/bloodline-card";
 import { useEffect, useMemo, useState, type ReactNode } from "react";
-import useLogout from "../../../hooks/useLogout";
 
-type ActivityTab = "posts" | "comments" | "products" | "bloodline" | "guinness";
-type MyTab = "photos" | ActivityTab;
-
-/** 내 콘텐츠 밑줄 탭(앱 myPage TAB_META): 사진 · 기록 · 분양 · 혈통 · 댓글 · 브리디북(가로 스크롤). */
-const TAB_META: { id: MyTab; label: string }[] = [
-  { id: "photos", label: "사진" },
-  { id: "posts", label: "기록" },
-  { id: "products", label: "분양" },
-  { id: "bloodline", label: "혈통" },
-  { id: "comments", label: "댓글" },
-  { id: "guinness", label: "브리디북" },
-];
-
-const GUINNESS_STATUS_TEXT: Record<GuinnessSubmission["status"], string> = {
-  pending: "심사 대기",
-  approved: "승인 완료",
-  rejected: "반려",
-};
-
-const LIST_ROW_CLASS =
-  "flex items-start gap-3 border-b border-app-line px-4 py-3.5 transition-colors hover:bg-app-surface";
+// 사진형 A안 v4(앱 myPage, PRD profile.md S-2): 탭은 남의 프로필과 같은 다섯 개(사진·기록·분양·경매·혈통).
+// 댓글은 사이드 메뉴 '내 댓글'(/profiles/:id/comments), 브리디북 신청 내역은 브리디북 신청 화면에 있다.
+// 거래(판매·구매·관심)는 '분양' 탭 맨 위 행과 사이드 메뉴, 설정·고객센터·로그아웃은 사이드 메뉴에 있다.
 
 type TestAccountItem = {
   id: number;
@@ -93,71 +69,8 @@ type TestAccountSwitchResponse = {
 };
 
 /* ------------------------------------------------------------------ */
-/* 브리디북 · 혈통                                                       */
+/* 혈통                                                                  */
 /* ------------------------------------------------------------------ */
-
-function GuinnessSubmissionList({
-  submissions,
-  isLoading,
-  isError,
-  onRetry,
-}: {
-  submissions: GuinnessSubmission[];
-  isLoading: boolean;
-  isError: boolean;
-  onRetry: () => void;
-}) {
-  if (isLoading) return <LoadingBlock />;
-  if (isError) {
-    return (
-      <RetryBlock
-        message="브리디북 신청 내역을 불러오지 못했습니다. 잠시 후 다시 시도해주세요."
-        onRetry={onRetry}
-      />
-    );
-  }
-  if (!submissions.length) {
-    return (
-      <EmptyBlock
-        title="체장 기록 신청 내역이 없습니다"
-        description="체장 기록을 신청해 공식 인증을 받아보세요."
-        action={
-          <Link
-            href="/guinness/apply"
-            className="mt-3 inline-flex h-10 items-center rounded-md bg-app-surface px-3.5 text-[14px] font-semibold text-app-text"
-          >
-            브리디북 등록하기
-          </Link>
-        }
-      />
-    );
-  }
-  return (
-    <div>
-      {submissions.map((submission) => (
-        <Link
-          key={submission.id}
-          href={submission.status === "approved" ? "/guinness" : "/guinness/apply"}
-          className={LIST_ROW_CLASS}
-        >
-          <div className="min-w-0 flex-1">
-            <p className="truncate text-[16px] font-semibold text-app-text">
-              {submission.species} · 체장 {submission.value}mm
-            </p>
-            <p className="mt-1 text-[13px] text-app-muted">
-              {new Date(submission.submittedAt).toLocaleDateString("ko-KR")} ·{" "}
-              {GUINNESS_STATUS_TEXT[submission.status]}
-            </p>
-            {submission.reviewMemo ? (
-              <p className="mt-1.5 text-[14px] text-app-muted">심사 메모: {submission.reviewMemo}</p>
-            ) : null}
-          </div>
-          <LineIcon name="chevron-right" size={18} className="mt-0.5 text-app-caption" />
-        </Link>
-      ))}
-    </div>
-  );
-}
 
 /** 내 혈통 / 받은 출처 카드 미리보기. 메타는 혈통 화면 행과 같다(종 · 산지 · 받은 사람 N명 / 종 · ○○님에게서 · 날짜). */
 function BloodlineCardPreview({ card, kind }: { card: BloodlineCardItem; kind: "created" | "received" }) {
@@ -279,11 +192,9 @@ function DevRow({
 const MyPageClient = () => {
   const { user, isAdmin, mutate: mutateUser } = useUser();
   const router = useRouter();
-  const handleLogout = useLogout();
-  const [activeTab, setActiveTab] = useState<MyTab>("photos");
+  const [activeTab, setActiveTab] = useState<ProfileTab>("photos");
   // 사진 칸 ⋯ 를 누르면 프로필 고정/해제 시트
   const [pinTarget, setPinTarget] = useState<ProfilePost | null>(null);
-  const [logoutOpen, setLogoutOpen] = useState(false);
   const [devOpen, setDevOpen] = useState(false);
   const [switchError, setSwitchError] = useState("");
   const [switchMessage, setSwitchMessage] = useState("");
@@ -296,12 +207,13 @@ const MyPageClient = () => {
   const userId = user?.id;
 
   const profileQuery = useSWR<UserResponse>(userId ? `/api/users/${userId}` : null);
-  const guinnessQuery = useSWR<GuinnessSubmissionsResponse>(userId ? "/api/guinness/submissions" : null);
-  const bloodlineQuery = useSWR<BloodlineCardsResponse>(userId ? "/api/bloodline-cards" : null);
-  // 게시물·댓글·상품은 페이지로 나눠 받고 목록 끝 '더보기'로 이어 붙인다.
-  const postsList = useUserPostsList(userId);
-  const commentsList = useUserCommentsList(userId);
-  const productsList = useUserProductsList(userId);
+  const bloodlineQuery = useSWR<BloodlineCardsResponse>(
+    userId && activeTab === "bloodlines" ? "/api/bloodline-cards" : null
+  );
+  // 목록은 그 탭을 열었을 때만 받고, 페이지로 나눠 목록 끝 '더보기'로 이어 붙인다.
+  const postsList = useUserPostsList(userId, activeTab === "posts");
+  const productsList = useUserProductsList(userId, activeTab === "products");
+  const auctionsList = useUserAuctionsList(userId, activeTab === "auctions");
   const photosList = useUserPhotoPostsList(userId, undefined, activeTab === "photos");
   const albumsQuery = useSpeciesAlbums(userId);
   const userAlbumsQuery = useUserAlbums(userId);
@@ -311,14 +223,6 @@ const MyPageClient = () => {
   const profileLoading = profileQuery.isLoading;
   // 이전에 받은 값이 있으면 계속 보여 주고, 처음부터 못 받았을 때만 오류 줄을 띄운다.
   const profileFailed = Boolean(profileQuery.error) && !profileUser;
-
-  const mySubmissions = useMemo(
-    () =>
-      [...(guinnessQuery.data?.submissions || [])]
-        .filter((submission) => submission.recordType === "size")
-        .sort((a, b) => new Date(b.submittedAt).getTime() - new Date(a.submittedAt).getTime()),
-    [guinnessQuery.data?.submissions]
-  );
 
   const bloodlineData = bloodlineQuery.data;
   // "내 혈통": 지금 내가 가진 혈통(넘겨받은 혈통 포함). 혈통 v2 서버는 myBloodlines 에 모두 담고
@@ -438,15 +342,30 @@ const MyPageClient = () => {
 
   /* ---------------- 활동 탭 ---------------- */
   let activityContent: ReactNode = null;
-  if (activeTab === "posts") {
+  if (activeTab === "photos") {
+    activityContent = (
+      <PhotoGrid
+        list={photosList}
+        emptyMessage="사진을 올려 프로필을 채워 보세요"
+        emptyAction={{ label: "글쓰기", href: "/posts/upload" }}
+        onPinPost={setPinTarget}
+      />
+    );
+  } else if (activeTab === "posts") {
     activityContent = (
       <ProfilePostRows list={postsList} emptyDescription="첫 게시글을 작성해 보세요." />
     );
-  } else if (activeTab === "comments") {
-    activityContent = <ProfileCommentRows list={commentsList} />;
   } else if (activeTab === "products") {
-    activityContent = <ProfileProductRows list={productsList} showMeta={false} />;
-  } else if (activeTab === "bloodline") {
+    activityContent = (
+      <>
+        {userId ? <TransactionMenu userId={userId} isMine /> : null}
+        <SectionGap />
+        <ProfileProductRows list={productsList} showMeta={false} />
+      </>
+    );
+  } else if (activeTab === "auctions") {
+    activityContent = <ProfileAuctionRows list={auctionsList} />;
+  } else if (activeTab === "bloodlines") {
     activityContent = (
       <div className="space-y-3 px-4">
         <Link
@@ -481,15 +400,6 @@ const MyPageClient = () => {
           </>
         ) : null}
       </div>
-    );
-  } else {
-    activityContent = (
-      <GuinnessSubmissionList
-        submissions={mySubmissions}
-        isLoading={guinnessQuery.isLoading}
-        isError={Boolean(guinnessQuery.error) && !guinnessQuery.data}
-        onRetry={() => void guinnessQuery.mutate()}
-      />
     );
   }
 
@@ -528,34 +438,10 @@ const MyPageClient = () => {
         </>
       ) : null}
 
-      <SectionGap />
-
-      {/* 거래 */}
-      {userId ? <TransactionMenu userId={userId} isMine /> : null}
-
-      <SectionGap />
-
-      {/* 기타: 설정 · 고객센터 · 로그아웃 */}
-      <div className="py-1">
-        <MenuRow label="설정" icon="settings" href="/settings" />
-        <MenuRow label="고객센터" icon="support" href="/support" />
-        <MenuRow label="로그아웃" icon="logout" chevron={false} onClick={() => setLogoutOpen(true)} />
-      </div>
-
-      <SectionGap />
-
-      {/* 내 콘텐츠: 사진 · 기록 · 분양 · 혈통 · 댓글 · 브리디북 */}
-      <UnderlineTabs tabs={TAB_META} active={activeTab} onChange={setActiveTab} scrollable />
-      {activeTab === "photos" ? (
-        <PhotoGrid
-          list={photosList}
-          emptyMessage="사진을 올려 프로필을 채워 보세요"
-          emptyAction={{ label: "글쓰기", href: "/posts/upload" }}
-          onPinPost={setPinTarget}
-        />
-      ) : (
-        activityContent
-      )}
+      {/* 내 콘텐츠: 사진 · 기록 · 분양 · 경매 · 혈통(남의 프로필과 같은 탭, 스크롤하면 헤더 아래에 붙는다) */}
+      <UnderlineTabs tabs={PROFILE_TABS} active={activeTab} onChange={setActiveTab} />
+      {/* 탭을 바꿔도 위에 붙은 탭 줄이 내려가지 않게 내용은 최소한 화면 남은 높이(헤더 56 · 탭 46 · 하단 탭바 56)만큼 차지한다. */}
+      <div className="min-h-[calc(100dvh-158px-env(safe-area-inset-bottom))]">{activityContent}</div>
       <ProfilePinSheet post={pinTarget} onClose={() => setPinTarget(null)} />
 
       {/* 개발자 도구 (테스트 계정·관리자 전용) */}
@@ -611,18 +497,6 @@ const MyPageClient = () => {
         </>
       ) : null}
 
-      <ConfirmDialog
-        open={logoutOpen}
-        title="로그아웃할까요?"
-        confirmText="로그아웃"
-        tone="danger"
-        onCancel={() => setLogoutOpen(false)}
-        onConfirm={() => {
-          setLogoutOpen(false);
-          // 홈으로 보낸 뒤 토큰을 지운다(useLogout 이 홈으로 이동).
-          void handleLogout();
-        }}
-      />
     </div>
   );
 };
