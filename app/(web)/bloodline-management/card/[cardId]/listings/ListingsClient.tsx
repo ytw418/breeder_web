@@ -106,6 +106,8 @@ export default function ListingsClient({ cardId }: { cardId: string }) {
                 category: product.category,
                 status: product.status,
                 wishCount: product._count?.favs,
+                sellerId: product.userId,
+                seller: product.user ?? null,
               }}
             />
           ))}

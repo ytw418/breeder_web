@@ -57,9 +57,11 @@ describe("MySellHistoryList 삭제·숨김 상품", () => {
     });
     render(<MySellHistoryList kind="purchases" id={7} />);
 
-    expect(screen.getByText("상품 1").closest("a")).not.toBeNull();
+    // 상세 링크는 행을 투명하게 덮는 링크(이름을 aria-label 로 가진다)라 이름 글자의 조상이 아니다.
+    expect(screen.getByRole("link", { name: "상품 1" })).toBeInTheDocument();
     for (const name of ["상품 2", "상품 3"]) {
-      expect(screen.getByText(name).closest("a")).toBeNull();
+      expect(screen.getByText(name)).toBeInTheDocument();
+      expect(screen.queryByRole("link", { name })).toBeNull();
     }
     expect(screen.getAllByText("삭제된 상품")).toHaveLength(1);
     expect(screen.getAllByText("숨김 상품")).toHaveLength(1);

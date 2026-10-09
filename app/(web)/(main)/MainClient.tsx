@@ -846,6 +846,7 @@ const MainClient = ({
                 viewCount: product.viewCount,
                 photoCount: product.photos?.length ?? 0,
                 sellerId: product.userId,
+                seller: product.user ?? null,
               }}
               markUnread
             />
