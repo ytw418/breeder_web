@@ -31,13 +31,15 @@ import type {
  * - GET: 뷰어별 닉네임 비공개(libs/server/bloodline-visibility). 회수·숨김(REVOKED/INACTIVE)은 404 BLOODLINE_REVOKED.
  *   출처 카드를 열었는데 그 뿌리가 회수·숨김이어도 같다. 뿌리에는 receivedCount·listingCount 를 싣는다.
  *   viewerRelation: owner(뿌리 지금 보유자) / holder(그 뿌리의 출처 카드 보유) / none. holder 면 viewerLineCard.
- * - PATCH: 보낸 필드만 바꾼다. ownerNameVisible 은 출처 카드의 지금 보유자만, 종·소개·산지는 혈통의
- *   만든 사람 = 지금 보유자 = 나 일 때만. 이름·사진은 바꾸지 않는다(이름은 전역 유일 약속).
+ * - PATCH: 보낸 필드만 바꾼다. ownerNameVisible 은 출처 카드의 지금 보유자만, 종·사진·소개·산지는 혈통의
+ *   만든 사람 = 지금 보유자 = 나 일 때만. 이름은 바꾸지 않는다(이름은 전역 유일 약속). 사진은 지울 수 없다.
  *   권한 조건을 쓰기(where)에도 그대로 걸어, 읽은 뒤 넘기기·회수가 끝났으면 쓰지 않는다(403/404).
- *   뿌리의 종·산지를 바꾸면 그 아래 출처 카드의 종·산지도 같이 맞춘다.
+ *   뿌리의 종·사진·산지를 바꾸면 그 아래 출처 카드의 종·사진·산지도 같이 맞춘다.
  */
 
 const DESCRIPTION_MAX_LENGTH = 300;
+/** Cloudflare 이미지 id 상한(만들기 POST 와 같다). */
+const IMAGE_MAX_LENGTH = 200;
 
 const EMPTY_DETAIL = { card: null, bloodlineSourceCard: null, parentLineCard: null };
 
@@ -176,12 +178,13 @@ async function handlePatch(
     if (!card) return reject("BLOODLINE_NOT_FOUND");
     if (card.status !== "ACTIVE") return reject("BLOODLINE_REVOKED");
 
-    // 보낸 필드만(undefined 는 안 보낸 것). 이름·사진은 읽지 않는다
+    // 보낸 필드만(undefined 는 안 보낸 것). 이름은 읽지 않는다
     const wantsOwnerName = typeof body.ownerNameVisible === "boolean";
     const wantsSpecies = body.speciesType !== undefined;
+    const wantsImage = body.image !== undefined;
     const wantsDescription = body.description === null || typeof body.description === "string";
     const wantsOrigin = body.originSido !== undefined || body.originSigungu !== undefined;
-    const wantsRootFields = wantsSpecies || wantsDescription || wantsOrigin;
+    const wantsRootFields = wantsSpecies || wantsImage || wantsDescription || wantsOrigin;
 
     const isLineHolder = card.cardType === "LINE" && card.currentOwnerId === viewerId;
     const isMakerHolder =
@@ -198,6 +201,12 @@ async function handlePatch(
       const species = await resolveBloodlineSpecies(body.speciesType);
       if (!species.ok) return reject(species.errorCode);
       data.speciesType = species.speciesType;
+    }
+    if (wantsImage) {
+      // 사진은 바꿀 수만 있고 지울 수 없다(만들기처럼 대표 사진 1장이 필요하다)
+      const image = typeof body.image === "string" ? body.image.trim().slice(0, IMAGE_MAX_LENGTH) : "";
+      if (!image) return reject("BLOODLINE_IMAGE_REQUIRED");
+      data.image = image;
     }
     if (wantsDescription) {
       data.description =
@@ -224,10 +233,11 @@ async function handlePatch(
       ...(wantsRootFields ? { cardType: "BLOODLINE" as const, creatorId: viewerId } : {}),
     };
 
-    // 출처 카드의 종·산지는 보낼 때 뿌리에서 복사한 값이다. 뿌리 값을 바꾸면 출처 카드도 같이 맞춘다
+    // 출처 카드의 종·사진·산지는 보낼 때 뿌리에서 복사한 값이다. 뿌리 값을 바꾸면 출처 카드도 같이 맞춘다
     // (산지를 지운 것도 맞춘다. 산지가 없던 레거시 출처 카드는 처음 산지를 정할 때 채워진다).
     const lineSync: Prisma.BloodlineCardUpdateManyMutationInput = {};
     if (data.speciesType !== undefined) lineSync.speciesType = data.speciesType as string;
+    if (data.image !== undefined) lineSync.image = data.image as string;
     if (wantsOrigin) {
       lineSync.originSido = data.originSido as string | null;
       lineSync.originSigungu = data.originSigungu as string | null;

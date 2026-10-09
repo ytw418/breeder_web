@@ -69,6 +69,7 @@ jest.mock("@components/features/MainLayout", () => ({
   toLoginHref: (next: string) => `/auth/login?next=${encodeURIComponent(next)}`,
 }));
 jest.mock("@libs/client/share", () => ({ shareOrCopy: jest.fn(async () => "copied") }));
+jest.mock("@libs/client/toast", () => ({ toast: { success: jest.fn(), error: jest.fn(), info: jest.fn() } }));
 
 const card = (over: Partial<BloodlineCardItem>): BloodlineCardItem => ({
   id: 1,
@@ -777,6 +778,53 @@ describe("웹 혈통 상세 (BloodlineCardDetailClient)", () => {
     expect(await screen.findByText("운영 정책으로 회수된 혈통이에요")).toBeInTheDocument();
   });
 
+  it("상단은 정사각형 사진 + 이름·종·산지·만든 사람·소개(앱 S3)이고, 만든 보유자에게 '혈통 수정'이 있다", async () => {
+    routeAuthFetch(detailRoute({ card: rootCard({ image: "cf-1" }), viewerRelation: "owner" }));
+    renderWithSwr(<BloodlineCardDetailClient cardId={5} />);
+
+    expect(await screen.findByRole("heading", { name: "강산 라인" })).toBeInTheDocument();
+    const photo = screen.getByAltText("강산 라인 대표 사진");
+    expect(photo.parentElement).toHaveClass("aspect-square");
+    expect(screen.getByText("사슴벌레 · 충남 공주")).toBeInTheDocument();
+    expect(screen.getByText(/^만든 사람 강산님 · \d{4}\.\d{2}\.\d{2} 등록$/)).toBeInTheDocument();
+    expect(screen.getByText("2022년 공주 WF1 페어에서 시작한 극태 계열이에요.")).toBeInTheDocument();
+    expect(screen.queryByRole("link", { name: "혈통 소개 쓰기" })).toBeNull();
+
+    mockPush.mockClear();
+    fireEvent.click(screen.getByRole("button", { name: "혈통 수정" }));
+    expect(mockPush).toHaveBeenCalledWith("/bloodline-management/card/5/edit");
+  });
+
+  it("소개가 없으면 만든 보유자에게 '혈통 소개 쓰기'(수정 화면)를 보인다", async () => {
+    routeAuthFetch(detailRoute({ card: rootCard({ description: null }), viewerRelation: "owner" }));
+    renderWithSwr(<BloodlineCardDetailClient cardId={5} />);
+    const write = await screen.findByRole("link", { name: "혈통 소개 쓰기" });
+    expect(write).toHaveAttribute("href", "/bloodline-management/card/5/edit");
+  });
+
+  it("넘겨받은 보유자·비보유자에게는 수정 버튼·소개 쓰기가 없다", async () => {
+    routeAuthFetch(
+      detailRoute({
+        card: rootCard({ description: null, creator: { id: 3, name: "백두" } }),
+        viewerRelation: "owner",
+      })
+    );
+    const { unmount } = renderWithSwr(<BloodlineCardDetailClient cardId={5} />);
+    expect(await screen.findByRole("button", { name: "혈통 넘기기" })).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "혈통 수정" })).toBeNull();
+    expect(screen.queryByRole("link", { name: "혈통 소개 쓰기" })).toBeNull();
+    unmount();
+
+    mockUseUser.mockReturnValue({ user: { id: 99, name: "구경꾼" }, isLoading: false });
+    routeAuthFetch(
+      detailRoute({ card: rootCard({ description: null, isOwnedByMe: false }), viewerRelation: "none" })
+    );
+    renderWithSwr(<BloodlineCardDetailClient cardId={5} />);
+    expect(await screen.findByRole("heading", { name: "강산 라인" })).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "혈통 수정" })).toBeNull();
+    expect(screen.queryByRole("link", { name: "혈통 소개 쓰기" })).toBeNull();
+  });
+
   it("헤더 공유 아이콘은 공개 URL 을 shareOrCopy 로 넘긴다", async () => {
     routeAuthFetch(detailRoute({ card: rootCard(), viewerRelation: "owner" }));
     renderWithSwr(<BloodlineCardDetailClient cardId={5} />);
@@ -828,10 +876,17 @@ describe("웹 혈통 만들기 (BloodlineCardCreateClient, AC-71)", () => {
     fireEvent.change(species, { target: { value: "사슴벌레" } });
   };
 
+  /** 사진을 고르면 정사각형 자르기 창이 뜬다. jsdom 은 칸 크기가 0 이라 "완료"가 원본을 그대로 올린다. */
   const uploadPhoto = async () => {
     const file = new File(["x"], "beetle.png", { type: "image/png" });
     const input = document.querySelector('input[type="file"]') as HTMLInputElement;
     fireEvent.change(input, { target: { files: [file] } });
+    const dialog = await screen.findByRole("dialog", { name: "사진 자르기" });
+    const image = within(dialog).getByAltText("자를 사진");
+    Object.defineProperty(image, "naturalWidth", { value: 800 });
+    Object.defineProperty(image, "naturalHeight", { value: 600 });
+    fireEvent.load(image);
+    fireEvent.click(within(dialog).getByRole("button", { name: "완료" }));
     await screen.findByAltText("선택한 사진");
     // 업로드가 끝나면(스피너가 사라지면) 만들 수 있다
     await waitFor(() => expect(screen.queryByRole("status", { name: "불러오는 중" })).toBeNull());
@@ -895,6 +950,20 @@ describe("웹 혈통 만들기 (BloodlineCardCreateClient, AC-71)", () => {
     fireEvent.click(screen.getByRole("button", { name: "혈통 만들기" }));
     expect(await screen.findByText("대표 사진 1장이 필요해요")).toBeInTheDocument();
     expect(screen.queryByText("종을 골라 주세요")).toBeNull();
+  });
+
+  it("사진을 고르면 자르기 창이 뜨고, 취소하면 올리지 않는다", async () => {
+    routeAuthFetch(() => undefined);
+    renderWithSwr(<BloodlineCardCreateClient />, swrFetcher);
+    const input = document.querySelector('input[type="file"]') as HTMLInputElement;
+    fireEvent.change(input, { target: { files: [new File(["x"], "beetle.png", { type: "image/png" })] } });
+
+    const dialog = await screen.findByRole("dialog", { name: "사진 자르기" });
+    expect(within(dialog).getByLabelText("확대")).toBeInTheDocument();
+    fireEvent.click(within(dialog).getByRole("button", { name: "취소" }));
+    expect(screen.queryByRole("dialog", { name: "사진 자르기" })).toBeNull();
+    expect(screen.queryByAltText("선택한 사진")).toBeNull();
+    expect(callsTo("/api/files", "GET")).toHaveLength(0);
   });
 
   it("중복 이름은 errorCode 로 판정해 이름 칸 오류로 보인다", async () => {
@@ -967,5 +1036,100 @@ describe("웹 혈통 관리·프로필 문구 (AC-72)", () => {
     expect(screen.getByText("출처 카드 · 보유 도윤파파")).toBeInTheDocument();
     expect(screen.getAllByText("사슴벌레 · 충남 공주")).toHaveLength(2);
     expect(document.body.textContent).not.toMatch(/BC-|발급|라인 ·/);
+  });
+});
+
+describe("웹 혈통 수정 (BloodlineCardCreateClient editCardId, PRD S-3e)", () => {
+  const categories = [
+    { id: 1, name: "곤충", slug: "insect", parentId: null, path: "/insect/", sortOrder: 1 },
+    { id: 11, name: "사슴벌레", slug: "stag-beetle", parentId: 1, path: "/insect/stag-beetle/", sortOrder: 2 },
+    { id: 10, name: "장수풍뎅이", slug: "rhinoceros-beetle", parentId: 1, path: "/insect/rhinoceros-beetle/", sortOrder: 1 },
+  ];
+  const swrFetcher = async (url: string) => {
+    if (url === "/api/categories") return { success: true, categories };
+    throw new Error(`unexpected ${url}`);
+  };
+  const detail = (over: Partial<BloodlineCardItem> = {}) => ({
+    body: { success: true, card: rootCard(over), bloodlineSourceCard: null, parentLineCard: null },
+  });
+
+  beforeEach(() => {
+    mockedAuthFetch.mockReset();
+    mockReplace.mockClear();
+    mockUseUser.mockReturnValue({ user: { id: 7, name: "강산" }, isLoading: false });
+  });
+
+  it("지금 값으로 채우고 이름은 잠그며, 바뀐 소개만 PATCH 한다", async () => {
+    routeAuthFetch((url, init) => {
+      if (url === "/api/bloodline-cards/5" && (init?.method ?? "GET") === "GET") return detail({ image: "cf-old" });
+      if (url === "/api/bloodline-cards/5" && init?.method === "PATCH") {
+        return { body: { success: true, card: rootCard({ description: "새 소개" }) } };
+      }
+      return undefined;
+    });
+    renderWithSwr(<BloodlineCardCreateClient editCardId={5} />, swrFetcher);
+
+    expect(await screen.findByRole("heading", { name: "혈통 수정" })).toBeInTheDocument();
+    const name = (await screen.findByLabelText("혈통 이름")) as HTMLInputElement;
+    expect(name.value).toBe("강산 라인");
+    expect(name).toHaveAttribute("readonly");
+    expect(screen.getByText("혈통 이름은 바꿀 수 없어요")).toBeInTheDocument();
+    expect((screen.getByLabelText("분류") as HTMLSelectElement).value).toBe("곤충");
+    expect((screen.getByLabelText("종") as HTMLSelectElement).value).toBe("사슴벌레");
+    expect((screen.getByLabelText("시·도") as HTMLSelectElement).value).toBe("충청남도");
+    expect((screen.getByLabelText("시·군·구") as HTMLSelectElement).value).toBe("공주시");
+    // 지금 사진이 보이고, 수정에서는 지우기 X 가 없다
+    expect(screen.getByAltText("선택한 사진")).toHaveAttribute("src", expect.stringContaining("cf-old"));
+    expect(screen.queryByRole("button", { name: "사진 삭제" })).toBeNull();
+
+    // 바뀐 것이 없으면 저장할 수 없다
+    const save = screen.getByRole("button", { name: "저장" });
+    expect(save).toBeDisabled();
+
+    fireEvent.change(screen.getByLabelText("혈통 소개 (선택)"), { target: { value: " 새 소개 " } });
+    expect(save).not.toBeDisabled();
+    fireEvent.click(save);
+
+    await waitFor(() => expect(callsTo("/api/bloodline-cards/5", "PATCH")).toHaveLength(1));
+    expect(bodyOf(callsTo("/api/bloodline-cards/5", "PATCH")[0])).toEqual({ description: "새 소개" });
+  });
+
+  it("새 사진을 잘라 올리면 image 만 바꾼다", async () => {
+    const mockedGlobalFetch = global.fetch as jest.Mock;
+    mockedGlobalFetch.mockReset();
+    mockedGlobalFetch.mockResolvedValue(jsonResponse({ success: true, result: { id: "cf-new" } }));
+    Object.assign(URL, { createObjectURL: jest.fn(() => "blob:preview"), revokeObjectURL: jest.fn() });
+    routeAuthFetch((url, init) => {
+      if (url === "/api/files") return { body: { uploadURL: "https://upload.test", id: "cf-new" } };
+      if (url === "/api/bloodline-cards/5" && (init?.method ?? "GET") === "GET") return detail({ image: "cf-old" });
+      if (url === "/api/bloodline-cards/5" && init?.method === "PATCH") {
+        return { body: { success: true, card: rootCard({ image: "cf-new" }) } };
+      }
+      return undefined;
+    });
+    renderWithSwr(<BloodlineCardCreateClient editCardId={5} />, swrFetcher);
+    await screen.findByRole("heading", { name: "혈통 수정" });
+    await screen.findByLabelText("혈통 이름");
+
+    const input = document.querySelector('input[type="file"]') as HTMLInputElement;
+    fireEvent.change(input, { target: { files: [new File(["x"], "beetle.png", { type: "image/png" })] } });
+    const dialog = await screen.findByRole("dialog", { name: "사진 자르기" });
+    fireEvent.load(within(dialog).getByAltText("자를 사진"));
+    fireEvent.click(within(dialog).getByRole("button", { name: "완료" }));
+
+    const save = screen.getByRole("button", { name: "저장" });
+    await waitFor(() => expect(save).not.toBeDisabled());
+    fireEvent.click(save);
+    await waitFor(() => expect(callsTo("/api/bloodline-cards/5", "PATCH")).toHaveLength(1));
+    expect(bodyOf(callsTo("/api/bloodline-cards/5", "PATCH")[0])).toEqual({ image: "cf-new" });
+  });
+
+  it("만든 사람이 아니면(넘겨받은 보유자) 고칠 수 없다고 알린다", async () => {
+    routeAuthFetch((url) =>
+      url === "/api/bloodline-cards/5" ? detail({ creator: { id: 3, name: "백두" } }) : undefined
+    );
+    renderWithSwr(<BloodlineCardCreateClient editCardId={5} />, swrFetcher);
+    expect(await screen.findByText("혈통을 만든 보유자만 고칠 수 있어요")).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "저장" })).toBeNull();
   });
 });
