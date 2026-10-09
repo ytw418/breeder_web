@@ -179,6 +179,9 @@ const MENU_ICONS = {
     "M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-4l-3 3-3-3z",
   ],
   install: ["M12 16V4m0 12l-3-3m3 3l3-3M5 20h14"],
+  comment: [
+    "M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z",
+  ],
 } as const;
 
 type MenuIconName = keyof typeof MENU_ICONS;
@@ -202,6 +205,7 @@ function buildMenuSections(userId: number | null): { title: string; rows: MenuRo
         { label: "알림", icon: "bell", href: "/notifications", badge: true },
         { label: "랭킹", icon: "chart", href: "/ranking" },
         { label: "브리디북", icon: "book", href: "/guinness" },
+        { label: "내 댓글", icon: "comment", href: `/profiles/${owner}/comments`, requiresAuth: true },
       ],
     },
     {

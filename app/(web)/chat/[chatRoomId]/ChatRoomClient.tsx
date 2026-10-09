@@ -374,6 +374,7 @@ const ChatRoomClient = () => {
                         messages={item.messages}
                         mine={item.mine}
                         avatar={item.avatar}
+                        userId={item.userId}
                         timeLabel={formatChatTime(last?.createdAt)}
                         showReadReceipt={item.mine && readReceiptMessageId != null && last?.id === readReceiptMessageId}
                         onOpenImage={setViewerImageId}

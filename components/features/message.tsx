@@ -5,6 +5,7 @@
  * 상대: 36 아바타 + 말풍선 열 + 시간 / 나: 시간 + 말풍선 열. 말풍선 max 232, padding 9/13, r20, 15/21.
  * 내 것은 brand + 흰 글자, 상대는 surface + text. 이미지는 168x126 r16.
  */
+import Link from "next/link";
 import Image from "@components/atoms/Image";
 import { cn, makeImageUrl } from "@libs/client/utils";
 
@@ -20,6 +21,8 @@ export interface ChatMessageGroupProps {
   messages: ChatBubbleMessage[];
   mine: boolean;
   avatar: string | null;
+  /** 보낸 사람 id. 상대 아바타를 누르면 그 사람 프로필로 간다. */
+  userId: number;
   /** 묶음 마지막 메시지 시간("오후 2:41") */
   timeLabel: string;
   /** 내 마지막 말풍선이고 상대가 읽었을 때만 true → 말풍선 아래 "읽음" */
@@ -31,6 +34,7 @@ export default function ChatMessageGroup({
   messages,
   mine,
   avatar,
+  userId,
   timeLabel,
   showReadReceipt = false,
   onOpenImage,
@@ -83,11 +87,15 @@ export default function ChatMessageGroup({
           </>
         ) : (
           <>
-            <div className="relative h-9 w-9 shrink-0 overflow-hidden rounded-full bg-app-placeholder">
+            <Link
+              href={`/profiles/${userId}`}
+              aria-label="상대 프로필 보기"
+              className="relative h-9 w-9 shrink-0 overflow-hidden rounded-full bg-app-placeholder"
+            >
               {avatar ? (
                 <Image src={makeImageUrl(avatar, "avatar")} alt="" fill sizes="36px" className="object-cover" />
               ) : null}
-            </div>
+            </Link>
             {bubbles}
             {time}
           </>
