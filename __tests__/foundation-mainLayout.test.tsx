@@ -19,12 +19,6 @@ jest.mock(
   () => ({ __esModule: true, default: () => jest.fn() }),
   { virtual: true }
 );
-const mockUseUnreadTabDots = jest.fn();
-jest.mock(
-  "hooks/useUnreadTabDots",
-  () => ({ __esModule: true, default: () => mockUseUnreadTabDots() }),
-  { virtual: true }
-);
 const mockUseSWR = jest.fn();
 jest.mock("swr", () => ({
   __esModule: true,
@@ -36,7 +30,6 @@ import MainLayout from "@components/features/MainLayout";
 beforeEach(() => {
   jest.clearAllMocks();
   mockUseSWR.mockReturnValue({ data: undefined });
-  mockUseUnreadTabDots.mockReturnValue({ posts: false, auctions: false });
 });
 
 describe("MainLayout 셸", () => {
@@ -79,17 +72,16 @@ describe("MainLayout 셸", () => {
     expect(screen.getAllByText("99+").length).toBeGreaterThan(0);
   });
 
-  it("안 본 새 경매가 있으면 경매 탭에 빨간 점, 지금 보는 반려생활 탭에는 달지 않는다", () => {
+  it("하단 탭(반려생활·경매)에는 안 본 새 글 점을 달지 않는다", () => {
     mockUseUser.mockReturnValue({ user: undefined, isLoading: false });
-    mockUseUnreadTabDots.mockReturnValue({ posts: true, auctions: true });
     render(
-      <MainLayout title="반려생활" icon hasTabBar>
+      <MainLayout title="홈" icon hasTabBar>
         <p>본문</p>
       </MainLayout>
     );
-    const dots = screen.getAllByLabelText("안 본 새 글");
-    expect(dots).toHaveLength(1);
-    expect(screen.getByRole("link", { name: /경매/ })).toContainElement(dots[0]);
+    expect(screen.queryByLabelText("안 본 새 글")).not.toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "경매" })).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "반려생활" })).toBeInTheDocument();
   });
 
   it("headerRight 는 뒤로가기 화면의 벨·메뉴 자리를 바꾼다", () => {
