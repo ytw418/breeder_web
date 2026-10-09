@@ -5,6 +5,7 @@
  */
 import { useState } from "react";
 import { useSWRConfig } from "swr";
+import { revalidateWhere } from "@libs/client/swrRevalidate";
 import { ActionSheet } from "@components/app/ActionSheet";
 import { authFetch } from "@libs/client/authFetch";
 import { toast } from "@libs/client/toast";
@@ -12,7 +13,7 @@ import { toast } from "@libs/client/toast";
 type PinnablePost = { id: number; profilePinnedAt?: string | Date | null };
 
 export function useProfilePin() {
-  const { mutate } = useSWRConfig();
+  const { mutate, cache } = useSWRConfig();
   const [pending, setPending] = useState(false);
   const setPin = async (postId: number, pinned: boolean) => {
     if (pending) return;
@@ -30,13 +31,13 @@ export function useProfilePin() {
       } | null;
       if (!res.ok || !result?.success) throw new Error(result?.error || "프로필 고정을 바꾸지 못했어요.");
       toast.success(result.pinned ? "프로필에 고정했어요." : "프로필 고정을 풀었어요.");
-      // 사진 목록(무한 목록 키)·앨범·그 글 상세.
-      void mutate(
+      // 사진 목록(무한 목록 키 — 전역 필터가 건너뛰어 revalidateWhere 로 직접 찾는다)·앨범·그 글 상세.
+      revalidateWhere(
+        { cache, mutate },
         (key) =>
-          typeof key === "string" &&
-          (/\/api\/users\/\d+\/posts\?media=photo/.test(key) ||
-            key.startsWith("/api/albums/") ||
-            key === `/api/posts/${postId}`)
+          /\/api\/users\/\d+\/posts\?media=photo/.test(key) ||
+          key.startsWith("/api/albums/") ||
+          key === `/api/posts/${postId}`
       );
     } catch (error) {
       toast.error(error instanceof Error && error.message ? error.message : "프로필 고정을 바꾸지 못했어요.");
