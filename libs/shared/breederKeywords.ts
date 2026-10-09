@@ -6,8 +6,8 @@ import {
 } from "@libs/shared/ranking";
 
 /**
- * TOP 브리더 '○○왕' 칭호(앱 src/lib/breederKeywords.ts). 반려생활 TOP 브리더 행과 홈 '이번 주 TOP 브리더' 카드가 쓴다.
- * 칭호 이름은 프로필 탭(사진·기록·분양·경매·혈통)과 맞췄다.
+ * TOP 브리더 칭호(앱 src/lib/breederKeywords.ts). 반려생활 TOP 브리더 행과 홈 '이번 주 TOP 브리더' 카드가 쓴다.
+ * 하는 활동은 '○○왕', 쌓이는 것은 '○○ 부자', 사진만 '사진 맛집'으로 부른다(2026-10-09 사용자 "다 왕으로 하지 말고 센스 있게").
  */
 
 /** 활동 지표. 요약·칭호 근거 문구가 같은 이름을 쓴다(그래야 요약에 이미 있는 근거를 다시 붙이지 않는다). */
@@ -38,11 +38,11 @@ const TITLES = [
     stats: ["auctionWinsCount", "sellerEndedAuctionsCount", "bidsCount"],
   },
   { key: "listing", label: "분양왕", emoji: "📦", stats: ["productsCount"] },
-  { key: "bloodline", label: "혈통왕", emoji: "🧬", stats: ["bloodlines"] },
+  { key: "bloodline", label: "혈통 부자", emoji: "🧬", stats: ["bloodlines"] },
   { key: "talk", label: "소통왕", emoji: "💬", stats: ["commentsCount"] },
-  { key: "follower", label: "팔로워왕", emoji: "👥", stats: ["followersCount"] },
-  { key: "like", label: "인기왕", emoji: "❤️", stats: ["likesReceivedCount"] },
-  { key: "photo", label: "사진왕", emoji: "📷", stats: ["photosCount"] },
+  { key: "follower", label: "팔로워 부자", emoji: "👥", stats: ["followersCount"] },
+  { key: "like", label: "좋아요 부자", emoji: "❤️", stats: ["likesReceivedCount"] },
+  { key: "photo", label: "사진 맛집", emoji: "📷", stats: ["photosCount"] },
   { key: "post", label: "기록왕", emoji: "✍️", stats: ["postsCount"] },
 ] as const satisfies readonly { key: string; label: string; emoji: string; stats: readonly StatKey[] }[];
 
@@ -61,12 +61,12 @@ const SUMMARY_ORDER = [
   "sellerEndedAuctionsCount",
 ] as const satisfies readonly StatKey[];
 const SUMMARY_MAX_PARTS = 3;
-/** 칭호를 붙일 최소 값. 이보다 작은 값은 3 이상인 칭호가 하나도 없을 때만 고른다('팔로워 1명 왕' 방지). */
+/** 칭호를 붙일 최소 값. 이보다 작은 값은 3 이상인 칭호가 하나도 없을 때만 고른다('팔로워 1명 부자' 방지). */
 const KEYWORD_MIN_VALUE = 3;
 
 export interface BreederKeyword {
   key: BreederTitleKey;
-  /** 예: "경매왕" */
+  /** 예: "경매왕", "팔로워 부자" */
   label: string;
   emoji: string;
   /** 칭호 근거. 예: "낙찰 1건 · 입찰 1회" */

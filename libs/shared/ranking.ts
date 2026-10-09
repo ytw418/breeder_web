@@ -194,7 +194,7 @@ export interface HotDiscussionItem {
 export interface HomeFeedResponse {
   success: boolean;
   heroBreeder: BreederRankingItem | null;
-  /** 1위의 '○○왕' 칭호. 같은 기간 상위 10명끼리 비교한다(pickBreederKeywords). 구 서버엔 없다. */
+  /** 1위의 칭호('경매왕'·'팔로워 부자' 등). 같은 기간 상위 10명끼리 비교한다(pickBreederKeywords). 구 서버엔 없다. */
   heroBreederKeyword?: BreederKeyword | null;
   heroBreederMode: RankingPeriod;
   topAuctionsByCategory: AuctionRankingItem[];

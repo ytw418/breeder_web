@@ -31,7 +31,7 @@ const bloodline = (creatorId: number): BloodlineRankingItem =>
 
 const labels = (result: ReturnType<typeof pickBreederKeywords>) => result.map((k) => k?.label ?? null);
 
-describe("TOP 브리더 '○○왕' 칭호", () => {
+describe("TOP 브리더 칭호(활동은 ○○왕, 쌓인 것은 ○○ 부자)", () => {
   it("랭킹 최댓값 대비 비율이 가장 큰 활동 묶음을 고른다", () => {
     const [first] = pickBreederKeywords(
       [breeder(1, { commentsCount: 10, postsCount: 4 }), breeder(2, { commentsCount: 20, postsCount: 4 })],
@@ -91,8 +91,26 @@ describe("TOP 브리더 '○○왕' 칭호", () => {
       [],
       3,
     );
-    expect(labels(result)).toEqual(["분양왕", "팔로워왕", "인기왕"]);
+    expect(labels(result)).toEqual(["분양왕", "팔로워 부자", "좋아요 부자"]);
     expect(result.map((k) => k?.detail)).toEqual(["분양글 7개", "팔로워 4명", "받은 좋아요 5개"]);
+  });
+
+  it("사진이 가장 두드러지면 '사진 맛집'", () => {
+    const [first] = pickBreederKeywords(
+      [
+        breeder(1, { postsCount: 5, highlight: highlight({ photosCount: 24 }) }),
+        breeder(2, { postsCount: 10, highlight: highlight({ photosCount: 6 }) }),
+      ],
+      [],
+      1
+    );
+    expect(first).toEqual({
+      key: "photo",
+      label: "사진 맛집",
+      emoji: "📷",
+      detail: "사진 24장",
+      parts: ["사진 24장"],
+    });
   });
 
   it("3 미만인 값은 다른 칭호가 있으면 고르지 않는다", () => {
@@ -108,9 +126,9 @@ describe("TOP 브리더 '○○왕' 칭호", () => {
       [],
       3,
     );
-    // 1위: 인기 15/15=1 · 기록 16/16=1 동점 → 인기가 먼저. 2위: 팔로워 1(3 미만) → 기록 14/16.
+    // 1위: 좋아요 15/15=1 · 기록 16/16=1 동점 → 좋아요가 먼저. 2위: 팔로워 1(3 미만) → 기록 14/16.
     // 3위: 사진 2(3 미만)뿐이라 가져간 기록을 다시 쓴다.
-    expect(labels(result)).toEqual(["인기왕", "기록왕", "기록왕"]);
+    expect(labels(result)).toEqual(["좋아요 부자", "기록왕", "기록왕"]);
   });
 
   it("3 이상인 값이 하나도 없으면 작은 값이라도 고른다", () => {
@@ -127,7 +145,7 @@ describe("TOP 브리더 '○○왕' 칭호", () => {
       [bloodline(1), bloodline(1), bloodline(2)],
       1,
     );
-    expect(first?.label).toBe("혈통왕");
+    expect(first?.label).toBe("혈통 부자");
     expect(first?.detail).toBe("혈통 2개");
   });
 });
@@ -145,7 +163,7 @@ describe("TOP 브리더 활동 요약", () => {
       [],
       1,
     );
-    expect(keyword?.label).toBe("팔로워왕");
+    expect(keyword?.label).toBe("팔로워 부자");
     expect(summarizeBreederActivity(breeder(1, { postsCount: 4, commentsCount: 2, bidsCount: 1 }), keyword)).toBe(
       "게시글 4개 · 댓글 2개 · 팔로워 30명",
     );

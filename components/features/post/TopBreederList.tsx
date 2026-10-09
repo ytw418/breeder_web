@@ -1,7 +1,7 @@
 "use client";
 /**
  * 반려생활 TOP 브리더(앱 components/features/post/TopBreederList.tsx, 시안 design/mockups/top-breeder C안):
- * 1~3위 행마다 순위·아바타·이름 + '○○왕' 칭호·활동 요약·점수, 그 아래 최근 사진 줄을 둔다.
+ * 1~3위 행마다 순위·아바타·이름 + 칭호('경매왕'·'팔로워 부자' 등)·활동 요약·점수, 그 아래 최근 사진 줄을 둔다.
  * 오른쪽 위 '점수 기준'은 점수식 시트를 연다. 나머지는 '전체 랭킹 보기'(/ranking)에서 본다.
  * `breeders` 가 undefined 면 스켈레톤.
  */

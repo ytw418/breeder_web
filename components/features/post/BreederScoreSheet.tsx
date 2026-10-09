@@ -50,7 +50,7 @@ export default function BreederScoreSheet({
           ))}
         </ul>
         <p className="mt-3.5 break-keep rounded-lg bg-app-surface px-3.5 py-3 text-[13px] leading-5 text-app-sub">
-          공지글은 세지 않아요. 이름 옆 &apos;○○왕&apos;은 상위 브리더끼리 비교해 가장 두드러진 활동이에요.
+          공지글은 세지 않아요. 이름 옆 &apos;경매왕&apos;·&apos;팔로워 부자&apos; 같은 칭호는 상위 브리더끼리 비교해 가장 두드러진 활동이에요.
         </p>
       </div>
     </BottomSheet>

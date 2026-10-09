@@ -176,7 +176,7 @@ const buildHomeFeed = async ({
   ]);
 
   const heroBreederMode = weeklyBreeders.length > 0 ? "weekly" : "all";
-  // 1위의 '○○왕' 칭호(왜 1위인지): 같은 기간 상위 10명끼리 비교한다. 분양글·팔로워 등은 highlight 로 붙인다.
+  // 1위의 칭호(왜 1위인지): 같은 기간 상위 10명끼리 비교한다. 분양글·팔로워 등은 highlight 로 붙인다.
   const heroPeers = await attachBreederHighlights(fallbackBreeders, fallbackBreeders.length);
   const heroBreederKeyword = pickBreederKeywords(heroPeers, fallbackBloodlines, 1)[0] ?? null;
   const topAuctionsMode = weeklyAuctions.length > 0 ? "week" : "all";

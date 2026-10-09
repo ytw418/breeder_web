@@ -225,7 +225,7 @@ function HeroBreederCard({
   onChallenge,
 }: {
   hero: BreederRankingItem;
-  /** '○○왕' 칭호(왜 1위인지). 구 서버면 없다. */
+  /** 칭호('경매왕'·'팔로워 부자' 등, 왜 1위인지). 구 서버면 없다. */
   keyword: BreederKeyword | null;
   onChallenge: () => void;
 }) {
@@ -411,7 +411,7 @@ const MainClient = ({
     [replacementRanking, blockedIds]
   );
   const hero = feed?.heroBreeder ?? (feed?.heroBlocked ? replacementPeers[0] ?? null : null);
-  // 1위의 '○○왕' 칭호: 서버가 계산해 준다. 1위를 차단해 바꿨으면 같은 기간 랭킹으로 다시 고른다.
+  // 1위의 칭호: 서버가 계산해 준다. 1위를 차단해 바꿨으면 같은 기간 랭킹으로 다시 고른다.
   const heroKeyword = useMemo(
     () =>
       feed?.heroBreeder

@@ -201,7 +201,7 @@ export default function PostsClient() {
   const regionScopeLabel =
     isRegionCategory && myRegion ? (widenToSido ? `${myRegion.sido} 전체` : myRegion.sigungu) : null;
   // TOP 브리더: /ranking '전체' 기간과 같은 데이터(범위 포함) + 상위 사진·좋아요·팔로워(highlights).
-  // '혈통왕' 칭호용으로 혈통 랭킹도 받는다.
+  // '혈통 부자' 칭호용으로 혈통 랭킹도 받는다.
   const {
     data: breedersData,
     error: breedersError,
