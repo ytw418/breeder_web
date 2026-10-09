@@ -1,7 +1,7 @@
 "use client";
 /**
  * 본인 프로필 완성 카드(앱 ProfileCompletionCard, 앱 docs/prd/profile.md v5 F-19). 본인에게만 보인다.
- * 제목 + N/5 + 4px 진행 바 + 다음 할 일 한 줄. 다 채웠거나 판정에 쓸 값을 아직 못 받았으면 그리지 않는다.
+ * 제목 + N/7 + 4px 진행 바 + 다음 할 일 한 줄. 다 채웠거나 판정에 쓸 값을 아직 못 받았으면 그리지 않는다.
  */
 import { useRouter } from "next/navigation";
 import { LineIcon } from "@components/features/profile/ProfileRows";
@@ -17,6 +17,8 @@ export default function ProfileCompletionCard({
   user?: {
     avatar?: string | null;
     bio?: string | null;
+    profileBanner?: string | null;
+    profileLink?: string | null;
     _count?: { products?: number; auctions?: number };
   };
   /** 사진 탭 1페이지(고정 글이 맨 앞에 온다). 아직 못 받았으면 undefined. */
@@ -31,6 +33,8 @@ export default function ProfileCompletionCard({
   const { done, total, next, items } = computeProfileCompletion({
     hasAvatar: Boolean(user.avatar),
     hasBio: Boolean(user.bio?.trim()),
+    hasBanner: Boolean(user.profileBanner),
+    hasLink: Boolean(user.profileLink),
     hasPinnedPhoto: photoPosts.some((post) => Boolean(post.profilePinnedAt)),
     hasAlbum: userAlbumCount > 0,
     hasListing: (user._count?.products ?? 0) + (user._count?.auctions ?? 0) > 0,
