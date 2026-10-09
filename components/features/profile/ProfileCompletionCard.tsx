@@ -65,6 +65,7 @@ export default function ProfileCompletionCard({
       <div
         className="mt-2.5 h-1 overflow-hidden rounded-sm bg-app-bg"
         role="progressbar"
+        aria-label="프로필 완성도"
         aria-valuemin={0}
         aria-valuemax={total}
         aria-valuenow={done}

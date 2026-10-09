@@ -36,7 +36,11 @@ function OnSaleCard({ item }: { item: OnSaleItem }) {
   const price = isAuction ? `${item.currentPrice.toLocaleString("ko-KR")}원` : formatProductPrice(item.price);
   const meta = isAuction ? formatAuctionTimeLeft(item.endAt) : getTimeAgoString(new Date(item.createdAt));
   return (
-    <Link href={href} className="w-[132px] shrink-0 snap-start" aria-label={`${title}, ${price}`}>
+    <Link
+      href={href}
+      className="w-[132px] shrink-0 snap-start"
+      aria-label={`${isAuction ? "경매 " : item.status === "예약중" ? "예약중 " : ""}${title}, ${price}, ${meta}`}
+    >
       <span className="relative block h-[132px] w-[132px] overflow-hidden rounded-xl bg-app-placeholder">
         {item.photo ? (
           <Image

@@ -58,3 +58,7 @@ export function withFollowListRow<T extends FollowListPageLike>(
 export const isProfileKey = (key: unknown, userId: number) => key === `/api/users/${userId}`;
 export const isFollowListKey = (key: unknown) =>
   typeof key === "string" && /^\$inf\$\/api\/users\/\d+\/(followers|following)\b/.test(key);
+
+/** 반려생활 '팔로잉' 목록(useSWRInfinite) 키. 팔로우·언팔로우 뒤 다시 받는다(앱 ["posts","팔로잉"] 무효화). */
+export const isFollowingFeedKey = (key: unknown) =>
+  typeof key === "string" && key.includes("/api/posts?") && /[?&]following=1(&|$)/.test(key);
