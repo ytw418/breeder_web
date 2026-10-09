@@ -63,7 +63,7 @@ export default function ProfileCompletionCard({
         </span>
       </div>
       <div
-        className="mt-2.5 h-1 overflow-hidden rounded-sm bg-app-elevated"
+        className="mt-2.5 h-1 overflow-hidden rounded-sm bg-app-bg"
         role="progressbar"
         aria-valuemin={0}
         aria-valuemax={total}
