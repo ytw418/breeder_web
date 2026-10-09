@@ -109,8 +109,12 @@ const NotificationsClient = () => {
     void handleMarkAllRead(true);
   }, [data, handleMarkAllRead]);
 
-  const getLink = (targetType: string | null, targetId: number | null) => {
-    if (!isToolRoute) return getNotificationHref(targetType, targetId);
+  const getLink = (
+    targetType: string | null,
+    targetId: number | null,
+    commentId?: number | null
+  ) => {
+    if (!isToolRoute) return getNotificationHref(targetType, targetId, commentId);
     if (!targetType || !targetId) return "/tool";
     if (targetType === "auction") return `/tool${toAuctionPath(targetId)}`;
     return "/tool";
@@ -139,7 +143,7 @@ const NotificationsClient = () => {
         body: JSON.stringify({ id: notification.id }),
       }).catch(() => undefined);
     }
-    const href = getLink(notification.targetType, notification.targetId);
+    const href = getLink(notification.targetType, notification.targetId, notification.commentId);
     if (href) router.push(href);
   };
 

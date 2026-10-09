@@ -2,7 +2,13 @@ import type { NextApiRequest, NextApiResponse } from "next";
 
 const mockClient = {
   post: { findUnique: jest.fn(), update: jest.fn(), delete: jest.fn() },
-  comment: { findUnique: jest.fn(), update: jest.fn(), delete: jest.fn() },
+  comment: {
+    findUnique: jest.fn(),
+    update: jest.fn(),
+    delete: jest.fn(),
+    deleteMany: jest.fn(),
+    count: jest.fn(),
+  },
   product: { findUnique: jest.fn(), update: jest.fn() },
   auction: { findUnique: jest.fn(), update: jest.fn(), delete: jest.fn() },
   moderationLog: { create: jest.fn() },
@@ -246,6 +252,8 @@ describe("POST /api/admin/moderation 조치", () => {
       })
     );
     await moderate({ targetType: "COMMENT", targetId: 31, action: "delete" });
+    // 루트 댓글을 지우면 답글도 같이 지운다(자기 참조 Cascade 가 없어서).
+    expect(mockClient.comment.deleteMany).toHaveBeenCalledWith({ where: { parentId: 31 } });
     expect(mockClient.comment.delete).toHaveBeenCalledWith({ where: { id: 31 } });
   });
 

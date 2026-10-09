@@ -10,17 +10,19 @@ interface CreateNotificationParams {
   message: string;
   targetId?: number; // 대상 ID
   targetType?: string; // 대상 타입 (post, product, chatRoom)
+  /** 게시글 댓글 알림이면 그 댓글 id. 알림을 누르면 그 댓글로 스크롤한다(/posts/:id?commentId=). */
+  commentId?: number;
   allowSelf?: boolean;
   dedupe?: boolean;
   sendPush?: boolean;
 }
 
-const getNotificationUrl = (targetType?: string, targetId?: number) => {
+const getNotificationUrl = (targetType?: string, targetId?: number, commentId?: number) => {
   if (!targetType || !targetId) return "/";
 
   switch (targetType) {
     case "post":
-      return `/posts/${targetId}`;
+      return commentId ? `/posts/${targetId}?commentId=${commentId}` : `/posts/${targetId}`;
     case "product":
       return getProductPath(targetId);
     case "chatRoom":
@@ -62,6 +64,7 @@ export const createNotification = async ({
   message,
   targetId,
   targetType,
+  commentId,
   allowSelf = false,
   dedupe = false,
   sendPush = true,
@@ -78,6 +81,8 @@ export const createNotification = async ({
           senderId,
           targetId: targetId ?? null,
           targetType: targetType ?? null,
+          // 글 좋아요(null)와 댓글 좋아요(댓글 id)를 따로 센다.
+          commentId: commentId ?? null,
         },
       });
       if (existed) return;
@@ -91,6 +96,7 @@ export const createNotification = async ({
         senderId,
         targetId,
         targetType,
+        commentId,
       },
     });
 
@@ -98,8 +104,9 @@ export const createNotification = async ({
       await sendAllPushToUsers([userId], {
         title: getPushTitle(type),
         body: message,
-        url: getNotificationUrl(targetType, targetId),
-        tag: `${type}-${targetType || "default"}-${targetId || 0}`,
+        url: getNotificationUrl(targetType, targetId, commentId),
+        // 같은 글의 댓글 알림끼리 알림 트레이에서 서로 덮지 않게 댓글 id 를 붙인다.
+        tag: `${type}-${targetType || "default"}-${targetId || 0}${commentId ? `-c${commentId}` : ""}`,
       });
     }
   } catch (error) {

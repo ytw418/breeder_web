@@ -1,6 +1,6 @@
 "use client";
 
-import { useLayoutEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import useSWR, { useSWRConfig } from "swr";
@@ -28,10 +28,26 @@ import { PostBody } from "../_components/PostBody";
 import { useProfilePin } from "@components/features/profile/ProfilePinSheet";
 import HiddenContentNotice from "@components/app/moderation/HiddenContentNotice";
 import useAdminModeration from "hooks/useAdminModeration";
+import { commentAnchorId, PostCommentItem } from "../_components/PostCommentItem";
+import { COMMENT_MAX_LENGTH, groupCommentThreads } from "@libs/shared/comment";
 
 type PostComment = NonNullable<PostDetailResponse["post"]>["comments"][number];
 type ReportTarget = { type: "POST" | "COMMENT"; id: number };
 type BlockTarget = { id: number; name: string };
+/** 입력바 모드: 답글(루트 id·대상 이름) 또는 내 댓글 수정 */
+type ComposerMode =
+  | { kind: "reply"; rootId: number; name: string }
+  | { kind: "edit"; comment: PostComment };
+
+type CommentMutationResult = {
+  success?: boolean;
+  error?: string;
+  message?: string;
+  answer?: { id?: number };
+} | null;
+type CommentLikeResult = { success?: boolean; liked?: boolean; likeCount?: number; error?: string } | null;
+/** 그 댓글로 이동했을 때 회색 배경을 보여 주는 시간 */
+const COMMENT_HIGHLIGHT_MS = 1600;
 
 const timeAgo = (value: string | Date) => {
   const date = new Date(value);
@@ -133,7 +149,11 @@ const PostClient = ({
   post: initialPost,
   prevNotice: initialPrevNotice,
   nextNotice: initialNextNotice,
-}: PostDetailResponse) => {
+  focusCommentId,
+}: PostDetailResponse & {
+  /** 알림·프로필 댓글 목록에서 ?commentId= 로 열면 그 댓글까지 스크롤한다. */
+  focusCommentId?: number;
+}) => {
   const params = useParams();
   const postId = extractPostIdFromPath(params?.id);
   const postApiId = Number.isNaN(postId) ? null : postId;
@@ -157,6 +177,13 @@ const PostClient = ({
   const commentInputRef = useRef<HTMLTextAreaElement>(null);
   const [sheetOpen, setSheetOpen] = useState(false);
   const [commentSheet, setCommentSheet] = useState<PostComment | null>(null);
+  const [composerMode, setComposerMode] = useState<ComposerMode | null>(null);
+  const [commentDelete, setCommentDelete] = useState<PostComment | null>(null);
+  const [commentDeleting, setCommentDeleting] = useState(false);
+  // 스크롤할 댓글(알림·프로필에서 열었거나 방금 등록함). 한 번 스크롤하면 비워 다시 받아도 다시 움직이지 않는다.
+  const [scrollTargetId, setScrollTargetId] = useState<number | null>(focusCommentId ?? null);
+  const [highlightedCommentId, setHighlightedCommentId] = useState<number | null>(null);
+  const commentLikePending = useRef(new Set<number>());
   const [reportTarget, setReportTarget] = useState<ReportTarget | null>(null);
   const [blockTarget, setBlockTarget] = useState<BlockTarget | null>(null);
   const [deleteOpen, setDeleteOpen] = useState(false);
@@ -183,6 +210,31 @@ const PostClient = ({
   const commentCount = post?._count?.comments ?? 0;
   // 내 사진 글은 프로필 사진 그리드 맨 앞에 고정할 수 있다(사진형 프로필 PRD F-6).
   const { setPin: setProfilePin } = useProfilePin();
+  const commentThreads = useMemo(() => groupCommentThreads(post?.comments ?? []), [post?.comments]);
+
+  // 같은 글에서 다른 댓글 알림으로 들어오면 그 댓글로 다시 스크롤한다.
+  useEffect(() => {
+    if (focusCommentId) setScrollTargetId(focusCommentId);
+  }, [focusCommentId]);
+
+  useEffect(() => {
+    if (scrollTargetId == null) return;
+    const element = document.getElementById(commentAnchorId(scrollTargetId));
+    if (!element) {
+      // 지웠거나 볼 수 없는 댓글이면 최신 응답을 받은 뒤 포기하고 글 맨 위에 둔다.
+      if (data) setScrollTargetId(null);
+      return;
+    }
+    element.scrollIntoView({ block: "center", behavior: "smooth" });
+    setHighlightedCommentId(scrollTargetId);
+    setScrollTargetId(null);
+  }, [scrollTargetId, commentThreads, data]);
+
+  useEffect(() => {
+    if (highlightedCommentId == null) return;
+    const timer = window.setTimeout(() => setHighlightedCommentId(null), COMMENT_HIGHLIGHT_MS);
+    return () => window.clearTimeout(timer);
+  }, [highlightedCommentId]);
   const photos = useMemo(
     () => (post ? (post.images?.length ? post.images : post.image ? [post.image] : []) : []),
     [post]
@@ -250,36 +302,140 @@ const PostClient = ({
     }
   };
 
+  /** 답글·수정 모드로 바꾸고 입력칸에 커서를 둔다(시트가 닫힌 뒤). */
+  const startComposer = (mode: ComposerMode) => {
+    if (!user) return goLogin();
+    setComposerMode(mode);
+    if (mode.kind === "edit") setComment(mode.comment.comment);
+    window.setTimeout(() => commentInputRef.current?.focus(), 0);
+  };
+
+  const closeComposer = () => {
+    // 수정을 그만두면 원문을 채워 둔 입력칸도 비운다. 답글은 쓰던 내용을 남긴다.
+    if (composerMode?.kind === "edit") setComment("");
+    setComposerMode(null);
+  };
+
   const handleCommentSubmit = async () => {
     if (!post || commentLoading) return;
     if (!user) return goLogin();
     const nextComment = comment.trim();
     if (!nextComment) return;
+    const mode = composerMode;
+    const failMessage = mode?.kind === "edit" ? "댓글 수정에 실패했습니다." : "댓글 등록에 실패했습니다.";
     setCommentLoading(true);
     try {
-      const response = await authFetch(`/api/posts/${post.id}/answers`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ comment: nextComment }),
-      });
-      const result = (await response.json().catch(() => null)) as {
-        success?: boolean;
-        error?: string;
-        message?: string;
-      } | null;
+      const response =
+        mode?.kind === "edit"
+          ? await authFetch(`/api/posts/${post.id}/comments/${mode.comment.id}`, {
+              method: "PATCH",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ comment: nextComment }),
+            })
+          : await authFetch(`/api/posts/${post.id}/answers`, {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                comment: nextComment,
+                ...(mode?.kind === "reply" ? { parentId: mode.rootId } : {}),
+              }),
+            });
+      const result = (await response.json().catch(() => null)) as CommentMutationResult;
       if (response.ok && result?.success) {
         setComment("");
+        setComposerMode(null);
         await mutate();
+        // 새 댓글·답글로 스크롤한다(수정은 제자리).
+        if (mode?.kind !== "edit" && result.answer?.id) setScrollTargetId(result.answer.id);
         // 게시글 목록 댓글 수와 마이페이지·내 프로필 댓글 목록·수(앱 invalidateMyActivity)
         revalidateMyPostActivity();
-        toast.success("댓글이 등록되었습니다.");
+        toast.success(
+          mode?.kind === "edit"
+            ? "댓글이 수정되었습니다."
+            : mode?.kind === "reply"
+              ? "답글이 등록되었습니다."
+              : "댓글이 등록되었습니다."
+        );
         return;
       }
-      toast.error(result?.error || result?.message || "댓글 등록에 실패했습니다.");
+      toast.error(result?.error || result?.message || failMessage);
     } catch {
-      toast.error("댓글 등록에 실패했습니다.");
+      toast.error(failMessage);
     } finally {
       setCommentLoading(false);
+    }
+  };
+
+  /** 댓글 좋아요 토글(낙관적 반영, 실패하면 되돌린다). */
+  const handleCommentLike = async (item: PostComment) => {
+    if (!post) return;
+    if (!user) return goLogin();
+    // 서버 초기값에는 내 좋아요 여부가 없으니 클라이언트 응답이 온 뒤에만 누를 수 있다(글 좋아요와 같음).
+    if (!likeReady || commentLikePending.current.has(item.id)) return;
+    commentLikePending.current.add(item.id);
+    const setLike = (liked: boolean, likeCount: number) =>
+      mutate(
+        (current) => {
+          const base = current ?? { success: true, post };
+          if (!base.post) return base;
+          return {
+            ...base,
+            post: {
+              ...base.post,
+              comments: base.post.comments.map((comment) =>
+                comment.id === item.id ? { ...comment, isLiked: liked, likeCount } : comment
+              ),
+            },
+          };
+        },
+        { revalidate: false }
+      );
+    const wasLiked = Boolean(item.isLiked);
+    const previousCount = item.likeCount ?? 0;
+    void setLike(!wasLiked, Math.max(0, previousCount + (wasLiked ? -1 : 1)));
+    try {
+      const response = await authFetch(`/api/posts/${post.id}/comments/${item.id}/like`, {
+        method: "POST",
+      });
+      const result = (await response.json().catch(() => null)) as CommentLikeResult;
+      if (!response.ok || !result?.success) throw new Error(result?.error || "like failed");
+      void setLike(Boolean(result.liked), result.likeCount ?? 0);
+    } catch {
+      void setLike(wasLiked, previousCount);
+      toast.error("좋아요 처리에 실패했습니다. 잠시 후 다시 시도해주세요.");
+    } finally {
+      commentLikePending.current.delete(item.id);
+    }
+  };
+
+  const deleteComment = async () => {
+    if (!post || !commentDelete || commentDeleting) return;
+    setCommentDeleting(true);
+    try {
+      const response = await authFetch(`/api/posts/${post.id}/comments/${commentDelete.id}`, {
+        method: "DELETE",
+      });
+      const result = (await response.json().catch(() => null)) as CommentMutationResult;
+      if (response.ok && result?.success) {
+        // 지운 댓글을 고치거나 거기에 답글을 쓰던 중이면 입력바 모드를 푼다.
+        if (composerMode?.kind === "edit" && composerMode.comment.id === commentDelete.id) {
+          setComment("");
+          setComposerMode(null);
+        }
+        if (composerMode?.kind === "reply" && composerMode.rootId === commentDelete.id) {
+          setComposerMode(null);
+        }
+        setCommentDelete(null);
+        await mutate();
+        revalidateMyPostActivity();
+        toast.success("댓글이 삭제되었습니다.");
+        return;
+      }
+      toast.error(result?.error || result?.message || "댓글 삭제에 실패했습니다.");
+    } catch {
+      toast.error("댓글 삭제에 실패했습니다.");
+    } finally {
+      setCommentDeleting(false);
     }
   };
 
@@ -372,27 +528,51 @@ const PostClient = ({
     ];
   }, [post, isOwnPost, isNotice, authorBlocked, user, photos.length, setProfilePin, moderation, mutate, router]);
 
-  const commentSheetActions: ActionSheetAction[] = commentSheet
-    ? [
-        ...moderation.actionsFor({
-          targetType: "COMMENT",
-          targetId: commentSheet.id,
-          isHidden: Boolean((commentSheet as { isHidden?: boolean }).isHidden),
-          refreshDetail: () => void mutate(),
-        }),
-        {
-          key: "report",
-          label: "신고하기",
-          onSelect: () => openReport({ type: "COMMENT", id: commentSheet.id }),
-        },
-        {
-          key: "block",
-          label: "작성자 차단",
-          destructive: true,
-          onSelect: () => openBlock({ id: commentSheet.user.id, name: commentSheet.user.name }),
-        },
-      ]
-    : [];
+  // 댓글 ⋮ 시트: 내 댓글은 수정·삭제, 남의 댓글은 (관리자 조치) 신고·작성자 차단.
+  const commentSheetIsMine = Boolean(user?.id && commentSheet?.user?.id === user.id);
+  const commentSheetActions: ActionSheetAction[] = !commentSheet
+    ? []
+    : commentSheetIsMine
+      ? [
+          {
+            key: "edit",
+            label: "수정하기",
+            onSelect: () => startComposer({ kind: "edit", comment: commentSheet }),
+          },
+          {
+            key: "delete",
+            label: "삭제하기",
+            destructive: true,
+            onSelect: () => setCommentDelete(commentSheet),
+          },
+        ]
+      : [
+          // 관리자는 남의 댓글에서 숨기기·숨김 해제·삭제를 맨 앞에 본다(앱과 같음).
+          ...moderation.actionsFor({
+            targetType: "COMMENT",
+            targetId: commentSheet.id,
+            isHidden: Boolean(commentSheet.isHidden),
+            refreshDetail: () => {
+              void mutate();
+              revalidateMyPostActivity();
+            },
+          }),
+          {
+            key: "report",
+            label: "신고하기",
+            onSelect: () => openReport({ type: "COMMENT", id: commentSheet.id }),
+          },
+          {
+            key: "block",
+            label: "작성자 차단",
+            destructive: true,
+            onSelect: () => openBlock({ id: commentSheet.user.id, name: commentSheet.user.name }),
+          },
+        ];
+  const commentDeleteHasReplies = Boolean(
+    commentDelete &&
+      commentThreads.some((thread) => thread.root.id === commentDelete.id && thread.replies.length > 0)
+  );
 
   const canSubmitComment = comment.trim().length > 0 && !commentLoading;
 
@@ -435,7 +615,14 @@ const PostClient = ({
 
     return (
       <>
-        <div className="pb-[calc(88px+env(safe-area-inset-bottom))]">
+        {/* 답글·수정 모드 줄(36)이 생기면 그만큼 더 띄워 마지막 댓글이 입력바에 가리지 않게 한다. */}
+        <div
+          className={
+            composerMode
+              ? "pb-[calc(124px+env(safe-area-inset-bottom))]"
+              : "pb-[calc(88px+env(safe-area-inset-bottom))]"
+          }
+        >
           {/* 작성자 행: 44 아바타 + 이름 16/600 + 브리더 pill + 메타 13 */}
           <div className="flex items-center gap-3 px-4 py-3.5">
             {isNotice ? (
@@ -538,50 +725,28 @@ const PostClient = ({
             <h3 className="text-[16px] font-bold text-app-text">{`댓글 ${commentCount}`}</h3>
           </div>
           <div className="px-4">
-            {post.comments?.length ? (
-              post.comments.map((item, index) => (
+            {commentThreads.length ? (
+              commentThreads.map(({ root, replies }, index) => (
+                // 구분선은 묶음(루트 + 답글) 사이에만 둔다.
                 <div
-                  key={item.id}
-                  className={cn(
-                    "flex gap-2.5 py-3.5",
-                    index < post.comments.length - 1 && "border-b border-app-line"
-                  )}
+                  key={root.id}
+                  className={cn(index < commentThreads.length - 1 && "border-b border-app-line")}
                 >
-                  <Link
-                    href={`/profiles/${item.user?.id}`}
-                    aria-label="댓글 작성자 프로필"
-                    className="shrink-0"
-                  >
-                    <PostAvatar user={item.user} size={36} />
-                  </Link>
-                  <div className="min-w-0 flex-1">
-                    <div className="flex items-center gap-1.5">
-                      <Link
-                        href={`/profiles/${item.user?.id}`}
-                        className="min-w-0 truncate text-[14px] font-semibold text-app-text"
-                      >
-                        {item.user?.name}
-                      </Link>
-                      <span className="shrink-0 text-[12px] text-app-muted">{timeAgo(item.createdAt)}</span>
-                      {item.user?.id && item.user.id !== user?.id ? (
-                        <button
-                          type="button"
-                          aria-label="댓글 더보기"
-                          onClick={() => setCommentSheet(item)}
-                          className="-m-3 ml-auto grid h-11 w-11 shrink-0 place-items-center text-app-caption"
-                        >
-                          <svg className="h-5 w-5" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
-                            <circle cx={12} cy={5} r={1.6} />
-                            <circle cx={12} cy={12} r={1.6} />
-                            <circle cx={12} cy={19} r={1.6} />
-                          </svg>
-                        </button>
-                      ) : null}
-                    </div>
-                    <p className="mt-1 whitespace-pre-line break-words text-[15px] leading-[22px] text-app-text">
-                      {item.comment}
-                    </p>
-                  </div>
+                  {[root, ...replies].map((item) => (
+                    <PostCommentItem
+                      key={item.id}
+                      item={item}
+                      isReply={item !== root}
+                      isPostAuthor={Boolean(authorId && item.user?.id === authorId)}
+                      highlighted={highlightedCommentId === item.id}
+                      onMore={() => setCommentSheet(item)}
+                      onLike={() => void handleCommentLike(item)}
+                      // 답글의 답글도 루트에 달고, 입력바에는 누른 댓글의 작성자를 보여 준다.
+                      onReply={() =>
+                        startComposer({ kind: "reply", rootId: root.id, name: item.user?.name ?? "" })
+                      }
+                    />
+                  ))}
                 </div>
               ))
             ) : (
@@ -605,6 +770,32 @@ const PostClient = ({
                 로그인하고 댓글을 남겨보세요
               </button>
             ) : (
+              <>
+              {/* 답글·수정 모드: 입력바 위 한 줄. × 로 모드를 푼다. */}
+              {composerMode ? (
+                <div className="flex h-9 items-center gap-2 bg-app-gap pl-4 pr-1">
+                  <p className="min-w-0 flex-1 truncate text-[13px] text-app-muted">
+                    {composerMode.kind === "reply" ? (
+                      <>
+                        <span className="font-semibold text-app-text">{composerMode.name}</span>
+                        님에게 답글 남기는 중
+                      </>
+                    ) : (
+                      "댓글 수정 중"
+                    )}
+                  </p>
+                  <button
+                    type="button"
+                    aria-label={composerMode.kind === "reply" ? "답글 취소" : "수정 취소"}
+                    onClick={closeComposer}
+                    className="grid h-9 w-11 shrink-0 place-items-center text-app-muted"
+                  >
+                    <svg width={16} height={16} viewBox="0 0 24 24" fill="none" stroke="currentColor" aria-hidden="true">
+                      <path d="M6 6l12 12M18 6L6 18" strokeWidth={1.5} strokeLinecap="round" />
+                    </svg>
+                  </button>
+                </div>
+              ) : null}
               <form
                 onSubmit={(event) => {
                   event.preventDefault();
@@ -630,14 +821,15 @@ const PostClient = ({
                         void handleCommentSubmit();
                       }
                     }}
-                    placeholder="댓글을 입력해주세요"
+                    placeholder={composerMode?.kind === "reply" ? "답글을 입력해주세요" : "댓글을 입력해주세요"}
                     aria-label="댓글 입력"
+                    maxLength={COMMENT_MAX_LENGTH}
                     disabled={commentLoading}
                     className="max-h-[112px] min-h-[44px] min-w-0 flex-1 resize-none border-0 bg-transparent p-0 py-[11px] text-[15px] leading-[22px] text-app-text outline-none placeholder:text-app-caption focus:ring-0"
                   />
                   <button
                     type="submit"
-                    aria-label="댓글 등록"
+                    aria-label={composerMode?.kind === "edit" ? "댓글 수정 완료" : "댓글 등록"}
                     disabled={!canSubmitComment}
                     className={cn(
                       "mb-1.5 grid h-8 w-8 shrink-0 place-items-center rounded-full bg-app-brand text-white",
@@ -654,6 +846,7 @@ const PostClient = ({
                   </button>
                 </div>
               </form>
+              </>
             )}
           </div>
         </div>
@@ -714,6 +907,21 @@ const PostClient = ({
         loading={deleting}
         onCancel={() => setDeleteOpen(false)}
         onConfirm={() => void deleteCurrentPost()}
+      />
+      <ConfirmDialog
+        open={commentDelete != null}
+        tone="danger"
+        title="이 댓글을 삭제할까요?"
+        description={
+          commentDeleteHasReplies
+            ? "답글은 그대로 남고 '삭제된 댓글입니다'로 표시됩니다."
+            : "삭제 후에는 복구할 수 없습니다."
+        }
+        confirmText="삭제"
+        cancelText="취소"
+        loading={commentDeleting}
+        onCancel={() => setCommentDelete(null)}
+        onConfirm={() => void deleteComment()}
       />
     </Layout>
   );

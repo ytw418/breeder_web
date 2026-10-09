@@ -117,8 +117,17 @@ export async function generateMetadata({
   };
 }
 
-const page = async ({ params }: { params: Promise<{ id: string }> }) => {
+const page = async ({
+  params,
+  searchParams,
+}: {
+  params: Promise<{ id: string }>;
+  searchParams: Promise<{ commentId?: string | string[] }>;
+}) => {
   const { id } = await params;
+  // 알림·프로필 댓글 목록에서 열면 그 댓글까지 스크롤한다.
+  const { commentId: rawCommentId } = await searchParams;
+  const focusCommentId = Number(Array.isArray(rawCommentId) ? rawCommentId[0] : rawCommentId);
   const postId = extractPostIdFromPath(id);
   if (Number.isNaN(postId)) {
     notFound();
@@ -131,7 +140,10 @@ const page = async ({ params }: { params: Promise<{ id: string }> }) => {
 
   return (
     <div>
-      <PostClient {...normalizeDeletedUserNames(data)} />
+      <PostClient
+        {...normalizeDeletedUserNames(data)}
+        focusCommentId={Number.isInteger(focusCommentId) && focusCommentId > 0 ? focusCommentId : undefined}
+      />
     </div>
   );
 };

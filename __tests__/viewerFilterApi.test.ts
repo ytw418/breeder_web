@@ -24,6 +24,7 @@ const mockClient = {
     groupBy: jest.fn(() => Promise.resolve([])),
   },
   like: { findFirst: jest.fn() },
+  commentLike: { findMany: jest.fn(async (): Promise<{ commentId: number }[]> => []) },
   product: {
     findMany: jest.fn(),
     count: jest.fn(),
@@ -217,13 +218,15 @@ describe("GET /api/posts 목록", () => {
 });
 
 describe("GET /api/posts/:id 댓글", () => {
-  it("비로그인이면 숨긴 댓글만 빼고 그 수도 같이 뺀다", async () => {
+  it("비로그인이면 숨긴 댓글만 빼고 그 수도 같이 뺀다('삭제된 댓글' 자리는 수에서만 뺀다)", async () => {
     const res = await call(postDetailHandler, { query: { id: "10" } });
 
     expect(res.statusCode).toBe(200);
     const include = mockClient.post.findUnique.mock.calls[0][0].include;
     expect(include.comments.where).toEqual({ isHidden: false });
-    expect(include._count.select.comments).toEqual({ where: { isHidden: false } });
+    expect(include._count.select.comments).toEqual({
+      where: { AND: [{ isHidden: false }, { deletedAt: null }] },
+    });
   });
 
   it("로그인 + 차단이 있으면 차단한 사람의 댓글과 숨긴 댓글(내 것 제외)을 뺀다", async () => {
@@ -239,7 +242,9 @@ describe("GET /api/posts/:id 댓글", () => {
       ],
     };
     expect(include.comments.where).toEqual(expected);
-    expect(include._count.select.comments).toEqual({ where: expected });
+    expect(include._count.select.comments).toEqual({
+      where: { AND: [expected, { deletedAt: null }] },
+    });
   });
 
   it("관리자는 숨긴 댓글까지 모두 받는다", async () => {
@@ -251,7 +256,72 @@ describe("GET /api/posts/:id 댓글", () => {
     expect(res.statusCode).toBe(200);
     const include = mockClient.post.findUnique.mock.calls[0][0].include;
     expect(include.comments).not.toHaveProperty("where");
-    expect(include._count.select.comments).toBe(true);
+    expect(include._count.select.comments).toEqual({ where: { AND: [{ deletedAt: null }] } });
+  });
+
+  it("답글 필드를 내려 주고, '삭제된 댓글' 자리는 본문을 자리 문구로 바꾼다(구버전 앱 호환)", async () => {
+    const commenter = { id: 2, name: "댓글러", avatar: null, breederPrograms: [] };
+    mockClient.post.findUnique.mockResolvedValue({
+      ...(await mockClient.post.findUnique()),
+      comments: [
+        { id: 1, comment: "", createdAt: new Date(), isHidden: false, parentId: null, editedAt: null, deletedAt: new Date(), user: commenter },
+        { id: 2, comment: "답글", createdAt: new Date(), isHidden: false, parentId: 1, editedAt: new Date(), deletedAt: null, user: commenter },
+      ],
+    });
+
+    const res = await call(postDetailHandler, { query: { id: "10" } });
+
+    const select = mockClient.post.findUnique.mock.calls[1][0].include.comments.select;
+    expect(select).toEqual(
+      expect.objectContaining({
+        parentId: true,
+        editedAt: true,
+        deletedAt: true,
+        _count: { select: { likes: true } },
+      })
+    );
+    expect(res.body.post.comments[0].comment).toBe("삭제된 댓글입니다.");
+    expect(res.body.post.comments[1]).toEqual(
+      expect.objectContaining({
+        comment: "답글",
+        parentId: 1,
+        editedAt: expect.any(Date),
+        likeCount: 0,
+        isLiked: false,
+      })
+    );
+  });
+
+  it("로그인하면 내가 좋아요한 댓글에 isLiked 와 좋아요 수를 싣는다", async () => {
+    const commenter = { id: 2, name: "댓글러", avatar: null, breederPrograms: [] };
+    const row = (id: number, likes: number) => ({
+      id,
+      comment: `댓글${id}`,
+      createdAt: new Date(),
+      isHidden: false,
+      parentId: null,
+      editedAt: null,
+      deletedAt: null,
+      _count: { likes },
+      user: commenter,
+    });
+    mockClient.post.findUnique.mockResolvedValue({
+      ...(await mockClient.post.findUnique()),
+      comments: [row(1, 0), row(2, 3)],
+    });
+    mockClient.commentLike.findMany.mockResolvedValueOnce([{ commentId: 2 }]);
+
+    const res = await call(postDetailHandler, { query: { id: "10" }, user: viewer });
+
+    expect(mockClient.commentLike.findMany).toHaveBeenCalledWith({
+      where: { userId: VIEWER, commentId: { in: [1, 2] } },
+      select: { commentId: true },
+    });
+    expect(res.body.post.comments.map((c: any) => [c.id, c.likeCount, c.isLiked])).toEqual([
+      [1, 0, false],
+      [2, 3, true],
+    ]);
+    expect(res.body.post.comments[0]).not.toHaveProperty("_count");
   });
 
   it("숨긴 글은 작성자·관리자가 아니면 404 POST_HIDDEN", async () => {
