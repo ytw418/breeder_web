@@ -119,8 +119,11 @@ function SkeletonPostRow() {
   );
 }
 
-export default function PostsClient() {
-  const [selectedCategory, setSelectedCategory] = useState("전체");
+export default function PostsClient({ initialCategory }: { initialCategory?: string } = {}) {
+  // 홈 '동네 사랑방'처럼 ?category=동네 로 들어오면 그 칩으로 시작한다(앱 posts.tsx 와 같다).
+  const [selectedCategory, setSelectedCategory] = useState(() =>
+    initialCategory && TABS.some((tab) => tab.id === initialCategory) ? initialCategory : "전체"
+  );
   const [selectedSort, setSelectedSort] = useState<SortType>("latest");
   const [selectedSpecies, setSelectedSpecies] = useState("전체");
   const [pickedTab, setPickedTab] = useState<HighlightTab | null>(null);
@@ -235,6 +238,11 @@ export default function PostsClient() {
     setSize(1);
     window.scrollTo({ top: 0 });
   };
+
+  // 시작 칩으로 쓴 ?category= 는 주소에서 지운다. 이후 칩을 바꿔도 주소와 어긋나지 않는다.
+  useEffect(() => {
+    if (initialCategory) window.history.replaceState(null, "", "/posts");
+  }, [initialCategory]);
 
   const handleCategoryChange = (categoryId: string) => {
     if (categoryId === selectedCategory) return;

@@ -1,0 +1,222 @@
+{
+  "resolve": [
+    {
+      "name": "비로그인은 unset",
+      "input": { "loggedIn": false, "region": null, "regionVisible": false, "data": null, "isError": false },
+      "expect": { "kind": "unset", "loggedIn": false }
+    },
+    {
+      "name": "동네 미설정은 unset",
+      "input": { "loggedIn": true, "region": null, "regionVisible": false, "data": null, "isError": false },
+      "expect": { "kind": "unset", "loggedIn": true }
+    },
+    {
+      "name": "첫 조회 중은 loading",
+      "input": {
+        "loggedIn": true,
+        "region": { "sido": "서울특별시", "sigungu": "강남구" },
+        "regionVisible": true,
+        "data": null,
+        "isError": false
+      },
+      "expect": { "kind": "loading" }
+    },
+    {
+      "name": "데이터 없이 오류면 hidden",
+      "input": {
+        "loggedIn": true,
+        "region": { "sido": "서울특별시", "sigungu": "강남구" },
+        "regionVisible": true,
+        "data": null,
+        "isError": true
+      },
+      "expect": { "kind": "hidden" }
+    },
+    {
+      "name": "0명 + 표시 OFF 는 none(visible false)",
+      "input": {
+        "loggedIn": true,
+        "region": { "sido": "서울특별시", "sigungu": "강남구" },
+        "regionVisible": false,
+        "data": { "scope": "none", "region": { "sido": "서울특별시", "sigungu": "강남구" }, "items": [], "total": 0 },
+        "isError": false
+      },
+      "expect": { "kind": "none", "region": { "sido": "서울특별시", "sigungu": "강남구" }, "visible": false }
+    },
+    {
+      "name": "0명 + 표시 ON 은 none(visible true)",
+      "input": {
+        "loggedIn": true,
+        "region": { "sido": "서울특별시", "sigungu": "강남구" },
+        "regionVisible": true,
+        "data": { "scope": "none", "region": { "sido": "서울특별시", "sigungu": "강남구" }, "items": [], "total": 0 },
+        "isError": false
+      },
+      "expect": { "kind": "none", "region": { "sido": "서울특별시", "sigungu": "강남구" }, "visible": true }
+    },
+    {
+      "name": "같은 구에 있으면 filled, 표시 ON 이면 스위치 줄 없음",
+      "input": {
+        "loggedIn": true,
+        "region": { "sido": "서울특별시", "sigungu": "강남구" },
+        "regionVisible": true,
+        "data": {
+          "scope": "sigungu",
+          "region": { "sido": "서울특별시", "sigungu": "강남구" },
+          "items": [
+            {
+              "user": { "id": 1, "name": "레오파드하우스", "avatar": null },
+              "region": { "sido": "서울특별시", "sigungu": "강남구" },
+              "postsCount": 42,
+              "commentsCount": 118,
+              "topSpecies": ["레오파드게코"],
+              "isFollowing": true
+            }
+          ],
+          "total": 12
+        },
+        "isError": true
+      },
+      "expect": {
+        "kind": "filled",
+        "region": { "sido": "서울특별시", "sigungu": "강남구" },
+        "items": [
+          {
+            "user": { "id": 1, "name": "레오파드하우스", "avatar": null },
+            "region": { "sido": "서울특별시", "sigungu": "강남구" },
+            "postsCount": 42,
+            "commentsCount": 118,
+            "topSpecies": ["레오파드게코"],
+            "isFollowing": true
+          }
+        ],
+        "total": 12,
+        "showVisibleSwitch": false
+      }
+    },
+    {
+      "name": "시/도로 넓혔으면 widened, 표시 OFF 면 스위치 줄, total 이 없으면 인원 수",
+      "input": {
+        "loggedIn": true,
+        "region": { "sido": "서울특별시", "sigungu": "강남구" },
+        "regionVisible": false,
+        "data": {
+          "scope": "sido",
+          "region": { "sido": "서울특별시", "sigungu": "강남구" },
+          "items": [
+            {
+              "user": { "id": 3, "name": "참나무 사육실", "avatar": null },
+              "region": { "sido": "서울특별시", "sigungu": "마포구" },
+              "postsCount": 2,
+              "commentsCount": 2
+            }
+          ]
+        },
+        "isError": false
+      },
+      "expect": {
+        "kind": "widened",
+        "region": { "sido": "서울특별시", "sigungu": "강남구" },
+        "items": [
+          {
+            "user": { "id": 3, "name": "참나무 사육실", "avatar": null },
+            "region": { "sido": "서울특별시", "sigungu": "마포구" },
+            "postsCount": 2,
+            "commentsCount": 2
+          }
+        ],
+        "total": 1,
+        "showVisibleSwitch": true
+      }
+    }
+  ],
+  "subtitle": [
+    {
+      "name": "filled",
+      "state": { "kind": "filled", "region": { "sido": "서울특별시", "sigungu": "강남구" }, "items": [], "total": 12, "showVisibleSwitch": false },
+      "expect": "강남구 · 12명"
+    },
+    {
+      "name": "widened 는 시/도 짧은 이름",
+      "state": { "kind": "widened", "region": { "sido": "서울특별시", "sigungu": "강남구" }, "items": [], "total": 4, "showVisibleSwitch": true },
+      "expect": "강남구엔 아직 없어 서울 전체를 보여드려요"
+    },
+    {
+      "name": "widened 도 단위",
+      "state": { "kind": "widened", "region": { "sido": "충청남도", "sigungu": "공주시" }, "items": [], "total": 4, "showVisibleSwitch": true },
+      "expect": "공주시엔 아직 없어 충남 전체를 보여드려요"
+    },
+    {
+      "name": "none 은 구 이름",
+      "state": { "kind": "none", "region": { "sido": "서울특별시", "sigungu": "강남구" }, "visible": false },
+      "expect": "강남구"
+    },
+    { "name": "unset 은 없음", "state": { "kind": "unset", "loggedIn": true }, "expect": null }
+  ],
+  "caption": [
+    {
+      "name": "주력 종 2개",
+      "item": {
+        "user": { "id": 2, "name": "도토리 사육방", "avatar": null },
+        "region": { "sido": "서울특별시", "sigungu": "강남구" },
+        "postsCount": 36,
+        "commentsCount": 9,
+        "topSpecies": ["사슴벌레", "장수풍뎅이"]
+      },
+      "scope": "sigungu",
+      "expect": "사슴벌레 · 장수풍뎅이"
+    },
+    {
+      "name": "주력 종이 없으면 글·댓글",
+      "item": {
+        "user": { "id": 4, "name": "작은 정원", "avatar": null },
+        "region": { "sido": "서울특별시", "sigungu": "강남구" },
+        "postsCount": 31,
+        "commentsCount": 12,
+        "topSpecies": []
+      },
+      "scope": "sigungu",
+      "expect": "글 31 · 댓글 12"
+    },
+    {
+      "name": "옛 서버(topSpecies 없음)도 글·댓글",
+      "item": {
+        "user": { "id": 5, "name": "물빛 사육방", "avatar": null },
+        "region": { "sido": "서울특별시", "sigungu": "강남구" },
+        "postsCount": 0,
+        "commentsCount": 3
+      },
+      "scope": "sigungu",
+      "expect": "글 0 · 댓글 3"
+    },
+    {
+      "name": "넓혔으면 앞에 구 이름",
+      "item": {
+        "user": { "id": 3, "name": "참나무 사육실", "avatar": null },
+        "region": { "sido": "서울특별시", "sigungu": "마포구" },
+        "postsCount": 2,
+        "commentsCount": 2,
+        "topSpecies": ["왕사슴벌레"]
+      },
+      "scope": "sido",
+      "expect": "마포구 · 왕사슴벌레"
+    }
+  ],
+  "noneCopy": [
+    {
+      "name": "표시 OFF",
+      "region": { "sido": "서울특별시", "sigungu": "강남구" },
+      "visible": false,
+      "expect": {
+        "title": "강남구 첫 동네 브리더가 되어 보세요",
+        "body": "'나를 표시'를 켜면 동네 이웃이 나를 찾을 수 있어요. 인사 글을 남기면 반려생활 동네 글에 올라가요."
+      }
+    },
+    {
+      "name": "표시 ON",
+      "region": { "sido": "서울특별시", "sigungu": "강남구" },
+      "visible": true,
+      "expect": { "title": "아직 서울에 다른 브리더가 없어요", "body": "인사 글을 남기면 동네 이웃이 볼 수 있어요." }
+    }
+  ]
+}
