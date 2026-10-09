@@ -35,12 +35,13 @@ export default function SanctionNoticeModal({ enabled }: { enabled: boolean }) {
     shouldRetryOnError: false,
   });
   const [submitting, setSubmitting] = useState(false);
-  const buttonRef = useRef<HTMLButtonElement>(null);
+  // 열릴 때 대화상자에 포커스를 둔다(버튼에 두면 포커스 테두리가 그려진다). Tab 으로 버튼에 갈 수 있다.
+  const dialogRef = useRef<HTMLDivElement>(null);
   const notice = data?.success ? data.sanctions[0] : undefined;
 
   useEffect(() => {
     if (!notice) return;
-    buttonRef.current?.focus();
+    dialogRef.current?.focus();
     const prev = document.body.style.overflow;
     document.body.style.overflow = "hidden";
     return () => {
@@ -82,10 +83,12 @@ export default function SanctionNoticeModal({ enabled }: { enabled: boolean }) {
     <div className="fixed inset-0 z-[95] flex items-center justify-center px-6">
       <div className="absolute inset-0 bg-app-overlay" aria-hidden="true" />
       <div
+        ref={dialogRef}
+        tabIndex={-1}
         role="dialog"
         aria-modal="true"
         aria-labelledby="sanction-notice-title"
-        className="relative w-full max-w-sm rounded-2xl border border-app-border bg-app-elevated px-5 pb-5 pt-6"
+        className="relative w-full max-w-sm rounded-2xl border border-app-border bg-app-elevated px-5 pb-5 pt-6 outline-none"
       >
         <h2 id="sanction-notice-title" className="mb-[18px] text-[18px] font-bold leading-[1.35] text-app-text">
           {title}
@@ -134,7 +137,6 @@ export default function SanctionNoticeModal({ enabled }: { enabled: boolean }) {
         </p>
 
         <button
-          ref={buttonRef}
           type="button"
           onClick={acknowledge}
           disabled={submitting}

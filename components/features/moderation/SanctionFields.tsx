@@ -239,7 +239,8 @@ export default function SanctionFields({
           {value.messageToUser.trim() ? ` / 메시지: ${value.messageToUser.trim()}` : ""}
         </p>
       ) : null}
-      {error ? <p className="text-xs text-rose-600">{error}</p> : null}
+      {/* 입력을 시작한 뒤에만 오류를 보인다(처음부터 빨간 글이 뜨지 않게). 버튼은 오류가 있으면 계속 막힌다. */}
+      {error && value.messageToUser.trim() ? <p className="text-xs text-rose-600">{error}</p> : null}
     </div>
   );
 }
