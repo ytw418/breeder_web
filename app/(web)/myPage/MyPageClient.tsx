@@ -5,9 +5,11 @@ import { setTokens } from "@libs/client/authToken";
 import { canUseTestAccountSwitcher } from "@libs/shared/test-accounts";
 import AlbumRow, { useSpeciesAlbums, useUserAlbums } from "@components/features/profile/AlbumRow";
 import PhotoGrid from "@components/features/profile/PhotoGrid";
+import OnSaleRail, { useUserOnSale } from "@components/features/profile/OnSaleRail";
+import ProfileCompletionCard from "@components/features/profile/ProfileCompletionCard";
 import { ProfileBlock, ProfileSecondaryButton } from "@components/features/profile/ProfileBlock";
 import ProfilePinSheet from "@components/features/profile/ProfilePinSheet";
-import UnderlineTabs from "@components/features/profile/UnderlineTabs";
+import UnderlineTabs, { scrollToProfileTabs } from "@components/features/profile/UnderlineTabs";
 import { shareOrCopy } from "@libs/client/share";
 import { BloodlineVisualCard } from "@components/features/bloodline/BloodlineVisualCard";
 import {
@@ -214,7 +216,9 @@ const MyPageClient = () => {
   const postsList = useUserPostsList(userId, activeTab === "posts");
   const productsList = useUserProductsList(userId, activeTab === "products");
   const auctionsList = useUserAuctionsList(userId, activeTab === "auctions");
-  const photosList = useUserPhotoPostsList(userId, undefined, activeTab === "photos");
+  // 사진 1페이지는 완성 카드(대표 사진 고정 여부)도 쓰므로 탭과 상관없이 받는다.
+  const photosList = useUserPhotoPostsList(userId);
+  const onSaleQuery = useUserOnSale(userId);
   const albumsQuery = useSpeciesAlbums(userId);
   const userAlbumsQuery = useUserAlbums(userId);
 
@@ -429,11 +433,22 @@ const MyPageClient = () => {
               </>
             }
           />
+          <ProfileCompletionCard
+            user={profileUser}
+            photoPosts={photosList.isLoaded ? photosList.items : undefined}
+            userAlbumCount={userAlbumsQuery.data?.albums?.length}
+            onGoPhotosTab={() => setActiveTab("photos")}
+          />
           <AlbumRow
             userId={userId}
             albums={albumsQuery.data?.albums}
             userAlbums={userAlbumsQuery.data?.albums}
             isOwner
+          />
+          <OnSaleRail data={onSaleQuery.data} isLoading={onSaleQuery.isLoading} onSeeAll={(tab) => {
+              setActiveTab(tab);
+              scrollToProfileTabs();
+            }}
           />
         </>
       ) : null}

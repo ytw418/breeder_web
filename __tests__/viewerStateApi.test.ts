@@ -32,6 +32,8 @@ const mockClient = {
   fav: { findFirst: prismaLikeFindFirst({ productId: 20 }) },
   purchase: { findFirst: jest.fn() },
   user: { findUnique: jest.fn() },
+  // 프로필 신뢰 줄 거래 완료 수(_count.completedSales)
+  sale: { count: jest.fn(async () => 0) },
   follow: { findFirst: jest.fn() },
   userBadge: { findMany: jest.fn() },
   // 프로필 보유 혈통 수(countProfileBloodlineCards)

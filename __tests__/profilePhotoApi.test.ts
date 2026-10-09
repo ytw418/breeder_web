@@ -26,6 +26,8 @@ const mockClient = {
     update: jest.fn(),
   },
   product: { groupBy: jest.fn() },
+  // 프로필 신뢰 줄 거래 완료 수(_count.completedSales)
+  sale: { count: jest.fn(async () => 0) },
   // 프로필 보유 혈통 수(countProfileBloodlineCards)
   bloodlineCard: { findMany: jest.fn(async () => []) },
   $transaction: jest.fn(async (fn: (tx: typeof mockTx) => unknown) => fn(mockTx)),

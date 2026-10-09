@@ -2,7 +2,7 @@
 /**
  * 프로필 블록(앱 ProfileBlock, 2026-10-09 v4 — 시안 design/mockups/profile/A-karrot.html `.profile`).
  * 아바타 80(누르면 크게 보기) 옆에 게시물·팔로워·팔로잉 3칸 → 이름 16/700 → 브리더 컬러 뱃지 →
- * 주력 종 13 muted → 소개 14/1.5 → 버튼 줄 36. 버튼은 화면이 상태(본인·타인·차단·탈퇴)에 맞게 넘긴다.
+ * 주력 종 13 muted → 신뢰 줄 13 muted(v5) → 소개 14/1.5 → 버튼 줄 36. 버튼은 화면이 상태(본인·타인·차단·탈퇴)에 맞게 넘긴다.
  */
 import Link from "next/link";
 import { useState, type ReactNode } from "react";
@@ -11,6 +11,8 @@ import ImageLightbox from "@components/features/image/ImageLightbox";
 import { ProfileAvatar } from "@components/features/profile/ProfileRows";
 import { cn, makeImageUrl } from "@libs/client/utils";
 import type { BreederProgramSummary } from "@libs/shared/breeder-program";
+import { DELETED_USER_LABEL, isDeletedUserName } from "@libs/shared/deletedUser";
+import { profileTrustLine } from "@libs/shared/profileTrust";
 
 export interface ProfileBlockUser {
   name: string;
@@ -19,7 +21,9 @@ export interface ProfileBlockUser {
   topSpecies?: string[];
   badges?: { id: number; label: string }[];
   breederPrograms?: BreederProgramSummary[];
-  _count?: { followers: number; following: number; posts: number };
+  /** 가입 시각(신뢰 줄 '브리디 N개월차'). */
+  createdAt?: string | Date;
+  _count?: { followers: number; following: number; posts: number; completedSales?: number };
 }
 
 const AVATAR_SIZE = 80;
@@ -98,6 +102,14 @@ export function ProfileBlock({
   const showBioPrompt = isMine && !bio && !loading && Boolean(user);
   const hasPills =
     badges.length > 0 || (user?.breederPrograms ?? []).some((program) => program.status === "ACTIVE");
+  // 신뢰 줄: "거래 완료 12 · 브리디 8개월차"(앱 docs/prd/profile.md v5 F-18). 탈퇴 사용자·로딩 중엔 그리지 않는다.
+  const trustLine =
+    !loading && user && name !== DELETED_USER_LABEL && !isDeletedUserName(name)
+      ? profileTrustLine({
+          completedSales: user._count?.completedSales,
+          createdAt: user.createdAt ? new Date(user.createdAt).toISOString() : null,
+        })
+      : null;
 
   const avatarNode = (
     <ProfileAvatar avatar={avatar} name={name} programs={user?.breederPrograms} size={AVATAR_SIZE} />
@@ -169,6 +181,8 @@ export function ProfileBlock({
       {species.length ? (
         <p className="mt-1.5 truncate text-[13px] leading-[18px] text-app-muted">{species.join(" · ")}</p>
       ) : null}
+
+      {trustLine ? <p className="mt-1.5 truncate text-[13px] leading-[18px] text-app-muted">{trustLine}</p> : null}
 
       {bio ? (
         <p className="mt-1.5 whitespace-pre-line break-words text-[14px] leading-[21px] text-app-text">{bio}</p>

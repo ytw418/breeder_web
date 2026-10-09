@@ -21,7 +21,7 @@ export default function UnderlineTabs<T extends string>({
   onChange: (id: T) => void;
 }) {
   return (
-    <div role="tablist" className="sticky top-14 z-20 flex border-b border-app-line bg-app-bg">
+    <div role="tablist" data-profile-tabs className="sticky top-14 z-20 flex border-b border-app-line bg-app-bg">
       {tabs.map((tab) => {
         const selected = tab.id === active;
         return (
@@ -44,4 +44,12 @@ export default function UnderlineTabs<T extends string>({
       })}
     </div>
   );
+}
+
+/** 프로필 탭 줄이 헤더(56) 바로 아래에 오도록 스크롤한다('지금 분양 중 › 전체 보기'). 이미 붙어 있으면 그대로다. */
+export function scrollToProfileTabs() {
+  const el = document.querySelector<HTMLElement>("[data-profile-tabs]");
+  if (!el) return;
+  const top = el.getBoundingClientRect().top + window.scrollY - 56;
+  if (top > window.scrollY) window.scrollTo({ top, behavior: "smooth" });
 }

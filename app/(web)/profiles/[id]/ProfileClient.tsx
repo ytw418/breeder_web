@@ -5,7 +5,8 @@
  * 구조:
  *   헤더(profile 변형: 뒤로 · 이름 · 공유 · 더보기)
  *   ProfileBlock(아바타 80 + 게시물·팔로워·팔로잉 · 이름 · 컬러 뱃지 · 주력 종 · 소개 · 버튼 36)
- *   AlbumRow(내 앨범 → 종별 자동 앨범 → 본인이면 '새 앨범')
+ *   ProfileCompletionCard(본인만, v5) · AlbumRow(내 앨범 → 종별 자동 앨범 → 본인이면 '새 앨범')
+ *   OnSaleRail '지금 분양 중'(v5: 진행 중 경매 + 판매중·예약중 상품)
  *   UnderlineTabs: 사진 · 기록 · 분양 · 경매 · 혈통(같은 너비, 스크롤하면 헤더 아래에 붙는다)
  *   탭 내용: 사진 3열 그리드(고정 우선) / 게시물·상품(분양 탭 맨 위 판매·구매내역 행)·경매·혈통 목록
  *   하단 탭바(앱처럼 프로필에서도 바로 탭을 옮긴다)
@@ -21,10 +22,12 @@ import { BlockConfirmDialog } from "@components/app/moderation/BlockConfirmDialo
 import { ReportSheet } from "@components/app/moderation/ReportSheet";
 import AlbumRow, { useSpeciesAlbums, useUserAlbums } from "@components/features/profile/AlbumRow";
 import FollowButton from "@components/features/profile/FollowButton";
+import OnSaleRail, { useUserOnSale } from "@components/features/profile/OnSaleRail";
+import ProfileCompletionCard from "@components/features/profile/ProfileCompletionCard";
 import PhotoGrid from "@components/features/profile/PhotoGrid";
 import { ProfileBlock, ProfileSecondaryButton } from "@components/features/profile/ProfileBlock";
 import ProfilePinSheet from "@components/features/profile/ProfilePinSheet";
-import UnderlineTabs from "@components/features/profile/UnderlineTabs";
+import UnderlineTabs, { scrollToProfileTabs } from "@components/features/profile/UnderlineTabs";
 import {
   LineIcon,
   LoadingBlock,
@@ -77,8 +80,9 @@ const ProfileClient = () => {
   // 탭은 누구 프로필이든 다섯 개 그대로 둔다(내용이 없으면 빈 상태). 2026-10-09 v4.
   const currentTab = activeTab;
 
-  // 목록은 그 탭을 열었을 때만 받는다.
-  const photosList = useUserPhotoPostsList(id, undefined, currentTab === "photos");
+  const isMyProfile = Boolean(me?.id && user?.id && me.id === user.id);
+  // 목록은 그 탭을 열었을 때만 받는다. 본인은 완성 카드(대표 사진 고정 여부)가 사진 1페이지를 쓰므로 늘 받는다.
+  const photosList = useUserPhotoPostsList(id, undefined, currentTab === "photos" || isMyProfile);
   const postsList = useUserPostsList(id, currentTab === "posts");
   const productsList = useUserProductsList(id, currentTab === "products");
   const auctionsList = useUserAuctionsList(id, currentTab === "auctions");
@@ -87,11 +91,11 @@ const ProfileClient = () => {
   );
   const albumsQuery = useSpeciesAlbums(id || undefined);
   const userAlbumsQuery = useUserAlbums(id || undefined);
+  const onSaleQuery = useUserOnSale(id || undefined);
 
   const [getChatRoomId, { loading: chatLoading }] = useMutation<ChatResponseType>(`/api/chat`);
 
   const profilePath = `/profiles/${id}`;
-  const isMyProfile = Boolean(me?.id && user?.id && me.id === user.id);
   const isDeleted = isDeletedUser(user?.name);
   // 차단 여부는 차단 목록이 기준이고, 목록을 받기 전에는 프로필 응답의 isBlocked 로 그린다.
   const isBlocked = Boolean(
@@ -223,12 +227,27 @@ const ProfileClient = () => {
     body = (
       <div className="flex flex-col bg-app-bg pb-8">
         {id ? <ProfileBlock userId={id} user={user} loading={false} isMine={isMyProfile} actions={actions} /> : null}
+        {isMyProfile ? (
+          <ProfileCompletionCard
+            user={user}
+            photoPosts={photosList.isLoaded ? photosList.items : undefined}
+            userAlbumCount={userAlbumsQuery.data?.albums?.length}
+            onGoPhotosTab={() => setActiveTab("photos")}
+          />
+        ) : null}
         {id ? (
           <AlbumRow
             userId={id}
             albums={albumsQuery.data?.albums}
             userAlbums={userAlbumsQuery.data?.albums}
             isOwner={isMyProfile}
+          />
+        ) : null}
+        {!isBlocked && !isDeleted ? (
+          <OnSaleRail data={onSaleQuery.data} isLoading={onSaleQuery.isLoading} onSeeAll={(tab) => {
+              setActiveTab(tab);
+              scrollToProfileTabs();
+            }}
           />
         ) : null}
         <UnderlineTabs tabs={PROFILE_TABS} active={currentTab} onChange={setActiveTab} />
