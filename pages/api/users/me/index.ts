@@ -13,7 +13,11 @@ import {
 } from "@libs/shared/regions";
 import { sanitizePinnedCategoryIds } from "@libs/server/categories";
 import { MAX_PINNED_CATEGORIES } from "@libs/shared/categories";
-import { normalizeBio } from "@libs/shared/profile";
+import {
+  normalizeBio,
+  normalizeProfileBanner,
+  normalizeProfileLink,
+} from "@libs/shared/profile";
 
 async function handler(
   req: NextApiRequest,
@@ -67,6 +71,32 @@ async function handler(
           });
         }
         savedBio = result.bio;
+      }
+
+      // 프로필 v5 대표 링크·커버 이미지. 소개와 같이 키가 있을 때만 바꾸고 null·빈 값이면 지운다.
+      let savedProfileLink: string | null | undefined;
+      if ("profileLink" in body) {
+        const result = normalizeProfileLink(body.profileLink);
+        if (!result.ok) {
+          return res.json({
+            success: false,
+            error: result.message,
+            errorCode: result.errorCode,
+          });
+        }
+        savedProfileLink = result.link;
+      }
+      let savedProfileBanner: string | null | undefined;
+      if ("bannerId" in body) {
+        const result = normalizeProfileBanner(body.bannerId);
+        if (!result.ok) {
+          return res.json({
+            success: false,
+            error: result.message,
+            errorCode: result.errorCode,
+          });
+        }
+        savedProfileBanner = result.banner;
       }
 
       // 관심 카테고리 고정 목록(복수). 빈 배열이면 해제. 없는 id·숨긴 id 는 조용히 뺀다.
@@ -131,7 +161,8 @@ async function handler(
 
       // 동네 브리더 노출(opt-in). 켜려면 동네가 있어야 한다.
       if (typeof regionVisible === "boolean") {
-        const clearing = hasRegion && regionSido == null && regionSigungu == null;
+        const clearing =
+          hasRegion && regionSido == null && regionSigungu == null;
         if (regionVisible && !clearing) {
           const current = hasRegion
             ? { regionSigungu }
@@ -175,16 +206,31 @@ async function handler(
           } catch (error) {
             // 검사 뒤 다른 유저가 같은 이름을 먼저 저장한 경우
             if (isUniqueNameError(error)) {
-              return res.json({ success: false, error: NICKNAME_TAKEN_MESSAGE });
+              return res.json({
+                success: false,
+                error: NICKNAME_TAKEN_MESSAGE,
+              });
             }
             throw error;
           }
         }
       }
-      if (savedBio !== undefined) {
+      if (
+        savedBio !== undefined ||
+        savedProfileLink !== undefined ||
+        savedProfileBanner !== undefined
+      ) {
         await client.user.update({
           where: { id: user?.id },
-          data: { bio: savedBio },
+          data: {
+            ...(savedBio !== undefined ? { bio: savedBio } : {}),
+            ...(savedProfileLink !== undefined
+              ? { profileLink: savedProfileLink }
+              : {}),
+            ...(savedProfileBanner !== undefined
+              ? { profileBanner: savedProfileBanner }
+              : {}),
+          },
         });
       }
       if (avatarId) {
@@ -203,6 +249,12 @@ async function handler(
           ? { pinnedCategoryIds: savedPinnedCategoryIds }
           : {}),
         ...(savedBio !== undefined ? { bio: savedBio } : {}),
+        ...(savedProfileLink !== undefined
+          ? { profileLink: savedProfileLink }
+          : {}),
+        ...(savedProfileBanner !== undefined
+          ? { profileBanner: savedProfileBanner }
+          : {}),
         ...(markCategoryOnboarded ? { categoryOnboarded: true } : {}),
       });
     }

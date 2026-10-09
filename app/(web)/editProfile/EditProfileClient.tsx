@@ -10,7 +10,7 @@ import { useRouter } from "next/navigation";
 import { toast } from "@libs/client/toast";
 import { cn, makeImageUrl } from "@libs/client/utils";
 import { NICKNAME_MAX_LENGTH } from "@libs/shared/nickname";
-import { BIO_MAX, normalizeBio } from "@libs/shared/profile";
+import { BIO_MAX, PROFILE_LINK_MAX, normalizeBio, normalizeProfileLink } from "@libs/shared/profile";
 import {
   createNicknameChecker,
   type CheckNameResult,
@@ -25,7 +25,24 @@ interface EditProfileResponse {
   success: boolean;
   error?: string;
   message?: string;
+  errorCode?: string;
 }
+
+/** Cloudflare 직접 업로드 후 이미지 id 를 돌려준다(아바타·커버 공용). */
+const uploadImage = async (file: File, name: string) => {
+  const fileApiRes = await authFetch(`/api/files`);
+  if (!fileApiRes.ok) throw new Error("이미지 업로드 URL을 가져오지 못했습니다.");
+  const { uploadURL } = await fileApiRes.json();
+  if (!uploadURL) throw new Error("이미지 업로드 URL이 유효하지 않습니다.");
+  const form = new FormData();
+  form.append("file", file, name);
+  const uploadRes = await fetch(uploadURL, { method: "POST", body: form });
+  if (!uploadRes.ok) throw new Error("이미지 업로드에 실패했습니다.");
+  const uploadData = await uploadRes.json();
+  const id = uploadData?.result?.id;
+  if (!id) throw new Error("업로드 이미지 ID를 확인할 수 없습니다.");
+  return id as string;
+};
 
 const NAME_HELP = `닉네임은 최대 ${NICKNAME_MAX_LENGTH}글자까지 입력할 수 있어요.`;
 const CAMERA_PATHS = [
@@ -46,7 +63,10 @@ const requestCheckName = async (name: string, signal: AbortSignal): Promise<Chec
   return (await res.json()) as CheckNameResult;
 };
 
-/** 프로필 수정(앱 editProfile.tsx): 96 아바타 + 카메라 버튼, 닉네임 입력(h48 r8) + 사전 확인, 하단 고정 '저장'. */
+/**
+ * 프로필 수정(앱 editProfile.tsx): 맨 위 3:1 커버(v5) + 40 겹친 96 아바타 + 카메라 버튼, 닉네임 입력(h48 r8) + 사전 확인,
+ * 소개 300자, 대표 링크 1개(v5), 하단 고정 '저장'.
+ */
 const EditProfileClient = () => {
   const [isLoading, setIsLoading] = useState(false);
   const router = useRouter();
@@ -61,6 +81,13 @@ const EditProfileClient = () => {
   const [avatarFile, setAvatarFile] = useState<File | null>(null);
   const [localAvatarUrl, setLocalAvatarUrl] = useState("");
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const [bannerFile, setBannerFile] = useState<File | null>(null);
+  const [localBannerUrl, setLocalBannerUrl] = useState("");
+  const [bannerRemoved, setBannerRemoved] = useState(false);
+  const bannerInputRef = useRef<HTMLInputElement>(null);
+  const [linkDraft, setLinkDraft] = useState("");
+  const [hasEditedLink, setHasEditedLink] = useState(false);
+  const [linkError, setLinkError] = useState("");
 
   const checker = useMemo(
     () =>
@@ -82,6 +109,11 @@ const EditProfileClient = () => {
       if (localAvatarUrl) URL.revokeObjectURL(localAvatarUrl);
     };
   }, [localAvatarUrl]);
+  useEffect(() => {
+    return () => {
+      if (localBannerUrl) URL.revokeObjectURL(localBannerUrl);
+    };
+  }, [localBannerUrl]);
 
   const [editProfile] = useMutation<EditProfileResponse>(`/api/users/me`);
 
@@ -98,7 +130,7 @@ const EditProfileClient = () => {
     setNameError("");
   };
 
-  /** 150자를 넘는 입력(붙여넣기 포함)은 잘라 둔다. maxLength 는 이모지(서로게이트 쌍)를 2자로 센다. */
+  /** BIO_MAX 자를 넘는 입력(붙여넣기 포함)은 잘라 둔다. maxLength 는 이모지(서로게이트 쌍)를 2자로 센다. */
   const onBioChange = (next: string) => {
     setHasEditedBio(true);
     setBioDraft(countChars(next) > BIO_MAX ? Array.from(next).slice(0, BIO_MAX).join("") : next);
@@ -106,6 +138,32 @@ const EditProfileClient = () => {
   const currentBio = (user as { bio?: string | null } | undefined)?.bio ?? "";
   const bio = hasEditedBio ? bioDraft : currentBio;
   const hasBioChange = bioValue(bio) !== bioValue(currentBio);
+
+  const profileExtra = user as { profileBanner?: string | null; profileLink?: string | null } | undefined;
+  const currentLink = profileExtra?.profileLink ?? "";
+  const link = hasEditedLink ? linkDraft : currentLink;
+  const hasLinkChange = link.trim() !== currentLink;
+  const onLinkChange = (next: string) => {
+    setHasEditedLink(true);
+    setLinkDraft(next);
+    setLinkError("");
+  };
+
+  const currentBanner = profileExtra?.profileBanner ?? null;
+  const hasBannerChange = Boolean(bannerFile) || (bannerRemoved && Boolean(currentBanner));
+  const onBannerChange = (event: ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0] ?? null;
+    event.target.value = "";
+    if (!file) return;
+    setLocalBannerUrl(URL.createObjectURL(file));
+    setBannerFile(file);
+    setBannerRemoved(false);
+  };
+  const onBannerRemove = () => {
+    setLocalBannerUrl("");
+    setBannerFile(null);
+    setBannerRemoved(true);
+  };
 
   const onAvatarChange = (event: ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0] ?? null;
@@ -115,9 +173,10 @@ const EditProfileClient = () => {
 
   const hasNameChange = !!name.trim() && name.trim() !== user?.name;
   const canSubmit =
-    (hasNameChange || !!avatarFile || hasBioChange) &&
+    (hasNameChange || !!avatarFile || hasBioChange || hasLinkChange || hasBannerChange) &&
     !isLoading &&
     !nameError &&
+    !linkError &&
     !(hasNameChange && (nameCheck === "checking" || nameCheck === "unavailable"));
 
   const onSubmit = async (event: FormEvent<HTMLFormElement>) => {
@@ -132,7 +191,14 @@ const EditProfileClient = () => {
     const nextHasNameChange = !!nextName && nextName !== user.name;
     const nextBio = bioValue(bio);
     const nextHasBioChange = nextBio !== bioValue(currentBio);
-    if (!nextHasNameChange && !avatarFile && !nextHasBioChange) {
+    const linkResult = normalizeProfileLink(link);
+    if (!linkResult.ok) {
+      setLinkError(linkResult.message);
+      return;
+    }
+    const nextLink = linkResult.link;
+    const nextHasLinkChange = (nextLink ?? "") !== currentLink;
+    if (!nextHasNameChange && !avatarFile && !nextHasBioChange && !nextHasLinkChange && !hasBannerChange) {
       toast.info("변경된 내용이 없습니다.");
       return;
     }
@@ -142,23 +208,27 @@ const EditProfileClient = () => {
       name: nextHasNameChange ? nextName : null,
       avatarId: null as string | null,
       ...(nextHasBioChange ? { bio: nextBio || null } : {}),
+      ...(nextHasLinkChange ? { profileLink: nextLink } : {}),
+    } as {
+      name: string | null;
+      avatarId: string | null;
+      bio?: string | null;
+      profileLink?: string | null;
+      bannerId?: string | null;
     };
 
     try {
       if (avatarFile) {
-        const fileApiRes = await authFetch(`/api/files`);
-        if (!fileApiRes.ok) throw new Error("이미지 업로드 URL을 가져오지 못했습니다.");
-        const { uploadURL } = await fileApiRes.json();
-        if (!uploadURL) throw new Error("이미지 업로드 URL이 유효하지 않습니다.");
-
-        const form = new FormData();
-        form.append("file", avatarFile, user.id + "");
-        const uploadRes = await fetch(uploadURL, { method: "POST", body: form });
-        if (!uploadRes.ok) throw new Error("이미지 업로드에 실패했습니다.");
-        const uploadData = await uploadRes.json();
-        const id = uploadData?.result?.id;
-        if (!id) throw new Error("업로드 이미지 ID를 확인할 수 없습니다.");
-        editProfileBody.avatarId = id;
+        editProfileBody.avatarId = await uploadImage(avatarFile, user.id + "");
+      }
+      if (bannerFile) {
+        try {
+          editProfileBody.bannerId = await uploadImage(bannerFile, `${user.id}-banner`);
+        } catch {
+          throw new Error("커버 사진을 올리지 못했어요.");
+        }
+      } else if (bannerRemoved && currentBanner) {
+        editProfileBody.bannerId = null;
       }
 
       const result = await editProfile({ data: editProfileBody });
@@ -166,6 +236,7 @@ const EditProfileClient = () => {
         const message = result.error || result.message || "프로필 저장에 실패했습니다.";
         // 저장 직전에 다른 사람이 같은 닉네임을 가져간 경우 등: 입력칸 아래에도 남긴다.
         if (nextHasNameChange && message.includes("닉네임")) setNameError(message);
+        if (result.errorCode?.startsWith("LINK_")) setLinkError(message);
         toast.error(message);
         return;
       }
@@ -175,14 +246,15 @@ const EditProfileClient = () => {
         name: nextHasNameChange ? nextName : user.name,
         avatar: editProfileBody.avatarId ?? user.avatar,
         ...(nextHasBioChange ? { bio: nextBio || null } : {}),
+        ...(nextHasLinkChange ? { profileLink: nextLink } : {}),
+        ...("bannerId" in editProfileBody ? { profileBanner: editProfileBody.bannerId ?? null } : {}),
       };
       // 저장 직후 UI에서 바로 반영되도록 SWR 캐시를 먼저 갱신한다.
       await Promise.all([
         mutate((prev) => (prev ? { ...prev, profile: { ...prev.profile, ...nextProfile } } : prev), false),
         globalMutate(
           `/api/users/${user.id}`,
-          (prev: UserResponse | undefined) =>
-            prev?.user ? { ...prev, user: { ...prev.user, ...nextProfile } } : prev,
+          (prev: UserResponse | undefined) => (prev?.user ? { ...prev, user: { ...prev.user, ...nextProfile } } : prev),
           false
         ),
       ]);
@@ -205,13 +277,66 @@ const EditProfileClient = () => {
   }
 
   const previewSrc = localAvatarUrl || (user.avatar ? makeImageUrl(user.avatar, "avatar") : "");
+  const bannerSrc = localBannerUrl || (!bannerRemoved && currentBanner ? makeImageUrl(currentBanner, "public") : "");
 
   return (
     <form onSubmit={onSubmit} className="bg-app-bg">
-      <div className="px-5 pb-[calc(96px+env(safe-area-inset-bottom))] pt-8">
-        {/* 아바타 */}
-        <div className="flex justify-center">
-          <div className="relative h-24 w-24">
+      {/* 커버(v5): 전체 폭 3:1, 오른쪽 아래 '커버 변경'·'커버 삭제' 칩 */}
+      <div className="relative aspect-[3/1] w-full overflow-hidden bg-app-surface">
+        {bannerSrc ? (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img src={bannerSrc} alt="커버 사진" className="h-full w-full object-cover" />
+        ) : (
+          <span className="flex h-full w-full items-center justify-center text-app-caption">
+            <svg width={24} height={24} viewBox="0 0 24 24" fill="none" stroke="currentColor" aria-hidden="true">
+              <path
+                d="m2.25 15.75 5.159-5.159a2.25 2.25 0 0 1 3.182 0l5.159 5.159m-1.5-1.5 1.409-1.409a2.25 2.25 0 0 1 3.182 0l2.909 2.909m-18 3.75h16.5a1.5 1.5 0 0 0 1.5-1.5V6a1.5 1.5 0 0 0-1.5-1.5H3.75A1.5 1.5 0 0 0 2.25 6v12a1.5 1.5 0 0 0 1.5 1.5Zm10.5-11.25h.008v.008h-.008V8.25Zm.375 0a.375.375 0 1 1-.75 0 .375.375 0 0 1 .75 0Z"
+                strokeWidth={1.5}
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              />
+            </svg>
+          </span>
+        )}
+        <div className="absolute bottom-2.5 right-3 flex gap-1.5">
+          {bannerSrc ? (
+            <button
+              type="button"
+              disabled={isLoading}
+              onClick={onBannerRemove}
+              className="flex h-7 items-center rounded-full border border-app-border bg-app-bg px-2.5 text-[12px] font-semibold text-app-text"
+            >
+              커버 삭제
+            </button>
+          ) : null}
+          <button
+            type="button"
+            disabled={isLoading}
+            onClick={() => bannerInputRef.current?.click()}
+            className="flex h-7 items-center gap-1 rounded-full border border-app-border bg-app-bg px-2.5 text-[12px] font-semibold text-app-text"
+          >
+            <svg width={14} height={14} viewBox="0 0 24 24" fill="none" stroke="currentColor" aria-hidden="true">
+              {CAMERA_PATHS.map((d) => (
+                <path key={d} d={d} strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round" />
+              ))}
+            </svg>
+            {bannerSrc ? "커버 변경" : "커버 추가"}
+          </button>
+        </div>
+        <input
+          ref={bannerInputRef}
+          type="file"
+          className="hidden"
+          accept="image/*"
+          disabled={isLoading}
+          onChange={onBannerChange}
+        />
+      </div>
+
+      <div className="px-5 pb-[calc(96px+env(safe-area-inset-bottom))]">
+        {/* 아바타 — 커버 아래로 40 겹친다 */}
+        <div className="relative z-[1] -mt-10 flex justify-center">
+          <div className="relative h-24 w-24 rounded-full bg-app-bg ring-[3px] ring-app-bg">
             <div className="flex h-24 w-24 items-center justify-center overflow-hidden rounded-full bg-app-surface">
               {previewSrc ? (
                 <Image
@@ -295,6 +420,38 @@ const EditProfileClient = () => {
           />
           <p className="mt-2 text-right text-[13px] text-app-muted">
             {countChars(bio)}/{BIO_MAX}
+          </p>
+        </div>
+
+        {/* 대표 링크(v5) */}
+        <div className="mt-6">
+          <label htmlFor="profile-link" className="mb-2 block text-[15px] font-semibold text-app-text">
+            대표 링크
+          </label>
+          <input
+            id="profile-link"
+            type="url"
+            inputMode="url"
+            autoCapitalize="none"
+            autoCorrect="off"
+            value={link}
+            onChange={(event) => onLinkChange(event.target.value)}
+            disabled={isLoading}
+            placeholder="https://"
+            maxLength={PROFILE_LINK_MAX}
+            aria-invalid={Boolean(linkError)}
+            aria-describedby="profile-link-help"
+            className={cn(
+              "h-12 w-full rounded-lg border bg-app-bg px-3.5 text-[15px] text-app-text outline-none placeholder:text-app-caption focus:ring-0",
+              linkError ? "border-app-danger focus:border-app-danger" : "border-app-border focus:border-app-text"
+            )}
+          />
+          <p
+            id="profile-link-help"
+            aria-live="polite"
+            className={cn("mt-2 text-[13px]", linkError ? "text-app-danger" : "text-app-muted")}
+          >
+            {linkError || "블로그·유튜브·인스타그램 주소 하나를 적을 수 있어요"}
           </p>
         </div>
       </div>

@@ -88,8 +88,12 @@ model User {
   email           String?     @unique
   name            String      @unique
   avatar          String?
-  /// 프로필 소개(최대 150자, libs/shared/profile.ts normalizeBio). 비우면 null. (docs/prd: 앱 profile.md)
+  /// 프로필 소개(최대 300자, libs/shared/profile.ts normalizeBio). 비우면 null. (docs/prd: 앱 profile.md)
   bio             String?
+  /// 프로필 커버(배너) 이미지 Cloudflare id. 3:1 로 잘라 보여 준다. 비우면 null. (앱 profile.md v5)
+  profileBanner   String?
+  /// 프로필 대표 링크(http/https, 최대 300자, libs/shared/profile.ts normalizeProfileLink). 비우면 null.
+  profileLink     String?
   /// 고정(Pin)한 관심 카테고리 id 목록. 비어 있으면 전체 보기. (docs/prd: 카테고리 고정)
   pinnedCategoryIds Int[]     @default([])
   /// 관심 카테고리 온보딩을 마친(건너뛴 것 포함) 시각. 앱·웹 어디서든 한 번 마치면 다시 묻지 않는다(앱 docs/parity 대응표 O-1).
