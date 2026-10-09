@@ -3,20 +3,69 @@ import withHandler, { ResponseType } from "@libs/server/withHandler";
 import { withAuth } from "@libs/server/auth";
 import { issueTokens, toAuthUser } from "@libs/server/jwt";
 import client from "@libs/server/client";
-import { role as UserRole, UserStatus } from "@prisma/client";
+import { Prisma, role as UserRole, UserStatus } from "@prisma/client";
 import { canRunSensitiveAdminAction, hasAdminAccess } from "@libs/server/adminAccess";
 import { randomUUID } from "crypto";
 import { deleteAccount } from "@libs/server/accountDeletion";
-import { setUserStatus } from "@libs/server/accountStatus";
+import { isSuspendedStatus } from "@libs/server/accountStatus";
+import { isSanctionError, issueSanction, type IssueSanctionInput } from "@libs/server/sanctions";
+import { SANCTION_COUNT_WINDOW_DAYS, isSanctionReasonCode } from "@libs/shared/sanction";
 
 const ROLE_OPTIONS: UserRole[] = ["USER", "FAKE_USER", "ADMIN", "SUPER_USER"];
 const STATUS_OPTIONS: UserStatus[] = [
   "ACTIVE",
   "BANNED",
+  "SUSPENDED",
   "SUSPENDED_7D",
   "SUSPENDED_30D",
   "DELETED",
 ];
+
+/** 유저 목록 상태 필터. SUSPENDED 는 새 기간 정지와 옛 7일·30일 정지를 함께 본다. */
+const STATUS_FILTERS: Record<string, Prisma.UserWhereInput> = {
+  ACTIVE: { status: "ACTIVE" },
+  SUSPENDED: { status: { in: ["SUSPENDED", "SUSPENDED_7D", "SUSPENDED_30D"] } },
+  BANNED: { status: "BANNED" },
+  DELETED: { status: "DELETED" },
+};
+
+export const ADMIN_USERS_PAGE_SIZE = 20;
+
+/** 구 update_status 경로가 사유 없이 오면 쓰는 대상자 메시지('기타' 사유는 메시지가 필요하다). */
+const LEGACY_STATUS_MESSAGE = "운영정책 위반이 확인되었어요.";
+
+const SUPER_ADMIN_ONLY_ERROR = "최고 관리자만 할 수 있어요.";
+
+/** 역할 변경·다른 계정 로그인·계정 삭제는 허용 목록의 최고 관리자만 한다(PRD F-11). */
+async function isSuperAdmin(userId: number | undefined) {
+  if (!userId) return false;
+  const me = await client.user.findUnique({ where: { id: userId }, select: { email: true } });
+  return canRunSensitiveAdminAction(me?.email);
+}
+
+function searchWhere(q: string): Prisma.UserWhereInput | undefined {
+  const keyword = q.trim();
+  if (!keyword) return undefined;
+  const or: Prisma.UserWhereInput[] = [
+    { name: { contains: keyword, mode: "insensitive" } },
+    { email: { contains: keyword, mode: "insensitive" } },
+  ];
+  const id = Number(keyword);
+  if (Number.isInteger(id) && id > 0) or.push({ id });
+  return { OR: or };
+}
+
+/** update_status 의 상태 값을 제재로 옮긴다. ACTIVE 는 해제, 정지는 일수, 차단은 영구 정지. */
+function statusToSanction(
+  status: Exclude<UserStatus, "DELETED">,
+  days: unknown
+): Pick<IssueSanctionInput, "type" | "days"> {
+  if (status === "ACTIVE") return { type: "LIFT" };
+  if (status === "BANNED") return { type: "BAN" };
+  if (status === "SUSPENDED_7D") return { type: "SUSPENSION", days: 7 };
+  if (status === "SUSPENDED_30D") return { type: "SUSPENSION", days: 30 };
+  return { type: "SUSPENSION", days: Number(days) };
+}
 
 /**
  * 탈퇴 처리는 snsId 를 해시로 바꾸고 30일 뒤 원문을 파기해, 차단 계정이 같은 소셜 계정으로 재가입할 수 있게 된다.
@@ -38,12 +87,56 @@ async function handler(req: NextApiRequest, res: NextApiResponse<ResponseType>) 
   }
 
   if (req.method === "GET") {
-    const users = await client.user.findMany({
-      orderBy: { createdAt: "desc" },
-      take: 100,
-    });
+    const q = typeof req.query.q === "string" ? req.query.q : "";
+    const statusKey = typeof req.query.status === "string" ? req.query.status : "";
+    const page = Math.max(1, Math.floor(Number(req.query.page) || 1));
+    const filters = [searchWhere(q), STATUS_FILTERS[statusKey]].filter(
+      (value): value is Prisma.UserWhereInput => Boolean(value)
+    );
+    const where: Prisma.UserWhereInput = filters.length ? { AND: filters } : {};
 
-    return res.json({ success: true, users });
+    const [total, users] = await Promise.all([
+      client.user.count({ where }),
+      client.user.findMany({
+        where,
+        orderBy: { createdAt: "desc" },
+        skip: (page - 1) * ADMIN_USERS_PAGE_SIZE,
+        take: ADMIN_USERS_PAGE_SIZE,
+        select: {
+          id: true,
+          name: true,
+          email: true,
+          avatar: true,
+          provider: true,
+          role: true,
+          status: true,
+          suspendedUntil: true,
+          createdAt: true,
+        },
+      }),
+    ]);
+
+    const since = new Date(Date.now() - SANCTION_COUNT_WINDOW_DAYS * 24 * 60 * 60 * 1000);
+    const counts = users.length
+      ? await client.userSanction.groupBy({
+          by: ["userId"],
+          where: {
+            userId: { in: users.map((row) => row.id) },
+            type: { in: ["WARNING", "SUSPENSION"] },
+            createdAt: { gte: since },
+          },
+          _count: { _all: true },
+        })
+      : [];
+    const countByUser = new Map(counts.map((row) => [row.userId, row._count._all]));
+
+    return res.json({
+      success: true,
+      users: users.map((row) => ({ ...row, recentSanctionCount: countByUser.get(row.id) ?? 0 })),
+      total,
+      page,
+      pageSize: ADMIN_USERS_PAGE_SIZE,
+    });
   }
 
   if (req.method === "POST") {
@@ -123,6 +216,9 @@ async function handler(req: NextApiRequest, res: NextApiResponse<ResponseType>) 
     }
 
     if (action === "switch_user_session") {
+      if (!(await isSuperAdmin(user?.id))) {
+        return res.status(403).json({ success: false, error: SUPER_ADMIN_ONLY_ERROR });
+      }
       const targetUserId = Number(userId);
       if (!targetUserId || Number.isNaN(targetUserId)) {
         return res
@@ -222,6 +318,9 @@ async function handler(req: NextApiRequest, res: NextApiResponse<ResponseType>) 
     }
 
     if (action === "update_role") {
+      if (!(await isSuperAdmin(user?.id))) {
+        return res.status(403).json({ success: false, error: SUPER_ADMIN_ONLY_ERROR });
+      }
       if (!role || !ROLE_OPTIONS.includes(role)) {
         return res
           .status(400)
@@ -269,6 +368,9 @@ async function handler(req: NextApiRequest, res: NextApiResponse<ResponseType>) 
 
       // DELETED 는 상태값만 바꾸면 개인정보가 남고 재로그인도 막지 못하므로 탈퇴 처리와 같게 한다.
       if (status === "DELETED") {
+        if (!(await isSuperAdmin(user?.id))) {
+          return res.status(403).json({ success: false, error: SUPER_ADMIN_ONLY_ERROR });
+        }
         if (targetUser.status === "BANNED") {
           return res.status(400).json({ success: false, error: BANNED_DELETE_ERROR });
         }
@@ -284,20 +386,41 @@ async function handler(req: NextApiRequest, res: NextApiResponse<ResponseType>) 
         return res.json({ success: true });
       }
 
-      // 정지·차단은 tokenVersion 을 올려 대상의 모든 토큰을 즉시 끊는다.
-      // 조회 뒤 탈퇴됐으면 setUserStatus 가 바꾸지 않는다.
-      const applied = await setUserStatus(client, targetUserId, status);
-      if (!applied) {
-        return res.status(400).json({
-          success: false,
-          error: "탈퇴한 계정의 상태는 변경할 수 없습니다.",
-        });
+      // 정지·차단이 아닌 계정을 ACTIVE 로 바꾸는 요청은 할 일이 없다.
+      if (status === "ACTIVE" && targetUser.status !== "BANNED" && !isSuspendedStatus(targetUser.status)) {
+        return res.json({ success: true });
       }
 
-      return res.json({ success: true });
+      // 정지·차단·해제는 제재 서비스로 보내 이력(UserSanction)과 대상자 알림을 남긴다(PRD AC-31).
+      const reasonCode = isSanctionReasonCode(req.body.reasonCode) ? req.body.reasonCode : "OTHER";
+      const messageToUser =
+        typeof req.body.messageToUser === "string" && req.body.messageToUser.trim()
+          ? req.body.messageToUser
+          : reasonCode === "OTHER" && status !== "ACTIVE"
+            ? LEGACY_STATUS_MESSAGE
+            : null;
+      try {
+        const result = await issueSanction({
+          actorId: user!.id,
+          userId: targetUserId,
+          ...statusToSanction(status, req.body.days),
+          reasonCode,
+          messageToUser,
+          internalNote: typeof req.body.internalNote === "string" ? req.body.internalNote : null,
+        });
+        return res.json({ success: true, sanction: result.sanction, user: result.user });
+      } catch (error) {
+        if (isSanctionError(error)) {
+          return res.status(error.status).json({ success: false, error: error.message, errorCode: error.code });
+        }
+        throw error;
+      }
     }
 
     if (action === "delete") {
+      if (!(await isSuperAdmin(user?.id))) {
+        return res.status(403).json({ success: false, error: SUPER_ADMIN_ONLY_ERROR });
+      }
       if (Number(userId) === user?.id) {
         return res
           .status(400)

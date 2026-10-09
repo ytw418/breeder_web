@@ -4,10 +4,19 @@ import { authFetch } from "@libs/client/authFetch";
 import Layout, { toLoginHref } from "@components/features/MainLayout";
 import ConfirmDialog from "@components/atoms/ConfirmDialog";
 import { cn } from "@libs/client/utils";
+import Toggle from "@components/app/Toggle";
 import { toast } from "@libs/client/toast";
 import { PRIVACY_POLICY_URL, TERMS_OF_SERVICE_URL } from "@libs/constants";
 import useUser from "hooks/useUser";
 import useCategoryScope from "hooks/useCategoryScope";
+import { formatRegion, regionOf } from "@libs/shared/regions";
+import {
+  PUSH_SUBSCRIPTION_KEY,
+  WebPushPermissionError,
+  disableWebPush,
+  enableWebPush,
+  type PushSubscriptionStatusResponse,
+} from "@libs/client/webPush";
 import useLogout from "hooks/useLogout";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -16,25 +25,11 @@ import { type ReactNode, useEffect, useMemo, useState } from "react";
 import { useTheme } from "next-themes";
 import { version as APP_VERSION } from "../../../package.json";
 
-interface PushSubscriptionStatusResponse {
-  success: boolean;
-  error?: string;
-  configured: boolean;
-  subscribed: boolean;
-  vapidPublicKey: string;
-}
-
 interface PushTestResponse {
   success: boolean;
   error?: string;
   configured: boolean;
   subscriptionCount: number;
-}
-
-interface PushSubscriptionUpsertBody {
-  action: "subscribe" | "unsubscribe";
-  token?: string;
-  userAgent?: string;
 }
 
 type ThemePreference = "light" | "dark" | "system";
@@ -50,6 +45,10 @@ const THEME_OPTIONS: { value: ThemePreference; label: string }[] = [
 /* ------------------------------------------------------------------ */
 
 const ICON_PATHS = {
+  pin: [
+    "M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z",
+    "M15 11a3 3 0 11-6 0 3 3 0 016 0z",
+  ],
   grid: [
     "M3.75 6A2.25 2.25 0 016 3.75h2.25A2.25 2.25 0 0110.5 6v2.25a2.25 2.25 0 01-2.25 2.25H6a2.25 2.25 0 01-2.25-2.25V6zM3.75 15.75A2.25 2.25 0 016 13.5h2.25a2.25 2.25 0 012.25 2.25V18a2.25 2.25 0 01-2.25 2.25H6A2.25 2.25 0 013.75 18v-2.25zM13.5 6a2.25 2.25 0 012.25-2.25H18A2.25 2.25 0 0120.25 6v2.25A2.25 2.25 0 0118 10.5h-2.25a2.25 2.25 0 01-2.25-2.25V6zM13.5 15.75a2.25 2.25 0 012.25-2.25H18a2.25 2.25 0 012.25 2.25V18A2.25 2.25 0 0118 20.25h-2.25A2.25 2.25 0 0113.5 18v-2.25z",
   ],
@@ -181,40 +180,6 @@ function Row({
   return <div className={className}>{content}</div>;
 }
 
-/** 켜짐/꺼짐 스위치(켜짐 brand). */
-function Toggle({
-  checked,
-  disabled,
-  onChange,
-  label,
-}: {
-  checked: boolean;
-  disabled?: boolean;
-  onChange: () => void;
-  label: string;
-}) {
-  return (
-    <button
-      type="button"
-      role="switch"
-      aria-checked={checked}
-      aria-label={label}
-      disabled={disabled}
-      onClick={onChange}
-      className={cn(
-        "relative ml-3 h-[28px] w-[48px] shrink-0 rounded-full transition-colors disabled:opacity-50",
-        checked ? "bg-app-brand" : "bg-app-border"
-      )}
-    >
-      <span
-        className={cn(
-          "absolute top-[3px] h-[22px] w-[22px] rounded-full bg-[#fff] shadow-card transition-[left]",
-          checked ? "left-[23px]" : "left-[3px]"
-        )}
-      />
-    </button>
-  );
-}
 
 const SettingsClient = () => {
   const router = useRouter();
@@ -235,7 +200,7 @@ const SettingsClient = () => {
     mutate: mutatePushStatus,
     error: pushStatusError,
     isLoading: isPushStatusLoading,
-  } = useSWR<PushSubscriptionStatusResponse>(user ? "/api/push/subscription" : null);
+  } = useSWR<PushSubscriptionStatusResponse>(user ? PUSH_SUBSCRIPTION_KEY : null);
 
   useEffect(() => {
     setThemeMounted(true);
@@ -282,52 +247,6 @@ const SettingsClient = () => {
     };
   }, []);
 
-  // SW가 아직 등록되지 않은 환경(개발/최초 진입)에서도 푸시 설정이 멈추지 않도록 보장한다.
-  const ensureServiceWorkerReady = async () => {
-    if (!("serviceWorker" in navigator)) {
-      throw new Error("현재 브라우저는 서비스워커를 지원하지 않습니다.");
-    }
-    let registration = await navigator.serviceWorker.getRegistration();
-    if (!registration) {
-      registration = await navigator.serviceWorker.register("/sw.js");
-    }
-    return navigator.serviceWorker.ready;
-  };
-
-  // 푸시 구독 API 응답을 공통 처리한다. HTTP 오류/업무 오류를 모두 에러로 승격한다.
-  const requestPushApi = async (body: PushSubscriptionUpsertBody) => {
-    const res = await authFetch("/api/push/subscription", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(body),
-    });
-    const result = (await res.json().catch(() => null)) as PushSubscriptionStatusResponse | null;
-    if (!res.ok || !result?.success) {
-      throw new Error(result?.error || "푸시 알림 설정 요청에 실패했습니다.");
-    }
-    return result;
-  };
-
-  // Firebase 메시징 SDK는 브라우저 환경에서만 로드한다.
-  const getMessagingTools = async () => {
-    const [{ app }, messagingModule] = await Promise.all([import("@/firebase"), import("firebase/messaging")]);
-    return {
-      messaging: messagingModule.getMessaging(app),
-      getToken: messagingModule.getToken,
-      deleteToken: messagingModule.deleteToken,
-    };
-  };
-
-  const getValidatedVapidKey = () => {
-    const raw = pushStatus?.vapidPublicKey || "";
-    const normalized = raw.trim().replace(/^['"]|['"]$/g, "").replace(/\s+/g, "");
-    // 잘못된 값(예: FCM 토큰 AAA...:APA...)을 조기 차단해 atob 오류를 예방한다.
-    if (!normalized || !/^[A-Za-z0-9\-_]+$/.test(normalized) || normalized.length < 80) {
-      throw new Error("VAPID 공개키 형식이 올바르지 않습니다. Firebase 웹 푸시 인증서 키를 다시 확인해 주세요.");
-    }
-    return normalized;
-  };
-
   const handleTogglePush = async () => {
     if (pushLoading || isPushStatusLoading) return;
     if (!user) {
@@ -339,52 +258,19 @@ const SettingsClient = () => {
     setShowPermissionGuide(false);
 
     try {
-      if (!("serviceWorker" in navigator) || !("Notification" in window)) {
-        throw new Error("현재 브라우저는 알림 기능을 지원하지 않습니다.");
-      }
-      if (!pushStatus?.configured || !pushStatus?.vapidPublicKey) {
-        throw new Error("FCM 푸시 서버 설정이 완료되지 않았습니다.");
-      }
-      const vapidKey = getValidatedVapidKey();
-      const registration = await ensureServiceWorkerReady();
-      const { messaging, getToken, deleteToken } = await getMessagingTools();
-
-      if (pushStatus.subscribed) {
+      if (pushStatus?.subscribed) {
         // 해제 시 브라우저 토큰 삭제 + 서버 토큰 삭제를 모두 수행한다.
-        const token =
-          currentPushToken ||
-          (await getToken(messaging, { vapidKey, serviceWorkerRegistration: registration }).catch(() => ""));
-        if (token) {
-          await deleteToken(messaging).catch(() => undefined);
-          await requestPushApi({ action: "unsubscribe", token });
-        } else {
-          await requestPushApi({ action: "unsubscribe" });
-        }
+        await disableWebPush(pushStatus, currentPushToken);
         setCurrentPushToken("");
         await mutatePushStatus();
         return;
       }
-
-      // 브라우저에서 이미 '차단(denied)' 상태면 안내를 먼저 보인다.
-      if (Notification.permission === "denied") {
-        setShowPermissionGuide(true);
-        throw new Error("알림 권한이 차단되어 있습니다. 아래 안내대로 권한을 허용해 주세요.");
-      }
-      const permission = await Notification.requestPermission();
-      if (permission !== "granted") {
-        if (permission === "denied") setShowPermissionGuide(true);
-        throw new Error("알림 권한이 거부되어 설정할 수 없습니다.");
-      }
-
-      const token = await getToken(messaging, { vapidKey, serviceWorkerRegistration: registration });
-      if (!token) {
-        throw new Error("FCM 토큰 발급에 실패했습니다. 잠시 후 다시 시도해 주세요.");
-      }
-      await requestPushApi({ action: "subscribe", token, userAgent: navigator.userAgent });
+      const token = await enableWebPush(user.id, pushStatus);
       setCurrentPushToken(token);
       await mutatePushStatus();
       toast.success("알림이 켜졌습니다.");
     } catch (error) {
+      if (error instanceof WebPushPermissionError && error.permission === "denied") setShowPermissionGuide(true);
       setPushErrorMessage(error instanceof Error ? error.message : "푸시 알림 설정에 실패했습니다.");
     } finally {
       setPushLoading(false);
@@ -424,8 +310,16 @@ const SettingsClient = () => {
           chevron
           href={user?.id ? `/profiles/${user.id}/sales` : "/myPage"}
         />
+        <Row
+          label="내 동네"
+          icon="pin"
+          value={formatRegion(regionOf(user)) ?? "설정 안 함"}
+          chevron
+          href={user ? "/settings/region" : toLoginHref("/settings/region")}
+        />
         <Row label="관심 카테고리" icon="grid" value={scope.label} chevron href="/settings/categories" />
         <Row label="차단 관리" icon="shield" chevron href="/settings/blocked-users" />
+        <Row label="내 제재 내역" icon="document" chevron href="/settings/sanctions" />
         <Row label="회원탈퇴" icon="support" chevron href="/settings/delete-account" />
 
         <SectionGap />

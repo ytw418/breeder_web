@@ -6,9 +6,17 @@ const mockClient = {
     findMany: jest.fn(),
     findUnique: jest.fn(),
     update: jest.fn(),
+    updateMany: jest.fn(),
   },
-  post: { findMany: jest.fn(), findUnique: jest.fn(), delete: jest.fn() },
-  comment: { findMany: jest.fn(), findUnique: jest.fn(), delete: jest.fn() },
+  post: { findMany: jest.fn(), findUnique: jest.fn(), update: jest.fn(), delete: jest.fn() },
+  // 댓글 삭제는 답글까지 지운다(deleteMany parentId) — libs/server/comments.deleteCommentWithReplies
+  comment: {
+    findMany: jest.fn(),
+    findUnique: jest.fn(),
+    delete: jest.fn(),
+    deleteMany: jest.fn(),
+    count: jest.fn(),
+  },
   product: { findMany: jest.fn(), findUnique: jest.fn(), update: jest.fn() },
   moderationLog: { create: jest.fn() },
   user: { findMany: jest.fn(), update: jest.fn(), updateMany: jest.fn() },
@@ -19,9 +27,29 @@ jest.mock("@libs/server/client", () => ({
   __esModule: true,
   default: mockClient,
 }));
+const mockCreateNotification = jest.fn();
 jest.mock("@libs/server/notification", () => ({
-  createNotification: jest.fn(),
+  createNotification: (...args: unknown[]) => mockCreateNotification(...args),
 }));
+
+const mockIssueSanction = jest.fn();
+jest.mock("@libs/server/sanctions", () => {
+  class SanctionError extends Error {
+    constructor(
+      readonly status: number,
+      message: string,
+      readonly code: string
+    ) {
+      super(message);
+      Object.setPrototypeOf(this, SanctionError.prototype);
+    }
+  }
+  return {
+    SanctionError,
+    isSanctionError: (error: unknown) => error instanceof SanctionError,
+    issueSanction: (...args: unknown[]) => mockIssueSanction(...args),
+  };
+});
 jest.mock("@libs/server/auth", () => ({
   withAuth: (handler: unknown) => handler,
 }));
@@ -304,171 +332,274 @@ describe("POST /api/admin/reports 처리", () => {
   const decide = (body: Record<string, unknown>) =>
     call(adminReportsHandler, { method: "POST", user: admin, body });
 
-  const openReport = (targetType: TargetType, targetId: number) => {
+  const openReport = (targetType: TargetType, targetId: number, extra: Record<string, unknown> = {}) => {
     mockClient.report.findUnique.mockResolvedValue({
       id: 5,
       status: "OPEN",
       targetType,
       targetId,
       reportedUserId: 9,
+      reporterId: 7,
+      reason: "스팸·광고",
+      ...extra,
     });
   };
 
-  it("신고 기각에 제재 액션을 붙이면 400", async () => {
+  beforeEach(() => {
+    mockClient.report.updateMany.mockResolvedValue({ count: 1 });
+    mockClient.report.findMany.mockImplementation(({ where }: { where: { id?: { in: number[] } } }) =>
+      Promise.resolve((where.id?.in ?? []).map((id) => reportRow(id, "POST", 30)))
+    );
+    mockIssueSanction.mockResolvedValue({ sanction: { id: 100 }, user: { status: "SUSPENDED", suspendedUntil: null } });
+  });
+
+  it("신고 기각에 조치를 붙이면 400 이고 아무것도 바꾸지 않는다(AC-19)", async () => {
     openReport("POST", 30);
-    const res = await decide({ reportId: 5, decision: "REJECTED", action: "BAN_USER" });
-    expect(res.statusCode).toBe(400);
-    expect(mockClient.user.updateMany).not.toHaveBeenCalled();
-    expect(mockClient.report.update).not.toHaveBeenCalled();
+    for (const body of [
+      { reportId: 5, decision: "REJECTED", action: "BAN_USER" },
+      { reportId: 5, decision: "REJECTED", contentAction: "HIDE" },
+      { reportId: 5, decision: "REJECTED", userAction: { type: "WARNING", reasonCode: "SPAM" } },
+    ]) {
+      const res = await decide(body);
+      expect(res.statusCode).toBe(400);
+    }
+    expect(mockClient.report.updateMany).not.toHaveBeenCalled();
+    expect(mockIssueSanction).not.toHaveBeenCalled();
   });
 
   it.each([
-    ["CHAT_ROOM", "REMOVE_CONTENT"],
-    ["USER", "REMOVE_CONTENT"],
-    ["CHAT_ROOM", "REMOVE_CONTENT_AND_BAN"],
-    ["USER", "REMOVE_CONTENT_AND_BAN"],
-  ] as const)("%s 대상에 %s 는 400", async (targetType, action) => {
+    ["CHAT_ROOM", { action: "REMOVE_CONTENT" }],
+    ["USER", { action: "REMOVE_CONTENT_AND_BAN" }],
+    ["CHAT_ROOM", { contentAction: "HIDE" }],
+    ["USER", { contentAction: "DELETE" }],
+  ] as const)("%s 대상에 콘텐츠 조치 %j 는 400", async (targetType, body) => {
     openReport(targetType, 55);
-    const res = await decide({ reportId: 5, decision: "RESOLVED", action });
+    const res = await decide({ reportId: 5, decision: "RESOLVED", ...body });
     expect(res.statusCode).toBe(400);
-    expect(mockClient.user.updateMany).not.toHaveBeenCalled();
-    expect(mockClient.report.update).not.toHaveBeenCalled();
+    expect(mockClient.report.updateMany).not.toHaveBeenCalled();
+  });
+
+  it("잘못된 조치 값은 400", async () => {
+    openReport("POST", 30);
+    expect((await decide({ reportId: 5, decision: "RESOLVED", contentAction: "BURN" })).statusCode).toBe(400);
+    expect((await decide({ reportId: 5, decision: "RESOLVED", userAction: { type: "LIFT" } })).statusCode).toBe(400);
+    expect(
+      (await decide({ reportId: 5, decision: "RESOLVED", userAction: { type: "SUSPENSION", days: 5 } })).statusCode
+    ).toBe(400);
   });
 
   it("없는 신고는 404", async () => {
-    const res = await decide({ reportId: 5, decision: "RESOLVED", action: "NONE" });
+    const res = await decide({ reportId: 5, decision: "RESOLVED" });
     expect(res.statusCode).toBe(404);
   });
 
-  it("이미 처리된 신고는 400, 조치를 다시 하지 않는다", async () => {
-    mockClient.report.findUnique.mockResolvedValue({
-      id: 5,
-      status: "RESOLVED",
-      targetType: "POST",
-      targetId: 30,
-      reportedUserId: 9,
-    });
-    const res = await decide({ reportId: 5, decision: "RESOLVED", action: "REMOVE_CONTENT" });
-    expect(res.statusCode).toBe(400);
-    expect(mockClient.post.delete).not.toHaveBeenCalled();
-    expect(mockClient.report.update).not.toHaveBeenCalled();
-  });
-
-  it("게시글 콘텐츠 삭제 → post.delete, 신고 상태 갱신", async () => {
-    openReport("POST", 30);
-    const res = await decide({
-      reportId: 5,
-      decision: "RESOLVED",
-      action: "REMOVE_CONTENT",
-      note: "  광고 삭제  ",
-    });
-    expect(res.statusCode).toBe(200);
-    expect(mockClient.post.delete).toHaveBeenCalledWith({ where: { id: 30 } });
-    // 신고 처리 조치도 운영자 조치 기록에 신고 id 와 함께 남는다.
-    expect(mockClient.moderationLog.create).toHaveBeenCalledWith({
-      data: expect.objectContaining({
-        actorId: 1,
-        targetType: "POST",
-        targetId: 30,
-        targetUserId: 9,
-        action: "DELETE",
-        reportId: 5,
-        snapshot: { title: "문제 게시글", excerpt: "광고 내용입니다" },
-      }),
-    });
-    expect(mockClient.user.updateMany).not.toHaveBeenCalled();
-    const update = mockClient.report.update.mock.calls[0][0];
-    expect(update.where).toEqual({ id: 5 });
-    expect(update.data).toEqual({
-      status: "RESOLVED",
-      resolutionAction: "REMOVE_CONTENT",
-      resolutionNote: "광고 삭제",
-      resolvedBy: 1,
-      resolvedAt: expect.any(Date),
-    });
-    expect(res.body.success).toBe(true);
-    expect(res.body.reports).toHaveLength(1);
-    expect(res.body.reports[0].id).toBe(5);
-    expect(res.body.reports[0].target).toBeDefined();
-    expect(res.body.counts).toEqual({ OPEN: 2, RESOLVED: 1, REJECTED: 0 });
-  });
-
-  it("댓글 콘텐츠 삭제 → comment.delete", async () => {
-    openReport("COMMENT", 31);
-    const res = await decide({ reportId: 5, decision: "RESOLVED", action: "REMOVE_CONTENT" });
-    expect(res.statusCode).toBe(200);
-    expect(mockClient.comment.delete).toHaveBeenCalledWith({ where: { id: 31 } });
-  });
-
-  it("상품 콘텐츠 삭제 → hard delete 대신 isHidden=true", async () => {
-    openReport("PRODUCT", 40);
-    const res = await decide({ reportId: 5, decision: "RESOLVED", action: "REMOVE_CONTENT" });
-    expect(res.statusCode).toBe(200);
-    expect(mockClient.product.update).toHaveBeenCalledWith({
-      where: { id: 40 },
-      data: { isHidden: true },
-    });
-  });
-
-  it("유저 영구정지 → setUserStatus 로 BANNED + tokenVersion 증가", async () => {
-    openReport("CHAT_ROOM", 55);
-    const res = await decide({ reportId: 5, decision: "RESOLVED", action: "BAN_USER" });
-    expect(res.statusCode).toBe(200);
-    expect(mockClient.user.updateMany).toHaveBeenCalledWith({
-      where: { id: 9, status: { not: "DELETED" } },
-      data: { status: "BANNED", suspendedUntil: null, tokenVersion: { increment: 1 } },
-    });
-    expect(mockClient.post.delete).not.toHaveBeenCalled();
-  });
-
-  it("삭제+정지 → 콘텐츠 삭제와 정지를 모두 한다", async () => {
-    openReport("POST", 30);
-    const res = await decide({
-      reportId: 5,
-      decision: "RESOLVED",
-      action: "REMOVE_CONTENT_AND_BAN",
-    });
-    expect(res.statusCode).toBe(200);
-    expect(mockClient.post.delete).toHaveBeenCalledWith({ where: { id: 30 } });
-    expect(mockClient.user.updateMany).toHaveBeenCalledWith({
-      where: { id: 9, status: { not: "DELETED" } },
-      data: { status: "BANNED", suspendedUntil: null, tokenVersion: { increment: 1 } },
-    });
-  });
-
-  it("콘텐츠가 이미 지워졌으면(P2025) 삭제는 건너뛰고 처리 완료한다", async () => {
-    openReport("POST", 30);
-    mockClient.post.delete.mockRejectedValue(Object.assign(new Error("not found"), { code: "P2025" }));
-    const res = await decide({ reportId: 5, decision: "RESOLVED", action: "REMOVE_CONTENT" });
-    expect(res.statusCode).toBe(200);
-    expect(mockClient.report.update).toHaveBeenCalled();
+  it("이미 처리된 신고는 409, 조치를 다시 하지 않는다(E-4)", async () => {
+    openReport("POST", 30, { status: "RESOLVED" });
+    const res = await decide({ reportId: 5, decision: "RESOLVED", contentAction: "HIDE" });
+    expect(res.statusCode).toBe(409);
+    expect(res.body.errorCode).toBe("REPORT_ALREADY_RESOLVED");
+    expect(mockClient.post.update).not.toHaveBeenCalled();
     expect(mockClient.moderationLog.create).not.toHaveBeenCalled();
   });
 
-  it("콘텐츠를 조회할 때부터 없으면 조치 없이 처리 완료한다", async () => {
+  it("동시에 처리돼 차지하지 못하면 409 이고 조치하지 않는다(AC-18)", async () => {
     openReport("POST", 30);
-    mockClient.post.findUnique.mockResolvedValue(null);
-    const res = await decide({ reportId: 5, decision: "RESOLVED", action: "REMOVE_CONTENT" });
-    expect(res.statusCode).toBe(200);
-    expect(mockClient.post.delete).not.toHaveBeenCalled();
-    expect(mockClient.report.update).toHaveBeenCalled();
+    mockClient.report.updateMany.mockResolvedValueOnce({ count: 0 });
+    const res = await decide({ reportId: 5, decision: "RESOLVED", userAction: { type: "WARNING" } });
+    expect(res.statusCode).toBe(409);
+    expect(mockIssueSanction).not.toHaveBeenCalled();
+    expect(mockClient.moderationLog.create).not.toHaveBeenCalled();
   });
 
-  it("처리 완료(NONE)는 제재 없이 상태만 바꾼다", async () => {
-    openReport("USER", 9);
-    const res = await decide({ reportId: 5, decision: "RESOLVED" });
+  it("구 방식 REMOVE_CONTENT 는 게시글을 지우지 않고 숨긴다(AC-5)", async () => {
+    openReport("POST", 30);
+    const res = await decide({ reportId: 5, decision: "RESOLVED", action: "REMOVE_CONTENT", note: "  광고  " });
     expect(res.statusCode).toBe(200);
-    expect(mockClient.user.updateMany).not.toHaveBeenCalled();
-    expect(mockClient.report.update.mock.calls[0][0].data).toEqual(
-      expect.objectContaining({ status: "RESOLVED", resolutionAction: "NONE", resolutionNote: null })
+    expect(mockClient.post.delete).not.toHaveBeenCalled();
+    expect(mockClient.post.update).toHaveBeenCalledWith({ where: { id: 30 }, data: { isHidden: true } });
+    expect(mockClient.moderationLog.create).toHaveBeenCalledWith({
+      data: expect.objectContaining({ action: "HIDE", reportId: 5, reasonCode: "SPAM" }),
+    });
+    // 먼저 신고를 차지하고, 끝나면 결과를 남긴다.
+    expect(mockClient.report.updateMany.mock.calls[0][0]).toEqual({
+      where: { id: 5, status: "OPEN" },
+      data: { status: "RESOLVED", resolvedBy: 1, resolvedAt: expect.any(Date), resolutionNote: "광고" },
+    });
+    expect(mockClient.report.update).toHaveBeenCalledWith({
+      where: { id: 5 },
+      data: { resolutionAction: "REMOVE_CONTENT", contentAction: "HIDE", sanctionId: null },
+    });
+    expect(res.body.reports.map((report: { id: number }) => report.id)).toEqual([5]);
+    expect(res.body.counts).toEqual({ OPEN: 2, RESOLVED: 1, REJECTED: 0 });
+  });
+
+  it("숨김 + 10일 정지를 한 번에 적용하고 결과를 남긴다(AC-16)", async () => {
+    openReport("POST", 30);
+    const res = await decide({
+      reportId: 5,
+      decision: "RESOLVED",
+      contentAction: "HIDE",
+      userAction: { type: "SUSPENSION", days: 10, reasonCode: "SPAM", messageToUser: "도배", internalNote: "3회째" },
+    });
+    expect(res.statusCode).toBe(200);
+    expect(mockIssueSanction).toHaveBeenCalledWith({
+      actorId: 1,
+      userId: 9,
+      type: "SUSPENSION",
+      days: 10,
+      reasonCode: "SPAM",
+      messageToUser: "도배",
+      internalNote: "3회째",
+      reportId: 5,
+      target: { type: "POST", id: 30, title: "문제 게시글", excerpt: "광고 내용입니다" },
+    });
+    expect(mockClient.post.update).toHaveBeenCalledWith({ where: { id: 30 }, data: { isHidden: true } });
+    expect(mockClient.report.update).toHaveBeenCalledWith({
+      where: { id: 5 },
+      data: { resolutionAction: "REMOVE_CONTENT", contentAction: "HIDE", sanctionId: 100 },
+    });
+    expect(res.body.sanctionId).toBe(100);
+  });
+
+  it("사유를 고르지 않으면 신고 사유에서 기본값을 쓴다", async () => {
+    openReport("CHAT_ROOM", 55, { reason: "욕설·협박" });
+    await decide({ reportId: 5, decision: "RESOLVED", userAction: { type: "WARNING" } });
+    expect(mockIssueSanction).toHaveBeenCalledWith(
+      expect.objectContaining({ type: "WARNING", reasonCode: "HARASSMENT", target: null })
     );
   });
 
-  it("신고 기각(REJECTED, NONE)은 상태만 바꾼다", async () => {
+  it("구 방식 BAN_USER 는 영구 정지 제재로 보낸다", async () => {
+    openReport("USER", 9);
+    await decide({ reportId: 5, decision: "RESOLVED", action: "BAN_USER" });
+    expect(mockIssueSanction).toHaveBeenCalledWith(expect.objectContaining({ type: "BAN", reasonCode: "SPAM" }));
+    expect(mockClient.report.update).toHaveBeenCalledWith({
+      where: { id: 5 },
+      data: { resolutionAction: "BAN_USER", contentAction: null, sanctionId: 100 },
+    });
+  });
+
+  it("제재가 거절되면 신고를 다시 열고 그 상태 코드를 돌려준다(E-14)", async () => {
     openReport("POST", 30);
-    const res = await decide({ reportId: 5, decision: "REJECTED", action: "NONE" });
+    const { SanctionError } = jest.requireMock("@libs/server/sanctions");
+    mockIssueSanction.mockRejectedValue(new SanctionError(409, "영구 정지된 계정이에요. 먼저 정지를 해제해 주세요.", "USER_BANNED"));
+    const res = await decide({ reportId: 5, decision: "RESOLVED", contentAction: "HIDE", userAction: { type: "SUSPENSION", days: 3 } });
+    expect(res.statusCode).toBe(409);
+    expect(res.body.errorCode).toBe("USER_BANNED");
+    expect(mockClient.report.updateMany).toHaveBeenLastCalledWith({
+      where: { id: 5, status: "RESOLVED", resolvedBy: 1 },
+      data: { status: "OPEN", resolvedBy: null, resolvedAt: null, resolutionNote: null },
+    });
+    expect(mockClient.moderationLog.create).not.toHaveBeenCalled();
+  });
+
+  it("같은 대상 열린 신고를 함께 닫고 제재는 1건, 신고자마다 알림 1건(AC-17·AC-33)", async () => {
+    openReport("POST", 30);
+    mockClient.report.findMany.mockImplementationOnce(() =>
+      Promise.resolve([
+        { id: 6, reporterId: 8 },
+        { id: 7, reporterId: 7 },
+      ])
+    );
+    const res = await decide({
+      reportId: 5,
+      decision: "RESOLVED",
+      contentAction: "HIDE",
+      userAction: { type: "WARNING", reasonCode: "SPAM" },
+      closeSameTarget: true,
+    });
     expect(res.statusCode).toBe(200);
-    expect(mockClient.post.delete).not.toHaveBeenCalled();
-    expect(mockClient.report.update.mock.calls[0][0].data.status).toBe("REJECTED");
+    expect(mockIssueSanction).toHaveBeenCalledTimes(1);
+    expect(mockClient.report.findMany.mock.calls[0][0].where).toEqual({
+      targetType: "POST",
+      targetId: 30,
+      status: "OPEN",
+      id: { not: 5 },
+    });
+    expect(mockClient.report.updateMany).toHaveBeenLastCalledWith({
+      where: { id: { in: [6, 7] }, status: "OPEN" },
+      data: expect.objectContaining({ status: "RESOLVED", contentAction: "HIDE", sanctionId: 100 }),
+    });
+    expect(res.body.closedReportIds).toEqual([5, 6, 7]);
+    const reporterNotices = mockCreateNotification.mock.calls
+      .map(([arg]) => arg)
+      .filter((arg) => arg.message === "신고하신 게시글에 대해 운영정책에 따라 조치했어요.");
+    expect(reporterNotices.map((arg) => arg.userId).sort()).toEqual([7, 8]);
+  });
+
+  it("제재 뒤 콘텐츠 조치가 오류로 실패하면 신고는 처리된 채 contentFailed 로 알린다", async () => {
+    openReport("POST", 30);
+    mockClient.post.update.mockRejectedValueOnce(new Error("db down"));
+    const spy = jest.spyOn(console, "error").mockImplementation(() => {});
+    const res = await decide({ reportId: 5, decision: "RESOLVED", contentAction: "HIDE", userAction: { type: "WARNING" } });
+    spy.mockRestore();
+    expect(res.statusCode).toBe(200);
+    expect(res.body.contentFailed).toBe(true);
+    expect(res.body.contentSkipped).toBe(false);
+    // 제재 id 는 바로 신고에 남고, 신고를 다시 열지 않는다.
+    expect(mockClient.report.update).toHaveBeenCalledWith({
+      where: { id: 5 },
+      data: { sanctionId: 100, resolutionAction: "NONE" },
+    });
+    expect(mockClient.report.updateMany).not.toHaveBeenCalledWith(
+      expect.objectContaining({ data: expect.objectContaining({ status: "OPEN" }) })
+    );
+  });
+
+  it("제재 없이 콘텐츠 조치만 오류로 실패하면 신고를 다시 열고 오류를 낸다", async () => {
+    openReport("POST", 30);
+    mockClient.post.update.mockRejectedValueOnce(new Error("db down"));
+    const spy = jest.spyOn(console, "error").mockImplementation(() => {});
+    const res = await decide({ reportId: 5, decision: "RESOLVED", contentAction: "HIDE" });
+    spy.mockRestore();
+    expect(res.statusCode).toBe(500);
+    expect(mockClient.report.updateMany).toHaveBeenLastCalledWith({
+      where: { id: 5, status: "RESOLVED", resolvedBy: 1 },
+      data: { status: "OPEN", resolvedBy: null, resolvedAt: null, resolutionNote: null },
+    });
+  });
+
+  it("관련 콘텐츠 제목의 상태 접두어([숨김])는 대상자용 제재 기록에 넣지 않는다", async () => {
+    openReport("POST", 30);
+    mockClient.post.findMany.mockResolvedValueOnce([
+      { id: 30, title: "문제 게시글", description: "광고 내용입니다", isHidden: true },
+    ]);
+    await decide({ reportId: 5, decision: "RESOLVED", userAction: { type: "WARNING" } });
+    expect(mockIssueSanction.mock.calls[0][0].target).toEqual(
+      expect.objectContaining({ type: "POST", id: 30, title: "문제 게시글" })
+    );
+  });
+
+  it("콘텐츠가 이미 없으면 콘텐츠 조치는 건너뛰고 처리 완료한다(E-5)", async () => {
+    openReport("POST", 30);
+    mockClient.post.findUnique.mockResolvedValue(null);
+    const res = await decide({ reportId: 5, decision: "RESOLVED", contentAction: "HIDE" });
+    expect(res.statusCode).toBe(200);
+    expect(res.body.contentSkipped).toBe(true);
+    expect(mockClient.moderationLog.create).not.toHaveBeenCalled();
+    expect(mockClient.report.update).toHaveBeenCalledWith({
+      where: { id: 5 },
+      data: { resolutionAction: "NONE", contentAction: null, sanctionId: null },
+    });
+    // 아무 조치도 적용되지 않았으니 신고자에게 알리지 않는다.
+    expect(mockCreateNotification).not.toHaveBeenCalled();
+  });
+
+  it("콘텐츠 삭제는 게시글 hard delete(사유 기록)", async () => {
+    openReport("POST", 30);
+    const res = await decide({ reportId: 5, decision: "RESOLVED", contentAction: "DELETE" });
+    expect(res.statusCode).toBe(200);
+    expect(mockClient.post.delete).toHaveBeenCalledWith({ where: { id: 30 } });
+    expect(mockClient.report.update.mock.calls[0][0].data.contentAction).toBe("DELETE");
+  });
+
+  it("처리 완료(조치 없음)·기각은 상태만 바꾸고 신고자 알림을 보내지 않는다", async () => {
+    openReport("USER", 9);
+    expect((await decide({ reportId: 5, decision: "RESOLVED" })).statusCode).toBe(200);
+    openReport("POST", 30);
+    expect((await decide({ reportId: 5, decision: "REJECTED", action: "NONE" })).statusCode).toBe(200);
+    expect(mockClient.report.updateMany.mock.calls.map(([arg]) => arg.data.status)).toEqual(["RESOLVED", "REJECTED"]);
+    expect(mockIssueSanction).not.toHaveBeenCalled();
+    expect(mockCreateNotification).not.toHaveBeenCalled();
   });
 });

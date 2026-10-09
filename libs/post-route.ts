@@ -32,6 +32,16 @@ export const toPostPath = (
   return `/posts/${safeId}-${slug}`;
 };
 
+/** 게시글 상세에서 그 댓글까지 스크롤해 연다(알림·프로필 댓글 목록). 댓글 id 가 없으면 글 경로. */
+export const toPostCommentPath = (
+  id: number | string,
+  commentId?: number | null,
+  title?: string | null
+): string => {
+  const path = toPostPath(id, title);
+  return commentId ? `${path}?commentId=${commentId}` : path;
+};
+
 export const extractPostIdFromPath = (
   pathParam: string | string[] | undefined
 ): number => {

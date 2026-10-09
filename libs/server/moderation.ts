@@ -6,14 +6,24 @@ import type {
 } from "@prisma/client";
 import client from "@libs/server/client";
 import { createNotification } from "@libs/server/notification";
+import {
+  contentDeletedMessage,
+  contentHiddenMessage,
+  contentUnhiddenMessage,
+} from "@libs/shared/sanction";
+import { toPostPlainText } from "@libs/shared/post-body";
+import { deleteCommentWithReplies } from "@libs/server/comments";
 
 /**
  * 운영자 조치(숨김·숨김 해제·삭제)를 적용하고 ModerationLog 에 남긴다.
- * 앱 ⋯ 메뉴(POST /api/admin/moderation)와 신고 처리(applyReportAction)가 함께 쓴다.
+ * 앱 ⋯ 메뉴(POST /api/admin/moderation), 관리자 게시글·상품 삭제, 신고 처리(resolveReport)가 함께 쓴다.
  *
  * 삭제 의미는 기존 관리자 삭제와 같다: 게시글·댓글·경매는 hard delete,
  * 상품은 Sale/Purchase 가 참조하고 relationMode=prisma 라 isDeleted 로 둔다.
  * 경매는 숨길 때 진행중이면 취소해 입찰이 더 붙지 않게 한다(숨김 해제 시 상태는 되돌리지 않음).
+ *
+ * 숨김·숨김 해제·삭제마다 작성자에게 MODERATION 알림(사유 문구 포함)을 1건 보낸다(앱 docs/prd/admin-moderation.md AC-3·AC-6).
+ * 관리자 화면은 사유 코드를 필수로 받고, 구버전 앱 ⋯ 메뉴는 사유 없이 올 수 있어 그때는 사유 부분을 뺀다.
  *
  * 혈통(BLOODLINE_CARD)은 status 로 다룬다: 숨김 = INACTIVE, 숨김 해제 = ACTIVE,
  * 삭제 = 회수(REVOKED, 되돌리지 않음). 뿌리 혈통을 회수하면 같은 뿌리의 출처 카드(LINE)도
@@ -43,8 +53,13 @@ export interface ModerationInput {
   targetType: ModerationTargetType;
   targetId: number;
   action: ModerationAction;
+  /** 운영자 메모(자유 입력) */
   reason?: string | null;
+  /** 제재 사유 코드(호출부에서 isSanctionReasonCode 로 검증) */
+  reasonCode?: string | null;
   reportId?: number | null;
+  /** 작성자 알림을 보낼지(기본 true) */
+  notifyAuthor?: boolean;
 }
 
 export interface ModerationResult {
@@ -87,6 +102,10 @@ interface TargetInfo {
   userId: number;
   title: string;
   excerpt: string;
+  /** 작성자 알림에 넣을 이름(댓글은 댓글 내용, 그 외는 제목) */
+  noticeTitle: string;
+  /** 숨김·해제 알림을 누르면 갈 곳(댓글은 게시글) */
+  link: { targetType: string; targetId: number } | null;
   /** 경매만: 숨길 때 취소 여부 판단 */
   status?: string;
   /** 혈통만: 회수 연쇄 여부(뿌리만 출처 카드까지)와 이력의 이전 보유자 */
@@ -107,18 +126,28 @@ async function findTarget(
         where: { id },
         select: { userId: true, title: true, description: true },
       });
-      return post && { userId: post.userId, title: post.title, excerpt: post.description };
+      return (
+        post && {
+          userId: post.userId,
+          title: post.title,
+          excerpt: toPostPlainText(post.description),
+          noticeTitle: post.title,
+          link: { targetType: "post", targetId: id },
+        }
+      );
     }
     case "COMMENT": {
       const comment = await client.comment.findUnique({
         where: { id },
-        select: { userId: true, comment: true, post: { select: { title: true } } },
+        select: { userId: true, comment: true, postId: true, post: { select: { title: true } } },
       });
       return (
         comment && {
           userId: comment.userId,
           title: comment.post ? `게시글 「${comment.post.title}」의 댓글` : "댓글",
           excerpt: comment.comment,
+          noticeTitle: comment.comment,
+          link: comment.postId ? { targetType: "post", targetId: comment.postId } : null,
         }
       );
     }
@@ -128,7 +157,13 @@ async function findTarget(
         select: { userId: true, name: true, description: true, isDeleted: true },
       });
       return product && !product.isDeleted
-        ? { userId: product.userId, title: product.name, excerpt: product.description }
+        ? {
+            userId: product.userId,
+            title: product.name,
+            excerpt: product.description,
+            noticeTitle: product.name,
+            link: { targetType: "product", targetId: id },
+          }
         : null;
     }
     case "AUCTION": {
@@ -141,6 +176,8 @@ async function findTarget(
           userId: auction.userId,
           title: auction.title,
           excerpt: auction.description,
+          noticeTitle: auction.title,
+          link: { targetType: "auction", targetId: id },
           status: auction.status,
         }
       );
@@ -164,6 +201,8 @@ async function findTarget(
             userId: card.creatorId,
             title: card.name,
             excerpt: card.description || card.speciesType || "",
+            noticeTitle: card.name,
+            link: { targetType: "bloodline", targetId: id },
             bloodline: { cardType: card.cardType, currentOwnerId: card.currentOwnerId },
           }
         : null;
@@ -255,51 +294,42 @@ async function revokeBloodlineCard(id: number, target: TargetInfo) {
   );
 }
 
-async function hideAuction(id: number, actorId: number, target: TargetInfo) {
+/** 진행 중이던 경매를 숨기면 취소한다. 취소 사실은 작성자 운영 알림 문구에 덧붙인다. */
+async function hideAuction(id: number, target: TargetInfo): Promise<boolean> {
   if (target.status !== "진행중") {
     await setHidden("AUCTION", id, true);
-    return;
+    return false;
   }
   await client.auction.update({
     where: { id },
     data: { isHidden: true, status: "취소", winnerId: null },
   });
-  await createNotification({
-    type: "AUCTION_END",
-    userId: target.userId,
-    senderId: actorId,
-    message: `"${target.title}" 경매가 운영 정책에 따라 비공개 처리되어 취소되었습니다.`,
-    targetId: id,
-    targetType: "auction",
-    allowSelf: true,
-    dedupe: true,
-  });
+  return true;
 }
 
-async function deleteTarget(
-  type: ModerationTargetType,
-  id: number,
-  actorId: number,
-  target: TargetInfo
-) {
+const AUCTION_CANCELED_SUFFIX = " 진행 중이던 경매는 취소되었어요.";
+
+function authorNoticeMessage(
+  input: ModerationInput,
+  target: TargetInfo,
+  auctionCanceled: boolean
+): string {
+  const { targetType, action, reasonCode } = input;
+  if (action === "unhide") return contentUnhiddenMessage(targetType, target.noticeTitle);
+  if (action === "delete") return contentDeletedMessage(targetType, target.noticeTitle, reasonCode);
+  return contentHiddenMessage(targetType, target.noticeTitle, reasonCode) + (auctionCanceled ? AUCTION_CANCELED_SUFFIX : "");
+}
+
+async function deleteTarget(type: ModerationTargetType, id: number, target: TargetInfo) {
   if (type === "POST") await client.post.delete({ where: { id } });
-  else if (type === "COMMENT") await client.comment.delete({ where: { id } });
+  // 루트 댓글이면 답글까지 지운다.
+  else if (type === "COMMENT") await deleteCommentWithReplies(id);
   else if (type === "PRODUCT") {
     await client.product.update({ where: { id }, data: { isDeleted: true } });
   } else if (type === "BLOODLINE_CARD") {
     await revokeBloodlineCard(id, target);
   } else {
     await client.auction.delete({ where: { id } });
-    await createNotification({
-      type: "AUCTION_END",
-      userId: target.userId,
-      senderId: actorId,
-      message: `"${target.title}" 경매가 관리자에 의해 삭제되었습니다.`,
-      targetId: id,
-      targetType: "auction",
-      allowSelf: true,
-      dedupe: false,
-    });
   }
 }
 
@@ -308,11 +338,12 @@ export async function applyModeration(input: ModerationInput): Promise<Moderatio
   const target = await findTarget(targetType, targetId);
   if (!target) throw targetNotFoundError();
 
+  let auctionCanceled = false;
   try {
     if (action === "delete") {
-      await deleteTarget(targetType, targetId, actorId, target);
+      await deleteTarget(targetType, targetId, target);
     } else if (action === "hide" && targetType === "AUCTION") {
-      await hideAuction(targetId, actorId, target);
+      auctionCanceled = await hideAuction(targetId, target);
     } else {
       await setHidden(targetType, targetId, action === "hide");
     }
@@ -322,10 +353,9 @@ export async function applyModeration(input: ModerationInput): Promise<Moderatio
     throw error;
   }
 
+  // 숨김도 원문을 남겨 둔다(작성자가 나중에 고쳐도 무엇을 숨겼는지 남도록).
   const snapshot: Prisma.InputJsonValue | undefined =
-    action === "delete"
-      ? { title: target.title, excerpt: toExcerpt(target.excerpt) }
-      : undefined;
+    action === "unhide" ? undefined : { title: target.title, excerpt: toExcerpt(target.excerpt) };
 
   await client.moderationLog.create({
     data: {
@@ -335,10 +365,24 @@ export async function applyModeration(input: ModerationInput): Promise<Moderatio
       targetUserId: target.userId,
       action: LOG_ACTION[action],
       reason: input.reason?.trim().slice(0, 500) || null,
+      reasonCode: input.reasonCode ?? null,
       reportId: input.reportId ?? null,
       snapshot,
     },
   });
+
+  if (input.notifyAuthor !== false) {
+    // 삭제된 콘텐츠는 열 곳이 없어 이동 대상을 두지 않는다. 운영자 자신의 콘텐츠면 createNotification 이 건너뛴다.
+    const link = action === "delete" ? null : target.link;
+    await createNotification({
+      type: "MODERATION",
+      userId: target.userId,
+      senderId: actorId,
+      message: authorNoticeMessage(input, target, auctionCanceled),
+      targetType: link?.targetType,
+      targetId: link?.targetId,
+    });
+  }
 
   return {
     targetType,

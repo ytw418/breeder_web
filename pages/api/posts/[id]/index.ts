@@ -10,11 +10,13 @@ import {
 } from "@libs/server/breeder-programs";
 import type { BreederProgramSummary } from "@libs/shared/breeder-program";
 import { resolvePostImagesInput, withPostImages } from "@libs/postImages";
+import { validatePostDescription } from "@libs/shared/post-body";
 import { canWriteNoticePost, isNoticePostInput } from "@libs/server/postNotice";
-import { excludedAuthorIds } from "@libs/server/blocks";
+import { commentVisibilityWhere } from "@libs/server/comments";
 import { isModeratorUser } from "@libs/server/adminAccess";
 import { Prisma, type Post } from "@prisma/client";
 import { resolveCategoryIdByName } from "@libs/server/categories";
+import { DELETED_COMMENT_TEXT } from "@libs/shared/comment";
 
 interface PostDetail {
   user: {
@@ -35,6 +37,16 @@ interface PostDetail {
     createdAt: Date;
     /** 운영자 숨김. 작성자·관리자에게만 내려온다. */
     isHidden: boolean;
+    /** 대댓글이면 루트 댓글 id. 목록은 작성순 flat 이고 클라이언트가 groupCommentThreads 로 묶는다. */
+    parentId: number | null;
+    /** 작성자가 고친 시각('수정됨' 표시) */
+    editedAt: Date | null;
+    /** 답글이 남아 '삭제된 댓글' 자리로 남은 루트. comment 는 DELETED_COMMENT_TEXT 로 내려간다. */
+    deletedAt: Date | null;
+    /** 댓글 좋아요 수 */
+    likeCount: number;
+    /** viewer 가 좋아요했는지(비로그인 false) */
+    isLiked: boolean;
   }[];
   _count: {
     comments: number;
@@ -120,7 +132,7 @@ async function mutatePost(
 
   const post = await client.post.findUnique({
     where: { id: postId },
-    select: { id: true, userId: true },
+    select: { id: true, userId: true, image: true, images: true },
   });
   if (!post) {
     return sendPostError(res, 404, "POST_NOT_FOUND", NOT_FOUND_MESSAGE);
@@ -186,6 +198,15 @@ async function mutatePost(
     );
   }
 
+  // 본문 검사는 작성과 같다. 사진을 그대로 두는 요청은 저장된 사진 수로 자리 표시 번호를 본다.
+  const imageCount = resolvedImages
+    ? resolvedImages.images.length
+    : (post.images ?? []).length || (post.image ? 1 : 0);
+  const bodyCheck = validatePostDescription(description, imageCount);
+  if (!bodyCheck.ok) {
+    return sendPostError(res, 400, bodyCheck.errorCode, bodyCheck.message);
+  }
+
   if (
     isNoticePostInput({ category, title }) &&
     !(await canWriteNoticePost(user.id))
@@ -239,25 +260,13 @@ async function getPostDetail(
     return res.status(400).json({ success: false, error: "유효하지 않은 게시글 ID입니다." });
   }
 
-  // viewer 가 차단한 사람의 댓글과 그 수를 뺀다. 차단이 없으면 기존 쿼리 그대로.
-  const excluded = await excludedAuthorIds(user?.id);
+  // viewer 가 차단한 사람의 댓글과 그 수를 빼고, 숨긴 댓글은 작성자 본인과 관리자에게만 보인다.
   const isModerator = isModeratorUser(user);
-  // 숨긴 댓글은 작성자 본인과 관리자에게만 보인다.
-  const hiddenCommentWhere: Prisma.CommentWhereInput | null = isModerator
-    ? null
-    : user?.id
-      ? { OR: [{ isHidden: false }, { userId: user.id }] }
-      : { isHidden: false };
-  const commentConditions: Prisma.CommentWhereInput[] = [
-    ...(excluded.length ? [{ userId: { notIn: excluded } }] : []),
-    ...(hiddenCommentWhere ? [hiddenCommentWhere] : []),
-  ];
-  const commentWhere: Prisma.CommentWhereInput | null =
-    commentConditions.length === 0
-      ? null
-      : commentConditions.length === 1
-        ? commentConditions[0]
-        : { AND: commentConditions };
+  const commentWhere = await commentVisibilityWhere(user);
+  // 댓글 수에서는 '삭제된 댓글' 자리를 뺀다(목록에는 답글을 묶으려고 내려 준다).
+  const commentCountWhere: Prisma.CommentWhereInput = {
+    AND: [...(commentWhere ? [commentWhere] : []), { deletedAt: null }],
+  };
 
   const post = await client.post.findUnique({
     where: {
@@ -282,6 +291,10 @@ async function getPostDetail(
           id: true,
           createdAt: true,
           isHidden: true,
+          parentId: true,
+          editedAt: true,
+          deletedAt: true,
+          _count: { select: { likes: true } },
           user: {
             select: {
               id: true,
@@ -298,7 +311,7 @@ async function getPostDetail(
       },
       _count: {
         select: {
-          comments: commentWhere ? { where: commentWhere } : true,
+          comments: { where: commentCountWhere },
           Likes: true,
         },
       },
@@ -390,6 +403,19 @@ async function getPostDetail(
       )
     : false;
 
+  // viewer 가 좋아요한 댓글(비로그인·댓글 없음이면 조회하지 않는다)
+  const commentIds = post.comments.map((comment) => comment.id);
+  const likedCommentIds = new Set(
+    user?.id && commentIds.length
+      ? (
+          await client.commentLike.findMany({
+            where: { userId: user.id, commentId: { in: commentIds } },
+            select: { commentId: true },
+          })
+        ).map((like) => like.commentId)
+      : []
+  );
+
   const serializedPost: PostDetail = {
     ...withPostImages(post),
     user: {
@@ -398,8 +424,12 @@ async function getPostDetail(
         post.user.breederPrograms
       ),
     },
-    comments: post.comments.map((comment) => ({
+    comments: post.comments.map(({ _count, ...comment }) => ({
       ...comment,
+      // 구버전 앱은 deletedAt 을 모르고 본문을 그대로 그리므로 자리 문구를 본문으로 내려 준다.
+      comment: comment.deletedAt ? DELETED_COMMENT_TEXT : comment.comment,
+      likeCount: _count?.likes ?? 0,
+      isLiked: likedCommentIds.has(comment.id),
       user: {
         ...comment.user,
         breederPrograms: getSortedActiveBreederProgramSummaries(

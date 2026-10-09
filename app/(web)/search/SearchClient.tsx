@@ -14,6 +14,7 @@ import { getProductPath } from "@libs/product-route";
 import { toPostPath } from "@libs/post-route";
 import { formatProductPrice } from "@libs/productRules";
 import { ANALYTICS_EVENTS, trackEvent } from "@libs/client/analytics";
+import { toPostPlainText } from "@libs/shared/post-body";
 
 type SearchTab = "all" | "products" | "posts" | "users";
 
@@ -239,7 +240,7 @@ const SearchClient = () => {
                 key={post.id}
                 href={toPostPath(post.id, post.title)}
                 title={post.title}
-                description={post.description}
+                description={toPostPlainText(post.description)}
                 meta={`${post.user.name} · 좋아요 ${post._count.Likes} · 댓글 ${post._count.comments}`}
                 imageId={post.image}
               />
@@ -362,7 +363,7 @@ const SearchClient = () => {
                 key={post.id}
                 href={toPostPath(post.id, post.title)}
                 title={post.title}
-                description={post.description}
+                description={toPostPlainText(post.description)}
                 meta={`${post.user?.name ?? "익명"} · 좋아요 ${post._count?.Likes ?? 0} · 댓글 ${post._count?.comments ?? 0}`}
                 imageId={post.image}
               />

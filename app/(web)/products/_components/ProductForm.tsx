@@ -15,9 +15,11 @@ import {
 } from "@components/features/bloodline/BloodlineAttachSheet";
 import { ChevronRightIcon } from "@components/features/bloodline/BloodlineScreenParts";
 import { useConfirmLeave } from "hooks/useConfirmLeave";
+import useUser from "hooks/useUser";
 import { authFetch } from "@libs/client/authFetch";
 import { cn } from "@libs/client/utils";
 import { toast } from "@libs/client/toast";
+import { promptPushAfterProductUpload } from "@libs/client/pushPrompt";
 import { DEAL_TYPE_OPTIONS, PRODUCT_TYPES } from "@libs/constants";
 import { findCategoryBranch, getSubcategories, TOP_LEVEL_CATEGORIES } from "@libs/categoryTaxonomy";
 import { getProductPath } from "@libs/product-route";
@@ -193,6 +195,7 @@ export function ProductForm({
   const router = useRouter();
   const { mutate: globalMutate } = useSWRConfig();
   const isEdit = Boolean(product);
+  const { user } = useUser();
 
   const initial = useMemo(() => {
     const branch = findCategoryBranch(product?.category);
@@ -379,6 +382,8 @@ export function ProductForm({
         const id = result.product?.id;
         toast.success("상품이 등록되었습니다.");
         leave(() => router.replace(id ? getProductPath(id, fields.name) : "/"));
+        // 구매 문의를 받으려면 알림이 필요하다. 이 브라우저에서 꺼져 있으면 다시 권유한다(앱과 같다).
+        if (user) void promptPushAfterProductUpload(user.id);
       }
     } catch (error) {
       toast.error(

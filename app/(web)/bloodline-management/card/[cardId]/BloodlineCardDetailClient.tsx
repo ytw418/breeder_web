@@ -64,8 +64,10 @@ import {
   type BloodlineCardPatchResponse,
   type BloodlineCardTransferResponse,
   type BloodlineSendSource,
+  type BloodlineRecipientsResponse,
   type BloodlineUserRef,
 } from "@libs/shared/bloodline-card";
+import { recipientsSummaryText } from "@libs/client/bloodlineRecipients";
 
 interface TransferUserItem {
   id: number;
@@ -249,6 +251,12 @@ export default function BloodlineCardDetailClient({ cardId }: { cardId: number }
     `/api/bloodline-cards/${cardId}`,
     fetchBloodlineDetail,
     { shouldRetryOnError: false }
+  );
+  // "받은 사람 N명" 행의 첫 공개 이름(받은 사람이 있을 때만 받는다).
+  const receivedCountForSummary =
+    detailData?.card?.cardType === "BLOODLINE" ? detailData.card.receivedCount ?? 0 : 0;
+  const { data: recipientsData } = useSWR<BloodlineRecipientsResponse>(
+    receivedCountForSummary > 0 ? `/api/bloodline-cards/${cardId}/recipients` : null
   );
   const { mutate: globalMutate, cache: swrCache } = useSWRConfig();
   /** 보내거나 넘기면 혈통관리·마이페이지·이벤트·프로필 혈통 목록을 다시 받는다(앱 invalidateBloodlineLists). */
@@ -685,7 +693,22 @@ export default function BloodlineCardDetailClient({ cardId }: { cardId: number }
   }
   if (originText) infoRows.push({ label: "산지", value: originText });
   if (isBloodline && typeof card.receivedCount === "number") {
-    infoRows.push({ label: "받은 사람", value: `${card.receivedCount}명` });
+    // 받은 사람이 있으면 목록(/recipients)으로 간다. 값은 "도윤파파 외 2"(공개 이름이 없으면 "N명") — 앱 S3 와 같다.
+    const summary =
+      card.receivedCount > 0 ? recipientsSummaryText(recipientsData?.recipients ?? [], card.receivedCount) : null;
+    infoRows.push({
+      label: "받은 사람",
+      value: summary ?? `${card.receivedCount}명`,
+      href: card.receivedCount > 0 ? `/bloodline-management/card/${card.id}/recipients` : null,
+    });
+  }
+  // 비보유자에게는 이 혈통이 붙은 분양글로 가는 행을 둔다(앱 S3 visitor).
+  if (isBloodline && !isOwnedByMe && typeof card.listingCount === "number" && card.listingCount >= 1) {
+    infoRows.push({
+      label: "이 혈통 분양글",
+      value: `${card.listingCount}개`,
+      href: `/bloodline-management/card/${card.id}/listings`,
+    });
   }
   // 혈통은 출처 카드를 보낸 수(issueCount), 출처 카드는 다음 분에게 넘긴 수(transferCount)
   infoRows.push({

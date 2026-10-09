@@ -9,6 +9,11 @@ import { USER_INFO } from "@libs/constants";
 import { Spinner } from "@components/atoms/Spinner";
 import { setTokens } from "@libs/client/authToken";
 import { getSafeNextPath, navigateAfterSessionReady } from "@libs/client/postLogin";
+import {
+  ACCOUNT_RESTRICTED_LOGIN_PATH,
+  saveAccountRestriction,
+  toAccountRestriction,
+} from "@libs/client/accountRestriction";
 
 const getKakaoRedirectUri = () => {
   if (typeof window !== "undefined" && window.location?.origin) {
@@ -123,6 +128,13 @@ export const KakaoLogin = () => {
             );
             void navigateAfterSessionReady(redirectPath);
           } else {
+            // 정지·영구 정지 계정은 알림창 대신 로그인 화면의 이용 제한 안내로 보낸다.
+            const restriction = toAccountRestriction(result);
+            if (restriction) {
+              saveAccountRestriction(restriction);
+              router.replace(ACCOUNT_RESTRICTED_LOGIN_PATH);
+              return;
+            }
             router.replace("/auth/login");
             alert(`로그인에 실패했습니다:${result.error}`);
           }

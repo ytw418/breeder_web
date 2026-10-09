@@ -126,3 +126,33 @@ describe("post menu", () => {
     expect(isNoticePost({ category: "자유", title: "x" })).toBe(false);
   });
 });
+
+describe("사진·글 블록 본문(앱에서 쓴 글) 호환", () => {
+  it("글자 수는 사진 자리·크게·굵게 표시를 빼고 센다", () => {
+    expect(validatePostForm(values({ description: "## **짧아요**\n[[photo:1]]" })).description).toBe(
+      "내용을 10자 이상 입력해주세요."
+    );
+    expect(
+      validatePostForm(values({ description: `[[photo:1]]\n${"가".repeat(2000)}\n[[photo:2]]` }))
+    ).toEqual({});
+  });
+
+  it("사진만 있는 본문은 '완료'를 켜지 않는다", () => {
+    expect(
+      canSubmitPost({
+        values: values({ description: "[[photo:1]]" }),
+        submitting: false,
+        isEdit: false,
+        changed: true,
+      })
+    ).toBe(false);
+    expect(
+      canSubmitPost({
+        values: values({ description: "설명\n[[photo:1]]" }),
+        submitting: false,
+        isEdit: false,
+        changed: true,
+      })
+    ).toBe(true);
+  });
+});

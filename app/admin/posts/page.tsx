@@ -8,20 +8,23 @@ import { toast } from "@libs/client/toast";
 import { Button } from "@components/ui/button";
 import { Input } from "@components/ui/input";
 import { Textarea } from "@components/ui/textarea";
-import useConfirmDialog from "hooks/useConfirmDialog";
+import useContentActionDialog from "@components/features/moderation/useContentActionDialog";
 import { toPostPath } from "@libs/post-route";
+import { toPostPlainText } from "@libs/shared/post-body";
 
 export default function AdminPostsPage() {
   const [page, setPage] = useState(1);
   const [keyword, setKeyword] = useState("");
   const [searchQuery, setSearchQuery] = useState("");
+  const [hiddenOnly, setHiddenOnly] = useState(false);
+  const [busyId, setBusyId] = useState<number | null>(null);
+  const { ask, dialog: contentActionDialog } = useContentActionDialog();
   const [noticeTitle, setNoticeTitle] = useState("");
   const [noticeDescription, setNoticeDescription] = useState("");
   const [creatingNotice, setCreatingNotice] = useState(false);
-  const { confirm, confirmDialog } = useConfirmDialog();
 
   const { data, mutate } = useSWR(
-    `/api/admin/posts?page=${page}&keyword=${searchQuery}`
+    `/api/admin/posts?page=${page}&keyword=${searchQuery}${hiddenOnly ? "&hidden=1" : ""}`
   );
 
   const handleCreateNotice = async (event: React.FormEvent) => {
@@ -59,26 +62,75 @@ export default function AdminPostsPage() {
     }
   };
 
-  const handleDelete = async (id: number) => {
-    const confirmed = await confirm({
-      title: "이 게시글을 삭제할까요?",
-      description: "삭제 후에는 복구할 수 없습니다.",
-      confirmText: "삭제",
-      tone: "danger",
-    });
-    if (!confirmed) return;
+  /** 숨김·숨김 해제(주 동작). 숨김은 사유가 작성자 알림에 들어간다. */
+  const handleVisibility = async (id: number, action: "hide" | "unhide") => {
+    const result = await ask(
+      action === "hide"
+        ? {
+            title: "이 게시글을 숨길까요?",
+            description: "작성자에게만 보이고, 작성자에게 사유가 담긴 알림이 가요. 나중에 숨김을 해제할 수 있어요.",
+            confirmText: "숨기기",
+          }
+        : {
+            title: "숨김을 해제할까요?",
+            description: "다시 모두에게 보이고, 작성자에게 알림이 가요.",
+            confirmText: "숨김 해제",
+            askReason: false,
+          }
+    );
+    if (!result) return;
 
     try {
-      const res = await authFetch(`/api/admin/posts?id=${id}`, { method: "DELETE" });
-      const result = await res.json();
-      if (result.success) {
-        toast.success("게시글이 삭제되었습니다.");
+      setBusyId(id);
+      const res = await authFetch("/api/admin/moderation", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          targetType: "POST",
+          targetId: id,
+          action,
+          reasonCode: result.reasonCode,
+          reason: result.reason || null,
+        }),
+      });
+      const data = await res.json();
+      if (!data.success) return toast.error(data.error || "처리하지 못했어요.");
+      toast.success(action === "hide" ? "숨겼어요." : "숨김을 해제했어요.");
+      mutate();
+    } catch {
+      toast.error("처리하지 못했어요. 다시 시도해 주세요.");
+    } finally {
+      setBusyId(null);
+    }
+  };
+
+  /** 삭제(보조 동작). 되돌릴 수 없어 키워드와 사유를 받는다. */
+  const handleDelete = async (id: number) => {
+    const result = await ask({
+      title: "이 게시글을 삭제할까요?",
+      description: "되돌릴 수 없어요. 대부분은 숨김으로 충분해요.",
+      confirmText: "삭제",
+      tone: "danger",
+      confirmKeyword: "DELETE",
+    });
+    if (!result?.reasonCode) return;
+
+    try {
+      setBusyId(id);
+      const params = new URLSearchParams({ id: String(id), reasonCode: result.reasonCode });
+      if (result.reason) params.set("reason", result.reason);
+      const res = await authFetch(`/api/admin/posts?${params.toString()}`, { method: "DELETE" });
+      const data = await res.json();
+      if (data.success) {
+        toast.success("게시글을 삭제했어요.");
         mutate();
       } else {
-        toast.error(result.error || "삭제 실패");
+        toast.error(data.error || "삭제하지 못했어요.");
       }
     } catch {
-      toast.error("오류가 발생했습니다.");
+      toast.error("삭제하지 못했어요. 다시 시도해 주세요.");
+    } finally {
+      setBusyId(null);
     }
   };
 
@@ -121,6 +173,17 @@ export default function AdminPostsPage() {
             onChange={(event) => setKeyword(event.target.value)}
           />
           <Button type="submit">검색</Button>
+          <label className="inline-flex items-center gap-1.5 whitespace-nowrap text-sm text-gray-700">
+            <input
+              type="checkbox"
+              checked={hiddenOnly}
+              onChange={(event) => {
+                setHiddenOnly(event.target.checked);
+                setPage(1);
+              }}
+            />
+            숨김만
+          </label>
         </form>
 
         <div className="overflow-hidden rounded-lg border border-gray-200 bg-white">
@@ -155,6 +218,11 @@ export default function AdminPostsPage() {
                           공지
                         </span>
                       )}
+                      {post.isHidden ? (
+                        <span className="inline-flex px-2 py-0.5 rounded-full text-[11px] font-semibold bg-gray-100 text-gray-600">
+                          숨김
+                        </span>
+                      ) : null}
                       <div className="text-sm font-medium text-gray-900 line-clamp-1">
                         <Link href={toPostPath(post.id, post.title)} target="_blank" className="hover:underline">
                           {post.title}
@@ -163,7 +231,7 @@ export default function AdminPostsPage() {
                     </div>
                     <div className="text-sm text-gray-500 line-clamp-1 mt-1">
                       <Link href={toPostPath(post.id, post.title)} target="_blank" className="hover:underline">
-                        {post.description}
+                        {toPostPlainText(post.description)}
                       </Link>
                     </div>
                   </td>
@@ -177,13 +245,25 @@ export default function AdminPostsPage() {
                     {new Date(post.createdAt).toLocaleDateString()}
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                    <Button
-                      variant="destructive"
-                      size="sm"
-                      onClick={() => handleDelete(post.id)}
-                    >
-                      삭제
-                    </Button>
+                    <div className="flex justify-end gap-1.5">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        disabled={busyId === post.id}
+                        onClick={() => handleVisibility(post.id, post.isHidden ? "unhide" : "hide")}
+                      >
+                        {post.isHidden ? "숨김 해제" : "숨김"}
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="text-gray-500"
+                        disabled={busyId === post.id}
+                        onClick={() => handleDelete(post.id)}
+                      >
+                        삭제
+                      </Button>
+                    </div>
                   </td>
                 </tr>
               ))}
@@ -220,7 +300,7 @@ export default function AdminPostsPage() {
           </Button>
         </div>
       </div>
-      {confirmDialog}
+      {contentActionDialog}
     </>
   );
 }

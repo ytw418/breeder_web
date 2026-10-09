@@ -36,7 +36,7 @@ jest.mock("@libs/server/notification", () => ({
 
 import moderationHandler from "../pages/api/admin/moderation";
 import { MODERATION_TARGET_TYPES, isModerationTargetType } from "@libs/server/moderation";
-import { applyReportAction } from "@libs/server/reports";
+import { applyReportContentAction } from "@libs/server/reports";
 
 function createRes() {
   const res = {
@@ -149,8 +149,9 @@ describe("POST /api/admin/moderation — 혈통", () => {
         targetUserId: 9,
         action: "HIDE",
         reason: "이름 도용 신고",
+        reasonCode: null,
         reportId: null,
-        snapshot: undefined,
+        snapshot: { title: "강산 라인", excerpt: "충남 공주 왕사슴 혈통" },
       },
     });
     expect(res.body.result).toEqual({
@@ -221,6 +222,7 @@ describe("POST /api/admin/moderation — 혈통", () => {
         targetUserId: 9,
         action: "DELETE",
         reason: null,
+        reasonCode: null,
         reportId: null,
         snapshot: { title: "강산 라인", excerpt: "충남 공주 왕사슴 혈통" },
       },
@@ -336,13 +338,9 @@ describe("POST /api/admin/moderation — 혈통", () => {
   });
 });
 
-describe("신고 처리(applyReportAction) — 혈통", () => {
+describe("신고 처리(applyReportContentAction) — 혈통", () => {
   it("콘텐츠 삭제는 혈통 회수로 처리하고 신고 id 를 기록한다", async () => {
-    await applyReportAction(
-      { id: 5, targetType: "BLOODLINE_CARD", targetId: 70, reportedUserId: 9 },
-      "REMOVE_CONTENT",
-      1
-    );
+    await applyReportContentAction({ id: 5, targetType: "BLOODLINE_CARD", targetId: 70 }, "DELETE", 1, "IMPERSONATION");
 
     expect(mockClient.bloodlineCard.updateMany).toHaveBeenNthCalledWith(1, {
       where: { id: 70, status: { not: "REVOKED" } },
@@ -353,6 +351,7 @@ describe("신고 처리(applyReportAction) — 혈통", () => {
       expect.objectContaining({
         targetType: "BLOODLINE_CARD",
         action: "DELETE",
+        reasonCode: "IMPERSONATION",
         reportId: 5,
       })
     );
@@ -362,12 +361,8 @@ describe("신고 처리(applyReportAction) — 혈통", () => {
     mockClient.bloodlineCard.findUnique.mockResolvedValue({ ...ROOT, status: "REVOKED" });
 
     await expect(
-      applyReportAction(
-        { id: 5, targetType: "BLOODLINE_CARD", targetId: 70, reportedUserId: 9 },
-        "REMOVE_CONTENT",
-        1
-      )
-    ).resolves.toBeUndefined();
+      applyReportContentAction({ id: 5, targetType: "BLOODLINE_CARD", targetId: 70 }, "DELETE", 1, null)
+    ).resolves.toBe(false);
     expect(mockClient.moderationLog.create).not.toHaveBeenCalled();
   });
 });

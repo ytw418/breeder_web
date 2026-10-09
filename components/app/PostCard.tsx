@@ -5,7 +5,9 @@ import Image from "@components/atoms/Image";
 import { BreederProgramBadge } from "@components/features/breeder/BreederProgramDecorators";
 import { cn, getTimeAgoString, makeImageUrl } from "@libs/client/utils";
 import { toPostPath } from "@libs/post-route";
+import { postCategoryLabel } from "@libs/shared/postCategory";
 import type { BreederProgramSummary } from "@libs/shared/breeder-program";
+import { toPostPlainText } from "@libs/shared/post-body";
 
 export type PostCardData = {
   id: number;
@@ -15,6 +17,8 @@ export type PostCardData = {
   /** content 대신 서버가 주는 요약 필드(앱 PostWithUser.description). */
   description?: string | null;
   category?: string | null;
+  /** '동네' 글이면 작성자 시/군/구(메타에 카테고리 대신 보인다). */
+  regionSigungu?: string | null;
   image?: string | null;
   images?: string[] | null;
   createdAt: string | Date;
@@ -53,13 +57,13 @@ const toExcerpt = (value?: string | null) =>
 
 /**
  * 당근 '동네생활' 톤 게시글 플랫 행(앱 PostCard).
- * 제목 16/500(2줄) · 본문 14 app-sub 1줄 · 메타 13 app-muted "카테고리 · 닉네임" [브리더 pill] "· 3분 전 · 좋아요 3 · 댓글 2"
+ * 제목 16/500(2줄) · 본문 14 app-sub 1줄 · 메타 13 app-muted "카테고리 · 닉네임"('동네' 글은 "강남구 · 닉네임") [브리더 pill] "· 3분 전 · 좋아요 3 · 댓글 2"
  * · 오른쪽 56px 썸네일(r8). 하단 1px app-line.
  */
 export function PostCard({ post, className }: { post: PostCardData; className?: string }) {
   const thumbnail = post.images?.[0] ?? post.image ?? null;
-  const excerpt = toExcerpt(post.content ?? post.description);
-  const author = [post.category, post.user?.name].filter(Boolean).join(" · ");
+  const excerpt = toExcerpt(post.content ?? toPostPlainText(post.description ?? ""));
+  const author = [postCategoryLabel(post), post.user?.name].filter(Boolean).join(" · ");
   const stats = getPostCardStats(post);
 
   return (

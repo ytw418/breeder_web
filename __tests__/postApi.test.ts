@@ -88,7 +88,7 @@ const storedPost = {
 const updateBody = {
   action: "update",
   title: "  새 제목  ",
-  description: "  새 내용  ",
+  description: "  새로 고친 게시글 본문입니다  ",
   category: "정보",
   species: "장수풍뎅이",
   images: ["cf-old", "cf-new-1", "cf-new-2"],
@@ -195,7 +195,7 @@ describe("POST /api/posts/:id action=update", () => {
     expect(where).toEqual({ id: 1 });
     expect(data).toEqual({
       title: "새 제목",
-      description: "새 내용",
+      description: "새로 고친 게시글 본문입니다",
       category: "정보",
       // 테스트 트리가 비어 있어 종 → Category.id 매핑은 null 이다.
       categoryId: null,
@@ -375,7 +375,7 @@ describe("기존 동작 회귀", () => {
     const res = await call(postsHandler, {
       method: "POST",
       user: me,
-      body: { title: "공지", description: "내용", category: "공지" },
+      body: { title: "공지", description: "공지 본문 열 글자 이상", category: "공지" },
     });
     expect(res.statusCode).toBe(403);
     expect(res.body).toEqual({ success: false, error: "공지 작성 권한이 없습니다." });
@@ -386,7 +386,7 @@ describe("기존 동작 회귀", () => {
     const res = await call(postsHandler, {
       method: "POST",
       user: me,
-      body: { title: "[공지] 이벤트", description: "내용", category: "자유" },
+      body: { title: "[공지] 이벤트", description: "공지 본문 열 글자 이상", category: "자유" },
     });
     expect(res.statusCode).toBe(403);
     expect(res.body).toEqual({ success: false, error: "공지 작성 권한이 없습니다." });
@@ -398,9 +398,66 @@ describe("기존 동작 회귀", () => {
     const res = await call(postsHandler, {
       method: "POST",
       user: me,
-      body: { title: "공지", description: "내용", category: "공지" },
+      body: { title: "공지", description: "공지 본문 열 글자 이상", category: "공지" },
     });
     expect(res.statusCode).toBe(200);
     expect(mockClient.post.create.mock.calls[0][0].data.category).toBe("공지");
+  });
+});
+
+describe("게시글 본문 사진·글 블록 검증 (libs/shared/post-body)", () => {
+  const createPost = (body: Record<string, unknown>) =>
+    call(postsHandler, { method: "POST", user: me, body: { title: "세팅기", category: "정보", ...body } });
+
+  it("POST: 사진 자리 표시가 있는 본문을 그대로 저장한다", async () => {
+    const description = "## **준비물**\n사육장은 리빙박스\n[[photo:1]]\n바닥재는 발효 톱밥\n[[photo:2]]";
+    const res = await createPost({ description: `  ${description}\n`, images: ["cf-a", "cf-b"] });
+    expect(res.statusCode).toBe(200);
+    const { data } = mockClient.post.create.mock.calls[0][0];
+    expect(data.description).toBe(description);
+    expect(data.images).toEqual(["cf-a", "cf-b"]);
+    expect(data.image).toBe("cf-a");
+  });
+
+  it("POST: 사진 번호가 images 범위 밖이면 400 POST_BODY_INVALID_PHOTO", async () => {
+    const res = await createPost({ description: "열 글자 이상 설명입니다\n[[photo:2]]", images: ["cf-a"] });
+    expectError(res, 400, "POST_BODY_INVALID_PHOTO", "사진 정보가 올바르지 않습니다.");
+    expect(mockClient.post.create).not.toHaveBeenCalled();
+  });
+
+  it("POST: 표시 기호를 뺀 글자가 10자 미만이면 400 POST_DESCRIPTION_TOO_SHORT", async () => {
+    const res = await createPost({ description: "## **짧아요**\n[[photo:1]]", images: ["cf-a"] });
+    expectError(res, 400, "POST_DESCRIPTION_TOO_SHORT", "내용을 10자 이상 입력해주세요.");
+    expect(mockClient.post.create).not.toHaveBeenCalled();
+  });
+
+  it("POST: 글자가 2000자를 넘으면 400 POST_DESCRIPTION_TOO_LONG", async () => {
+    const res = await createPost({ description: "가".repeat(2001) });
+    expectError(res, 400, "POST_DESCRIPTION_TOO_LONG", "내용은 2000자 이하로 입력해주세요.");
+  });
+
+  it("update: 사진 번호가 새 images 범위 밖이면 400", async () => {
+    const res = await mutate({
+      ...updateBody,
+      description: "열 글자 이상 설명입니다\n[[photo:4]]",
+    });
+    expectError(res, 400, "POST_BODY_INVALID_PHOTO");
+    expect(mockClient.post.update).not.toHaveBeenCalled();
+  });
+
+  it("update: 사진을 그대로 두는 요청은 저장된 사진 수로 번호를 본다", async () => {
+    const { images: _omit, ...withoutImages } = updateBody;
+    const ok = await mutate({ ...withoutImages, description: "열 글자 이상 설명입니다\n[[photo:1]]" });
+    expect(ok.statusCode).toBe(200);
+    jest.clearAllMocks();
+    mockClient.post.findUnique.mockResolvedValue(storedPost);
+    const bad = await mutate({ ...withoutImages, description: "열 글자 이상 설명입니다\n[[photo:2]]" });
+    expectError(bad, 400, "POST_BODY_INVALID_PHOTO");
+  });
+
+  it("update: 표시 기호를 뺀 글자가 10자 미만이면 400 POST_DESCRIPTION_TOO_SHORT", async () => {
+    const res = await mutate({ ...updateBody, description: "**짧은 글**" });
+    expectError(res, 400, "POST_DESCRIPTION_TOO_SHORT");
+    expect(mockClient.post.update).not.toHaveBeenCalled();
   });
 });

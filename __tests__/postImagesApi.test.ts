@@ -68,7 +68,7 @@ async function call(
 
 const me = { id: 7, name: "브리더" } as NextApiRequest["user"];
 const ids = (n: number) => Array.from({ length: n }, (_, i) => `cf-${i + 1}`);
-const baseBody = { title: "제목", description: "내용", category: "자유" };
+const baseBody = { title: "제목", description: "열 글자 이상 게시글 본문", category: "자유" };
 
 const dbPost = (patch: Record<string, unknown>) => ({
   id: 1,
@@ -76,7 +76,7 @@ const dbPost = (patch: Record<string, unknown>) => ({
   updatedAt: new Date("2026-10-01T00:00:00.000Z"),
   userId: 7,
   title: "제목",
-  description: "내용",
+  description: "열 글자 이상 게시글 본문",
   category: "자유",
   type: null,
   latitude: null,

@@ -2,6 +2,7 @@ import type { NextApiRequest, NextApiResponse } from "next";
 
 const mockClient = {
   user: { findUnique: jest.fn() },
+  userSanction: { findFirst: jest.fn() },
 };
 jest.mock("@libs/server/client", () => ({
   __esModule: true,
@@ -93,9 +94,48 @@ describe("/api/auth/refresh", () => {
     expect(mockClient.user.findUnique).not.toHaveBeenCalled();
   });
 
-  it.each(["BANNED", "SUSPENDED_7D", "DELETED"])("%s 계정은 401", async (status) => {
+  it("탈퇴 계정은 401", async () => {
     mockVerifyRefreshToken.mockResolvedValue({ type: "refresh", sub: "7", tv: 0 });
-    mockClient.user.findUnique.mockResolvedValue(dbUser({ status }));
+    mockClient.user.findUnique.mockResolvedValue(dbUser({ status: "DELETED" }));
+    const res = await refresh();
+    expect(res.statusCode).toBe(401);
+    expect(mockIssueTokens).not.toHaveBeenCalled();
+  });
+
+  it("영구 정지 계정은 403 ACCOUNT_BANNED(토큰 tv 가 달라도), 사유를 붙인다", async () => {
+    mockVerifyRefreshToken.mockResolvedValue({ type: "refresh", sub: "7", tv: 0 });
+    mockClient.user.findUnique.mockResolvedValue(dbUser({ status: "BANNED", tokenVersion: 1 }));
+    mockClient.userSanction.findFirst.mockResolvedValue({ reasonCode: "FRAUD", messageToUser: null });
+    const res = await refresh();
+    expect(res.statusCode).toBe(403);
+    expect(res.body).toEqual({
+      success: false,
+      errorCode: "ACCOUNT_BANNED",
+      error: "이용이 영구 정지된 계정이에요. 사유: 사기·허위 매물",
+      message: "이용이 영구 정지된 계정이에요. 사유: 사기·허위 매물",
+      reasonLabel: "사기·허위 매물",
+    });
+    expect(mockIssueTokens).not.toHaveBeenCalled();
+  });
+
+  it.each(["SUSPENDED", "SUSPENDED_7D"])("정지 중(%s)이면 403 ACCOUNT_SUSPENDED + 해제일(AC-25)", async (status) => {
+    const until = new Date(Date.now() + 3 * 24 * 60 * 60 * 1000);
+    mockVerifyRefreshToken.mockResolvedValue({ type: "refresh", sub: "7", tv: 0 });
+    mockClient.user.findUnique.mockResolvedValue(dbUser({ status, suspendedUntil: until, tokenVersion: 1 }));
+    mockClient.userSanction.findFirst.mockResolvedValue(null);
+    const res = await refresh();
+    expect(res.statusCode).toBe(403);
+    expect(res.body).toEqual(
+      expect.objectContaining({ errorCode: "ACCOUNT_SUSPENDED", suspendedUntil: until.toISOString() })
+    );
+    expect(mockIssueTokens).not.toHaveBeenCalled();
+  });
+
+  it("정지 기간이 이미 끝났으면 401(다시 로그인해야 정지가 풀린다)", async () => {
+    mockVerifyRefreshToken.mockResolvedValue({ type: "refresh", sub: "7", tv: 0 });
+    mockClient.user.findUnique.mockResolvedValue(
+      dbUser({ status: "SUSPENDED", suspendedUntil: new Date(Date.now() - 1000), tokenVersion: 1 })
+    );
     const res = await refresh();
     expect(res.statusCode).toBe(401);
     expect(mockIssueTokens).not.toHaveBeenCalled();

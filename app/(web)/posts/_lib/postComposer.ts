@@ -4,6 +4,7 @@
  */
 
 import { POST_IMAGES_MAX } from "@libs/postImages";
+import { countPostBodyText } from "@libs/shared/post-body";
 
 export const POST_TITLE_MIN = 2;
 export const POST_TITLE_MAX = 80;
@@ -46,10 +47,12 @@ export function validatePostForm(values: PostFormValues): PostFormErrors {
   if (!title) errors.title = "제목을 입력해주세요.";
   else if (title.length < POST_TITLE_MIN) errors.title = "제목은 2자 이상 입력해주세요.";
   else if (title.length > POST_TITLE_MAX) errors.title = "제목은 80자 이하로 입력해주세요.";
+  // 글자 수는 사진 자리·크게·굵게 표시를 뺀 글자로 센다(libs/shared/post-body.ts, 앱과 같음).
+  const bodyLength = countPostBodyText(description);
   if (!description) errors.description = "내용을 입력해주세요.";
-  else if (description.length < POST_DESCRIPTION_MIN)
+  else if (bodyLength < POST_DESCRIPTION_MIN)
     errors.description = "내용을 10자 이상 입력해주세요.";
-  else if (description.length > POST_DESCRIPTION_MAX)
+  else if (bodyLength > POST_DESCRIPTION_MAX)
     errors.description = "내용은 2000자 이하로 입력해주세요.";
   return errors;
 }
@@ -92,7 +95,8 @@ export function canSubmitPost({
     (!isEdit || changed) &&
     Boolean(values.category) &&
     Boolean(values.title.trim()) &&
-    Boolean(values.description.trim())
+    // 사진만 있는 본문은 글자가 없어 '완료'를 켜지 않는다(앱 editor.textCount > 0 과 같음).
+    countPostBodyText(values.description) > 0
   );
 }
 

@@ -65,6 +65,20 @@ describe("setUserStatus", () => {
     });
   });
 
+  it("SUSPENDED 는 넘겨받은 만료 시각을 기록하고 tokenVersion 을 올린다", async () => {
+    const until = new Date(NOW.getTime() + 10 * DAY_MS);
+    await setUserStatus(mockDb as any, 9, "SUSPENDED", NOW, until);
+    expect(mockDb.user.updateMany).toHaveBeenCalledWith({
+      where: notDeleted,
+      data: { status: "SUSPENDED", suspendedUntil: until, tokenVersion: { increment: 1 } },
+    });
+  });
+
+  it("SUSPENDED 에 만료 시각이 없으면 바꾸지 않고 오류를 낸다", async () => {
+    await expect(setUserStatus(mockDb as any, 9, "SUSPENDED", NOW)).rejects.toThrow("suspendedUntil");
+    expect(mockDb.user.updateMany).not.toHaveBeenCalled();
+  });
+
   it("대상이 없거나 탈퇴 계정이면 바꾸지 않고 false 를 돌려준다", async () => {
     mockDb.user.updateMany.mockResolvedValue({ count: 0 });
     await expect(setUserStatus(mockDb as any, 9, "BANNED", NOW)).resolves.toBe(false);
@@ -120,6 +134,17 @@ describe("getLoginBlock", () => {
       message: "이용이 정지된 계정이에요. 2026.10.08 이후 다시 로그인할 수 있어요.",
       suspendedUntil: "2026-10-08T03:00:00.000Z",
     });
+  });
+
+  it("새 기간 정지(SUSPENDED)도 같은 규칙으로 막고 푼다(AC-12)", () => {
+    const until = new Date("2026-10-04T03:00:00.000Z");
+    expect(getLoginBlock({ status: "SUSPENDED", suspendedUntil: until }, NOW)).toMatchObject({
+      status: 403,
+      errorCode: "ACCOUNT_SUSPENDED",
+      message: "이용이 정지된 계정이에요. 2026.10.04 이후 다시 로그인할 수 있어요.",
+      suspendedUntil: "2026-10-04T03:00:00.000Z",
+    });
+    expect(getLoginBlock({ status: "SUSPENDED", suspendedUntil: NOW }, NOW)).toEqual({ lift: true });
   });
 
   it("정지 기간이 지났으면 해제(lift)한다", () => {

@@ -20,9 +20,8 @@ import {
   speciesCategoryWhere,
 } from "@libs/server/categories";
 import { REGION_REQUIRED_MESSAGE } from "@libs/shared/regions";
-
-/** 동네 글 카테고리. 앱 전용이라 POST_CATEGORIES(웹 UI 목록)에는 넣지 않는다. 등록 시 작성자 동네를 글에 복사한다. */
-export const REGION_POST_CATEGORY = "동네";
+import { REGION_POST_CATEGORY } from "@libs/shared/postCategory";
+import { validatePostDescription } from "@libs/shared/post-body";
 
 /** 게시글 목록 응답 타입 */
 export interface PostWithUser extends Post {
@@ -191,6 +190,18 @@ const handler = async (
       });
     }
 
+    // 본문 글자 수(표시 기호 제외)와 사진 자리 표시 번호를 검사한다(libs/shared/post-body.ts).
+    const bodyText = typeof description === "string" ? description.trim() : "";
+    const bodyCheck = validatePostDescription(bodyText, resolvedImages.images.length);
+    if (!bodyCheck.ok) {
+      return res.status(400).json({
+        success: false,
+        error: bodyCheck.message,
+        message: bodyCheck.message,
+        errorCode: bodyCheck.errorCode,
+      });
+    }
+
     if (
       isNoticePostInput({ category, title }) &&
       !(await canWriteNoticePost(user.id))
@@ -222,7 +233,7 @@ const handler = async (
         title,
         image: resolvedImages.image,
         images: resolvedImages.images,
-        description,
+        description: bodyText,
         category: category || null,
         type: species || null,
         categoryId: await resolveCategoryIdByName(species),

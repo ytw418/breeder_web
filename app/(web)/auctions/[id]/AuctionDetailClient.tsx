@@ -19,6 +19,10 @@ import {
 } from "@components/features/breeder/BreederProgramDecorators";
 import useMutation from "hooks/useMutation";
 import useUser from "hooks/useUser";
+import useAdminModeration from "hooks/useAdminModeration";
+import { ActionSheet } from "@components/app/ActionSheet";
+import { HeaderIconButton } from "@components/app/HeaderIconButton";
+import HiddenContentNotice from "@components/app/moderation/HiddenContentNotice";
 import { cn, getTimeAgoString, makeImageUrl } from "@libs/client/utils";
 import { toast } from "@libs/client/toast";
 import { absoluteUrl, copyText, shareOrCopy } from "@libs/client/share";
@@ -203,6 +207,9 @@ const AuctionDetailClient = () => {
   const [reportReason, setReportReason] = useState<(typeof REPORT_REASONS)[number]>("허위 매물 의심");
   const [reportDetail, setReportDetail] = useState("");
   const [confirmBidAmount, setConfirmBidAmount] = useState<number | null>(null);
+  // 관리자 ⋯ 조치(숨기기·숨김 해제·삭제). 웹 경매 상세는 관리자에게만 ⋯ 를 둔다(앱과 같음).
+  const moderation = useAdminModeration();
+  const [adminSheetOpen, setAdminSheetOpen] = useState(false);
 
   // 경매 데이터(5초 폴링). 폴링이 실패해도 SWR 은 받아 둔 data 를 그대로 둔다.
   const { data, error, mutate } = useSWR<AuctionDetailResponse>(
@@ -506,9 +513,35 @@ const AuctionDetailClient = () => {
     </>
   );
 
+  const adminActions = isOwner
+    ? []
+    : moderation.actionsFor({
+        targetType: "AUCTION",
+        targetId: auction.id,
+        isHidden: Boolean(auction.isHidden),
+        refreshDetail: () => void mutate(),
+        onDeleted: () => router.replace("/auctions"),
+      });
+
   return (
-    <Layout canGoBack title={auction.title} seoTitle={auction.title}>
+    <Layout
+      canGoBack
+      title={auction.title}
+      seoTitle={auction.title}
+      headerRight={
+        adminActions.length > 0 ? (
+          <HeaderIconButton label="더보기" onClick={() => setAdminSheetOpen(true)}>
+            <svg className="h-6 w-6" fill="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+              <circle cx="12" cy="5" r="1.75" />
+              <circle cx="12" cy="12" r="1.75" />
+              <circle cx="12" cy="19" r="1.75" />
+            </svg>
+          </HeaderIconButton>
+        ) : undefined
+      }
+    >
       <div className="bg-app-bg pb-[calc(200px+env(safe-area-inset-bottom))]">
+        {auction.isHidden ? <HiddenContentNotice targetType="AUCTION" className="mx-4 my-3" /> : null}
         {/* 이미지: 화면 폭 정사각 */}
         <div className="relative">
           {photos.length ? (
@@ -821,6 +854,8 @@ const AuctionDetailClient = () => {
         }}
         onCancel={() => setConfirmBidAmount(null)}
       />
+      <ActionSheet open={adminSheetOpen} onClose={() => setAdminSheetOpen(false)} actions={adminActions} />
+      {moderation.confirmDialog}
     </Layout>
   );
 };
