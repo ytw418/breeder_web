@@ -6,7 +6,7 @@ import {
   withTargetFollowState,
 } from "@libs/client/followState";
 import { clampAlbumTitle, mergeAlbumCandidates, toggleAlbumPost } from "@libs/client/albumEdit";
-import { profileTabs, visibleTab } from "@libs/client/profileTabs";
+import { PROFILE_TABS } from "@libs/client/profileTabs";
 import { getPostMenuActionKeys } from "../app/(web)/posts/_lib/postComposer";
 
 const profile = (followers: number, following: number) => ({
@@ -65,23 +65,10 @@ describe("앨범 편집", () => {
 });
 
 describe("프로필 밑줄 탭", () => {
-  it("경매·혈통은 있을 때만 보인다", () => {
-    expect(profileTabs({ auctions: 0, ownedBloodlineCards: 0 }).map((t) => t.label)).toEqual(["사진", "기록", "분양"]);
-    expect(profileTabs({ auctions: 2, createdBloodlineCards: 1 }).map((t) => t.label)).toEqual([
-      "사진",
-      "기록",
-      "분양",
-      "경매",
-      "혈통",
-    ]);
-    // 구 서버 응답(경매 수 없음)이면 경매 탭을 그대로 보인다.
-    expect(profileTabs({}).map((t) => t.id)).toContain("auctions");
-  });
-
-  it("보던 탭이 사라지면 사진 탭으로 돌아간다", () => {
-    const tabs = profileTabs({ auctions: 0 });
-    expect(visibleTab(tabs, "auctions", "photos")).toBe("photos");
-    expect(visibleTab(tabs, "posts", "photos")).toBe("posts");
+  // 2026-10-09 v4: 내 프로필·남 프로필·마이페이지가 같은 다섯 탭을 쓴다(내용이 없으면 빈 상태).
+  it("누구 프로필이든 사진·기록·분양·경매·혈통 다섯 개를 같은 순서로 둔다", () => {
+    expect(PROFILE_TABS.map((t) => t.label)).toEqual(["사진", "기록", "분양", "경매", "혈통"]);
+    expect(PROFILE_TABS.map((t) => t.id)).toEqual(["photos", "posts", "products", "auctions", "bloodlines"]);
   });
 });
 

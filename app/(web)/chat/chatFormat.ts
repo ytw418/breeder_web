@@ -166,6 +166,8 @@ export type ChatMessageGroup<T extends ChatMessageLike> = {
   messages: T[];
   mine: boolean;
   avatar: string | null;
+  /** 보낸 사람 id. 상대 아바타를 누르면 그 사람 프로필로 간다. */
+  userId: number;
 };
 
 export type ChatRenderItem<T extends ChatMessageLike> =
@@ -202,6 +204,7 @@ export function buildChatItems<T extends ChatMessageLike>(
       messages: [message],
       mine: myId != null && message.user.id === myId,
       avatar: message.user.avatar,
+      userId: message.user.id,
     };
     items.push(current);
   });

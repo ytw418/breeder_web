@@ -2,7 +2,7 @@
 /**
  * 팔로우 버튼(앱 FollowButton·useFollowMutation·UnfollowConfirmSheet).
  * 팔로우 전은 brand 채움 + 흰 글자, 팔로잉은 surface 배경 + text 글자(시안).
- * - lg: 프로필 블록(높이 52, 남은 폭을 나눠 가진다)
+ * - lg: 프로필 블록(높이 36 · r8, 남은 폭을 나눠 가진다)
  * - sm: 팔로워·팔로잉 행(74×32)
  * '팔로잉'을 누르면 '팔로우 취소' 하나만 있는 시트를 거친다(PRD F-11). 팔로우는 바로 된다.
  * 누르는 즉시 캐시(프로필 숫자·목록 행)를 바꾸고, 실패하면 그 사람 몫만 되돌린다. 서버는 토글이라 응답이 최종 상태다.
@@ -115,8 +115,8 @@ export default function FollowButton({
           else void toggle(false);
         }}
         className={cn(
-          "inline-flex shrink-0 items-center justify-center rounded-md font-semibold transition-opacity",
-          lg ? "h-[52px] flex-1 text-[14px]" : "h-8 w-[74px] text-[13px]",
+          "inline-flex shrink-0 items-center justify-center font-semibold transition-opacity",
+          lg ? "h-9 flex-1 rounded-lg text-[14px]" : "h-8 w-[74px] rounded-md text-[13px]",
           isFollowing ? "bg-app-surface text-app-text" : "bg-app-brand text-white",
           pending && "opacity-70"
         )}

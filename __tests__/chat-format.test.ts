@@ -121,6 +121,11 @@ describe("채팅방", () => {
     expect(mine).toEqual([false, true, true, false]);
   });
 
+  it("묶음마다 보낸 사람 id 를 담는다(상대 아바타를 누르면 그 프로필로 간다)", () => {
+    const groups = buildChatItems(list, 1, now).filter((i) => i.type === "group");
+    expect(groups.map((i) => (i.type === "group" ? i.userId : null))).toEqual([2, 1, 1, 2]);
+  });
+
   it("읽음 표시는 상대 lastReadAt 이전의 내 마지막 메시지", () => {
     expect(findReadReceiptMessageId(list, at(2026, 2, 14, 14, 50).toISOString(), 1)).toBe(3);
     expect(findReadReceiptMessageId(list, at(2026, 2, 14, 15).toISOString(), 1)).toBe(4);

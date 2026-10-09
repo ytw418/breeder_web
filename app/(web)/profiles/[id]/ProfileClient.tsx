@@ -1,13 +1,14 @@
 "use client";
 /**
- * 타인/내 프로필 — 사진형 A안(앱 src/app/profiles/[id]/index.tsx, 시안 design/mockups/profile/A-karrot.html, PRD profile.md S-1).
+ * 타인/내 프로필 — 사진형 A안 v4(앱 src/app/profiles/[id]/index.tsx, 시안 design/mockups/profile/A-karrot.html, PRD profile.md S-1).
  *
  * 구조:
  *   헤더(profile 변형: 뒤로 · 이름 · 공유 · 더보기)
- *   ProfileBlock(아바타 64 · 이름 · 주력 종 · 소개 · 뱃지 · 통계 · 버튼 52)
+ *   ProfileBlock(아바타 80 + 게시물·팔로워·팔로잉 · 이름 · 컬러 뱃지 · 주력 종 · 소개 · 버튼 36)
  *   AlbumRow(내 앨범 → 종별 자동 앨범 → 본인이면 '새 앨범')
- *   UnderlineTabs: 사진 · 기록 · 분양 · [경매] · [혈통]
+ *   UnderlineTabs: 사진 · 기록 · 분양 · 경매 · 혈통(같은 너비, 스크롤하면 헤더 아래에 붙는다)
  *   탭 내용: 사진 3열 그리드(고정 우선) / 게시물·상품(분양 탭 맨 위 판매·구매내역 행)·경매·혈통 목록
+ *   하단 탭바(앱처럼 프로필에서도 바로 탭을 옮긴다)
  */
 import { useParams, useRouter } from "next/navigation";
 import { useState, type ReactNode } from "react";
@@ -41,7 +42,7 @@ import {
   useUserProductsList,
   type ProfilePost,
 } from "@components/features/profile/ProfileActivityLists";
-import { profileTabs, visibleTab, type ProfileTab } from "@libs/client/profileTabs";
+import { PROFILE_TABS, type ProfileTab } from "@libs/client/profileTabs";
 import { absoluteUrl, copyText, shareOrCopy } from "@libs/client/share";
 import { toast } from "@libs/client/toast";
 import { DELETED_USER_LABEL, isDeletedUserName } from "@libs/shared/deletedUser";
@@ -73,9 +74,8 @@ const ProfileClient = () => {
   const { data, error, isLoading, mutate } = useSWR<UserResponse>(id ? `/api/users/${id}` : null);
   const user = data?.user;
 
-  const tabs = profileTabs(user?._count);
-  // 보던 탭이 사라지면(예: 경매가 모두 숨겨짐) 사진 탭으로 돌아간다.
-  const currentTab = visibleTab<ProfileTab>(tabs, activeTab, "photos");
+  // 탭은 누구 프로필이든 다섯 개 그대로 둔다(내용이 없으면 빈 상태). 2026-10-09 v4.
+  const currentTab = activeTab;
 
   // 목록은 그 탭을 열었을 때만 받는다.
   const photosList = useUserPhotoPostsList(id, undefined, currentTab === "photos");
@@ -231,38 +231,41 @@ const ProfileClient = () => {
             isOwner={isMyProfile}
           />
         ) : null}
-        <UnderlineTabs tabs={tabs} active={currentTab} onChange={setActiveTab} />
-        {currentTab === "photos" ? (
-          <PhotoGrid
-            list={photosList}
-            emptyMessage={isMyProfile ? "사진을 올려 프로필을 채워 보세요" : "아직 올린 사진이 없어요"}
-            emptyAction={isMyProfile ? { label: "글쓰기", href: "/posts/upload" } : undefined}
-            onPinPost={isMyProfile ? setPinTarget : undefined}
-          />
-        ) : null}
-        {currentTab === "posts" ? <ProfilePostRows list={postsList} /> : null}
-        {currentTab === "products" && id ? (
-          <>
-            <TransactionMenu userId={id} isMine={isMyProfile} />
-            <SectionGap />
-            <ProfileProductRows list={productsList} />
-          </>
-        ) : null}
-        {currentTab === "auctions" ? <ProfileAuctionRows list={auctionsList} /> : null}
-        {currentTab === "bloodlines" ? (
-          <ProfileBloodlineRows
-            data={bloodlinesQuery.data}
-            isLoading={bloodlinesQuery.isLoading}
-            isError={Boolean(bloodlinesQuery.error)}
-            onRetry={() => void bloodlinesQuery.mutate()}
-          />
-        ) : null}
+        <UnderlineTabs tabs={PROFILE_TABS} active={currentTab} onChange={setActiveTab} />
+        {/* 탭을 바꿔도 위에 붙은 탭 줄이 내려가지 않게 내용은 최소한 화면 남은 높이(헤더 56 · 탭 46 · 하단 탭바 56)만큼 차지한다. */}
+        <div className="min-h-[calc(100dvh-158px-env(safe-area-inset-bottom))]">
+          {currentTab === "photos" ? (
+            <PhotoGrid
+              list={photosList}
+              emptyMessage={isMyProfile ? "사진을 올려 프로필을 채워 보세요" : "아직 올린 사진이 없어요"}
+              emptyAction={isMyProfile ? { label: "글쓰기", href: "/posts/upload" } : undefined}
+              onPinPost={isMyProfile ? setPinTarget : undefined}
+            />
+          ) : null}
+          {currentTab === "posts" ? <ProfilePostRows list={postsList} /> : null}
+          {currentTab === "products" && id ? (
+            <>
+              <TransactionMenu userId={id} isMine={isMyProfile} />
+              <SectionGap />
+              <ProfileProductRows list={productsList} />
+            </>
+          ) : null}
+          {currentTab === "auctions" ? <ProfileAuctionRows list={auctionsList} /> : null}
+          {currentTab === "bloodlines" ? (
+            <ProfileBloodlineRows
+              data={bloodlinesQuery.data}
+              isLoading={bloodlinesQuery.isLoading}
+              isError={Boolean(bloodlinesQuery.error)}
+              onRetry={() => void bloodlinesQuery.mutate()}
+            />
+          ) : null}
+        </div>
       </div>
     );
   }
 
   return (
-    <MainLayout headerVariant="profile" title={user?.name} headerRight={headerRight}>
+    <MainLayout headerVariant="profile" title={user?.name} headerRight={headerRight} hasTabBar>
       {body}
       <ActionSheet open={sheetOpen} onClose={() => setSheetOpen(false)} actions={sheetActions} />
       <ProfilePinSheet post={pinTarget} onClose={() => setPinTarget(null)} />
