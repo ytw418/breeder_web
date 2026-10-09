@@ -19,6 +19,7 @@ import { formatRegionShort } from "@libs/shared/regions";
 import type { PagedListState } from "./usePagedList";
 import { usePagedList } from "./usePagedList";
 import { EmptyBlock, EmptyMessage, LoadingBlock, RetryBlock, Thumb } from "./ProfileRows";
+import { toPostPlainText } from "@libs/shared/post-body";
 
 export type ProfilePost = UserPostListResponse["posts"][number] & { isHidden?: boolean | null };
 export type ProfileComment = UserCommentListResponse["comments"][number];
@@ -170,7 +171,7 @@ export function ProfilePostRows({
               <p className="min-w-0 shrink truncate text-[16px] font-semibold text-app-text">{post.title}</p>
               {post.isHidden ? <HiddenPill /> : null}
             </div>
-            <p className="mt-0.5 truncate text-[14px] text-app-muted">{post.description}</p>
+            <p className="mt-0.5 truncate text-[14px] text-app-muted">{toPostPlainText(post.description)}</p>
             <p className="mt-1.5 truncate text-[13px] text-app-muted">
               {post.category ? `${post.category} · ` : ""}
               {getTimeAgoString(new Date(post.createdAt))} · 댓글 {post._count?.comments ?? 0} · 좋아요{" "}

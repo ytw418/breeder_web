@@ -97,7 +97,7 @@ describe("GET /api/posts 동네 필터", () => {
 });
 
 describe("POST /api/posts 동네 글", () => {
-  const body = { title: "인사", description: "안녕하세요", image: "img-1", category: "동네" };
+  const body = { title: "인사", description: "안녕하세요 동네 이웃 여러분", image: "img-1", category: "동네" };
 
   it("작성자 동네를 글에 복사한다", async () => {
     mockClient.user.findUnique

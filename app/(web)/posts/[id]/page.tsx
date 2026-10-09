@@ -7,6 +7,7 @@ import {
   displayUserName,
   normalizeDeletedUserNames,
 } from "@libs/shared/deletedUser";
+import { toPostPlainText } from "@libs/shared/post-body";
 import type { Metadata } from "next";
 
 const SITE_URL = "https://bredy.app";
@@ -63,7 +64,7 @@ export async function generateMetadata({
 
   const title = `${data.post.title} | 브리디 게시글`;
   const description = trimText(
-    `${data.post.description} ${data.post.user?.name ? `(작성자 ${displayUserName(data.post.user.name)})` : ""}`,
+    `${toPostPlainText(data.post.description)} ${data.post.user?.name ? `(작성자 ${displayUserName(data.post.user.name)})` : ""}`,
     140
   );
 

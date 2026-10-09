@@ -10,6 +10,7 @@ import { Input } from "@components/ui/input";
 import { Textarea } from "@components/ui/textarea";
 import useContentActionDialog from "@components/features/moderation/useContentActionDialog";
 import { toPostPath } from "@libs/post-route";
+import { toPostPlainText } from "@libs/shared/post-body";
 
 export default function AdminPostsPage() {
   const [page, setPage] = useState(1);
@@ -230,7 +231,7 @@ export default function AdminPostsPage() {
                     </div>
                     <div className="text-sm text-gray-500 line-clamp-1 mt-1">
                       <Link href={toPostPath(post.id, post.title)} target="_blank" className="hover:underline">
-                        {post.description}
+                        {toPostPlainText(post.description)}
                       </Link>
                     </div>
                   </td>

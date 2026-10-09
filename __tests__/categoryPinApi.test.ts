@@ -207,7 +207,7 @@ describe("GET /api/posts?categoryPath=", () => {
     await call(postsHandler, {
       method: "POST",
       user: me,
-      body: { title: "제목", description: "내용", image: "img", category: "자유", species: "강아지" },
+      body: { title: "제목", description: "강아지 산책 이야기입니다", image: "img", category: "자유", species: "강아지" },
     });
     expect(mockClient.post.create.mock.calls[0][0].data).toMatchObject({ type: "강아지", categoryId: 31 });
   });
@@ -218,7 +218,7 @@ describe("GET /api/posts?categoryPath=", () => {
     await call(postsHandler, {
       method: "POST",
       user: me,
-      body: { title: "제목", description: "내용", image: "img", category: "자유", species: "햄스터" },
+      body: { title: "제목", description: "햄스터 키우는 이야기입니다", image: "img", category: "자유", species: "햄스터" },
     });
     expect(mockClient.post.create.mock.calls[0][0].data).toMatchObject({ type: "햄스터", categoryId: 30 });
   });

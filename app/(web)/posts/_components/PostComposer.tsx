@@ -8,7 +8,7 @@ import Layout from "@components/features/MainLayout";
 import ConfirmDialog from "@components/atoms/ConfirmDialog";
 import { authFetch } from "@libs/client/authFetch";
 import { toast } from "@libs/client/toast";
-import { cn, makeImageUrl } from "@libs/client/utils";
+import { cn } from "@libs/client/utils";
 import { POST_CATEGORIES } from "@libs/constants";
 import { toPostPath } from "@libs/post-route";
 import { toLoginHref } from "@components/features/MainLayout";
@@ -24,17 +24,22 @@ import {
   filterPickedPhotos,
   hasComposerChanges,
   validatePostForm,
-  type ComposerPhoto,
   type PostComposerInitial,
   type PostFormErrors,
 } from "../_lib/postComposer";
 import { PostPickerSheet } from "./PostPickerSheet";
 import { SpeciesPickerSheet, defaultSpeciesFromPins } from "./SpeciesPickerSheet";
+import {
+  PostBodyEditor,
+  PostBodyToolbarButtons,
+  normalizedPostBody,
+  usePostBodyEditor,
+} from "./PostBodyEditor";
 
 /**
- * 게시글 작성·수정 공용 폼(앱 PostComposer). 시안: bredy_app design/mockups/post-upload/A-karrot.html
+ * 게시글 작성·수정 공용 폼(앱 PostComposer). 시안: bredy_app design/mockups/post-upload/A2-karrot.html
  * 헤더 X / "글쓰기"(수정: "게시글 수정") / "완료"(수정: "수정하기") · 선택 row 2개 · 8px 갭 ·
- * 80px 사진 가로 스크롤 · 제목 18/600 · 1px 구분선 · 본문 16/1.6 · 하단 바 52(카메라 + n/10).
+ * 제목 18/600 · 1px 구분선 · 본문 블록(줄 칸 + 사진 칸) · 하단 툴바 52(카메라 · 크기 · 굵게 + n/10).
  */
 
 type SubmitStep = "idle" | "image" | "submit";
@@ -95,20 +100,6 @@ function ChevronRightIcon() {
       aria-hidden="true"
     >
       <path d="M9 5l7 7-7 7" strokeWidth={1.5} strokeLinecap="round" strokeLinejoin="round" />
-    </svg>
-  );
-}
-
-function CameraIcon() {
-  return (
-    <svg width={24} height={24} viewBox="0 0 24 24" fill="none" stroke="currentColor" aria-hidden="true">
-      <path
-        d="M3 8.5A2.5 2.5 0 015.5 6h1.7a1 1 0 00.83-.45l.94-1.4A1 1 0 019.8 3.7h4.4a1 1 0 01.83.45l.94 1.4a1 1 0 00.83.45h1.7A2.5 2.5 0 0121 8.5v8A2.5 2.5 0 0118.5 19h-13A2.5 2.5 0 013 16.5v-8z"
-        strokeWidth={1.5}
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      />
-      <circle cx={12} cy={12.5} r={3.5} strokeWidth={1.5} />
     </svg>
   );
 }
@@ -207,12 +198,6 @@ function SelectRow({
   );
 }
 
-let photoSeq = 0;
-const nextPhotoKey = () => {
-  photoSeq += 1;
-  return `photo-${photoSeq}`;
-};
-
 export function PostComposer(props: PostComposerProps) {
   const router = useRouter();
   const { mutate: globalMutate, cache: swrCache } = useSWRConfig();
@@ -247,43 +232,27 @@ export function PostComposer(props: PostComposerProps) {
     if (preset) setSpecies(preset);
   }, [user, categoriesData, pinnedCategoryIds]);
   const [title, setTitle] = useState(initial?.title ?? "");
-  const [description, setDescription] = useState(initial?.description ?? "");
-  const [photos, setPhotos] = useState<ComposerPhoto[]>(() =>
-    (initial?.imageIds ?? []).map((id) => ({ kind: "remote", key: `remote-${id}`, id }))
-  );
+  // 본문은 줄 칸·사진 칸 블록(libs/shared/post-body-editor.ts). 사진 순서 = 본문 순서, 대표 = 맨 위 사진.
+  const editor = usePostBodyEditor(initial?.description ?? "", initial?.imageIds ?? []);
+  // 수정 화면의 '바뀐 게 있나' 기준. 옛 글은 열기만 해도 사진 자리 표시가 붙으므로 그 결과와 비교한다.
+  const [normalizedInitial] = useState(() => {
+    if (!initial) return null;
+    const normalized = normalizedPostBody(initial.description, initial.imageIds);
+    return { ...initial, description: normalized.description, imageIds: normalized.images };
+  });
   const [errors, setErrors] = useState<PostFormErrors>({});
   const [submitStep, setSubmitStep] = useState<SubmitStep>("idle");
   const [picker, setPicker] = useState<PickerTarget>(null);
   // 동네 미설정 안내(앱 PostComposer promptRegionRequired). '설정하기' 는 내 동네 설정으로 보낸다.
   const [regionPromptOpen, setRegionPromptOpen] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const bodyRef = useRef<HTMLTextAreaElement>(null);
-  const photosRef = useRef(photos);
-  photosRef.current = photos;
 
-  const values = { title, description, category, species };
+  const body = editor.toBody();
+  const values = { title, description: body.description, category, species };
   const isSubmitting = submitStep !== "idle";
-  const changed = hasComposerChanges(values, photos, initial);
+  const changed = hasComposerChanges(values, body.images, normalizedInitial);
   const canSubmit = canSubmitPost({ values, submitting: isSubmitting, isEdit, changed });
   const { leave, dialog } = useConfirmLeave(changed);
-
-  // 언마운트 시 미리보기 URL 정리
-  useEffect(
-    () => () => {
-      photosRef.current.forEach((photo) => {
-        if (photo.kind === "local") URL.revokeObjectURL(photo.previewUrl);
-      });
-    },
-    []
-  );
-
-  // 본문은 내용에 맞춰 늘어난다(최소 260).
-  useEffect(() => {
-    const el = bodyRef.current;
-    if (!el) return;
-    el.style.height = "auto";
-    el.style.height = `${Math.max(260, el.scrollHeight)}px`;
-  }, [description]);
 
   const clearFieldError = (field: keyof PostFormErrors) =>
     setErrors((prev) => {
@@ -300,7 +269,7 @@ export function PostComposer(props: PostComposerProps) {
 
   const openFilePicker = () => {
     if (isSubmitting) return;
-    if (photos.length >= POST_COMPOSER_IMAGE_MAX) {
+    if (editor.photoCount >= POST_COMPOSER_IMAGE_MAX) {
       toast.error(`사진은 최대 ${POST_COMPOSER_IMAGE_MAX}장까지 첨부할 수 있습니다.`);
       return;
     }
@@ -311,32 +280,16 @@ export function PostComposer(props: PostComposerProps) {
     const files = Array.from(event.target.files ?? []);
     event.target.value = "";
     if (!files.length) return;
-    const result = filterPickedPhotos(files, photos.length);
+    const result = filterPickedPhotos(files, editor.photoCount);
     if (result.invalidType) toast.error("이미지 파일만 업로드할 수 있습니다.");
     if (result.oversized) toast.error("이미지는 최대 10MB까지 업로드할 수 있습니다.");
     if (result.overflow) {
       toast.error(`사진은 최대 ${POST_COMPOSER_IMAGE_MAX}장까지 첨부할 수 있습니다.`);
     }
     if (!result.accepted.length) return;
-    setPhotos((prev) => [
-      ...prev,
-      ...result.accepted.map(
-        (file): ComposerPhoto => ({
-          kind: "local",
-          key: nextPhotoKey(),
-          file,
-          previewUrl: URL.createObjectURL(file),
-        })
-      ),
-    ]);
-  };
-
-  const removePhoto = (key: string) => {
-    setPhotos((prev) => {
-      const target = prev.find((photo) => photo.key === key);
-      if (target?.kind === "local") URL.revokeObjectURL(target.previewUrl);
-      return prev.filter((photo) => photo.key !== key);
-    });
+    // 커서 자리에 고른 순서대로 넣는다(커서가 없으면 본문 끝).
+    editor.insertFiles(result.accepted);
+    clearFieldError("description");
   };
 
   const submit = async () => {
@@ -353,17 +306,17 @@ export function PostComposer(props: PostComposerProps) {
     try {
       // 순서를 지키도록 한 장씩 올린다. 기존 사진(remote)은 다시 올리지 않고 id 를 그대로 보낸다.
       const imageIds: string[] = [];
-      if (photos.some((photo) => photo.kind === "local")) setSubmitStep("image");
-      for (const photo of photos) {
+      if (body.images.some((photo) => photo.kind === "local")) setSubmitStep("image");
+      for (const photo of body.images) {
         imageIds.push(
           photo.kind === "remote" ? photo.id : await uploadPostImage(photo.file, title.trim())
         );
       }
 
       setSubmitStep("submit");
-      const body = {
+      const payload = {
         title: title.trim(),
-        description: description.trim(),
+        description: body.description.trim(),
         category,
         species,
         images: imageIds,
@@ -372,7 +325,7 @@ export function PostComposer(props: PostComposerProps) {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(
-          initial ? { action: "update", ...body } : { ...body, image: imageIds[0] ?? "" }
+          initial ? { action: "update", ...payload } : { ...payload, image: imageIds[0] ?? "" }
         ),
       });
       const result = (await response.json().catch(() => null)) as PostMutationResponse | null;
@@ -491,41 +444,12 @@ export function PostComposer(props: PostComposerProps) {
 
         <div className="h-2 bg-app-gap" />
 
-        {/* 첨부 사진 — 80px 썸네일 가로 스크롤 */}
-        {photos.length ? (
-          <div className="flex gap-2 overflow-x-auto px-4 pb-1 pt-4 scrollbar-hide">
-            {photos.map((photo, index) => (
-              <div
-                key={photo.key}
-                className="relative h-20 w-20 shrink-0 rounded-md bg-app-placeholder"
-              >
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img
-                  src={photo.kind === "remote" ? makeImageUrl(photo.id, "public") : photo.previewUrl}
-                  alt={`첨부 사진 ${index + 1}`}
-                  className="h-20 w-20 rounded-md object-cover"
-                />
-                <button
-                  type="button"
-                  aria-label={`첨부 사진 ${index + 1} 삭제`}
-                  disabled={isSubmitting}
-                  onClick={() => removePhoto(photo.key)}
-                  className="absolute -right-1.5 -top-1.5 grid h-[22px] w-[22px] place-items-center rounded-full bg-app-inverse text-app-inverse-text"
-                >
-                  <CloseIcon className="h-3 w-3" strokeWidth={2.5} />
-                </button>
-              </div>
-            ))}
-            {/* 스크롤 끝에서 마지막 썸네일의 X 가 잘리지 않게 오른쪽 여백을 둔다. */}
-            <span className="w-px shrink-0" aria-hidden="true" />
-          </div>
-        ) : null}
-
         {/* 제목 */}
         <div className="px-4 pt-4">
           <input
             value={title}
             disabled={isSubmitting}
+            onFocus={editor.clearActive}
             onChange={(event) => {
               setTitle(event.target.value);
               clearFieldError("title");
@@ -539,38 +463,32 @@ export function PostComposer(props: PostComposerProps) {
 
         <div className="mx-4 mt-3.5 h-px bg-app-line" />
 
-        {/* 내용 */}
-        <div className="px-4 pt-3.5">
-          <textarea
-            ref={bodyRef}
-            value={description}
+        {/* 내용 — 줄 칸·사진 칸 블록(시안 A2 ①②) */}
+        <div className="px-4 pt-3.5" onInput={() => clearFieldError("description")}>
+          <PostBodyEditor
+            editor={editor}
             disabled={isSubmitting}
-            onChange={(event) => {
-              setDescription(event.target.value);
-              clearFieldError("description");
-            }}
             placeholder="곤충에 대한 이야기를 자유롭게 나눠보세요"
-            aria-label="내용"
-            className="block min-h-[260px] w-full resize-none overflow-hidden border-0 bg-transparent p-0 text-[16px] leading-[1.6] text-app-text outline-none placeholder:text-app-caption focus:ring-0"
           />
           <ErrorText>{errors.description}</ErrorText>
         </div>
+        {/* 본문 아래 빈 곳: 누르면 마지막 줄 끝에서 이어 쓴다(예전 본문 칸 최소 높이 자리). */}
+        <button
+          type="button"
+          aria-label="본문 끝에 이어 쓰기"
+          tabIndex={-1}
+          disabled={isSubmitting}
+          onClick={editor.focusEnd}
+          className="block min-h-[200px] w-full cursor-text"
+        />
       </div>
 
-      {/* 하단 바: 카메라 + n/10 */}
+      {/* 하단 툴바: 카메라 · 크기 · 굵게 + n/10 */}
       <div className="fixed inset-x-0 bottom-0 mx-auto max-w-xl z-30 border-t border-app-line bg-app-bg pb-[env(safe-area-inset-bottom)]">
-        <div className="mx-auto flex h-[52px] max-w-xl items-center gap-1.5 px-4">
-          <button
-            type="button"
-            aria-label="사진 첨부"
-            disabled={isSubmitting}
-            onClick={openFilePicker}
-            className="-m-2 grid place-items-center p-2 text-app-text"
-          >
-            <CameraIcon />
-          </button>
-          <span className="text-[14px] text-app-muted">
-            {photos.length}/{POST_COMPOSER_IMAGE_MAX}
+        <div className="mx-auto flex h-[52px] max-w-xl items-center px-2">
+          <PostBodyToolbarButtons editor={editor} disabled={isSubmitting} onPickPhotos={openFilePicker} />
+          <span className="ml-auto pr-2 text-[14px] text-app-muted">
+            {editor.photoCount}/{POST_COMPOSER_IMAGE_MAX}
           </span>
         </div>
         <input
