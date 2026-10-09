@@ -319,6 +319,7 @@ const SettingsClient = () => {
         />
         <Row label="관심 카테고리" icon="grid" value={scope.label} chevron href="/settings/categories" />
         <Row label="차단 관리" icon="shield" chevron href="/settings/blocked-users" />
+        <Row label="내 제재 내역" icon="document" chevron href="/settings/sanctions" />
         <Row label="회원탈퇴" icon="support" chevron href="/settings/delete-account" />
 
         <SectionGap />

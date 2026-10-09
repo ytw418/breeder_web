@@ -53,7 +53,7 @@ type AdminUserListItem = {
   name: string;
   email: string | null;
   role: "USER" | "FAKE_USER" | "ADMIN" | "SUPER_USER";
-  status: "ACTIVE" | "BANNED" | "SUSPENDED_7D" | "SUSPENDED_30D" | "DELETED";
+  status: "ACTIVE" | "BANNED" | "SUSPENDED" | "SUSPENDED_7D" | "SUSPENDED_30D" | "DELETED";
   createdAt: string;
 };
 
@@ -209,24 +209,15 @@ export default function AdminDashboardPage() {
     data: adminUsersData,
     mutate: mutateAdminUsers,
     isLoading: isAdminUsersLoading,
-  } = useSWR<AdminUsersResponse>("/api/admin/users");
+  } = useSWR<AdminUsersResponse>(
+    // 유저 목록 API 는 20명씩 나눠 주므로 검색은 서버에 맡긴다(닉네임·이메일·ID).
+    `/api/admin/users?status=ACTIVE&q=${encodeURIComponent(accountKeyword.trim())}`
+  );
 
-  const filteredSwitchTargets = useMemo(() => {
-    const normalizedKeyword = accountKeyword.trim().toLowerCase();
-    const users = adminUsersData?.users || [];
-    const activeUsers = users.filter((item) => item.status === "ACTIVE");
-
-    if (!normalizedKeyword) return activeUsers.slice(0, 30);
-    return activeUsers
-      .filter((item) => {
-        const email = String(item.email || "").toLowerCase();
-        return (
-          item.name.toLowerCase().includes(normalizedKeyword) ||
-          email.includes(normalizedKeyword)
-        );
-      })
-      .slice(0, 30);
-  }, [accountKeyword, adminUsersData?.users]);
+  const filteredSwitchTargets = useMemo(
+    () => (adminUsersData?.users || []).filter((item) => item.status === "ACTIVE"),
+    [adminUsersData?.users]
+  );
 
   const normalizedUserEmail = String(user?.email || "")
     .trim()

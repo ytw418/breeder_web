@@ -13,6 +13,7 @@ import {
   liftExpiredSuspension,
   type LoginBlock,
 } from "@libs/server/accountStatus";
+import { withRestrictionNotice } from "@libs/server/sanctions";
 import type { User } from "@prisma/client";
 import { SocialAuthError, verifySocialLogin } from "@libs/server/socialAuth";
 
@@ -148,7 +149,8 @@ async function handler(
         block = loginBlock;
       }
       if (block) {
-        const { status, ...body } = block;
+        // 정지·영구 정지면 가장 최근 제재 사유를 붙인다(앱 이용 제한 안내·웹 로그인 화면, PRD AC-26).
+        const { status, ...body } = await withRestrictionNotice(block, user.id);
         return res.status(status).json({ success: false, ...body });
       }
 

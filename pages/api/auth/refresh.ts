@@ -9,6 +9,8 @@ import {
   toAuthUser,
   verifyRefreshToken,
 } from "@libs/server/jwt";
+import { getLoginBlock, isSuspendedStatus } from "@libs/server/accountStatus";
+import { withRestrictionNotice } from "@libs/server/sanctions";
 
 export interface RefreshReqBody {
   refreshToken: string;
@@ -28,6 +30,9 @@ export interface RefreshResponseType {
  * stateless 방식이므로 서버에 토큰을 저장하지 않으며, 매 호출마다 DB 에서
  * 최신 유저 정보를 읽어 access 토큰에 담는다(sliding 갱신).
  * 정지·차단·탈퇴로 tokenVersion 이 올라갔으면 refresh 토큰의 tv 와 달라 401 이 된다.
+ * 단 지금 정지·영구 정지 중이면 401 대신 로그인과 같은 403 차단 응답(errorCode·사유·해제일)을 준다.
+ * 쓰는 중에 정지된 앱·웹이 말없이 로그아웃하지 않고 이용 제한 안내를 보여 주게 하려는 것이다(PRD F-6).
+ * 구버전 앱은 refresh 의 4xx 를 모두 로그아웃으로 처리하므로 그대로 로그아웃된다.
  */
 async function handler(
   req: NextApiRequest,
@@ -50,6 +55,15 @@ async function handler(
 
   const userId = Number(payload.sub);
   const user = await client.user.findUnique({ where: { id: userId } });
+
+  if (user && (user.status === "BANNED" || isSuspendedStatus(user.status))) {
+    const block = getLoginBlock(user);
+    // 정지 기간이 끝났으면 다시 로그인해야 한다(로그인이 정지를 풀고 새 토큰을 준다).
+    if (block && !("lift" in block)) {
+      const { status, ...body } = await withRestrictionNotice(block, user.id);
+      return res.status(status).json({ success: false, ...body });
+    }
+  }
 
   if (
     !user ||

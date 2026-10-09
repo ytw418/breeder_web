@@ -4,6 +4,22 @@ import {
   getRefreshToken,
   setTokens,
 } from "./authToken";
+import {
+  openAccountRestrictedNotice,
+  saveAccountRestriction,
+  toAccountRestriction,
+} from "./accountRestriction";
+
+/**
+ * 쓰는 중에 계정이 정지되면 refresh 가 403 ACCOUNT_SUSPENDED/BANNED(사유·해제일)를 준다.
+ * 말없이 로그아웃하지 않고 로그인 화면의 이용 제한 안내로 보낸다(앱 docs/prd/admin-moderation.md F-6).
+ */
+async function handleRestrictedRefresh(res: Response) {
+  const restriction = toAccountRestriction(await res.json().catch(() => null));
+  if (!restriction || typeof window === "undefined") return;
+  saveAccountRestriction(restriction);
+  openAccountRestrictedNotice();
+}
 
 /**
  * 모든 API 요청에 Bearer access 토큰을 주입하고, 401 응답 시 refresh 토큰으로
@@ -32,6 +48,7 @@ async function runRefresh(): Promise<string | null> {
       if (res.status === 401 || res.status === 403) {
         clearTokens();
       }
+      if (res.status === 403) await handleRestrictedRefresh(res);
       return null;
     }
 

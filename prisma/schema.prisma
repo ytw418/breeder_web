@@ -26,6 +26,7 @@ enum UserStatus {
   DELETED       // 삭제
   SUSPENDED_7D  // 7일정지
   SUSPENDED_30D // 한달정지
+  SUSPENDED     // 기간 정지(suspendedUntil 까지). 새 정지는 모두 이 값을 쓴다(SUSPENDED_7D·30D 는 옛 행 호환용)
 }
 
 enum MessageType {
@@ -97,7 +98,7 @@ model User {
   deletedAt       DateTime?
   /// 정지·차단·탈퇴 시 +1. access/refresh 의 tv 클레임과 비교
   tokenVersion    Int         @default(0)
-  /// SUSPENDED_* 만료 시각. 로그인 시 지났으면 ACTIVE 로 복귀
+  /// SUSPENDED·SUSPENDED_* 만료 시각. 로그인 시 지났으면 ACTIVE 로 복귀
   suspendedUntil  DateTime?
   /// 내 동네(시/도 · 시/군/구). libs/shared/regions.ts 목록의 조합만 저장한다. 좌표는 저장하지 않는다.
   regionSido      String?
@@ -150,6 +151,8 @@ model User {
   insectRecords   InsectRecord[]
   guinnessSubmissions GuinnessSubmission[]
   moderationLogs  ModerationLog[] @relation("ModerationLogActor")
+  sanctionsReceived UserSanction[] @relation("UserSanctionTarget")
+  sanctionsIssued   UserSanction[] @relation("UserSanctionActor")
   profileAlbums   ProfileAlbum[]
 
   @@index([status, deletedAt])
@@ -447,6 +450,7 @@ enum NotificationType {
   BLOODLINE_OVERTAKEN
   AUCTION_RECORD_BROKEN
   BLOODLINE_RECEIVED   // 출처 카드를 받았거나 혈통을 넘겨받음
+  MODERATION           // 운영 조치 안내(경고·정지·해제·숨김·삭제, 신고 처리 결과). 화면에는 보낸 사람 대신 '브리디 운영팀'
 }
 
 enum SeasonKind {
@@ -724,6 +728,8 @@ model AuctionReport {
   resolutionNote   String?
   resolvedBy       Int?
   resolvedAt       DateTime?
+  /// 처리하면서 준 사용자 제재(UserSanction.id)
+  sanctionId       Int?
   createdAt        DateTime            @default(now())
   updatedAt        DateTime            @updatedAt
 
@@ -765,7 +771,10 @@ model ModerationLog {
   /// 콘텐츠 작성자. 삭제 뒤에도 추적한다.
   targetUserId Int?
   action       ModerationActionType
+  /// 운영자 메모(자유 입력)
   reason       String?
+  /// 제재 사유 코드(libs/shared/sanction.ts SANCTION_REASONS). 작성자 알림에 사유 문구로 쓴다
+  reasonCode   String?
   /// 신고 처리에서 온 조치면 Report.id
   reportId     Int?
   /// 삭제 시 원문 보존용 { title, excerpt }
@@ -777,6 +786,55 @@ model ModerationLog {
   @@index([targetType, targetId])
   @@index([actorId, createdAt])
   @@index([targetUserId, createdAt])
+}
+
+// ============================================================
+// 사용자 제재(경고·기간 정지·영구 정지·해제) — 앱 docs/prd/admin-moderation.md
+// ============================================================
+
+enum SanctionType {
+  WARNING    // 경고. 계정 상태는 그대로
+  SUSPENSION // 기간 정지. 정지 중이면 남은 기간에 더한다
+  BAN        // 영구 정지
+  LIFT       // 정지·영구 정지 해제
+}
+
+/// 사용자 제재 이력. User.status 변경과 같은 트랜잭션에서 남긴다.
+/// 대상자용 응답에는 internalNote·actorId·신고자 정보를 넣지 않는다.
+model UserSanction {
+  id              Int                   @id @default(autoincrement())
+  userId          Int
+  actorId         Int
+  type            SanctionType
+  /// libs/shared/sanction.ts SANCTION_REASONS 키
+  reasonCode      String
+  /// 대상자에게 보이는 운영자 메시지(최대 300자)
+  messageToUser   String?
+  /// 운영자만 보는 메모(최대 500자)
+  internalNote    String?
+  /// SUSPENSION 일수(1·3·7·10·30)
+  days            Int?
+  startsAt        DateTime              @default(now())
+  /// SUSPENSION 적용 뒤 정지 만료 시각(남은 기간에 더한 결과)
+  endsAt          DateTime?
+  /// 신고 처리에서 온 제재면 Report.id / AuctionReport.id
+  reportId        Int?
+  auctionReportId Int?
+  /// 관련 콘텐츠
+  targetType      ModerationTargetType?
+  targetId        Int?
+  /// 관련 콘텐츠 { title, excerpt }. 콘텐츠가 지워져도 대상자에게 보여 준다
+  snapshot        Json?
+  /// 대상자가 확인 모달에서 확인한 시각. WARNING·SUSPENSION 만 쓴다
+  acknowledgedAt  DateTime?
+  createdAt       DateTime              @default(now())
+
+  user  User @relation("UserSanctionTarget", fields: [userId], references: [id], onDelete: Cascade)
+  actor User @relation("UserSanctionActor", fields: [actorId], references: [id], onDelete: Cascade)
+
+  @@index([userId, createdAt])
+  @@index([userId, acknowledgedAt])
+  @@index([actorId, createdAt])
 }
 
 // ============================================================
@@ -816,7 +874,12 @@ model Report {
   reason           String
   detail           String?
   status           ReportStatus     @default(OPEN)
+  /// 옛 처리 방식의 조치. 새 처리는 contentAction·sanctionId 를 함께 쓰고 여기엔 가장 가까운 값을 남긴다.
   resolutionAction ReportAction     @default(NONE)
+  /// 처리하면서 한 콘텐츠 조치(HIDE·DELETE). 조치 없으면 null
+  contentAction    ModerationActionType?
+  /// 처리하면서 준 사용자 제재(UserSanction.id)
+  sanctionId       Int?
   resolutionNote   String?
   resolvedBy       Int?
   resolvedAt       DateTime?

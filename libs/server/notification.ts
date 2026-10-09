@@ -35,6 +35,9 @@ const getNotificationUrl = (targetType?: string, targetId?: number) => {
       return "/guinness";
     case "guinness_submission":
       return "/guinness/apply";
+    case "sanction":
+      // 운영 알림(경고·정지·해제·삭제)은 내 제재 내역으로 연결한다.
+      return "/settings/sanctions";
     default:
       return "/";
   }
@@ -44,6 +47,7 @@ const getPushTitle = (type: NotificationType) => {
   if (type === "BID" || type === "OUTBID" || type === "AUCTION_END" || type === "AUCTION_WON") {
     return "브리디 경매 알림";
   }
+  if (type === "MODERATION") return "브리디 운영팀";
   return "브리디 알림";
 };
 

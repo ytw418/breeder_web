@@ -32,7 +32,8 @@ function NotificationIcon({ type, unread }: { type: NotificationItem["type"]; un
         fill="none"
         stroke="currentColor"
         aria-hidden="true"
-        className={unread ? "text-app-brand" : "text-app-muted"}
+        // 운영 알림 방패는 읽음 여부와 상관없이 회색이다(시안 #noti-row).
+        className={unread && type !== "MODERATION" ? "text-app-brand" : "text-app-muted"}
       >
         {NOTIFICATION_ICON_PATHS[name].map((d) => (
           <path key={d} d={d} strokeWidth={1.5} strokeLinecap="round" strokeLinejoin="round" />
@@ -192,6 +193,9 @@ const NotificationsClient = () => {
               <NotificationIcon type={notification.type} unread={!notification.isRead} />
               <div className="min-w-0 flex-1">
                 <p className="line-clamp-2 break-keep text-[15px] leading-[21px] text-app-text">
+                  {notification.type === "MODERATION" ? (
+                    <span className="font-semibold">브리디 운영팀 </span>
+                  ) : null}
                   {notification.message}
                 </p>
                 <p className="mt-1 text-[13px] text-app-muted">{formatNotificationTime(notification.createdAt)}</p>

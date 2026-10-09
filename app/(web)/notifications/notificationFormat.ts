@@ -29,7 +29,7 @@ export function formatNotificationTime(iso: string | Date, now: number = Date.no
   return new Date(time).toLocaleDateString("ko-KR");
 }
 
-export type NotificationIconName = "hammer" | "bubble" | "bell";
+export type NotificationIconName = "hammer" | "bubble" | "bell" | "shield";
 
 export const NOTIFICATION_ICON_PATHS: Record<NotificationIconName, string[]> = {
   hammer: ["M13.5 3.5l7 7-3 3-7-7z", "M12.5 9.5l-8 8", "M2.5 21h9"],
@@ -39,6 +39,8 @@ export const NOTIFICATION_ICON_PATHS: Record<NotificationIconName, string[]> = {
   bell: [
     "M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9",
   ],
+  // 운영 알림(MODERATION). 앱 시안 design/mockups/moderation/A-karrot.html #shield 와 같은 path
+  shield: ["M12 3 4.5 6v5.5c0 4.6 3.1 8.2 7.5 9.5 4.4-1.3 7.5-4.9 7.5-9.5V6Z"],
 };
 
 const ICON_BY_TYPE: Partial<Record<NotificationType, NotificationIconName>> = {
@@ -51,6 +53,8 @@ const ICON_BY_TYPE: Partial<Record<NotificationType, NotificationIconName>> = {
   COMMENT: "bubble",
   // 출처 카드·혈통 받음(혈통 v2). 이동은 targetType "bloodline" → /bloodline-management/card/{id}
   BLOODLINE_RECEIVED: "bell",
+  // 운영 조치 안내(경고·정지·숨김 등). 보낸 사람 대신 '브리디 운영팀'으로 보인다.
+  MODERATION: "shield",
 };
 
 /** 경매 계열은 망치, 채팅·댓글은 말풍선, 혈통 받음 등 나머지는 종. */
@@ -77,6 +81,9 @@ export function getNotificationHref(targetType: string | null, targetId: number 
       return "/guinness";
     case "guinness_submission":
       return "/guinness/apply";
+    case "sanction":
+      // 경고·정지·해제 알림은 내 제재 내역으로 간다.
+      return "/settings/sanctions";
     default:
       return null;
   }
