@@ -816,7 +816,7 @@ const MainClient = ({
       <section id="all-products" className="flex items-end justify-between bg-app-bg px-4 pb-2 pt-6">
         <div>
           <h2 className="text-[18px] font-bold tracking-tight text-app-strong">
-            {activeCategory === "전체" ? "전체 상품" : `${activeCategory} 상품`}
+            {activeCategory === "전체" ? "전체 분양" : `${activeCategory} 분양`}
           </h2>
           <p className="mt-1 text-[12px] font-medium text-app-muted">최신 등록 순으로 노출됩니다.</p>
         </div>
@@ -824,7 +824,7 @@ const MainClient = ({
           href={productsHref}
           className="inline-flex h-7 shrink-0 items-center text-[13px] font-medium text-app-muted"
         >
-          상품목록 ›
+          분양 목록 ›
         </Link>
       </section>
 
@@ -853,7 +853,7 @@ const MainClient = ({
           ))
         ) : firstPageError ? (
           <QueryErrorState
-            title="상품 목록을 불러오지 못했어요"
+            title="분양 목록을 불러오지 못했어요"
             onRetry={() => void reloadProducts()}
           />
         ) : !productPages || (productsValidating && loadedPages === 0) ? (
@@ -872,7 +872,7 @@ const MainClient = ({
         <div ref={sentinelRef} aria-hidden="true" />
       </div>
 
-      <FloatingButton href="/products/upload" label="상품 등록">
+      <FloatingButton href="/products/upload" label="분양 등록">
         <svg
           className="h-6 w-6"
           xmlns="http://www.w3.org/2000/svg"

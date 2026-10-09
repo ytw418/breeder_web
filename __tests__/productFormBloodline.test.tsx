@@ -30,7 +30,7 @@ jest.mock("@libs/client/toast", () => ({
 jest.mock("@components/features/product/MarkdownEditor", () => ({
   __esModule: true,
   default: ({ value, onChange }: { value: string; onChange: (v: string) => void }) => (
-    <textarea aria-label="상품 설명" value={value} onChange={(e) => onChange(e.target.value)} />
+    <textarea aria-label="설명" value={value} onChange={(e) => onChange(e.target.value)} />
   ),
 }));
 jest.mock("@components/features/MainLayout", () => ({
@@ -246,11 +246,11 @@ describe("ProductForm 혈통 행", () => {
 
 describe("ProductForm 등록 요청", () => {
   const fillRequired = (type: "생물" | "용품") => {
-    fireEvent.change(screen.getByLabelText("상품명"), { target: { value: "왕사슴 애벌레" } });
+    fireEvent.change(screen.getByLabelText("제목"), { target: { value: "왕사슴 애벌레" } });
     fireEvent.click(screen.getByRole("button", { name: "곤충" }));
     fireEvent.click(screen.getByRole("radio", { name: type }));
     fireEvent.change(screen.getByLabelText("가격"), { target: { value: "30000" } });
-    fireEvent.change(screen.getByLabelText("상품 설명"), {
+    fireEvent.change(screen.getByLabelText("설명"), {
       target: { value: "건강한 3령 애벌레입니다. 직거래 가능합니다." },
     });
   };
@@ -264,7 +264,7 @@ describe("ProductForm 등록 요청", () => {
     fireEvent.change(within(dialog).getByLabelText("모 크기(mm)"), { target: { value: "47.5" } });
     fireEvent.click(within(dialog).getByRole("button", { name: "붙이기" }));
     await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
-    fireEvent.click(screen.getByRole("button", { name: "상품 등록하기" }));
+    fireEvent.click(screen.getByRole("button", { name: "분양 등록하기" }));
     await waitFor(() => expect(mockAuthFetch).toHaveBeenCalled());
     expect(mockAuthFetch.mock.calls[0][0]).toBe("/api/products");
     expect(lastBody()).toMatchObject({ productType: "생물", bloodlineRootId: 9, pedigreeNote: { damMm: 47.5 } });
@@ -279,7 +279,7 @@ describe("ProductForm 등록 요청", () => {
     fireEvent.click(within(dialog).getByRole("button", { name: "붙이기" }));
     await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
     fireEvent.click(screen.getByRole("radio", { name: "용품" }));
-    fireEvent.click(screen.getByRole("button", { name: "상품 등록하기" }));
+    fireEvent.click(screen.getByRole("button", { name: "분양 등록하기" }));
     await waitFor(() => expect(mockAuthFetch).toHaveBeenCalled());
     expect(lastBody()).not.toHaveProperty("bloodlineRootId");
     expect(lastBody()).not.toHaveProperty("pedigreeNote");

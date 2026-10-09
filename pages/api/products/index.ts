@@ -117,7 +117,7 @@ const handler = async (
       notifyFollowers({
         senderId: user.id,
         type: "NEW_PRODUCT",
-        message: `${seller.name}님이 새 상품을 등록했습니다: ${product.name}`,
+        message: `${seller.name}님이 새 분양글을 등록했습니다:${product.name}`,
         targetId: product.id,
         targetType: "product",
       });

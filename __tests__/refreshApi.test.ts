@@ -111,9 +111,9 @@ describe("/api/auth/refresh", () => {
     expect(res.body).toEqual({
       success: false,
       errorCode: "ACCOUNT_BANNED",
-      error: "이용이 영구 정지된 계정이에요. 사유: 사기·허위 매물",
-      message: "이용이 영구 정지된 계정이에요. 사유: 사기·허위 매물",
-      reasonLabel: "사기·허위 매물",
+      error: "이용이 영구 정지된 계정이에요. 사유: 사기·허위 분양글",
+      message: "이용이 영구 정지된 계정이에요. 사유: 사기·허위 분양글",
+      reasonLabel: "사기·허위 분양글",
     });
     expect(mockIssueTokens).not.toHaveBeenCalled();
   });

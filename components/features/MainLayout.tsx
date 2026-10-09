@@ -211,8 +211,8 @@ function buildMenuSections(userId: number | null): { title: string; rows: MenuRo
     {
       title: "거래",
       rows: [
-        { label: "판매내역", icon: "cart", href: `/profiles/${owner}/sales`, requiresAuth: true },
-        { label: "구매내역", icon: "bag", href: `/profiles/${owner}/purchases`, requiresAuth: true },
+        { label: "분양내역", icon: "cart", href: `/profiles/${owner}/sales`, requiresAuth: true },
+        { label: "입양내역", icon: "bag", href: `/profiles/${owner}/purchases`, requiresAuth: true },
         { label: "관심목록", icon: "heart", href: `/profiles/${owner}/favs`, requiresAuth: true },
       ],
     },

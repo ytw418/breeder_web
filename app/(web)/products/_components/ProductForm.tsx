@@ -362,7 +362,7 @@ export function ProductForm({
       } | null;
       if (!res.ok || !result?.success) {
         throw new Error(
-          result?.error || result?.message || (isEdit ? "상품 수정에 실패했습니다." : "상품 등록에 실패했습니다.")
+          result?.error || result?.message || (isEdit ? "분양글 수정에 실패했습니다." : "분양글 등록에 실패했습니다.")
         );
       }
 
@@ -372,7 +372,7 @@ export function ProductForm({
       );
       succeeded = true;
       if (isEdit) {
-        toast.success("상품이 수정되었습니다.");
+        toast.success("분양글이 수정되었습니다.");
         const path = getProductPath(product!.id, fields.name);
         leave(() => {
           router.replace(path);
@@ -380,7 +380,7 @@ export function ProductForm({
         });
       } else {
         const id = result.product?.id;
-        toast.success("상품이 등록되었습니다.");
+        toast.success("분양글이 등록되었습니다.");
         leave(() => router.replace(id ? getProductPath(id, fields.name) : "/"));
         // 구매 문의를 받으려면 알림이 필요하다. 이 브라우저에서 꺼져 있으면 다시 권유한다(앱과 같다).
         if (user) void promptPushAfterProductUpload(user.id);
@@ -390,8 +390,8 @@ export function ProductForm({
         error instanceof Error
           ? error.message
           : isEdit
-            ? "상품 수정에 실패했습니다."
-            : "상품 등록에 실패했습니다. 다시 시도해주세요."
+            ? "분양글 수정에 실패했습니다."
+            : "분양글 등록에 실패했습니다. 다시 시도해주세요."
       );
     } finally {
       if (!succeeded) setSubmitStep("idle");
@@ -402,7 +402,7 @@ export function ProductForm({
   const selectedCategoryLabel =
     subcategory || TOP_LEVEL_CATEGORIES.find((cat) => cat.id === category)?.name || "";
   const uploadedCount = photos.filter((photo) => photo.remoteId).length;
-  const ctaLabel = isEdit ? "수정하기" : "상품 등록하기";
+  const ctaLabel = isEdit ? "수정하기" : "분양 등록하기";
   const showBloodlineRow = productType === BLOODLINE_PRODUCT_TYPE;
   const bloodlineValue =
     bloodline.rootId != null ? formatBloodlineAttachValue(bloodline.name ?? "", bloodline.note) : "";
@@ -428,7 +428,7 @@ export function ProductForm({
 
         {/* 상품명 */}
         <div>
-          <FieldLabel label="상품명" count={`${name.length}/60`} />
+          <FieldLabel label="제목" count={`${name.length}/60`} />
           <input
             value={name}
             disabled={busy}
@@ -437,8 +437,8 @@ export function ProductForm({
               setName(event.target.value);
               clearError("name");
             }}
-            placeholder="상품명"
-            aria-label="상품명"
+            placeholder="제목"
+            aria-label="제목"
             aria-invalid={Boolean(errors.name)}
             className={cn(
               "h-12 w-full rounded-lg border bg-app-bg px-3.5 text-[16px] text-app-text placeholder:text-app-caption focus:border-app-text focus:outline-none focus:ring-0 disabled:opacity-50",
@@ -497,7 +497,7 @@ export function ProductForm({
 
         {/* 상품 타입 */}
         <SegmentField
-          label="상품 타입"
+          label="종류"
           options={PRODUCT_TYPES}
           value={productType}
           disabled={busy}
@@ -508,7 +508,7 @@ export function ProductForm({
           }}
         />
 
-        {/* 거래 유형(판매/분양) — 앱 ProductDealTypeSegment. 파양은 1단계 비노출. */}
+        {/* 거래 유형(유료 분양/무료 분양) — 앱 ProductDealTypeSegment. 파양은 1단계 비노출. */}
         <SegmentField
           label="거래 유형"
           options={DEAL_TYPE_OPTIONS}
@@ -567,7 +567,7 @@ export function ProductForm({
 
         {/* 상품 설명 */}
         <div>
-          <FieldLabel label="상품 설명" count={`${description.length}/3000`} />
+          <FieldLabel label="설명" count={`${description.length}/3000`} />
           <MarkdownEditor
             id="description"
             value={description}
@@ -575,7 +575,7 @@ export function ProductForm({
               setDescription(value);
               clearError("description");
             }}
-            placeholder="사육 정보, 상태, 거래 방식 등 구매자가 궁금할 내용을 구체적으로 작성해주세요."
+            placeholder="사육 정보, 상태, 거래 방식 등 입양자가 궁금할 내용을 구체적으로 작성해주세요."
             rows={9}
             hasError={Boolean(errors.description)}
           />
@@ -612,8 +612,8 @@ export function ProductForm({
             {submitStep === "images"
               ? `이미지를 업로드하고 있어요${photos.length ? ` (${uploadedCount}/${photos.length})` : ""}`
               : isEdit
-                ? "상품을 수정하고 있어요"
-                : "상품을 등록하고 있어요"}
+                ? "분양글을 수정하고 있어요"
+                : "분양글을 등록하고 있어요"}
           </p>
           <p className="relative mt-1.5 text-[14px] text-app-muted">화면을 닫지 말고 잠시만 기다려주세요.</p>
         </div>

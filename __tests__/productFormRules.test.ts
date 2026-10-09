@@ -24,17 +24,17 @@ describe("validateProductForm", () => {
       productType: "",
     });
     expect(errors).toEqual({
-      name: "상품명을 입력해주세요.",
+      name: "제목을 입력해주세요.",
       category: "카테고리를 선택해주세요.",
-      productType: "상품 타입을 선택해주세요.",
+      productType: "종류를 선택해주세요.",
       price: "가격을 입력해주세요.",
-      description: "상품 설명을 입력해주세요.",
+      description: "설명을 입력해주세요.",
     });
-    expect(firstProductFormError(errors)).toBe("상품명을 입력해주세요.");
+    expect(firstProductFormError(errors)).toBe("제목을 입력해주세요.");
   });
 
   it("길이·가격 상한", () => {
-    expect(validateProductForm({ ...valid, name: "가" }).name).toBe("상품명은 2자 이상 입력해주세요.");
+    expect(validateProductForm({ ...valid, name: "가" }).name).toBe("제목은 2자 이상 입력해주세요.");
     expect(validateProductForm({ ...valid, price: 1_000_000_001 }).price).toBe("가격이 너무 큽니다.");
     expect(validateProductForm({ ...valid, description: "짧음" }).description).toBe(
       "설명을 10자 이상 입력해주세요."

@@ -15,12 +15,13 @@ import { toPostPath } from "@libs/post-route";
 import { formatProductPrice } from "@libs/productRules";
 import { ANALYTICS_EVENTS, trackEvent } from "@libs/client/analytics";
 import { toPostPlainText } from "@libs/shared/post-body";
+import { productStatusLabel } from "@libs/shared/productTerms";
 
 type SearchTab = "all" | "products" | "posts" | "users";
 
 const SEARCH_TABS: { id: SearchTab; name: string }[] = [
   { id: "all", name: "전체" },
-  { id: "products", name: "상품" },
+  { id: "products", name: "분양" },
   { id: "posts", name: "게시글" },
   { id: "users", name: "유저" },
 ];
@@ -217,14 +218,14 @@ const SearchClient = () => {
       <div className="pb-20">
         {data.products.length > 0 && (activeTab === "all" || activeTab === "products") ? (
           <section>
-            {activeTab === "all" ? <SectionHeader title="상품" onMore={() => selectTab("products")} /> : null}
+            {activeTab === "all" ? <SectionHeader title="분양" onMore={() => selectTab("products")} /> : null}
             {data.products.map((product) => (
               <ResultRow
                 key={product.id}
                 href={getProductPath(product.id, product.name)}
                 title={product.name}
                 description={formatProductPrice(product.price)}
-                meta={[product.category, product.status].filter(Boolean).join(" · ")}
+                meta={[product.category, productStatusLabel(product.status)].filter(Boolean).join(" · ")}
                 imageId={product.photos?.[0]}
                 imageVariant="product"
               />
@@ -326,7 +327,7 @@ const SearchClient = () => {
         {/* 추천 상품(가로 스크롤) */}
         {products && products.length > 0 ? (
           <section>
-            <SectionHeader title="추천 상품" moreHref="/products" />
+            <SectionHeader title="추천 분양" moreHref="/products" />
             <div className="flex gap-3 overflow-x-auto px-4 pb-1 scrollbar-hide">
               {products.slice(0, 10).map((p) => (
                 <Link key={p.id} href={getProductPath(p.id, p.name)} className="w-36 shrink-0">
@@ -342,7 +343,7 @@ const SearchClient = () => {
                     ) : null}
                     {p.status && p.status !== "판매중" ? (
                       <div className="absolute inset-0 flex items-center justify-center bg-app-overlay">
-                        <span className="text-[13px] font-bold text-white">{p.status}</span>
+                        <span className="text-[13px] font-bold text-white">{productStatusLabel(p.status)}</span>
                       </div>
                     ) : null}
                   </div>
@@ -428,7 +429,7 @@ const SearchClient = () => {
             enterKeyHint="search"
             value={keyword}
             onChange={(e) => setKeyword(e.target.value)}
-            placeholder="상품, 게시글, 유저를 검색해보세요"
+            placeholder="분양, 게시글, 유저를 검색해보세요"
             aria-label="검색어"
             className="ml-2 h-11 min-w-0 flex-1 border-0 bg-transparent p-0 text-[15px] text-app-text placeholder:text-app-caption focus:outline-none focus:ring-0 [&::-webkit-search-cancel-button]:hidden"
             autoFocus

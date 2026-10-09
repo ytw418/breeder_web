@@ -19,21 +19,21 @@ interface ProductListProps {
 
 const TITLE: Record<HistoryKind, string> = {
   favs: "관심목록",
-  sales: "판매내역",
-  purchases: "구매내역",
+  sales: "분양내역",
+  purchases: "입양내역",
 };
 
 const EMPTY_MESSAGE: Record<HistoryKind, string> = {
-  favs: "아직 관심 상품이 없습니다",
-  sales: "아직 판매 내역이 없습니다",
-  purchases: "아직 구매 내역이 없습니다",
+  favs: "아직 관심 분양글이 없습니다",
+  sales: "아직 분양 내역이 없습니다",
+  purchases: "아직 입양 내역이 없습니다",
 };
 
 /** 권한 없음(비로그인 401·다른 사용자 403) 안내. 다시 시도해도 같아 재시도 버튼은 두지 않는다. */
 const DENIED_MESSAGE: Record<HistoryKind, string> = {
   favs: "관심목록은 본인만 볼 수 있습니다.",
-  sales: "판매내역을 볼 수 없습니다.",
-  purchases: "구매내역을 볼 수 없습니다.",
+  sales: "분양내역을 볼 수 없습니다.",
+  purchases: "입양내역을 볼 수 없습니다.",
 };
 
 function CenterMessage({
@@ -60,8 +60,8 @@ function CenterMessage({
 }
 
 /**
- * 판매·구매·관심 목록(앱 profiles/[id]/sales·purchases·favs). ProductCard 플랫 행 / 빈 상태 14 muted 가운데.
- * 구매내역은 다른 사용자도 볼 수 있다(관심목록만 본인 전용 — 서버가 401·403 으로 막고 여기서는 안내만 한다).
+ * 분양·입양·관심 목록(앱 profiles/[id]/sales·purchases·favs). ProductCard 플랫 행 / 빈 상태 14 muted 가운데.
+ * 입양내역은 다른 사용자도 볼 수 있다(관심목록만 본인 전용 — 서버가 401·403 으로 막고 여기서는 안내만 한다).
  * `/profiles/0/...`(비로그인 사이드 메뉴 링크)처럼 id 가 양의 정수가 아니면 로그인한 내 id 경로로 바꾼다.
  */
 export default function MySellHistoryList({ kind, id }: ProductListProps) {

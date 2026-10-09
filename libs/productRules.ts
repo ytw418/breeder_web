@@ -123,7 +123,7 @@ export const validateProductInput = (
     if (name.length < PRODUCT_NAME_MIN_LENGTH || name.length > PRODUCT_NAME_MAX_LENGTH) {
       return fail(
         "PRODUCT_INVALID_NAME",
-        `상품명은 ${PRODUCT_NAME_MIN_LENGTH}~${PRODUCT_NAME_MAX_LENGTH}자로 입력해주세요.`
+        `제목은 ${PRODUCT_NAME_MIN_LENGTH}~${PRODUCT_NAME_MAX_LENGTH}자로 입력해주세요.`
       );
     }
     value.name = name;
@@ -155,7 +155,7 @@ export const validateProductInput = (
     ) {
       return fail(
         "PRODUCT_INVALID_DESCRIPTION",
-        `상품 설명은 ${PRODUCT_DESCRIPTION_MIN_LENGTH}~${PRODUCT_DESCRIPTION_MAX_LENGTH}자로 입력해주세요.`
+        `설명은 ${PRODUCT_DESCRIPTION_MIN_LENGTH}~${PRODUCT_DESCRIPTION_MAX_LENGTH}자로 입력해주세요.`
       );
     }
     value.description = description;
@@ -192,7 +192,7 @@ export const validateProductInput = (
   if (requireCategory || sent(input.productType)) {
     const productType = trimmed(input.productType);
     if (!PRODUCT_TYPES.some((type) => type.id === productType)) {
-      return fail("PRODUCT_INVALID_PRODUCT_TYPE", "상품 타입은 생물·용품 중에서 선택해주세요.");
+      return fail("PRODUCT_INVALID_PRODUCT_TYPE", "종류는 생물·용품 중에서 선택해주세요.");
     }
     value.productType = productType;
   }
@@ -261,21 +261,21 @@ export const validateProductForm = ({
   const trimmedName = name.trim();
   const trimmedDescription = description.trim();
 
-  if (!trimmedName) errors.name = "상품명을 입력해주세요.";
+  if (!trimmedName) errors.name = "제목을 입력해주세요.";
   else if (trimmedName.length < PRODUCT_NAME_MIN_LENGTH)
-    errors.name = `상품명은 ${PRODUCT_NAME_MIN_LENGTH}자 이상 입력해주세요.`;
+    errors.name = `제목은 ${PRODUCT_NAME_MIN_LENGTH}자 이상 입력해주세요.`;
   else if (trimmedName.length > PRODUCT_NAME_MAX_LENGTH)
-    errors.name = `상품명은 ${PRODUCT_NAME_MAX_LENGTH}자 이하로 입력해주세요.`;
+    errors.name = `제목은 ${PRODUCT_NAME_MAX_LENGTH}자 이하로 입력해주세요.`;
 
   if (!category) errors.category = "카테고리를 선택해주세요.";
-  if (!productType) errors.productType = "상품 타입을 선택해주세요.";
+  if (!productType) errors.productType = "종류를 선택해주세요.";
 
   if (price === null) errors.price = "가격을 입력해주세요.";
   else if (!Number.isInteger(price) || price < PRODUCT_PRICE_MIN)
     errors.price = `가격은 ${PRODUCT_PRICE_MIN}원 이상 정수로 입력해주세요.`;
   else if (price > PRODUCT_PRICE_MAX) errors.price = "가격이 너무 큽니다.";
 
-  if (!trimmedDescription) errors.description = "상품 설명을 입력해주세요.";
+  if (!trimmedDescription) errors.description = "설명을 입력해주세요.";
   else if (trimmedDescription.length < PRODUCT_DESCRIPTION_MIN_LENGTH)
     errors.description = `설명을 ${PRODUCT_DESCRIPTION_MIN_LENGTH}자 이상 입력해주세요.`;
   else if (trimmedDescription.length > PRODUCT_DESCRIPTION_MAX_LENGTH)
@@ -284,6 +284,6 @@ export const validateProductForm = ({
   return errors;
 };
 
-/** 화면 위에서부터 첫 오류(상품명 → 카테고리 → 타입 → 가격 → 설명). */
+/** 화면 위에서부터 첫 오류(제목 → 카테고리 → 타입 → 가격 → 설명). */
 export const firstProductFormError = (errors: ProductFormErrors) =>
   errors.name || errors.category || errors.productType || errors.price || errors.description;

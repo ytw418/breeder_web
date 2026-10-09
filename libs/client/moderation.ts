@@ -9,15 +9,15 @@ export type ModerationAction = "hide" | "unhide" | "delete";
 export const MODERATION_TARGET_LABEL: Record<ModerationTargetType, string> = {
   POST: "게시글",
   COMMENT: "댓글",
-  PRODUCT: "상품",
+  PRODUCT: "분양글",
   AUCTION: "경매",
 };
 
-/** 확인 창 목적격(게시글을·댓글을·상품을·경매를) */
+/** 확인 창 목적격(게시글을·댓글을·분양글을·경매를) */
 const TARGET_OBJECT: Record<ModerationTargetType, string> = {
   POST: "게시글을",
   COMMENT: "댓글을",
-  PRODUCT: "상품을",
+  PRODUCT: "분양글을",
   AUCTION: "경매를",
 };
 

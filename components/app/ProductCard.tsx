@@ -6,6 +6,7 @@ import { cn, getTimeAgoString, makeImageUrl } from "@libs/client/utils";
 import { getProductPath } from "@libs/product-route";
 import { formatProductPrice } from "@libs/shared/price";
 import { useIsUnread } from "@libs/client/unreadMarks";
+import { productStatusLabel } from "@libs/shared/productTerms";
 
 /** 목록 메타에 조회 수를 보이는 최소값. 작은 숫자는 오히려 빈 티가 나서 숨긴다. */
 export const PRODUCT_VIEW_COUNT_MIN = 10;
@@ -53,9 +54,9 @@ export function getProductCardMeta(
 export function getProductStatusLabel(
   product: Pick<ProductCardData, "status" | "isDeleted" | "isHidden">
 ) {
-  if (product.isDeleted) return "삭제된 상품";
-  if (product.isHidden) return "숨김 상품";
-  if (product.status === "예약중" || product.status === "판매완료") return product.status;
+  if (product.isDeleted) return "삭제된 분양글";
+  if (product.isHidden) return "숨김 분양글";
+  if (product.status === "예약중" || product.status === "판매완료") return productStatusLabel(product.status);
   return null;
 }
 
@@ -133,7 +134,7 @@ export function ProductCard({
         <div className="flex items-start gap-1.5">
           {showDot ? (
             <span
-              aria-label="안 본 상품"
+              aria-label="안 본 분양글"
               className="mt-2 h-1.5 w-1.5 shrink-0 rounded-full bg-app-danger"
             />
           ) : null}

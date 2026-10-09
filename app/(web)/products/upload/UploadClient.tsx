@@ -9,7 +9,7 @@ const UploadClient = () => {
   const searchParams = useSearchParams();
   const initialFree = searchParams?.get("free") === "1";
   return (
-    <Layout canGoBack title="상품 등록" headerRight={<></>}>
+    <Layout canGoBack title="분양 등록" headerRight={<></>}>
       <ProductForm initialFree={initialFree} />
     </Layout>
   );

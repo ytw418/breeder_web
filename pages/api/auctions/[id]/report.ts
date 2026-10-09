@@ -5,6 +5,8 @@ import client from "@libs/server/client";
 import { extractAuctionIdFromPath } from "@libs/auction-route";
 
 const REPORT_REASONS = [
+  "허위 분양글 의심",
+  // 옛 문구(2026-10-10 용어 변경 전). 이미 배포된 앱·웹이 보내므로 접수는 계속 받는다.
   "허위 매물 의심",
   "입찰 방해/분쟁 유도",
   "비정상 가격 유도",

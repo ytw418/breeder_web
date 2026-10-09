@@ -27,7 +27,7 @@ export function BlockConfirmDialog({
       open
       tone="danger"
       title={`${target.name}님을 차단할까요?`}
-      description="차단하면 이 사용자의 게시글·댓글·상품·경매가 보이지 않고 서로 채팅할 수 없어요. 서로 팔로우도 해제되고, 차단을 풀어도 팔로우는 돌아오지 않아요. 설정 > 차단 관리에서 해제할 수 있어요."
+      description="차단하면 이 사용자의 게시글·댓글·분양글·경매가 보이지 않고 서로 채팅할 수 없어요. 서로 팔로우도 해제되고, 차단을 풀어도 팔로우는 돌아오지 않아요. 설정 > 차단 관리에서 해제할 수 있어요."
       confirmText="차단"
       cancelText="취소"
       loading={loading}

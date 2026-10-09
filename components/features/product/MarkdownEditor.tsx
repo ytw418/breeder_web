@@ -67,7 +67,7 @@ const MarkdownEditor = ({
   id,
   value,
   onChange,
-  placeholder = "상품 설명을 입력해주세요",
+  placeholder = "설명을 입력해주세요",
   rows = 8,
   hasError = false,
 }: MarkdownEditorProps) => {

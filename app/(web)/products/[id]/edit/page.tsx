@@ -4,7 +4,7 @@ import { extractProductId } from "@libs/product-route";
 import EditClient from "./EditClient";
 
 export const metadata: Metadata = {
-  title: "상품 수정 | 브리디",
+  title: "분양글 수정 | 브리디",
   robots: { index: false, follow: false },
 };
 

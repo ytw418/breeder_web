@@ -40,7 +40,7 @@ export default function EditClient({ productId }: { productId: string }) {
         <div className="flex min-h-[60vh] items-center">
           <QueryErrorState
             className="w-full"
-            title="상품 정보를 불러오지 못했어요"
+            title="분양글 정보를 불러오지 못했어요"
             onRetry={() => void mutate()}
           />
         </div>
@@ -51,14 +51,14 @@ export default function EditClient({ productId }: { productId: string }) {
         <div className="flex min-h-[60vh] flex-col items-center justify-center px-5 text-center">
           <p className="text-[18px] font-bold text-app-text">수정 권한이 없습니다</p>
           <p className="mt-2 text-[15px] leading-[22px] text-app-muted">
-            본인이 등록한 상품만 수정할 수 있어요.
+            본인이 등록한 분양글만 수정할 수 있어요.
           </p>
           <button
             type="button"
             onClick={() => router.replace("/products")}
             className="mt-5 h-[52px] w-full rounded-md bg-app-brand text-[16px] font-semibold text-white"
           >
-            상품 목록 보기
+            분양 목록 보기
           </button>
         </div>
       );
@@ -87,7 +87,7 @@ export default function EditClient({ productId }: { productId: string }) {
   };
 
   return (
-    <Layout canGoBack title="상품 수정" headerRight={<></>}>
+    <Layout canGoBack title="분양글 수정" headerRight={<></>}>
       {renderBody()}
     </Layout>
   );

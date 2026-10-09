@@ -107,7 +107,7 @@ describe("신고 사유 상수(libs/shared/report)", () => {
     ]);
     expect(REPORT_REASONS.COMMENT).toEqual(REPORT_REASONS.POST);
     expect(REPORT_REASONS.PRODUCT).toEqual([
-      "허위 매물·사기 의심",
+      "허위 분양글·사기 의심",
       "거래 금지 품목(불법 개체)",
       "중복·도배 게시",
       "욕설·부적절 내용",
@@ -144,6 +144,13 @@ describe("신고 사유 상수(libs/shared/report)", () => {
     expect(isValidReportReason("POST", "사칭")).toBe(false);
     expect(isValidReportReason("USER", "사칭")).toBe(true);
     expect(isValidReportReason("USER", "")).toBe(false);
+  });
+
+  it("옛 '허위 매물·사기 의심' 문구는 상품 신고에서만 계속 받는다(배포된 앱 호환)", () => {
+    expect(isValidReportReason("PRODUCT", "허위 분양글·사기 의심")).toBe(true);
+    expect(isValidReportReason("PRODUCT", "허위 매물·사기 의심")).toBe(true);
+    expect(REPORT_REASONS.PRODUCT).not.toContain("허위 매물·사기 의심");
+    expect(isValidReportReason("POST", "허위 매물·사기 의심")).toBe(false);
   });
 });
 
@@ -337,7 +344,7 @@ describe("POST /api/reports 접수", () => {
     const res = await report({
       targetType: "PRODUCT",
       targetId: 40,
-      reason: "허위 매물·사기 의심",
+      reason: "허위 분양글·사기 의심",
     });
     expect(res.statusCode).toBe(200);
     expect(mockClient.report.create.mock.calls[0][0].data).toEqual(
