@@ -1,7 +1,8 @@
 import { defineConfig, devices } from "@playwright/test";
 
 const port = process.env.PLAYWRIGHT_PORT ?? "3100";
-const baseURL = `http://127.0.0.1:${port}`;
+// Next 16 dev 서버는 127.0.0.1 출처의 dev 리소스(HMR)를 막아 화면이 하이드레이션되지 않는다 → localhost 로 연다.
+const baseURL = `http://localhost:${port}`;
 const storageState = process.env.PLAYWRIGHT_STORAGE_STATE;
 
 export default defineConfig({
