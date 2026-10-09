@@ -30,7 +30,7 @@ async function handler(
   // 운영자가 숨긴 글에는 작성자·관리자만 댓글을 단다(다른 사람에겐 404 와 같다).
   const post = await client.post.findUnique({
     where: { id: postId },
-    select: { userId: true, isHidden: true },
+    select: { userId: true, isHidden: true, category: true },
   });
   if (!post) {
     return res.status(404).json({ success: false, error: "게시글을 찾을 수 없습니다." });
@@ -122,7 +122,11 @@ async function handler(
         type: "COMMENT",
         userId: post.userId,
         senderId: user.id,
-        message: `${senderUser.name}님이 회원님의 게시글에 댓글을 남겼습니다.`,
+        // 질문 글은 '답변'으로 알려 질문자가 바로 열어 보게 한다.
+        message:
+          post.category === "질문"
+            ? `${senderUser.name}님이 회원님의 질문에 답변을 남겼어요.`
+            : `${senderUser.name}님이 회원님의 게시글에 댓글을 남겼습니다.`,
         targetId: postId,
         targetType: "post",
         commentId: newAnswer.id,

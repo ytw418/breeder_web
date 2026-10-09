@@ -17,6 +17,8 @@ export default function AdminPostsPage() {
   const [keyword, setKeyword] = useState("");
   const [searchQuery, setSearchQuery] = useState("");
   const [hiddenOnly, setHiddenOnly] = useState(false);
+  // 운영진 첫 댓글용: 최근 7일, 댓글이 하나도 없는 글
+  const [unansweredOnly, setUnansweredOnly] = useState(false);
   const [busyId, setBusyId] = useState<number | null>(null);
   const { ask, dialog: contentActionDialog } = useContentActionDialog();
   const [noticeTitle, setNoticeTitle] = useState("");
@@ -24,7 +26,7 @@ export default function AdminPostsPage() {
   const [creatingNotice, setCreatingNotice] = useState(false);
 
   const { data, mutate } = useSWR(
-    `/api/admin/posts?page=${page}&keyword=${searchQuery}${hiddenOnly ? "&hidden=1" : ""}`
+    `/api/admin/posts?page=${page}&keyword=${searchQuery}${hiddenOnly ? "&hidden=1" : ""}${unansweredOnly ? "&unanswered=1" : ""}`
   );
 
   const handleCreateNotice = async (event: React.FormEvent) => {
@@ -183,6 +185,17 @@ export default function AdminPostsPage() {
               }}
             />
             숨김만
+          </label>
+          <label className="inline-flex items-center gap-1.5 whitespace-nowrap text-sm text-gray-700">
+            <input
+              type="checkbox"
+              checked={unansweredOnly}
+              onChange={(event) => {
+                setUnansweredOnly(event.target.checked);
+                setPage(1);
+              }}
+            />
+            답 없는 글(7일)
           </label>
         </form>
 

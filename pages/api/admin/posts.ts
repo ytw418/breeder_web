@@ -10,6 +10,9 @@ import {
 } from "@libs/server/moderation";
 import { isSanctionReasonCode } from "@libs/shared/sanction";
 
+/** '답 없는 글' 필터가 보는 기간 */
+const UNANSWERED_WINDOW_MS = 7 * 24 * 60 * 60 * 1000;
+
 async function handler(req: NextApiRequest, res: NextApiResponse<ResponseType>) {
   const {
     user,
@@ -23,21 +26,36 @@ async function handler(req: NextApiRequest, res: NextApiResponse<ResponseType>) 
   }
 
   if (req.method === "GET") {
-    const { page = 1, limit = 20, keyword, hidden } = req.query;
+    const { page = 1, limit = 20, keyword, hidden, unanswered } = req.query;
     const skip = (Number(page) - 1) * Number(limit);
 
     // hidden=1 이면 운영자가 숨긴 것만 본다.
-    const hiddenOnly = hidden === "1" ? { isHidden: true } : {};
+    // unanswered=1 이면 운영진이 첫 댓글을 달 글: 최근 7일, 보이는 댓글이 없는 글(공지·숨김 제외).
+    const filter =
+      unanswered === "1"
+        ? {
+            isHidden: false,
+            OR: [{ category: null }, { category: { not: "공지" } }],
+            createdAt: { gte: new Date(Date.now() - UNANSWERED_WINDOW_MS) },
+            comments: { none: { isHidden: false, deletedAt: null } },
+          }
+        : hidden === "1"
+          ? { isHidden: true }
+          : {};
     const where = keyword
       ? {
-          ...hiddenOnly,
-          OR: [
-            { title: { contains: String(keyword) } },
-            { description: { contains: String(keyword) } },
-            { user: { name: { contains: String(keyword) } } },
+          ...filter,
+          AND: [
+            {
+              OR: [
+                { title: { contains: String(keyword) } },
+                { description: { contains: String(keyword) } },
+                { user: { name: { contains: String(keyword) } } },
+              ],
+            },
           ],
         }
-      : hiddenOnly;
+      : filter;
 
     const [posts, totalCount] = await Promise.all([
       client.post.findMany({

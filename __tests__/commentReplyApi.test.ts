@@ -206,3 +206,37 @@ describe("대댓글", () => {
     );
   });
 });
+
+describe("질문 글 답변 알림", () => {
+  it("질문 글에 댓글을 달면 작성자에게 '질문에 답변' 문구로 알린다", async () => {
+    mockClient.post.findUnique.mockResolvedValue({
+      userId: POST_AUTHOR,
+      isHidden: false,
+      category: "질문",
+    });
+    await post({ comment: "고단백 젤리 써요" });
+
+    expect(mockCreateNotification).toHaveBeenCalledWith(
+      expect.objectContaining({
+        userId: POST_AUTHOR,
+        message: "나님이 회원님의 질문에 답변을 남겼어요.",
+      })
+    );
+  });
+
+  it("질문이 아닌 글은 기존 댓글 문구 그대로", async () => {
+    mockClient.post.findUnique.mockResolvedValue({
+      userId: POST_AUTHOR,
+      isHidden: false,
+      category: "자유",
+    });
+    await post({ comment: "좋네요" });
+
+    expect(mockCreateNotification).toHaveBeenCalledWith(
+      expect.objectContaining({
+        userId: POST_AUTHOR,
+        message: "나님이 회원님의 게시글에 댓글을 남겼습니다.",
+      })
+    );
+  });
+});

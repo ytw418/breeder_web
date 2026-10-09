@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState, type ReactNode } from "react";
 import useSWR from "swr";
+import { useMarkSeenOnView } from "@libs/client/unreadMarks";
 import Link from "next/link";
 import { useParams, usePathname, useRouter } from "next/navigation";
 
@@ -229,6 +230,8 @@ const AuctionDetailClient = () => {
   }, []);
 
   const auction = data?.auction;
+  // 목록의 '안 본 경매' 빨간 점을 지운다(이 브라우저 기록).
+  useMarkSeenOnView("auction", auction);
 
   useEffect(() => {
     if (!auction?.id) return;

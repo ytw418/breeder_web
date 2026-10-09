@@ -124,17 +124,23 @@ export const notifyFollowers = async ({
   message,
   targetId,
   targetType,
+  excludeUserIds = [],
 }: {
   senderId: number;
   type: NotificationType;
   message: string;
   targetId: number;
   targetType: string;
+  /** 같은 글로 이미 다른 알림을 받은 사람(예: 질문 알림)은 뺀다. */
+  excludeUserIds?: number[];
 }) => {
   try {
     // 해당 유저를 팔로우하는 모든 유저 조회
     const followers = await client.follow.findMany({
-      where: { followingId: senderId },
+      where: {
+        followingId: senderId,
+        ...(excludeUserIds.length ? { followerId: { notIn: excludeUserIds } } : {}),
+      },
       select: { followerId: true },
     });
 
