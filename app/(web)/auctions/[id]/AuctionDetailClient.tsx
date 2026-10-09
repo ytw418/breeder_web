@@ -680,6 +680,7 @@ const AuctionDetailClient = () => {
               <p className="text-[15px] font-semibold text-app-text">판매자 정보</p>
               {auction.sellerPhone ? <p>연락처 {auction.sellerPhone}</p> : null}
               {auction.sellerEmail ? <p>이메일 {auction.sellerEmail}</p> : null}
+              {auction.sellerContactMasked ? <p>전화·이메일은 낙찰되면 낙찰자에게만 모두 보여요.</p> : null}
               {auction.sellerBlogUrl ? (
                 <p className="break-all">
                   블로그/프로필{" "}

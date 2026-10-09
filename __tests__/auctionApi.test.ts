@@ -4,6 +4,7 @@ const mockClient = {
   user: { findUnique: jest.fn() },
   auction: {
     count: jest.fn(),
+    findMany: jest.fn(),
     findFirst: jest.fn(),
     findUnique: jest.fn(),
     create: jest.fn(),
@@ -48,6 +49,7 @@ function createRes() {
   const res = {
     statusCode: 200,
     body: undefined as any,
+    headers: {} as Record<string, string>,
     status(code: number) {
       res.statusCode = code;
       return res;
@@ -56,7 +58,9 @@ function createRes() {
       res.body = payload;
       return res;
     },
-    setHeader() {},
+    setHeader(name: string, value: string) {
+      res.headers[name] = value;
+    },
   };
   return res;
 }
@@ -398,5 +402,73 @@ describe("POST /api/auctions/:id/bid 입찰 단위 검사", () => {
     expect(res.body.error).toContain("51,000원");
     expect(res.body.error).toContain("1,000원 단위");
     expect(mockClient.$transaction).not.toHaveBeenCalled();
+  });
+});
+
+describe("판매자 연락처(전화·이메일)는 판매자·낙찰자·운영자에게만", () => {
+  const seller = { id: 1, name: "판매자" } as NextApiRequest["user"];
+  const winner = { id: 2, name: "낙찰자" } as NextApiRequest["user"];
+  const otherBidder = { id: 3, name: "다른 입찰자" } as NextApiRequest["user"];
+  const endedAuction = {
+    id: 5,
+    title: "왕사슴 1페어",
+    userId: 1,
+    winnerId: 2,
+    status: "종료",
+    isHidden: false,
+    createdAt: new Date(NOW.getTime() - 2 * HOUR),
+    endAt: new Date(NOW.getTime() - HOUR),
+    bloodlineRootId: null,
+    pedigreeNote: null,
+    sellerPhone: "01088364924",
+    sellerEmail: "rkdxh115@naver.com",
+    sellerCafeNick: "두두두",
+    user: { id: 1, name: "판매자", avatar: null, breederPrograms: [] },
+    bids: [],
+    _count: { bids: 1 },
+  };
+
+  beforeEach(() => {
+    mockClient.auction.findUnique.mockResolvedValue(endedAuction);
+    mockClient.auction.findMany.mockResolvedValue([endedAuction]);
+    mockClient.auction.count.mockResolvedValue(1);
+  });
+
+  const getDetail = (user?: NextApiRequest["user"]) =>
+    call(detailHandler, { method: "GET", query: { id: "5" }, user });
+
+  it("상세: 비로그인에게는 가린 연락처와 sellerContactMasked=true", async () => {
+    const res = await getDetail();
+    expect(res.statusCode).toBe(200);
+    expect(res.body.auction.sellerPhone).toBe("010-****-4924");
+    expect(res.body.auction.sellerEmail).toBe("rk****@naver.com");
+    expect(res.body.auction.sellerContactMasked).toBe(true);
+    // 카페 닉네임처럼 판매자가 공개하려고 적은 신뢰 정보는 그대로 둔다.
+    expect(res.body.auction.sellerCafeNick).toBe("두두두");
+  });
+
+  it("상세: 낙찰자 아닌 입찰자에게도 가린 연락처", async () => {
+    const res = await getDetail(otherBidder);
+    expect(res.body.auction.sellerPhone).toBe("010-****-4924");
+    expect(res.body.auction.sellerContactMasked).toBe(true);
+  });
+
+  it("상세: 낙찰자·판매자에게는 원래 연락처, 응답은 공유 캐시에 남기지 않는다", async () => {
+    for (const viewer of [winner, seller]) {
+      const res = await getDetail(viewer);
+      expect(res.body.auction.sellerPhone).toBe("01088364924");
+      expect(res.body.auction.sellerEmail).toBe("rkdxh115@naver.com");
+      expect(res.body.auction.sellerContactMasked).toBe(false);
+      expect(res.headers["Cache-Control"]).toBe("private, no-store, max-age=0");
+    }
+  });
+
+  it("목록: 연락처를 아예 싣지 않는다", async () => {
+    const res = await call(createHandler, { method: "GET", query: {} });
+    expect(res.statusCode).toBe(200);
+    expect(res.body.auctions).toHaveLength(1);
+    expect(res.body.auctions[0]).not.toHaveProperty("sellerPhone");
+    expect(res.body.auctions[0]).not.toHaveProperty("sellerEmail");
+    expect(res.body.auctions[0].title).toBe("왕사슴 1페어");
   });
 });
