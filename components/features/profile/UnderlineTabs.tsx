@@ -32,11 +32,12 @@ export default function UnderlineTabs<T extends string>({
             aria-selected={selected}
             onClick={() => onChange(tab.id)}
             className={cn(
-              "relative h-[46px] min-w-0 flex-1 truncate text-[15px] transition-colors",
+              "relative h-[46px] min-w-0 flex-1 text-[15px] transition-colors",
               selected ? "font-bold text-app-text" : "font-medium text-app-muted hover:text-app-text"
             )}
           >
-            {tab.label}
+            {/* 말줄임은 라벨에만 건다. 버튼에 overflow 를 걸면 아래선에 겹치는 2px 밑줄이 1px 로 잘린다. */}
+            <span className="block truncate px-1">{tab.label}</span>
             {selected ? <span className="absolute inset-x-0 -bottom-px h-0.5 bg-app-text" /> : null}
           </button>
         );
