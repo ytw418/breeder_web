@@ -126,6 +126,8 @@ async function handler(
           },
           _count: { select: { bids: true } },
         },
+        // 판매자 연락처는 목록에 싣지 않는다(상세에서 판매자·낙찰자에게만 보인다).
+        omit: { sellerPhone: true, sellerEmail: true },
         orderBy: { createdAt: "desc" },
         take: 10,
         skip: page ? (+page - 1) * 10 : 0,
@@ -133,15 +135,21 @@ async function handler(
       client.auction.count({ where }),
     ]);
 
-    const serializedAuctions = auctions.map((auction) => ({
-      ...auction,
-      user: {
-        ...auction.user,
-        breederPrograms: getSortedActiveBreederProgramSummaries(
-          auction.user.breederPrograms
-        ),
-      },
-    }));
+    const serializedAuctions = auctions.map((auction) => {
+      // omit 을 따르지 않는 경로(테스트 목 등)에서도 연락처가 새지 않게 한 번 더 뺀다.
+      const rest: Record<string, unknown> = { ...auction };
+      delete rest.sellerPhone;
+      delete rest.sellerEmail;
+      return {
+        ...(rest as typeof auction),
+        user: {
+          ...auction.user,
+          breederPrograms: getSortedActiveBreederProgramSummaries(
+            auction.user.breederPrograms
+          ),
+        },
+      };
+    });
 
     return res.json({
       success: true,

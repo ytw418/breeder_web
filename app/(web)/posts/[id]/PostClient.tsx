@@ -4,6 +4,7 @@ import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import useSWR, { useSWRConfig } from "swr";
+import { useMarkSeenOnView } from "@libs/client/unreadMarks";
 
 import Layout, { toLoginHref } from "@components/features/MainLayout";
 import ConfirmDialog from "@components/atoms/ConfirmDialog";
@@ -195,6 +196,8 @@ const PostClient = ({
   const errorStatus = (error as { status?: number } | undefined)?.status;
   const isGone = Boolean(error && (errorStatus === 404 || errorStatus === 403));
   const post = isGone ? undefined : data?.post || initialPost;
+  // 목록의 '안 본 글' 빨간 점을 지운다(이 브라우저 기록).
+  useMarkSeenOnView("post", post);
   const prevNotice = data?.prevNotice ?? initialPrevNotice;
   const nextNotice = data?.nextNotice ?? initialNextNotice;
   const isLiked = Boolean(data?.isLiked);

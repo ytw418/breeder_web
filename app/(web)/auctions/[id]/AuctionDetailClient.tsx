@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState, type ReactNode } from "react";
 import useSWR from "swr";
+import { useMarkSeenOnView } from "@libs/client/unreadMarks";
 import Link from "next/link";
 import { useParams, usePathname, useRouter } from "next/navigation";
 
@@ -229,6 +230,8 @@ const AuctionDetailClient = () => {
   }, []);
 
   const auction = data?.auction;
+  // 목록의 '안 본 경매' 빨간 점을 지운다(이 브라우저 기록).
+  useMarkSeenOnView("auction", auction);
 
   useEffect(() => {
     if (!auction?.id) return;
@@ -680,6 +683,7 @@ const AuctionDetailClient = () => {
               <p className="text-[15px] font-semibold text-app-text">판매자 정보</p>
               {auction.sellerPhone ? <p>연락처 {auction.sellerPhone}</p> : null}
               {auction.sellerEmail ? <p>이메일 {auction.sellerEmail}</p> : null}
+              {auction.sellerContactMasked ? <p>전화·이메일은 낙찰되면 낙찰자에게만 모두 보여요.</p> : null}
               {auction.sellerBlogUrl ? (
                 <p className="break-all">
                   블로그/프로필{" "}

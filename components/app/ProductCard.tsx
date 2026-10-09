@@ -5,6 +5,10 @@ import Image from "@components/atoms/Image";
 import { cn, getTimeAgoString, makeImageUrl } from "@libs/client/utils";
 import { getProductPath } from "@libs/product-route";
 import { formatProductPrice } from "@libs/shared/price";
+import { useIsUnread } from "@libs/client/unreadMarks";
+
+/** 목록 메타에 조회 수를 보이는 최소값. 작은 숫자는 오히려 빈 티가 나서 숨긴다. */
+export const PRODUCT_VIEW_COUNT_MIN = 10;
 
 export type ProductCardData = {
   id: number;
@@ -17,15 +21,30 @@ export type ProductCardData = {
   isDeleted?: boolean | null;
   isHidden?: boolean | null;
   wishCount?: number | null;
+  /** 조회 수. PRODUCT_VIEW_COUNT_MIN 이상일 때만 메타에 "조회 N". 안 넘기면(프로필 내역 등) 그리지 않는다. */
+  viewCount?: number | null;
+  /** 사진 장수. 2장 이상이면 썸네일 오른쪽 아래에 숫자. */
+  photoCount?: number | null;
+  /** 판매자 id. 내 상품에는 안 본 점을 달지 않는다. */
+  sellerId?: number | null;
 };
 
 const toDate = (value: string | Date) => (value instanceof Date ? value : new Date(value));
 
-/** "카테고리 · 3분 전" (상대시간은 getTimeAgoString 문구). */
-export function getProductCardMeta(product: Pick<ProductCardData, "category" | "createdAt">) {
+/** "카테고리 · 3분 전 · 조회 12" (상대시간은 getTimeAgoString 문구, 조회는 PRODUCT_VIEW_COUNT_MIN 이상만). */
+export function getProductCardMeta(
+  product: Pick<ProductCardData, "category" | "createdAt" | "viewCount">
+) {
   const date = toDate(product.createdAt);
   const timeAgo = Number.isNaN(date.getTime()) ? "" : getTimeAgoString(date);
-  return [product.category || null, timeAgo || null].filter(Boolean).join(" · ");
+  const views = product.viewCount ?? 0;
+  return [
+    product.category || null,
+    timeAgo || null,
+    views >= PRODUCT_VIEW_COUNT_MIN ? `조회 ${views}` : null,
+  ]
+    .filter(Boolean)
+    .join(" · ");
 }
 
 /** 메타 앞 중립 pill 라벨. 삭제·숨김 상품이 먼저, 그다음 예약중·판매완료. */
@@ -40,7 +59,8 @@ export function getProductStatusLabel(
 
 /**
  * 당근 톤 상품 플랫 행(앱 ProductCard). 높이 108, 88px 썸네일(r8), 하단 1px app-line.
- * 이름 16/500(2줄) · [상태 pill] 메타 13 app-muted · 가격 16/700 + 관심 수.
+ * [안 본 점] 이름 16/500(2줄) · [상태 pill] 메타 13 app-muted · 가격 16/700 + 관심 수.
+ * markUnread: 홈·상품 목록처럼 둘러보는 목록에서만 켠다(7일 안·안 연 상품에 빨간 점, 프로필 내역은 끔).
  * 판매완료·삭제·숨김은 썸네일을 어둡게 덮는다.
  * href: 기본은 상품 상세. 삭제·숨김 상품은 상세가 404 라 기본으로 링크가 없고, 소유자 화면처럼
  * 열어야 하면 href 를 직접 넘긴다. href={null} 이면 항상 링크 없음.
@@ -49,11 +69,20 @@ export function ProductCard({
   product,
   href,
   className,
+  markUnread = false,
 }: {
   product: ProductCardData;
   href?: string | null;
   className?: string;
+  markUnread?: boolean;
 }) {
+  const unread = useIsUnread("product", {
+    id: product.id,
+    createdAt: product.createdAt,
+    authorId: product.sellerId ?? null,
+  });
+  const showDot = markUnread && unread;
+  const photoCount = product.photoCount ?? 0;
   const statusLabel = getProductStatusLabel(product);
   const meta = getProductCardMeta(product);
   const isInactive = Boolean(product.isDeleted || product.isHidden);
@@ -88,12 +117,25 @@ export function ProductCard({
         {isDimmed ? (
           <div className="pointer-events-none absolute inset-0 bg-app-overlay opacity-50" />
         ) : null}
+        {photoCount > 1 ? (
+          <span className="absolute bottom-1 right-1 h-[18px] min-w-[18px] rounded-full bg-app-overlay px-[5px] text-center text-[11px] font-semibold leading-[18px] text-white">
+            {photoCount}
+          </span>
+        ) : null}
       </div>
 
       <div className="flex h-[88px] min-w-0 flex-1 flex-col justify-center">
-        <p className="line-clamp-2 break-keep text-[16px] font-medium leading-[22px] text-app-text">
-          {product.name}
-        </p>
+        <div className="flex items-start gap-1.5">
+          {showDot ? (
+            <span
+              aria-label="안 본 상품"
+              className="mt-2 h-1.5 w-1.5 shrink-0 rounded-full bg-app-danger"
+            />
+          ) : null}
+          <p className="line-clamp-2 min-w-0 break-keep text-[16px] font-medium leading-[22px] text-app-text">
+            {product.name}
+          </p>
+        </div>
         {statusLabel || meta ? (
           <div className="mt-0.5 flex min-w-0 items-center gap-1.5">
             {statusLabel ? (

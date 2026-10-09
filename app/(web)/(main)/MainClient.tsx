@@ -21,6 +21,7 @@ import useUser from "hooks/useUser";
 import useBlocks from "hooks/useBlocks";
 import useCategoryScope, { withCategoryPath, withinScope } from "hooks/useCategoryScope";
 import CategoryScopeBar from "@components/features/category/CategoryScopeBar";
+import NeighborhoodBreederSection from "@components/features/home/NeighborhoodBreederSection";
 import { BreederRankingItem, HomeFeedResponse } from "@libs/shared/ranking";
 import { pickBreederKeywords, type BreederKeyword, type BreederTitleKey } from "@libs/shared/breederKeywords";
 import { filterHomeFeedForBlocked, HomeBanner, ProductsResponse } from "@libs/shared/home";
@@ -498,7 +499,7 @@ const MainClient = ({
       "auction_ranking",
       "bloodline_ranking",
       "trending_community",
-      "bloodline_card",
+      "neighborhood_breeders",
       "free_giveaway",
       "personalized_home",
     ];
@@ -691,42 +692,8 @@ const MainClient = ({
         ) : null}
       </section>
 
-      {/* 내 혈통 만들기(혈통 v2: 카드·버튼은 그대로 두고 문구만 바꿨다) */}
-      <section className="py-2">
-        <div className="mx-4 rounded-sm border border-app-border bg-app-elevated px-4 py-3">
-          <div className="flex items-center gap-2">
-            <span className="inline-flex h-5 items-center rounded bg-app-brand-soft px-1.5 text-[10px] font-bold text-app-brand">
-              이벤트
-            </span>
-            <h3 className="text-sm font-extrabold tracking-normal text-app-strong">
-              내 혈통 만들기
-            </h3>
-          </div>
-          <p className="mt-1.5 text-xs font-medium tracking-normal text-app-muted">
-            혈통 이름을 지키고, 분양할 때 출처 카드를 함께 보내 보세요.
-          </p>
-          <div className="mt-3 grid grid-cols-2 gap-2">
-            <Link
-              href="/bloodline-management"
-              onClick={() =>
-                trackEvent(ANALYTICS_EVENTS.challengeJoin, {
-                  challenge_id: "bloodline_card_share",
-                  entry_type: user ? "member" : "guest",
-                })
-              }
-              className="inline-flex h-9 items-center justify-center rounded-lg bg-app-inverse px-3 text-xs font-bold text-app-inverse-text"
-            >
-              보기
-            </Link>
-            <Link
-              href="/bloodline-cards/create"
-              className="inline-flex h-9 items-center justify-center rounded-lg border border-app-border bg-app-elevated px-3 text-xs font-bold text-app-sub"
-            >
-              만들기
-            </Link>
-          </div>
-        </div>
-      </section>
+      {/* 우리 동네 브리더(2026-10-09, 앱과 같이) — '내 혈통 만들기' 이벤트 카드 자리 */}
+      <NeighborhoodBreederSection />
 
       {/* 이번 주 TOP 브리더 — 집계가 비면 섹션을 숨긴다 */}
       {showTopBreeder ? (
@@ -876,7 +843,11 @@ const MainClient = ({
                 category: product.category,
                 status: product.status,
                 wishCount: product._count?.favs,
+                viewCount: product.viewCount,
+                photoCount: product.photos?.length ?? 0,
+                sellerId: product.userId,
               }}
+              markUnread
             />
           ))
         ) : firstPageError ? (

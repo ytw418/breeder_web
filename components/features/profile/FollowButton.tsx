@@ -4,6 +4,7 @@
  * 팔로우 전은 brand 채움 + 흰 글자, 팔로잉은 surface 배경 + text 글자(시안).
  * - lg: 프로필 블록(높이 36 · r8, 남은 폭을 나눠 가진다)
  * - sm: 팔로워·팔로잉 행(74×32)
+ * - card: 홈 '우리 동네 브리더' 카드(높이 32 · r8, 카드 폭을 채운다)
  * '팔로잉'을 누르면 '팔로우 취소' 하나만 있는 시트를 거친다(PRD F-11). 팔로우는 바로 된다.
  * 누르는 즉시 캐시(프로필 숫자·목록 행)를 바꾸고, 실패하면 그 사람 몫만 되돌린다. 서버는 토글이라 응답이 최종 상태다.
  */
@@ -17,11 +18,14 @@ import { authFetch } from "@libs/client/authFetch";
 import {
   isFollowListKey,
   isFollowingFeedKey,
+  isNearbyKey,
   isProfileKey,
   withFollowListRow,
+  withNearbyFollowRow,
   withMyFollowingDelta,
   withTargetFollowState,
   type FollowListPageLike,
+  type NearbyLike,
   type ProfileLike,
 } from "@libs/client/followState";
 import { toast } from "@libs/client/toast";
@@ -50,6 +54,12 @@ function useFollowMutation(targetUserId: number, returnPath: string) {
     // 팔로워·팔로잉 목록은 무한 목록 키라 전역 필터로는 닿지 않는다. 캐시에서 키를 찾아 바꾼다.
     updateInfiniteWhere<FollowListPageLike>({ cache, mutate }, isFollowListKey, (pages) =>
       withFollowListRow(pages, targetUserId, isFollowing)
+    );
+    // 홈 동네 카드. 순서가 바뀌어 카드가 튀지 않게 다시 받지는 않는다.
+    void mutate(
+      isNearbyKey,
+      (data?: NearbyLike) => withNearbyFollowRow(data, targetUserId, isFollowing),
+      { revalidate: false }
     );
   };
 
@@ -97,11 +107,11 @@ export default function FollowButton({
   isFollowing: boolean;
   /** 비로그인으로 누르면 로그인 뒤 돌아올 경로. */
   returnPath: string;
-  size: "lg" | "sm";
+  size: "lg" | "sm" | "card";
 }) {
   const { toggle, pending } = useFollowMutation(userId, returnPath);
   const [confirming, setConfirming] = useState(false);
-  const lg = size === "lg";
+
   return (
     <>
       <button
@@ -119,7 +129,9 @@ export default function FollowButton({
         }}
         className={cn(
           "inline-flex shrink-0 items-center justify-center font-semibold transition-opacity",
-          lg ? "h-9 flex-1 rounded-lg text-[14px]" : "h-8 w-[74px] rounded-md text-[13px]",
+          size === "lg" && "h-9 flex-1 rounded-lg text-[14px]",
+          size === "sm" && "h-8 w-[74px] rounded-md text-[13px]",
+          size === "card" && "h-8 w-full rounded-lg text-[13px]",
           isFollowing ? "bg-app-surface text-app-text" : "bg-app-brand text-white",
           pending && "opacity-70"
         )}

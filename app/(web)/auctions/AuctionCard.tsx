@@ -12,6 +12,17 @@ import { cn, makeImageUrl } from "@libs/client/utils";
 import { toAuctionPath } from "@libs/auction-route";
 import { formatAuctionTimeLeft, isAuctionTimeOver } from "@libs/auctionRules";
 import type { AuctionWithUser } from "pages/api/auctions";
+import { useIsUnread } from "@libs/client/unreadMarks";
+
+/** 남은 시간이 이보다 짧으면 '마감 임박'(빨간 글자). */
+const AUCTION_URGENT_MS = 60 * 60 * 1000;
+
+/** 가격 라벨: 낙찰된 종료 경매는 낙찰가, 입찰 없이 끝난 유찰은 시작가, 그 밖은 현재가. */
+function auctionPriceLabel(auction: Pick<AuctionWithUser, "status" | "winnerId">) {
+  if (auction.status === "종료" && auction.winnerId) return "낙찰가";
+  if (auction.status === "유찰") return "시작가";
+  return "현재가";
+}
 
 /** 이미지 위 상태 뱃지(앱 AuctionCard): 진행중 초록 / 종료 중립 / 그 외(유찰 등) 노랑. 다크는 불투명 면 + 1px 테두리. */
 const STATUS_BADGE_CLASS: Record<string, string> = {
@@ -37,6 +48,14 @@ export function AuctionCard({
   const timeOver = live && isAuctionTimeOver(auction.endAt, nowMs);
   const programs = auction.user?.breederPrograms;
   const framed = hasBreederProgramFrame(programs);
+  const bids = auction._count?.bids ?? 0;
+  const urgent =
+    live && !timeOver && new Date(auction.endAt).getTime() - nowMs <= AUCTION_URGENT_MS;
+  const unread = useIsUnread("auction", {
+    id: auction.id,
+    createdAt: auction.createdAt,
+    authorId: auction.userId,
+  });
 
   useEffect(() => {
     if (timeOver) onTimeOver?.(auction.id);
@@ -80,24 +99,35 @@ export function AuctionCard({
             <span
               className={cn(
                 "truncate text-[10px] font-semibold",
-                timeOver ? "text-app-muted" : "text-app-success-text"
+                timeOver ? "text-app-muted" : urgent ? "text-app-danger" : "text-app-success-text"
               )}
             >
-              {timeOver ? "마감" : formatAuctionTimeLeft(auction.endAt, nowMs)}
+              {timeOver
+                ? "마감"
+                : urgent
+                  ? `마감 임박 · ${formatAuctionTimeLeft(auction.endAt, nowMs)}`
+                  : formatAuctionTimeLeft(auction.endAt, nowMs)}
             </span>
           ) : null}
         </div>
-        <h3 className="truncate text-sm font-semibold text-app-strong">{auction.title}</h3>
+        <div className="flex min-w-0 items-center gap-1.5">
+          {unread ? (
+            <span aria-label="안 본 경매" className="h-1.5 w-1.5 shrink-0 rounded-full bg-app-danger" />
+          ) : null}
+          <h3 className="truncate text-sm font-semibold text-app-strong">{auction.title}</h3>
+        </div>
         <div className="mt-2 flex items-end justify-between gap-2">
           {/* 가격 우선: 가격 열은 줄이지 않고 오른쪽 열이 줄어든다. */}
           <div className="shrink-0">
-            <p className="text-[10px] text-app-muted">현재가</p>
+            <p className="text-[10px] text-app-muted">{auctionPriceLabel(auction)}</p>
             <p className="whitespace-nowrap text-sm font-bold text-app-strong">
               {auction.currentPrice.toLocaleString()}원
             </p>
           </div>
           <div className="flex min-w-0 shrink flex-col items-end">
-            <p className="truncate text-[10px] text-app-muted">입찰 {auction._count?.bids ?? 0}회</p>
+            <p className="truncate text-[10px] text-app-muted">
+              {live && bids === 0 ? "첫 입찰을 기다려요" : `입찰 ${bids}회`}
+            </p>
             <div className="mt-1 flex min-w-0 items-center justify-end gap-1">
               <div
                 className={cn(

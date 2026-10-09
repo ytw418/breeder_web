@@ -87,6 +87,61 @@ export async function getTopSpecies(userId: number): Promise<string[]> {
 }
 
 /**
+ * 여러 사용자의 주력 종을 한 번에 구한다(홈 '우리 동네 브리더' 카드). 규칙은 getTopSpecies 와 같다.
+ * 결과에는 넘긴 id 가 모두 들어가고, 종이 없는 사람은 빈 배열이다.
+ */
+export async function getTopSpeciesByUserIds(userIds: number[]): Promise<Map<number, string[]>> {
+  const result = new Map<number, string[]>(userIds.map((id) => [id, []]));
+  if (userIds.length === 0) return result;
+  const [postRows, productRows] = await Promise.all([
+    client.post.groupBy({
+      by: ["userId", "type"],
+      where: {
+        userId: { in: userIds },
+        isHidden: false,
+        NOT: { category: "공지" },
+      },
+      _count: { _all: true },
+      _max: { createdAt: true },
+    }),
+    client.product.groupBy({
+      by: ["userId", "category"],
+      where: { userId: { in: userIds }, isDeleted: false, isHidden: false },
+      _count: { _all: true },
+      _max: { createdAt: true },
+    }),
+  ]);
+  const rowsByUser = new Map<number, SpeciesCountRow[]>();
+  const push = (userId: number, row: SpeciesCountRow) => {
+    const rows = rowsByUser.get(userId);
+    if (rows) rows.push(row);
+    else rowsByUser.set(userId, [row]);
+  };
+  for (const row of postRows) {
+    push(row.userId, {
+      label: row.type,
+      count: row._count._all,
+      latestAt: row._max.createdAt,
+    });
+  }
+  for (const row of productRows) {
+    push(row.userId, {
+      label: row.category,
+      count: row._count._all,
+      latestAt: row._max.createdAt,
+    });
+  }
+  rowsByUser.forEach((rows, userId) => {
+    if (!result.has(userId)) return;
+    result.set(
+      userId,
+      rankSpecies(rows, TOP_SPECIES_LIMIT).map((row) => row.label)
+    );
+  });
+  return result;
+}
+
+/**
  * 프로필 '사진' 탭에 들어가는 글: 공지가 아니고 사진이 있는 글.
  * 구 데이터는 images 가 비어 있고 image 만 있어 둘 중 하나만 있어도 사진 글로 본다.
  * 숨김 글은 작성자·운영자(canSeeHidden)에게만 보인다.

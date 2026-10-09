@@ -202,3 +202,43 @@ describe("GET /api/posts 정렬·페이지를 DB 에서 처리", () => {
     expect(findManyArgs().where).toEqual({ category: "공지", isHidden: false });
   });
 });
+
+describe("GET /api/posts 최신 댓글 한 줄 미리보기(latestComment)", () => {
+  it("숨김·삭제·차단한 사람의 댓글을 뺀 최신 댓글 1개만 가져온다", async () => {
+    mockClient.userBlock.findMany.mockResolvedValue([{ blockedId: 9 }]);
+    await getPosts({}, { id: 7 });
+
+    expect(findManyArgs().include.comments).toEqual({
+      where: { isHidden: false, deletedAt: null, userId: { notIn: [9] } },
+      orderBy: [{ createdAt: "desc" }, { id: "desc" }],
+      take: 1,
+      select: { id: true, comment: true, user: { select: { id: true, name: true } } },
+    });
+  });
+
+  it("비로그인은 차단 조건 없이 숨김·삭제만 뺀다", async () => {
+    await getPosts({});
+    expect(findManyArgs().include.comments.where).toEqual({ isHidden: false, deletedAt: null });
+  });
+
+  it("응답에는 comments 배열 대신 latestComment(없으면 null)를 싣는다", async () => {
+    mockClient.post.findMany.mockResolvedValue([
+      makePost(1, {
+        comments: [{ id: 30, comment: "고단백 젤리 써요", user: { id: 2, name: "장수집사" } }],
+        _count: { comments: 2, Likes: 0 },
+      }),
+      makePost(2, { comments: [] }),
+    ]);
+    mockClient.post.count.mockResolvedValue(2);
+
+    const res = await getPosts({});
+    const [first, second] = res.body.posts;
+    expect(first.latestComment).toEqual({
+      id: 30,
+      comment: "고단백 젤리 써요",
+      user: { id: 2, name: "장수집사" },
+    });
+    expect(first).not.toHaveProperty("comments");
+    expect(second.latestComment).toBeNull();
+  });
+});
