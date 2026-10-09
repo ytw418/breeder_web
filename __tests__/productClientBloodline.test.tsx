@@ -8,6 +8,11 @@ import type { ItemDetailResponse } from "@/pages/api/products/[id]";
 jest.mock("hooks/useUser", () => ({ __esModule: true, default: () => ({ user: null, isLoading: false }) }), { virtual: true });
 jest.mock("hooks/useBlocks", () => ({ __esModule: true, default: () => ({ isBlocked: () => false, unblock: jest.fn(), isPending: false }) }), { virtual: true });
 jest.mock("hooks/useConfirmDialog", () => ({ __esModule: true, default: () => ({ confirm: jest.fn(), confirmDialog: null }) }), { virtual: true });
+jest.mock(
+  "hooks/useAdminModeration",
+  () => ({ __esModule: true, default: () => ({ isAdmin: false, actionsFor: () => [], confirmDialog: null, pending: false }) }),
+  { virtual: true }
+);
 jest.mock("next/navigation", () => ({
   useRouter: () => ({ push: jest.fn(), replace: jest.fn(), back: jest.fn(), refresh: jest.fn() }),
   useParams: () => ({ id: "11" }),

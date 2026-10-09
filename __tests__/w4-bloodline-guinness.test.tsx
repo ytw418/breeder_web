@@ -928,7 +928,7 @@ describe("웹 혈통 관리·프로필 문구 (AC-72)", () => {
     mockUseUser.mockReturnValue({ user: { id: 7, name: "강산" }, isLoading: false });
   });
 
-  it("혈통 관리: 칩 '출처 카드', CTA '혈통 만들기', 혈통 행 메타에 받은 사람 수", async () => {
+  it("혈통 관리: '내 혈통'·'받은 출처 카드' 섹션, CTA '혈통 만들기', 혈통 행 메타에 받은 사람 수", async () => {
     const data = {
       success: true,
       myBloodlines: [rootCard()],
@@ -942,7 +942,13 @@ describe("웹 혈통 관리·프로필 문구 (AC-72)", () => {
     renderWithSwr(<BloodlineManagementClient />, async () => data);
 
     expect(await screen.findByText("사슴벌레 · 충남 공주 · 받은 사람 3명")).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "출처 카드" })).toBeInTheDocument();
+    // 혈통 v2 S2(앱 bloodline-management/index): 칩 대신 두 섹션, 받은 출처 카드 행은 출처 카드 상세로 간다.
+    expect(screen.getByRole("heading", { name: "내 혈통" })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "받은 출처 카드" })).toBeInTheDocument();
+    expect(screen.getAllByRole("link", { name: /강산 라인/ }).map((a) => a.getAttribute("href"))).toEqual([
+      "/bloodline-management/card/5",
+      "/bloodline-management/card/9",
+    ]);
     expect(screen.queryByRole("button", { name: "라인" })).toBeNull();
     expect(screen.getByRole("link", { name: "혈통 만들기" })).toHaveAttribute("href", "/bloodline-cards/create");
     expect(document.body.textContent).not.toMatch(/라인카드|혈통카드|내 라인/);
