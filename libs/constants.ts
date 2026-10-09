@@ -34,6 +34,8 @@ export type Category = (typeof CATEGORIES)[number]["id"];
 
 /** 게시글 카테고리 */
 export const POST_CATEGORIES = [
+  // 동네 글(libs/shared/postCategory.ts REGION_POST_CATEGORY). 앱과 같은 순서로 맨 앞에 둔다.
+  { id: "동네", name: "동네" },
   { id: "자유", name: "자유" },
   { id: "질문", name: "질문" },
   { id: "정보", name: "정보" },

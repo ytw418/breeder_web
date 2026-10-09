@@ -4,10 +4,14 @@ import { authFetch } from "@libs/client/authFetch";
 import Layout, { toLoginHref } from "@components/features/MainLayout";
 import ConfirmDialog from "@components/atoms/ConfirmDialog";
 import { cn } from "@libs/client/utils";
+import Toggle from "@components/app/Toggle";
 import { toast } from "@libs/client/toast";
 import { PRIVACY_POLICY_URL, TERMS_OF_SERVICE_URL } from "@libs/constants";
 import useUser from "hooks/useUser";
 import useCategoryScope from "hooks/useCategoryScope";
+import { formatRegion, regionOf } from "@libs/shared/regions";
+
+type RegionUser = { regionSido?: string | null; regionSigungu?: string | null } | undefined;
 import useLogout from "hooks/useLogout";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -50,6 +54,10 @@ const THEME_OPTIONS: { value: ThemePreference; label: string }[] = [
 /* ------------------------------------------------------------------ */
 
 const ICON_PATHS = {
+  pin: [
+    "M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z",
+    "M15 11a3 3 0 11-6 0 3 3 0 016 0z",
+  ],
   grid: [
     "M3.75 6A2.25 2.25 0 016 3.75h2.25A2.25 2.25 0 0110.5 6v2.25a2.25 2.25 0 01-2.25 2.25H6a2.25 2.25 0 01-2.25-2.25V6zM3.75 15.75A2.25 2.25 0 016 13.5h2.25a2.25 2.25 0 012.25 2.25V18a2.25 2.25 0 01-2.25 2.25H6A2.25 2.25 0 013.75 18v-2.25zM13.5 6a2.25 2.25 0 012.25-2.25H18A2.25 2.25 0 0120.25 6v2.25A2.25 2.25 0 0118 10.5h-2.25a2.25 2.25 0 01-2.25-2.25V6zM13.5 15.75a2.25 2.25 0 012.25-2.25H18a2.25 2.25 0 012.25 2.25V18A2.25 2.25 0 0118 20.25h-2.25A2.25 2.25 0 0113.5 18v-2.25z",
   ],
@@ -181,40 +189,6 @@ function Row({
   return <div className={className}>{content}</div>;
 }
 
-/** 켜짐/꺼짐 스위치(켜짐 brand). */
-function Toggle({
-  checked,
-  disabled,
-  onChange,
-  label,
-}: {
-  checked: boolean;
-  disabled?: boolean;
-  onChange: () => void;
-  label: string;
-}) {
-  return (
-    <button
-      type="button"
-      role="switch"
-      aria-checked={checked}
-      aria-label={label}
-      disabled={disabled}
-      onClick={onChange}
-      className={cn(
-        "relative ml-3 h-[28px] w-[48px] shrink-0 rounded-full transition-colors disabled:opacity-50",
-        checked ? "bg-app-brand" : "bg-app-border"
-      )}
-    >
-      <span
-        className={cn(
-          "absolute top-[3px] h-[22px] w-[22px] rounded-full bg-[#fff] shadow-card transition-[left]",
-          checked ? "left-[23px]" : "left-[3px]"
-        )}
-      />
-    </button>
-  );
-}
 
 const SettingsClient = () => {
   const router = useRouter();
@@ -423,6 +397,13 @@ const SettingsClient = () => {
           icon="box"
           chevron
           href={user?.id ? `/profiles/${user.id}/sales` : "/myPage"}
+        />
+        <Row
+          label="내 동네"
+          icon="pin"
+          value={formatRegion(regionOf(user as RegionUser)) ?? "설정 안 함"}
+          chevron
+          href={user ? "/settings/region" : toLoginHref("/settings/region")}
         />
         <Row label="관심 카테고리" icon="grid" value={scope.label} chevron href="/settings/categories" />
         <Row label="차단 관리" icon="shield" chevron href="/settings/blocked-users" />

@@ -15,6 +15,7 @@ import { RetryFooter } from "@components/app/RetryFooter";
 import { useInfiniteScroll } from "hooks/useInfiniteScroll";
 import useBlocks from "hooks/useBlocks";
 import useCategoryScope, { withCategoryPath } from "hooks/useCategoryScope";
+import useUser from "hooks/useUser";
 
 import { cn, makeImageUrl } from "@libs/client/utils";
 import { toPostPath } from "@libs/post-route";
@@ -22,14 +23,19 @@ import { POST_CATEGORIES } from "@libs/constants";
 import { ANALYTICS_EVENTS, trackEvent } from "@libs/client/analytics";
 import { TOP_LEVEL_CATEGORIES } from "@libs/categoryTaxonomy";
 import { withoutBlocked } from "@libs/shared/blockFilter";
+import { REGION_POST_CATEGORY } from "@libs/shared/postCategory";
+import { regionOf } from "@libs/shared/regions";
 import type { PostsListResponse } from "pages/api/posts";
 import type { NoticePostsResponse } from "pages/api/posts/notices";
+import type { NearbyBreedersResponse } from "pages/api/users/nearby";
 import type {
   BloodlineRankingItem,
   BreederRankingItem,
   HotDiscussionItem,
 } from "@libs/shared/ranking";
 import TopBreederList from "@components/features/post/TopBreederList";
+import NearbyBreederList, { NEARBY_BREEDER_COUNT } from "@components/features/post/NearbyBreederList";
+import RegionGateCard from "@components/features/region/RegionGateCard";
 import { PostFilterDropdown } from "./_components/PostFilterDropdown";
 
 /** 카테고리 칩 목록 */
@@ -40,7 +46,7 @@ const SORT_TABS = [
   { id: "comments", name: "댓글순" },
 ] as const;
 type SortType = (typeof SORT_TABS)[number]["id"];
-type HighlightTab = "hot" | "breeder";
+type HighlightTab = "hot" | "breeder" | "nearby";
 /** HOT 토론은 상위 3개만 보여 준다(앱 d8f0211). */
 const HOT_DISCUSSION_COUNT = 3;
 
@@ -130,19 +136,43 @@ export default function PostsClient() {
     ? selectedSpecies
     : "전체";
 
-  const getKey = (pageIndex: number, previousPageData: PostsListResponse | null) => {
-    if (previousPageData && (!previousPageData.posts.length || pageIndex >= previousPageData.pages)) {
-      return null;
-    }
-    const categoryParam = selectedCategory !== "전체" ? `&category=${selectedCategory}` : "";
-    const sortParam = selectedSort !== "latest" ? `&sort=${selectedSort}` : "";
-    const speciesParam = activeSpecies !== "전체" ? `&species=${activeSpecies}` : "";
-    return withCategoryPath(
-      `/api/posts?page=${pageIndex + 1}${categoryParam}${sortParam}${speciesParam}`,
-      scope.categoryPath
-    );
-  };
+  // '동네' 칩·'우리 동네' 탭은 내 동네(시/도·시/군/구)가 있어야 한다(앱 posts.tsx). 없으면 RegionGateCard 로 안내하고 목록은 받지 않는다.
+  const { user } = useUser();
+  const myRegion = regionOf(user);
+  const isRegionCategory = selectedCategory === REGION_POST_CATEGORY;
 
+  /** region: 동네 글 필터. 시/도만 주면 시/도 전체, 시/군/구까지 주면 그 동네만. */
+  const makeGetKey =
+    (region: { sido: string; sigungu?: string } | null) =>
+    (pageIndex: number, previousPageData: PostsListResponse | null) => {
+      if (previousPageData && (!previousPageData.posts.length || pageIndex >= previousPageData.pages)) {
+        return null;
+      }
+      const categoryParam =
+        selectedCategory !== "전체" ? `&category=${encodeURIComponent(selectedCategory)}` : "";
+      const sortParam = selectedSort !== "latest" ? `&sort=${selectedSort}` : "";
+      const speciesParam = activeSpecies !== "전체" ? `&species=${activeSpecies}` : "";
+      const regionParam = region
+        ? `&regionSido=${encodeURIComponent(region.sido)}${
+            region.sigungu ? `&regionSigungu=${encodeURIComponent(region.sigungu)}` : ""
+          }`
+        : "";
+      return withCategoryPath(
+        `/api/posts?page=${pageIndex + 1}${categoryParam}${sortParam}${speciesParam}${regionParam}`,
+        scope.categoryPath
+      );
+    };
+
+  // 동네 글은 먼저 시/군/구로 받고, 1페이지가 0건이면 시/도 전체로 넓혀 다시 받는다(앱 AC-14).
+  const sigunguList = useSWRInfinite<PostsListResponse>(
+    isRegionCategory && !myRegion ? () => null : makeGetKey(isRegionCategory ? myRegion : null)
+  );
+  const widenToSido = Boolean(
+    isRegionCategory && myRegion && sigunguList.data && (sigunguList.data[0]?.posts.length ?? 0) === 0
+  );
+  const sidoList = useSWRInfinite<PostsListResponse>(
+    widenToSido && myRegion ? makeGetKey({ sido: myRegion.sido }) : () => null
+  );
   const {
     data,
     error: listError,
@@ -150,7 +180,10 @@ export default function PostsClient() {
     setSize,
     isValidating,
     mutate: mutateList,
-  } = useSWRInfinite<PostsListResponse>(getKey);
+  } = widenToSido ? sidoList : sigunguList;
+  // 동네 목록 제목 아래 범위 표시: 시/군/구, 넓혔으면 "서울특별시 전체".
+  const regionScopeLabel =
+    isRegionCategory && myRegion ? (widenToSido ? `${myRegion.sido} 전체` : myRegion.sigungu) : null;
   // TOP 브리더: /ranking '전체' 기간과 같은 데이터(범위 포함). '혈통 부자' 키워드용으로 혈통 랭킹도 받는다.
   const {
     data: breedersData,
@@ -163,6 +196,11 @@ export default function PostsClient() {
     "/api/rankings/bloodlines?limit=50&period=all"
   );
   const { data: noticeData } = useSWR<NoticePostsResponse>("/api/posts/notices");
+  const {
+    data: nearbyData,
+    error: nearbyError,
+    mutate: mutateNearby,
+  } = useSWR<NearbyBreedersResponse>(myRegion ? `/api/users/nearby?limit=${NEARBY_BREEDER_COUNT}` : null);
   const {
     data: homeFeedData,
     error: homeFeedError,
@@ -247,6 +285,7 @@ export default function PostsClient() {
   const noticeTitle = noticePost?.title ?? NOTICE_FALLBACK_TITLE;
 
   const listTitle = selectedCategory === "전체" ? "전체 게시글" : `${selectedCategory} 게시글`;
+  const listHint = regionScopeLabel ? `${regionScopeLabel} · ` : "";
   const sortLabel = SORT_TABS.find((s) => s.id === selectedSort)?.name ?? "최신순";
 
   const lastPage = data?.[data.length - 1];
@@ -266,7 +305,10 @@ export default function PostsClient() {
       active
         ? tab === "hot"
           ? "bg-app-danger text-app-inverse-text"
-          : "bg-app-warning text-app-inverse-text"
+          : tab === "nearby"
+            ? // '우리 동네'(앱 posts.tsx HIGHLIGHT_TAB_COLORS.nearby): 브랜드 주황, 주황 위 글자는 흰색 고정.
+              "bg-app-brand text-white"
+            : "bg-app-warning text-app-inverse-text"
         : "bg-app-surface text-app-muted"
     );
 
@@ -327,6 +369,15 @@ export default function PostsClient() {
               className={highlightTabClass("breeder", highlightTab === "breeder")}
             >
               🏆 TOP 브리더
+            </button>
+            <button
+              type="button"
+              role="tab"
+              aria-selected={highlightTab === "nearby"}
+              onClick={() => selectHighlightTab("nearby")}
+              className={highlightTabClass("nearby", highlightTab === "nearby")}
+            >
+              📍 우리 동네
             </button>
           </div>
 
@@ -416,6 +467,16 @@ export default function PostsClient() {
                   </Link>
                 </div>
               )
+            ) : highlightTab === "nearby" ? (
+              myRegion ? (
+                <NearbyBreederList
+                  data={nearbyData}
+                  isError={Boolean(nearbyError)}
+                  onRetry={() => void mutateNearby()}
+                />
+              ) : (
+                <RegionGateCard />
+              )
             ) : breedersError && !breedersData ? (
               <QueryErrorState
                 title="브리더 랭킹을 불러오지 못했어요"
@@ -448,9 +509,12 @@ export default function PostsClient() {
             <h2 className="truncate text-[18px] font-bold leading-[22.5px] tracking-[-0.36px] text-app-text">
               {listTitle}
             </h2>
-            <p className="mt-1 text-[12px] font-medium text-app-muted">{sortLabel}으로 노출됩니다.</p>
+            <p className="mt-1 text-[12px] font-medium text-app-muted">
+              {listHint}
+              {sortLabel}으로 노출됩니다.
+            </p>
           </div>
-          {data ? (
+          {data && !(isRegionCategory && !myRegion) ? (
             <span className="rounded-full border border-app-border bg-app-bg px-2.5 py-1 text-[11px] font-semibold leading-[11px] text-app-muted">
               {posts.length}개
             </span>
@@ -489,7 +553,9 @@ export default function PostsClient() {
         </div>
 
         {/* 7. 게시글 목록 */}
-        {isInitialLoading ? (
+        {isRegionCategory && !myRegion ? (
+          <RegionGateCard className="mt-2" />
+        ) : isInitialLoading ? (
           <div>
             {[0, 1, 2, 3, 4].map((i) => (
               <SkeletonPostRow key={i} />
@@ -501,6 +567,17 @@ export default function PostsClient() {
             onRetry={() => void mutateList()}
             className="py-[60px]"
           />
+        ) : posts.length === 0 && !hasMore && isRegionCategory && myRegion ? (
+          // 시/도까지 넓혀도 0건(앱 S-2.빈): 첫 인사를 유도한다.
+          <div className="flex flex-col items-center px-4 py-7 text-center">
+            <p className="text-[14px] text-app-muted">아직 {myRegion.sido} 동네 글이 없어요. 첫 인사를 남겨 보세요</p>
+            <Link
+              href={`/posts/upload?category=${encodeURIComponent(REGION_POST_CATEGORY)}`}
+              className="mt-3.5 flex h-11 items-center justify-center rounded-md bg-app-surface px-5 text-[14px] font-semibold text-app-strong"
+            >
+              인사 남기기
+            </Link>
+          </div>
         ) : posts.length === 0 && !hasMore ? (
           <div className="bg-app-bg pt-5">
             <p className="px-4 text-[14px] text-app-muted">

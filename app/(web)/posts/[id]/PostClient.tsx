@@ -20,6 +20,7 @@ import { toast } from "@libs/client/toast";
 import { copyText, absoluteUrl, shareOrCopy } from "@libs/client/share";
 import { cn, getTimeAgoString, makeImageUrl } from "@libs/client/utils";
 import { extractPostIdFromPath, toPostPath } from "@libs/post-route";
+import { postCategoryLabel } from "@libs/shared/postCategory";
 import type { PostDetailResponse } from "pages/api/posts/[id]";
 import { MY_ACTIVITY_KEY_PREFIXES, POST_KEY_PREFIXES, revalidateByPrefix } from "@libs/client/swrRevalidate";
 import { getPostMenuActionKeys, isNoticePost, type PostMenuActionKey } from "../_lib/postComposer";
@@ -461,7 +462,7 @@ const PostClient = ({
                 {!isNotice ? <BreederProgramBadge programs={post.user?.breederPrograms} /> : null}
               </div>
               <p className="mt-0.5 text-[13px] text-app-muted">
-                {post.category ? `${post.category} · ` : ""}
+                {postCategoryLabel(post) ? `${postCategoryLabel(post)} · ` : ""}
                 {timeAgo(post.createdAt)}
               </p>
             </div>
