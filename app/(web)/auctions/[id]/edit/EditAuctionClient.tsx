@@ -498,6 +498,9 @@ function AuctionEditFormBody({
         {/* 판매자 신뢰 정보(선택) */}
         <div>
           <FieldLabel label="판매자 신뢰 정보" caption="선택" />
+          <p className="-mt-0.5 mb-2 text-[13px] leading-[18px] text-app-muted">
+            전화·이메일은 가려서 보이고, 낙찰되면 낙찰자에게만 모두 보여요.
+          </p>
           <div className="flex flex-col gap-2">
             {(
               [

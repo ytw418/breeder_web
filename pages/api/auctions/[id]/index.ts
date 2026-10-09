@@ -40,6 +40,13 @@ import {
 } from "@libs/shared/pedigree-note";
 import type { AuctionBloodlineLinkSummary } from "@libs/shared/bloodline-card";
 import { resolveCategoryIdByName } from "@libs/server/categories";
+import { setViewerCacheHeader } from "@libs/server/blocks";
+import {
+  keepStoredContactWhenMasked,
+  maskEmail,
+  maskPhone,
+  toViewerAuctionContact,
+} from "@libs/server/auctionContact";
 
 /** Prisma Int(INT4) 최대값. 이보다 큰 혈통 id 는 잘못된 값(null)으로 본다. */
 const INT4_MAX = 2_147_483_647;
@@ -57,6 +64,8 @@ export interface AuctionDetailResponse {
     _count: { bids: number };
     /** 부·모 크기·누대(규칙에 맞는 키만). 혈통을 붙이지 않았으면 null. */
     pedigreeNote?: PedigreeNote | null;
+    /** 판매자·낙찰자·운영자가 아니어서 sellerPhone·sellerEmail 을 가린 값으로 내려줬으면 true. */
+    sellerContactMasked?: boolean;
     /**
      * 연결한 혈통 요약. 연결이 없거나 혈통이 ACTIVE 가 아니면 null.
      * winnerReceived 는 판매자 + 종료 + 낙찰자 있음일 때만 싣는다(낙찰자가 이미 출처 카드·혈통을 가졌는지).
@@ -172,8 +181,12 @@ async function handler(
       },
       pedigreeNote: readStoredPedigreeNote(auction.pedigreeNote),
       bloodline,
+      // 연락처는 판매자·낙찰자·운영자에게만 그대로, 나머지에겐 가린 값.
+      ...toViewerAuctionContact(auction, user),
     };
 
+    // 로그인한 사람의 응답(원래 연락처가 실릴 수 있음)은 공유 캐시에 남기지 않는다.
+    setViewerCacheHeader(res, user?.id);
     return res.json({
       success: true,
       auction: serializedAuction,
@@ -398,8 +411,15 @@ async function handler(
           photos: normalizedPhotos,
           category: category || null,
           categoryId: await resolveCategoryIdByName(category || null),
-          sellerPhone: normalizeOptionalText(sellerPhone, 40),
-          sellerEmail: normalizeOptionalText(sellerEmail, 120),
+          // 가린 값("010-****-4924")이 그대로 돌아오면 저장된 원래 연락처를 지킨다.
+          sellerPhone: normalizeOptionalText(
+            keepStoredContactWhenMasked(sellerPhone, auction.sellerPhone, maskPhone),
+            40
+          ),
+          sellerEmail: normalizeOptionalText(
+            keepStoredContactWhenMasked(sellerEmail, auction.sellerEmail, maskEmail),
+            120
+          ),
           sellerBlogUrl: normalizeOptionalUrl(sellerBlogUrl),
           sellerCafeNick: normalizeOptionalText(sellerCafeNick, 60),
           sellerBandNick: normalizeOptionalText(sellerBandNick, 60),
