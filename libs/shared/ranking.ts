@@ -30,7 +30,29 @@ export interface BreederRankingItem {
     avatar: string | null;
   };
   badges: SeasonBadgeItem[];
+  /** `highlights=N` 으로 요청했을 때 상위 N명에게만 온다(반려생활 TOP 브리더 사진 줄·키워드). */
+  highlight?: BreederHighlight;
 }
+
+/** TOP 브리더 사진 줄에 보여 줄 최근 사진 수. */
+export const BREEDER_HIGHLIGHT_PHOTOS = 4;
+/** `highlights` 로 받을 수 있는 최대 인원. */
+export const BREEDER_HIGHLIGHT_MAX = 10;
+
+export interface BreederHighlight {
+  /** 사진이 있는 최근 글(최신순, 최대 BREEDER_HIGHLIGHT_PHOTOS). 숨김·공지 글은 뺀다. */
+  photos: { postId: number; image: string }[];
+  /** 게시글에 올린 사진 장수. */
+  photosCount: number;
+  /** 게시글이 받은 좋아요 수. */
+  likesReceivedCount: number;
+  followersCount: number;
+}
+
+/** 전체 랭킹(범위 없음) 브리더 점수 가중치. 반려생활 '점수 기준' 시트도 이 값을 보여 준다. */
+export const BREEDER_SCORE_WEIGHTS: Readonly<
+  Record<"post" | "comment" | "bid" | "auctionWin" | "sellerEndedAuction", number>
+> = { post: 10, comment: 4, bid: 6, auctionWin: 15, sellerEndedAuction: 8 };
 
 /**
  * 카테고리 범위 탑브리더 점수 가중치(PRD 5.5 초안: 게시글 수 + 상품 수 × 3).
