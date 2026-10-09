@@ -2,13 +2,18 @@
 /**
  * 홈 상단 현재 범위 표시(앱 CategoryScopeBar). "관심 분야 · 포유류 > 햄스터 · 바꾸기 ›" 한 줄, 누르면 설정 > 관심 카테고리.
  * 시안 규칙: 44 행, 아래 1px 라인, 라벨은 본문색 600, 안내 글자는 muted.
+ * 온보딩(첫 로그인 관심 카테고리 선택, 건너뛰기 포함)을 마치면 숨긴다. 그 뒤 변경은 설정 > 관심 카테고리(2026-10-09 사용자 결정).
  */
 import Link from "next/link";
 import useCategoryScope from "hooks/useCategoryScope";
+import { useCategoryScopeState } from "@libs/client/categoryScope";
 import { cn } from "@libs/client/utils";
 
 export default function CategoryScopeBar() {
   const { label, pins } = useCategoryScope();
+  const { onboarded, hydrated } = useCategoryScopeState();
+  // 저장값을 읽기 전에도 그리지 않는다(마친 사용자에게 잠깐 비치지 않게).
+  if (!hydrated || onboarded) return null;
   return (
     <Link
       href="/settings/categories"

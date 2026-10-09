@@ -565,7 +565,7 @@ const MainClient = ({
 
   return (
     <div className="flex h-full flex-col bg-app-bg">
-      {/* 현재 관심 분야(고정 범위). 앱처럼 헤더 바로 아래에 고정하고, 누르면 설정 > 관심 카테고리. */}
+      {/* 현재 관심 분야(고정 범위). 앱처럼 헤더 바로 아래에 고정하고, 누르면 설정 > 관심 카테고리. 온보딩을 마치면 숨는다. */}
       <div className="sticky top-14 z-20">
         <CategoryScopeBar />
       </div>
