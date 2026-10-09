@@ -3,6 +3,9 @@ import {
   AuctionPeriodScope,
   AuctionRankingItem,
   BloodlineRankingItem,
+  BREEDER_HIGHLIGHT_PHOTOS,
+  BREEDER_SCORE_WEIGHTS,
+  BreederHighlight,
   BreederRankingItem,
   CommunityWindow,
   FreeProductItem,
@@ -61,11 +64,11 @@ export const scoreBreeder = ({
   auctionWinsCount: number;
   sellerEndedAuctionsCount: number;
 }) =>
-  postsCount * 10 +
-  commentsCount * 4 +
-  bidsCount * 6 +
-  auctionWinsCount * 15 +
-  sellerEndedAuctionsCount * 8;
+  postsCount * BREEDER_SCORE_WEIGHTS.post +
+  commentsCount * BREEDER_SCORE_WEIGHTS.comment +
+  bidsCount * BREEDER_SCORE_WEIGHTS.bid +
+  auctionWinsCount * BREEDER_SCORE_WEIGHTS.auctionWin +
+  sellerEndedAuctionsCount * BREEDER_SCORE_WEIGHTS.sellerEndedAuction;
 
 export const scoreBloodline = ({
   followCount,
@@ -454,6 +457,87 @@ export const getBreederRanking = async ({
       user: item.user,
       badges: badgeMap.get(item.key) ?? [],
     };
+  });
+};
+
+type HighlightPostRow = {
+  id: number;
+  userId: number;
+  image: string;
+  images: string[];
+  _count: { Likes: number };
+};
+
+/** 최신순 게시글 행·팔로워 수·상품 수로 사람별 TOP 브리더 사진 줄·칭호 정보를 만든다(테스트용으로 뺀 순수 함수). */
+export const buildBreederHighlights = (
+  userIds: number[],
+  posts: HighlightPostRow[],
+  followers: CountRow[],
+  products: CountRow[]
+): Map<number, BreederHighlight> => {
+  const followerMap = toCountMap(followers);
+  const productMap = toCountMap(products);
+  const highlights = new Map<number, BreederHighlight>(
+    userIds.map((id) => [
+      id,
+      {
+        photos: [],
+        photosCount: 0,
+        likesReceivedCount: 0,
+        followersCount: followerMap.get(id) ?? 0,
+        productsCount: productMap.get(id) ?? 0,
+      },
+    ])
+  );
+  for (const post of posts) {
+    const highlight = highlights.get(post.userId);
+    if (!highlight) continue;
+    const images = post.images.length > 0 ? post.images : post.image ? [post.image] : [];
+    highlight.photosCount += images.length;
+    highlight.likesReceivedCount += post._count.Likes;
+    if (images.length > 0 && highlight.photos.length < BREEDER_HIGHLIGHT_PHOTOS) {
+      highlight.photos.push({ postId: post.id, image: images[0] });
+    }
+  }
+  return highlights;
+};
+
+/**
+ * 상위 `count` 명에게 TOP 브리더 사진 줄·칭호용 정보(최근 사진·사진 장수·받은 좋아요·팔로워·상품 수)를 붙인다.
+ * 숨김·공지 글, 삭제·숨김 상품은 세지 않는다. 랭킹 점수에는 영향이 없다.
+ */
+export const attachBreederHighlights = async (
+  items: BreederRankingItem[],
+  count: number
+): Promise<BreederRankingItem[]> => {
+  const userIds = items.slice(0, count).map((item) => item.user.id);
+  if (userIds.length === 0) return items;
+  const [posts, followers, products] = await Promise.all([
+    client.post.findMany({
+      where: {
+        userId: { in: userIds },
+        isHidden: false,
+        OR: [{ category: null }, { category: { not: "공지" } }],
+      },
+      select: { id: true, userId: true, image: true, images: true, _count: { select: { Likes: true } } },
+      orderBy: [{ createdAt: "desc" }, { id: "desc" }],
+    }),
+    client.follow.groupBy({
+      by: ["followingId"],
+      where: { followingId: { in: userIds } },
+      _count: { _all: true },
+    }),
+    countByGroup("product", { userId: { in: userIds }, isDeleted: false, isHidden: false }),
+  ]);
+  const highlights = buildBreederHighlights(
+    userIds,
+    posts,
+    followers.map((row) => ({ key: row.followingId, count: row._count._all })),
+    products
+  );
+  return items.map((item) => {
+    const highlight = highlights.get(item.user.id);
+    return highlight ? { ...item, highlight } : item;
   });
 };
 
