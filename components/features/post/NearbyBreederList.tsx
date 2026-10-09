@@ -83,7 +83,7 @@ export function NearbyBreederSkeletonRows({ count }: { count: number }) {
 export function NearbyBreederEmpty({ region }: { region: Region | null }) {
   return (
     <div className="flex flex-col items-center px-4 py-7 text-center">
-      <p className="text-[14px] text-app-muted">아직 {region?.sigungu ?? "동네"}에 표시 중인 브리더가 없어요</p>
+      <p className="break-keep text-[14px] text-app-muted">아직 {region?.sigungu ?? "동네"}에 표시 중인 브리더가 없어요</p>
       <p className="mt-1 text-[13px] text-app-caption">설정에서 &apos;나를 표시&apos;를 켜면 첫 브리더가 돼요</p>
     </div>
   );

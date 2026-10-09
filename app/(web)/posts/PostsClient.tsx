@@ -570,7 +570,7 @@ export default function PostsClient() {
         ) : posts.length === 0 && !hasMore && isRegionCategory && myRegion ? (
           // 시/도까지 넓혀도 0건(앱 S-2.빈): 첫 인사를 유도한다.
           <div className="flex flex-col items-center px-4 py-7 text-center">
-            <p className="text-[14px] text-app-muted">아직 {myRegion.sido} 동네 글이 없어요. 첫 인사를 남겨 보세요</p>
+            <p className="break-keep text-[14px] text-app-muted">아직 {myRegion.sido} 동네 글이 없어요. 첫 인사를 남겨 보세요</p>
             <Link
               href={`/posts/upload?category=${encodeURIComponent(REGION_POST_CATEGORY)}`}
               className="mt-3.5 flex h-11 items-center justify-center rounded-md bg-app-surface px-5 text-[14px] font-semibold text-app-strong"

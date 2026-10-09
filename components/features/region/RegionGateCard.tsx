@@ -13,7 +13,7 @@ export default function RegionGateCard({ className }: { className?: string }) {
   return (
     <div className={cn("mx-4 rounded-xl border border-app-border bg-app-elevated p-5", className)}>
       <p className="text-[16px] font-semibold text-app-strong">내 동네를 설정해 보세요</p>
-      <p className="mt-1 text-[14px] leading-5 text-app-muted">같은 동네 브리더를 만나고 직거래로 생물 스트레스를 줄여요</p>
+      <p className="mt-1 break-keep text-[14px] leading-5 text-app-muted">같은 동네 브리더를 만나고 직거래로 생물 스트레스를 줄여요</p>
       <Link
         href={user ? "/settings/region" : toLoginHref("/settings/region")}
         className="mt-3.5 flex h-11 items-center justify-center rounded-md bg-app-brand text-[14px] font-semibold text-white"
