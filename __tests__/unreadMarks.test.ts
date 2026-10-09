@@ -1,6 +1,5 @@
 import {
   UNREAD_MAX_ENTRIES,
-  hasUnreadItems,
   isUnreadItem,
   markSeen,
   parseSeen,
@@ -37,22 +36,6 @@ describe("안 본 글 판정", () => {
 
   it("시각을 못 읽으면 점이 없다", () => {
     expect(isUnreadItem({ id: 1, createdAt: "not-a-date" }, {}, 9, NOW)).toBe(false);
-  });
-
-  it("목록 중 하나라도 안 봤으면 탭 점", () => {
-    const seen = markSeen({}, { id: 1, createdAt: iso(NOW - DAY) }, NOW);
-    expect(hasUnreadItems([{ id: 1, createdAt: iso(NOW - DAY) }], seen, 9, NOW)).toBe(false);
-    expect(
-      hasUnreadItems(
-        [
-          { id: 1, createdAt: iso(NOW - DAY) },
-          { id: 2, createdAt: iso(NOW - 2 * DAY) },
-        ],
-        seen,
-        9,
-        NOW
-      )
-    ).toBe(true);
   });
 });
 

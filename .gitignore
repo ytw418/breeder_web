@@ -40,6 +40,9 @@ yarn-error.log*
 # vercel
 .vercel
 
+# 크루 활동 스킬 상태·계획·기록(scripts/crew/crew.mjs)
+/.crew/
+
 # typescript
 *.tsbuildinfo
 next-env.d.ts
