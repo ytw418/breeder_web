@@ -39,6 +39,16 @@
 - 작업 시작 전 동기화 순서는 항상 `main checkout -> main pull -> dev checkout -> dev pull -> dev에서 main 기준 rebase -> 구현 시작`으로 고정한다.
 - 위 순서를 건너뛰지 않으며, 별도 지시가 없는 한 다른 시작 절차보다 우선 적용한다.
 
+## PR·완료 보고 스크린샷 (MANDATORY — 2026-10-09)
+사용자는 PR 에서 화면을 직접 보고 머지한다("PR 생성할 때랑 작업 다 했다고 보고할 때 스크린샷을 보여주고 PR 에 넣어줘").
+- 화면이 바뀐 작업은 바뀐 화면마다 캡처한다. 웹은 로컬 `next dev`나 Vercel 프리뷰를 Playwright 모바일 뷰포트로 찍고, 앱은 에뮬레이터(`adb exec-out screencap -p > /tmp/x.png`)로 찍는다. 색을 바꿨으면 다크도 찍는다. 찍은 파일은 직접 열어 의도한 화면인지 확인한다.
+- `scripts/pr-screenshots.sh <파일...>` 로 공개 저장소 `ytw418/pr-assets`에 올리면 파일마다 PR 표 칸용 `<img>` 줄과 보고용 `![캡션](URL)` 줄이 나온다. 파일 이름이 캡션이 된다(`01-profile-light.png`).
+- PR 본문에 `## 스크린샷` 표를 넣는다. 앱·웹을 같이 바꿨으면 한 행에 앱 | 웹을 둔다. 앱은 master 로 바로 푸시해 PR 이 없으니, 앱 캡처도 이 저장소의 짝 PR 에 같이 넣는다. 릴리스 PR(dev → main)은 포함 PR 들의 이미지 줄을 모아 넣는다.
+- 완료 보고에도 같은 이미지를 `![캡션](URL)`로 넣고 로컬 파일 경로를 함께 적는다.
+- 화면 변화가 없거나(API·훅·문서만) 캡처할 수 없으면 PR 본문에 `스크린샷 없음 — <이유>` 한 줄을 넣고, 보고에서도 그 이유를 알린다.
+- `pr-assets`는 공개 저장소다. 채팅 내용·연락처·주소처럼 다른 사용자의 개인정보가 보이는 화면은 테스트 계정 데이터로 찍거나 가린다.
+- 훅 `.claude/hooks/pr-guard.py`가 이미지도 `스크린샷 없음` 줄도 없는 `gh pr create`·`gh pr edit --body…`를 막는다. 훅·스크립트를 바꿀 때는 bredy_app 사본과 같이 고치고 `python3 .claude/hooks/pr-guard_test.py`를 돌린다.
+
 ## 검증 규칙
 - 기본 품질 검증은 `npm run verify:ci`를 사용한다.
 - `verify:ci` 범위는 `lint + typecheck + test`이다.
