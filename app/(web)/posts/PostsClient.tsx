@@ -137,9 +137,11 @@ export default function PostsClient() {
     : "전체";
 
   // '동네' 칩·'우리 동네' 탭은 내 동네(시/도·시/군/구)가 있어야 한다(앱 posts.tsx). 없으면 RegionGateCard 로 안내하고 목록은 받지 않는다.
-  const { user } = useUser();
+  const { user, isLoading: userLoading } = useUser();
   const myRegion = regionOf(user);
   const isRegionCategory = selectedCategory === REGION_POST_CATEGORY;
+  // 계정을 받는 중에는 안내 카드 대신 스켈레톤을 둔다(안내 카드가 잠깐 비치지 않게).
+  const showRegionGate = !myRegion && !userLoading;
 
   /** region: 동네 글 필터. 시/도만 주면 시/도 전체, 시/군/구까지 주면 그 동네만. */
   const makeGetKey =
@@ -468,7 +470,7 @@ export default function PostsClient() {
                 </div>
               )
             ) : highlightTab === "nearby" ? (
-              myRegion ? (
+              !showRegionGate ? (
                 <NearbyBreederList
                   data={nearbyData}
                   isError={Boolean(nearbyError)}
@@ -553,7 +555,7 @@ export default function PostsClient() {
         </div>
 
         {/* 7. 게시글 목록 */}
-        {isRegionCategory && !myRegion ? (
+        {isRegionCategory && showRegionGate ? (
           <RegionGateCard className="mt-2" />
         ) : isInitialLoading ? (
           <div>
