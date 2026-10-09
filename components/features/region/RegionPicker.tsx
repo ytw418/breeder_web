@@ -41,14 +41,14 @@ export default function RegionPicker({ sido }: { sido?: string }) {
   const router = useRouter();
   const { user, mutate: mutateUser } = useUser();
   const { cache, mutate } = useSWRConfig();
-  const current = regionOf(user as { regionSido?: string | null; regionSigungu?: string | null } | undefined);
+  const current = regionOf(user);
   const [savingId, setSavingId] = useState<string | null>(null);
   const [locating, setLocating] = useState(false);
   const [clearOpen, setClearOpen] = useState(false);
   const [needRegionOpen, setNeedRegionOpen] = useState(false);
   // 토글은 낙관적으로 바꾼다: 요청 중엔 override, 끝나면 서버 값으로 돌아간다.
   const [visibleOverride, setVisibleOverride] = useState<boolean | null>(null);
-  const visible = visibleOverride ?? Boolean((user as { regionVisible?: boolean } | undefined)?.regionVisible);
+  const visible = visibleOverride ?? Boolean(user?.regionVisible);
   // 위치 버튼은 브라우저에서만 판단한다(서버 렌더와 첫 화면을 같게).
   const [canLocate, setCanLocate] = useState(false);
   useEffect(() => setCanLocate(isLocateAvailable()), []);

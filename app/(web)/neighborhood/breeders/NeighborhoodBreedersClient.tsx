@@ -17,7 +17,7 @@ import type { NearbyBreedersResponse } from "pages/api/users/nearby";
 
 export default function NeighborhoodBreedersClient() {
   const { user } = useUser();
-  const region = regionOf(user as { regionSido?: string | null; regionSigungu?: string | null } | undefined);
+  const region = regionOf(user);
   const { data, error, mutate } = useSWR<NearbyBreedersResponse>(
     region ? `/api/users/nearby?limit=${NEARBY_FULL_LIST_LIMIT}` : null
   );
