@@ -334,9 +334,9 @@ const EditProfileClient = () => {
       </div>
 
       <div className="px-5 pb-[calc(96px+env(safe-area-inset-bottom))]">
-        {/* 아바타 — 커버 아래로 40 겹친다 */}
-        <div className="relative z-[1] -mt-10 flex justify-center">
-          <div className="relative h-24 w-24 rounded-full bg-app-bg ring-[3px] ring-app-bg">
+        {/* 아바타 — 커버 아래로 40 겹친다. 줄 전체가 커버 칩 위를 덮으니 빈 곳 터치는 커버로 넘긴다 */}
+        <div className="pointer-events-none relative z-[1] -mt-10 flex justify-center">
+          <div className="pointer-events-auto relative h-24 w-24 rounded-full bg-app-bg ring-[3px] ring-app-bg">
             <div className="flex h-24 w-24 items-center justify-center overflow-hidden rounded-full bg-app-surface">
               {previewSrc ? (
                 <Image
