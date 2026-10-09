@@ -32,7 +32,7 @@ import type {
   BreederRankingItem,
   HotDiscussionItem,
 } from "@libs/shared/ranking";
-import TopBreederList from "@components/features/post/TopBreederList";
+import TopBreederList, { TOP_BREEDER_HIGHLIGHTS } from "@components/features/post/TopBreederList";
 import NearbyBreederList, { NEARBY_BREEDER_COUNT } from "@components/features/post/NearbyBreederList";
 import RegionGateCard from "@components/features/region/RegionGateCard";
 import FollowingFeedCard from "@components/features/post/FollowingFeedCard";
@@ -200,13 +200,17 @@ export default function PostsClient() {
   // 동네 목록 제목 아래 범위 표시: 시/군/구, 넓혔으면 "서울특별시 전체".
   const regionScopeLabel =
     isRegionCategory && myRegion ? (widenToSido ? `${myRegion.sido} 전체` : myRegion.sigungu) : null;
-  // TOP 브리더: /ranking '전체' 기간과 같은 데이터(범위 포함). '혈통 부자' 키워드용으로 혈통 랭킹도 받는다.
+  // TOP 브리더: /ranking '전체' 기간과 같은 데이터(범위 포함) + 상위 사진·좋아요·팔로워(highlights).
+  // '혈통 부자' 칭호용으로 혈통 랭킹도 받는다.
   const {
     data: breedersData,
     error: breedersError,
     mutate: mutateBreeders,
   } = useSWR<{ success: boolean; items: BreederRankingItem[] }>(
-    withCategoryPath("/api/rankings/breeders?limit=50&period=all", scope.categoryPath)
+    withCategoryPath(
+      `/api/rankings/breeders?limit=50&period=all&highlights=${TOP_BREEDER_HIGHLIGHTS}`,
+      scope.categoryPath
+    )
   );
   const { data: bloodlinesData } = useSWR<{ success: boolean; items: BloodlineRankingItem[] }>(
     "/api/rankings/bloodlines?limit=50&period=all"
@@ -518,6 +522,7 @@ export default function PostsClient() {
               <TopBreederList
                 breeders={topBreeders}
                 bloodlines={bloodlinesData?.items ?? []}
+                scoped={!!scope.categoryPath}
                 onOpen={(breeder, index) =>
                   trackEvent(ANALYTICS_EVENTS.postsBreederTabClicked, {
                     breeder_id: breeder.user.id,

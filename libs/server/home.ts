@@ -6,7 +6,9 @@ import { getCategoryFilterValues } from "@libs/categoryTaxonomy";
 import { categoryScopeWhere } from "@libs/server/categories";
 import { HomeBanner, ProductsResponse } from "@libs/shared/home";
 import { HomeFeedResponse } from "@libs/shared/ranking";
+import { pickBreederKeywords } from "@libs/shared/breederKeywords";
 import {
+  attachBreederHighlights,
   getAuctionRanking,
   getBloodlineRanking,
   getBreederRanking,
@@ -174,6 +176,9 @@ const buildHomeFeed = async ({
   ]);
 
   const heroBreederMode = weeklyBreeders.length > 0 ? "weekly" : "all";
+  // 1위의 칭호(왜 1위인지): 같은 기간 상위 10명끼리 비교한다. 분양글·팔로워 등은 highlight 로 붙인다.
+  const heroPeers = await attachBreederHighlights(fallbackBreeders, fallbackBreeders.length);
+  const heroBreederKeyword = pickBreederKeywords(heroPeers, fallbackBloodlines, 1)[0] ?? null;
   const topAuctionsMode = weeklyAuctions.length > 0 ? "week" : "all";
   const topBloodlinesMode = weeklyBloodlines.length > 0 ? "weekly" : "all";
   const trendingPostsMode = recentTrendingPosts.length > 0 ? "24h" : "all";
@@ -208,7 +213,8 @@ const buildHomeFeed = async ({
 
   return {
     success: true,
-    heroBreeder: fallbackBreeders[0] ?? null,
+    heroBreeder: heroPeers[0] ?? null,
+    heroBreederKeyword,
     heroBreederMode,
     topAuctionsByCategory: topAuctionsByCategory.slice(0, 6),
     topAuctionsMode,
