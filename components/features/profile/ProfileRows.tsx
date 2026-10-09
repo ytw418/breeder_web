@@ -40,6 +40,8 @@ export const PROFILE_ICON_PATHS = {
   more: [
     "M12 6.75a.75.75 0 110-1.5.75.75 0 010 1.5zM12 12.75a.75.75 0 110-1.5.75.75 0 010 1.5zM12 18.75a.75.75 0 110-1.5.75.75 0 010 1.5z",
   ],
+  share: ["M12 16V3m-4 4l4-4 4 4M5 12v9h14v-9"],
+  plus: ["M12 4v16m8-8H4"],
 } as const;
 
 export type ProfileIconName = keyof typeof PROFILE_ICON_PATHS;
@@ -226,7 +228,9 @@ export function ProfileAvatar({
       aria-label={`${name} 프로필 이미지`}
       role="img"
     >
-      <span className="text-[20px] font-bold text-app-muted">{name.trim().charAt(0) || "브"}</span>
+      <span className="font-bold text-app-muted" style={{ fontSize: Math.round(size * 0.36) }}>
+        {name.trim().charAt(0) || "브"}
+      </span>
     </div>
   );
 

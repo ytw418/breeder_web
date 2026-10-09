@@ -11,6 +11,7 @@ import {
   RankingPeriod,
   SeasonBadgeItem,
   TrendingPostItem,
+  SCOPED_BREEDER_SCORE_WEIGHTS,
   scoreScopedBreeder,
 } from "@libs/shared/ranking";
 import { categoryScopeWhere, resolveScopeCategoryIds } from "@libs/server/categories";
@@ -114,6 +115,7 @@ const countByGroup = async (
     | "bid"
     | "auctionByWinner"
     | "auctionBySeller"
+    | "bloodlineByCreator"
     | "bloodlineFollow"
     | "likeByPost"
     | "commentByPost",
@@ -144,6 +146,10 @@ const countByGroup = async (
   if (model === "auctionBySeller") {
     const rows = await client.auction.groupBy({ by: ["userId"], where, _count: { _all: true } });
     return rows.map((row) => ({ key: row.userId, count: row._count._all }));
+  }
+  if (model === "bloodlineByCreator") {
+    const rows = await client.bloodlineCard.groupBy({ by: ["creatorId"], where, _count: { _all: true } });
+    return rows.map((row) => ({ key: row.creatorId, count: row._count._all }));
   }
   if (model === "bloodlineFollow") {
     const rows = await client.bloodlineFollow.groupBy({
@@ -185,11 +191,21 @@ const getScopedBreederRanking = async ({
   const scopeFilter = { categoryId: { in: categoryIds } };
   const postBase = { ...scopeFilter, isHidden: false, category: { not: "공지" } };
   const productBase = { ...scopeFilter, isHidden: false, isDeleted: false };
+  // 경매·혈통은 가중치가 0 이면 세지 않는다(구조만, SCOPED_BREEDER_SCORE_WEIGHTS).
+  const auctionBase = { ...scopeFilter, isHidden: false };
+  const bloodlineBase = { ...scopeFilter, cardType: "BLOODLINE" as const, status: "ACTIVE" as const };
+  const countAuctions = SCOPED_BREEDER_SCORE_WEIGHTS.auction > 0;
+  const countBloodlines = SCOPED_BREEDER_SCORE_WEIGHTS.bloodline > 0;
   const windowOf = (window: { startAt: Date; endAt: Date }) => ({
     createdAt: { gte: window.startAt, lte: window.endAt },
   });
+  const optionalCount = (
+    enabled: boolean,
+    model: "auctionBySeller" | "bloodlineByCreator",
+    where: Record<string, unknown>
+  ) => (enabled ? countByGroup(model, where) : Promise.resolve([] as CountRow[]));
 
-  const [users, currentPosts, currentProducts] = await Promise.all([
+  const [users, currentPosts, currentProducts, currentAuctions, currentBloodlines] = await Promise.all([
     client.user.findMany({
       where: { status: "ACTIVE" },
       select: { id: true, name: true, avatar: true },
@@ -202,20 +218,34 @@ const getScopedBreederRanking = async ({
       ...productBase,
       ...(period === "weekly" ? windowOf(current) : {}),
     }),
+    optionalCount(countAuctions, "auctionBySeller", {
+      ...auctionBase,
+      ...(period === "weekly" ? windowOf(current) : {}),
+    }),
+    optionalCount(countBloodlines, "bloodlineByCreator", {
+      ...bloodlineBase,
+      ...(period === "weekly" ? windowOf(current) : {}),
+    }),
   ]);
-  const [previousPosts, previousProducts] =
+  const [previousPosts, previousProducts, previousAuctions, previousBloodlines] =
     period === "weekly"
       ? await Promise.all([
           countByGroup("post", { ...postBase, ...windowOf(previous) }),
           countByGroup("product", { ...productBase, ...windowOf(previous) }),
+          optionalCount(countAuctions, "auctionBySeller", { ...auctionBase, ...windowOf(previous) }),
+          optionalCount(countBloodlines, "bloodlineByCreator", { ...bloodlineBase, ...windowOf(previous) }),
         ])
-      : [[], []];
+      : [[], [], [], []];
 
   const maps = {
     currentPosts: toCountMap(currentPosts),
     currentProducts: toCountMap(currentProducts),
+    currentAuctions: toCountMap(currentAuctions),
+    currentBloodlines: toCountMap(currentBloodlines),
     previousPosts: toCountMap(previousPosts),
     previousProducts: toCountMap(previousProducts),
+    previousAuctions: toCountMap(previousAuctions),
+    previousBloodlines: toCountMap(previousBloodlines),
   };
 
   const currentScored = users
@@ -223,6 +253,8 @@ const getScopedBreederRanking = async ({
       const counts = {
         postsCount: maps.currentPosts.get(user.id) ?? 0,
         productsCount: maps.currentProducts.get(user.id) ?? 0,
+        auctionsCount: maps.currentAuctions.get(user.id) ?? 0,
+        bloodlinesCount: maps.currentBloodlines.get(user.id) ?? 0,
       };
       return { key: user.id, user, ...counts, score: scoreScopedBreeder(counts) };
     })
@@ -235,6 +267,8 @@ const getScopedBreederRanking = async ({
       score: scoreScopedBreeder({
         postsCount: maps.previousPosts.get(user.id) ?? 0,
         productsCount: maps.previousProducts.get(user.id) ?? 0,
+        auctionsCount: maps.previousAuctions.get(user.id) ?? 0,
+        bloodlinesCount: maps.previousBloodlines.get(user.id) ?? 0,
       }),
     }))
     .filter((item) => item.score > 0)
@@ -506,11 +540,14 @@ export const getAuctionRanking = async ({
   limit = 20,
   periodScope = "week",
   baseDate,
+  categoryPath,
 }: {
   category?: string;
   limit?: number;
   periodScope?: AuctionPeriodScope;
   baseDate?: Date;
+  /** 관심 카테고리 범위(구조만 — 앱·웹은 CATEGORY_SCOPE_SURFACES.auctions 가 켜지면 보낸다). */
+  categoryPath?: string;
 } = {}): Promise<AuctionRankingItem[]> => {
   // 홈은 "카테고리별 대표 1건"이 필요해서 전체 조회 후 top-level category별 최고가만 다시 추린다.
   const now = baseDate ?? new Date();
@@ -532,6 +569,8 @@ export const getAuctionRanking = async ({
   if (category && category !== "전체") {
     where.category = { in: getCategoryFilterValues(category) };
   }
+  const scopeIds = await resolveScopeCategoryIds(categoryPath);
+  if (scopeIds) where.categoryId = { in: scopeIds };
 
   const auctions = await client.auction.findMany({
     where,
@@ -579,11 +618,14 @@ export const getBloodlineRanking = async ({
   limit = 20,
   baseDate: _baseDate,
   speciesType,
+  categoryPath,
 }: {
   limit?: number;
   period?: RankingPeriod;
   speciesType?: string;
   baseDate?: Date;
+  /** 관심 카테고리 범위(구조만 — 앱·웹은 CATEGORY_SCOPE_SURFACES.bloodlines 가 켜지면 보낸다). */
+  categoryPath?: string;
 } = {}): Promise<BloodlineRankingItem[]> => {
   // 혈통 랭킹은 실사용 데이터를 우선해 root별 "실제 보유자 수" 중심으로 단순 집계한다.
   const rootWhere: Record<string, unknown> = {
@@ -594,6 +636,8 @@ export const getBloodlineRanking = async ({
   if (speciesType && speciesType !== "전체") {
     rootWhere.speciesType = speciesType;
   }
+  const scopeIds = await resolveScopeCategoryIds(categoryPath);
+  if (scopeIds) rootWhere.categoryId = { in: scopeIds };
 
   const roots = await client.bloodlineCard.findMany({
     where: rootWhere,

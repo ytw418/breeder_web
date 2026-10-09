@@ -18,7 +18,7 @@ import { useConfirmLeave } from "hooks/useConfirmLeave";
 import { authFetch } from "@libs/client/authFetch";
 import { cn } from "@libs/client/utils";
 import { toast } from "@libs/client/toast";
-import { PRODUCT_TYPES } from "@libs/constants";
+import { DEAL_TYPE_OPTIONS, PRODUCT_TYPES } from "@libs/constants";
 import { findCategoryBranch, getSubcategories, TOP_LEVEL_CATEGORIES } from "@libs/categoryTaxonomy";
 import { getProductPath } from "@libs/product-route";
 import {
@@ -48,6 +48,8 @@ export type ProductFormInitial = {
   photos: string[];
   category: string | null;
   productType: string | null;
+  /** 거래 유형(sale|adoption|rehoming). 고를 수 없는 값(파양·옛 응답)은 판매로 보여 주고 바꾸지 않으면 보내지 않는다. */
+  dealType?: string | null;
   /**
    * 붙어 있는 뿌리 혈통 id. 상세 응답의 `bloodline` 요약이 있을 때만 넘긴다
    * (회수·숨김돼 요약이 없는 연결은 화면에 없는 것으로 두고, 저장 때도 건드리지 않는다).
@@ -118,6 +120,53 @@ function FieldLabel({ label, count }: { label: string; count?: string }) {
   );
 }
 
+/** 세그먼트(상품 타입·거래 유형 — 앱 SegmentField). */
+function SegmentField({
+  label,
+  options,
+  value,
+  onChange,
+  disabled,
+  error,
+}: {
+  label: string;
+  options: readonly { id: string; name: string }[];
+  value: string;
+  onChange: (value: string) => void;
+  disabled?: boolean;
+  error?: string;
+}) {
+  return (
+    <div>
+      <p className="mb-2 text-[15px] font-semibold text-app-text">{label}</p>
+      <div className="flex rounded-lg bg-app-surface p-[3px]" role="radiogroup" aria-label={label}>
+        {options.map((option) => {
+          const active = value === option.id;
+          return (
+            <button
+              key={option.id}
+              type="button"
+              role="radio"
+              aria-checked={active}
+              disabled={disabled}
+              onClick={() => onChange(option.id)}
+              className={cn(
+                "h-[42px] flex-1 rounded-md text-[15px] transition-colors",
+                active
+                  ? "bg-app-elevated font-semibold text-app-text shadow-card"
+                  : "font-normal text-app-muted"
+              )}
+            >
+              {option.name}
+            </button>
+          );
+        })}
+      </div>
+      <ErrorText>{error}</ErrorText>
+    </div>
+  );
+}
+
 function ErrorText({ children, className }: { children?: string; className?: string }) {
   if (!children) return null;
   return <p className={cn("mt-1.5 text-[13px] text-app-danger", className)}>{children}</p>;
@@ -152,8 +201,12 @@ export function ProductForm({
       : "";
     // 이름을 모르는 연결(요약 없음)은 붙지 않은 것으로 둔다. 손대지 않으면 저장 때도 보내지 않는다.
     const attached = product?.bloodlineRootId != null && product.bloodlineName ? product : null;
+    const dealType = DEAL_TYPE_OPTIONS.some((type) => type.id === product?.dealType)
+      ? (product?.dealType as string)
+      : "sale";
     return {
       name: product?.name ?? "",
+      dealType,
       category: branch.parent,
       subcategory: branch.child,
       productType,
@@ -172,6 +225,7 @@ export function ProductForm({
   const [category, setCategory] = useState(initial.category);
   const [subcategory, setSubcategory] = useState(initial.subcategory);
   const [productType, setProductType] = useState(initial.productType);
+  const [dealType, setDealType] = useState(initial.dealType);
   const [price, setPrice] = useState<number | null>(initial.price);
   const [isFree, setIsFree] = useState(initial.price === 0);
   const [description, setDescription] = useState(initial.description);
@@ -208,6 +262,7 @@ export function ProductForm({
     category !== initial.category ||
     subcategory !== initial.subcategory ||
     productType !== initial.productType ||
+    dealType !== initial.dealType ||
     price !== initial.price ||
     description !== initial.description ||
     photosChanged ||
@@ -280,6 +335,8 @@ export function ProductForm({
         photos: photoIds,
         category: subcategory || category,
         productType,
+        // 등록은 항상, 수정은 바꿨을 때만 보낸다(고를 수 없는 파양 값을 판매로 덮지 않게).
+        ...(!isEdit || dealType !== initial.dealType ? { dealType } : {}),
         ...buildProductBloodlineFields({
           isEdit,
           productType,
@@ -434,36 +491,26 @@ export function ProductForm({
         </div>
 
         {/* 상품 타입 */}
-        <div>
-          <p className="mb-2 text-[15px] font-semibold text-app-text">상품 타입</p>
-          <div className="flex rounded-lg bg-app-surface p-[3px]" role="radiogroup" aria-label="상품 타입">
-            {PRODUCT_TYPES.map((type) => {
-              const active = productType === type.id;
-              return (
-                <button
-                  key={type.id}
-                  type="button"
-                  role="radio"
-                  aria-checked={active}
-                  disabled={busy}
-                  onClick={() => {
-                    setProductType(type.id);
-                    clearError("productType");
-                  }}
-                  className={cn(
-                    "h-[42px] flex-1 rounded-md text-[15px] transition-colors",
-                    active
-                      ? "bg-app-elevated font-semibold text-app-text shadow-card"
-                      : "font-normal text-app-muted"
-                  )}
-                >
-                  {type.name}
-                </button>
-              );
-            })}
-          </div>
-          <ErrorText>{errors.productType}</ErrorText>
-        </div>
+        <SegmentField
+          label="상품 타입"
+          options={PRODUCT_TYPES}
+          value={productType}
+          disabled={busy}
+          error={errors.productType}
+          onChange={(value) => {
+            setProductType(value);
+            clearError("productType");
+          }}
+        />
+
+        {/* 거래 유형(판매/분양) — 앱 ProductDealTypeSegment. 파양은 1단계 비노출. */}
+        <SegmentField
+          label="거래 유형"
+          options={DEAL_TYPE_OPTIONS}
+          value={dealType}
+          disabled={busy}
+          onChange={setDealType}
+        />
 
         {/* 혈통(생물만, 시안 A2 #S5-attach .formrow) */}
         {showBloodlineRow ? (

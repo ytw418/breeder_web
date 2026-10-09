@@ -91,6 +91,8 @@ model User {
   bio             String?
   /// 고정(Pin)한 관심 카테고리 id 목록. 비어 있으면 전체 보기. (docs/prd: 카테고리 고정)
   pinnedCategoryIds Int[]     @default([])
+  /// 관심 카테고리 온보딩을 마친(건너뛴 것 포함) 시각. 앱·웹 어디서든 한 번 마치면 다시 묻지 않는다(앱 docs/parity 대응표 O-1).
+  categoryOnboardedAt DateTime?
   /// 탈퇴 시각. status=DELETED 와 함께 설정한다.
   deletedAt       DateTime?
   /// 정지·차단·탈퇴 시 +1. access/refresh 의 tv 클레임과 비교
@@ -647,6 +649,8 @@ model Auction {
   description     String
   photos          String[]
   category        String?   // 종 카테고리 (장수풍뎅이, 사슴벌레 등)
+  /// Category.id(category 이름에서 푼 값). 관심 카테고리 범위용 — 데이터가 쌓이면 켠다(libs/shared/categories.ts CATEGORY_SCOPE_SURFACES).
+  categoryId      Int?
   sellerPhone     String?
   sellerEmail     String?
   sellerBlogUrl   String?
@@ -678,6 +682,7 @@ model Auction {
   @@index([status])
   @@index([endAt])
   @@index([category])
+  @@index([categoryId])
   @@index([bloodlineRootId, endAt])
 }
 
@@ -932,6 +937,8 @@ model BloodlineCard {
   id                   Int                      @id @default(autoincrement())
   cardType             BloodlineCardType        @default(BLOODLINE)
   speciesType          String?
+  /// Category.id(speciesType 이름에서 푼 값). 관심 카테고리 범위용 — 데이터가 쌓이면 켠다(CATEGORY_SCOPE_SURFACES).
+  categoryId           Int?
   bloodlineReferenceId Int?
   parentCardId         Int?
   status               BloodlineCardStatus      @default(ACTIVE)
@@ -964,6 +971,7 @@ model BloodlineCard {
   @@index([parentCardId])
   @@index([currentOwnerId, createdAt])
   @@index([creatorId])
+  @@index([categoryId])
 }
 
 model BloodlineCardEvent {

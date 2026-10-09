@@ -26,6 +26,7 @@ import { makeImageUrl } from "@libs/client/utils";
 import { ANALYTICS_EVENTS, trackEvent } from "@libs/client/analytics";
 import { extractProductId, getProductPath } from "@libs/product-route";
 import { formatProductPrice } from "@libs/productRules";
+import { DEAL_TYPE_LABELS } from "@libs/constants";
 
 type ProductActionPayload =
   | { action: "purchase" }
@@ -560,6 +561,12 @@ const ProductClient = ({ product: initialProduct, relatedProducts: initialRelate
                 <span className="rounded bg-app-surface px-2 py-[3px] text-[12px] font-semibold text-app-text">
                   {currentStatus}
                 </span>
+                {/* 거래 유형이 판매가 아니면(분양·파양) 상태 옆에 같은 pill 로 표시한다(앱과 같음). */}
+                {product.dealType && product.dealType !== "sale" ? (
+                  <span className="rounded bg-app-surface px-2 py-[3px] text-[12px] font-semibold text-app-text">
+                    {DEAL_TYPE_LABELS[product.dealType] ?? product.dealType}
+                  </span>
+                ) : null}
               </div>
 
               <div className="mt-5">

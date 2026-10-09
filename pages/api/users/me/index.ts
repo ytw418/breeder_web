@@ -92,6 +92,16 @@ async function handler(
         });
       }
 
+      // 관심 카테고리 온보딩을 마쳤다(건너뛴 것 포함). true 만 받고 처음 한 번만 기록한다.
+      // 앱·웹 어디서 마쳤든 다른 쪽에서 다시 묻지 않는다(앱 docs/parity 대응표 O-1).
+      const markCategoryOnboarded = body.categoryOnboarded === true;
+      if (markCategoryOnboarded) {
+        await client.user.updateMany({
+          where: { id: user?.id, categoryOnboardedAt: null },
+          data: { categoryOnboardedAt: new Date() },
+        });
+      }
+
       // 내 동네: 두 값을 함께 보낸다. 둘 다 null 이면 해제(노출도 같이 끈다), 목록에 없는 조합은 400.
       const hasRegion = "regionSido" in body || "regionSigungu" in body;
       if (hasRegion) {
@@ -193,6 +203,7 @@ async function handler(
           ? { pinnedCategoryIds: savedPinnedCategoryIds }
           : {}),
         ...(savedBio !== undefined ? { bio: savedBio } : {}),
+        ...(markCategoryOnboarded ? { categoryOnboarded: true } : {}),
       });
     }
   } catch (error) {

@@ -10,6 +10,7 @@ import { useRouter } from "next/navigation";
 import { toast } from "@libs/client/toast";
 import { cn, makeImageUrl } from "@libs/client/utils";
 import { NICKNAME_MAX_LENGTH } from "@libs/shared/nickname";
+import { BIO_MAX, normalizeBio } from "@libs/shared/profile";
 import {
   createNicknameChecker,
   type CheckNameResult,
@@ -32,6 +33,13 @@ const CAMERA_PATHS = [
   "M15 13a3 3 0 11-6 0 3 3 0 016 0z",
 ];
 
+const countChars = (value: string) => Array.from(value).length;
+/** 서버 normalizeBio 와 같은 기준(앞뒤 공백·줄 끝 공백·연속 개행)으로 비교·저장한다. */
+const bioValue = (value: string) => {
+  const result = normalizeBio(value);
+  return result.ok ? result.bio ?? "" : value.trim();
+};
+
 const requestCheckName = async (name: string, signal: AbortSignal): Promise<CheckNameResult> => {
   const res = await authFetch(`/api/users/check-name?name=${encodeURIComponent(name)}`, { signal });
   if (!res.ok) return { success: false };
@@ -48,6 +56,8 @@ const EditProfileClient = () => {
   const [hasEditedName, setHasEditedName] = useState(false);
   const [nameError, setNameError] = useState("");
   const [nameCheck, setNameCheck] = useState<NameCheck>("idle");
+  const [bioDraft, setBioDraft] = useState("");
+  const [hasEditedBio, setHasEditedBio] = useState(false);
   const [avatarFile, setAvatarFile] = useState<File | null>(null);
   const [localAvatarUrl, setLocalAvatarUrl] = useState("");
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -88,6 +98,15 @@ const EditProfileClient = () => {
     setNameError("");
   };
 
+  /** 150자를 넘는 입력(붙여넣기 포함)은 잘라 둔다. maxLength 는 이모지(서로게이트 쌍)를 2자로 센다. */
+  const onBioChange = (next: string) => {
+    setHasEditedBio(true);
+    setBioDraft(countChars(next) > BIO_MAX ? Array.from(next).slice(0, BIO_MAX).join("") : next);
+  };
+  const currentBio = (user as { bio?: string | null } | undefined)?.bio ?? "";
+  const bio = hasEditedBio ? bioDraft : currentBio;
+  const hasBioChange = bioValue(bio) !== bioValue(currentBio);
+
   const onAvatarChange = (event: ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0] ?? null;
     setLocalAvatarUrl(file ? URL.createObjectURL(file) : "");
@@ -96,7 +115,7 @@ const EditProfileClient = () => {
 
   const hasNameChange = !!name.trim() && name.trim() !== user?.name;
   const canSubmit =
-    (hasNameChange || !!avatarFile) &&
+    (hasNameChange || !!avatarFile || hasBioChange) &&
     !isLoading &&
     !nameError &&
     !(hasNameChange && (nameCheck === "checking" || nameCheck === "unavailable"));
@@ -111,7 +130,9 @@ const EditProfileClient = () => {
 
     const nextName = name.trim();
     const nextHasNameChange = !!nextName && nextName !== user.name;
-    if (!nextHasNameChange && !avatarFile) {
+    const nextBio = bioValue(bio);
+    const nextHasBioChange = nextBio !== bioValue(currentBio);
+    if (!nextHasNameChange && !avatarFile && !nextHasBioChange) {
       toast.info("변경된 내용이 없습니다.");
       return;
     }
@@ -120,6 +141,7 @@ const EditProfileClient = () => {
     const editProfileBody = {
       name: nextHasNameChange ? nextName : null,
       avatarId: null as string | null,
+      ...(nextHasBioChange ? { bio: nextBio || null } : {}),
     };
 
     try {
@@ -152,6 +174,7 @@ const EditProfileClient = () => {
         ...user,
         name: nextHasNameChange ? nextName : user.name,
         avatar: editProfileBody.avatarId ?? user.avatar,
+        ...(nextHasBioChange ? { bio: nextBio || null } : {}),
       };
       // 저장 직후 UI에서 바로 반영되도록 SWR 캐시를 먼저 갱신한다.
       await Promise.all([
@@ -254,6 +277,24 @@ const EditProfileClient = () => {
             className={cn("mt-2 text-[13px]", nameError ? "text-app-danger" : "text-app-muted")}
           >
             {nameError || NAME_HELP}
+          </p>
+        </div>
+
+        {/* 소개(사진형 프로필 A안 S-5) */}
+        <div className="mt-6">
+          <label htmlFor="bio" className="mb-2 block text-[15px] font-semibold text-app-text">
+            소개
+          </label>
+          <textarea
+            id="bio"
+            value={bio}
+            onChange={(event) => onBioChange(event.target.value)}
+            disabled={isLoading}
+            placeholder="어떤 아이들을 키우는지 적어 보세요"
+            className="h-[136px] w-full resize-none rounded-lg border border-app-border bg-app-bg px-3.5 py-3 text-[15px] leading-[22px] text-app-text outline-none placeholder:text-app-caption focus:border-app-text focus:ring-0"
+          />
+          <p className="mt-2 text-right text-[13px] text-app-muted">
+            {countChars(bio)}/{BIO_MAX}
           </p>
         </div>
       </div>

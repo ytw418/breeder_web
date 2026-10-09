@@ -21,6 +21,8 @@ import {
   TrendingPostItem,
 } from "@libs/shared/ranking";
 import useBlocks from "hooks/useBlocks";
+import useCategoryScope, { withCategoryPath } from "hooks/useCategoryScope";
+import { CATEGORY_SCOPE_SURFACES } from "@libs/shared/categories";
 
 const RANKING_TABS = [
   { id: "breeders", label: "브리더" },
@@ -53,13 +55,19 @@ const formatRankDelta = (rankDelta: number) => {
 };
 
 /** 랭킹 기준 한 줄 + CTA(앱 getSummary 와 같은 문구). */
-const getSummary = (tab: RankingTab, period: RankingPeriod) => {
+const getSummary = (
+  tab: RankingTab,
+  period: RankingPeriod,
+  // 관심 카테고리 범위 랭킹은 범위 안 게시글·상품만 센다(앱 a158757).
+  scopeLabel?: string
+) => {
   if (tab === "breeders") {
+    const activities = scopeLabel ? `'${scopeLabel}' 게시·상품` : "게시·댓글·입찰·낙찰";
     return {
       note:
         period === "weekly"
-          ? "이번 주 게시·댓글·입찰·낙찰 활동 점수 합계 (KST 기준)"
-          : "누적 게시·댓글·입찰·낙찰 활동 점수 합계",
+          ? `이번 주 ${activities} 활동 점수 합계 (KST 기준)`
+          : `누적 ${activities} 활동 점수 합계`,
       ctaHref: "/posts/upload",
       ctaLabel: "활동 시작하기",
     };
@@ -91,12 +99,23 @@ const getSummary = (tab: RankingTab, period: RankingPeriod) => {
   };
 };
 
-const getApiUrl = (tab: RankingTab, period: RankingPeriod) => {
-  if (tab === "breeders") return `/api/rankings/breeders?limit=50&period=${period}`;
-  if (tab === "auctions") {
-    return `/api/rankings/auctions?limit=50&periodScope=${period === "weekly" ? "week" : "all"}`;
+const getApiUrl = (tab: RankingTab, period: RankingPeriod, categoryPath?: string) => {
+  // 관심 카테고리 범위는 화면별 스위치(CATEGORY_SCOPE_SURFACES)를 따른다. 지금은 탑브리더만 켜져 있고
+  // 경매·혈통은 구조만 잡아 두었다(커뮤니티 랭킹은 범위 없음 — 앱과 같음).
+  const scoped = (surface: keyof typeof CATEGORY_SCOPE_SURFACES) =>
+    CATEGORY_SCOPE_SURFACES[surface] ? categoryPath : undefined;
+  if (tab === "breeders") {
+    return withCategoryPath(`/api/rankings/breeders?limit=50&period=${period}`, scoped("breeders"));
   }
-  if (tab === "bloodlines") return `/api/rankings/bloodlines?limit=50&period=${period}`;
+  if (tab === "auctions") {
+    return withCategoryPath(
+      `/api/rankings/auctions?limit=50&periodScope=${period === "weekly" ? "week" : "all"}`,
+      scoped("auctions")
+    );
+  }
+  if (tab === "bloodlines") {
+    return withCategoryPath(`/api/rankings/bloodlines?limit=50&period=${period}`, scoped("bloodlines"));
+  }
   return `/api/rankings/community?limit=50&window=${period === "weekly" ? "24h" : "all"}`;
 };
 
@@ -183,8 +202,12 @@ const RankingClient = () => {
   const activeTab: RankingTab = isRankingTab(tabParam) ? tabParam : "breeders";
   const period: RankingPeriod = isRankingPeriod(periodParam) ? periodParam : "weekly";
 
-  const summary = getSummary(activeTab, period);
-  const apiUrl = useMemo(() => getApiUrl(activeTab, period), [activeTab, period]);
+  const scope = useCategoryScope();
+  const summary = getSummary(activeTab, period, scope.categoryPath ? scope.label : undefined);
+  const apiUrl = useMemo(
+    () => getApiUrl(activeTab, period, scope.categoryPath),
+    [activeTab, period, scope.categoryPath]
+  );
   const { data, error, isLoading, mutate } = useSWR<RankingResponse>(apiUrl);
   const { blockedIds } = useBlocks();
 
@@ -257,7 +280,11 @@ const RankingClient = () => {
               imageVariant="avatar"
               circle
               title={item.user.name}
-              meta={`점수 ${item.score.toLocaleString()} · 게시 ${item.postsCount} · 댓글 ${item.commentsCount}`}
+              meta={
+                item.productsCount !== undefined
+                  ? `점수 ${item.score.toLocaleString()} · 게시 ${item.postsCount} · 상품 ${item.productsCount}`
+                  : `점수 ${item.score.toLocaleString()} · 게시 ${item.postsCount} · 댓글 ${item.commentsCount}`
+              }
               right={formatRankDelta(item.rankDelta)}
               href={`/profiles/${item.user.id}`}
             />

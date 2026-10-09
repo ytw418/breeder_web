@@ -6,7 +6,9 @@ import useSWRInfinite from "swr/infinite";
 /** 프로필·마이페이지 활동 목록을 한 번에 받는 개수(앱 PROFILE_LIST_PAGE_SIZE 와 같다). */
 export const PROFILE_LIST_PAGE_SIZE = 20;
 
-export interface PagedListState<T> {
+export interface PagedListState<T, TPage = unknown> {
+  /** 첫 페이지 응답(목록 total 같은 머리 정보). */
+  firstPage?: TPage;
   /** 받은 페이지를 이어 붙이고 id 로 한 번만 남긴 목록. */
   items: T[];
   /** 첫 페이지를 받는 중. */
@@ -40,7 +42,7 @@ export function uniqueById<T extends { id: number }>(items: T[]): T[] {
 export function usePagedList<TPage extends { pages?: number }, TItem extends { id: number }>(
   baseUrl: string | null,
   pickItems: (page: TPage) => TItem[] | undefined
-): PagedListState<TItem> {
+): PagedListState<TItem, TPage> {
   const getKey = useCallback(
     (index: number, previous: TPage | null) => {
       if (!baseUrl) return null;
@@ -69,6 +71,7 @@ export function usePagedList<TPage extends { pages?: number }, TItem extends { i
   const isFetchNextPageError = Boolean(data) && Boolean(error);
 
   return {
+    firstPage: data?.[0],
     items,
     isLoading: Boolean(baseUrl) && isLoading,
     isError: Boolean(error) && !data,

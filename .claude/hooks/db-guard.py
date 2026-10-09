@@ -71,7 +71,10 @@ DB_EXEC_CONTEXT = r"\b(psql|pgcli|mysql|sqlite3|prisma|supabase|node|tsx|ts-node
 DENY_SQL = [
     (r"\bdrop\s+(table|schema|database|owned|index|type|view|materialized\s+view|sequence|extension|function|trigger|policy|role|user)\b",
      "DROP 을 실행하지 않는다."),
-    (r"\btruncate\s+(table\s+)?[\\\"'\w]", "TRUNCATE 를 실행하지 않는다."),
+    # SQL 문법 모양일 때만: TABLE·ONLY, 따옴표 식별자, 또는 이름 뒤에 ; , ) CASCADE·RESTRICT·RESTART·CONTINUE·줄 끝,
+    # 따옴표로 끝나는 -c 인자. Tailwind 클래스(`truncate text-[16px]`)는 막지 않는다(2026-10-09 오탐).
+    (r"\btruncate\s+(?:table\b|only\b|[\\\"']|[\w.]+\s*(?:[;,)]|$|\b(?:cascade|restrict|restart|continue)\b|[\"'`]\s*(?:$|[;&|)])))",
+     "TRUNCATE 를 실행하지 않는다."),
     (r"\balter\s+table\b[^;]*?\bdrop\b", "ALTER TABLE … DROP 을 실행하지 않는다."),
 ]
 # psql 로 쓰기 SQL 을 실행하거나 파일·표준입력을 넘기는 경우 → 사람이 확인

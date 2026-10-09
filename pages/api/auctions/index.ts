@@ -18,6 +18,7 @@ import {
 import { settleExpiredAuctions } from "@libs/server/auctionSettlement";
 import { normalizeOptionalText, normalizeOptionalUrl } from "@libs/shared/normalize";
 import { getCategoryFilterValues } from "@libs/categoryTaxonomy";
+import { resolveCategoryIdByName, resolveScopeCategoryIds } from "@libs/server/categories";
 import {
   breederProgramSummarySelect,
   getSortedActiveBreederProgramSummaries,
@@ -66,7 +67,7 @@ async function handler(
 ) {
   // 경매 목록 조회
   if (req.method === "GET") {
-    const { page = 1, status, category, q } = req.query;
+    const { page = 1, status, category, q, categoryPath } = req.query;
 
     // 운영자가 숨긴 경매는 목록에서 모두에게 뺀다(작성자는 프로필에서 본다).
     const where: any = { isHidden: false };
@@ -74,6 +75,9 @@ async function handler(
     if (category && category !== "전체") {
       where.category = { in: getCategoryFilterValues(String(category)) };
     }
+    // 관심 카테고리 범위(구조만): 보낼 때만 거른다. 앱·웹은 CATEGORY_SCOPE_SURFACES.auctions 가 켜지면 보낸다.
+    const scopeIds = await resolveScopeCategoryIds(categoryPath);
+    if (scopeIds) where.categoryId = { in: scopeIds };
     const keyword = typeof q === "string" ? q.trim() : "";
     if (keyword) {
       where.OR = [
@@ -379,6 +383,7 @@ async function handler(
           description: normalizedDescription,
           photos: normalizedPhotos,
           category: normalizedCategory,
+          categoryId: await resolveCategoryIdByName(normalizedCategory),
           sellerPhone: normalizedSellerPhone,
           sellerEmail: normalizedSellerEmail,
           sellerBlogUrl: normalizedSellerBlogUrl,

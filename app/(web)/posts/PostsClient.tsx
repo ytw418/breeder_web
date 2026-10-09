@@ -14,6 +14,7 @@ import { QueryErrorState } from "@components/app/QueryErrorState";
 import { RetryFooter } from "@components/app/RetryFooter";
 import { useInfiniteScroll } from "hooks/useInfiniteScroll";
 import useBlocks from "hooks/useBlocks";
+import useCategoryScope, { withCategoryPath } from "hooks/useCategoryScope";
 
 import { cn, makeImageUrl } from "@libs/client/utils";
 import { toPostPath } from "@libs/post-route";
@@ -23,8 +24,12 @@ import { TOP_LEVEL_CATEGORIES } from "@libs/categoryTaxonomy";
 import { withoutBlocked } from "@libs/shared/blockFilter";
 import type { PostsListResponse } from "pages/api/posts";
 import type { NoticePostsResponse } from "pages/api/posts/notices";
-import type { RankingResponse } from "pages/api/ranking";
-import type { HotDiscussionItem } from "@libs/shared/ranking";
+import type {
+  BloodlineRankingItem,
+  BreederRankingItem,
+  HotDiscussionItem,
+} from "@libs/shared/ranking";
+import TopBreederList from "@components/features/post/TopBreederList";
 import { PostFilterDropdown } from "./_components/PostFilterDropdown";
 
 /** 카테고리 칩 목록 */
@@ -36,6 +41,8 @@ const SORT_TABS = [
 ] as const;
 type SortType = (typeof SORT_TABS)[number]["id"];
 type HighlightTab = "hot" | "breeder";
+/** HOT 토론은 상위 3개만 보여 준다(앱 d8f0211). */
+const HOT_DISCUSSION_COUNT = 3;
 
 const SPECIES_OPTIONS = [
   { value: "전체", label: "전체 종" },
@@ -108,6 +115,20 @@ export default function PostsClient() {
   const [selectedSpecies, setSelectedSpecies] = useState("전체");
   const [pickedTab, setPickedTab] = useState<HighlightTab | null>(null);
   const { blockedIds } = useBlocks();
+  // 관심 카테고리 고정 범위(앱 category-pin). 목록·HOT 토론·TOP 브리더가 같은 범위를 쓴다.
+  const scope = useCategoryScope();
+  // 종 드롭다운은 범위 안 대분류만 보여 주고, 고른 종이 범위 밖이면 전체 종으로 돌린다.
+  const speciesOptions = useMemo(
+    () =>
+      SPECIES_OPTIONS.filter(
+        (option) =>
+          option.value === "전체" || !scope.topLevelNames || scope.topLevelNames.has(option.value)
+      ),
+    [scope.topLevelNames]
+  );
+  const activeSpecies = speciesOptions.some((option) => option.value === selectedSpecies)
+    ? selectedSpecies
+    : "전체";
 
   const getKey = (pageIndex: number, previousPageData: PostsListResponse | null) => {
     if (previousPageData && (!previousPageData.posts.length || pageIndex >= previousPageData.pages)) {
@@ -115,8 +136,11 @@ export default function PostsClient() {
     }
     const categoryParam = selectedCategory !== "전체" ? `&category=${selectedCategory}` : "";
     const sortParam = selectedSort !== "latest" ? `&sort=${selectedSort}` : "";
-    const speciesParam = selectedSpecies !== "전체" ? `&species=${selectedSpecies}` : "";
-    return `/api/posts?page=${pageIndex + 1}${categoryParam}${sortParam}${speciesParam}`;
+    const speciesParam = activeSpecies !== "전체" ? `&species=${activeSpecies}` : "";
+    return withCategoryPath(
+      `/api/posts?page=${pageIndex + 1}${categoryParam}${sortParam}${speciesParam}`,
+      scope.categoryPath
+    );
   };
 
   const {
@@ -127,19 +151,26 @@ export default function PostsClient() {
     isValidating,
     mutate: mutateList,
   } = useSWRInfinite<PostsListResponse>(getKey);
+  // TOP 브리더: /ranking '전체' 기간과 같은 데이터(범위 포함). '혈통 부자' 키워드용으로 혈통 랭킹도 받는다.
   const {
-    data: bredyData,
-    error: bredyError,
-    mutate: mutateBredy,
-  } = useSWR<RankingResponse>("/api/ranking?tab=bredy");
+    data: breedersData,
+    error: breedersError,
+    mutate: mutateBreeders,
+  } = useSWR<{ success: boolean; items: BreederRankingItem[] }>(
+    withCategoryPath("/api/rankings/breeders?limit=50&period=all", scope.categoryPath)
+  );
+  const { data: bloodlinesData } = useSWR<{ success: boolean; items: BloodlineRankingItem[] }>(
+    "/api/rankings/bloodlines?limit=50&period=all"
+  );
   const { data: noticeData } = useSWR<NoticePostsResponse>("/api/posts/notices");
   const {
     data: homeFeedData,
     error: homeFeedError,
     mutate: mutateHomeFeed,
-  } = useSWR<{ hotDiscussions: HotDiscussionItem[] }>("/api/home/feed?scope=public", {
-    revalidateOnFocus: false,
-  });
+  } = useSWR<{ hotDiscussions: HotDiscussionItem[] }>(
+    withCategoryPath("/api/home/feed?scope=public", scope.categoryPath),
+    { revalidateOnFocus: false }
+  );
   const page = useInfiniteScroll();
 
   useEffect(() => {
@@ -170,10 +201,10 @@ export default function PostsClient() {
     resetList();
   };
   const handleSpeciesChange = (species: string) => {
-    if (selectedSpecies === species) return;
+    if (activeSpecies === species) return;
     trackEvent(ANALYTICS_EVENTS.postsSpeciesChanged, {
       selected_species: species,
-      previous_species: selectedSpecies,
+      previous_species: activeSpecies,
     });
     setSelectedSpecies(species);
     resetList();
@@ -192,16 +223,22 @@ export default function PostsClient() {
 
   // 공개 캐시 응답(HOT 토론·브리디 랭킹)은 서버가 차단을 거르지 않아 여기서 거른다.
   const hotDiscussions = useMemo(
-    () => withoutBlocked(homeFeedData?.hotDiscussions ?? [], blockedIds, (item) => item.user?.id),
+    () =>
+      withoutBlocked(homeFeedData?.hotDiscussions ?? [], blockedIds, (item) => item.user?.id).slice(
+        0,
+        HOT_DISCUSSION_COUNT
+      ),
     [homeFeedData, blockedIds]
   );
-  const bredyRanking = useMemo(
+  const topBreeders = useMemo(
     () =>
-      withoutBlocked(bredyData?.bredyRanking ?? [], blockedIds, (item) => item.user?.id).slice(0, 5),
-    [bredyData, blockedIds]
+      breedersData
+        ? withoutBlocked(breedersData.items ?? [], blockedIds, (item) => item.user?.id)
+        : undefined,
+    [breedersData, blockedIds]
   );
 
-  // 사용자가 직접 고르기 전까지, HOT 토론이 비어 있으면 TOP 브리디가 기본.
+  // 사용자가 직접 고르기 전까지, HOT 토론이 비어 있으면 TOP 브리더가 기본.
   const highlightTab: HighlightTab =
     pickedTab ?? (homeFeedData && hotDiscussions.length === 0 ? "breeder" : "hot");
 
@@ -270,7 +307,7 @@ export default function PostsClient() {
           </Link>
         </div>
 
-        {/* 3. HOT 토론 / TOP 브리디 */}
+        {/* 3. HOT 토론 / TOP 브리더 */}
         <section className="pb-2 pt-3.5">
           <div className="flex items-center gap-1 px-4" role="tablist" aria-label="하이라이트 탭">
             <button
@@ -289,7 +326,7 @@ export default function PostsClient() {
               onClick={() => selectHighlightTab("breeder")}
               className={highlightTabClass("breeder", highlightTab === "breeder")}
             >
-              🏆 TOP 브리디
+              🏆 TOP 브리더
             </button>
           </div>
 
@@ -379,92 +416,25 @@ export default function PostsClient() {
                   </Link>
                 </div>
               )
-            ) : bredyError && !bredyData ? (
+            ) : breedersError && !breedersData ? (
               <QueryErrorState
-                title="브리디 랭킹을 불러오지 못했어요"
-                onRetry={() => void mutateBredy()}
+                title="브리더 랭킹을 불러오지 못했어요"
+                onRetry={() => void mutateBreeders()}
                 className="py-6"
               />
             ) : (
-              <div className="flex gap-2.5 overflow-x-auto px-4 scrollbar-hide">
-                {bredyData ? (
-                  bredyRanking.length > 0 ? (
-                    bredyRanking.map((bredy, index) => (
-                      <Link
-                        key={bredy.user.id}
-                        href={`/profiles/${bredy.user.id}`}
-                        onClick={() =>
-                          trackEvent(ANALYTICS_EVENTS.postsBreederTabClicked, {
-                            breeder_id: bredy.user.id,
-                            breeder_name: bredy.user.name,
-                            rank_index: index + 1,
-                            score: bredy.score,
-                          })
-                        }
-                        className={cn(APP_CARD, "w-72 shrink-0 px-2.5 py-2")}
-                      >
-                        <div className="flex items-center justify-between">
-                          <span
-                            className={cn(
-                              "font-semibold text-app-muted",
-                              index < 3 ? "text-xs" : "text-[11px]"
-                            )}
-                          >
-                            {index === 0
-                              ? "🥇"
-                              : index === 1
-                                ? "🥈"
-                                : index === 2
-                                  ? "🥉"
-                                  : `${index + 1}위`}
-                          </span>
-                          <span className="text-[11px] text-app-muted">점수</span>
-                        </div>
-                        <div className="mt-2 flex items-center gap-2">
-                          {bredy.user.avatar ? (
-                            <Image
-                              src={makeImageUrl(bredy.user.avatar, "avatar")}
-                              className="h-7 w-7 rounded-full object-cover"
-                              width={28}
-                              height={28}
-                              alt=""
-                            />
-                          ) : (
-                            <span className="h-7 w-7 rounded-full bg-app-placeholder" />
-                          )}
-                          <div className="min-w-0">
-                            <p className="truncate text-sm font-semibold tracking-tight text-app-strong">
-                              {bredy.user.name}
-                            </p>
-                            <p className="text-[11px] text-app-muted">❤️ {bredy.totalLikes}</p>
-                          </div>
-                        </div>
-                        <p className="mt-2 text-sm font-bold text-app-brand">
-                          {bredy.score.toLocaleString()}
-                        </p>
-                      </Link>
-                    ))
-                  ) : (
-                    <p className="px-1 py-2 text-[13px] font-medium text-app-muted">
-                      표시할 브리디 랭킹이 없습니다.
-                    </p>
-                  )
-                ) : (
-                  [0, 1, 2].map((i) => (
-                    <div key={i} className={cn(APP_CARD, "w-72 shrink-0 px-2.5 py-2")}>
-                      <SkeletonBlock className="h-4 w-1/4" />
-                      <div className="mt-2 flex items-center gap-2">
-                        <SkeletonBlock className="h-7 w-7 rounded-full" />
-                        <div className="flex flex-1 flex-col gap-1">
-                          <SkeletonBlock className="h-3 w-2/3" />
-                          <SkeletonBlock className="h-3 w-1/3" />
-                        </div>
-                      </div>
-                      <SkeletonBlock className="mt-2 h-4 w-1/2" />
-                    </div>
-                  ))
-                )}
-              </div>
+              <TopBreederList
+                breeders={topBreeders}
+                bloodlines={bloodlinesData?.items ?? []}
+                onOpen={(breeder, index) =>
+                  trackEvent(ANALYTICS_EVENTS.postsBreederTabClicked, {
+                    breeder_id: breeder.user.id,
+                    breeder_name: breeder.user.name,
+                    rank_index: index + 1,
+                    score: breeder.score,
+                  })
+                }
+              />
             )}
           </div>
         </section>
@@ -502,10 +472,10 @@ export default function PostsClient() {
         {/* 6. 종 필터 + 정렬(우측 텍스트 드롭다운) */}
         <div className="flex items-center justify-end gap-2 px-4 pb-3 pt-1">
           <PostFilterDropdown
-            value={selectedSpecies}
+            value={activeSpecies}
             onChange={handleSpeciesChange}
             ariaLabel="종 필터"
-            options={SPECIES_OPTIONS}
+            options={speciesOptions}
           />
           <span className="text-[13px] text-app-caption" aria-hidden="true">
             ·

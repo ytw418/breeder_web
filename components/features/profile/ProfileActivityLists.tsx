@@ -63,6 +63,19 @@ export const useUserAuctionsList = (userId: number | string | undefined, enabled
     pickAuctions
   );
 
+/** 프로필 '사진' 탭·종별 사진: 사진 있는 글만, 프로필 고정 글이 먼저 온다(앱 useUserPhotoPostsList). */
+export const useUserPhotoPostsList = (
+  userId: number | string | undefined,
+  species?: string,
+  enabled = true
+) =>
+  usePagedList<UserPostListResponse, ProfilePost>(
+    userId && enabled
+      ? `/api/users/${userId}/posts?media=photo${species ? `&species=${encodeURIComponent(species)}` : ""}`
+      : null,
+    pickPosts
+  );
+
 /* ------------------------------------------------------------------ */
 /* 목록 끝                                                              */
 /* ------------------------------------------------------------------ */

@@ -1,25 +1,33 @@
 "use client";
-
+/**
+ * 타인/내 프로필 — 사진형 A안(앱 src/app/profiles/[id]/index.tsx, 시안 design/mockups/profile/A-karrot.html, PRD profile.md S-1).
+ *
+ * 구조:
+ *   헤더(profile 변형: 뒤로 · 이름 · 공유 · 더보기)
+ *   ProfileBlock(아바타 64 · 이름 · 주력 종 · 소개 · 뱃지 · 통계 · 버튼 52)
+ *   AlbumRow(내 앨범 → 종별 자동 앨범 → 본인이면 '새 앨범')
+ *   UnderlineTabs: 사진 · 기록 · 분양 · [경매] · [혈통]
+ *   탭 내용: 사진 3열 그리드(고정 우선) / 게시물·상품(분양 탭 맨 위 판매·구매내역 행)·경매·혈통 목록
+ */
 import { useParams, useRouter } from "next/navigation";
 import { useState, type ReactNode } from "react";
 import useSWR from "swr";
 
 import MainLayout, { toLoginHref } from "@components/features/MainLayout";
 import { ActionSheet, type ActionSheetAction } from "@components/app/ActionSheet";
-import { FilterChip, FilterChipRail } from "@components/app/FilterChip";
 import { HeaderIconButton } from "@components/app/HeaderIconButton";
 import { BlockConfirmDialog } from "@components/app/moderation/BlockConfirmDialog";
 import { ReportSheet } from "@components/app/moderation/ReportSheet";
-import {
-  BreederProgramBadgeList,
-  getPrimaryBreederBenefitLabel,
-} from "@components/features/breeder/BreederProgramDecorators";
+import AlbumRow, { useSpeciesAlbums, useUserAlbums } from "@components/features/profile/AlbumRow";
+import FollowButton from "@components/features/profile/FollowButton";
+import PhotoGrid from "@components/features/profile/PhotoGrid";
+import { ProfileBlock, ProfileSecondaryButton } from "@components/features/profile/ProfileBlock";
+import ProfilePinSheet from "@components/features/profile/ProfilePinSheet";
+import UnderlineTabs from "@components/features/profile/UnderlineTabs";
 import {
   LineIcon,
   LoadingBlock,
-  ProfileAvatar,
   SectionGap,
-  SMALL_BUTTON_CLASS,
   TransactionMenu,
 } from "@components/features/profile/ProfileRows";
 import {
@@ -28,28 +36,21 @@ import {
   ProfilePostRows,
   ProfileProductRows,
   useUserAuctionsList,
+  useUserPhotoPostsList,
   useUserPostsList,
   useUserProductsList,
+  type ProfilePost,
 } from "@components/features/profile/ProfileActivityLists";
-import { cn } from "@libs/client/utils";
+import { profileTabs, visibleTab, type ProfileTab } from "@libs/client/profileTabs";
+import { absoluteUrl, copyText, shareOrCopy } from "@libs/client/share";
 import { toast } from "@libs/client/toast";
 import { DELETED_USER_LABEL, isDeletedUserName } from "@libs/shared/deletedUser";
 import useBlocks from "hooks/useBlocks";
 import useMutation from "hooks/useMutation";
 import useUser from "hooks/useUser";
 import type { ChatResponseType } from "pages/api/chat";
-import type { FollowResponse } from "pages/api/users/[id]/follow";
 import type { UserResponse } from "pages/api/users/[id]";
 import type { UserBloodlineCardsResponse } from "pages/api/users/[id]/bloodline-cards";
-
-type ActivityTab = "products" | "posts" | "auctions" | "bloodlines";
-
-const PROFILE_ACTIVITY_TABS: { id: ActivityTab; name: string }[] = [
-  { id: "products", name: "상품" },
-  { id: "posts", name: "게시물" },
-  { id: "auctions", name: "경매" },
-  { id: "bloodlines", name: "혈통" },
-];
 
 /** 응답 정규화 후 탈퇴 사용자 이름은 "탈퇴한 사용자"(접미사 없음)로 온다. */
 const isDeletedUser = (name?: string | null) =>
@@ -60,43 +61,50 @@ const ProfileClient = () => {
   const params = useParams();
   const rawId = params?.id;
   const id = typeof rawId === "string" ? rawId : Array.isArray(rawId) ? rawId[0] ?? "" : "";
-  const [activeTab, setActiveTab] = useState<ActivityTab>("products");
+  const [activeTab, setActiveTab] = useState<ProfileTab>("photos");
   const [sheetOpen, setSheetOpen] = useState(false);
   const [reportOpen, setReportOpen] = useState(false);
   const [blockTarget, setBlockTarget] = useState<{ id: number; name: string } | null>(null);
+  // 본인 프로필에서 사진 칸 ⋯ 를 누르면 고정/해제 시트
+  const [pinTarget, setPinTarget] = useState<ProfilePost | null>(null);
   const { user: me } = useUser();
   const { isBlocked: isBlockedUser, isLoading: blocksLoading, unblock, isPending: unblockPending } = useBlocks();
 
   const { data, error, isLoading, mutate } = useSWR<UserResponse>(id ? `/api/users/${id}` : null);
+  const user = data?.user;
 
-  // 활동 목록은 그 탭을 열었을 때만 받는다. 경매는 프로필 응답에 경매 수가 없어 탭 카운트에도 쓰므로 늘 받는다.
-  const productsList = useUserProductsList(id, activeTab === "products");
-  const postsList = useUserPostsList(id, activeTab === "posts");
-  const auctionsList = useUserAuctionsList(id);
+  const tabs = profileTabs(user?._count);
+  // 보던 탭이 사라지면(예: 경매가 모두 숨겨짐) 사진 탭으로 돌아간다.
+  const currentTab = visibleTab<ProfileTab>(tabs, activeTab, "photos");
+
+  // 목록은 그 탭을 열었을 때만 받는다.
+  const photosList = useUserPhotoPostsList(id, undefined, currentTab === "photos");
+  const postsList = useUserPostsList(id, currentTab === "posts");
+  const productsList = useUserProductsList(id, currentTab === "products");
+  const auctionsList = useUserAuctionsList(id, currentTab === "auctions");
   const bloodlinesQuery = useSWR<UserBloodlineCardsResponse>(
-    id && activeTab === "bloodlines" ? `/api/users/${id}/bloodline-cards` : null
+    id && currentTab === "bloodlines" ? `/api/users/${id}/bloodline-cards` : null
   );
+  const albumsQuery = useSpeciesAlbums(id || undefined);
+  const userAlbumsQuery = useUserAlbums(id || undefined);
 
   const [getChatRoomId, { loading: chatLoading }] = useMutation<ChatResponseType>(`/api/chat`);
-  const [toggleFollow, { loading: followLoading }] = useMutation<FollowResponse>(`/api/users/${id}/follow`);
 
-  const user = data?.user;
+  const profilePath = `/profiles/${id}`;
   const isMyProfile = Boolean(me?.id && user?.id && me.id === user.id);
   const isDeleted = isDeletedUser(user?.name);
   // 차단 여부는 차단 목록이 기준이고, 목록을 받기 전에는 프로필 응답의 isBlocked 로 그린다.
   const isBlocked = Boolean(
     user?.id && !isMyProfile && (blocksLoading ? data?.isBlocked : isBlockedUser(user.id))
   );
-  // 본인·탈퇴한 사용자 프로필에는 신고/차단 ⋮ 를 두지 않는다.
+  // 본인·탈퇴한 사용자 프로필에는 ⋮ 를 두지 않는다.
   const canModerate = Boolean(user && !isMyProfile && !isDeleted);
-  const subLabel = isMyProfile ? user?.email : user?.maskedEmail;
   const isFollowing = Boolean(data?.isFollowing);
-  const benefitLabel = getPrimaryBreederBenefitLabel(user?.breederPrograms);
 
   /** 비로그인이면 로그인 화면으로 보내고, 로그인 후 이 프로필로 돌아오게 한다. */
   const requireLogin = () => {
     if (me) return false;
-    router.push(toLoginHref(`/profiles/${id}`));
+    router.push(toLoginHref(profilePath));
     return true;
   };
 
@@ -117,32 +125,28 @@ const ProfileClient = () => {
     });
   };
 
-  const handleFollow = async () => {
-    if (requireLogin() || followLoading) return;
-    await toggleFollow({
-      data: {},
-      onCompleted(result) {
-        // 차단·자기 자신 등 서버가 거절하면(success:false) 서버 문구를 그대로 알린다.
-        if (!result?.success) {
-          toast.error((result as { error?: string } | undefined)?.error || "팔로우 처리에 실패했습니다.");
-          return;
-        }
-        void mutate();
-      },
-      onError() {
-        toast.error("팔로우 처리에 실패했습니다.");
-      },
-    });
-  };
-
   const handleUnblock = async () => {
     if (requireLogin() || unblockPending || !user?.id) return;
     const ok = await unblock(user.id);
     if (ok) void mutate();
   };
 
+  const handleShare = () => {
+    if (!user) return;
+    void shareOrCopy({ title: `${user.name}님의 브리디 프로필`, url: `/profiles/${user.id}` });
+  };
+
   const sheetActions: ActionSheetAction[] = user
     ? [
+        {
+          key: "copy-link",
+          label: "링크 복사",
+          onSelect: async () => {
+            const ok = await copyText(absoluteUrl(`/profiles/${user.id}`));
+            if (ok) toast.success("링크를 복사했어요");
+            else toast.error("링크를 복사하지 못했어요");
+          },
+        },
         {
           key: "report",
           label: "신고하기",
@@ -165,21 +169,39 @@ const ProfileClient = () => {
       ]
     : [];
 
-  const tabCountMap: Record<ActivityTab, number | string> = {
-    products: user?._count?.products ?? 0,
-    posts: user?._count?.posts ?? 0,
-    // 남은 페이지가 있으면 받은 수 뒤에 '+'를 붙인다(서버가 경매 총수를 따로 주지 않는다).
-    auctions: auctionsList.hasNextPage ? `${auctionsList.items.length}+` : auctionsList.items.length,
-    bloodlines: user?._count?.ownedBloodlineCards ?? 0,
-  };
-
-  const headerRight = canModerate ? (
-    <HeaderIconButton label="더보기" onClick={() => setSheetOpen(true)}>
-      <LineIcon name="more" size={24} strokeWidth={2} />
-    </HeaderIconButton>
+  const actions = !user ? null : isMyProfile ? (
+    <>
+      <ProfileSecondaryButton label="프로필 수정" href="/editProfile" />
+      <ProfileSecondaryButton label="프로필 공유" onClick={handleShare} />
+    </>
+  ) : isDeleted ? null : isBlocked ? (
+    // 차단한 사용자는 팔로우·메시지 대신 차단 해제만 둔다.
+    <ProfileSecondaryButton label="차단 해제" disabled={unblockPending} onClick={() => void handleUnblock()} />
   ) : (
-    <span className="h-11 w-11" aria-hidden="true" />
+    <>
+      <FollowButton userId={user.id} isFollowing={isFollowing} returnPath={profilePath} size="lg" />
+      <ProfileSecondaryButton
+        label="메시지"
+        ariaLabel="메시지 보내기"
+        disabled={chatLoading}
+        onClick={() => void handleChat()}
+      />
+    </>
   );
+
+  const headerRight =
+    user && !isDeleted ? (
+      <>
+        <HeaderIconButton label="프로필 공유" onClick={handleShare}>
+          <LineIcon name="share" size={24} />
+        </HeaderIconButton>
+        {canModerate ? (
+          <HeaderIconButton label="더보기" onClick={() => setSheetOpen(true)}>
+            <LineIcon name="more" size={24} strokeWidth={2} />
+          </HeaderIconButton>
+        ) : null}
+      </>
+    ) : null;
 
   let body: ReactNode;
   if (isLoading) {
@@ -200,133 +222,57 @@ const ProfileClient = () => {
   } else {
     body = (
       <div className="flex flex-col bg-app-bg pb-8">
-        {/* ① 프로필 */}
-        <div className="px-5 py-5">
-          <div className="flex items-center gap-3">
-            {/* 앱 profiles/[id] 처럼 프로필 화면 아바타에는 브리더 프레임을 두르지 않는다(프레임은 마이페이지만). */}
-            <ProfileAvatar avatar={user?.avatar} name={user?.name ?? ""} />
-            <div className="min-w-0 flex-1">
-              <h2 className="truncate text-[18px] font-bold text-app-text">{user?.name || ""}</h2>
-              {subLabel ? <p className="mt-0.5 truncate text-[13px] text-app-muted">{subLabel}</p> : null}
-            </div>
-            {isMyProfile ? (
-              <button type="button" className={SMALL_BUTTON_CLASS} onClick={() => router.push("/editProfile")}>
-                프로필 수정
-              </button>
-            ) : isDeleted ? null : isBlocked ? (
-              // 차단한 사용자는 메시지·팔로우 대신 차단 해제만 둔다.
-              <button
-                type="button"
-                className={SMALL_BUTTON_CLASS}
-                disabled={unblockPending}
-                onClick={() => void handleUnblock()}
-              >
-                차단 해제
-              </button>
-            ) : (
-              <div className="flex gap-1.5">
-                <button
-                  type="button"
-                  aria-label="메시지 보내기"
-                  className={SMALL_BUTTON_CLASS}
-                  disabled={chatLoading}
-                  onClick={() => void handleChat()}
-                >
-                  메시지
-                </button>
-                <button
-                  type="button"
-                  aria-pressed={isFollowing}
-                  disabled={followLoading}
-                  onClick={() => void handleFollow()}
-                  className={cn(
-                    SMALL_BUTTON_CLASS,
-                    isFollowing ? "" : "bg-app-brand text-white"
-                  )}
-                >
-                  {isFollowing ? "팔로잉" : "팔로우"}
-                </button>
-              </div>
-            )}
-          </div>
-
-          {/* ② 통계 한 줄 */}
-          <p className="mt-3 text-[14px] text-app-muted">
-            상품 {user?._count?.products ?? 0} · 팔로워 {user?._count?.followers ?? 0} · 팔로잉{" "}
-            {user?._count?.following ?? 0}
-          </p>
-
-          {/* ③ 브리더 프로그램 · 시즌 뱃지(중립 pill) */}
-          {(user?.breederPrograms?.length ?? 0) > 0 || (user?.badges?.length ?? 0) > 0 ? (
-            <div className="mt-2 flex flex-wrap gap-1.5">
-              <BreederProgramBadgeList programs={user?.breederPrograms} />
-              {user?.badges?.map((badge) => (
-                <span
-                  key={badge.id}
-                  className="inline-flex items-center whitespace-nowrap rounded bg-app-surface px-1.5 py-0.5 text-[12px] leading-4 text-app-muted"
-                >
-                  {badge.label}
-                </span>
-              ))}
-            </div>
-          ) : null}
-          {benefitLabel ? <p className="mt-2 text-[13px] text-app-muted">{benefitLabel}</p> : null}
-        </div>
-
-        <SectionGap />
-
-        {/* ④ 거래 메뉴 */}
-        {id ? <TransactionMenu userId={id} isMine={isMyProfile} /> : null}
-
-        <SectionGap />
-
-        {/* ⑤ 등록 콘텐츠 */}
-        <div className="pt-4">
-          <h3 className="mb-1.5 px-5 text-[18px] font-bold text-app-text">등록 콘텐츠</h3>
-          <FilterChipRail className="px-5">
-            {PROFILE_ACTIVITY_TABS.map((tab) => (
-              <FilterChip
-                key={tab.id}
-                label={tab.name}
-                count={tabCountMap[tab.id]}
-                selected={activeTab === tab.id}
-                onClick={() => setActiveTab(tab.id)}
-              />
-            ))}
-          </FilterChipRail>
-          <div className="mt-1.5">
-            {activeTab === "products" ? <ProfileProductRows list={productsList} /> : null}
-            {activeTab === "posts" ? <ProfilePostRows list={postsList} /> : null}
-            {activeTab === "auctions" ? <ProfileAuctionRows list={auctionsList} /> : null}
-            {activeTab === "bloodlines" ? (
-              <ProfileBloodlineRows
-                data={bloodlinesQuery.data}
-                isLoading={bloodlinesQuery.isLoading}
-                isError={Boolean(bloodlinesQuery.error)}
-                onRetry={() => void bloodlinesQuery.mutate()}
-              />
-            ) : null}
-          </div>
-        </div>
+        {id ? <ProfileBlock userId={id} user={user} loading={false} isMine={isMyProfile} actions={actions} /> : null}
+        {id ? (
+          <AlbumRow
+            userId={id}
+            albums={albumsQuery.data?.albums}
+            userAlbums={userAlbumsQuery.data?.albums}
+            isOwner={isMyProfile}
+          />
+        ) : null}
+        <UnderlineTabs tabs={tabs} active={currentTab} onChange={setActiveTab} />
+        {currentTab === "photos" ? (
+          <PhotoGrid
+            list={photosList}
+            emptyMessage={isMyProfile ? "사진을 올려 프로필을 채워 보세요" : "아직 올린 사진이 없어요"}
+            emptyAction={isMyProfile ? { label: "글쓰기", href: "/posts/upload" } : undefined}
+            onPinPost={isMyProfile ? setPinTarget : undefined}
+          />
+        ) : null}
+        {currentTab === "posts" ? <ProfilePostRows list={postsList} /> : null}
+        {currentTab === "products" && id ? (
+          <>
+            <TransactionMenu userId={id} isMine={isMyProfile} />
+            <SectionGap />
+            <ProfileProductRows list={productsList} />
+          </>
+        ) : null}
+        {currentTab === "auctions" ? <ProfileAuctionRows list={auctionsList} /> : null}
+        {currentTab === "bloodlines" ? (
+          <ProfileBloodlineRows
+            data={bloodlinesQuery.data}
+            isLoading={bloodlinesQuery.isLoading}
+            isError={Boolean(bloodlinesQuery.error)}
+            onRetry={() => void bloodlinesQuery.mutate()}
+          />
+        ) : null}
       </div>
     );
   }
 
   return (
-    <MainLayout canGoBack title={user?.name} headerRight={headerRight}>
+    <MainLayout headerVariant="profile" title={user?.name} headerRight={headerRight}>
       {body}
       <ActionSheet open={sheetOpen} onClose={() => setSheetOpen(false)} actions={sheetActions} />
+      <ProfilePinSheet post={pinTarget} onClose={() => setPinTarget(null)} />
       <ReportSheet
         open={reportOpen}
         targetType="USER"
         targetId={user?.id ?? null}
         onClose={() => setReportOpen(false)}
       />
-      <BlockConfirmDialog
-        target={blockTarget}
-        onClose={() => setBlockTarget(null)}
-        onBlocked={() => void mutate()}
-      />
+      <BlockConfirmDialog target={blockTarget} onClose={() => setBlockTarget(null)} onBlocked={() => void mutate()} />
     </MainLayout>
   );
 };

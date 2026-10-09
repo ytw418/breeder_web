@@ -23,6 +23,19 @@ export const DEFAULT_DEAL_TYPE: DealType = "sale";
 export const isDealType = (value: unknown): value is DealType =>
   typeof value === "string" && (DEAL_TYPES as readonly string[]).includes(value);
 
+/**
+ * 관심 카테고리 범위를 적용하는 화면. 앱(src/lib/categoryScope.ts)·웹이 같은 값을 쓴다.
+ * 경매·혈통은 구조만 잡아 두었다(2026-10-09): 서버가 categoryPath 를 받고 경매·혈통 카드에 categoryId 를
+ * 쌓기 시작했다. 데이터가 모이면 true 로 켜고 SCOPED_BREEDER_SCORE_WEIGHTS 의 가중치를 올린다.
+ */
+export const CATEGORY_SCOPE_SURFACES = {
+  products: true,
+  posts: true,
+  breeders: true,
+  auctions: false,
+  bloodlines: false,
+} as const;
+
 /** 여러 카테고리를 함께 고정할 수 있어 쿼리 파라미터는 path 를 쉼표로 잇는다. */
 export const CATEGORY_PATH_SEPARATOR = ",";
 const CATEGORY_PATH_PATTERN = /^(\/[a-z0-9-]+)+\/$/;
