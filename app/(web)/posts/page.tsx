@@ -32,8 +32,12 @@ export const metadata: Metadata = {
   },
 };
 
-const page = () => {
-  return <PostsClient />;
+type SearchParams = Record<string, string | string[] | undefined>;
+
+/** ?category=동네 처럼 들어오면 그 칩으로 시작한다(홈 '동네 사랑방'). 주소는 클라이언트가 한 번 읽고 지운다. */
+const page = async ({ searchParams }: { searchParams: Promise<SearchParams> }) => {
+  const { category } = await searchParams;
+  return <PostsClient initialCategory={typeof category === "string" ? category : undefined} />;
 };
 
 export default page;

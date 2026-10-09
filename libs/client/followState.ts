@@ -3,6 +3,7 @@
  * - 상대 프로필: isFollowing, 팔로워 수 + delta
  * - 내 프로필: 팔로잉 수 + delta
  * - 팔로워·팔로잉 목록 페이지: 그 사람 행의 isFollowing
+ * - 동네 브리더(홈 카드, /api/users/nearby): 그 사람 카드의 isFollowing
  * delta 0 이면 숫자는 두고 상태만 맞춘다(서버 응답으로 바로잡을 때).
  */
 export interface FollowCounts {
@@ -54,6 +55,22 @@ export function withFollowListRow<T extends FollowListPageLike>(
   }));
 }
 
+export interface NearbyLike {
+  items: { user: { id: number }; isFollowing?: boolean }[];
+}
+
+export function withNearbyFollowRow<T extends NearbyLike>(
+  data: T | undefined,
+  targetUserId: number,
+  isFollowing: boolean
+) {
+  if (!data) return data;
+  return {
+    ...data,
+    items: data.items.map((item) => (item.user.id === targetUserId ? { ...item, isFollowing } : item)),
+  };
+}
+
 /** SWR 캐시 키 판별. 프로필은 `/api/users/:id`, 팔로우 목록은 무한 목록 키(`$inf$/api/users/:id/followers?...`). */
 export const isProfileKey = (key: unknown, userId: number) => key === `/api/users/${userId}`;
 export const isFollowListKey = (key: unknown) =>
@@ -62,3 +79,6 @@ export const isFollowListKey = (key: unknown) =>
 /** 반려생활 '팔로잉' 목록(useSWRInfinite) 키. 팔로우·언팔로우 뒤 다시 받는다(앱 ["posts","팔로잉"] 무효화). */
 export const isFollowingFeedKey = (key: unknown) =>
   typeof key === "string" && key.includes("/api/posts?") && /[?&]following=1(&|$)/.test(key);
+
+/** 동네 브리더 목록(`/api/users/nearby?limit=…`) 키. 홈 카드의 팔로우 버튼 상태를 맞춘다. */
+export const isNearbyKey = (key: unknown) => typeof key === "string" && key.startsWith("/api/users/nearby");
