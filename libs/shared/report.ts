@@ -1,7 +1,7 @@
 import type { ReportAction, ReportStatus, ReportTargetType } from "@prisma/client";
 
 /**
- * 통합 신고(게시글·댓글·상품·채팅방·사용자·혈통) 공용 상수.
+ * 통합 신고(게시글·댓글·분양글·채팅방·사용자·혈통) 공용 상수.
  * 서버 API 와 관리자 페이지가 함께 쓰고, 앱(bredy_app)은 같은 값을 복사해 쓴다.
  * 사유 문구를 바꾸면 앱 상수도 함께 바꿔야 한다(서버가 목록 밖 사유를 400 으로 거절).
  */
@@ -47,7 +47,7 @@ export const REPORT_REASONS: Record<ReportTargetType, readonly string[]> = {
   POST: CONTENT_REASONS,
   COMMENT: CONTENT_REASONS,
   PRODUCT: [
-    "허위 매물·사기 의심",
+    "허위 분양글·사기 의심",
     "거래 금지 품목(불법 개체)",
     "중복·도배 게시",
     "욕설·부적절 내용",
@@ -74,8 +74,17 @@ export const isReportStatus = (value: unknown): value is ReportStatus =>
 export const isReportAction = (value: unknown): value is ReportAction =>
   typeof value === "string" && (REPORT_ACTIONS as readonly string[]).includes(value);
 
+/**
+ * 옛 사유 문구(2026-10-10 '매물' → '분양글' 용어 변경 전). 이미 배포된 앱이 보내고 저장된 신고에도 남아 있어
+ * 접수는 계속 받지만, 화면에 보이는 목록(REPORT_REASONS)에는 넣지 않는다.
+ */
+export const LEGACY_REPORT_REASONS: Partial<Record<ReportTargetType, readonly string[]>> = {
+  PRODUCT: ["허위 매물·사기 의심"],
+};
+
 export const isValidReportReason = (type: ReportTargetType, reason: string) =>
-  REPORT_REASONS[type].includes(reason);
+  REPORT_REASONS[type].includes(reason) ||
+  (LEGACY_REPORT_REASONS[type]?.includes(reason) ?? false);
 
 /**
  * 콘텐츠 삭제(REMOVE_CONTENT*) 를 적용할 수 있는 대상인지. 채팅방·사용자는 지울 콘텐츠가 없다.
@@ -87,7 +96,7 @@ export const isRemovableReportTarget = (type: ReportTargetType) =>
 export const REPORT_TARGET_LABEL: Record<ReportTargetType, string> = {
   POST: "게시글",
   COMMENT: "댓글",
-  PRODUCT: "상품",
+  PRODUCT: "분양글",
   CHAT_ROOM: "채팅",
   USER: "사용자",
   BLOODLINE_CARD: "혈통",
@@ -110,7 +119,7 @@ export const REPORT_ACTION_LABEL: Record<ReportAction, string> = {
 export const REPORT_SHEET_TITLE: Record<ReportTargetType, string> = {
   POST: "게시글 신고",
   COMMENT: "댓글 신고",
-  PRODUCT: "상품 신고",
+  PRODUCT: "분양글 신고",
   CHAT_ROOM: "채팅 신고",
   USER: "사용자 신고",
   BLOODLINE_CARD: "혈통 신고",

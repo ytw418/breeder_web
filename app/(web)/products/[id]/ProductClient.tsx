@@ -27,7 +27,7 @@ import { makeImageUrl } from "@libs/client/utils";
 import { ANALYTICS_EVENTS, trackEvent } from "@libs/client/analytics";
 import { extractProductId, getProductPath } from "@libs/product-route";
 import { formatProductPrice } from "@libs/productRules";
-import { DEAL_TYPE_LABELS } from "@libs/constants";
+import { dealTypeLabel, productStatusLabel } from "@libs/shared/productTerms";
 import useAdminModeration from "hooks/useAdminModeration";
 
 type ProductActionPayload =
@@ -54,13 +54,13 @@ export function formatMonthDay(value: string | Date | null | undefined): string 
 const successMessage = (payload: ProductActionPayload) => {
   switch (payload.action) {
     case "purchase":
-      return "구매확정 되었습니다.";
+      return "입양이 확정되었습니다.";
     case "sold":
-      return "판매완료 처리되었습니다.";
+      return "분양완료 처리되었습니다.";
     case "status_change":
-      return `상태가 "${payload.data.status}"으로 변경되었습니다.`;
+      return `상태가 "${productStatusLabel(payload.data.status)}"(으)로 변경되었습니다.`;
     case "delete":
-      return "상품이 삭제되었습니다.";
+      return "분양글이 삭제되었습니다.";
   }
 };
 
@@ -206,7 +206,7 @@ const ProductClient = ({ product: initialProduct, relatedProducts: initialRelate
         toast.error(
           result?.error ||
             result?.message ||
-            (payload.action === "delete" ? "상품 삭제에 실패했습니다." : "상품 처리에 실패했습니다.")
+            (payload.action === "delete" ? "분양글 삭제에 실패했습니다." : "분양글 처리에 실패했습니다.")
         );
         return;
       }
@@ -228,7 +228,7 @@ const ProductClient = ({ product: initialProduct, relatedProducts: initialRelate
       }
       void mutate();
     } catch {
-      toast.error(payload.action === "delete" ? "상품 삭제에 실패했습니다." : "상품 처리에 실패했습니다.");
+      toast.error(payload.action === "delete" ? "분양글 삭제에 실패했습니다." : "분양글 처리에 실패했습니다.");
     } finally {
       setActionPending(false);
     }
@@ -237,7 +237,7 @@ const ProductClient = ({ product: initialProduct, relatedProducts: initialRelate
   const handleDelete = async () => {
     if (actionPending) return;
     const ok = await confirm({
-      title: "이 상품을 삭제할까요?",
+      title: "이 분양글을 삭제할까요?",
       description: "삭제 후에는 복구할 수 없습니다.",
       confirmText: "삭제",
       tone: "danger",
@@ -248,7 +248,7 @@ const ProductClient = ({ product: initialProduct, relatedProducts: initialRelate
   const handleStatusChange = async (nextStatus: "판매중" | "예약중") => {
     setShowStatusMenu(false);
     const ok = await confirm({
-      title: `상태를 "${nextStatus}"(으)로 변경할까요?`,
+      title: `상태를 "${productStatusLabel(nextStatus)}"(으)로 변경할까요?`,
       description: "변경 후에도 다시 상태를 조정할 수 있습니다.",
       confirmText: "변경",
     });
@@ -258,9 +258,9 @@ const ProductClient = ({ product: initialProduct, relatedProducts: initialRelate
   const handleSold = async () => {
     setShowStatusMenu(false);
     const ok = await confirm({
-      title: "판매완료로 변경할까요?",
-      description: "판매내역에 기록됩니다.",
-      confirmText: "판매완료",
+      title: "분양완료로 변경할까요?",
+      description: "분양내역에 기록됩니다.",
+      confirmText: "분양완료",
     });
     if (ok) void runAction({ action: "sold" });
   };
@@ -268,9 +268,9 @@ const ProductClient = ({ product: initialProduct, relatedProducts: initialRelate
   const handlePurchase = async () => {
     if (requireLogin() || actionPending) return;
     const ok = await confirm({
-      title: "구매확정 할까요?",
-      description: "구매내역에 기록됩니다.",
-      confirmText: "구매확정",
+      title: "입양 확정 할까요?",
+      description: "입양내역에 기록됩니다.",
+      confirmText: "입양 확정",
     });
     if (ok) void runAction({ action: "purchase" });
   };
@@ -378,9 +378,9 @@ const ProductClient = ({ product: initialProduct, relatedProducts: initialRelate
   if (!product) {
     const status = (error as { status?: number } | undefined)?.status;
     const message =
-      status === 404 && error instanceof Error ? error.message : "상품을 불러올 수 없습니다.";
+      status === 404 && error instanceof Error ? error.message : "분양글을 불러올 수 없습니다.";
     return (
-      <Layout canGoBack title="상품 상세" headerRight={<></>}>
+      <Layout canGoBack title="분양글 상세" headerRight={<></>}>
         <div className="flex min-h-[60vh] items-center justify-center px-6">
           {isLoading || (!error && !data) ? (
             <span
@@ -443,7 +443,7 @@ const ProductClient = ({ product: initialProduct, relatedProducts: initialRelate
     if (!sellerBlocked) {
       sheetActions.push({
         key: "block",
-        label: "판매자 차단",
+        label: "분양자 차단",
         destructive: true,
         onSelect: () => {
           if (requireLogin()) return;
@@ -488,9 +488,9 @@ const ProductClient = ({ product: initialProduct, relatedProducts: initialRelate
       {sellerBlocked ? (
         // 게시글 상세의 차단 게이트와 같은 레이아웃
         <div className="flex min-h-[70vh] flex-col items-center justify-center px-6 text-center">
-          <p className="text-[16px] font-bold text-app-text">차단한 판매자의 상품입니다.</p>
+          <p className="text-[16px] font-bold text-app-text">차단한 분양자의 분양글입니다.</p>
           <p className="mt-2 text-[14px] leading-5 text-app-muted">
-            이 판매자의 상품은 목록에서 숨겨집니다.
+            이 분양자의 분양글은 목록에서 숨겨집니다.
           </p>
           <div className="mt-5 flex items-center gap-2">
             <button
@@ -516,7 +516,7 @@ const ProductClient = ({ product: initialProduct, relatedProducts: initialRelate
             {isInactive ? (
               <div className="bg-app-surface px-4 py-3">
                 <p className="text-[14px] font-semibold text-app-text">
-                  {product.isDeleted ? "삭제한 상품이에요" : "숨김 처리된 상품이에요"}
+                  {product.isDeleted ? "삭제한 분양글이에요" : "숨김 처리된 분양글이에요"}
                 </p>
                 <p className="mt-0.5 text-[13px] text-app-muted">다른 사용자에게는 보이지 않아요.</p>
               </div>
@@ -531,7 +531,7 @@ const ProductClient = ({ product: initialProduct, relatedProducts: initialRelate
                   setImageIndex(i);
                   setViewerOpen(true);
                 }}
-                alt="상품 이미지"
+                alt="분양글 사진"
                 className="bg-app-surface"
               />
             ) : (
@@ -543,7 +543,7 @@ const ProductClient = ({ product: initialProduct, relatedProducts: initialRelate
             {/* 판매자 */}
             <Link
               href={`/profiles/${product.user?.id}`}
-              aria-label={`${product.user?.name ?? "판매자"} 프로필 보기`}
+              aria-label={`${product.user?.name ?? "분양자"} 프로필 보기`}
               className="flex items-center gap-3 border-b border-app-line px-4 py-3.5"
             >
               <span className="relative h-11 w-11 shrink-0 overflow-hidden rounded-full bg-app-surface">
@@ -577,18 +577,18 @@ const ProductClient = ({ product: initialProduct, relatedProducts: initialRelate
               <div className="mt-2.5 flex items-center gap-2">
                 <p className="text-[20px] font-bold text-app-text">{formatProductPrice(product.price)}</p>
                 <span className="rounded bg-app-surface px-2 py-[3px] text-[12px] font-semibold text-app-text">
-                  {currentStatus}
+                  {productStatusLabel(currentStatus)}
                 </span>
-                {/* 거래 유형이 판매가 아니면(분양·파양) 상태 옆에 같은 pill 로 표시한다(앱과 같음). */}
+                {/* 거래 유형이 유료 분양이 아니면(무료 분양·파양) 상태 옆에 같은 pill 로 표시한다(앱과 같음). */}
                 {product.dealType && product.dealType !== "sale" ? (
                   <span className="rounded bg-app-surface px-2 py-[3px] text-[12px] font-semibold text-app-text">
-                    {DEAL_TYPE_LABELS[product.dealType] ?? product.dealType}
+                    {dealTypeLabel(product.dealType)}
                   </span>
                 ) : null}
               </div>
 
               <div className="mt-5">
-                <MarkdownPreview content={product.description ?? ""} emptyText="상품 설명이 없습니다." />
+                <MarkdownPreview content={product.description ?? ""} emptyText="설명이 없습니다." />
               </div>
 
               <div className="mt-5 flex items-center justify-between">
@@ -598,7 +598,7 @@ const ProductClient = ({ product: initialProduct, relatedProducts: initialRelate
                 {!isInactive ? (
                   <button
                     type="button"
-                    aria-label="상품 공유하기"
+                    aria-label="분양글 공유하기"
                     onClick={() => void shareOrCopy({ title: product.name, url: productPath })}
                     className="flex h-8 items-center gap-1 rounded-2xl bg-app-surface px-3 text-[13px] font-semibold text-app-text"
                   >
@@ -626,7 +626,7 @@ const ProductClient = ({ product: initialProduct, relatedProducts: initialRelate
                           : "text-[15px] font-semibold text-app-text"
                       }
                     >
-                      {actionPending ? "처리 중..." : currentStatus === "판매완료" ? "판매완료" : "상태 변경"}
+                      {actionPending ? "처리 중..." : currentStatus === "판매완료" ? productStatusLabel("판매완료") : "상태 변경"}
                     </span>
                     {currentStatus !== "판매완료" ? (
                       <svg className="h-4 w-4 text-app-text" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
@@ -643,7 +643,7 @@ const ProductClient = ({ product: initialProduct, relatedProducts: initialRelate
                           onClick={() => void handleStatusChange("판매중")}
                           className="block w-full px-4 py-3.5 text-left text-[15px] text-app-text hover:bg-app-surface"
                         >
-                          판매중으로 변경
+                          분양중으로 변경
                         </button>
                       ) : null}
                       {currentStatus !== "예약중" ? (
@@ -660,7 +660,7 @@ const ProductClient = ({ product: initialProduct, relatedProducts: initialRelate
                         onClick={() => void handleSold()}
                         className="block w-full border-t border-app-line px-4 py-3.5 text-left text-[15px] text-app-text hover:bg-app-surface"
                       >
-                        판매완료로 변경
+                        분양완료로 변경
                       </button>
                     </div>
                   ) : null}
@@ -688,7 +688,7 @@ const ProductClient = ({ product: initialProduct, relatedProducts: initialRelate
                 <div className="mt-5">
                   {hasPurchased ? (
                     <div className="flex h-12 items-center justify-center rounded-md bg-app-surface text-[15px] font-semibold text-app-muted">
-                      구매확정 완료
+                      입양 확정 완료
                     </div>
                   ) : (
                     <button
@@ -697,7 +697,7 @@ const ProductClient = ({ product: initialProduct, relatedProducts: initialRelate
                       onClick={() => void handlePurchase()}
                       className="h-12 w-full rounded-md bg-app-surface text-[15px] font-semibold text-app-text disabled:opacity-60"
                     >
-                      {actionPending ? "처리 중..." : "구매확정"}
+                      {actionPending ? "처리 중..." : "입양 확정"}
                     </button>
                   )}
                 </div>
@@ -706,7 +706,7 @@ const ProductClient = ({ product: initialProduct, relatedProducts: initialRelate
 
             {relatedProducts.length > 0 ? (
               <section className="mt-6 border-t-8 border-app-gap pt-6">
-                <h2 className="mb-4 px-4 text-[17px] font-bold text-app-text">연관 상품</h2>
+                <h2 className="mb-4 px-4 text-[17px] font-bold text-app-text">비슷한 분양</h2>
                 {/* 앱 products/[id] 연관 상품: 2열 정사각 썸네일 그리드(이름 15 · 가격 15/700). */}
                 <div className="grid grid-cols-2 gap-4 px-4">
                   {relatedProducts.slice(0, 20).map((item) => (
@@ -789,7 +789,7 @@ const ProductClient = ({ product: initialProduct, relatedProducts: initialRelate
             currentIndex={imageIndex}
             onClose={() => setViewerOpen(false)}
             onIndexChange={setImageIndex}
-            altPrefix="상품 이미지"
+            altPrefix="분양글 사진"
           />
         </>
       )}

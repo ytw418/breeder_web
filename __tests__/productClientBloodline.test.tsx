@@ -75,8 +75,8 @@ it("bloodline 이 있으면 판매자 행 바로 아래 혈통 행이 보이고 
   const row = screen.getByRole("link", { name: /강산 라인/ });
   expect(row).toHaveAttribute("href", "/bloodline-management/card/5");
   expect(row).toHaveTextContent("강산 라인 · 충남 공주");
-  expect(row).toHaveTextContent("판매자가 만든 혈통");
-  expect(row).toHaveTextContent("누대 F3 · 부 81.2mm · 모 47.5mm · 판매자 입력");
+  expect(row).toHaveTextContent("분양자가 만든 혈통");
+  expect(row).toHaveTextContent("누대 F3 · 부 81.2mm · 모 47.5mm · 분양자 입력");
   expect(seller.nextElementSibling).toBe(row);
 });
 

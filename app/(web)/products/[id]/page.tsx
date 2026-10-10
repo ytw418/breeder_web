@@ -42,8 +42,8 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 
   if (!data.success || !data.product) {
     return {
-      title: "상품을 찾을 수 없습니다",
-      description: "요청한 상품을 찾을 수 없습니다.",
+      title: "분양글을 찾을 수 없습니다",
+      description: "요청한 분양글을 찾을 수 없습니다.",
       robots: {
         index: false,
         follow: false,
@@ -73,7 +73,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   if (product.productType) keywordSet.add(product.productType);
 
   return {
-    title: `${String(product.name) || "상품 이름 없음"}`,
+    title: `${String(product.name) || "제목 없음"}`,
     description,
     keywords: Array.from(keywordSet),
     openGraph: {
@@ -187,7 +187,8 @@ export default async function ProductPage({ params }: Props) {
   if (!data.success || !data.product) {
     // 삭제·숨김 상품은 비로그인 SSR 에서 404(PRODUCT_HIDDEN)다. 소유자는 토큰으로 다시 받아 안내를 봐야 하므로
     // 이 경우만 클라이언트에 맡긴다(메타데이터는 noindex). 그 밖의 없는 상품은 404.
-    if (data.error?.includes("숨겨진 상품")) {
+    // 서버 오류 문구가 '상품'에서 '분양글'로 바뀌어도(2026-10-10 용어 결정) 둘 다 받는다.
+    if (data.error?.includes("숨겨진 상품") || data.error?.includes("숨겨진 분양글")) {
       return <ProductClient success={false} />;
     }
     notFound();

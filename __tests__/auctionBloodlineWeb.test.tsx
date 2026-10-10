@@ -272,7 +272,7 @@ describe("AuctionBloodlineRows (경매 상세 혈통 행)", () => {
     );
     const row = screen.getByRole("link", { name: /강산 라인/ });
     expect(row).toHaveAttribute("href", "/bloodline-management/card/5");
-    expect(screen.getByText("누대 F3 · 부 81.2mm · 판매자 입력")).toBeInTheDocument();
+    expect(screen.getByText("누대 F3 · 부 81.2mm · 분양자 입력")).toBeInTheDocument();
     expect(screen.queryByText(/출처 카드를 보낼까요/)).not.toBeInTheDocument();
   });
 

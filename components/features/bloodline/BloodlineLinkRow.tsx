@@ -1,7 +1,7 @@
 /**
- * 상품·경매 상세의 혈통 행(시안 A2 #S5 .blrow, PRD S-6). 판매자 행 바로 아래에 둔다.
- * 라벨 "혈통"(14 muted, 폭 36, 위 정렬) → 1줄 "{이름} · {산지}" 15/600 → 2줄 판매자와의 관계 13 muted
- * → 3줄 "누대 F3 · 부 81.2mm · 모 47.5mm · 판매자 입력"(값이 있을 때만) → 화살표 20 caption.
+ * 분양글·경매 상세의 혈통 행(시안 A2 #S5 .blrow, PRD S-6). 분양자 행 바로 아래에 둔다.
+ * 라벨 "혈통"(14 muted, 폭 36, 위 정렬) → 1줄 "{이름} · {산지}" 15/600 → 2줄 분양자와의 관계 13 muted
+ * → 3줄 "누대 F3 · 부 81.2mm · 모 47.5mm · 분양자 입력"(값이 있을 때만) → 화살표 20 caption.
  * 누르면 뿌리 혈통 상세(공개 페이지)로 간다. 붙이기 시트의 미리보기(`preview`)는 위아래 1px 이고 이동하지 않는다.
  * 훅을 쓰지 않아 서버·클라이언트 컴포넌트 어디서나 쓸 수 있다.
  */
@@ -11,8 +11,8 @@ import { bloodlineUserPhrase, type BloodlineLinkSummary } from "@libs/shared/blo
 import { formatPedigreeNote, parsePedigreeNote } from "@libs/shared/pedigree-note";
 import { cn } from "@libs/client/utils";
 
-/** 3줄째 꼬리표(판매자가 적은 값이라는 표시). */
-export const PEDIGREE_SELLER_INPUT_SUFFIX = "판매자 입력";
+/** 3줄째 꼬리표(분양자가 적은 값이라는 표시). */
+export const PEDIGREE_SELLER_INPUT_SUFFIX = "분양자 입력";
 
 /** 혈통 상세 공개 경로(공유 URL 과 같은 경로). */
 export const bloodlineCardHref = (cardId: number) => `/bloodline-management/card/${cardId}`;
@@ -37,21 +37,21 @@ export function formatBloodlineMonthDay(value?: string | null) {
 }
 
 /**
- * 2줄째(판매자와의 관계, PRD AC-59).
- * creator "판매자가 만든 혈통" / received "강산님 혈통 · 판매자가 09.12 출처 카드 받음" / holder·none "강산님 혈통".
+ * 2줄째(분양자와의 관계, PRD AC-59).
+ * creator "분양자가 만든 혈통" / received "강산님 혈통 · 분양자가 09.12 출처 카드 받음" / holder·none "강산님 혈통".
  */
 export function bloodlineLinkRelationText(
   bloodline: Pick<BloodlineLinkSummary, "sellerRelation" | "creator" | "receivedAt">
 ) {
-  if (bloodline.sellerRelation === "creator") return "판매자가 만든 혈통";
+  if (bloodline.sellerRelation === "creator") return "분양자가 만든 혈통";
   const owner = `${bloodlineUserPhrase(bloodline.creator)} 혈통`;
   if (bloodline.sellerRelation !== "received") return owner;
   const day = formatBloodlineMonthDay(bloodline.receivedAt);
-  return day ? `${owner} · 판매자가 ${day} 출처 카드 받음` : `${owner} · 판매자가 출처 카드 받음`;
+  return day ? `${owner} · 분양자가 ${day} 출처 카드 받음` : `${owner} · 분양자가 출처 카드 받음`;
 }
 
 /**
- * 3줄째: "누대 F3 · 부 81.2mm · 모 47.5mm · 판매자 입력". 값이 없거나 규칙에 안 맞으면 null(줄 생략).
+ * 3줄째: "누대 F3 · 부 81.2mm · 모 47.5mm · 분양자 입력". 값이 없거나 규칙에 안 맞으면 null(줄 생략).
  * 저장된 Json 을 그대로 받아도 되도록 shared 규칙으로 한 번 더 거른다.
  */
 export function bloodlinePedigreeLine(pedigreeNote: unknown) {

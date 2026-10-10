@@ -55,7 +55,7 @@ type MutationResult<T> = T & { message?: string; status?: number };
 const URGENT_MS = 10 * 60 * 1000;
 
 const REPORT_REASONS = [
-  "허위 매물 의심",
+  "허위 분양글 의심",
   "입찰 방해/분쟁 유도",
   "비정상 가격 유도",
   "욕설/부적절 내용",
@@ -205,7 +205,7 @@ const AuctionDetailClient = () => {
   const [agreedDisputePolicy, setAgreedDisputePolicy] = useState(false);
   const [rulesOpen, setRulesOpen] = useState(false);
   const [reportOpen, setReportOpen] = useState(false);
-  const [reportReason, setReportReason] = useState<(typeof REPORT_REASONS)[number]>("허위 매물 의심");
+  const [reportReason, setReportReason] = useState<(typeof REPORT_REASONS)[number]>("허위 분양글 의심");
   const [reportDetail, setReportDetail] = useState("");
   const [confirmBidAmount, setConfirmBidAmount] = useState<number | null>(null);
   // 관리자 ⋯ 조치(숨기기·숨김 해제·삭제). 웹 경매 상세는 관리자에게만 ⋯ 를 둔다(앱과 같음).
@@ -680,7 +680,7 @@ const AuctionDetailClient = () => {
         {hasSellerTrustInfo ? (
           <>
             <div className="flex flex-col gap-1.5 p-4 text-[13px] text-app-muted">
-              <p className="text-[15px] font-semibold text-app-text">판매자 정보</p>
+              <p className="text-[15px] font-semibold text-app-text">분양자 정보</p>
               {auction.sellerPhone ? <p>연락처 {auction.sellerPhone}</p> : null}
               {auction.sellerEmail ? <p>이메일 {auction.sellerEmail}</p> : null}
               {auction.sellerContactMasked ? <p>전화·이메일은 낙찰되면 낙찰자에게만 모두 보여요.</p> : null}
@@ -704,7 +704,7 @@ const AuctionDetailClient = () => {
                     className="object-contain"
                     fill
                     sizes="160px"
-                    alt="판매자 신뢰 자료"
+                    alt="분양자 신뢰 자료"
                   />
                 </div>
               ) : null}

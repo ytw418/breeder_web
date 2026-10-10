@@ -125,7 +125,7 @@ export function LoadMoreFooter({ state, label }: { state: LoadMoreState; label: 
 /* 행 목록                                                              */
 /* ------------------------------------------------------------------ */
 
-/** 비공개(숨김) 글·상품 표시(앱 HiddenPill). */
+/** 비공개(숨김) 글·분양글 표시(앱 HiddenPill). */
 function HiddenPill() {
   return (
     <span className="shrink-0 rounded-full bg-app-surface px-1.5 py-px text-[11px] font-semibold text-app-muted">
@@ -248,12 +248,12 @@ export function ProfileCommentRows({ list }: { list: PagedListState<ProfileComme
 }
 
 /**
- * 56 썸네일 상품 행(앱 profiles/[id] ProductList · 마이페이지 ProductGrid).
+ * 56 썸네일 분양글 행(앱 profiles/[id] ProductList · 마이페이지 ProductGrid).
  * showMeta: 프로필은 "상대시간 · 관심 N" 줄을 두고, 마이페이지는 이름·가격만 둔다(앱과 같다).
  */
 export function ProfileProductRows({
   list,
-  emptyMessage = "등록된 상품이 없습니다",
+  emptyMessage = "등록된 분양글이 없습니다",
   showMeta = true,
 }: {
   list: PagedListState<ProfileProduct>;
@@ -264,7 +264,7 @@ export function ProfileProductRows({
   if (list.isError) {
     return (
       <RetryBlock
-        message="상품을 불러오지 못했습니다. 잠시 후 다시 시도해주세요."
+        message="분양글을 불러오지 못했습니다. 잠시 후 다시 시도해주세요."
         onRetry={list.refetch}
       />
     );
@@ -289,7 +289,7 @@ export function ProfileProductRows({
           </div>
         </Link>
       ))}
-      <LoadMoreFooter state={list} label="상품" />
+      <LoadMoreFooter state={list} label="분양글" />
     </div>
   );
 }

@@ -57,7 +57,7 @@ export default function AuctionRulesClient() {
             경매 기간은 {hourText(AUCTION_MIN_DURATION_MS)} ~ {hourText(AUCTION_MAX_DURATION_MS)} 사이로 설정됩니다.
           </Bullet>
           <Bullet>
-            입찰 단위는 판매자가 등록할 때 정합니다({AUCTION_BID_INCREMENT_RANGE_TEXT}). 입찰은 현재가에서 이
+            입찰 단위는 분양자가 등록할 때 정합니다({AUCTION_BID_INCREMENT_RANGE_TEXT}). 입찰은 현재가에서 이
             단위만큼 올라갑니다.
           </Bullet>
           <Bullet>
@@ -88,12 +88,12 @@ export default function AuctionRulesClient() {
             경매 수정은 진행중 상태에서 등록 후 <Strong>{minuteText(AUCTION_EDIT_WINDOW_MS)} 이내</Strong>, 입찰이 없을
             때만 허용됩니다.
           </Bullet>
-          <Bullet>판매자는 블로그 URL, 카페/밴드 닉네임, 프로필 캡처를 선택적으로 등록할 수 있습니다.</Bullet>
+          <Bullet>분양자는 블로그 URL, 카페/밴드 닉네임, 프로필 캡처를 선택적으로 등록할 수 있습니다.</Bullet>
         </ul>
 
         <SectionTitle>분쟁 및 신고</SectionTitle>
         <Paragraph>
-          본 서비스는 거래 당사자 간 분쟁에 대해 법적 책임을 지지 않습니다. 허위 매물, 미발송, 환불 분쟁 등 문제가
+          본 서비스는 거래 당사자 간 분쟁에 대해 법적 책임을 지지 않습니다. 허위 분양글, 미발송, 환불 분쟁 등 문제가
           발생하면 신고를 접수해 운영정책에 따라 검토 및 제재합니다.
         </Paragraph>
         <a

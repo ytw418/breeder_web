@@ -65,7 +65,7 @@ export function getDeletionView({
 export const canRequestDeletion = (view: DeletionView, data: DeletionEligibilityResponse | undefined, pending: boolean) =>
   view === "eligible" && Boolean(data?.eligible) && !pending;
 
-/** 막는 항목으로 가는 링크: 예약중 상품은 상품 상세, 나머지는 경매 상세. */
+/** 막는 항목으로 가는 링크: 예약중 분양글은 분양글 상세, 나머지는 경매 상세. */
 export const blockerHref = (blocker: Pick<DeletionBlocker, "code">, item: { id: number; title: string }) =>
   blocker.code === "PRODUCT_RESERVED" ? getProductPath(item.id, item.title) : toAuctionPath(item.id, item.title);
 

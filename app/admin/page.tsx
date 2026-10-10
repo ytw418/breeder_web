@@ -123,8 +123,8 @@ const DASHBOARD_MENUS = [
     href: "/admin/voice",
   },
   {
-    title: "상품 관리",
-    description: "상품 검색, 확인, 삭제를 수행합니다.",
+    title: "분양 관리",
+    description: "분양글 검색, 확인, 삭제를 수행합니다.",
     href: "/admin/products",
   },
 ];
@@ -136,7 +136,7 @@ const SERVICE_FEATURES = [
   },
   {
     title: "마켓",
-    description: "판매 상품 등록, 상태 변경, 거래 관련 문의 응대를 진행합니다.",
+    description: "분양 등록, 상태 변경, 거래 관련 문의 응대를 진행합니다.",
   },
   {
     title: "경매",

@@ -128,7 +128,7 @@ describe("운영 알림 문구", () => {
     expect(suspensionNoticeMessage({ days: 3, until: NOW, extended: true, reasonCode: "SPAM" })).toBe(
       "운영정책 위반으로 이용 정지가 3일 늘어났어요. 2026.10.09 이후 다시 이용할 수 있어요. 사유: 스팸·광고"
     );
-    expect(banNoticeMessage("FRAUD")).toBe("운영정책 위반으로 이용이 영구 정지되었어요. 사유: 사기·허위 매물");
+    expect(banNoticeMessage("FRAUD")).toBe("운영정책 위반으로 이용이 영구 정지되었어요. 사유: 사기·허위 분양글");
   });
 
   it("사유가 없으면 사유 부분을 뺀다", () => {
@@ -143,10 +143,10 @@ describe("운영 알림 문구", () => {
       "작성하신 댓글 '초보면 가만히나 있지'가 운영정책 위반(욕설·비하·혐오 표현)으로 숨김 처리되었어요. 나에게만 보여요."
     );
     expect(contentHiddenMessage("PRODUCT", "넓적사슴벌레 3령 유충", null)).toBe(
-      "작성하신 상품 '넓적사슴벌레 3령 유충'이 운영정책 위반으로 숨김 처리되었어요. 나에게만 보여요."
+      "작성하신 분양글 '넓적사슴벌레 3령 유충'이 운영정책 위반으로 숨김 처리되었어요. 나에게만 보여요."
     );
     expect(contentHiddenMessage("AUCTION", "", "FRAUD")).toBe(
-      "작성하신 경매가 운영정책 위반(사기·허위 매물)으로 숨김 처리되었어요. 나에게만 보여요."
+      "작성하신 경매가 운영정책 위반(사기·허위 분양글)으로 숨김 처리되었어요. 나에게만 보여요."
     );
   });
 

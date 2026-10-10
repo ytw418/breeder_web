@@ -62,7 +62,7 @@ const getSummary = (
   scopeLabel?: string
 ) => {
   if (tab === "breeders") {
-    const activities = scopeLabel ? `'${scopeLabel}' 게시·상품` : "게시·댓글·입찰·낙찰";
+    const activities = scopeLabel ? `'${scopeLabel}' 게시·분양글` : "게시·댓글·입찰·낙찰";
     return {
       note:
         period === "weekly"
@@ -282,7 +282,7 @@ const RankingClient = () => {
               title={item.user.name}
               meta={
                 item.productsCount !== undefined
-                  ? `점수 ${item.score.toLocaleString()} · 게시 ${item.postsCount} · 상품 ${item.productsCount}`
+                  ? `점수 ${item.score.toLocaleString()} · 게시 ${item.postsCount} · 분양글 ${item.productsCount}`
                   : `점수 ${item.score.toLocaleString()} · 게시 ${item.postsCount} · 댓글 ${item.commentsCount}`
               }
               right={formatRankDelta(item.rankDelta)}

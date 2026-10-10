@@ -213,7 +213,7 @@ export default function CategoryScopePicker({ mode }: { mode: "onboarding" | "se
         </h2>
         <p className="mt-1.5 text-[14px] leading-5 text-app-muted">
           {mode === "onboarding"
-            ? "고정하면 홈 상품·반려생활·TOP 브리더가 그 분야만 보여요. 여러 개 골라도 되고, 나중에 설정에서 바꿀 수 있어요."
+            ? "고정하면 홈 분양·반려생활·TOP 브리더가 그 분야만 보여요. 여러 개 골라도 되고, 나중에 설정에서 바꿀 수 있어요."
             : `지금은 '${currentLabel}'로 보고 있어요. 고정한 분야와 그 하위 분류만 홈·반려생활·TOP 브리더에 나와요.`}
         </p>
       </div>

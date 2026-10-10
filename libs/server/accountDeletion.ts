@@ -40,11 +40,11 @@ export interface DeletionBlocker {
 }
 
 const BLOCKER_MESSAGES: Record<DeletionBlockerCode, string> = {
-  AUCTION_SELLING_ACTIVE: "진행 중인 판매 경매가 있어요.",
+  AUCTION_SELLING_ACTIVE: "진행 중인 분양 경매가 있어요.",
   AUCTION_TOP_BIDDER: "최고 입찰 중인 경매가 있어요.",
-  AUCTION_SETTLING_SELLER: `낙찰된 지 ${AUCTION_SETTLEMENT_GRACE_DAYS}일이 지나지 않은 판매 경매가 있어요.`,
+  AUCTION_SETTLING_SELLER: `낙찰된 지 ${AUCTION_SETTLEMENT_GRACE_DAYS}일이 지나지 않은 분양 경매가 있어요.`,
   AUCTION_SETTLING_WINNER: `낙찰받은 지 ${AUCTION_SETTLEMENT_GRACE_DAYS}일이 지나지 않은 경매가 있어요.`,
-  PRODUCT_RESERVED: "예약중인 상품이 있어요.",
+  PRODUCT_RESERVED: "예약중인 분양글이 있어요.",
 };
 
 /** 탈퇴 이력 확인용 해시. 서버 시크릿을 섞어 원문을 역추적할 수 없게 한다. */

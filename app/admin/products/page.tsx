@@ -11,6 +11,7 @@ import { Input } from "@components/ui/input";
 import { makeImageUrl } from "@libs/client/utils";
 import { getProductPath } from "@libs/product-route";
 import { formatProductPrice } from "@libs/productRules";
+import { productStatusLabel } from "@libs/shared/productTerms";
 import useContentActionDialog from "@components/features/moderation/useContentActionDialog";
 
 export default function AdminProductsPage() {
@@ -30,7 +31,7 @@ export default function AdminProductsPage() {
     const result = await ask(
       action === "hide"
         ? {
-            title: "이 상품을 숨길까요?",
+            title: "이 분양글을 숨길까요?",
             description: "작성자에게만 보이고, 작성자에게 사유가 담긴 알림이 가요. 나중에 숨김을 해제할 수 있어요.",
             confirmText: "숨기기",
           }
@@ -70,7 +71,7 @@ export default function AdminProductsPage() {
   /** 삭제(보조 동작). 되돌릴 수 없어 키워드와 사유를 받는다. */
   const handleDelete = async (id: number) => {
     const result = await ask({
-      title: "이 상품을 삭제할까요?",
+      title: "이 분양글을 삭제할까요?",
       description: "되돌릴 수 없어요. 대부분은 숨김으로 충분해요.",
       confirmText: "삭제",
       tone: "danger",
@@ -85,7 +86,7 @@ export default function AdminProductsPage() {
       const res = await authFetch(`/api/admin/products?${params.toString()}`, { method: "DELETE" });
       const data = await res.json();
       if (data.success) {
-        toast.success("상품을 삭제했어요.");
+        toast.success("분양글을 삭제했어요.");
         mutate();
       } else {
         toast.error(data.error || "삭제하지 못했어요.");
@@ -106,11 +107,11 @@ export default function AdminProductsPage() {
   return (
     <>
       <div className="space-y-6">
-        <h2 className="text-2xl font-bold text-gray-900">상품 관리</h2>
+        <h2 className="text-2xl font-bold text-gray-900">분양 관리</h2>
 
         <form onSubmit={handleSearch} className="flex max-w-md flex-col gap-2 sm:flex-row">
           <Input
-            placeholder="상품명, 내용, 판매자 검색"
+            placeholder="제목, 내용, 분양자 검색"
             value={keyword}
             onChange={(event) => setKeyword(event.target.value)}
           />
@@ -134,10 +135,10 @@ export default function AdminProductsPage() {
             <thead className="bg-gray-50">
               <tr>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
-                  상품
+                  분양글
                 </th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
-                  판매자
+                  분양자
                 </th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
                   상태/가격
@@ -188,7 +189,7 @@ export default function AdminProductsPage() {
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                     <div className="flex flex-col">
                       <span className="text-xs font-semibold">
-                        {product.status}
+                        {productStatusLabel(product.status)}
                         {product.isDeleted ? " · 삭제됨" : product.isHidden ? " · 숨김" : ""}
                       </span>
                       <span>{formatProductPrice(product.price)}</span>
@@ -231,7 +232,7 @@ export default function AdminProductsPage() {
               {data?.products?.length === 0 && (
                 <tr>
                   <td colSpan={5} className="px-6 py-10 text-center text-gray-500">
-                    상품이 없습니다.
+                    분양글이 없습니다.
                   </td>
                 </tr>
               )}

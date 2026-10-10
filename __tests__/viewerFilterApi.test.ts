@@ -588,7 +588,7 @@ describe("GET /api/products/:id 숨김 상품", () => {
     expect(res.statusCode).toBe(404);
     expect(res.body).toEqual({
       success: false,
-      error: "삭제되었거나 숨겨진 상품입니다.",
+      error: "삭제되었거나 숨겨진 분양글입니다.",
       errorCode: "PRODUCT_HIDDEN",
     });
   });

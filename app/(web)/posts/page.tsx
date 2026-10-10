@@ -5,7 +5,7 @@ import type { Metadata } from "next";
 export const metadata: Metadata = {
   title: "반려생활 게시글 | 브리디",
   description:
-    "브리디 반려생활 게시판의 최신 글을 모아서 확인하세요. 판매 후기, 거래 팁, 커뮤니티 소식까지 한 곳에서 빠르게 찾아봅니다.",
+    "브리디 반려생활 게시판의 최신 글을 모아서 확인하세요. 분양 후기, 거래 팁, 커뮤니티 소식까지 한 곳에서 빠르게 찾아봅니다.",
   keywords: ["반려생활", "브리디 게시판", "게시글", "반려동물 커뮤니티"],
   alternates: {
     canonical: "https://bredy.app/posts",

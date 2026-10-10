@@ -52,7 +52,7 @@ import { useEffect, useMemo, useState, type ReactNode } from "react";
 
 // 사진형 A안 v4(앱 myPage, PRD profile.md S-2): 탭은 남의 프로필과 같은 다섯 개(사진·기록·분양·경매·혈통).
 // 댓글은 사이드 메뉴 '내 댓글'(/profiles/:id/comments), 브리디북 신청 내역은 브리디북 신청 화면에 있다.
-// 거래(판매·구매·관심)는 '분양' 탭 맨 위 행과 사이드 메뉴, 설정·고객센터·로그아웃은 사이드 메뉴에 있다.
+// 거래(분양·입양·관심)는 '분양' 탭 맨 위 행과 사이드 메뉴, 설정·고객센터·로그아웃은 사이드 메뉴에 있다.
 
 type TestAccountItem = {
   id: number;

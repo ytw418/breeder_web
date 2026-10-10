@@ -17,7 +17,7 @@ describe("관리자 조치 규칙(앱 useAdminModeration 과 같음)", () => {
     expect(moderationConfirmText("hide", "AUCTION").title).toBe("이 경매를 숨길까요?");
     expect(moderationConfirmText("unhide", "COMMENT").title).toBe("이 댓글의 숨김을 해제할까요?");
     expect(moderationConfirmText("delete", "PRODUCT")).toEqual({
-      title: "이 상품을 삭제할까요?",
+      title: "이 분양글을 삭제할까요?",
       description: "관리자 권한으로 삭제합니다. 삭제 후에는 복구할 수 없습니다.",
       confirmText: "삭제",
     });

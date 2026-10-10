@@ -183,7 +183,7 @@ export default function AuctionsClient() {
               enterKeyHint="search"
               value={searchInput}
               onChange={(event) => setSearchInput(event.target.value)}
-              placeholder="제목, 설명, 판매자 검색"
+              placeholder="제목, 설명, 분양자 검색"
               aria-label="경매 검색"
               className="h-11 min-w-0 flex-1 border-0 bg-transparent p-0 text-[14px] text-app-text placeholder:text-app-caption focus:outline-none focus:ring-0 [&::-webkit-search-cancel-button]:hidden"
             />

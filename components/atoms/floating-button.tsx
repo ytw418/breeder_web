@@ -4,7 +4,7 @@ import React from "react";
 interface FloatingButton {
   children: React.ReactNode;
   href: string;
-  /** 스크린리더 라벨(예: "상품 등록", "글쓰기"). */
+  /** 스크린리더 라벨(예: "분양 등록", "글쓰기"). */
   label?: string;
 }
 

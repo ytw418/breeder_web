@@ -28,7 +28,7 @@ async function handler(
 
   const productId = Number(id.toString().split("-")[0]);
   if (!Number.isInteger(productId) || productId <= 0) {
-    return res.status(400).json({ success: false, message: "유효하지 않은 상품 ID입니다." });
+    return res.status(400).json({ success: false, message: "유효하지 않은 분양글 ID입니다." });
   }
 
   const product = await client.product.findUnique({
@@ -39,7 +39,7 @@ async function handler(
   if (!product || product.isDeleted || product.isHidden) {
     return res.status(404).json({
       success: false,
-      message: "삭제되었거나 숨겨진 상품입니다.",
+      message: "삭제되었거나 숨겨진 분양글입니다.",
       errorCode: "PRODUCT_HIDDEN",
     });
   }

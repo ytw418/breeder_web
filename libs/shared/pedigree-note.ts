@@ -94,7 +94,7 @@ const formatMm = (value: number) => String(Math.round(value * 10) / 10);
 
 /**
  * 표시 문자열 "누대 F3 · 부 81.2mm · 모 47.5mm"(있는 것만, 이 순서). 비면 빈 문자열.
- * 상품·경매 상세 2줄째는 여기에 " · 판매자 입력" 을 붙인다.
+ * 분양글·경매 상세 2줄째는 여기에 " · 분양자 입력" 을 붙인다.
  */
 export function formatPedigreeNote(note?: PedigreeNote | null): string {
   if (!note) return "";

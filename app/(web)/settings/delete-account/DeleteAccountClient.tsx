@@ -162,7 +162,7 @@ export default function DeleteAccountClient() {
         <ul>
           <Bullet>프로필, 관심 목록, 팔로우, 알림은 바로 삭제돼요.</Bullet>
           <Bullet>작성한 게시글·댓글·채팅·경매 기록은 남고, 작성자는 &apos;탈퇴한 사용자&apos;로 표시돼요.</Bullet>
-          <Bullet>판매중인 상품은 목록에서 내려가요.</Bullet>
+          <Bullet>분양 중인 글은 목록에서 내려가요.</Bullet>
           <Bullet>{`개인정보는 분쟁 대응을 위해 ${purgeDays}일 보관한 뒤 완전히 삭제돼요.`}</Bullet>
           <Bullet>{`${purgeDays}일 동안은 같은 계정으로 다시 가입할 수 없어요.`}</Bullet>
         </ul>

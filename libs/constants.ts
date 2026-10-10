@@ -1,10 +1,11 @@
 import { TOP_LEVEL_CATEGORIES } from "@libs/categoryTaxonomy";
+import { DEAL_TYPE_LABELS, PRODUCT_STATUS_LABELS } from "@libs/shared/productTerms";
 
 // ============================================================
 // 카테고리 시스템
 // ============================================================
 
-/** 상품 타입 (생물/용품) */
+/** 분양글 종류 (생물/용품). 값은 DB 그대로, 화면에서는 '종류'로 부른다. */
 export const PRODUCT_TYPES = [
   { id: "생물", name: "생물" },
   { id: "용품", name: "용품" },
@@ -12,20 +13,16 @@ export const PRODUCT_TYPES = [
 
 export type ProductType = (typeof PRODUCT_TYPES)[number]["id"];
 
-/** 상품 거래 유형. 1단계는 판매·분양만 고를 수 있고 파양(rehoming)은 비노출이다(앱 constants/categories.ts). */
+/** 분양글 거래 유형. 1단계는 유료·무료 분양만 고를 수 있고 파양(rehoming)은 비노출이다(앱 constants/categories.ts). */
 export const DEAL_TYPE_OPTIONS = [
-  { id: "sale", name: "판매" },
-  { id: "adoption", name: "분양" },
+  { id: "sale", name: DEAL_TYPE_LABELS.sale },
+  { id: "adoption", name: DEAL_TYPE_LABELS.adoption },
 ] as const;
 
-/** 거래 유형 표시 이름(파양은 옛 데이터·관리자 입력용). */
-export const DEAL_TYPE_LABELS: Record<string, string> = {
-  sale: "판매",
-  adoption: "분양",
-  rehoming: "파양",
-};
+/** 거래 유형 표시 이름(파양은 옛 데이터·관리자 입력용). 화면 이름은 libs/shared/productTerms.ts 한 곳에서 정한다. */
+export { DEAL_TYPE_LABELS };
 
-/** 상품 카테고리 (경매와 동일한 대분류) */
+/** 분양글 카테고리 (경매와 동일한 대분류) */
 export const CATEGORIES = [
   ...TOP_LEVEL_CATEGORIES,
 ] as const;
@@ -47,11 +44,11 @@ export const POST_CATEGORIES = [
 
 export type PostCategory = (typeof POST_CATEGORIES)[number]["id"];
 
-/** 상품 상태 */
+/** 분양글 상태. id 는 DB 값 그대로이고 name 만 화면 이름(분양중·예약중·분양완료)이다. */
 export const PRODUCT_STATUS = [
-  { id: "판매중", name: "판매중" },
-  { id: "예약중", name: "예약중" },
-  { id: "판매완료", name: "판매완료" },
+  { id: "판매중", name: PRODUCT_STATUS_LABELS["판매중"] },
+  { id: "예약중", name: PRODUCT_STATUS_LABELS["예약중"] },
+  { id: "판매완료", name: PRODUCT_STATUS_LABELS["판매완료"] },
 ] as const;
 
 /** 경매 상태 */

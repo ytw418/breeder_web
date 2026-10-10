@@ -41,7 +41,7 @@ const TARGET_TYPE_FILTERS: TargetTypeFilter[] = ["ALL", ...REPORT_TARGET_TYPES];
  */
 const deleteContentText = (type: ReportTargetType) =>
   type === "PRODUCT"
-    ? "상품 삭제(목록에서 내림)"
+    ? "분양글 삭제(목록에서 내림)"
     : type === "BLOODLINE_CARD"
       ? "혈통 회수(되돌릴 수 없음)"
       : `${REPORT_TARGET_LABEL[type]} 삭제(되돌릴 수 없음)`;
@@ -247,7 +247,7 @@ export default function AdminReportsPage() {
       }
       const closed = result.closedReportIds?.length ?? 1;
       if (result.contentFailed) {
-        toast.error("사용자 조치는 적용했지만 콘텐츠 조치는 실패했어요. 게시물·상품 관리에서 다시 숨겨 주세요.");
+        toast.error("사용자 조치는 적용했지만 콘텐츠 조치는 실패했어요. 게시물·분양 관리에서 다시 숨겨 주세요.");
         setExpandedId(null);
         mutateReports();
         return;
@@ -285,7 +285,7 @@ export default function AdminReportsPage() {
           <div>
             <h2 className="text-2xl font-bold text-gray-900">신고 관리</h2>
             <p className="mt-1 text-sm text-gray-500">
-              게시글·댓글·상품·채팅·사용자·혈통 신고를 검토하고 처리합니다.
+              게시글·댓글·분양글·채팅·사용자·혈통 신고를 검토하고 처리합니다.
             </p>
           </div>
         </div>

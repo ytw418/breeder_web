@@ -39,10 +39,10 @@ const PAGE_SIZE = 12;
 const CATEGORY_TABS = [{ id: "전체", name: "전체" }, ...TOP_LEVEL_CATEGORIES];
 
 /**
- * 상품 목록(앱 src/app/products/index.tsx). 필터 블록(대분류·하위분류·정렬·타입·판매중만·가격)을
- * 헤더 아래 고정하고, 그 아래 "전체 N개 · 초기화" 요약과 상품 행을 그린다.
+ * 분양 목록(앱 src/app/products/index.tsx). 필터 블록(대분류·하위분류·정렬·타입·분양중만·가격)을
+ * 헤더 아래 고정하고, 그 아래 "전체 N개 · 초기화" 요약과 분양글 행을 그린다.
  * 필터는 화면 상태로 두되 바꿀 때마다 URL 에 적고(router.replace), URL 이 바뀌면(링크·뒤로가기) 다시 읽는다.
- * 그래서 상세에 갔다가 뒤로 오면 고른 필터가 그대로다(홈 "상품목록 ›", 무료나눔 카드, 하위분류 링크).
+ * 그래서 상세에 갔다가 뒤로 오면 고른 필터가 그대로다(홈 "분양 목록 ›", 무료나눔 카드, 하위분류 링크).
  */
 export default function ProductsClient({ initialParams }: { initialParams: ProductFilterParams }) {
   const router = useRouter();
@@ -141,14 +141,14 @@ export default function ProductsClient({ initialParams }: { initialParams: Produ
     if (isFirstLoading) return <ProductRowSkeleton count={5} />;
     if (firstPageError) {
       return (
-        <QueryErrorState title="상품 목록을 불러오지 못했어요" onRetry={() => void mutate()} />
+        <QueryErrorState title="분양 목록을 불러오지 못했어요" onRetry={() => void mutate()} />
       );
     }
     if (!isDefault) {
       return (
         <div className="flex flex-col items-center px-4 py-20 text-center">
           <p className="text-[16px] font-semibold tracking-[-0.3px] text-app-text">
-            조건에 맞는 상품이 없어요
+            조건에 맞는 분양글이 없어요
           </p>
           <p className="mt-1.5 text-[14px] tracking-[-0.2px] text-app-muted">
             필터를 바꾸거나 초기화해 보세요
@@ -167,7 +167,7 @@ export default function ProductsClient({ initialParams }: { initialParams: Produ
   };
 
   return (
-    <Layout canGoBack title="상품 목록" seoTitle="상품 목록">
+    <Layout canGoBack title="분양 목록" seoTitle="분양 목록">
       {/* 필터 블록(헤더 아래 고정) */}
       <div className="sticky top-14 z-10 border-b border-app-line bg-app-bg">
         <div ref={categoryRailRef} className="flex h-11 items-center gap-2 overflow-x-auto px-4 scrollbar-hide">
@@ -232,7 +232,7 @@ export default function ProductsClient({ initialParams }: { initialParams: Produ
             />
           ))}
           <FilterChip
-            label="판매중만"
+            label="분양중만"
             selected={filters.onSaleOnly}
             onClick={() => updateFilters({ ...filters, onSaleOnly: !filters.onSaleOnly })}
           />
@@ -294,7 +294,7 @@ export default function ProductsClient({ initialParams }: { initialParams: Produ
               onRetry={() => void setSize(loadedPages + 1)}
             />
           ) : !hasMore ? (
-            <p className="py-6 text-center text-[13px] text-app-muted">모든 상품을 봤어요</p>
+            <p className="py-6 text-center text-[13px] text-app-muted">모든 분양글을 봤어요</p>
           ) : null
         ) : null}
         <div ref={sentinelRef} aria-hidden="true" />
@@ -303,7 +303,7 @@ export default function ProductsClient({ initialParams }: { initialParams: Produ
       {/* 탭바가 없는 화면이라 FAB 를 하단 safe-area 바로 위에 둔다. */}
       <Link
         href="/products/upload"
-        aria-label="상품 등록"
+        aria-label="분양 등록"
         className="fixed bottom-[calc(16px+env(safe-area-inset-bottom))] right-[max(16px,calc((100vw-36rem)/2+16px))] z-40 flex h-14 w-14 items-center justify-center rounded-2xl bg-app-brand text-white shadow-[0_12px_28px_rgba(249,115,22,0.35)] dark:shadow-none"
       >
         <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true">
