@@ -5,7 +5,7 @@ import type { NextApiRequest, NextApiResponse } from "next";
  * - GET /api/users/:id : bio · topSpecies · _count.auctions
  * - GET /api/users/:id/posts?media=photo&species= : 사진 글만, 고정 우선
  * - GET /api/users/:id/photo-albums : 종별 자동 앨범
- * - POST /api/posts/:id/profile-pin : 프로필 고정(최대 3, 멱등)
+ * - POST /api/posts/:id/profile-pin : 프로필 고정(최대 9, 멱등)
  */
 
 const mockTx = {
@@ -325,12 +325,20 @@ describe("POST /api/posts/:id/profile-pin (AC-7)", () => {
     expect(res.body.errorCode).toBe("POST_NOT_PINNABLE");
   });
 
-  it("이미 3개 고정이면 409 PROFILE_PIN_LIMIT", async () => {
-    mockTx.post.count.mockResolvedValue(3);
+  it("이미 9개 고정이면 409 PROFILE_PIN_LIMIT", async () => {
+    mockTx.post.count.mockResolvedValue(9);
     const res = await pin({ pinned: true });
     expect(res.statusCode).toBe(409);
     expect(res.body.errorCode).toBe("PROFILE_PIN_LIMIT");
+    expect(res.body.error).toBe("프로필 고정은 9개까지 할 수 있어요.");
     expect(mockTx.post.update).not.toHaveBeenCalled();
+  });
+
+  it("8개 고정이면 9번째를 고정한다", async () => {
+    mockTx.post.count.mockResolvedValue(8);
+    const res = await pin({ pinned: true });
+    expect(res.statusCode).toBe(200);
+    expect(res.body.pinned).toBe(true);
   });
 
   it("고정하면 작성자 행을 잠그고 세서 profilePinnedAt 을 저장한다", async () => {
@@ -352,7 +360,7 @@ describe("POST /api/posts/:id/profile-pin (AC-7)", () => {
 
   it("잠금을 기다리는 사이 같은 글이 먼저 고정됐으면 409 가 아니라 그 값으로 200", async () => {
     mockTx.post.findUnique.mockResolvedValue({ profilePinnedAt: day(3) });
-    mockTx.post.count.mockResolvedValue(3);
+    mockTx.post.count.mockResolvedValue(9);
     const res = await pin({ pinned: true });
     expect(res.statusCode).toBe(200);
     expect(res.body).toEqual({ success: true, pinned: true, profilePinnedAt: day(3).toISOString() });

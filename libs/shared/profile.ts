@@ -5,7 +5,7 @@
 /** 소개 최대 글자 수(코드포인트 기준 — 이모지 1개 = 1자). v5 에서 150 → 300. DB 는 TEXT 라 숫자만 바꾸면 늘릴 수 있다. */
 export const BIO_MAX = 300;
 /** 프로필 사진 그리드 맨 앞에 고정할 수 있는 게시글 수. */
-export const PROFILE_PIN_MAX = 3;
+export const PROFILE_PIN_MAX = 9;
 
 export const BIO_TOO_LONG_MESSAGE = `소개는 ${BIO_MAX}자까지 쓸 수 있어요.`;
 export const BIO_INVALID_MESSAGE = "소개 값이 올바르지 않습니다.";

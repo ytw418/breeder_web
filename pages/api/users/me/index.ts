@@ -233,13 +233,15 @@ async function handler(
           },
         });
       }
-      if (avatarId) {
+      // 새 사진 id 가 있으면 바꾸고, removeAvatar 면 지워 기본 이미지로 돌린다.
+      // avatarId: null 은 '안 바꿈'이다(웹·구 앱이 안 바꿀 때도 null 을 보낸다).
+      if (avatarId || body.removeAvatar === true) {
         await client.user.update({
           where: {
             id: user?.id,
           },
           data: {
-            avatar: avatarId,
+            avatar: avatarId || null,
           },
         });
       }

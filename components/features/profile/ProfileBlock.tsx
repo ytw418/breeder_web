@@ -3,7 +3,7 @@
  * 프로필 블록(앱 ProfileBlock, 2026-10-09 v4 — 시안 design/mockups/profile/A-karrot.html `.profile`).
  * 아바타 80(누르면 크게 보기) 옆에 게시물·팔로워·팔로잉 3칸 → 이름 16/700 → 브리더 컬러 뱃지 →
  * 주력 종 13 muted → 신뢰 줄 13 muted(v5) → 소개 14/1.5 → 버튼 줄 36. 버튼은 화면이 상태(본인·타인·차단·탈퇴)에 맞게 넘긴다.
- * v6: 커버가 있으면 맨 위 전체 폭 3:1(누르면 크게 보기), 아바타가 32 겹친다. 대표 링크는 소개 바로 아래 한 줄.
+ * v6: 커버가 있으면 맨 위 전체 폭 2:1(2026-10-11 3:1 에서 높임, 누르면 크게 보기), 아바타가 32 겹친다. 대표 링크는 소개 바로 아래 한 줄.
  */
 import Link from "next/link";
 import { useState, type ReactNode } from "react";
@@ -122,7 +122,7 @@ export function ProfileBlock({
           type="button"
           aria-label={`${name} 커버 사진 크게 보기`}
           onClick={() => setBannerOpen(true)}
-          className="block aspect-[3/1] w-full overflow-hidden bg-app-placeholder"
+          className="block aspect-[2/1] w-full overflow-hidden bg-app-placeholder"
         >
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img src={makeImageUrl(banner, "public")} alt="" className="h-full w-full object-cover" />

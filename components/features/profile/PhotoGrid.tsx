@@ -1,6 +1,6 @@
 "use client";
 /**
- * 프로필 사진 그리드(앱 PhotoGrid, 시안 `.grid`): 3열 정사각, 간격 2, 고정 글은 우상단 '고정' 11px 라벨.
+ * 프로필 사진 그리드(앱 PhotoGrid, 시안 `.grid`): 3열 정사각, 간격 2, 고정 글은 우상단 핀 아이콘(지름 22 원 안에 14).
  * 칸을 누르면 게시글 상세. onPinPost 를 주면(본인) 칸 오른쪽 아래 ⋯ 버튼(앱의 길게 누르기)·오른쪽 클릭으로
  * 고정/해제 시트를 연다 — 데스크톱에는 길게 누르기가 없어서다(플랫폼 관습 차이).
  */
@@ -14,6 +14,10 @@ import { makeImageUrl } from "@libs/client/utils";
 import { toPostPath } from "@libs/post-route";
 
 const coverOf = (post: ProfilePost) => post.images?.[0] || post.image;
+
+/** 고정 표시 핀(채운 압정, 앱 Icon "pin" 과 같은 path). 2026-10-11 '고정' 글자 대신 아이콘으로 바꿨다. */
+const PIN_PATH =
+  "M16 9V4h1c.55 0 1-.45 1-1s-.45-1-1-1H7c-.55 0-1 .45-1 1s.45 1 1 1h1v5c0 1.66-1.34 3-3 3v2h5.97v7l1 1 1-1v-7H19v-2c-1.66 0-3-1.34-3-3z";
 
 export default function PhotoGrid({
   list,
@@ -82,8 +86,10 @@ export default function PhotoGrid({
                 ) : null}
               </Link>
               {pinned ? (
-                <span className="pointer-events-none absolute right-1.5 top-1.5 rounded bg-app-bg px-[5px] py-0.5 text-[11px] leading-[14px] text-app-text">
-                  고정
+                <span className="pointer-events-none absolute right-1.5 top-1.5 grid h-[22px] w-[22px] place-items-center rounded-full bg-app-bg text-app-text">
+                  <svg width={14} height={14} viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+                    <path d={PIN_PATH} />
+                  </svg>
                 </span>
               ) : null}
               {onPinPost ? (
