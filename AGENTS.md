@@ -27,6 +27,12 @@
 - API 만 바꾸는 서버 작업은 대상이 아니다. 화면 코드(`app/` 중 api·admin 제외, `components`, `hooks`, `libs/client`, `styles`)를 커밋할 때 트레일러를 단다: `Parity: both — <앱 커밋·브랜치>` 또는 `Parity: web-only — <이유>`. 앱을 미뤄야 하면 답변에 `Parity: pending — <이유>`를 적고 기준표 §7 에 올린다.
 - 훅 `.claude/hooks/parity-guard.py`(bredy_app 사본과 같은 내용)가 강제한다. 커밋 게이트는 트레일러 없는 화면 코드 커밋을 막고, Stop 점검은 한쪽만 고친 세션을 되돌려 보낸다. 바꿀 때는 두 사본을 같이 고치고 `python3 .claude/hooks/parity-guard_test.py`를 돌린다.
 
+## 화면 용어 — '상품·판매' 대신 '분양' (MANDATORY — 2026-10-10)
+사용자 결정("상품이라고 하면 이미지가 안 좋아"). 화면·서버 응답·알림·SEO 문구에 '상품'·'판매'·'구매'를 쓰지 않는다. 용어표는 bredy_app `docs/terminology.md`다.
+- 상품 → 분양글(글 하나)·분양(메뉴·동작)·개체(동물 자체), 상품명·상품 설명·상품 타입 → 제목·설명·종류, 판매중·판매완료 → 분양중·분양완료, 판매내역·구매내역 → 분양내역·입양내역, 판매자·구매자 → 분양자·입양자, 구매확정 → 입양 확정, 거래 유형 판매·분양 → 유료 분양·무료 분양, 허위 매물 → 허위 분양글.
+- DB·API 값(`판매중`·`판매완료`, `sale`·`adoption`)과 코드 이름(`Product`, `/products`)은 그대로 둔다. 화면에 보일 때만 `productStatusLabel()`·`dealTypeLabel()`(`libs/shared/productTerms.ts` = 앱 `src/lib/productTerms.ts` 사본)을 거친다.
+- 시안·PRD·옛 기록의 '판매·구매·관심', '판매중·예약중 상품' 같은 문구는 이 표로 바꿔 읽는다.
+
 ## 스레드 간 일관성 규칙
 - 다른 대화 스레드에서 시작하더라도 이 `AGENTS.md` 규칙을 동일하게 적용한다.
 - 새 스레드의 첫 작업 전에 현재 저장소의 `AGENTS.md`를 우선 확인하고, 본 문서 기준으로 작업한다.

@@ -107,7 +107,7 @@ async function handler(
     }
     return res.status(404).json({
       success: false,
-      message: "상품을 찾을 수 없습니다.",
+      message: "분양글을 찾을 수 없습니다.",
     });
   }
 
@@ -115,7 +115,7 @@ async function handler(
   if (req.method === "POST" && product.isDeleted) {
     return res.status(404).json({
       success: false,
-      message: "삭제된 상품입니다.",
+      message: "삭제된 분양글입니다.",
       errorCode: "PRODUCT_DELETED",
     });
   }
@@ -139,7 +139,7 @@ async function handler(
     ) {
       return res.status(404).json({
         success: false,
-        error: "삭제되었거나 숨겨진 상품입니다.",
+        error: "삭제되었거나 숨겨진 분양글입니다.",
         errorCode: "PRODUCT_HIDDEN",
       });
     }
@@ -215,17 +215,17 @@ async function handler(
           return res.status(401).json({ success: false, message: "로그인이 필요합니다." });
         }
         if (product.user.id === user.id) {
-          return res.status(400).json({ success: false, message: "자신의 상품은 구매할 수 없습니다." });
+          return res.status(400).json({ success: false, message: "자신의 분양글은 입양 확정할 수 없습니다." });
         }
         if (product.status !== "판매완료") {
-          return res.status(400).json({ success: false, message: "판매완료된 상품만 구매확정할 수 있습니다." });
+          return res.status(400).json({ success: false, message: "분양완료된 분양글만 입양 확정할 수 있습니다." });
         }
         // 이미 구매확정 했는지 확인
         const existingPurchase = await client.purchase.findFirst({
           where: { productId: product.id, userId: user.id },
         });
         if (existingPurchase) {
-          return res.status(400).json({ success: false, message: "이미 구매확정한 상품입니다." });
+          return res.status(400).json({ success: false, message: "이미 입양 확정한 분양글입니다." });
         }
         await client.purchase.create({
           data: {
@@ -368,7 +368,7 @@ async function handler(
           where: { productId: product.id, userId: user!.id },
         });
         if (existingSale) {
-          return res.status(400).json({ success: false, message: "이미 판매완료 처리된 상품입니다." });
+          return res.status(400).json({ success: false, message: "이미 분양완료 처리된 분양글입니다." });
         }
         await client.$transaction([
           client.product.update({

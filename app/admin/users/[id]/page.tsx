@@ -111,7 +111,7 @@ const TABS: { value: Tab; label: string }[] = [
   { value: "sanctions", label: "제재 이력" },
   { value: "reports", label: "받은 신고" },
   { value: "content", label: "콘텐츠 조치" },
-  { value: "recent", label: "최근 글·상품" },
+  { value: "recent", label: "최근 글·분양글" },
 ];
 
 const CONTENT_ACTION_LABEL: Record<ModerationActionType, string> = {
@@ -446,7 +446,7 @@ export default function AdminUserDetailPage() {
                       target="_blank"
                       className="flex items-center justify-between rounded-lg border border-gray-100 p-3 text-sm hover:bg-gray-50"
                     >
-                      <span className="line-clamp-1">상품 · {product.name}</span>
+                      <span className="line-clamp-1">분양글 · {product.name}</span>
                       <span className="text-xs text-gray-500">
                         {product.isDeleted ? "삭제 · " : product.isHidden ? "숨김 · " : ""}
                         {new Date(product.createdAt).toLocaleDateString()}
@@ -455,7 +455,7 @@ export default function AdminUserDetailPage() {
                   ))}
                 </>
               ) : (
-                <EmptyRow text="최근 글·상품이 없어요." />
+                <EmptyRow text="최근 글·분양글이 없어요." />
               )
             ) : null}
           </div>

@@ -17,7 +17,7 @@ const ADMIN_MENUS = [
   { name: "유저 관리", href: "/admin/users" },
   { name: "고객의 소리", href: "/admin/voice" },
   { name: "게시물 관리", href: "/admin/posts" },
-  { name: "상품 관리", href: "/admin/products" },
+  { name: "분양 관리", href: "/admin/products" },
 ];
 
 const adminEnvRaw = String(

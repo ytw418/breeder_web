@@ -12,8 +12,8 @@ export const metadata: Metadata = {
       follow: false,
     },
   },
-  title: "상품 업로드 | 브리디",
-  description: "로그인 사용자 전용 상품 업로드 페이지입니다.",
+  title: "분양 등록 | 브리디",
+  description: "로그인 사용자 전용 분양 등록 페이지입니다.",
 };
 
 const page = () => {

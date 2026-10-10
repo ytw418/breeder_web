@@ -26,8 +26,8 @@ const COPY: Record<PushPromptReason, { title: string; body: string; confirm: str
     confirm: "알림 받기",
   },
   product: {
-    title: "구매 문의를 놓치지 않게 알림을 켜 주세요",
-    body: "알림이 꺼져 있으면 구매자가 채팅을 보내도 바로 알려드릴 수 없어요.",
+    title: "분양 문의를 놓치지 않게 알림을 켜 주세요",
+    body: "알림이 꺼져 있으면 입양자가 채팅을 보내도 바로 알려드릴 수 없어요.",
     confirm: "알림 켜기",
   },
 };

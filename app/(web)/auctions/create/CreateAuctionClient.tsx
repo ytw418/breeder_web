@@ -539,7 +539,7 @@ const CreateAuctionClient = () => {
 
         {/* 판매자 신뢰 정보(선택) */}
         <div>
-          <FieldLabel label="판매자 신뢰 정보" caption="선택" />
+          <FieldLabel label="분양자 신뢰 정보" caption="선택" />
           <p className="-mt-0.5 mb-2 text-[13px] leading-[18px] text-app-muted">
             전화·이메일은 가려서 보이고, 낙찰되면 낙찰자에게만 모두 보여요.
           </p>
@@ -618,7 +618,7 @@ const CreateAuctionClient = () => {
           </div>
           {sellerProofImage ? (
             <div className="relative mt-2.5 h-28 w-40 overflow-hidden rounded-md bg-app-placeholder">
-              <Image src={makeImageUrl(sellerProofImage, "public")} alt="판매자 신뢰 자료" fill sizes="160px" className="object-cover" />
+              <Image src={makeImageUrl(sellerProofImage, "public")} alt="분양자 신뢰 자료" fill sizes="160px" className="object-cover" />
             </div>
           ) : null}
         </div>

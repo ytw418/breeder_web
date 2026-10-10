@@ -64,8 +64,8 @@ describe("BloodlineLinkRow (상품·경매 상세 혈통 행)", () => {
     expect(link).toHaveAttribute("href", "/bloodline-management/card/5");
     expect(link).toHaveTextContent("혈통");
     expect(link).toHaveTextContent("강산 라인 · 충남 공주");
-    expect(screen.getByText("판매자가 만든 혈통")).toBeInTheDocument();
-    expect(screen.getByText("누대 F3 · 부 81.2mm · 모 47.5mm · 판매자 입력")).toBeInTheDocument();
+    expect(screen.getByText("분양자가 만든 혈통")).toBeInTheDocument();
+    expect(screen.getByText("누대 F3 · 부 81.2mm · 모 47.5mm · 분양자 입력")).toBeInTheDocument();
   });
 
   it("출처 카드를 받은 판매자는 받은 날(한국 시간 MM.DD)을, 그 외는 만든 사람 혈통만 보인다", () => {
@@ -73,9 +73,9 @@ describe("BloodlineLinkRow (상품·경매 상세 혈통 행)", () => {
       bloodlineLinkRelationText(
         summary({ sellerRelation: "received", receivedAt: "2026-09-11T16:30:00.000Z" })
       )
-    ).toBe("강산님 혈통 · 판매자가 09.12 출처 카드 받음");
+    ).toBe("강산님 혈통 · 분양자가 09.12 출처 카드 받음");
     expect(bloodlineLinkRelationText(summary({ sellerRelation: "received", receivedAt: null }))).toBe(
-      "강산님 혈통 · 판매자가 출처 카드 받음"
+      "강산님 혈통 · 분양자가 출처 카드 받음"
     );
     expect(bloodlineLinkRelationText(summary({ sellerRelation: "holder" }))).toBe("강산님 혈통");
     expect(bloodlineLinkRelationText(summary({ sellerRelation: "none" }))).toBe("강산님 혈통");
@@ -89,7 +89,7 @@ describe("BloodlineLinkRow (상품·경매 상세 혈통 행)", () => {
     expect(container.textContent).toBe("혈통강산 라인강산님 혈통");
     expect(bloodlinePedigreeLine({ sireMm: 0 })).toBeNull();
     expect(bloodlinePedigreeLine({})).toBeNull();
-    expect(bloodlinePedigreeLine({ sireMm: "81.2" })).toBe("부 81.2mm · 판매자 입력");
+    expect(bloodlinePedigreeLine({ sireMm: "81.2" })).toBe("부 81.2mm · 분양자 입력");
   });
 
   it("미리보기와 href null 은 링크를 걸지 않는다", () => {
@@ -241,7 +241,7 @@ describe("BloodlineAttachSheet (혈통 붙이기 시트)", () => {
     fireEvent.click(await screen.findByRole("radio", { name: /오닉스 라인/ }));
     expect(screen.getByRole("radio", { name: /오닉스 라인/ })).toHaveAttribute("aria-checked", "true");
     expect(screen.getByText("상세에 이렇게 보여요")).toBeInTheDocument();
-    expect(screen.getByText("박도윤님 혈통 · 판매자가 09.12 출처 카드 받음")).toBeInTheDocument();
+    expect(screen.getByText("박도윤님 혈통 · 분양자가 09.12 출처 카드 받음")).toBeInTheDocument();
 
     fireEvent.change(screen.getByLabelText("부 크기(mm)"), { target: { value: "81.25" } });
     expect(applyButton()).toBeDisabled();
@@ -249,7 +249,7 @@ describe("BloodlineAttachSheet (혈통 붙이기 시트)", () => {
     fireEvent.change(screen.getByLabelText("부 크기(mm)"), { target: { value: "81.2" } });
     fireEvent.change(screen.getByLabelText("모 크기(mm)"), { target: { value: "47.5" } });
     fireEvent.change(screen.getByLabelText("누대"), { target: { value: "F3" } });
-    expect(screen.getByText("누대 F3 · 부 81.2mm · 모 47.5mm · 판매자 입력")).toBeInTheDocument();
+    expect(screen.getByText("누대 F3 · 부 81.2mm · 모 47.5mm · 분양자 입력")).toBeInTheDocument();
     expect(applyButton()).toBeEnabled();
 
     fireEvent.click(applyButton()!);
@@ -260,10 +260,10 @@ describe("BloodlineAttachSheet (혈통 붙이기 시트)", () => {
     });
   });
 
-  it("내가 만든 혈통을 고르면 미리보기 관계가 '판매자가 만든 혈통'이다", async () => {
+  it("내가 만든 혈통을 고르면 미리보기 관계가 '분양자가 만든 혈통'이다", async () => {
     const { onApply } = renderSheet();
     fireEvent.click(await screen.findByRole("radio", { name: /강산 라인/ }));
-    expect(screen.getByText("판매자가 만든 혈통")).toBeInTheDocument();
+    expect(screen.getByText("분양자가 만든 혈통")).toBeInTheDocument();
     fireEvent.click(applyButton()!);
     expect(onApply).toHaveBeenCalledWith({ rootId: 1, note: {}, bloodline: mineItem });
   });

@@ -305,7 +305,7 @@ const SettingsClient = () => {
         <SectionTitle title="계정" />
         <Row label="프로필 수정" icon="user" chevron href="/editProfile" />
         <Row
-          label="내 상품 관리"
+          label="내 분양 관리"
           icon="box"
           chevron
           href={user?.id ? `/profiles/${user.id}/sales` : "/myPage"}

@@ -180,12 +180,12 @@ export function MenuRow({
   );
 }
 
-/** 판매내역 · 구매내역 · (본인만) 관심목록. 다른 사람 프로필에는 관심목록을 두지 않는다(서버도 403). */
+/** 분양내역 · 입양내역 · (본인만) 관심목록. 다른 사람 프로필에는 관심목록을 두지 않는다(서버도 403). */
 export function TransactionMenu({ userId, isMine }: { userId: number | string; isMine: boolean }) {
   return (
     <div className="py-1">
-      <MenuRow label="판매내역" icon="shopping-cart" href={`/profiles/${userId}/sales`} />
-      <MenuRow label="구매내역" icon="bag" href={`/profiles/${userId}/purchases`} />
+      <MenuRow label="분양내역" icon="shopping-cart" href={`/profiles/${userId}/sales`} />
+      <MenuRow label="입양내역" icon="bag" href={`/profiles/${userId}/purchases`} />
       {isMine ? (
         <MenuRow label="관심목록" icon="heart-outline" href={`/profiles/${userId}/favs`} />
       ) : null}

@@ -43,7 +43,7 @@ describe("MySellHistoryList 삭제·숨김 상품", () => {
     },
   });
 
-  it("삭제·숨김 상품은 링크 없이 '삭제된 상품'·'숨김 상품'으로 보이고, 살아 있는 상품은 링크로 보인다", () => {
+  it("삭제·숨김 상품은 링크 없이 '삭제된 분양글'·'숨김 분양글'로 보이고, 살아 있는 상품은 링크로 보인다", () => {
     mockUseSWR.mockReturnValue({
       isLoading: false,
       data: {
@@ -63,8 +63,8 @@ describe("MySellHistoryList 삭제·숨김 상품", () => {
       expect(screen.getByText(name)).toBeInTheDocument();
       expect(screen.queryByRole("link", { name })).toBeNull();
     }
-    expect(screen.getAllByText("삭제된 상품")).toHaveLength(1);
-    expect(screen.getAllByText("숨김 상품")).toHaveLength(1);
+    expect(screen.getAllByText("삭제된 분양글")).toHaveLength(1);
+    expect(screen.getAllByText("숨김 분양글")).toHaveLength(1);
     expect(screen.getAllByRole("link")).toHaveLength(1);
   });
 });
@@ -102,13 +102,13 @@ describe("ProfileProductRows 가격 표시", () => {
   it("다음 페이지가 있으면 더보기로 이어 받는다", () => {
     const state = { ...list([product(1, 100)]), hasNextPage: true };
     render(<ProfileProductRows list={state} />);
-    fireEvent.click(screen.getByRole("button", { name: "상품 더보기" }));
+    fireEvent.click(screen.getByRole("button", { name: "분양글 더보기" }));
     expect(state.loadMore).toHaveBeenCalledTimes(1);
   });
 });
 
 describe("MySellHistoryList 오류 처리", () => {
-  const emptyTexts = ["아직 구매 내역이 없습니다", "아직 관심 상품이 없습니다"];
+  const emptyTexts = ["아직 입양 내역이 없습니다", "아직 관심 분양글이 없습니다"];
   const swrError = (status: number, message = "요청 처리 중 오류가 발생했습니다.") =>
     Object.assign(new Error(message), { status });
 
@@ -179,7 +179,7 @@ describe("MySellHistoryList 오류 처리", () => {
     });
     render(<MySellHistoryList kind="purchases" id={7} />);
 
-    expect(screen.getByText("구매내역을 불러올 수 없습니다.")).toBeInTheDocument();
+    expect(screen.getByText("입양내역을 불러올 수 없습니다.")).toBeInTheDocument();
     expectNoEmptyState();
     fireEvent.click(screen.getByRole("button", { name: "다시 시도" }));
     expect(mutate).toHaveBeenCalledTimes(1);
@@ -194,6 +194,6 @@ describe("MySellHistoryList 오류 처리", () => {
     });
     render(<MySellHistoryList kind="purchases" id={7} />);
 
-    expect(screen.getByText("아직 구매 내역이 없습니다")).toBeInTheDocument();
+    expect(screen.getByText("아직 입양 내역이 없습니다")).toBeInTheDocument();
   });
 });

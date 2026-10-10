@@ -135,10 +135,10 @@ describe("알림 권유 시트", () => {
     await act(async () => {
       await promptPushAfterProductUpload(7);
     });
-    expect(screen.getByText("구매 문의를 놓치지 않게 알림을 켜 주세요")).toBeTruthy();
+    expect(screen.getByText("분양 문의를 놓치지 않게 알림을 켜 주세요")).toBeTruthy();
     expect(screen.getByRole("button", { name: "알림 켜기" })).toBeTruthy();
     fireEvent.click(screen.getByRole("button", { name: "나중에" }));
-    expect(screen.queryByText("구매 문의를 놓치지 않게 알림을 켜 주세요")).toBeNull();
+    expect(screen.queryByText("분양 문의를 놓치지 않게 알림을 켜 주세요")).toBeNull();
   });
 
   it("브라우저에서 차단했으면 경로를 안내하고 설정 화면으로 보낸다", async () => {

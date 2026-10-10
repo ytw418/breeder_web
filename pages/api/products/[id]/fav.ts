@@ -21,7 +21,7 @@ async function handler(
   const productId = Number(id.toString().split("-")[0]);
 
   if (isNaN(productId)) {
-    return res.status(400).json({ success: false, message: "유효하지 않은 상품 ID입니다." });
+    return res.status(400).json({ success: false, message: "유효하지 않은 분양글 ID입니다." });
   }
 
   // 상품 존재 여부 확인
@@ -31,7 +31,7 @@ async function handler(
   });
 
   if (!product) {
-    return res.status(404).json({ success: false, message: "상품을 찾을 수 없습니다." });
+    return res.status(404).json({ success: false, message: "분양글을 찾을 수 없습니다." });
   }
 
   try {
@@ -53,7 +53,7 @@ async function handler(
       if (product.isDeleted || product.isHidden) {
         return res.status(404).json({
           success: false,
-          message: "삭제된 상품입니다.",
+          message: "삭제된 분양글입니다.",
           errorCode: "PRODUCT_HIDDEN",
         });
       }
@@ -78,7 +78,7 @@ async function handler(
             type: "FAV",
             userId: product.userId,
             senderId: user.id,
-            message: `${senderUser.name}님이 회원님의 상품을 찜했습니다.`,
+            message: `${senderUser.name}님이 회원님의 분양글을 찜했습니다.`,
             targetId: productId,
             targetType: "product",
           });

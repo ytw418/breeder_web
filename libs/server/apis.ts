@@ -106,7 +106,7 @@ export async function getProduct(
   { mode = "no-store", revalidateSeconds = CACHE_TIME }: GetProductOptions = {}
 ) {
   const baseUrls = resolveBaseUrls();
-  let lastError = "상품 조회 중 오류가 발생했습니다.";
+  let lastError = "분양글 조회 중 오류가 발생했습니다.";
 
   for (const baseUrl of baseUrls) {
     try {
@@ -134,7 +134,7 @@ export async function getProduct(
       lastError = `[${baseUrl}] ${parsed.error}`;
     } catch (error) {
       lastError = `[${baseUrl}] ${
-        error instanceof Error ? error.message : "상품 조회 중 오류가 발생했습니다."
+        error instanceof Error ? error.message : "분양글 조회 중 오류가 발생했습니다."
       }`;
     }
   }

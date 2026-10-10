@@ -58,7 +58,7 @@ export const SANCTION_REASON_LABEL: Record<SanctionReasonCode, string> = {
   SEXUAL: "음란·선정적 내용",
   PRIVACY: "개인정보 노출",
   FALSE_INFO: "허위 정보",
-  FRAUD: "사기·허위 매물",
+  FRAUD: "사기·허위 분양글",
   ILLEGAL_ITEM: "거래 금지 품목(불법 개체)",
   DUPLICATE: "중복·도배",
   HARASSMENT: "괴롭힘·협박",
@@ -81,7 +81,8 @@ export const REPORT_REASON_TO_SANCTION_REASON: Record<string, SanctionReasonCode
   "음란·선정적 내용": "SEXUAL",
   "개인정보 노출": "PRIVACY",
   "허위 정보": "FALSE_INFO",
-  "허위 매물·사기 의심": "FRAUD",
+  "허위 분양글·사기 의심": "FRAUD",
+  "허위 매물·사기 의심": "FRAUD", // 옛 문구(저장된 신고·구 앱)
   "거래 금지 품목(불법 개체)": "ILLEGAL_ITEM",
   "중복·도배 게시": "DUPLICATE",
   "욕설·부적절 내용": "ABUSE",
@@ -93,7 +94,8 @@ export const REPORT_REASON_TO_SANCTION_REASON: Record<string, SanctionReasonCode
   "반복적 욕설·괴롭힘": "HARASSMENT",
   "스팸 계정": "SPAM",
   "남의 혈통 이름 도용": "IMPERSONATION",
-  "허위 매물 의심": "FRAUD",
+  "허위 분양글 의심": "FRAUD",
+  "허위 매물 의심": "FRAUD", // 옛 문구(저장된 신고·구 앱)
   "입찰 방해/분쟁 유도": "TRADE_ABUSE",
   "비정상 가격 유도": "TRADE_ABUSE",
   "욕설/부적절 내용": "ABUSE",
@@ -214,7 +216,7 @@ export function validateSanctionDraft(draft: SanctionDraft): string | null {
 export const MODERATION_TARGET_LABEL: Record<ModerationTargetType, string> = {
   POST: "게시글",
   COMMENT: "댓글",
-  PRODUCT: "상품",
+  PRODUCT: "분양글",
   AUCTION: "경매",
   BLOODLINE_CARD: "혈통",
 };

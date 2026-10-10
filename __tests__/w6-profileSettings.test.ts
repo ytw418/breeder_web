@@ -169,7 +169,7 @@ describe("회원탈퇴 화면 상태", () => {
   });
 
   it("POST 409 막힘 응답이면 막힘 상태로 바꾸고, 다른 오류는 그대로 둔다", () => {
-    const blockers = [{ code: "PRODUCT_RESERVED" as const, message: "예약중인 상품이 있어요.", items: [] }];
+    const blockers = [{ code: "PRODUCT_RESERVED" as const, message: "예약중인 분양글이 있어요.", items: [] }];
     const next = applyBlockedResult(eligible, { success: false, errorCode: "ACCOUNT_DELETION_BLOCKED", blockers });
     expect(next).toEqual({ success: true, purgeAfterDays: 30, eligible: false, blockers });
     expect(applyBlockedResult(eligible, { success: false, errorCode: "ACCOUNT_ALREADY_DELETED" })).toBe(eligible);

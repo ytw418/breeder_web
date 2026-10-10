@@ -389,7 +389,7 @@ describe("POST /api/products/:id/fav (찜 토글)", () => {
 
     const res = await toggle();
     expect(res.statusCode).toBe(404);
-    expect(res.body).toMatchObject({ success: false, message: "삭제된 상품입니다." });
+    expect(res.body).toMatchObject({ success: false, message: "삭제된 분양글입니다." });
     expect(mockClient.fav.create).not.toHaveBeenCalled();
     expect(mockCreateNotification).not.toHaveBeenCalled();
   });

@@ -80,7 +80,7 @@ async function call(
 const me = { id: 7, name: "브리더" } as NextApiRequest["user"];
 const blocker = {
   code: "AUCTION_SELLING_ACTIVE",
-  message: "진행 중인 판매 경매가 있어요.",
+  message: "진행 중인 분양 경매가 있어요.",
   items: [{ id: 1, title: "왕사슴" }],
 };
 

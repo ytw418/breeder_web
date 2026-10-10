@@ -180,7 +180,7 @@ export function getBreederScoreRules(scoped: boolean): BreederScoreRule[] {
     const w = SCOPED_BREEDER_SCORE_WEIGHTS;
     return [
       { label: "게시글 1개", points: w.post },
-      { label: "분양글 1개", hint: "판매 포함", points: w.product },
+      { label: "분양글 1개", hint: "유료·무료 분양 포함", points: w.product },
       { label: "경매 1건", points: w.auction },
       { label: "혈통 1개", hint: "내가 만든 혈통", points: w.bloodline },
     ].filter((rule) => rule.points > 0);
