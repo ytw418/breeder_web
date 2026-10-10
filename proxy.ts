@@ -20,7 +20,9 @@ export function proxy(req: NextRequest, ev: NextFetchEvent) {
     });
   }
   const isToolPath = pathname === "/tool" || pathname.startsWith("/tool/");
-  const isToolLoginLoadingPath = pathname === "/login-loading";
+  // 소셜 로그인 복귀 페이지(카카오·Apple)는 툴 모드여도 그대로 둔다.
+  const isToolLoginLoadingPath =
+    pathname === "/login-loading" || pathname === "/auth/apple/complete";
   const isSentryTestPath =
     pathname === "/sentry-example-page" || pathname.startsWith("/sentry-example-page/");
   const hasToolMode = req.cookies.get(TOOL_MODE_COOKIE)?.value === "1";

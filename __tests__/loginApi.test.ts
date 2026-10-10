@@ -134,6 +134,27 @@ describe("/api/auth/login 소셜 토큰 검증", () => {
     expect(mockClient.user.update).not.toHaveBeenCalled();
   });
 
+  it("Apple 웹 로그인의 nonce 를 토큰 검증에 넘긴다", async () => {
+    mockVerifySocialLogin.mockResolvedValue({ snsId: "001.a.1", email: null, avatar: null });
+    mockClient.user.findUnique.mockResolvedValue({
+      ...existingUser,
+      snsId: "001.a.1",
+      provider: "apple",
+    });
+
+    const res = await login({
+      token: "apple-id-token",
+      name: "Apple User",
+      provider: "apple",
+      nonce: "raw-nonce",
+    });
+
+    expect(res.statusCode).toBe(200);
+    expect(mockVerifySocialLogin).toHaveBeenCalledWith("apple", "apple-id-token", {
+      nonce: "raw-nonce",
+    });
+  });
+
   it("새 계정은 검증된 snsId·email 로 만든다", async () => {
     mockVerifySocialLogin.mockResolvedValue({
       snsId: "kakao-77",
