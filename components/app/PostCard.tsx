@@ -1,7 +1,7 @@
 "use client";
 
-import Link from "next/link";
 import Image from "@components/atoms/Image";
+import { AuthorLink, CardOverlayLink } from "@components/app/AuthorLink";
 import { BreederProgramBadge } from "@components/features/breeder/BreederProgramDecorators";
 import { cn, getTimeAgoString, makeImageUrl } from "@libs/client/utils";
 import { toPostPath } from "@libs/post-route";
@@ -26,6 +26,7 @@ export type PostCardData = {
   user?: {
     id?: number;
     name: string;
+    avatar?: string | null;
     breederPrograms?: BreederProgramSummary[] | null;
   } | null;
   _count?: { Likes?: number; comments?: number } | null;
@@ -65,21 +66,31 @@ const toExcerpt = (value?: string | null) =>
     .trim();
 
 /**
- * 반려생활 게시글 행(앱 PostCard, 시안 design/mockups/feed-engagement/A-karrot.html ①).
- * [안 본 글 빨간 점][질문 pill] 제목 16/500(2줄) + 댓글 수 [N](brand) · 본문 14 app-sub 2줄
+ * 반려생활 게시글 행(앱 PostCard, 시안 design/mockups/feed-engagement/A-karrot.html ① + author-row/A-karrot.html A-①).
+ * 맨 위 작성자 줄: 아바타 20 + 닉네임 13/600(누르면 프로필) [브리더 pill] "· 3분 전"
+ * · [안 본 글 빨간 점][질문 pill] 제목 16/500(2줄) + 댓글 수 [N](brand) · 본문 14 app-sub 2줄
  * · 최신 댓글 한 줄(말풍선 + 닉네임 600 + 내용) 또는 질문에 답이 없으면 '아직 답변이 없어요 · 첫 답변을 남겨 주세요'
- * · 메타 13 app-muted "카테고리 · 닉네임" [브리더 pill] "· 3분 전 · 좋아요 3"(질문 글은 카테고리를 pill 로 옮겨 뺀다)
- * · 오른쪽 72px 썸네일(r8, 사진 2장 이상이면 장수). 하단 1px app-line.
+ * · 메타 13 app-muted "카테고리 · 좋아요 3"(질문 글은 카테고리를 pill 로 옮겨 뺀다, 비면 줄을 그리지 않는다)
+ * · 오른쪽 72px 썸네일(r8, 사진 2장 이상이면 장수), 작성자 줄 아래에서 시작. 하단 1px app-line.
+ * 카드 전체는 투명 상세 링크가 덮고 작성자만 그 위에서 프로필로 간다.
  */
 export function PostCard({ post, className }: { post: PostCardData; className?: string }) {
   const images = post.images?.length ? post.images : post.image ? [post.image] : [];
   const thumbnail = images[0] ?? null;
   const excerpt = toExcerpt(post.content ?? toPostPlainText(post.description ?? ""));
   const isQuestion = post.category === QUESTION_CATEGORY;
-  const author = [isQuestion ? null : postCategoryLabel(post), post.user?.name]
+  const author = post.user;
+  const date = toDate(post.createdAt);
+  const timeAgo = Number.isNaN(date.getTime()) ? "" : getTimeAgoString(date);
+  const likes = post._count?.Likes ?? 0;
+  // 시간은 작성자 줄에, 댓글 수는 제목 옆 [N] 으로 보여 메타에서 뺀다. 작성자가 없으면 시간을 메타에 둔다.
+  const meta = [
+    isQuestion ? null : postCategoryLabel(post),
+    author ? null : timeAgo,
+    likes > 0 ? `좋아요 ${likes}` : null,
+  ]
     .filter(Boolean)
     .join(" · ");
-  const stats = getPostCardStats(post, { includeComments: false });
   const comments = post._count?.comments ?? 0;
   const latest = post.latestComment;
   const unread = useIsUnread("post", {
@@ -89,77 +100,90 @@ export function PostCard({ post, className }: { post: PostCardData; className?: 
   });
 
   return (
-    <Link
-      href={toPostPath(post.id, post.title)}
-      className={cn(
-        "flex items-start gap-3 border-b border-app-line bg-app-bg px-4 py-3.5",
-        className
-      )}
+    <article
+      className={cn("relative border-b border-app-line bg-app-bg px-4 py-3.5", className)}
     >
-      <div className="min-w-0 flex-1">
-        <div className="flex items-start gap-1.5">
-          {unread ? (
-            <span
-              aria-label="안 본 글"
-              className="mt-2 h-1.5 w-1.5 shrink-0 rounded-full bg-app-danger"
+      <CardOverlayLink href={toPostPath(post.id, post.title)} label={post.title} />
+      {author ? (
+        <div className="mb-2 flex min-h-6 items-center gap-1.5">
+          {author.id != null ? (
+            <AuthorLink
+              user={{ ...author, id: author.id }}
+              avatarSize={20}
+              className="gap-1.5"
+              nameClassName="text-[13px] font-semibold text-app-text"
             />
-          ) : null}
-          {isQuestion ? (
-            <span className="mt-0.5 h-[18px] shrink-0 rounded px-1.5 text-[11px] font-semibold leading-[18px] text-app-sub bg-app-surface">
-              질문
+          ) : (
+            <span className="min-w-0 truncate text-[13px] font-semibold text-app-text">
+              {author.name}
             </span>
-          ) : null}
-          <p className="line-clamp-2 min-w-0 break-keep text-[16px] font-medium leading-[22px] text-app-text">
-            {post.title}
-            {comments > 0 ? (
-              <span className="ml-1 font-bold text-app-brand">[{comments}]</span>
-            ) : null}
-          </p>
-        </div>
-        {excerpt ? (
-          <p className="mt-1 line-clamp-2 text-[14px] leading-5 text-app-sub">{excerpt}</p>
-        ) : null}
-        {latest ? (
-          <p className="mt-1.5 flex min-w-0 items-center gap-1 text-[13px] leading-[18px] text-app-sub">
-            <CommentBubbleIcon />
-            {latest.user?.name ? (
-              <span className="shrink-0 font-semibold text-app-text">{latest.user.name}</span>
-            ) : null}
-            <span className="truncate">{latest.comment}</span>
-          </p>
-        ) : isQuestion && comments === 0 ? (
-          <p className="mt-1.5 flex min-w-0 items-center gap-1 text-[13px] leading-[18px] text-app-muted">
-            <QuestionCircleIcon />
-            <span className="truncate">아직 답변이 없어요 · 첫 답변을 남겨 주세요</span>
-          </p>
-        ) : null}
-        <div className="mt-1.5 flex flex-wrap items-center gap-x-1 gap-y-0.5">
-          {author ? <span className="truncate text-[13px] text-app-muted">{author}</span> : null}
-          <BreederProgramBadge programs={post.user?.breederPrograms} />
-          {stats ? (
-            <span className="truncate text-[13px] text-app-muted">
-              {author ? `· ${stats}` : stats}
-            </span>
-          ) : null}
-        </div>
-      </div>
-      {thumbnail ? (
-        <div className="relative h-[72px] w-[72px] shrink-0 overflow-hidden rounded-lg bg-app-placeholder">
-          <Image
-            src={makeImageUrl(thumbnail, "public")}
-            alt={post.title}
-            width={72}
-            height={72}
-            className="h-full w-full object-cover"
-          />
-          {images.length > 1 ? (
-            <span className="absolute bottom-1 right-1 h-[18px] min-w-[18px] rounded-full bg-app-overlay px-[5px] text-center text-[11px] font-semibold leading-[18px] text-white">
-              {images.length}
-            </span>
+          )}
+          <BreederProgramBadge programs={author.breederPrograms} />
+          {timeAgo ? (
+            <span className="shrink-0 text-[13px] text-app-muted">· {timeAgo}</span>
           ) : null}
         </div>
       ) : null}
-    </Link>
+      <div className="flex items-start gap-3">
+        <div className="min-w-0 flex-1">
+          <div className="flex items-start gap-1.5">
+            {unread ? (
+              <span
+                aria-label="안 본 글"
+                className="mt-2 h-1.5 w-1.5 shrink-0 rounded-full bg-app-danger"
+              />
+            ) : null}
+            {isQuestion ? (
+              <span className="mt-0.5 h-[18px] shrink-0 rounded px-1.5 text-[11px] font-semibold leading-[18px] text-app-sub bg-app-surface">
+                질문
+              </span>
+            ) : null}
+            <p className="line-clamp-2 min-w-0 break-keep text-[16px] font-medium leading-[22px] text-app-text">
+              {post.title}
+              {comments > 0 ? (
+                <span className="ml-1 font-bold text-app-brand">[{comments}]</span>
+              ) : null}
+            </p>
+          </div>
+          {excerpt ? (
+            <p className="mt-1 line-clamp-2 text-[14px] leading-5 text-app-sub">{excerpt}</p>
+          ) : null}
+          {latest ? (
+            <p className="mt-1.5 flex min-w-0 items-center gap-1 text-[13px] leading-[18px] text-app-sub">
+              <CommentBubbleIcon />
+              {latest.user?.name ? (
+                <span className="shrink-0 font-semibold text-app-text">{latest.user.name}</span>
+              ) : null}
+              <span className="truncate">{latest.comment}</span>
+            </p>
+          ) : isQuestion && comments === 0 ? (
+            <p className="mt-1.5 flex min-w-0 items-center gap-1 text-[13px] leading-[18px] text-app-muted">
+              <QuestionCircleIcon />
+              <span className="truncate">아직 답변이 없어요 · 첫 답변을 남겨 주세요</span>
+            </p>
+          ) : null}
+          {meta ? (
+            <p className="mt-1.5 truncate text-[13px] leading-[18px] text-app-muted">{meta}</p>
+          ) : null}
+        </div>
+        {thumbnail ? (
+          <div className="relative h-[72px] w-[72px] shrink-0 overflow-hidden rounded-lg bg-app-placeholder">
+            <Image
+              src={makeImageUrl(thumbnail, "public")}
+              alt={post.title}
+              width={72}
+              height={72}
+              className="h-full w-full object-cover"
+            />
+            {images.length > 1 ? (
+              <span className="absolute bottom-1 right-1 h-[18px] min-w-[18px] rounded-full bg-app-overlay px-[5px] text-center text-[11px] font-semibold leading-[18px] text-white">
+                {images.length}
+              </span>
+            ) : null}
+          </div>
+        ) : null}
+      </div>
+    </article>
   );
 }
 

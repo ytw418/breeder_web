@@ -1,7 +1,18 @@
 import type { Product } from "@prisma/client";
+import type { BreederProgramSummary } from "@libs/shared/breeder-program";
+
+/** 목록 카드의 판매자(아바타 + 닉네임, 누르면 프로필). */
+export interface ProductSeller {
+  id: number;
+  name: string;
+  avatar: string | null;
+  breederPrograms: BreederProgramSummary[];
+}
 
 export interface ProductWithCount extends Product {
   _count: { favs: number };
+  /** 목록 API 의 판매자. 샘플 응답에는 없다. */
+  user?: ProductSeller;
 }
 
 export interface ProductsResponse {

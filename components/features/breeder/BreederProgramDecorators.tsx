@@ -20,22 +20,30 @@ const BREEDER_PROGRAM_META: Record<
   {
     label: string;
     frameClassName: string;
+    /** 목록 카드의 16~20px 아바타용(앱 BreederProgramAvatar): 3px 링 없이 그라데이션 + 옅은 빛. */
+    compactFrameClassName: string;
   }
 > = {
   FOUNDING_BREEDER: {
     label: "창립 브리더",
     frameClassName:
       "bg-gradient-to-br from-amber-200 via-white to-amber-100 ring-[3px] ring-amber-400/75 shadow-[0_0_0_6px_rgba(251,191,36,0.12)] dark:from-amber-400/45 dark:via-app-bg dark:to-amber-400/20 dark:ring-amber-300/50 dark:shadow-none",
+    compactFrameClassName:
+      "bg-gradient-to-br from-amber-200 via-white to-amber-100 shadow-[0_0_0_6px_rgba(251,191,36,0.12)] dark:from-amber-400/45 dark:via-app-bg dark:to-amber-400/20 dark:shadow-none",
   },
   PARTNER_BREEDER: {
     label: "파트너 브리더",
     frameClassName:
       "bg-gradient-to-br from-cyan-100 via-white to-slate-100 ring-[3px] ring-cyan-400/70 shadow-[0_0_0_6px_rgba(34,211,238,0.10)] dark:from-cyan-400/40 dark:via-app-bg dark:to-slate-400/20 dark:ring-cyan-300/50 dark:shadow-none",
+    compactFrameClassName:
+      "bg-gradient-to-br from-cyan-100 via-white to-slate-100 shadow-[0_0_0_6px_rgba(34,211,238,0.10)] dark:from-cyan-400/40 dark:via-app-bg dark:to-slate-400/20 dark:shadow-none",
   },
   VERIFIED_BREEDER: {
     label: "인증 브리더",
     frameClassName:
       "bg-gradient-to-br from-slate-100 via-white to-slate-50 ring-[3px] ring-slate-300 shadow-[0_0_0_6px_rgba(148,163,184,0.10)] dark:from-slate-400/35 dark:via-app-bg dark:to-slate-400/20 dark:ring-slate-400/50 dark:shadow-none",
+    compactFrameClassName:
+      "bg-gradient-to-br from-slate-100 via-white to-slate-50 shadow-[0_0_0_6px_rgba(148,163,184,0.10)] dark:from-slate-400/35 dark:via-app-bg dark:to-slate-400/20 dark:shadow-none",
   },
 };
 
@@ -52,11 +60,13 @@ export const getPrimaryBreederBenefitLabel = (
 };
 
 export const getBreederProgramFrameClassName = (
-  programs?: BreederProgramSummary[] | null
+  programs?: BreederProgramSummary[] | null,
+  { compact = false }: { compact?: boolean } = {}
 ) => {
   const primaryProgram = getPrimaryBreederProgram(getActiveBreederPrograms(programs));
   if (!primaryProgram) return "";
-  return BREEDER_PROGRAM_META[primaryProgram.programType].frameClassName;
+  const meta = BREEDER_PROGRAM_META[primaryProgram.programType];
+  return compact ? meta.compactFrameClassName : meta.frameClassName;
 };
 
 export const hasBreederProgramFrame = (programs?: BreederProgramSummary[] | null) =>
