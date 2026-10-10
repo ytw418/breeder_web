@@ -11,7 +11,11 @@ import {
   useState,
 } from "react";
 import { SWRConfig } from "swr";
-import { capturePosthogError, capturePosthogEvent } from "@libs/client/posthog";
+import {
+  capturePosthogError,
+  capturePosthogEvent,
+  isExpectedAuthStatus,
+} from "@libs/client/posthog";
 import { authFetch } from "@libs/client/authFetch";
 import { normalizeDeletedUserNames } from "@libs/shared/deletedUser";
 
@@ -82,11 +86,14 @@ export const VariousProvider = ({
 
               const swrError = new Error(message) as Error & { status?: number };
               swrError.status = res.status;
-              capturePosthogError({
-                source: "swr_fetcher",
-                error: swrError,
-                context: { url, status: res.status },
-              });
+              // 비로그인 401 은 정상 흐름이다. 오류로 보내면 진짜 오류가 묻힌다.
+              if (!isExpectedAuthStatus(res.status)) {
+                capturePosthogError({
+                  source: "swr_fetcher",
+                  error: swrError,
+                  context: { url, status: res.status },
+                });
+              }
               throw swrError;
             }
             // 탈퇴 유저 이름("탈퇴한 사용자#<id>")을 표시용 라벨로 바꾼다.
@@ -94,10 +101,12 @@ export const VariousProvider = ({
           }),
         onErrorRetry: (error, _key, _config, revalidate, context) => {
           const status = (error as Error & { status?: number }).status;
-          capturePosthogEvent("swr_error_retry_check", {
-            status: status ?? null,
-            retryCount: context.retryCount,
-          });
+          if (!isExpectedAuthStatus(status)) {
+            capturePosthogEvent("swr_error_retry_check", {
+              status: status ?? null,
+              retryCount: context.retryCount,
+            });
+          }
           // 인증/권한/없음(401/403/404)은 재시도해도 개선되지 않으므로 중단
           if (status === 401 || status === 403 || status === 404) return;
           // 나머지 네트워크성 에러만 짧게 2회 재시도

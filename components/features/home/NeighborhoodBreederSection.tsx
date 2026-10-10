@@ -130,7 +130,7 @@ export function NeighborhoodBreederSectionView({
   const listed = state.kind === "filled" || state.kind === "widened";
 
   return (
-    <section className="pb-2 pt-4" aria-label="우리 동네 브리더">
+    <section className="pb-2 pt-4" aria-label="우리 동네 브리더" data-home-section="neighborhood_breeders">
       <Header subtitle={subtitle} showAll={listed} />
 
       {state.kind === "loading" ? (
