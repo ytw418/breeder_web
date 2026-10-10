@@ -1,7 +1,7 @@
 "use client";
 
-import Link from "next/link";
 import Image from "@components/atoms/Image";
+import { AuthorLink, CardOverlayLink, type AuthorLinkUser } from "@components/app/AuthorLink";
 import { cn, getTimeAgoString, makeImageUrl } from "@libs/client/utils";
 import { getProductPath } from "@libs/product-route";
 import { formatProductPrice } from "@libs/shared/price";
@@ -27,6 +27,8 @@ export type ProductCardData = {
   photoCount?: number | null;
   /** 판매자 id. 내 상품에는 안 본 점을 달지 않는다. */
   sellerId?: number | null;
+  /** 판매자. 넘기면(홈·상품 목록·혈통 분양글) 메타 맨 앞에 아바타 16 + 닉네임을 보인다. 프로필 내역은 안 넘긴다. */
+  seller?: AuthorLinkUser | null;
 };
 
 const toDate = (value: string | Date) => (value instanceof Date ? value : new Date(value));
@@ -62,6 +64,8 @@ export function getProductStatusLabel(
  * [안 본 점] 이름 16/500(2줄) · [상태 pill] 메타 13 app-muted · 가격 16/700 + 관심 수.
  * markUnread: 홈·상품 목록처럼 둘러보는 목록에서만 켠다(7일 안·안 연 상품에 빨간 점, 프로필 내역은 끔).
  * 판매완료·삭제·숨김은 썸네일을 어둡게 덮는다.
+ * seller 를 넘기면 메타 맨 앞에 판매자(누르면 프로필, 행 높이 그대로, 시안 author-row/A-karrot.html A-②).
+ * 상세 링크는 행을 투명하게 덮고(CardOverlayLink) 판매자만 그 위에서 프로필로 간다.
  * href: 기본은 상품 상세. 삭제·숨김 상품은 상세가 404 라 기본으로 링크가 없고, 소유자 화면처럼
  * 열어야 하면 href 를 직접 넘긴다. href={null} 이면 항상 링크 없음.
  */
@@ -90,6 +94,7 @@ export function ProductCard({
   const resolvedHref =
     href === null ? null : href ?? (isInactive ? null : getProductPath(product.id, product.name));
   const hearts = product.wishCount ?? 0;
+  const seller = product.seller;
 
   const content = (
     <>
@@ -136,15 +141,25 @@ export function ProductCard({
             {product.name}
           </p>
         </div>
-        {statusLabel || meta ? (
-          <div className="mt-0.5 flex min-w-0 items-center gap-1.5">
+        {statusLabel || seller || meta ? (
+          <div className={cn("mt-0.5 flex min-w-0 items-center", seller ? "gap-1" : "gap-1.5")}>
             {statusLabel ? (
               <span className="shrink-0 rounded bg-app-surface px-1.5 py-px text-[11px] font-semibold leading-4 text-app-muted">
                 {statusLabel}
               </span>
             ) : null}
+            {seller ? (
+              <AuthorLink
+                user={seller}
+                avatarSize={16}
+                className="max-w-[116px] shrink-0 gap-1"
+                nameClassName="text-[13px] font-semibold leading-[18px] text-app-sub"
+              />
+            ) : null}
             {meta ? (
-              <span className="truncate text-[13px] leading-[18px] text-app-muted">{meta}</span>
+              <span className="truncate text-[13px] leading-[18px] text-app-muted">
+                {seller ? `· ${meta}` : meta}
+              </span>
             ) : null}
           </div>
         ) : null}
@@ -170,18 +185,16 @@ export function ProductCard({
     </>
   );
 
-  const rowClass = cn(
-    "flex h-[108px] items-center gap-3 border-b border-app-line bg-app-bg px-4",
-    className
-  );
-
-  if (!resolvedHref) {
-    return <div className={rowClass}>{content}</div>;
-  }
   return (
-    <Link href={resolvedHref} className={rowClass}>
+    <div
+      className={cn(
+        "relative flex h-[108px] items-center gap-3 border-b border-app-line bg-app-bg px-4",
+        className
+      )}
+    >
+      {resolvedHref ? <CardOverlayLink href={resolvedHref} label={product.name} /> : null}
       {content}
-    </Link>
+    </div>
   );
 }
 

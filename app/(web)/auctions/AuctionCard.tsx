@@ -1,11 +1,10 @@
 "use client";
 
 import { useEffect } from "react";
-import Link from "next/link";
 import Image from "@components/atoms/Image";
+import { AuthorLink, CardOverlayLink } from "@components/app/AuthorLink";
 import {
   BreederProgramBadge,
-  getBreederProgramFrameClassName,
   hasBreederProgramFrame,
 } from "@components/features/breeder/BreederProgramDecorators";
 import { cn, makeImageUrl } from "@libs/client/utils";
@@ -33,7 +32,11 @@ const STATUS_BADGE_CLASS: Record<string, string> = {
 const OTHER_BADGE_CLASS =
   "border-amber-200 bg-app-warning-soft text-app-warning-text dark:border-app-border dark:bg-app-elevated";
 
-/** 경매 2열 그리드 카드(앱 AuctionCard 와 같은 구성). 부모 그리드 셀이 폭을 정한다. */
+/**
+ * 경매 2열 그리드 카드(앱 AuctionCard 와 같은 구성). 부모 그리드 셀이 폭을 정한다.
+ * 판매자는 카드 맨 아래 카드 폭 한 줄(아바타 20 + 닉네임 12/600, 누르면 프로필), 브리더 뱃지는 그 아래 왼쪽
+ * (시안 bredy_app design/mockups/author-row/A-karrot.html A-③). 상세 링크는 카드를 투명하게 덮는다.
+ */
 export function AuctionCard({
   auction,
   nowMs,
@@ -62,10 +65,8 @@ export function AuctionCard({
   }, [timeOver, onTimeOver, auction.id]);
 
   return (
-    <Link
-      href={toAuctionPath(auction.id, auction.title)}
-      className="block min-w-0 overflow-hidden rounded-lg border border-app-border bg-app-elevated"
-    >
+    <article className="relative min-w-0 overflow-hidden rounded-lg border border-app-border bg-app-elevated">
+      <CardOverlayLink href={toAuctionPath(auction.id, auction.title)} label={auction.title} />
       {/* 이미지 */}
       <div className="relative aspect-[4/3] w-full bg-app-surface">
         {auction.photos?.[0] ? (
@@ -124,44 +125,28 @@ export function AuctionCard({
               {auction.currentPrice.toLocaleString()}원
             </p>
           </div>
-          <div className="flex min-w-0 shrink flex-col items-end">
-            <p className="truncate text-[10px] text-app-muted">
-              {live && bids === 0 ? "첫 입찰을 기다려요" : `입찰 ${bids}회`}
-            </p>
-            <div className="mt-1 flex min-w-0 items-center justify-end gap-1">
-              <div
-                className={cn(
-                  "shrink-0",
-                  framed && "rounded-full p-0.5",
-                  framed && getBreederProgramFrameClassName(programs)
-                )}
-              >
-                {auction.user?.avatar ? (
-                  <Image
-                    src={makeImageUrl(auction.user.avatar, "avatar")}
-                    className="h-4 w-4 rounded-full object-cover"
-                    width={16}
-                    height={16}
-                    alt=""
-                  />
-                ) : (
-                  <div className="h-4 w-4 rounded-full bg-app-placeholder" />
-                )}
-              </div>
-              <span className="block min-w-0 max-w-[72px] truncate text-[10px] text-app-muted">
-                {auction.user?.name}
-              </span>
-            </div>
-          </div>
+          <p className="min-w-0 truncate text-[10px] text-app-muted">
+            {live && bids === 0 ? "첫 입찰을 기다려요" : `입찰 ${bids}회`}
+          </p>
         </div>
-        {/* 브리더 뱃지는 좁은 판매자 열에서 넘치지 않게 카드 폭 한 줄로 내려 오른쪽 정렬(2026-10-01 결정). */}
+        {auction.user ? (
+          <div className="mt-2.5 flex">
+            <AuthorLink
+              user={auction.user}
+              avatarSize={20}
+              className="gap-1.5"
+              nameClassName="text-[12px] font-semibold text-app-sub"
+            />
+          </div>
+        ) : null}
+        {/* 브리더 뱃지('창립 브리더 No.001')는 판매자 줄에 안 들어가 그 아래 한 줄에 둔다. */}
         {framed ? (
-          <div className="mt-1.5 flex justify-end">
-            <BreederProgramBadge programs={programs} className="justify-end" />
+          <div className="mt-1.5 flex">
+            <BreederProgramBadge programs={programs} />
           </div>
         ) : null}
       </div>
-    </Link>
+    </article>
   );
 }
 
