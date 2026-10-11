@@ -20,6 +20,7 @@ import { uniqueById } from "@libs/productFilters";
 import useUser from "hooks/useUser";
 import useBlocks from "hooks/useBlocks";
 import useCategoryScope, { withCategoryPath, withinScope } from "hooks/useCategoryScope";
+import useSectionImpressions from "hooks/useSectionImpressions";
 import CategoryScopeBar from "@components/features/category/CategoryScopeBar";
 import NeighborhoodBreederSection from "@components/features/home/NeighborhoodBreederSection";
 import { BreederRankingItem, HomeFeedResponse } from "@libs/shared/ranking";
@@ -36,6 +37,18 @@ interface BeforeInstallPromptEvent extends Event {
 /** 탭 목록: "전체" + 대분류(앱 TOP_LEVEL_CATEGORIES) */
 const TABS = [{ id: "전체", name: "전체" }, ...TOP_LEVEL_CATEGORIES];
 const HOME_FEED_KEY = "/api/home/feed?scope=public";
+
+/** home_section_view 의 section_id 와 position(화면 위에서부터 순서). 요소에는 data-home-section 으로 붙인다. */
+const HOME_SECTION_ORDER = [
+  "neighborhood_breeders",
+  "hero_breeder",
+  "auction_ranking",
+  "bloodline_ranking",
+  "trending_community",
+  "free_giveaway",
+  "personalized_home",
+] as const;
+type HomeSectionId = (typeof HOME_SECTION_ORDER)[number];
 
 type RankingTabId = "breeders" | "auctions" | "bloodlines" | "community";
 type RankingPeriodId = "weekly" | "all";
@@ -100,6 +113,7 @@ function MiniCard({
   showThumb = true,
   subTone,
   onOpen,
+  sectionId,
 }: {
   title: string;
   subtitle: string;
@@ -109,6 +123,8 @@ function MiniCard({
   showThumb?: boolean;
   subTone?: "price";
   onOpen?: () => void;
+  /** 홈 섹션 노출 기록용 id(home_section_view). */
+  sectionId?: string;
 }) {
   const router = useRouter();
   const open = () => {
@@ -150,6 +166,7 @@ function MiniCard({
       role="link"
       tabIndex={0}
       aria-label={`${title} 더보기`}
+      data-home-section={sectionId}
       onClick={open}
       onKeyDown={(event) => {
         // 안쪽 행 링크에서 누른 Enter 는 그 링크가 처리한다(카드 이동과 겹치지 않게).
@@ -203,6 +220,7 @@ function FreeGiveawayEmptyCard() {
     <Link
       // 등록 화면에서 가격 '무료나눔'을 미리 고른 채로 연다.
       href="/products/upload?free=1"
+      data-home-section="free_giveaway"
       className="flex min-h-[126px] flex-col items-center justify-center rounded-xl border border-app-border bg-app-elevated p-3 text-center shadow-card"
     >
       <h3 className="text-sm font-bold text-app-strong">무료나눔</h3>
@@ -352,6 +370,7 @@ const MainClient = ({
   const [installLoading, setInstallLoading] = useState(false);
   const bannerRef = useRef<HTMLDivElement>(null);
   const sentinelRef = useRef<HTMLDivElement>(null);
+  const homeRootRef = useRef<HTMLDivElement>(null);
 
   // ── 상품 목록(무한 스크롤) ──────────────────────────────────────────────
   const getKey = (pageIndex: number, previousPageData: ProductsResponse | null) => {
@@ -491,27 +510,16 @@ const MainClient = ({
     }
   }, [isUserLoading, user]);
 
-  useEffect(() => {
-    if (!feedOk) return;
-    // 랭킹 우선 IA 전환 이후 섹션별 노출량을 비교할 수 있도록 홈 진입 시 한 번에 기록한다.
-    const sectionIds = [
-      "hero_breeder",
-      "auction_ranking",
-      "bloodline_ranking",
-      "trending_community",
-      "neighborhood_breeders",
-      "free_giveaway",
-      "personalized_home",
-    ];
-    sectionIds.forEach((sectionId, index) => {
-      trackEvent(ANALYTICS_EVENTS.homeSectionView, {
-        section_id: sectionId,
-        position: index + 1,
-        user_tier: user ? "member" : "guest",
-        season_id: feedOk.currentSeasonId,
-      });
+  // 섹션이 화면에 절반 이상 보였을 때 섹션마다 한 번 기록한다(홈 진입 때 한꺼번에 찍으면 노출량을 비교할 수 없다).
+  useSectionImpressions(homeRootRef, (sectionId) => {
+    const position = HOME_SECTION_ORDER.indexOf(sectionId as HomeSectionId) + 1;
+    trackEvent(ANALYTICS_EVENTS.homeSectionView, {
+      section_id: sectionId,
+      position: position > 0 ? position : null,
+      user_tier: user ? "member" : "guest",
+      season_id: feedOk?.currentSeasonId ?? null,
     });
-  }, [feedOk?.currentSeasonId, feedOk?.success, user]);
+  });
 
   const handleInstallClick = async () => {
     if (!deferredInstallPrompt) {
@@ -625,7 +633,7 @@ const MainClient = ({
       : `/products?category=${encodeURIComponent(activeCategory)}`;
 
   return (
-    <div className="flex h-full flex-col bg-app-bg">
+    <div ref={homeRootRef} className="flex h-full flex-col bg-app-bg">
       {/* 현재 관심 분야(고정 범위). 앱처럼 헤더 바로 아래에 고정하고, 누르면 설정 > 관심 카테고리. 온보딩을 마치면 숨는다. */}
       <div className="sticky top-14 z-20">
         <CategoryScopeBar />
@@ -697,7 +705,7 @@ const MainClient = ({
 
       {/* 이번 주 TOP 브리더 — 집계가 비면 섹션을 숨긴다 */}
       {showTopBreeder ? (
-        <section className="pb-2 pt-4">
+        <section className="pb-2 pt-4" data-home-section="hero_breeder">
           <SectionHeader
             title="이번 주 TOP 브리더"
             href={toRankingHref("breeders", heroBreederPeriod)}
@@ -750,6 +758,7 @@ const MainClient = ({
                 loading={feedLoading}
                 subTone="price"
                 rows={topAuctionRows}
+                sectionId="auction_ranking"
                 onOpen={() =>
                   trackRankingCard("auction", topAuctionRows[0]?.id ?? "", "auction_ranking")
                 }
@@ -762,6 +771,7 @@ const MainClient = ({
                 href={toRankingHref("bloodlines", bloodlinePeriod)}
                 loading={feedLoading}
                 rows={topBloodlineRows}
+                sectionId="bloodline_ranking"
                 onOpen={() =>
                   trackRankingCard("bloodline", topBloodlineRows[0]?.id ?? "", "bloodline_ranking")
                 }
@@ -775,6 +785,7 @@ const MainClient = ({
                 loading={feedLoading}
                 showThumb={false}
                 rows={trendingRows}
+                sectionId="trending_community"
                 onOpen={() =>
                   trackRankingCard("community", trendingRows[0]?.id ?? "", "trending_community")
                 }
@@ -787,6 +798,7 @@ const MainClient = ({
                 href="/products?status=판매중&price=0"
                 loading={feedLoading}
                 rows={freeGiveawayRows}
+                sectionId="free_giveaway"
                 onOpen={() =>
                   trackRankingCard("free_giveaway", freeGiveawayRows[0]?.id ?? "", "free_giveaway")
                 }
@@ -813,7 +825,11 @@ const MainClient = ({
       </div>
 
       {/* 전체 상품 헤더 */}
-      <section id="all-products" className="flex items-end justify-between bg-app-bg px-4 pb-2 pt-6">
+      <section
+        id="all-products"
+        data-home-section="personalized_home"
+        className="flex items-end justify-between bg-app-bg px-4 pb-2 pt-6"
+      >
         <div>
           <h2 className="text-[18px] font-bold tracking-tight text-app-strong">
             {activeCategory === "전체" ? "전체 분양" : `${activeCategory} 분양`}
