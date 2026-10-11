@@ -91,6 +91,60 @@ describe("내 동네 화면(완료로 저장)", () => {
     expect(mockRouter.back.mock.calls.length + mockRouter.replace.mock.calls.length).toBe(1);
   });
 
+  describe("완료 뒤 돌아갈 곳(2026-10-11 '지역 설정 후 무한 로딩')", () => {
+    // jsdom 에는 getEntriesByType 이 없어 문서의 첫 주소(navigation 항목)를 직접 넣는다.
+    const firstPage = (url: string) =>
+      Object.defineProperty(window.performance, "getEntriesByType", {
+        configurable: true,
+        value: () => [{ name: url }],
+      });
+    const pickAndDone = async (props: { from?: string } = {}) => {
+      mockUseUser.mockReturnValue({ user: { id: 1 }, mutate: jest.fn() });
+      window.sessionStorage.setItem(
+        DRAFT_KEY,
+        JSON.stringify({ picked: true, region: { sido: "서울특별시", sigungu: "강남구" } })
+      );
+      render(<RegionPicker {...props} />);
+      await screen.findByText("서울특별시 강남구");
+      await act(async () => {
+        fireEvent.click(doneButton());
+      });
+    };
+    afterEach(() => {
+      jest.restoreAllMocks();
+      delete (window.performance as { getEntriesByType?: unknown }).getEntriesByType;
+    });
+
+    it("로그인 뒤 이동처럼 이 화면이 문서의 첫 화면이면 뒤로 가지 않고(뒤는 /login-loading 일 수 있다) from 으로 바꾼다", async () => {
+      firstPage("http://localhost/settings/region?from=%2F");
+      await pickAndDone({ from: "/" });
+      await waitFor(() => expect(mockRouter.replace).toHaveBeenCalledWith("/"));
+      expect(mockRouter.back).not.toHaveBeenCalled();
+    });
+
+    it("첫 화면인데 from 이 없으면 설정으로, 다른 사이트 주소면 홈으로 바꾼다", async () => {
+      firstPage("http://localhost/settings/region");
+      await pickAndDone();
+      await waitFor(() => expect(mockRouter.replace).toHaveBeenCalledWith("/settings"));
+      expect(mockRouter.back).not.toHaveBeenCalled();
+    });
+
+    it("다른 사이트 from 은 따르지 않는다", async () => {
+      firstPage("http://localhost/settings/region");
+      await pickAndDone({ from: "//evil.example" });
+      await waitFor(() => expect(mockRouter.replace).toHaveBeenCalledWith("/"));
+    });
+
+    it("앱 안에서 들어왔으면 이전 화면으로 뒤로 간다", async () => {
+      firstPage("http://localhost/");
+      const length = jest.spyOn(window.history, "length", "get").mockReturnValue(3);
+      await pickAndDone({ from: "/" });
+      await waitFor(() => expect(mockRouter.back).toHaveBeenCalledTimes(1));
+      expect(mockRouter.replace).not.toHaveBeenCalled();
+      length.mockRestore();
+    });
+  });
+
   it("나를 표시만 바꾸면 그 값만 저장한다", async () => {
     mockUseUser.mockReturnValue({
       user: { id: 1, regionSido: "경기도", regionSigungu: "성남시", regionVisible: false },

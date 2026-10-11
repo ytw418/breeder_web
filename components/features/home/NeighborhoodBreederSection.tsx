@@ -12,6 +12,7 @@ import Toggle from "@components/app/Toggle";
 import { toLoginHref } from "@components/features/MainLayout";
 import FollowButton from "@components/features/profile/FollowButton";
 import { ProfileAvatar } from "@components/features/profile/ProfileRows";
+import { regionSettingsHref } from "@components/features/region/regionHref";
 import { authFetch } from "@libs/client/authFetch";
 import { revalidateByPrefix } from "@libs/client/swrRevalidate";
 import { toast } from "@libs/client/toast";
@@ -149,7 +150,7 @@ export function NeighborhoodBreederSectionView({
           </p>
           <div className="mt-4 flex">
             <Link
-              href={state.loggedIn ? "/settings/region" : toLoginHref("/settings/region")}
+              href={state.loggedIn ? "/settings/region" : toLoginHref(regionSettingsHref(RETURN_PATH))}
               className={cn(BUTTON, PRIMARY)}
             >
               내 동네 설정

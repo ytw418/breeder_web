@@ -598,7 +598,7 @@ export default function PostsClient({ initialCategory }: { initialCategory?: str
 
         {/* 7. 게시글 목록 */}
         {isRegionCategory && showRegionGate ? (
-          <RegionGateCard className="mt-2" />
+          <RegionGateCard className="mt-2" from={`/posts?category=${encodeURIComponent(REGION_POST_CATEGORY)}`} />
         ) : showFollowingGate ? (
           <FollowingFeedCard variant="login" className="mt-2" />
         ) : isInitialLoading ? (
