@@ -22,6 +22,8 @@ export interface NotificationItem {
     name: string;
     avatar: string | null;
   };
+  /** 대상(게시글·분양글·경매·혈통 카드) 대표 사진 id. 알림 행 오른쪽 48 썸네일. 숨김·삭제된 대상은 null. */
+  targetImage: string | null;
 }
 
 export interface NotificationsResponse {
@@ -29,6 +31,68 @@ export interface NotificationsResponse {
   error?: string;
   notifications: NotificationItem[];
   unreadCount: number;
+}
+
+type TargetRef = { targetType: string | null; targetId: number | null };
+
+const targetKey = (targetType: string, targetId: number) => `${targetType}:${targetId}`;
+
+/**
+ * 알림 대상의 대표 사진 id 를 대상 종류마다 한 번씩 읽어 "post:12" → 사진 id 로 돌려준다.
+ * 숨김·삭제된 글은 사진을 보이지 않는다. 사진을 못 읽어도 목록은 그대로 보여야 해서 실패하면 빈 값.
+ */
+async function loadTargetImages(items: TargetRef[]): Promise<Map<string, string>> {
+  const idsOf = (type: string) =>
+    Array.from(
+      new Set(
+        items
+          .filter((item) => item.targetType === type && item.targetId)
+          .map((item) => item.targetId as number)
+      )
+    );
+  const postIds = idsOf("post");
+  const productIds = idsOf("product");
+  const auctionIds = idsOf("auction");
+  const cardIds = idsOf("bloodline");
+  const images = new Map<string, string>();
+  try {
+    const [posts, products, auctions, cards] = await Promise.all([
+      postIds.length
+        ? client.post.findMany({
+            where: { id: { in: postIds }, isHidden: false },
+            select: { id: true, image: true, images: true },
+          })
+        : [],
+      productIds.length
+        ? client.product.findMany({
+            where: { id: { in: productIds }, isHidden: false, isDeleted: false },
+            select: { id: true, mainImage: true, photos: true },
+          })
+        : [],
+      auctionIds.length
+        ? client.auction.findMany({
+            where: { id: { in: auctionIds }, isHidden: false },
+            select: { id: true, photos: true },
+          })
+        : [],
+      cardIds.length
+        ? client.bloodlineCard.findMany({
+            where: { id: { in: cardIds } },
+            select: { id: true, image: true },
+          })
+        : [],
+    ]);
+    const put = (type: string, id: number, image: string | null | undefined) => {
+      if (image) images.set(targetKey(type, id), image);
+    };
+    posts.forEach((post) => put("post", post.id, post.images[0] || post.image));
+    products.forEach((product) => put("product", product.id, product.mainImage || product.photos[0]));
+    auctions.forEach((auction) => put("auction", auction.id, auction.photos[0]));
+    cards.forEach((card) => put("bloodline", card.id, card.image));
+  } catch (error) {
+    console.error("Error loading notification target images:", error);
+  }
+  return images;
 }
 
 async function handler(
@@ -72,10 +136,16 @@ async function handler(
         }),
       ]);
 
+      const targetImages = await loadTargetImages(notifications);
+
       return res.json({
         success: true,
         notifications: notifications.map((n) => ({
           ...n,
+          targetImage:
+            n.targetType && n.targetId
+              ? targetImages.get(targetKey(n.targetType, n.targetId)) ?? null
+              : null,
           // 운영 알림의 senderId 는 조치한 운영자다. 대상자·신고자에게 운영자 계정을 드러내지 않는다
           // (앱 docs/prd/admin-moderation.md AC-15). 화면은 '브리디 운영팀'으로 그린다.
           sender: n.type === "MODERATION" ? MODERATION_SENDER : n.sender,
