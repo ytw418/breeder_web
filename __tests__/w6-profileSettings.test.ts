@@ -108,20 +108,22 @@ describe("알림 시간 표기", () => {
   const now = new Date(2026, 9, 6, 15, 0, 0).getTime();
   const at = (y: number, m: number, d: number, h = 0, min = 0) => new Date(y, m - 1, d, h, min).toISOString();
 
-  it("방금 / N분 전 / N시간 전 / 어제 / 날짜", () => {
+  it("방금 / N분 전 / N시간 전 / 어제 / N일 전 / 날짜", () => {
     expect(formatNotificationTime(new Date(now - 30_000).toISOString(), now)).toBe("방금");
     expect(formatNotificationTime(new Date(now - 5 * 60_000).toISOString(), now)).toBe("5분 전");
     expect(formatNotificationTime(new Date(now - 3 * 3_600_000).toISOString(), now)).toBe("3시간 전");
     expect(formatNotificationTime(at(2026, 10, 5, 9), now)).toBe("어제");
-    expect(formatNotificationTime(at(2026, 9, 1, 9), now)).toBe(new Date(at(2026, 9, 1, 9)).toLocaleDateString("ko-KR"));
+    expect(formatNotificationTime(at(2026, 10, 3, 9), now)).toBe("3일 전");
+    expect(formatNotificationTime(at(2026, 9, 1, 9), now)).toBe("9월 1일");
     expect(formatNotificationTime("잘못된 값", now)).toBe("");
   });
 
-  it("타입별 아이콘: 경매 망치, 채팅·댓글 말풍선, 나머지 종", () => {
+  it("타입별 아이콘: 경매 망치, 채팅·댓글 말풍선, 팔로우 사람+, 모르는 종류는 종", () => {
     expect(getNotificationIcon("OUTBID")).toBe("hammer");
     expect(getNotificationIcon("CHAT")).toBe("bubble");
     expect(getNotificationIcon("COMMENT")).toBe("bubble");
-    expect(getNotificationIcon("FOLLOW")).toBe("bell");
+    expect(getNotificationIcon("FOLLOW")).toBe("userPlus");
+    expect(getNotificationIcon("SOMETHING_NEW")).toBe("bell");
   });
 
   it("대상이 없으면 링크가 없다", () => {
