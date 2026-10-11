@@ -449,8 +449,8 @@ describe("혈통 화면 공용 문구 (BloodlineScreenParts)", () => {
     expect(screen.getByRole("button", { name: "공유" })).toBeInTheDocument();
   });
 
-  it("받음 알림(BLOODLINE_RECEIVED)은 종 아이콘", () => {
-    expect(getNotificationIcon("BLOODLINE_RECEIVED")).toBe("bell");
+  it("받음 알림(BLOODLINE_RECEIVED)은 카드 아이콘", () => {
+    expect(getNotificationIcon("BLOODLINE_RECEIVED")).toBe("card");
   });
 });
 
