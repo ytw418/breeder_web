@@ -131,6 +131,22 @@ describe("POST /api/users/me 닉네임", () => {
       data: { avatar: "img-1" },
     });
   });
+
+  it("removeAvatar 면 아바타를 지워 기본 이미지로 돌린다", async () => {
+    const res = await save({ name: null, avatarId: null, removeAvatar: true });
+    expect(res.body).toEqual({ success: true });
+    expect(mockClient.user.update).toHaveBeenCalledTimes(1);
+    expect(mockClient.user.update).toHaveBeenCalledWith({
+      where: { id: 7 },
+      data: { avatar: null },
+    });
+  });
+
+  it("avatarId: null 만으로는 아바타를 지우지 않는다(웹은 안 바꿀 때도 null 을 보낸다)", async () => {
+    const res = await save({ name: null, avatarId: null });
+    expect(res.body).toEqual({ success: true });
+    expect(mockClient.user.update).not.toHaveBeenCalled();
+  });
 });
 
 describe("POST /api/users/me 소개(bio) — 앱 docs/prd/profile.md AC-2", () => {

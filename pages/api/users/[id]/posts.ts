@@ -81,7 +81,7 @@ async function handler(
         }),
     ...(speciesFilter ? { type: speciesFilter } : {}),
   };
-  // 사진 탭은 고정 글(최대 3개)이 늘 첫 페이지 맨 앞에 온다. Postgres DESC 는 NULL 이 먼저라 nulls:last 가 필요하다.
+  // 사진 탭은 고정 글(최대 9개)이 늘 첫 페이지 맨 앞에 온다. Postgres DESC 는 NULL 이 먼저라 nulls:last 가 필요하다.
   const orderBy: Prisma.PostOrderByWithRelationInput[] = photoOnly
     ? [
         { profilePinnedAt: { sort: "desc", nulls: "last" } },
