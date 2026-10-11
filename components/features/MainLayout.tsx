@@ -12,6 +12,7 @@ import { cn, makeImageUrl } from "@libs/client/utils";
 import useUser from "hooks/useUser";
 import SanctionNoticeModal from "@components/features/moderation/SanctionNoticeModal";
 import useLogout from "hooks/useLogout";
+import { identifyPosthogUser } from "@libs/client/posthog";
 import { version as APP_VERSION } from "../../package.json";
 
 export type HeaderVariant = "default" | "chat-list" | "profile" | "none";
@@ -477,7 +478,7 @@ export default function MainLayout({
   const [deferredInstallPrompt, setDeferredInstallPrompt] =
     useState<BeforeInstallPromptEvent | null>(null);
   const [installLoading, setInstallLoading] = useState(false);
-  const { user, isLoading: userLoading } = useUser();
+  const { user, isAdmin, isLoading: userLoading } = useUser();
   const { data: unreadData } = useSWR<UnreadCountResponse>(
     user ? "/api/chat/unread-count" : null,
     { revalidateOnFocus: false, refreshInterval: UNREAD_REFRESH_MS }
@@ -496,6 +497,11 @@ export default function MainLayout({
     unreadData?.success && unreadData.unreadCount > 0 ? unreadData.unreadCount : 0;
   // 사용자 정보를 받는 중에는 탭을 그대로 두고, 비로그인이 확정되면 로그인으로 보낸다.
   const loggedOut = !user && !userLoading;
+
+  // PostHog 에 로그인 사용자를 묶는다(로그인 사용자 수·재방문·운영팀 제외용). 개인정보는 넘기지 않는다.
+  useEffect(() => {
+    if (user?.id) identifyPosthogUser(user.id, { is_admin: isAdmin });
+  }, [user?.id, isAdmin]);
 
   useEffect(() => {
     const onBeforeInstallPrompt = (event: Event) => {
