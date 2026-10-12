@@ -89,7 +89,8 @@ describe("홈 우리 동네 브리더(강조, community-vibe §3.6)", () => {
     const { unmount } = render(<NeighborhoodBreederSectionView state={{ kind: "unset", loggedIn: false }} />);
     expect(screen.getByRole("link", { name: "내 동네 설정" })).toHaveAttribute(
       "href",
-      `/login?next=${encodeURIComponent("/settings/region")}`
+      // 로그인을 거쳐 내 동네를 정하면 '완료' 뒤 홈으로 돌아온다(from).
+      `/login?next=${encodeURIComponent("/settings/region?from=%2F")}`
     );
     unmount();
     const { container } = render(<NeighborhoodBreederSectionView state={{ kind: "hidden" }} />);

@@ -159,7 +159,7 @@ const PostClient = ({
   const postId = extractPostIdFromPath(params?.id);
   const postApiId = Number.isNaN(postId) ? null : postId;
   const router = useRouter();
-  const { user, isLoading: userLoading } = useUser();
+  const { user, isLoading: userLoading, canEditAnyContent } = useUser();
   const { mutate: globalMutate, cache: swrCache } = useSWRConfig();
   const revalidateMyPostActivity = () =>
     revalidateByPrefix({ cache: swrCache, mutate: globalMutate }, [...POST_KEY_PREFIXES, ...MY_ACTIVITY_KEY_PREFIXES]);
@@ -208,6 +208,8 @@ const PostClient = ({
   const detailPath = post ? toPostPath(post.id, post.title) : `/posts/${postApiId ?? ""}`;
   const authorId = post?.user?.id;
   const isOwnPost = Boolean(user?.id && authorId && user.id === authorId);
+  // 운영자 이메일 계정은 남의 글도 본인 글처럼 수정·삭제한다(서버가 같은 기준으로 허용).
+  const canManagePost = isOwnPost || canEditAnyContent;
   const headerTitle = isNotice ? "공지" : post?.category || "게시글";
   const likeCount = post?._count?.Likes ?? 0;
   const commentCount = post?._count?.comments ?? 0;
@@ -530,61 +532,69 @@ const PostClient = ({
             refreshDetail: () => void mutate(),
             onDeleted: () => router.replace("/posts"),
           }),
-          ...(moderation.isAdmin ? [{ ...byKey.edit, label: "수정하기 (관리자)" }] : []),
+          // 운영자 이메일 계정은 아래 본인 메뉴(수정·삭제)로 이미 고칠 수 있어 겹치지 않게 뺀다.
+          ...(moderation.isAdmin && !canManagePost ? [{ ...byKey.edit, label: "수정하기 (관리자)" }] : []),
         ];
     return [
       ...adminActions,
       ...getPostMenuActionKeys({
-        isOwn: isOwnPost,
+        isOwn: canManagePost,
         isNotice,
         hasAuthor: Boolean(post.user?.id),
         authorBlocked,
-        canProfilePin: photos.length > 0,
+        // 프로필 고정은 내 프로필에 내 글을 올리는 것이라 본인 글에만 둔다.
+        canProfilePin: isOwnPost && photos.length > 0,
       }).map((key) => byKey[key]),
     ];
-  }, [post, isOwnPost, isNotice, authorBlocked, user, photos.length, setProfilePin, moderation, mutate, router]);
+  }, [post, isOwnPost, canManagePost, isNotice, authorBlocked, user, photos.length, setProfilePin, moderation, mutate, router]);
 
   // 댓글 ⋮ 시트: 내 댓글은 수정·삭제, 남의 댓글은 (관리자 조치) 신고·작성자 차단.
   const commentSheetIsMine = Boolean(user?.id && commentSheet?.user?.id === user.id);
+  // 운영자 이메일 계정은 남의 댓글도 수정·삭제한다(관리자 숨기기 조치는 그대로 맨 앞).
+  const commentSheetCanManage = commentSheetIsMine || canEditAnyContent;
   const commentSheetActions: ActionSheetAction[] = !commentSheet
     ? []
-    : commentSheetIsMine
-      ? [
-          {
-            key: "edit",
-            label: "수정하기",
-            onSelect: () => startComposer({ kind: "edit", comment: commentSheet }),
-          },
-          {
-            key: "delete",
-            label: "삭제하기",
-            destructive: true,
-            onSelect: () => setCommentDelete(commentSheet),
-          },
-        ]
-      : [
-          // 관리자는 남의 댓글에서 숨기기·숨김 해제·삭제를 맨 앞에 본다(앱과 같음).
-          ...moderation.actionsFor({
-            targetType: "COMMENT",
-            targetId: commentSheet.id,
-            isHidden: Boolean(commentSheet.isHidden),
-            refreshDetail: () => {
-              void mutate();
-              revalidateMyPostActivity();
-            },
-          }),
-          {
-            key: "report",
-            label: "신고하기",
-            onSelect: () => openReport({ type: "COMMENT", id: commentSheet.id }),
-          },
-          {
-            key: "block",
-            label: "작성자 차단",
-            destructive: true,
-            onSelect: () => openBlock({ id: commentSheet.user.id, name: commentSheet.user.name }),
-          },
-        ];
+    : [
+        // 관리자는 남의 댓글에서 숨기기·숨김 해제·삭제를 맨 앞에 본다(앱과 같음).
+        ...(commentSheetIsMine
+          ? []
+          : moderation.actionsFor({
+              targetType: "COMMENT",
+              targetId: commentSheet.id,
+              isHidden: Boolean(commentSheet.isHidden),
+              refreshDetail: () => {
+                void mutate();
+                revalidateMyPostActivity();
+              },
+            })),
+        ...(commentSheetCanManage
+          ? [
+              {
+                key: "edit",
+                label: "수정하기",
+                onSelect: () => startComposer({ kind: "edit", comment: commentSheet }),
+              },
+              {
+                key: "delete",
+                label: "삭제하기",
+                destructive: true,
+                onSelect: () => setCommentDelete(commentSheet),
+              },
+            ]
+          : [
+              {
+                key: "report",
+                label: "신고하기",
+                onSelect: () => openReport({ type: "COMMENT", id: commentSheet.id }),
+              },
+              {
+                key: "block",
+                label: "작성자 차단",
+                destructive: true,
+                onSelect: () => openBlock({ id: commentSheet.user.id, name: commentSheet.user.name }),
+              },
+            ]),
+      ];
   const commentDeleteHasReplies = Boolean(
     commentDelete &&
       commentThreads.some((thread) => thread.root.id === commentDelete.id && thread.replies.length > 0)

@@ -3,6 +3,7 @@ import withHandler, { ResponseType } from "@libs/server/withHandler";
 import client from "@libs/server/client";
 import { withAuth } from "@libs/server/auth";
 import { createNotification } from "@libs/server/notification";
+import { captureServerEvent, resolveClientPlatform } from "@libs/server/analytics";
 import {
   AUCTION_EXTENSION_MS,
   AUCTION_EXTENSION_WINDOW_MS,
@@ -190,6 +191,12 @@ async function handler(
     }
 
     await incrementUserMissionProgress(user.id, "auction_bid");
+    await captureServerEvent(user.id, "auction_bid_placed", {
+      auction_id: auctionId,
+      bid_amount: bidAmount,
+      extended: shouldExtend,
+      platform: resolveClientPlatform(req),
+    });
 
     return res.json({ success: true, extended: shouldExtend, endAt: nextEndAt.toISOString() });
   } catch (error) {

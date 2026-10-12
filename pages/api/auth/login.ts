@@ -17,6 +17,11 @@ import { withRestrictionNotice } from "@libs/server/sanctions";
 import type { User } from "@prisma/client";
 import { SocialAuthError, verifySocialLogin } from "@libs/server/socialAuth";
 import { storeAppleRefreshToken } from "@libs/server/appleTokens";
+import {
+  captureServerEvent,
+  resolveClientPlatform,
+  withSignupPersonProperties,
+} from "@libs/server/analytics";
 
 export interface LoginReqBody {
   /**
@@ -118,6 +123,7 @@ async function handler(
     let user = await client.user.findUnique({
       where: { snsId },
     });
+    const isNewUser = !user;
 
     if (!user) {
       // 탈퇴 후 보관 기간(30일) 중인 소셜 계정은 재가입을 막는다.
@@ -205,6 +211,14 @@ async function handler(
       authUser,
       user.tokenVersion
     );
+
+    // 가입률은 이 이벤트로 센다(웹·앱 모두 이 API 로 가입한다). 웹은 로그인 직후 identify 로 방문 기록과 이어진다.
+    const platform = resolveClientPlatform(req);
+    if (isNewUser) {
+      await captureServerEvent(user.id, "signup_completed", withSignupPersonProperties({ method: provider, platform }));
+    } else {
+      await captureServerEvent(user.id, "login_completed", { method: provider, platform });
+    }
 
     res.status(200).json({
       success: true,

@@ -23,6 +23,7 @@ import {
 import { REGION_REQUIRED_MESSAGE } from "@libs/shared/regions";
 import { REGION_POST_CATEGORY } from "@libs/shared/postCategory";
 import { validatePostDescription } from "@libs/shared/post-body";
+import { captureServerEvent, resolveClientPlatform } from "@libs/server/analytics";
 import type { HotRealtimeMeta } from "@libs/shared/communityVibe";
 import { getRealtimeHotRanking } from "@libs/server/hotRealtime";
 import { getViewerRegionScope } from "@libs/server/nearby";
@@ -422,6 +423,13 @@ const handler = async (
         excludeUserIds: questionRecipients,
       });
       await incrementUserMissionProgress(user.id, "post_create");
+      await captureServerEvent(user.id, "post_created", {
+        post_id: post.id,
+        category: category || null,
+        species: species || null,
+        image_count: resolvedImages.images.length,
+        platform: resolveClientPlatform(req),
+      });
     }
 
     // 등록 보상 시트(앱 community-vibe §3.4). 실패해도 등록은 성공으로 돌려준다(celebrate: null).

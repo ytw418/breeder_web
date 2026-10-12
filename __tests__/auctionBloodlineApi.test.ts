@@ -75,8 +75,11 @@ jest.mock("@libs/server/notification", () => ({
 }));
 const mockCapture = jest.fn();
 jest.mock("@libs/server/analytics", () => ({
+  ...jest.requireActual("@libs/server/analytics"),
   captureServerEvent: (...args: unknown[]) => mockCapture(...args),
 }));
+// 등록 자체도 계측(product_created·auction_created)하므로 혈통 계측만 골라 본다.
+const attachCaptures = () => mockCapture.mock.calls.filter((call) => call[1] === "auction_bloodline_attached");
 
 import createHandler from "../pages/api/auctions/index";
 import detailHandler from "../pages/api/auctions/[id]/index";
@@ -212,7 +215,7 @@ describe("POST /api/auctions 혈통 연결(등록)", () => {
     expect(createdData().bloodlineRootId).toBeNull();
     expect(createdData()).not.toHaveProperty("pedigreeNote");
     expect(findCard).not.toHaveBeenCalled();
-    expect(mockCapture).not.toHaveBeenCalled();
+    expect(attachCaptures()).toHaveLength(0);
   });
 
   it("넘긴 뒤에는 연결할 수 없다", async () => {
@@ -237,7 +240,7 @@ describe("POST /api/auctions 혈통 연결(등록)", () => {
   it("붙이면 auction_bloodline_attached 를 1회 보낸다", async () => {
     cards = [root({ currentOwnerId: ME })];
     await create({ bloodlineRootId: 10 });
-    expect(mockCapture).toHaveBeenCalledTimes(1);
+    expect(attachCaptures()).toHaveLength(1);
     expect(mockCapture).toHaveBeenCalledWith(ME, "auction_bloodline_attached", {
       auction_id: 11,
       bloodline_id: 10,
@@ -292,7 +295,7 @@ describe("POST /api/auctions/:id 혈통 연결(수정)", () => {
     const res = await update({ bloodlineRootId: 10, pedigreeNote: { generation: "F2" } });
     expect(res.statusCode).toBe(200);
     expect(updatedData()).toMatchObject({ bloodlineRootId: 10, pedigreeNote: { generation: "F2" } });
-    expect(mockCapture).toHaveBeenCalledTimes(1);
+    expect(attachCaptures()).toHaveLength(1);
     expect(mockCapture).toHaveBeenCalledWith(ME, "auction_bloodline_attached", {
       auction_id: 5,
       bloodline_id: 10,
@@ -335,7 +338,7 @@ describe("POST /api/auctions/:id 혈통 연결(수정)", () => {
     expect(res.statusCode).toBe(200);
     expect(updatedData().bloodlineRootId).toBeNull();
     expect(updatedData().pedigreeNote).toBe(Prisma.DbNull);
-    expect(mockCapture).not.toHaveBeenCalled();
+    expect(attachCaptures()).toHaveLength(0);
   });
 
   it("이미 연결된 혈통을 그대로 두는 수정은 권한을 다시 보지 않고 계측하지 않는다", async () => {
@@ -345,7 +348,7 @@ describe("POST /api/auctions/:id 혈통 연결(수정)", () => {
     expect(res.statusCode).toBe(200);
     expect(updatedData().bloodlineRootId).toBe(10);
     expect(findCard).not.toHaveBeenCalled();
-    expect(mockCapture).not.toHaveBeenCalled();
+    expect(attachCaptures()).toHaveLength(0);
   });
 
   it("혈통을 안 보내고 부모 정보만 보내면 400", async () => {

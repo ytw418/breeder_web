@@ -3,6 +3,7 @@ import withHandler from "@libs/server/withHandler";
 import { NextApiRequest, NextApiResponse } from "next";
 import { withAuth } from "@libs/server/auth";
 import { assertCanChat } from "@libs/server/blocks";
+import { captureServerEvent, resolveClientPlatform } from "@libs/server/analytics";
 
 export interface ChatRequestType {
   otherId: number;
@@ -85,6 +86,12 @@ async function handler(
           },
         },
       },
+    });
+
+    await captureServerEvent(user.id, "chat_room_created", {
+      chat_room_id: newChatRoom.id,
+      other_user_id: +otherId,
+      platform: resolveClientPlatform(req),
     });
 
     return res.json({ success: true, ChatRoomId: newChatRoom.id });

@@ -3,6 +3,7 @@ import withHandler, { ResponseType } from "@libs/server/withHandler";
 import { withAuth } from "@libs/server/auth";
 import client from "@libs/server/client";
 import { resolveReportTarget } from "@libs/server/reports";
+import { captureServerEvent, resolveClientPlatform } from "@libs/server/analytics";
 import { parsePositiveIntId } from "@libs/shared/normalize";
 import {
   OTHER_REASON,
@@ -137,6 +138,12 @@ async function handler(req: NextApiRequest, res: NextApiResponse<ReportResponse>
       detail: detail || null,
     },
     select: { id: true, status: true, createdAt: true },
+  });
+
+  await captureServerEvent(userId, "report_submitted", {
+    target_type: targetType,
+    reason,
+    platform: resolveClientPlatform(req),
   });
 
   return res.json({

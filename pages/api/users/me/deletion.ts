@@ -8,6 +8,7 @@ import {
   deleteAccount,
   findDeletionBlockers,
 } from "@libs/server/accountDeletion";
+import { captureServerEvent, resolveClientPlatform } from "@libs/server/analytics";
 
 const ADMIN_BLOCK_MESSAGE =
   "관리자 계정은 직접 탈퇴할 수 없습니다. 다른 관리자에게 요청해 주세요.";
@@ -45,6 +46,11 @@ async function handler(req: NextApiRequest, res: NextApiResponse<ResponseType>) 
   const result = await deleteAccount(userId, { reason });
 
   if (result.ok) {
+    // 이탈 분석용. 사유는 사용자가 적은 글이라 앞 100자만 남긴다.
+    await captureServerEvent(userId, "account_deleted", {
+      reason: reason?.trim().slice(0, 100) || null,
+      platform: resolveClientPlatform(req),
+    });
     return res.json({
       success: true,
       deletedAt: result.deletedAt.toISOString(),

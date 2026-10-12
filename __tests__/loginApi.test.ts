@@ -44,6 +44,11 @@ const mockStoreAppleRefreshToken = jest.fn();
 jest.mock("@libs/server/appleTokens", () => ({
   storeAppleRefreshToken: (...args: unknown[]) => mockStoreAppleRefreshToken(...args),
 }));
+const mockCapture = jest.fn();
+jest.mock("@libs/server/analytics", () => ({
+  ...jest.requireActual("@libs/server/analytics"),
+  captureServerEvent: (...args: unknown[]) => mockCapture(...args),
+}));
 
 import loginHandler from "../pages/api/auth/login";
 
@@ -63,10 +68,10 @@ function createRes() {
   return res;
 }
 
-async function login(body: Record<string, unknown>) {
+async function login(body: Record<string, unknown>, headers: Record<string, string> = {}) {
   const res = createRes();
   await loginHandler(
-    { method: "POST", headers: {}, query: {}, body } as NextApiRequest,
+    { method: "POST", headers, query: {}, body } as NextApiRequest,
     res as unknown as NextApiResponse
   );
   return res;
@@ -237,5 +242,41 @@ describe("/api/auth/login 소셜 토큰 검증", () => {
         provider: "kakao",
       })
     );
+  });
+});
+
+describe("/api/auth/login 가입·로그인 계측", () => {
+  it("새 계정이면 signup_completed 를 가입 수단·플랫폼과 함께 보낸다(가입률 기준)", async () => {
+    mockVerifySocialLogin.mockResolvedValue({ snsId: "kakao-88", email: null, avatar: null });
+    mockClient.user.findUnique.mockResolvedValue(null);
+    mockCreateUser.mockResolvedValue({ ...existingUser, id: 3, snsId: "kakao-88" });
+
+    const res = await login({ token: "valid", name: "x", provider: "kakao" }, { "x-bredy-client": "app" });
+
+    expect(res.statusCode).toBe(200);
+    expect(mockCapture).toHaveBeenCalledTimes(1);
+    expect(mockCapture).toHaveBeenCalledWith(3, "signup_completed", {
+      method: "kakao",
+      platform: "app",
+      $set_once: { signup_method: "kakao", signup_platform: "app" },
+    });
+  });
+
+  it("기존 계정이면 login_completed 만 보낸다", async () => {
+    mockVerifySocialLogin.mockResolvedValue({ snsId: "victim-uid", email: null, avatar: null });
+    mockClient.user.findUnique.mockResolvedValue(existingUser);
+
+    await login({ token: "valid", name: "x", provider: "google" });
+
+    expect(mockCapture).toHaveBeenCalledTimes(1);
+    expect(mockCapture).toHaveBeenCalledWith(1, "login_completed", { method: "google", platform: "web" });
+  });
+
+  it("검증에 실패하면 아무것도 보내지 않는다", async () => {
+    mockVerifySocialLogin.mockRejectedValue(new MockSocialAuthError("bad"));
+
+    await login({ token: "bad", name: "x", provider: "kakao" });
+
+    expect(mockCapture).not.toHaveBeenCalled();
   });
 });

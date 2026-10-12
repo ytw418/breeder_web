@@ -580,7 +580,7 @@ const formatDateTime = (value?: string | null) => {
 const EditAuctionClient = () => {
   const params = useParams();
   const router = useRouter();
-  const { user, isLoading: isUserLoading } = useUser();
+  const { user, isLoading: isUserLoading, canEditAnyContent } = useUser();
   const auctionId = params?.id ? extractAuctionIdFromPath(params.id) : Number.NaN;
   const validAuctionId = Number.isFinite(auctionId);
   const idParam = Array.isArray(params?.id) ? params?.id[0] : params?.id;
@@ -652,7 +652,7 @@ const EditAuctionClient = () => {
         />
       );
     }
-    if (!data?.isOwner) {
+    if (!data?.isOwner && !canEditAnyContent) {
       return (
         <MessageState
           title="본인 경매만 수정할 수 있습니다"

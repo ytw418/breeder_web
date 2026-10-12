@@ -26,7 +26,7 @@ import {
 import type { BreederProgramSummary } from "@libs/shared/breeder-program";
 import { excludedAuthorIds, setViewerCacheHeader } from "@libs/server/blocks";
 import { canAttachBloodline, pedigreeNoteDbValue } from "@libs/server/bloodline-link";
-import { captureServerEvent } from "@libs/server/analytics";
+import { captureServerEvent, resolveClientPlatform } from "@libs/server/analytics";
 import { buildCelebrate } from "@libs/server/celebrate";
 import {
   parsePedigreeNote,
@@ -411,6 +411,14 @@ async function handler(
       });
 
       // 계측은 응답 직전에 기다린다(1.5초 상한, 실패해도 무시).
+      await captureServerEvent(user.id, "auction_created", {
+        auction_id: auction.id,
+        category: normalizedCategory,
+        start_price: normalizedStartPrice,
+        photo_count: normalizedPhotos.length,
+        has_bloodline: Boolean(normalizedBloodlineRootId),
+        platform: resolveClientPlatform(req),
+      });
       if (normalizedBloodlineRootId && attachRelation) {
         await captureServerEvent(user.id, "auction_bloodline_attached", {
           auction_id: auction.id,
