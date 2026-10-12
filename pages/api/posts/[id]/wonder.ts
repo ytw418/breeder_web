@@ -5,6 +5,7 @@ import client from "@libs/server/client";
 import { extractPostIdFromPath } from "@libs/post-route";
 import { withAuth } from "@libs/server/auth";
 import { createNotification } from "@libs/server/notification";
+import { captureServerEvent, resolveClientPlatform } from "@libs/server/analytics";
 
 async function handler(
   req: NextApiRequest,
@@ -76,6 +77,12 @@ async function handler(
       }
     } catch (error) {
       console.error("posts.wonder.notification.error", error);
+    }
+    if (user?.id) {
+      await captureServerEvent(user.id, "post_liked", {
+        post_id: postId,
+        platform: resolveClientPlatform(req),
+      });
     }
   }
 

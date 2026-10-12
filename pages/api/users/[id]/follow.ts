@@ -3,6 +3,7 @@ import withHandler, { ResponseType } from "@libs/server/withHandler";
 import client from "@libs/server/client";
 import { withAuth } from "@libs/server/auth";
 import { createNotification } from "@libs/server/notification";
+import { captureServerEvent, resolveClientPlatform } from "@libs/server/analytics";
 import { FOLLOW_BLOCKED_MESSAGE, getBlockRelation } from "@libs/server/blocks";
 
 export interface FollowResponse {
@@ -73,6 +74,11 @@ async function handler(
           targetType: "user",
         });
       }
+
+      await captureServerEvent(myId, "user_followed", {
+        target_user_id: targetUserId,
+        platform: resolveClientPlatform(req),
+      });
 
       return res.json({ success: true, isFollowing: true });
     }

@@ -23,6 +23,7 @@ import {
 import { REGION_REQUIRED_MESSAGE } from "@libs/shared/regions";
 import { REGION_POST_CATEGORY } from "@libs/shared/postCategory";
 import { validatePostDescription } from "@libs/shared/post-body";
+import { captureServerEvent, resolveClientPlatform } from "@libs/server/analytics";
 
 /** 게시글 목록 응답 타입 */
 export interface PostWithUser extends Post {
@@ -328,6 +329,13 @@ const handler = async (
         excludeUserIds: questionRecipients,
       });
       await incrementUserMissionProgress(user.id, "post_create");
+      await captureServerEvent(user.id, "post_created", {
+        post_id: post.id,
+        category: category || null,
+        species: species || null,
+        image_count: resolvedImages.images.length,
+        platform: resolveClientPlatform(req),
+      });
     }
 
     return res.json({ success: true, post });
