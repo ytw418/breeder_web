@@ -209,7 +209,6 @@ describe("verifySocialLogin - apple", () => {
       snsId: "001234.abcd.0001",
       email: "r@privaterelay.appleid.com",
       avatar: null,
-      appleClientId: "app.bredy.mobile",
     });
   });
 

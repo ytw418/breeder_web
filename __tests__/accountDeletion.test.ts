@@ -17,7 +17,6 @@ const mockClient = {
   notification: { deleteMany: jest.fn() },
   voiceInquiry: { updateMany: jest.fn() },
   guinnessSubmission: { updateMany: jest.fn() },
-  appleSignInToken: { deleteMany: jest.fn() },
   $transaction: jest.fn(),
 };
 
@@ -29,11 +28,6 @@ jest.mock("@libs/server/client", () => ({
 const mockSettle = jest.fn();
 jest.mock("@libs/server/auctionSettlement", () => ({
   settleExpiredAuctions: (...args: unknown[]) => mockSettle(...args),
-}));
-
-const mockRevokeAppleSignIn = jest.fn();
-jest.mock("@libs/server/appleTokens", () => ({
-  revokeAppleSignIn: (...args: unknown[]) => mockRevokeAppleSignIn(...args),
 }));
 
 import {
@@ -266,33 +260,6 @@ describe("deleteAccount", () => {
     });
   });
 
-  it("애플 계정이면 탈퇴 뒤 원래 snsId 로 Apple 로그인 연결을 끊는다", async () => {
-    mockClient.user.findUnique.mockResolvedValue({
-      ...activeUser,
-      snsId: "001.apple.1",
-      provider: "apple",
-    });
-    mockRevokeAppleSignIn.mockResolvedValue("revoked");
-
-    const result = await deleteAccount(USER_ID, { now: NOW });
-
-    expect(result.ok).toBe(true);
-    expect(mockRevokeAppleSignIn).toHaveBeenCalledWith("001.apple.1");
-  });
-
-  it("애플 철회가 실패해도 탈퇴는 성공으로 끝난다", async () => {
-    mockClient.user.findUnique.mockResolvedValue({ ...activeUser, provider: "apple" });
-    mockRevokeAppleSignIn.mockResolvedValue("failed");
-
-    expect((await deleteAccount(USER_ID, { now: NOW })).ok).toBe(true);
-  });
-
-  it("애플이 아닌 계정은 철회를 부르지 않는다", async () => {
-    mockClient.user.findUnique.mockResolvedValue(activeUser);
-    await deleteAccount(USER_ID, { now: NOW });
-    expect(mockRevokeAppleSignIn).not.toHaveBeenCalled();
-  });
-
   it("성공 시 개인 설정·수신함을 지우고 판매중 상품을 숨긴다", async () => {
     mockClient.user.findUnique.mockResolvedValue(activeUser);
     await deleteAccount(USER_ID, { now: NOW });
@@ -389,19 +356,6 @@ describe("purgeDeletedAccounts", () => {
         reason: null,
         purgedAt: NOW,
       },
-    });
-  });
-
-  it("애플 계정은 파기 전에 철회를 다시 시도하고 남은 토큰 행을 지운다", async () => {
-    mockClient.userDeletionRecord.findMany.mockResolvedValue([
-      { id: 1, userId: USER_ID, provider: "apple", snsId: "001.apple.1", email: null },
-    ]);
-    mockRevokeAppleSignIn.mockResolvedValue("failed");
-
-    expect(await purgeDeletedAccounts(NOW)).toEqual({ purged: 1, failed: 0 });
-    expect(mockRevokeAppleSignIn).toHaveBeenCalledWith("001.apple.1");
-    expect(mockClient.appleSignInToken.deleteMany).toHaveBeenCalledWith({
-      where: { snsId: "001.apple.1" },
     });
   });
 
