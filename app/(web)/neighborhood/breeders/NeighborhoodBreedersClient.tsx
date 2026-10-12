@@ -31,7 +31,7 @@ export default function NeighborhoodBreedersClient() {
       ) : !data ? (
         <NearbyBreederSkeletonRows count={6} />
       ) : data.items.length === 0 ? (
-        <NearbyBreederEmpty region={data.region} />
+        <NearbyBreederEmpty label={data.regionLabel ?? null} />
       ) : (
         <div className="pb-6">
           {caption ? <p className="px-4 pb-1 pt-3 text-[13px] text-app-muted">{caption}</p> : null}

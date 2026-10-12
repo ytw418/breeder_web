@@ -24,6 +24,11 @@ import { REGION_REQUIRED_MESSAGE } from "@libs/shared/regions";
 import { REGION_POST_CATEGORY } from "@libs/shared/postCategory";
 import { validatePostDescription } from "@libs/shared/post-body";
 import { captureServerEvent, resolveClientPlatform } from "@libs/server/analytics";
+import type { HotRealtimeMeta } from "@libs/shared/communityVibe";
+import { getRealtimeHotRanking } from "@libs/server/hotRealtime";
+import { getViewerRegionScope } from "@libs/server/nearby";
+import { regionScopeOr } from "@libs/shared/regionScope";
+import { buildCelebrate } from "@libs/server/celebrate";
 
 /** 게시글 목록 응답 타입 */
 export interface PostWithUser extends Post {
@@ -52,8 +57,68 @@ export interface PostsListResponse {
   followingCount?: number;
 }
 
+/** GET /api/posts?hot=realtime 응답 글(앱 docs/prd/community-vibe.md §8 HotRealtimePost). */
+export type HotRealtimePost = PostWithUser & HotRealtimeMeta;
+
+/** GET /api/posts?unanswered=1 응답(가장 오래 답 없는 질문 + 7일 안 답 없는 질문 수). */
+export interface UnansweredPostsResponse extends PostsListResponse {
+  unansweredCount: number;
+}
+
 /** 목록 한 페이지 크기 */
 const PAGE_SIZE = 10;
+/** '답 기다려요'가 보는 기간(관리자 '답 없는 글' 필터와 같다). */
+export const UNANSWERED_WINDOW_MS = 7 * 24 * 60 * 60 * 1000;
+const SPECIAL_LIST_MAX = 10;
+
+/** 목록 카드가 쓰는 include(작성자·브리더 프로그램·수·최신 댓글 한 줄). */
+const postListInclude = (excluded: number[]) =>
+  ({
+    user: {
+      select: {
+        id: true,
+        name: true,
+        avatar: true,
+        breederPrograms: {
+          where: { status: "ACTIVE" as const },
+          select: breederProgramSummarySelect,
+        },
+      },
+    },
+    _count: {
+      select: {
+        comments: true,
+        Likes: true,
+      },
+    },
+    // 목록 카드의 '최신 댓글 한 줄'. 숨김·삭제·viewer 가 차단한 사람의 댓글은 뺀다.
+    comments: {
+      where: {
+        isHidden: false,
+        deletedAt: null,
+        ...(excluded.length ? { userId: { notIn: excluded } } : {}),
+      },
+      orderBy: [{ createdAt: "desc" as const }, { id: "desc" as const }],
+      take: 1,
+      select: { id: true, comment: true, user: { select: { id: true, name: true } } },
+    },
+  }) satisfies Prisma.PostInclude;
+
+type PostListRow = Prisma.PostGetPayload<{ include: ReturnType<typeof postListInclude> }>;
+
+const toListPost = ({ comments, ...post }: PostListRow) => ({
+  ...withPostImages(post),
+  latestComment: comments?.[0] ?? null,
+  user: {
+    ...post.user,
+    breederPrograms: getSortedActiveBreederProgramSummaries(post.user.breederPrograms),
+  },
+});
+
+const parseSpecialLimit = (value: unknown, fallback: number) => {
+  const n = Number(value);
+  return Number.isInteger(n) && n > 0 ? Math.min(n, SPECIAL_LIST_MAX) : fallback;
+};
 
 const handler = async (
   req: NextApiRequest,
@@ -74,6 +139,73 @@ const handler = async (
         errorCode: "LOGIN_REQUIRED",
       });
     }
+    // 실시간 TOP 토론: 최근 24시간 활동 점수순(libs/server/hotRealtime). 마지막 활동 시각·종류를 붙인다.
+    if (req.query.hot === "realtime") {
+      const excluded = await excludedAuthorIds(viewerId);
+      res.setHeader("Cache-Control", "public, s-maxage=30, stale-while-revalidate=60");
+      setViewerCacheHeader(res, viewerId);
+      const ranked = await getRealtimeHotRanking({
+        limit: parseSpecialLimit(req.query.limit, 3),
+        categoryPath: typeof categoryPath === "string" ? categoryPath : undefined,
+        excludedIds: excluded,
+      });
+      if (!ranked.length) return res.json({ success: true, posts: [], pages: 0 });
+      const rows = await client.post.findMany({
+        where: { id: { in: ranked.map((r) => r.postId) } },
+        include: postListInclude(excluded),
+      });
+      const byId = new Map(rows.map((row) => [row.id, row]));
+      const posts: HotRealtimePost[] = ranked.flatMap(({ postId, ...meta }) => {
+        const row = byId.get(postId);
+        return row ? [{ ...toListPost(row), ...meta } as HotRealtimePost] : [];
+      });
+      return res.json({ success: true, posts, pages: 1 });
+    }
+
+    // 답 기다려요: 7일 안 보이는 댓글이 없는 질문(숨김 제외), 가장 오래된 순 + 전체 수.
+    if (req.query.unanswered === "1") {
+      const excluded = await excludedAuthorIds(viewerId);
+      res.setHeader("Cache-Control", "public, s-maxage=30, stale-while-revalidate=60");
+      setViewerCacheHeader(res, viewerId);
+      const scope = await categoryScopeWhere(categoryPath);
+      const unansweredWhere: Prisma.PostWhereInput = {
+        category: "질문",
+        isHidden: false,
+        createdAt: { gte: new Date(Date.now() - UNANSWERED_WINDOW_MS) },
+        comments: { none: { isHidden: false, deletedAt: null } },
+        user: { status: "ACTIVE" },
+        ...(Object.keys(scope).length ? { AND: [scope] } : {}),
+        ...(excluded.length ? { userId: { notIn: excluded } } : {}),
+      };
+      const [rows, unansweredCount] = await Promise.all([
+        client.post.findMany({
+          where: unansweredWhere,
+          include: postListInclude(excluded),
+          orderBy: [{ createdAt: "asc" }, { id: "asc" }],
+          take: parseSpecialLimit(req.query.limit, 1),
+        }),
+        client.post.count({ where: unansweredWhere }),
+      ]);
+      return res.json({ success: true, posts: rows.map(toListPost), pages: 1, unansweredCount });
+    }
+
+    // 동네 범위(50km, libs/shared/regionScope): 로그인 필요, 동네가 없으면 빈 목록.
+    const neighborhoodScope = req.query.scope === "neighborhood";
+    let neighborhoodOr: ReturnType<typeof regionScopeOr> | null = null;
+    if (neighborhoodScope) {
+      res.setHeader("Cache-Control", "private, no-store, max-age=0");
+      if (!viewerId) {
+        return res.status(401).json({
+          success: false,
+          error: "로그인이 필요합니다.",
+          errorCode: "LOGIN_REQUIRED",
+        });
+      }
+      const viewerScope = await getViewerRegionScope(viewerId);
+      if (!viewerScope) return res.json({ success: true, posts: [], pages: 0 });
+      neighborhoodOr = regionScopeOr(viewerScope.regions);
+    }
+
     const selectedSort =
       typeof sort === "string" && ["latest", "popular", "comments"].includes(sort)
         ? sort
@@ -112,8 +244,10 @@ const handler = async (
     }
     if (and.length) where.AND = and;
 
-    // 동네 글: 시/도만 주면 시/도 전체, 시/군/구까지 주면 그 동네만.
-    if (!followingOnly && typeof regionSido === "string" && regionSido) {
+    // 동네 글: scope=neighborhood 면 내 50km 범위, 아니면 시/도만 주면 시/도 전체, 시/군/구까지 주면 그 동네만.
+    if (!followingOnly && neighborhoodOr) {
+      where.OR = neighborhoodOr;
+    } else if (!followingOnly && typeof regionSido === "string" && regionSido) {
       where.regionSido = regionSido;
       if (typeof regionSigungu === "string" && regionSigungu) {
         where.regionSigungu = regionSigungu;
@@ -161,58 +295,18 @@ const handler = async (
           ? [{ comments: { _count: "desc" } }, ...tieBreak]
           : tieBreak;
 
-    const postQuery = Prisma.validator<Prisma.PostFindManyArgs>()({
-      where,
-      include: {
-        user: {
-          select: {
-            id: true,
-            name: true,
-            avatar: true,
-            breederPrograms: {
-              where: { status: "ACTIVE" as const },
-              select: breederProgramSummarySelect,
-            },
-          },
-        },
-        _count: {
-          select: {
-            comments: true,
-            Likes: true,
-          },
-        },
-        // 목록 카드의 '최신 댓글 한 줄'. 숨김·삭제·viewer 가 차단한 사람의 댓글은 뺀다.
-        comments: {
-          where: {
-            isHidden: false,
-            deletedAt: null,
-            ...(excluded.length ? { userId: { notIn: excluded } } : {}),
-          },
-          orderBy: [{ createdAt: "desc" as const }, { id: "desc" as const }],
-          take: 1,
-          select: { id: true, comment: true, user: { select: { id: true, name: true } } },
-        },
-      },
-      orderBy,
-      skip,
-      take: PAGE_SIZE,
-    });
-
     const [pagePosts, postCount] = await Promise.all([
-      client.post.findMany(postQuery),
+      client.post.findMany({
+        where,
+        include: postListInclude(excluded),
+        orderBy,
+        skip,
+        take: PAGE_SIZE,
+      }),
       client.post.count({ where }),
     ]);
 
-    const posts = pagePosts.map(({ comments, ...post }) => ({
-      ...withPostImages(post),
-      latestComment: comments?.[0] ?? null,
-      user: {
-        ...post.user,
-        breederPrograms: getSortedActiveBreederProgramSummaries(
-          post.user.breederPrograms
-        ),
-      },
-    }));
+    const posts = pagePosts.map(toListPost);
 
     res.json({
       success: true,
@@ -338,7 +432,16 @@ const handler = async (
       });
     }
 
-    return res.json({ success: true, post });
+    // 등록 보상 시트(앱 community-vibe §3.4). 실패해도 등록은 성공으로 돌려준다(celebrate: null).
+    const celebrate = await buildCelebrate({
+      target: "post",
+      id: post.id,
+      userId: user.id,
+      createdAt: post.createdAt,
+      species: post.type ?? null,
+      categoryId: post.categoryId ?? null,
+    });
+    return res.json({ success: true, post, celebrate });
   }
 };
 

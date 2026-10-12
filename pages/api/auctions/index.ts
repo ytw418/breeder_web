@@ -27,6 +27,7 @@ import type { BreederProgramSummary } from "@libs/shared/breeder-program";
 import { excludedAuthorIds, setViewerCacheHeader } from "@libs/server/blocks";
 import { canAttachBloodline, pedigreeNoteDbValue } from "@libs/server/bloodline-link";
 import { captureServerEvent, resolveClientPlatform } from "@libs/server/analytics";
+import { buildCelebrate } from "@libs/server/celebrate";
 import {
   parsePedigreeNote,
   PEDIGREE_NOTE_INVALID_MESSAGE,
@@ -428,7 +429,17 @@ async function handler(
         });
       }
 
-      return res.json({ success: true, auction });
+      // 등록 보상 시트(앱 community-vibe §3.4). 실패하면 null.
+      const celebrate = await buildCelebrate({
+        target: "auction",
+        id: auction.id,
+        userId: user.id,
+        createdAt: auction.createdAt,
+        species: auction.category ?? null,
+        categoryId: auction.categoryId ?? null,
+      });
+
+      return res.json({ success: true, auction, celebrate });
     } catch (error) {
       console.error("Auction create error:", error);
       return res.status(500).json({

@@ -70,22 +70,23 @@ describe("내 동네 표시", () => {
 describe("동네 브리더 목록(앱 NearbyBreederList)", () => {
   beforeEach(() => mockUseUser.mockReturnValue({ user: { id: 1 } }));
 
-  it("캡션: 시/군/구 그대로, 시/도로 넓혔으면 안내, 미설정이면 없음", () => {
-    const region = { sido: "서울특별시", sigungu: "강남구" };
-    expect(nearbyCaption({ scope: "sigungu", region })).toBe("강남구 브리더");
-    expect(nearbyCaption({ scope: "sido", region })).toBe("강남구엔 아직 없어 서울특별시 전체를 보여드려요");
-    expect(nearbyCaption({ scope: "none", region: null })).toBeNull();
+  it("캡션: 시 단위 + 50km 라벨과 인원, 0명이면 없음(community-vibe §3.6b)", () => {
+    expect(nearbyCaption({ scope: "near", regionLabel: "서울", total: 12 })).toBe("서울 근처 브리더 12명");
+    expect(nearbyCaption({ scope: "near", regionLabel: "보은군 근처", total: 2 })).toBe("보은군 근처 브리더 2명");
+    expect(nearbyCaption({ scope: "none", regionLabel: "서울" })).toBeNull();
   });
 
   it("3명까지만 그리고 전체 보기로 잇는다", () => {
     const data = {
       success: true,
-      scope: "sigungu",
+      scope: "near",
+      regionLabel: "서울",
+      total: 4,
       region: { sido: "서울특별시", sigungu: "강남구" },
       items: [breeder(1, "가"), breeder(2, "나"), breeder(3, "다"), breeder(4, "라")],
     } as unknown as NearbyBreedersResponse;
     render(<NearbyBreederList data={data} isError={false} onRetry={() => undefined} />);
-    expect(screen.getByText("강남구 브리더")).toBeTruthy();
+    expect(screen.getByText("서울 근처 브리더 4명")).toBeTruthy();
     expect(screen.getByText("가")).toBeTruthy();
     expect(screen.queryByText("라")).toBeNull();
     expect(screen.getAllByText("게시글 3 · 댓글 7")).toHaveLength(3);
@@ -97,12 +98,13 @@ describe("동네 브리더 목록(앱 NearbyBreederList)", () => {
   it("0명이면 빈 상태 문구", () => {
     const data = {
       success: true,
-      scope: "sido",
+      scope: "none",
+      regionLabel: "강남구",
       region: { sido: "서울특별시", sigungu: "강남구" },
       items: [],
     } as unknown as NearbyBreedersResponse;
     render(<NearbyBreederList data={data} isError={false} onRetry={() => undefined} />);
-    expect(screen.getByText("아직 강남구에 표시 중인 브리더가 없어요")).toBeTruthy();
+    expect(screen.getByText("강남구 근처 첫 브리더가 되어 보세요")).toBeTruthy();
     expect(screen.queryByText(/전체 보기/)).toBeNull();
   });
 

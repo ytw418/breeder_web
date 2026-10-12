@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { avatarToneClass } from "@components/ui/avatarTone";
 import type { ReactNode } from "react";
 import Image from "@components/atoms/Image";
 import {
@@ -223,12 +224,12 @@ export function ProfileAvatar({
     />
   ) : (
     <div
-      className="flex items-center justify-center rounded-full bg-app-surface"
+      className={cn("flex items-center justify-center rounded-full", avatarToneClass(name))}
       style={{ width: size, height: size }}
       aria-label={`${name} 프로필 이미지`}
       role="img"
     >
-      <span className="font-bold text-app-muted" style={{ fontSize: Math.round(size * 0.36) }}>
+      <span className="font-bold" style={{ fontSize: Math.round(size * 0.36) }}>
         {name.trim().charAt(0) || "브"}
       </span>
     </div>

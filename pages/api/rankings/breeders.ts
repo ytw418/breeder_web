@@ -2,7 +2,11 @@ import { NextApiRequest, NextApiResponse } from "next";
 import withHandler from "@libs/server/withHandler";
 import { withAuth } from "@libs/server/auth";
 import { BREEDER_HIGHLIGHT_MAX, BreederRankingItem, RankingPeriod } from "@libs/shared/ranking";
-import { attachBreederHighlights, getBreederRanking } from "@libs/server/ranking";
+import { attachBreederHighlights, computeRankingMe, getBreederRanking } from "@libs/server/ranking";
+import type { RankingMe } from "@libs/shared/communityVibe";
+
+/** me=1 로 내 순위 목표를 계산할 때 읽는 인원(getMyRankingSummary 와 같다). */
+const ME_RANKING_SCAN = 100;
 
 const isRankingPeriod = (value: string): value is RankingPeriod =>
   value === "weekly" || value === "all";
@@ -10,6 +14,8 @@ const isRankingPeriod = (value: string): value is RankingPeriod =>
 export interface BreedersRankingResponse {
   success: boolean;
   items: BreederRankingItem[];
+  /** me=1 일 때만. 비로그인은 null(앱 docs/prd/community-vibe.md §3.2). */
+  me?: RankingMe | null;
   error?: string;
 }
 
@@ -31,9 +37,22 @@ async function handler(
     const highlights = Number.isFinite(parsedHighlights)
       ? Math.min(Math.max(Math.floor(parsedHighlights), 0), BREEDER_HIGHLIGHT_MAX)
       : 0;
-    const ranking = await getBreederRanking({ limit, period, categoryPath });
-    const items = highlights > 0 ? await attachBreederHighlights(ranking, highlights) : ranking;
+    // me=1: 같은 기간·범위 랭킹에서 내 순위 목표. 사람마다 달라 공유 캐시에 두지 않는다.
+    const wantsMe = req.query.me === "1";
+    const viewerId = req.user?.id;
+    const scan = wantsMe && viewerId ? Math.max(limit, ME_RANKING_SCAN) : limit;
+    const ranking = await getBreederRanking({ limit: scan, period, categoryPath });
+    const top = ranking.slice(0, limit);
+    const items = highlights > 0 ? await attachBreederHighlights(top, highlights) : top;
 
+    if (wantsMe) {
+      res.setHeader("Cache-Control", "private, no-store");
+      return res.json({
+        success: true,
+        items,
+        me: viewerId ? computeRankingMe(ranking, viewerId) : null,
+      });
+    }
     res.setHeader("Cache-Control", "public, s-maxage=60, stale-while-revalidate=120");
     return res.json({
       success: true,

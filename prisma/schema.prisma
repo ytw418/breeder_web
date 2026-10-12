@@ -137,6 +137,7 @@ model User {
   missionProgress UserMissionProgress[]
   alertSubscriptions AlertSubscription[]
   bloodlineFollows BloodlineFollow[]
+  regionVisits    RegionVisit[]
   auctionReportsSubmitted AuctionReport[] @relation("AuctionReportReporter")
   auctionReportsReceived  AuctionReport[] @relation("AuctionReportReportedUser")
   auctionReportsResolved  AuctionReport[] @relation("AuctionReportResolver")
@@ -478,6 +479,7 @@ enum NotificationType {
   AUCTION_RECORD_BROKEN
   BLOODLINE_RECEIVED   // 출처 카드를 받았거나 혈통을 넘겨받음
   MODERATION           // 운영 조치 안내(경고·정지·해제·숨김·삭제, 신고 처리 결과). 화면에는 보낸 사람 대신 '브리디 운영팀'
+  RANK_UP              // 주간 브리더 순위 상승("순위가 올랐어요 · 7위 → 5위", /ranking?focus=me). 앱 docs/prd/community-vibe.md
 }
 
 enum SeasonKind {
@@ -1208,4 +1210,19 @@ model UserDeletionRecord {
   @@index([snsId])
   @@index([snsIdHash])
   @@index([purgeAt, purgedAt])
+}
+
+/// 동네 홈 방문 기록(하루 1행). '이번 주 {시} 근처에서 N명이 둘러봤어요' 집계용(앱 docs/prd/community-vibe.md §3.1·§4).
+/// 방문 당시 사용자의 시/도·시/군/구 이름만 남긴다(좌표 미저장). day 는 KST 날짜.
+model RegionVisit {
+  id            Int      @id @default(autoincrement())
+  user          User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId        Int
+  regionSido    String
+  regionSigungu String
+  day           DateTime @db.Date
+  createdAt     DateTime @default(now())
+
+  @@unique([userId, day])
+  @@index([day, regionSido, regionSigungu])
 }
