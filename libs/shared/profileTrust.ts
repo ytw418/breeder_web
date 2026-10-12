@@ -20,13 +20,17 @@ export function bredyTenureLabel(months: number): string {
   return `브리디 ${Math.floor(months / 12)}년차`;
 }
 
-/** 거래 완료(1건 이상일 때)와 가입 기간을 " · " 로 잇는다. 둘 다 없으면 null. */
+/**
+ * 거래 완료(1건 이상일 때)·가입 기간·동네 라벨을 " · " 로 잇는다. 모두 없으면 null.
+ * regionLabel 은 공개한 동네만 넘긴다(예: "브리디 1개월차 · 구로구", 앱 community-vibe §3.8).
+ */
 export function profileTrustLine(
-  user: { completedSales?: number | null; createdAt?: string | null },
+  user: { completedSales?: number | null; createdAt?: string | null; regionLabel?: string | null },
   now: number = Date.now()
 ): string | null {
   const parts: string[] = [];
   if (user.completedSales && user.completedSales > 0) parts.push(`거래 완료 ${user.completedSales}`);
   if (user.createdAt) parts.push(bredyTenureLabel(monthsSince(user.createdAt, now)));
+  if (user.regionLabel?.trim()) parts.push(user.regionLabel.trim());
   return parts.length ? parts.join(" · ") : null;
 }

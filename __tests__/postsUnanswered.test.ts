@@ -10,7 +10,7 @@ import type { NextApiRequest, NextApiResponse } from "next";
 const NOW = new Date("2026-10-12T12:00:00.000Z");
 const mockClient = {
   category: { findMany: jest.fn(async () => []) },
-  userBlock: { findMany: jest.fn(async () => []) },
+  userBlock: { findMany: jest.fn(async (): Promise<any[]> => []) },
   user: { findUnique: jest.fn() },
   post: { findMany: jest.fn(), count: jest.fn() },
 };

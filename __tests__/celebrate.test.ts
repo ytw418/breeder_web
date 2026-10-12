@@ -42,14 +42,14 @@ beforeEach(() => {
 describe("buildCelebrate", () => {
   it("범위 첫 글이 가장 우선, ordinal 은 공지 뺀 id 순 번호", async () => {
     expect(await buildCelebrate(base)).toEqual({ ordinal: 234, fact: "서울 첫 글" });
-    const ordinalWhere = mockClient.post.count.mock.calls.find(([a]: any) => a.where.id.lte)![0].where;
+    const ordinalWhere = (mockClient.post.count.mock.calls as any[]).find(([a]: any) => a.where.id.lte)![0].where;
     expect(ordinalWhere).toMatchObject({ id: { lte: 500 }, OR: [{ category: null }, { category: { not: "공지" } }] });
   });
 
   it("범위에 앞선 글이 있으면 오늘 첫 글(KST 자정 기준)", async () => {
     counts.region = 3;
     expect((await buildCelebrate(base))?.fact).toBe("오늘 첫 글");
-    const todayWhere = mockClient.post.count.mock.calls.find(([a]: any) => a.where.createdAt && !a.where.type)![0].where;
+    const todayWhere = (mockClient.post.count.mock.calls as any[]).find(([a]: any) => a.where.createdAt && !a.where.type)![0].where;
     expect(todayWhere.createdAt.gte.toISOString()).toBe("2026-10-13T15:00:00.000Z");
   });
 
@@ -60,7 +60,7 @@ describe("buildCelebrate", () => {
     counts.species = 1;
     counts.pinned = 6;
     expect((await buildCelebrate(base))?.fact).toBe("6명이 관심 분야로 고정한 글이에요");
-    expect(mockClient.user.count.mock.calls[0][0].where).toMatchObject({ pinnedCategoryIds: { has: 12 }, id: { not: 7 } });
+    expect((mockClient.user.count.mock.calls as any[])[0][0].where).toMatchObject({ pinnedCategoryIds: { has: 12 }, id: { not: 7 } });
     counts.pinned = 0;
     expect((await buildCelebrate(base))?.fact).toBeNull();
   });

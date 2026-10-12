@@ -12,6 +12,8 @@ import { getTopSpecies } from "@libs/server/profileSpecies";
 import { parsePositiveIntId } from "@libs/shared/normalize";
 import { countProfileBloodlineCards } from "@libs/server/bloodline-visibility";
 import { User } from "@prisma/client";
+import { getLockedTitles } from "@libs/server/lockedTitles";
+import type { LockedTitle } from "@libs/shared/communityVibe";
 
 type UserWithCounts = Omit<User, "tokenVersion" | "suspendedUntil" | "snsId" | "phone"> & {
   /** 본인 조회일 때만 내려준다(로그인 식별자·연락처). */
@@ -43,6 +45,8 @@ type UserWithCounts = Omit<User, "tokenVersion" | "suspendedUntil" | "snsId" | "
     createdAt: string;
   }>;
   breederPrograms?: BreederProgramSummary[];
+  /** 본인 조회일 때만: 아직 못 단 칭호(남은 양 적은 순 최대 3, 앱 community-vibe §3.3). */
+  lockedTitles?: LockedTitle[];
 };
 
 export interface UserResponse {
@@ -187,7 +191,7 @@ async function handler(
     safeUser.regionUpdatedAt = null;
   }
 
-  const [badges, breederPrograms, topSpecies] = await Promise.all([
+  const [badges, breederPrograms, topSpecies, lockedTitles] = await Promise.all([
     client.userBadge.findMany({
       where: { userId },
       select: {
@@ -202,6 +206,8 @@ async function handler(
     }),
     getActiveBreederProgramsByUserId(userId),
     getTopSpecies(userId),
+    // 잠금 칭호는 본인에게만 보인다(타인 프로필엔 없음).
+    myId === userId ? getLockedTitles(userId) : Promise.resolve(null),
   ]);
 
   return res.json({
@@ -214,6 +220,7 @@ async function handler(
       })),
       breederPrograms: getSortedActiveBreederProgramSummaries(breederPrograms),
       topSpecies,
+      ...(lockedTitles ? { lockedTitles } : {}),
     },
     isFollowing,
     isBlocked,
