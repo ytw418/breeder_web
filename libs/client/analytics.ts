@@ -1,6 +1,8 @@
 import { capturePosthogEvent } from "@libs/client/posthog";
 
 export const ANALYTICS_EVENTS = {
+  // 로그인 퍼널 시작(가입·로그인 완료는 서버 signup_completed·login_completed). 앱도 같은 이름을 쓴다.
+  loginStarted: "login_started",
   homeBannerClicked: "home_banner_clicked",
   homeCategorySelected: "home_category_selected",
   homeSectionView: "home_section_view",
@@ -61,6 +63,7 @@ export const trackEvent = (
 ) => {
   return capturePosthogEvent(eventName, {
     app_area: "web",
+    platform: "web",
     ...properties,
   });
 };

@@ -73,8 +73,11 @@ jest.mock("@libs/server/notification", () => ({
 }));
 const mockCapture = jest.fn();
 jest.mock("@libs/server/analytics", () => ({
+  ...jest.requireActual("@libs/server/analytics"),
   captureServerEvent: (...args: unknown[]) => mockCapture(...args),
 }));
+// 등록 자체도 계측(product_created·auction_created)하므로 혈통 계측만 골라 본다.
+const attachCaptures = () => mockCapture.mock.calls.filter((call) => call[1] === "product_bloodline_attached");
 jest.mock("@libs/server/growth", () => ({
   incrementUserMissionProgress: jest.fn(),
   ensureAlertSubscription: jest.fn(),
@@ -208,7 +211,7 @@ describe("POST /api/products 혈통 붙이기(등록)", () => {
     expect(createdData().bloodlineRootId).toBeNull();
     expect(createdData()).not.toHaveProperty("pedigreeNote");
     expect(findCard).not.toHaveBeenCalled();
-    expect(mockCapture).not.toHaveBeenCalled();
+    expect(attachCaptures()).toHaveLength(0);
   });
 
   it("지금 보유한 혈통을 붙이고 부모 정보를 저장한다", async () => {
@@ -232,7 +235,7 @@ describe("POST /api/products 혈통 붙이기(등록)", () => {
   it("붙이면 계측을 1회 보낸다", async () => {
     cards = [root(), sourceCard(ME)];
     await create({ bloodlineRootId: 10, pedigreeNote: { generation: "F2" } });
-    expect(mockCapture).toHaveBeenCalledTimes(1);
+    expect(attachCaptures()).toHaveLength(1);
     expect(mockCapture).toHaveBeenCalledWith(ME, "product_bloodline_attached", {
       product_id: 30,
       bloodline_id: 10,
@@ -248,7 +251,7 @@ describe("POST /api/products 혈통 붙이기(등록)", () => {
     expect(res.statusCode).toBe(403);
     expect(res.body.errorCode).toBe("PRODUCT_BLOODLINE_FORBIDDEN");
     expect(mockClient.product.create).not.toHaveBeenCalled();
-    expect(mockCapture).not.toHaveBeenCalled();
+    expect(attachCaptures()).toHaveLength(0);
   });
 
   it("만든 사람이라도 혈통을 넘긴 뒤에는 403", async () => {
@@ -322,7 +325,7 @@ describe("POST /api/products/:id 혈통 수정(보낸 때만 갱신)", () => {
     expect(updatedData()).not.toHaveProperty("bloodlineRootId");
     expect(updatedData()).not.toHaveProperty("pedigreeNote");
     expect(findCard).not.toHaveBeenCalled();
-    expect(mockCapture).not.toHaveBeenCalled();
+    expect(attachCaptures()).toHaveLength(0);
   });
 
   it("혈통을 해제하면 부모 정보도 지운다", async () => {
@@ -346,7 +349,7 @@ describe("POST /api/products/:id 혈통 수정(보낸 때만 갱신)", () => {
     const res = await update({ bloodlineRootId: 10, pedigreeNote: { damMm: 47.5 } });
     expect(res.statusCode).toBe(200);
     expect(updatedData()).toMatchObject({ bloodlineRootId: 10, pedigreeNote: { damMm: 47.5 } });
-    expect(mockCapture).toHaveBeenCalledTimes(1);
+    expect(attachCaptures()).toHaveLength(1);
     expect(mockCapture).toHaveBeenCalledWith(ME, "product_bloodline_attached", {
       product_id: 3,
       bloodline_id: 10,
@@ -372,7 +375,7 @@ describe("POST /api/products/:id 혈통 수정(보낸 때만 갱신)", () => {
     expect(res.statusCode).toBe(200);
     expect(updatedData().bloodlineRootId).toBe(10);
     expect(findCard).not.toHaveBeenCalled();
-    expect(mockCapture).not.toHaveBeenCalled();
+    expect(attachCaptures()).toHaveLength(0);
   });
 
   it("부모 정보만 바꾸면 기존 혈통을 유지한다", async () => {

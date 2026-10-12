@@ -14,7 +14,7 @@ import { setViewerCacheHeader } from "@libs/server/blocks";
 import { resolveCategoryIdByName } from "@libs/server/categories";
 import { DEFAULT_DEAL_TYPE } from "@libs/shared/categories";
 import { canAttachBloodline, pedigreeNoteDbValue } from "@libs/server/bloodline-link";
-import { captureServerEvent } from "@libs/server/analytics";
+import { captureServerEvent, resolveClientPlatform } from "@libs/server/analytics";
 import { buildCelebrate } from "@libs/server/celebrate";
 import { getProductRail, PRODUCT_RAIL_LIMIT_DEFAULT, PRODUCT_RAIL_LIMIT_MAX } from "@libs/server/productRail";
 
@@ -126,6 +126,15 @@ const handler = async (
     }
 
     // 계측은 응답 직전에 기다린다(서버리스는 응답 뒤 작업을 보장하지 않는다. 1.5초 상한, 실패해도 무시).
+    await captureServerEvent(user.id, "product_created", {
+      product_id: product.id,
+      category: product.category,
+      deal_type: product.dealType,
+      product_type: product.productType,
+      photo_count: product.photos.length,
+      has_bloodline: Boolean(linkedRootId),
+      platform: resolveClientPlatform(req),
+    });
     if (linkedRootId && attachRelation) {
       await captureServerEvent(user.id, "product_bloodline_attached", {
         product_id: product.id,

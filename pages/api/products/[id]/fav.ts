@@ -4,6 +4,7 @@ import withHandler, { ResponseType } from "@libs/server/withHandler";
 import client from "@libs/server/client";
 import { withAuth } from "@libs/server/auth";
 import { createNotification } from "@libs/server/notification";
+import { captureServerEvent, resolveClientPlatform } from "@libs/server/analytics";
 
 async function handler(
   req: NextApiRequest,
@@ -84,6 +85,11 @@ async function handler(
           });
         }
       }
+
+      await captureServerEvent(user.id, "product_favorited", {
+        product_id: productId,
+        platform: resolveClientPlatform(req),
+      });
 
       return res.json({ success: true, action: "added" });
     }

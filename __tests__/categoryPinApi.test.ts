@@ -131,6 +131,7 @@ describe("/api/users/me 관심 카테고리 고정", () => {
   });
 
   it("POST: 온보딩을 마쳤다는 표시는 처음 한 번만 기록한다(앱·웹 공유)", async () => {
+    mockClient.user.updateMany.mockResolvedValueOnce({ count: 1 });
     const res = await call(meHandler, { method: "POST", user: me, body: { categoryOnboarded: true } });
     expect(res.body).toEqual({ success: true, categoryOnboarded: true });
     expect(mockClient.user.updateMany).toHaveBeenCalledWith({

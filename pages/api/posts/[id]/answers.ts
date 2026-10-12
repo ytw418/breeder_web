@@ -6,6 +6,7 @@ import { extractPostIdFromPath } from "@libs/post-route";
 import { withAuth } from "@libs/server/auth";
 import { isModeratorUser } from "@libs/server/adminAccess";
 import { createNotification } from "@libs/server/notification";
+import { captureServerEvent, resolveClientPlatform } from "@libs/server/analytics";
 import { incrementUserMissionProgress } from "@libs/server/growth";
 import { getBlockRelation } from "@libs/server/blocks";
 import { sendCommentError } from "@libs/server/comments";
@@ -133,6 +134,12 @@ async function handler(
       });
     }
     await incrementUserMissionProgress(user.id, "comment_write");
+    await captureServerEvent(user.id, "post_answer_created", {
+      post_id: postId,
+      post_category: post.category ?? null,
+      is_reply: Boolean(parent),
+      platform: resolveClientPlatform(req),
+    });
   }
 
   res.json({
