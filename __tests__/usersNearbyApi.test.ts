@@ -165,13 +165,18 @@ describe("GET /api/users/nearby (50km 범위)", () => {
         id: expect.any(Number),
         name: expect.any(String),
         image: null,
-        topSpecies: null,
+        species: null,
         distanceKm: expect.any(Number),
         sameRegion: false,
         isFollowing: false,
         badges: [],
-        breederPrograms: [],
+        programTypes: [],
         user: expect.objectContaining({ id: expect.any(Number) }),
+        // 옛 모양 그대로(구 앱 호환)
+        topSpecies: [],
+        breederPrograms: [],
+        postsCount: 0,
+        commentsCount: 0,
       })
     );
   });
@@ -232,7 +237,7 @@ describe("GET /api/users/nearby (50km 범위)", () => {
     expect((await get({ limit: "0" }, me)).body.items).toHaveLength(1);
   });
 
-  it("주력 종(첫 번째)·뱃지·프로그램 타입은 보이는 사람에게만 붙인다", async () => {
+  it("주력 종(species 첫 번째, 옛 topSpecies 배열)·뱃지·프로그램 타입(옛 breederPrograms 객체)은 보이는 사람에게만", async () => {
     mockClient.user.findUnique.mockResolvedValue({ regionSido: "서울특별시", regionSigungu: "강남구" });
     seedUsers([
       row(1, "a", "서울특별시", "강남구", { programs: [{ programType: "FOUNDING_BREEDER" }] }),
@@ -248,10 +253,41 @@ describe("GET /api/users/nearby (50km 범위)", () => {
     expect(res.body.items).toHaveLength(1);
     expect(res.body.items[0]).toMatchObject({
       id: 1,
-      topSpecies: "사슴벌레",
+      species: "사슴벌레",
+      topSpecies: ["사슴벌레"],
       badges: ["주간 TOP 1"],
-      breederPrograms: ["FOUNDING_BREEDER"],
+      programTypes: ["FOUNDING_BREEDER"],
+      breederPrograms: [{ programType: "FOUNDING_BREEDER" }],
     });
     expect(mockClient.userBadge.findMany.mock.calls[0][0].where).toEqual({ userId: { in: [1] } });
+  });
+});
+
+describe("옛 앱(334ce43 홈 동네 섹션) 호환", () => {
+  // 옛 앱 src/lib/neighborhoodSection.ts 의 판정·캡션을 그대로 옮긴 것.
+  const oldCaption = (item: any, scope: "sigungu" | "sido") => {
+    const species = (item.topSpecies ?? []).slice(0, 2);
+    const base = species.length ? species.join(" · ") : `글 ${item.postsCount} · 댓글 ${item.commentsCount}`;
+    return scope === "sido" ? `${item.region.sigungu} · ${base}` : base;
+  };
+  const oldKind = (data: any) =>
+    data.scope === "none" || data.items.length === 0 ? "none" : data.scope === "sido" ? "widened" : "filled";
+
+  it("새 응답으로도 옛 판정·캡션이 죽지 않는다(scope near → filled, none → none)", async () => {
+    mockClient.user.findUnique.mockResolvedValue({ regionSido: "서울특별시", regionSigungu: "강남구" });
+    seedUsers([row(1, "a", "서울특별시", "강남구", { posts: 2, comments: 1 })]);
+    mockClient.post.groupBy.mockImplementation(async (args: any) =>
+      args.by.length === 1 ? [] : [{ userId: 1, type: "레오파드게코", _count: { _all: 2 }, _max: { createdAt: new Date(2026, 9, 1) } }]
+    );
+    const res = await get({ limit: "10" }, me);
+    expect(oldKind(res.body)).toBe("filled");
+    expect(res.body.region).toEqual({ sido: "서울특별시", sigungu: "강남구" });
+    expect(oldCaption(res.body.items[0], "sigungu")).toBe("레오파드게코");
+    expect(res.body.items[0].user.id).toBe(1);
+
+    seedUsers([]);
+    const empty = await get({}, me);
+    expect(oldKind(empty.body)).toBe("none");
+    expect(empty.body.region).toEqual({ sido: "서울특별시", sigungu: "강남구" });
   });
 });

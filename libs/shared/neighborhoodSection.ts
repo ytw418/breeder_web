@@ -18,7 +18,8 @@ export interface NeighborhoodRegion {
 export interface NeighborhoodCardItem {
   id: number;
   name: string;
-  topSpecies: string | null;
+  /** 주력 종 하나(서버 `species`). 옛 `topSpecies` 배열은 읽지 않는다. */
+  species: string | null;
   regionSido: string | null;
   regionSigungu: string | null;
   distanceKm: number;
@@ -87,8 +88,8 @@ export function neighborhoodSubtitle(state: NeighborhoodSectionState): string | 
 }
 
 /** 카드 보조 줄: 주력 종 하나. 없으면 null. */
-export function neighborhoodCardCaption(item: Pick<NeighborhoodCardItem, "topSpecies">): string | null {
-  return item.topSpecies || null;
+export function neighborhoodCardCaption(item: Pick<NeighborhoodCardItem, "species">): string | null {
+  return item.species || null;
 }
 
 /** 카드 위치 줄: 같은 시/군/구면 "같은 동네", 아니면 "구로구 · 2km"(1km 미만은 1km). */

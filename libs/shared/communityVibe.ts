@@ -18,11 +18,17 @@ export type RankingMe = {
   gapToSecond: number | null;
 };
 
+/**
+ * GET /api/users/nearby 항목. 옛 앱(2026-10-09 홈 동네 섹션)이 `topSpecies: string[]`·`breederPrograms: 요약 객체[]`
+ * 를 읽다가 모양이 바뀌면 죽으므로, 새 값은 `species`·`programTypes` 라는 새 이름으로 싣고 옛 이름은 옛 모양 그대로 둔다
+ * (서버는 옛 필드 `user`·`region`·`postsCount`·`commentsCount`·`topSpecies`·`breederPrograms` 도 같이 보낸다).
+ */
 export type NearbyBreederItem = {
   id: number;
   name: string;
   image: string | null;
-  topSpecies: string | null;
+  /** 주력 종 하나(대표 라벨). 없으면 null. */
+  species: string | null;
   regionSido: string | null;
   regionSigungu: string | null;
   /** 시/군/구 중심 좌표 사이 거리(km, 정수). 같은 시/군/구면 0. */
@@ -30,7 +36,8 @@ export type NearbyBreederItem = {
   sameRegion: boolean;
   isFollowing: boolean;
   badges: string[];
-  breederPrograms: string[];
+  /** 활성 브리더 프로그램 타입(programType) 목록. */
+  programTypes: string[];
 };
 
 export type NearbyBreedersResult = {

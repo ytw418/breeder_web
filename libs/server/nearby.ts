@@ -23,14 +23,16 @@ import { nearbyRegions, regionScopeLabel, regionScopeOr, type ScopedRegion } fro
  * - 옛 클라이언트(2026-10-09 홈 동네 섹션)가 읽던 `region`·`items[].user/region/postsCount/commentsCount` 도 같이 싣는다.
  */
 
-/** 옛 응답 필드(구 앱·웹 화면 호환). 새 화면은 계약 필드만 쓴다. */
+/** 옛 응답 필드(구 앱·웹 화면 호환, 모양을 바꾸지 않는다). 새 화면은 계약 필드만 쓴다. */
 export interface NearbyBreederLegacyFields {
   user: { id: number; name: string; avatar: string | null };
   region: Region;
   postsCount: number;
   commentsCount: number;
-  /** 프로필 아바타 테두리용 전체 요약(계약 `breederPrograms` 는 programType 문자열 목록). */
-  breederProgramSummaries: BreederProgramSummary[];
+  /** 주력 종 최대 2개(옛 모양). 새 화면은 `species`. */
+  topSpecies: string[];
+  /** 브리더 프로그램 요약 객체(옛 모양, 아바타 테두리). 새 화면은 `programTypes`. */
+  breederPrograms: BreederProgramSummary[];
 }
 
 export type NearbyBreederItem = ContractNearbyBreederItem & NearbyBreederLegacyFields;
@@ -210,20 +212,21 @@ export async function getNearbyBreeders({
       id: user.id,
       name: user.name,
       image: user.avatar,
-      topSpecies: speciesByUser.get(user.id)?.[0] ?? null,
+      species: speciesByUser.get(user.id)?.[0] ?? null,
       regionSido: user.regionSido,
       regionSigungu: user.regionSigungu,
       distanceKm,
       sameRegion,
       isFollowing,
       badges: badgesByUser.get(user.id) ?? [],
-      breederPrograms: programs.map((program) => program.programType),
-      // 옛 응답 필드
+      programTypes: programs.map((program) => program.programType),
+      // 옛 응답 필드(모양 그대로)
       user: { id: user.id, name: user.name, avatar: user.avatar },
       region: { sido: user.regionSido ?? "", sigungu: user.regionSigungu ?? "" },
       postsCount: user._count.posts,
       commentsCount: user._count.Comments,
-      breederProgramSummaries: programs,
+      topSpecies: speciesByUser.get(user.id) ?? [],
+      breederPrograms: programs,
     };
   });
 

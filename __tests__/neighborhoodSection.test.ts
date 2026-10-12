@@ -56,7 +56,7 @@ describe("홈 동네 브리더 섹션 — 웹 전용", () => {
     const item = (id: number): NeighborhoodCardItem => ({
       id,
       name: `b${id}`,
-      topSpecies: null,
+      species: null,
       regionSido: "서울특별시",
       regionSigungu: "강남구",
       distanceKm: 3,

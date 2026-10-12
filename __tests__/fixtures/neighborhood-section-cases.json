@@ -126,22 +126,22 @@
             {
               "id": 1,
               "name": "b1",
-              "topSpecies": "크레스티드 게코",
               "regionSido": "서울특별시",
               "regionSigungu": "구로구",
               "distanceKm": 0,
               "sameRegion": true,
-              "isFollowing": false
+              "isFollowing": false,
+              "species": "크레스티드 게코"
             },
             {
               "id": 2,
               "name": "b2",
-              "topSpecies": null,
               "regionSido": "서울특별시",
               "regionSigungu": "강서구",
               "distanceKm": 6,
               "sameRegion": false,
-              "isFollowing": false
+              "isFollowing": false,
+              "species": null
             }
           ]
         },
@@ -154,22 +154,22 @@
           {
             "id": 1,
             "name": "b1",
-            "topSpecies": "크레스티드 게코",
             "regionSido": "서울특별시",
             "regionSigungu": "구로구",
             "distanceKm": 0,
             "sameRegion": true,
-            "isFollowing": false
+            "isFollowing": false,
+            "species": "크레스티드 게코"
           },
           {
             "id": 2,
             "name": "b2",
-            "topSpecies": null,
             "regionSido": "서울특별시",
             "regionSigungu": "강서구",
             "distanceKm": 6,
             "sameRegion": false,
-            "isFollowing": false
+            "isFollowing": false,
+            "species": null
           }
         ],
         "total": 12,
@@ -195,22 +195,22 @@
             {
               "id": 1,
               "name": "b1",
-              "topSpecies": "크레스티드 게코",
               "regionSido": "서울특별시",
               "regionSigungu": "구로구",
               "distanceKm": 0,
               "sameRegion": true,
-              "isFollowing": false
+              "isFollowing": false,
+              "species": "크레스티드 게코"
             },
             {
               "id": 2,
               "name": "b2",
-              "topSpecies": null,
               "regionSido": "서울특별시",
               "regionSigungu": "강서구",
               "distanceKm": 6,
               "sameRegion": false,
-              "isFollowing": false
+              "isFollowing": false,
+              "species": null
             }
           ]
         },
@@ -223,22 +223,22 @@
           {
             "id": 1,
             "name": "b1",
-            "topSpecies": "크레스티드 게코",
             "regionSido": "서울특별시",
             "regionSigungu": "구로구",
             "distanceKm": 0,
             "sameRegion": true,
-            "isFollowing": false
+            "isFollowing": false,
+            "species": "크레스티드 게코"
           },
           {
             "id": 2,
             "name": "b2",
-            "topSpecies": null,
             "regionSido": "서울특별시",
             "regionSigungu": "강서구",
             "distanceKm": 6,
             "sameRegion": false,
-            "isFollowing": false
+            "isFollowing": false,
+            "species": null
           }
         ],
         "total": 12,
@@ -307,12 +307,12 @@
       "item": {
         "id": 1,
         "name": "b1",
-        "topSpecies": "크레스티드 게코",
         "regionSido": "서울특별시",
         "regionSigungu": "강서구",
         "distanceKm": 3,
         "sameRegion": false,
-        "isFollowing": false
+        "isFollowing": false,
+        "species": "크레스티드 게코"
       },
       "expect": "크레스티드 게코"
     },
@@ -321,12 +321,12 @@
       "item": {
         "id": 2,
         "name": "b2",
-        "topSpecies": null,
         "regionSido": "서울특별시",
         "regionSigungu": "강서구",
         "distanceKm": 3,
         "sameRegion": false,
-        "isFollowing": false
+        "isFollowing": false,
+        "species": null
       },
       "expect": null
     }
@@ -337,12 +337,12 @@
       "item": {
         "id": 1,
         "name": "b1",
-        "topSpecies": null,
         "regionSido": "서울특별시",
         "regionSigungu": "구로구",
         "distanceKm": 0,
         "sameRegion": true,
-        "isFollowing": false
+        "isFollowing": false,
+        "species": null
       },
       "expect": "같은 동네"
     },
@@ -351,12 +351,12 @@
       "item": {
         "id": 2,
         "name": "b2",
-        "topSpecies": null,
         "regionSido": "서울특별시",
         "regionSigungu": "강서구",
         "distanceKm": 6,
         "sameRegion": false,
-        "isFollowing": false
+        "isFollowing": false,
+        "species": null
       },
       "expect": "강서구 · 6km"
     },
@@ -365,12 +365,12 @@
       "item": {
         "id": 3,
         "name": "b3",
-        "topSpecies": null,
         "regionSido": "서울특별시",
         "regionSigungu": "금천구",
         "distanceKm": 0,
         "sameRegion": false,
-        "isFollowing": false
+        "isFollowing": false,
+        "species": null
       },
       "expect": "금천구 · 1km"
     },
@@ -379,12 +379,12 @@
       "item": {
         "id": 4,
         "name": "b4",
-        "topSpecies": null,
         "regionSido": "세종특별자치시",
         "regionSigungu": "세종특별자치시",
         "distanceKm": 30,
         "sameRegion": false,
-        "isFollowing": false
+        "isFollowing": false,
+        "species": null
       },
       "expect": "세종특별자치시 · 30km"
     }
