@@ -28,6 +28,8 @@ export type PostCardData = {
     name: string;
     avatar?: string | null;
     breederPrograms?: BreederProgramSummary[] | null;
+    /** 작성자 칭호(있을 때만 서버가 싣는다). 작성자 줄에 pill 18(community-vibe F-7). */
+    titleLabel?: string | null;
   } | null;
   _count?: { Likes?: number; comments?: number } | null;
   /** 목록 API 의 최신 댓글 한 줄. 없으면(구 서버 포함) 줄을 그리지 않는다. */

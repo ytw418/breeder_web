@@ -36,6 +36,12 @@ import TopBreederList, { TOP_BREEDER_HIGHLIGHTS } from "@components/features/pos
 import NearbyBreederList, { NEARBY_BREEDER_COUNT } from "@components/features/post/NearbyBreederList";
 import RegionGateCard from "@components/features/region/RegionGateCard";
 import FollowingFeedCard from "@components/features/post/FollowingFeedCard";
+import RealtimeHotRail, {
+  RealtimeHotRailSkeleton,
+  type RealtimeHotItem,
+} from "@components/features/post/RealtimeHotRail";
+import AwaitingAnswerCard from "@components/features/post/AwaitingAnswerCard";
+import type { HotRealtimeMeta, UnansweredSummary } from "@libs/shared/communityVibe";
 import { PostFilterDropdown } from "./_components/PostFilterDropdown";
 
 /** 카테고리 칩 목록. '팔로잉'은 카테고리가 아니라 내가 팔로우한 사람의 글 필터다(앱 posts.tsx). */
@@ -50,7 +56,19 @@ const SORT_TABS = [
   { id: "comments", name: "댓글순" },
 ] as const;
 type SortType = (typeof SORT_TABS)[number]["id"];
-type HighlightTab = "hot" | "breeder" | "nearby";
+/** 상단 세그먼트(community-vibe §3.5): 실시간 TOP 토론 · 답 기다려요 N · 동네 · 랭킹. */
+type HighlightTab = "hot" | "waiting" | "nearby" | "breeder";
+const HIGHLIGHT_TABS: { id: HighlightTab; label: string }[] = [
+  { id: "hot", label: "실시간 TOP 토론" },
+  { id: "waiting", label: "답 기다려요" },
+  { id: "nearby", label: "동네" },
+  { id: "breeder", label: "랭킹" },
+];
+type RealtimePostsResponse = {
+  success?: boolean;
+  posts?: (PostsListResponse["posts"][number] & Partial<HotRealtimeMeta>)[];
+};
+type UnansweredResponse = { success?: boolean; posts?: PostsListResponse["posts"] } & Partial<UnansweredSummary>;
 /** HOT 토론은 상위 3개만 보여 준다(앱 d8f0211). */
 const HOT_DISCUSSION_COUNT = 3;
 
@@ -79,29 +97,8 @@ const BACKUP_COMMUNITY_CONTENT = [
   },
 ] as const;
 
-/** 웹 .app-card (앱 makeCardStyles.appCard): r12 + 1px 테두리 + 카드 그림자(다크 없음). */
-const APP_CARD = "rounded-xl border border-app-border bg-app-elevated shadow-card";
-
 function SkeletonBlock({ className }: { className?: string }) {
   return <div className={cn("animate-pulse rounded bg-app-placeholder", className)} />;
-}
-
-/** HOT 토론 로딩 카드 3장(순위 32 · 제목 2줄 · 썸네일 56). */
-function HotDiscussionSkeleton() {
-  return (
-    <div className="flex flex-col gap-2.5 px-4">
-      {[0, 1, 2].map((i) => (
-        <div key={i} className={cn(APP_CARD, "flex items-start gap-3 p-3.5")}>
-          <SkeletonBlock className="h-8 w-8 rounded-xl" />
-          <div className="flex min-w-0 flex-1 flex-col gap-2 pt-1">
-            <SkeletonBlock className="h-3.5 w-[90%]" />
-            <SkeletonBlock className="h-3.5 w-[55%]" />
-          </div>
-          <SkeletonBlock className="h-14 w-14 rounded-xl" />
-        </div>
-      ))}
-    </div>
-  );
 }
 
 /** 앱 SkeletonPostRow */
@@ -224,14 +221,26 @@ export default function PostsClient({ initialCategory }: { initialCategory?: str
     error: nearbyError,
     mutate: mutateNearby,
   } = useSWR<NearbyBreedersResponse>(myRegion ? `/api/users/nearby?limit=${NEARBY_BREEDER_COUNT}` : null);
+  // 실시간 TOP 토론: 최근 24시간 활동 점수순(서버 hot=realtime). 구 서버면 home/feed 의 HOT 토론으로 대신한다.
   const {
-    data: homeFeedData,
-    error: homeFeedError,
-    mutate: mutateHomeFeed,
-  } = useSWR<{ hotDiscussions: HotDiscussionItem[] }>(
-    withCategoryPath("/api/home/feed?scope=public", scope.categoryPath),
+    data: realtimeData,
+    error: realtimeError,
+    mutate: mutateRealtime,
+  } = useSWR<RealtimePostsResponse>(
+    withCategoryPath(`/api/posts?hot=realtime&limit=${HOT_DISCUSSION_COUNT}`, scope.categoryPath),
     { revalidateOnFocus: false }
   );
+  const realtimeUnsupported = Boolean(
+    realtimeError || (realtimeData && !realtimeData.posts?.some((post) => post.lastActivityAt))
+  );
+  const { data: homeFeedData } = useSWR<{ hotDiscussions: HotDiscussionItem[] }>(
+    realtimeUnsupported ? withCategoryPath("/api/home/feed?scope=public", scope.categoryPath) : null,
+    { revalidateOnFocus: false }
+  );
+  // 답 기다려요: 가장 오래 답 없는 질문 1개 + 전체 개수.
+  const { data: unansweredData } = useSWR<UnansweredResponse>("/api/posts?unanswered=1&limit=1", {
+    revalidateOnFocus: false,
+  });
   const sentinelRef = useRef<HTMLDivElement>(null);
 
   const resetList = () => {
@@ -284,14 +293,39 @@ export default function PostsClient({ initialCategory }: { initialCategory?: str
   }, [data, blockedIds]);
 
   // 공개 캐시 응답(HOT 토론·브리디 랭킹)은 서버가 차단을 거르지 않아 여기서 거른다.
-  const hotDiscussions = useMemo(
-    () =>
-      withoutBlocked(homeFeedData?.hotDiscussions ?? [], blockedIds, (item) => item.user?.id).slice(
-        0,
-        HOT_DISCUSSION_COUNT
-      ),
-    [homeFeedData, blockedIds]
+  const hotItems = useMemo<RealtimeHotItem[] | undefined>(() => {
+    if (!realtimeUnsupported) {
+      if (!realtimeData) return undefined;
+      return withoutBlocked(realtimeData.posts ?? [], blockedIds, (post) => post.user?.id)
+        .slice(0, HOT_DISCUSSION_COUNT)
+        .map((post) => ({
+          id: post.id,
+          title: post.title,
+          image: post.images?.[0] ?? post.image ?? null,
+          authorName: post.user?.name ?? "",
+          comments: post._count?.comments ?? 0,
+          lastActivityAt: post.lastActivityAt ?? String(post.createdAt),
+          lastActivityKind: post.lastActivityKind ?? "post",
+        }));
+    }
+    if (!homeFeedData) return undefined;
+    return withoutBlocked(homeFeedData.hotDiscussions ?? [], blockedIds, (item) => item.user?.id)
+      .slice(0, HOT_DISCUSSION_COUNT)
+      .map((item) => ({
+        id: item.id,
+        title: item.title,
+        image: item.image || null,
+        authorName: item.user?.name ?? "",
+        comments: item.commentsCount,
+        lastActivityAt: item.createdAt,
+        lastActivityKind: "post" as const,
+      }));
+  }, [realtimeUnsupported, realtimeData, homeFeedData, blockedIds]);
+  const awaitingQuestion = useMemo(
+    () => withoutBlocked(unansweredData?.posts ?? [], blockedIds, (post) => post.user?.id)[0] ?? null,
+    [unansweredData, blockedIds]
   );
+  const unansweredCount = unansweredData?.unansweredCount ?? 0;
   const topBreeders = useMemo(
     () =>
       breedersData
@@ -300,17 +334,15 @@ export default function PostsClient({ initialCategory }: { initialCategory?: str
     [breedersData, blockedIds]
   );
 
-  // 사용자가 직접 고르기 전까지, HOT 토론이 비어 있으면 TOP 브리더가 기본.
+  // 사용자가 직접 고르기 전까지, 실시간 토론이 비어 있으면 랭킹이 기본.
   const highlightTab: HighlightTab =
-    pickedTab ?? (homeFeedData && hotDiscussions.length === 0 ? "breeder" : "hot");
+    pickedTab ?? (hotItems && hotItems.length === 0 ? "breeder" : "hot");
 
   const noticePost = noticeData?.posts?.[0] ?? null;
   const noticeHref = noticePost ? toPostPath(noticePost.id, noticePost.title) : "/posts/notices";
   const noticeTitle = noticePost?.title ?? NOTICE_FALLBACK_TITLE;
 
   const listTitle = selectedCategory === "전체" ? "전체 게시글" : `${selectedCategory} 게시글`;
-  const listHint = regionScopeLabel ? `${regionScopeLabel} · ` : "";
-  const sortLabel = SORT_TABS.find((s) => s.id === selectedSort)?.name ?? "최신순";
 
   const lastPage = data?.[data.length - 1];
   const totalPages = data?.[0]?.pages ?? 0;
@@ -342,171 +374,121 @@ export default function PostsClient({ initialCategory }: { initialCategory?: str
     setPickedTab(tab);
   };
 
-  const highlightTabClass = (tab: HighlightTab, active: boolean) =>
+  // 높이 34 r8 surface, 선택은 검정(이모지·빨강 채움 없음).
+  const highlightTabClass = (active: boolean) =>
     cn(
-      "rounded-full px-3 py-1.5 text-[13px] font-semibold leading-4 transition-colors",
-      active
-        ? tab === "hot"
-          ? "bg-app-danger text-app-inverse-text"
-          : tab === "nearby"
-            ? // '우리 동네'(앱 posts.tsx HIGHLIGHT_TAB_COLORS.nearby): 브랜드 주황, 주황 위 글자는 흰색 고정.
-              "bg-app-brand text-white"
-            : "bg-app-warning text-app-inverse-text"
-        : "bg-app-surface text-app-muted"
+      "inline-flex h-[34px] shrink-0 items-center gap-1.5 whitespace-nowrap rounded-lg px-3 text-[14px] font-semibold transition-colors",
+      active ? "bg-app-inverse text-app-inverse-text" : "bg-app-surface text-app-sub"
     );
 
   return (
-    <Layout icon hasTabBar seoTitle="반려생활" showSearch>
+    <Layout icon hasTabBar title="반려생활" seoTitle="반려생활" showSearch>
       <div className="flex min-h-full flex-col bg-app-bg pb-20">
-        {/* 1. 화면 제목 행 + '공지사항 더보기 ›' */}
-        <div className="flex items-center justify-between px-4 py-3">
-          <h1 className="text-[18px] font-bold text-app-text">반려생활</h1>
-          <Link
-            href="/posts/notices"
-            className="-my-3.5 flex items-center gap-0.5 py-3.5 text-[13px] font-semibold text-app-muted"
-          >
-            공지사항 더보기
-            <svg
-              className="h-4 w-4 text-app-caption"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-              aria-hidden="true"
-            >
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-            </svg>
-          </Link>
-        </div>
-
-        {/* 2. 공지 한 줄 */}
+        {/* 1. 공지 한 줄(높이 40) */}
         <div className="px-4">
           <Link
             href={noticeHref}
             aria-label="공지 보기"
-            className="flex h-11 items-center gap-2 rounded-lg bg-app-surface px-3"
+            className="flex h-10 items-center gap-2 rounded-lg bg-app-gap px-3"
           >
-            <span className="shrink-0 rounded bg-app-elevated px-1.5 py-[3px] text-[12px] font-bold leading-4 text-app-text">
-              공지
-            </span>
-            <span className="min-w-0 flex-1 truncate text-[14px] text-app-text">{noticeTitle}</span>
+            <span className="shrink-0 text-[12px] font-bold text-app-text">공지</span>
+            <span className="min-w-0 flex-1 truncate text-[13px] text-app-sub">{noticeTitle}</span>
+            <svg className="h-3.5 w-3.5 shrink-0 text-app-caption" fill="none" stroke="currentColor" strokeWidth={1.8} viewBox="0 0 24 24" aria-hidden="true">
+              <path d="m9 6 6 6-6 6" />
+            </svg>
           </Link>
         </div>
 
-        {/* 3. HOT 토론 / TOP 브리더 */}
-        <section className="pb-2 pt-3.5">
-          <div className="flex items-center gap-1 px-4" role="tablist" aria-label="하이라이트 탭">
-            <button
-              type="button"
-              role="tab"
-              aria-selected={highlightTab === "hot"}
-              onClick={() => selectHighlightTab("hot")}
-              className={highlightTabClass("hot", highlightTab === "hot")}
-            >
-              🔥 HOT 토론
-            </button>
-            <button
-              type="button"
-              role="tab"
-              aria-selected={highlightTab === "breeder"}
-              onClick={() => selectHighlightTab("breeder")}
-              className={highlightTabClass("breeder", highlightTab === "breeder")}
-            >
-              🏆 TOP 브리더
-            </button>
-            <button
-              type="button"
-              role="tab"
-              aria-selected={highlightTab === "nearby"}
-              onClick={() => selectHighlightTab("nearby")}
-              className={highlightTabClass("nearby", highlightTab === "nearby")}
-            >
-              📍 우리 동네
-            </button>
+        {/* 2. 세그먼트: 실시간 TOP 토론 · 답 기다려요 N · 동네 · 랭킹 */}
+        <section className="pt-4">
+          <div
+            className="flex gap-2 overflow-x-auto px-4 scrollbar-hide"
+            role="tablist"
+            aria-label="하이라이트 탭"
+          >
+            {HIGHLIGHT_TABS.map((tab) => {
+              const active = highlightTab === tab.id;
+              return (
+                <button
+                  key={tab.id}
+                  type="button"
+                  role="tab"
+                  aria-selected={active}
+                  onClick={() => selectHighlightTab(tab.id)}
+                  className={highlightTabClass(active)}
+                >
+                  {tab.label}
+                  {tab.id === "waiting" && unansweredCount > 0 ? (
+                    <span
+                      className={cn(
+                        "text-[12px] font-bold tabular-nums",
+                        active ? "text-orange-300" : "text-app-brand"
+                      )}
+                      data-testid="unanswered-count"
+                    >
+                      {unansweredCount}
+                    </span>
+                  ) : null}
+                </button>
+              );
+            })}
           </div>
 
-          <div className="mt-2" role="tabpanel">
+          <div className="mt-3" role="tabpanel">
             {highlightTab === "hot" ? (
-              homeFeedError && !homeFeedData ? (
-                <QueryErrorState
-                  title="HOT 토론을 불러오지 못했어요"
-                  onRetry={() => void mutateHomeFeed()}
-                  className="py-6"
-                />
-              ) : !homeFeedData ? (
-                <HotDiscussionSkeleton />
-              ) : hotDiscussions.length > 0 ? (
-                <div className="flex flex-col gap-2.5 px-4">
-                  {hotDiscussions.map((item, index) => (
+              <>
+                {realtimeError && homeFeedData === undefined && !hotItems ? (
+                  <QueryErrorState
+                    title="실시간 토론을 불러오지 못했어요"
+                    onRetry={() => void mutateRealtime()}
+                    className="py-6"
+                  />
+                ) : !hotItems ? (
+                  <RealtimeHotRailSkeleton />
+                ) : hotItems.length > 0 ? (
+                  <RealtimeHotRail
+                    items={hotItems}
+                    onOpen={(item, index) =>
+                      trackEvent(ANALYTICS_EVENTS.postsHotDiscussionClicked, {
+                        post_id: item.id,
+                        post_title: item.title,
+                        rank_index: index + 1,
+                        comments_count: item.comments,
+                      })
+                    }
+                  />
+                ) : (
+                  <div className="mx-4 rounded-xl bg-app-gap px-4 py-4">
+                    <p className="text-[15px] font-semibold text-app-text">첫 토론을 열어 보세요</p>
+                    <p className="mt-0.5 text-[13px] text-app-muted">
+                      댓글이 달리면 바로 여기 맨 앞에 올라와요
+                    </p>
                     <Link
-                      key={item.id}
-                      href={toPostPath(item.id, item.title)}
-                      onClick={() =>
-                        trackEvent(ANALYTICS_EVENTS.postsHotDiscussionClicked, {
-                          post_id: item.id,
-                          post_title: item.title,
-                          rank_index: index + 1,
-                          comments_count: item.commentsCount,
-                          wonder_count: item.wonderCount,
-                        })
-                      }
-                      className={cn(APP_CARD, "flex items-start gap-3 p-3.5")}
+                      href="/posts/upload"
+                      className="mt-3 inline-flex h-9 items-center rounded-lg bg-app-inverse px-3.5 text-[14px] font-semibold text-app-inverse-text"
                     >
-                      <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-app-danger-soft text-[14px] font-black text-app-danger">
-                        {index + 1}
-                      </span>
-                      <div className="min-w-0 flex-1">
-                        <div className="flex items-center gap-1.5">
-                          {item.category ? (
-                            <span className="rounded-full bg-app-surface px-1.5 py-0.5 text-[11px] font-semibold leading-[11px] text-app-muted">
-                              {item.category}
-                            </span>
-                          ) : null}
-                          <span className="rounded-full bg-app-danger-soft px-1.5 py-0.5 text-[11px] font-semibold leading-[11px] text-app-danger">
-                            HOT
-                          </span>
-                        </div>
-                        <p className="mt-1 line-clamp-2 break-keep text-[14px] font-semibold leading-5 text-app-strong">
-                          {item.title}
-                        </p>
-                        <div className="mt-1.5 flex items-center gap-3 text-[11px] text-app-muted">
-                          <span>{item.user.name}</span>
-                          <span>댓글 {item.commentsCount}</span>
-                          <span>좋아요 {item.wonderCount}</span>
-                        </div>
-                      </div>
-                      {item.image ? (
-                        <div className="h-14 w-14 shrink-0 overflow-hidden rounded-xl bg-app-placeholder">
-                          <Image
-                            src={makeImageUrl(item.image, "public")}
-                            alt={item.title}
-                            width={56}
-                            height={56}
-                            className="h-full w-full object-cover"
-                          />
-                        </div>
-                      ) : null}
+                      글쓰기
                     </Link>
-                  ))}
-                </div>
+                  </div>
+                )}
+                {awaitingQuestion ? (
+                  <AwaitingAnswerCard question={awaitingQuestion} className="mx-4 mt-4" />
+                ) : null}
+              </>
+            ) : highlightTab === "waiting" ? (
+              awaitingQuestion ? (
+                <AwaitingAnswerCard question={awaitingQuestion} className="mx-4" />
               ) : (
-                <div className="mx-4 flex flex-col items-center rounded-2xl border-2 border-dashed border-app-border bg-app-gap px-5 py-6">
-                  <p className="text-2xl">💬</p>
-                  <p className="mt-2 text-sm font-semibold text-app-sub">아직 HOT 토론이 없어요</p>
-                  <p className="mt-1 text-xs text-app-muted">첫 번째 토론의 주인공이 되어보세요!</p>
+                <div className="mx-4 rounded-xl bg-app-gap px-4 py-4">
+                  <p className="text-[15px] font-semibold text-app-text">모든 질문에 답이 달렸어요</p>
+                  <p className="mt-0.5 text-[13px] text-app-muted">
+                    궁금한 게 있으면 질문을 올려 보세요. 동네 브리더가 답해 줘요
+                  </p>
                   <Link
-                    href="/posts/upload"
-                    className="mt-3 inline-flex items-center gap-1 rounded-full bg-app-danger px-4 py-2 text-xs font-semibold text-app-inverse-text"
+                    href={`/posts/upload?category=${encodeURIComponent("질문")}`}
+                    className="mt-3 inline-flex h-9 items-center rounded-lg bg-app-inverse px-3.5 text-[14px] font-semibold text-app-inverse-text"
                   >
-                    <svg
-                      className="h-3.5 w-3.5"
-                      fill="none"
-                      stroke="currentColor"
-                      viewBox="0 0 24 24"
-                      aria-hidden="true"
-                    >
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-                    </svg>
-                    토론 만들기
+                    질문하기
                   </Link>
                 </div>
               )
@@ -544,56 +526,43 @@ export default function PostsClient({ initialCategory }: { initialCategory?: str
           </div>
         </section>
 
-        {/* 섹션 사이 8px 회색 갭 */}
-        <div className="h-2 bg-app-gap" />
-
-        {/* 4. 게시글 목록 제목 + 개수 */}
-        <section id="all-posts" className="flex items-end justify-between gap-3 px-4 pb-2 pt-4">
-          <div className="min-w-0 flex-1">
-            <h2 className="truncate text-[18px] font-bold leading-[22.5px] tracking-[-0.36px] text-app-text">
-              {listTitle}
-            </h2>
-            <p className="mt-1 text-[12px] font-medium text-app-muted">
-              {listHint}
-              {sortLabel}으로 노출됩니다.
-            </p>
-          </div>
-          {data && !(isRegionCategory && !myRegion) ? (
-            <span className="rounded-full border border-app-border bg-app-bg px-2.5 py-1 text-[11px] font-semibold leading-[11px] text-app-muted">
-              {posts.length}개
-            </span>
+        {/* 3. 게시글 목록 제목(개수·'…으로 노출됩니다' 없음, §3.1) */}
+        <section id="all-posts" className="px-4 pb-1 pt-7">
+          <h2 className="app-t-section truncate">{listTitle}</h2>
+          {regionScopeLabel ? (
+            <p className="app-t-cap mt-0.5">{regionScopeLabel}</p>
           ) : null}
         </section>
 
-        {/* 5. 카테고리 칩 1줄 */}
-        <FilterChipRail>
-          {TABS.map((tab) => (
-            <FilterChip
-              key={tab.id}
-              label={tab.name}
-              selected={selectedCategory === tab.id}
-              onClick={() => handleCategoryChange(tab.id)}
+        {/* 4. 카테고리 칩 + 종·정렬: 스크롤하면 헤더 바로 아래에 붙는다(§9, 틈 없음). */}
+        <div className="sticky top-14 z-10 bg-app-bg" data-testid="posts-sticky-filters">
+          <FilterChipRail className="h-[52px]">
+            {TABS.map((tab) => (
+              <FilterChip
+                key={tab.id}
+                label={tab.name}
+                selected={selectedCategory === tab.id}
+                onClick={() => handleCategoryChange(tab.id)}
+              />
+            ))}
+          </FilterChipRail>
+          <div className="flex items-center justify-end gap-2 px-4 pb-2">
+            <PostFilterDropdown
+              value={activeSpecies}
+              onChange={handleSpeciesChange}
+              ariaLabel="종 필터"
+              options={speciesOptions}
             />
-          ))}
-        </FilterChipRail>
-
-        {/* 6. 종 필터 + 정렬(우측 텍스트 드롭다운) */}
-        <div className="flex items-center justify-end gap-2 px-4 pb-3 pt-1">
-          <PostFilterDropdown
-            value={activeSpecies}
-            onChange={handleSpeciesChange}
-            ariaLabel="종 필터"
-            options={speciesOptions}
-          />
-          <span className="text-[13px] text-app-caption" aria-hidden="true">
-            ·
-          </span>
-          <PostFilterDropdown
-            value={selectedSort}
-            onChange={(v) => handleSortChange(v as SortType)}
-            ariaLabel="정렬 기준"
-            options={SORT_OPTIONS}
-          />
+            <span className="text-[13px] text-app-caption" aria-hidden="true">
+              ·
+            </span>
+            <PostFilterDropdown
+              value={selectedSort}
+              onChange={(v) => handleSortChange(v as SortType)}
+              ariaLabel="정렬 기준"
+              options={SORT_OPTIONS}
+            />
+          </div>
         </div>
 
         {/* 7. 게시글 목록 */}

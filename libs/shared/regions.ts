@@ -81,7 +81,7 @@ export function parseOptionalRegion(
 }
 
 /** 시/도 짧은 이름. 앱 src/constants/regions.ts 와 같은 표. */
-const SIDO_SHORT: Record<string, string> = {
+export const SIDO_SHORT: Record<string, string> = {
   서울특별시: "서울",
   부산광역시: "부산",
   대구광역시: "대구",
@@ -102,7 +102,7 @@ const SIDO_SHORT: Record<string, string> = {
 };
 
 /** 특별시·광역시·특별자치시는 구 단위까지 쓰지 않는다. */
-const isMetropolitanSido = (sido: string) => /(특별시|광역시|특별자치시)$/.test(sido);
+export const isMetropolitanSido = (sido: string) => /(특별시|광역시|특별자치시)$/.test(sido);
 
 /**
  * 짧은 지역 표시. "충청남도 공주시" → "충남 공주", 특별시·광역시·세종은 시·도 축약만("서울", "세종"),
