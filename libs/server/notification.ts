@@ -17,7 +17,7 @@ interface CreateNotificationParams {
   sendPush?: boolean;
 }
 
-const getNotificationUrl = (targetType?: string, targetId?: number, commentId?: number) => {
+export const getNotificationUrl = (targetType?: string, targetId?: number, commentId?: number) => {
   if (!targetType || !targetId) return "/";
 
   switch (targetType) {
@@ -37,6 +37,9 @@ const getNotificationUrl = (targetType?: string, targetId?: number, commentId?: 
       return "/guinness";
     case "guinness_submission":
       return "/guinness/apply";
+    case "ranking":
+      // 순위 상승(RANK_UP): 전체 랭킹에서 내 행으로 스크롤.
+      return "/ranking?focus=me";
     case "sanction":
       // 운영 알림(경고·정지·해제·삭제)은 내 제재 내역으로 연결한다.
       return "/settings/sanctions";
