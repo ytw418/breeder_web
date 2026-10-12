@@ -55,6 +55,23 @@ const nextConfig = {
 
     return config;
   },
+  // 개인정보처리방침·이용약관을 bredy.app 주소로도 연다. Google OAuth 동의 화면(브랜딩 인증)과
+  // 스토어 등록은 정책 링크가 앱 도메인에 있어야 한다. 원문은 Notion(libs/constants.ts 와 같은 주소).
+  // 나중에 자체 페이지로 옮길 수 있게 영구(308)가 아닌 임시 이동으로 둔다.
+  async redirects() {
+    return [
+      {
+        source: "/privacy",
+        destination: "https://breeder.notion.site/be44680c8d5b43848d0aff25c7c2edba",
+        permanent: false,
+      },
+      {
+        source: "/terms",
+        destination: "https://breeder.notion.site/8a2ca657b9a047498c95ab42ce3d2b75",
+        permanent: false,
+      },
+    ];
+  },
   // 캐싱 최적화: onDemandEntries 설정
   // 개발 모드에서도 페이지를 메모리에 유지하는 시간 설정
   onDemandEntries: {
