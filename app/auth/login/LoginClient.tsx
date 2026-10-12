@@ -1,11 +1,10 @@
 "use client";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 
 import Image from "next/image";
 import logo from "@images/logo.png";
 import KakaoRound from "@images/KakaoRound.svg";
 import GoogleRound from "@images/GoogleRound.svg";
-import AppleLogo from "@images/AppleLogo.svg";
 
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
@@ -30,10 +29,6 @@ import { setTokens } from "@libs/client/authToken";
 import { authFetch } from "@libs/client/authFetch";
 import { ANALYTICS_EVENTS, trackEvent } from "@libs/client/analytics";
 import { getSafeNextPath, navigateAfterSessionReady } from "@libs/client/postLogin";
-import {
-  APPLE_WEB_NONCE_STORAGE_KEY,
-  appleLoginErrorMessage,
-} from "@libs/shared/appleLogin";
 
 const getKakaoRedirectUri = () => {
   if (typeof window !== "undefined" && window.location?.origin) {
@@ -130,22 +125,6 @@ const LoginClient = ({ shouldShowTestLogin }: LoginClientProps) => {
   const shouldShowGoogleLogin =
     process.env.NEXT_PUBLIC_ENABLE_GOOGLE_LOGIN !== "false";
   const canShowGoogleLogin = shouldShowGoogleLogin && !isReactNativeWebView;
-  // Apple 웹 로그인은 Services ID 설정을 마친 환경에서만 켠다(NEXT_PUBLIC_ENABLE_APPLE_LOGIN=true).
-  const canShowAppleLogin =
-    process.env.NEXT_PUBLIC_ENABLE_APPLE_LOGIN === "true" && !isReactNativeWebView;
-  const [isStartingAppleLogin, setIsStartingAppleLogin] = useState(false);
-
-  // Apple 콜백·완료 페이지가 ?error=apple_* 로 돌려보내면 한 번 알리고 주소에서 지운다.
-  const appleError = searchParams?.get("error") ?? null;
-  // 개발 모드 StrictMode 의 effect 재실행에도 같은 안내를 두 번 띄우지 않는다.
-  const shownAppleErrorRef = useRef<string | null>(null);
-  useEffect(() => {
-    const message = appleLoginErrorMessage(appleError);
-    if (!message || shownAppleErrorRef.current === appleError) return;
-    shownAppleErrorRef.current = appleError;
-    alert(message);
-    router.replace("/auth/login");
-  }, [appleError, router]);
 
   /**카카오로그인 */
   const loginWithKakao = () => {
@@ -321,33 +300,6 @@ const LoginClient = ({ shouldShowTestLogin }: LoginClientProps) => {
     }
   };
 
-  /** Apple 로그인: 서버가 만든 주소로 이동하고, 돌아온 완료 페이지(/auth/apple/complete)가 로그인한다. */
-  const loginWithApple = async () => {
-    if (isStartingAppleLogin) return;
-    setIsStartingAppleLogin(true);
-    try {
-      const nextPath = getSafeNextPath(searchParams?.get("next") ?? null);
-      const res = await fetch(
-        `/api/auth/apple/start?target=web&next=${encodeURIComponent(nextPath)}`,
-        { method: "GET", cache: "no-store" },
-      );
-      const data = (await res.json().catch(() => null)) as {
-        success?: boolean;
-        authorizeUrl?: string;
-        nonce?: string;
-      } | null;
-      if (!res.ok || !data?.success || !data.authorizeUrl || !data.nonce) {
-        throw new Error("apple-start-failed");
-      }
-      sessionStorage.setItem(APPLE_WEB_NONCE_STORAGE_KEY, data.nonce);
-      window.location.assign(data.authorizeUrl);
-    } catch (error) {
-      console.error(error);
-      alert("Apple 로그인을 시작하지 못했습니다. 잠시 후 다시 시도해주세요.");
-      setIsStartingAppleLogin(false);
-    }
-  };
-
   const loginAsTestUser = async (targetUserId: number) => {
     if (switchingTestUserId === targetUserId) return;
 
@@ -435,23 +387,10 @@ const LoginClient = ({ shouldShowTestLogin }: LoginClientProps) => {
               <GoogleRound className="absolute left-5" width={24} height={24} />
               <span className="text-[15px] font-semibold">구글로 계속하기</span>
             </button>
-          ) : !isReactNativeWebView && !canShowAppleLogin ? (
+          ) : !isReactNativeWebView ? (
             <p className="text-[13px] leading-5 text-app-muted">
               현재는 카카오 로그인만 지원합니다.
             </p>
-          ) : null}
-
-          {canShowAppleLogin ? (
-            <button
-              type="button"
-              onClick={() => void loginWithApple()}
-              disabled={isStartingAppleLogin}
-              // Apple 가이드: 라이트는 검은 버튼·흰 로고, 다크는 흰 버튼·검은 로고. 레거시 .dark .bg-white 재매핑을 피하려고 임의값 클래스를 쓴다.
-              className="relative flex h-[52px] w-full items-center justify-center rounded-lg bg-[#000000] px-6 text-[#FFFFFF] disabled:opacity-60 dark:bg-[#FFFFFF] dark:text-[#000000]"
-            >
-              <AppleLogo className="absolute left-5" width={24} height={24} />
-              <span className="text-[15px] font-semibold">Apple로 계속하기</span>
-            </button>
           ) : null}
 
           {/* 서비스 둘러보기 */}

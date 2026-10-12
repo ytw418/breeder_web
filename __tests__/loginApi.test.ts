@@ -140,27 +140,6 @@ describe("/api/auth/login 소셜 토큰 검증", () => {
     expect(mockClient.user.update).not.toHaveBeenCalled();
   });
 
-  it("Apple 웹 로그인의 nonce 를 토큰 검증에 넘긴다", async () => {
-    mockVerifySocialLogin.mockResolvedValue({ snsId: "001.a.1", email: null, avatar: null });
-    mockClient.user.findUnique.mockResolvedValue({
-      ...existingUser,
-      snsId: "001.a.1",
-      provider: "apple",
-    });
-
-    const res = await login({
-      token: "apple-id-token",
-      name: "Apple User",
-      provider: "apple",
-      nonce: "raw-nonce",
-    });
-
-    expect(res.statusCode).toBe(200);
-    expect(mockVerifySocialLogin).toHaveBeenCalledWith("apple", "apple-id-token", {
-      nonce: "raw-nonce",
-    });
-  });
-
   it("다시 로그인해도 직접 바꾼 프로필 사진을 소셜 사진으로 덮지 않는다", async () => {
     mockVerifySocialLogin.mockResolvedValue({
       snsId: "victim-uid",

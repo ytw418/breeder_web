@@ -34,8 +34,6 @@ export interface LoginReqBody {
   provider: "kakao" | "google" | "apple";
   email?: string | null;
   avatar?: string;
-  /** Apple 웹 로그인(Android·웹)만: /api/auth/apple/start 가 준 원래 nonce. */
-  nonce?: string;
 }
 
 export interface LoginResponseType {
@@ -67,8 +65,6 @@ async function handler(
   res: NextApiResponse<ResponseType>
 ) {
   const { token, snsId: claimedSnsId, provider, name } = req.body;
-  const nonce =
-    typeof req.body.nonce === "string" && req.body.nonce ? (req.body.nonce as string) : undefined;
   const validProviders = ["kakao", "google", "apple"] as const;
 
   if (typeof token !== "string" || !token.trim())
@@ -91,9 +87,7 @@ async function handler(
 
   let verified;
   try {
-    verified = nonce
-      ? await verifySocialLogin(provider as LoginReqBody["provider"], token, { nonce })
-      : await verifySocialLogin(provider as LoginReqBody["provider"], token);
+    verified = await verifySocialLogin(provider as LoginReqBody["provider"], token);
   } catch (error) {
     if (error instanceof SocialAuthError) {
       return res.status(error.status).json({ success: false, message: error.message });
