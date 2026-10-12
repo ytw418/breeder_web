@@ -34,6 +34,9 @@ type NearbyRawItem = {
   id?: number;
   name?: string;
   image?: string | null;
+  /** 계약 필드: 주력 종 하나. */
+  species?: string | null;
+  /** 옛 필드: 주력 종 배열. */
   topSpecies?: string | string[] | null;
   regionSido?: string | null;
   regionSigungu?: string | null;
@@ -100,7 +103,7 @@ export function toNeighborCard(item: NearbyRawItem): NeighborCard | null {
     id,
     name,
     image: item.image ?? item.user?.avatar ?? null,
-    species: toSpecies(item.topSpecies),
+    species: item.species ?? toSpecies(item.topSpecies),
     place,
     isFollowing: typeof item.isFollowing === "boolean" ? item.isFollowing : null,
   };
@@ -259,8 +262,8 @@ export function NeighborhoodBreederSectionView({ state }: { state: HomeNeighborh
         <>
           <p className="app-t-meta mb-3 mt-1 px-4" data-testid="neighborhood-subtitle">
             {labelBase(state.label)} 근처 브리더{" "}
-            <em className="font-semibold not-italic text-app-brand">{state.total}명</em> · 이번 주 인사 글{" "}
-            {state.greetingCount}개
+            <em className="font-semibold not-italic text-app-brand">{state.total}명</em>
+            {state.greetingCount > 0 ? ` · 이번 주 인사 글 ${state.greetingCount}개` : null}
           </p>
           <div className="flex gap-2 overflow-x-auto px-4 scrollbar-hide">
             {state.items.map((card) => (
