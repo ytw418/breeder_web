@@ -1,7 +1,6 @@
 /**
  * @jest-environment node
  */
-import { createHash } from "crypto";
 import { SignJWT, createLocalJWKSet, exportJWK, generateKeyPair } from "jose";
 
 import { SocialAuthError, verifySocialLogin } from "@libs/server/socialAuth";
@@ -58,7 +57,6 @@ beforeEach(() => {
   process.env = { ...ORIGINAL_ENV, FIREBASE_PROJECT_ID };
   delete process.env.KAKAO_APP_ID;
   delete process.env.APPLE_ALLOWED_AUDIENCES;
-  delete process.env.APPLE_SERVICES_ID;
 });
 
 afterAll(() => {
@@ -209,7 +207,6 @@ describe("verifySocialLogin - apple", () => {
       snsId: "001234.abcd.0001",
       email: "r@privaterelay.appleid.com",
       avatar: null,
-      appleClientId: "app.bredy.mobile",
     });
   });
 
@@ -222,83 +219,6 @@ describe("verifySocialLogin - apple", () => {
     });
     await expect(
       verifySocialLogin("apple", token, { appleKeys: key.keys })
-    ).rejects.toBeInstanceOf(SocialAuthError);
-  });
-});
-
-describe("verifySocialLogin - apple 웹 로그인(Services ID, nonce)", () => {
-  const issuer = "https://appleid.apple.com";
-  const SERVICES_ID = "app.bredy.web";
-  const RAW_NONCE = "0123456789abcdef0123456789abcdef";
-  const NONCE_HASH = createHash("sha256").update(RAW_NONCE).digest("hex");
-
-  const signApple = (key: KeyMaterial, audience: string, claims: Record<string, unknown> = {}) =>
-    sign(key, "a1", claims, { issuer, audience, subject: "001234.abcd.0001" });
-
-  beforeEach(() => {
-    process.env.APPLE_SERVICES_ID = SERVICES_ID;
-  });
-
-  it("Services ID aud 에 원래 nonce 가 맞으면 같은 sub 로 통과한다", async () => {
-    const key = await createKeys("a1");
-    const token = await signApple(key, SERVICES_ID, { nonce: NONCE_HASH });
-
-    const account = await verifySocialLogin("apple", token, {
-      appleKeys: key.keys,
-      nonce: RAW_NONCE,
-    });
-    expect(account.snsId).toBe("001234.abcd.0001");
-  });
-
-  it("콜백은 nonce 해시로 확인한다", async () => {
-    const key = await createKeys("a1");
-    const token = await signApple(key, SERVICES_ID, { nonce: NONCE_HASH });
-    await expect(
-      verifySocialLogin("apple", token, { appleKeys: key.keys, nonceHash: NONCE_HASH })
-    ).resolves.toMatchObject({ snsId: "001234.abcd.0001" });
-  });
-
-  it("Services ID aud 인데 nonce 를 안 보내면 거부한다", async () => {
-    const key = await createKeys("a1");
-    const token = await signApple(key, SERVICES_ID, { nonce: NONCE_HASH });
-    await expect(
-      verifySocialLogin("apple", token, { appleKeys: key.keys })
-    ).rejects.toBeInstanceOf(SocialAuthError);
-  });
-
-  it("nonce 가 다르면 거부한다(남이 받은 토큰을 가져온 경우)", async () => {
-    const key = await createKeys("a1");
-    const token = await signApple(key, SERVICES_ID, { nonce: NONCE_HASH });
-    await expect(
-      verifySocialLogin("apple", token, { appleKeys: key.keys, nonce: "other" })
-    ).rejects.toBeInstanceOf(SocialAuthError);
-  });
-
-  it("앱 번들 aud 에 nonce 가 없는 iOS 토큰은 지금처럼 통과한다", async () => {
-    const key = await createKeys("a1");
-    const token = await signApple(key, "app.bredy.mobile");
-    await expect(
-      verifySocialLogin("apple", token, { appleKeys: key.keys })
-    ).resolves.toMatchObject({ snsId: "001234.abcd.0001" });
-  });
-
-  it("앱 번들 aud 라도 토큰에 nonce 가 있으면 맞는 nonce 가 있어야 한다", async () => {
-    const key = await createKeys("a1");
-    const token = await signApple(key, "app.bredy.mobile", { nonce: NONCE_HASH });
-    await expect(
-      verifySocialLogin("apple", token, { appleKeys: key.keys })
-    ).rejects.toBeInstanceOf(SocialAuthError);
-    await expect(
-      verifySocialLogin("apple", token, { appleKeys: key.keys, nonce: RAW_NONCE })
-    ).resolves.toMatchObject({ snsId: "001234.abcd.0001" });
-  });
-
-  it("APPLE_SERVICES_ID 가 없으면 Services ID aud 를 받지 않는다", async () => {
-    delete process.env.APPLE_SERVICES_ID;
-    const key = await createKeys("a1");
-    const token = await signApple(key, SERVICES_ID, { nonce: NONCE_HASH });
-    await expect(
-      verifySocialLogin("apple", token, { appleKeys: key.keys, nonce: RAW_NONCE })
     ).rejects.toBeInstanceOf(SocialAuthError);
   });
 });
