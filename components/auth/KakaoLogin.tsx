@@ -7,7 +7,8 @@ import useMutation from "hooks/useMutation";
 import { LoginReqBody, LoginResponseType } from "pages/api/auth/login";
 import { USER_INFO } from "@libs/constants";
 import { Spinner } from "@components/atoms/Spinner";
-import { setTokens } from "@libs/client/authToken";
+import { hasTokens, setTokens } from "@libs/client/authToken";
+import { toast } from "@libs/client/toast";
 import { getSafeNextPath, navigateAfterSessionReady } from "@libs/client/postLogin";
 import {
   ACCOUNT_RESTRICTED_LOGIN_PATH,
@@ -21,6 +22,8 @@ const getKakaoRedirectUri = () => {
   }
   return `${process.env.NEXT_PUBLIC_DOMAIN_URL || ""}/login-loading`;
 };
+
+const KAKAO_LOGIN_FAILED = "카카오 로그인에 실패했어요. 다시 시도해 주세요";
 
 const markPostLoginGuide = () => {
   if (typeof window === "undefined") return;
@@ -67,8 +70,15 @@ export const KakaoLogin = () => {
     // alert(`${data}`);
 
     if (data?.error) {
-      // alert(`카카오 로그인 오류: ${JSON.stringify(data)}`);
+      // 인가 코드 교환 실패. 로그인 직후 뒤로 가기로 이 화면에 다시 오면 이미 쓴 코드라 카카오가 invalid_grant 를
+      // 돌려준다 — 예전엔 여기서 스피너만 돌았다(2026-10-11 제보 '지역 설정 후 무한 로딩').
       console.log("로그인 data :>> ", data);
+      if (hasTokens()) {
+        router.replace("/");
+        return;
+      }
+      toast.error(KAKAO_LOGIN_FAILED);
+      router.replace("/auth/login");
       return;
     }
 

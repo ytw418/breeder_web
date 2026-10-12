@@ -1,6 +1,7 @@
 "use client";
 
 import { authFetch } from "@libs/client/authFetch";
+import { regionSettingsHref } from "@components/features/region/regionHref";
 import Layout, { toLoginHref } from "@components/features/MainLayout";
 import ConfirmDialog from "@components/atoms/ConfirmDialog";
 import { cn } from "@libs/client/utils";
@@ -315,7 +316,7 @@ const SettingsClient = () => {
           icon="pin"
           value={formatRegion(regionOf(user)) ?? "설정 안 함"}
           chevron
-          href={user ? "/settings/region" : toLoginHref("/settings/region")}
+          href={user ? "/settings/region" : toLoginHref(regionSettingsHref("/settings"))}
         />
         <Row label="관심 카테고리" icon="grid" value={scope.label} chevron href="/settings/categories" />
         <Row label="차단 관리" icon="shield" chevron href="/settings/blocked-users" />

@@ -13,6 +13,7 @@ import Link from "next/link";
 import useSWR from "swr";
 import { toLoginHref } from "@components/features/MainLayout";
 import FollowButton from "@components/features/profile/FollowButton";
+import { regionSettingsHref } from "@components/features/region/regionHref";
 import { InitialAvatar } from "@components/ui/InitialAvatar";
 import { cn } from "@libs/client/utils";
 import { NEIGHBOR_RADIUS_KM, type NeighborhoodVisitors } from "@libs/shared/communityVibe";
@@ -234,7 +235,7 @@ export function NeighborhoodBreederSectionView({ state }: { state: HomeNeighborh
           </p>
           <div className="mt-3 flex">
             <Link
-              href={state.loggedIn ? REGION_SETTINGS : toLoginHref(REGION_SETTINGS)}
+              href={state.loggedIn ? REGION_SETTINGS : toLoginHref(regionSettingsHref(RETURN_PATH))}
               className={cn(BUTTON, DARK)}
             >
               내 동네 설정

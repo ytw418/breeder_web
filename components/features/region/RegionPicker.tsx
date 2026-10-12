@@ -4,6 +4,7 @@
  * `sido` 가 없으면 내 동네 화면(시/도 목록 → /settings/region/[sido]), 있으면 시/군/구 고르기 화면.
  * 시/군/구를 고르거나 '현재 위치로 찾기'로 찾은 동네는 바로 저장하지 않고, 내 동네 화면 아래 '완료'를 눌러야
  * 동네·'나를 표시'를 함께 저장하고 이 화면을 연 곳으로 돌아간다(2026-10-09 사용자 결정).
+ * 로그인 뒤 이동·주소 입력처럼 이 화면에서 문서가 시작됐으면 뒤로 가지 않고 `from`(연 곳)으로 바꾼다(2026-10-11).
  */
 import { useEffect, useState } from "react";
 import Link from "next/link";
@@ -14,6 +15,7 @@ import ConfirmDialog from "@components/atoms/ConfirmDialog";
 import Toggle from "@components/app/Toggle";
 import { authFetch } from "@libs/client/authFetch";
 import { isLocateAvailable, locateRegion } from "@libs/client/locateRegion";
+import { getSafeNextPath } from "@libs/client/postLogin";
 import { revalidateByPrefix } from "@libs/client/swrRevalidate";
 import { toast } from "@libs/client/toast";
 import { cn } from "@libs/client/utils";
@@ -25,6 +27,22 @@ const LOCATE_FAILED = "현재 위치를 찾지 못했습니다. 목록에서 직
 const LOCATE_DENIED = "위치 권한이 없어 자동으로 찾을 수 없습니다. 목록에서 직접 골라 주세요";
 const LOCATE_UNMATCHED = "지금 위치의 동네를 목록에서 찾지 못했습니다. 목록에서 직접 골라 주세요";
 const REGION_HOME = "/settings/region";
+const FALLBACK_RETURN = "/settings";
+
+/**
+ * 이 문서를 내 동네 화면(시/군/구 포함)에서 열었나. 그렇다면 뒤 기록은 다른 문서다 — 카카오 로그인 뒤면
+ * 로그인 처리 화면(/login-loading?code=…)이라, 뒤로 가면 이미 쓴 코드로 다시 로그인하다 멈춘다
+ * (2026-10-11 제보 '지역 설정 후 무한 로딩'). 판단할 수 없으면 연 것으로 본다(뒤로 가지 않는 쪽이 안전하다).
+ */
+function openedOnRegionScreen() {
+  try {
+    const [nav] = window.performance.getEntriesByType("navigation");
+    if (!nav) return true;
+    return new URL(nav.name, window.location.href).pathname.startsWith(REGION_HOME);
+  } catch {
+    return true;
+  }
+}
 
 /**
  * 내 동네 화면 ↔ 시/군/구 화면 사이에 고르던 값을 넘긴다(웹은 화면을 옮기면 내 동네 화면이 다시 마운트된다).
@@ -79,11 +97,12 @@ function Spinner({ className }: { className?: string }) {
   );
 }
 
-export default function RegionPicker({ sido, selected }: { sido?: string; selected?: string }) {
-  return sido ? <SigunguPicker sido={sido} selected={selected} /> : <RegionSettings />;
+/** from: 이 화면을 연 곳(로그인을 거쳐 들어올 때 '완료' 뒤 돌아갈 곳). 같은 사이트 경로만 따른다. */
+export default function RegionPicker({ sido, selected, from }: { sido?: string; selected?: string; from?: string }) {
+  return sido ? <SigunguPicker sido={sido} selected={selected} /> : <RegionSettings from={from} />;
 }
 
-function RegionSettings() {
+function RegionSettings({ from }: { from?: string }) {
   const router = useRouter();
   const { user, mutate: mutateUser } = useUser();
   const { cache, mutate } = useSWRConfig();
@@ -118,8 +137,8 @@ function RegionSettings() {
   };
 
   const leave = () => {
-    if (window.history.length > 1) router.back();
-    else router.replace("/settings");
+    if (!openedOnRegionScreen() && window.history.length > 1) router.back();
+    else router.replace(from ? getSafeNextPath(from) : FALLBACK_RETURN);
   };
 
   const onDone = async () => {
