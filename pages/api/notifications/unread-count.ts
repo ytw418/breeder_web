@@ -7,6 +7,8 @@ interface UnreadNotificationCountResponse {
   success: boolean;
   error?: string;
   unreadCount: number;
+  /** 가장 최근 안 읽은 알림 시각(헤더 벨 점 판정, libs/shared/notificationSeen). 없으면 null. */
+  latestUnreadAt?: string | null;
 }
 
 async function handler(
@@ -23,16 +25,24 @@ async function handler(
       });
     }
 
-    const unreadCount = await client.notification.count({
-      where: {
-        userId,
-        isRead: false,
-      },
-    });
+    const [unreadCount, latest] = await Promise.all([
+      client.notification.count({
+        where: {
+          userId,
+          isRead: false,
+        },
+      }),
+      client.notification.findFirst({
+        where: { userId, isRead: false },
+        orderBy: { createdAt: "desc" },
+        select: { createdAt: true },
+      }),
+    ]);
 
     return res.json({
       success: true,
       unreadCount,
+      latestUnreadAt: latest?.createdAt ? latest.createdAt.toISOString() : null,
     });
   } catch (error) {
     console.error("Error in notification unread-count handler:", error);

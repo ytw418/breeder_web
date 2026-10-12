@@ -1,5 +1,7 @@
 "use client";
 
+import { useNotificationsSeenAt } from "@libs/client/notificationSeen";
+import { showNotificationDot } from "@libs/shared/notificationSeen";
 import Link from "next/link";
 import React, { useEffect, useState } from "react";
 import { usePathname, useRouter } from "next/navigation";
@@ -45,6 +47,8 @@ interface LayoutProps {
 interface UnreadCountResponse {
   success: boolean;
   unreadCount: number;
+  /** 알림 unread-count 만: 가장 최근 안 읽은 알림 시각. */
+  latestUnreadAt?: string | null;
 }
 
 interface BeforeInstallPromptEvent extends Event {
@@ -511,17 +515,25 @@ function SideMenu({
 /* 헤더 알림 벨                                                         */
 /* ------------------------------------------------------------------ */
 
-/** 알림 벨: unread 면 app-danger 벨 + app-danger-soft 원 배경, 뱃지 99+. */
-export function NotificationBell({ unread }: { unread: number }) {
-  const hasUnread = unread > 0;
+/**
+ * 알림 벨(인스타·스레드식, 2026-10-12 사용자 "빨간 숫자 뱃지가 구려"): 숫자 없이 오른쪽 위 6px 빨간 점.
+ * 점은 '알림 화면을 마지막으로 연 뒤 새 알림이 왔을 때'만 보이고, 알림 화면에 들어가면 모든 헤더에서 바로 사라진다.
+ */
+export function NotificationBell({ dot }: { dot: boolean }) {
   return (
-    <HeaderIconButton
-      label="알림"
-      href="/notifications"
-      badge={hasUnread ? unread : null}
-      className={hasUnread ? "bg-app-danger-soft text-app-danger hover:bg-app-danger-soft" : undefined}
-    >
-      <StrokeIcon d={ICON.bell} />
+    <HeaderIconButton label={dot ? "알림, 새 알림 있음" : "알림"} href="/notifications" className="h-10 w-10">
+      <svg width={24} height={24} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.5} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+        <path d="M6 9a6 6 0 1 1 12 0c0 7 3 8 3 8H3s3-1 3-8" />
+        <path d="M10 21a2 2 0 0 0 4 0" />
+      </svg>
+      {dot ? (
+        <span
+          aria-hidden="true"
+          data-testid="notification-dot"
+          className="absolute h-1.5 w-1.5 rounded-full bg-app-danger"
+          style={{ top: 8, right: 8 }}
+        />
+      ) : null}
     </HeaderIconButton>
   );
 }
@@ -592,6 +604,14 @@ export default function MainLayout({
     notificationUnreadData?.success && notificationUnreadData.unreadCount > 0
       ? notificationUnreadData.unreadCount
       : 0;
+  const notificationsSeenAt = useNotificationsSeenAt();
+  const notificationDot =
+    pathname !== "/notifications" &&
+    showNotificationDot({
+      unreadCount: notificationUnread,
+      latestUnreadAt: notificationUnreadData?.latestUnreadAt,
+      lastSeenAt: notificationsSeenAt,
+    });
   const chatUnread =
     unreadData?.success && unreadData.unreadCount > 0 ? unreadData.unreadCount : 0;
   // 사용자 정보를 받는 중에는 탭을 그대로 두고, 비로그인이 확정되면 로그인으로 보낸다.
@@ -636,7 +656,7 @@ export default function MainLayout({
 
   const defaultRight = (
     <>
-      <NotificationBell unread={notificationUnread} />
+      <NotificationBell dot={notificationDot} />
       <HeaderIconButton label="메뉴" onClick={() => setMenuOpen(true)}>
         <StrokeIcon d={ICON.menu} />
       </HeaderIconButton>
@@ -673,7 +693,7 @@ export default function MainLayout({
             {title ? <h1 className="sr-only">{title}</h1> : null}
             <div className="flex items-center gap-1">
               {headerRight}
-              <NotificationBell unread={notificationUnread} />
+              <NotificationBell dot={notificationDot} />
             </div>
           </div>
         </header>

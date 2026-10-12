@@ -53,7 +53,8 @@ describe("MainLayout 셸", () => {
     expect(screen.getByRole("link", { name: "반려생활" })).toHaveAttribute("aria-current", "page");
   });
 
-  it("로그인이면 채팅 unread 9+ 뱃지와 알림 99+ 뱃지를 보인다", () => {
+  it("로그인이면 채팅 unread 9+ 뱃지, 알림 벨은 숫자 없이 점", () => {
+    window.localStorage.removeItem("bredy:notifications:seenAt");
     mockUseUser.mockReturnValue({ user: { id: 1, name: "브리더" }, isLoading: false });
     mockUseSWR.mockImplementation((key: string | null) => ({
       data:
@@ -70,8 +71,37 @@ describe("MainLayout 셸", () => {
     );
     expect(screen.getByRole("link", { name: /채팅/ })).toHaveAttribute("href", "/chat");
     expect(screen.getByText("9+")).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: "알림" })).toHaveClass("text-app-danger");
-    expect(screen.getAllByText("99+").length).toBeGreaterThan(0);
+    const bell = screen.getByRole("link", { name: "알림, 새 알림 있음" });
+    expect(bell).toContainElement(screen.getByTestId("notification-dot"));
+    expect(bell).not.toHaveTextContent("99+");
+  });
+
+  it("알림 화면을 연 뒤에 온 알림만 점, 연 뒤로 새 알림이 없으면 점이 사라진다", () => {
+    mockUseUser.mockReturnValue({ user: { id: 1, name: "브리더" }, isLoading: false });
+    const latest = "2026-10-12T10:00:00.000Z";
+    mockUseSWR.mockImplementation((key: string | null) => ({
+      data:
+        key === "/api/notifications/unread-count"
+          ? { success: true, unreadCount: 3, latestUnreadAt: latest }
+          : undefined,
+    }));
+    window.localStorage.setItem("bredy:notifications:seenAt", String(Date.parse(latest) - 60_000));
+    const { unmount } = render(
+      <MainLayout title="반려생활" icon hasTabBar>
+        <p>본문</p>
+      </MainLayout>
+    );
+    expect(screen.getByTestId("notification-dot")).toBeInTheDocument();
+    unmount();
+    // 알림 화면을 열었다(markNotificationsSeen) → 점 없음.
+    window.localStorage.setItem("bredy:notifications:seenAt", String(Date.parse(latest) + 1));
+    render(
+      <MainLayout title="반려생활" icon hasTabBar>
+        <p>본문</p>
+      </MainLayout>
+    );
+    expect(screen.queryByTestId("notification-dot")).toBeNull();
+    expect(screen.getByRole("link", { name: "알림" })).toBeInTheDocument();
   });
 
   it("하단 탭(반려생활·경매)에는 안 본 새 글 점을 달지 않는다", () => {
