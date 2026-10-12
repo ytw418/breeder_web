@@ -16,6 +16,7 @@ import { DEFAULT_DEAL_TYPE } from "@libs/shared/categories";
 import { canAttachBloodline, pedigreeNoteDbValue } from "@libs/server/bloodline-link";
 import { captureServerEvent } from "@libs/server/analytics";
 import { buildCelebrate } from "@libs/server/celebrate";
+import { getProductRail, PRODUCT_RAIL_LIMIT_DEFAULT, PRODUCT_RAIL_LIMIT_MAX } from "@libs/server/productRail";
 
 const handler = async (
   req: NextApiRequest,
@@ -153,6 +154,23 @@ const handler = async (
   }
 
   if (req.method === "GET") {
+    // 홈 '지금 올라온 분양' 레일: GET /api/products?rail=1&limit=10 → { success, items(isNew·pinnedFirst) }.
+    if (req.query.rail === "1") {
+      const rawLimit = Number(req.query.limit);
+      const limit = Number.isInteger(rawLimit) && rawLimit > 0
+        ? Math.min(rawLimit, PRODUCT_RAIL_LIMIT_MAX)
+        : PRODUCT_RAIL_LIMIT_DEFAULT;
+      res.setHeader("Cache-Control", "public, s-maxage=30, stale-while-revalidate=60");
+      // 로그인 viewer 는 본인 첫 글 고정·차단 반영이 들어가 공유 캐시에 남기지 않는다.
+      setViewerCacheHeader(res, req.user?.id);
+      const items = await getProductRail({
+        limit,
+        viewerId: req.user?.id,
+        categoryPath: typeof req.query.categoryPath === "string" ? req.query.categoryPath : undefined,
+      });
+      return res.json({ success: true, items });
+    }
+
     const {
       query: {
         page = 1,
