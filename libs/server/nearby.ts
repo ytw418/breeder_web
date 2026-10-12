@@ -4,47 +4,50 @@ import {
   getSortedActiveBreederProgramSummaries,
 } from "@libs/server/breeder-programs";
 import { getTopSpeciesByUserIds } from "@libs/server/profileSpecies";
+import { getKstWeekWindow } from "@libs/server/season";
 import type { BreederProgramSummary } from "@libs/shared/breeder-program";
+import type {
+  NearbyBreederItem as ContractNearbyBreederItem,
+  NearbyBreedersResult as ContractNearbyBreedersResult,
+} from "@libs/shared/communityVibe";
+import { REGION_POST_CATEGORY } from "@libs/shared/postCategory";
 import type { Region } from "@libs/shared/regions";
+import { nearbyRegions, regionScopeLabel, regionScopeOr, type ScopedRegion } from "@libs/shared/regionScope";
 
 /**
- * 동네 브리더 조회.
- * - 같은 시/군/구에서 `regionVisible=true` 인 ACTIVE 사용자만. 본인과 차단 관계(양방향)는 뺀다.
- * - 시/군/구에 0명이면 같은 시/도로 넓히고(scope "sido"), 그래도 0명이면 scope "none".
- * - 정렬은 게시글+댓글 수 내림차순 → 동네 설정이 최근인 순. 거리·좌표는 다루지 않는다.
- * - 보이는 사람에게만 팔로우 여부·주력 종을 배치로 붙인다(홈 '우리 동네 브리더' 카드, 앱 docs/prd/home-neighborhood.md).
+ * 동네 브리더 조회(앱 docs/prd/community-vibe.md §3.6b, §8 `NearbyBreedersResult`).
+ * - 범위: 내 시/군/구 중심에서 50km 안 시/군/구 + 같은 특별·광역시 전체(libs/shared/regionScope).
+ * - `regionVisible=true` 인 ACTIVE 사용자만. 본인과 차단 관계(양방향)는 뺀다.
+ * - 정렬: 같은 시/군/구 → 거리 → 내가 팔로우한 사람 → 최근 활동(마지막 글, 없으면 동네 설정 시각).
+ * - 거리·좌표는 시/군/구 중심 좌표로만 계산한다(사용자 좌표 미저장).
+ * - 옛 클라이언트(2026-10-09 홈 동네 섹션)가 읽던 `region`·`items[].user/region/postsCount/commentsCount` 도 같이 싣는다.
  */
 
-export type NearbyScope = "sigungu" | "sido" | "none";
-
-export interface NearbyBreederItem {
+/** 옛 응답 필드(구 앱·웹 화면 호환). 새 화면은 계약 필드만 쓴다. */
+export interface NearbyBreederLegacyFields {
   user: { id: number; name: string; avatar: string | null };
   region: Region;
   postsCount: number;
   commentsCount: number;
-  breederPrograms: BreederProgramSummary[];
-  /** 조회자가 이 사람을 팔로우하는지 */
-  isFollowing: boolean;
-  /** 주력 종(최대 2개, 프로필과 같은 계산). 없으면 빈 배열 */
-  topSpecies: string[];
+  /** 프로필 아바타 테두리용 전체 요약(계약 `breederPrograms` 는 programType 문자열 목록). */
+  breederProgramSummaries: BreederProgramSummary[];
 }
 
-export interface NearbyBreedersResult {
-  scope: NearbyScope;
-  /** 조회자의 동네. 미설정이면 null */
-  region: Region | null;
+export type NearbyBreederItem = ContractNearbyBreederItem & NearbyBreederLegacyFields;
+
+export type NearbyBreedersResult = Omit<ContractNearbyBreedersResult, "items"> & {
   items: NearbyBreederItem[];
-  /** 범위 안 인원(자르기 전). 후보는 SCAN_LIMIT 까지만 읽으므로 그 이상은 SCAN_LIMIT 로 보인다. */
-  total: number;
-}
+  /** 조회자의 동네. 미설정이면 null(옛 응답 필드). */
+  region: Region | null;
+};
 
 export const NEARBY_LIMIT_DEFAULT = 3;
 export const NEARBY_LIMIT_MAX = 50;
-/** 정렬 전에 DB 에서 읽는 최대 인원. 한 시/군/구에 이보다 많아지면 그때 DB 정렬로 바꾼다. */
-const SCAN_LIMIT = 200;
+/** 정렬 전에 DB 에서 읽는 최대 인원. 범위 안 인원이 이보다 많아지면 그때 DB 정렬로 바꾼다. */
+const SCAN_LIMIT = 300;
 
 /** 어느 쪽이 차단했든 서로 목록에 보이지 않게 한다(피차단자에게 차단 사실을 드러내지 않는다). */
-async function blockedEitherWay(viewerId: number): Promise<number[]> {
+export async function blockedEitherWay(viewerId: number): Promise<number[]> {
   const rows = await client.userBlock.findMany({
     where: { OR: [{ blockerId: viewerId }, { blockedId: viewerId }] },
     select: { blockerId: true, blockedId: true },
@@ -52,121 +55,184 @@ async function blockedEitherWay(viewerId: number): Promise<number[]> {
   return rows.map((row) => (row.blockerId === viewerId ? row.blockedId : row.blockerId));
 }
 
-type BaseItem = Omit<NearbyBreederItem, "isFollowing" | "topSpecies">;
-
-async function findVisibleBreeders(
-  where: { regionSido: string; regionSigungu?: string },
-  excludedIds: number[],
-  limit: number
-): Promise<{ items: BaseItem[]; total: number }> {
-  const users = await client.user.findMany({
-    where: {
-      status: "ACTIVE",
-      regionVisible: true,
-      regionSido: where.regionSido,
-      ...(where.regionSigungu ? { regionSigungu: where.regionSigungu } : {}),
-      id: { notIn: excludedIds },
-    },
-    select: {
-      id: true,
-      name: true,
-      avatar: true,
-      regionSido: true,
-      regionSigungu: true,
-      regionUpdatedAt: true,
-      _count: {
-        select: {
-          posts: { where: { isHidden: false } },
-          Comments: true,
-        },
-      },
-      breederPrograms: {
-        where: { status: "ACTIVE" },
-        select: breederProgramSummarySelect,
-      },
-    },
-    take: SCAN_LIMIT,
+/** 조회자의 동네 범위. 동네가 없으면 null. */
+export async function getViewerRegionScope(
+  viewerId: number
+): Promise<{ region: Region; regions: ScopedRegion[]; label: string } | null> {
+  const viewer = await client.user.findUnique({
+    where: { id: viewerId },
+    select: { regionSido: true, regionSigungu: true },
   });
-
-  const items = users
-    .map((user) => ({
-      user: { id: user.id, name: user.name, avatar: user.avatar },
-      region: {
-        sido: user.regionSido ?? "",
-        sigungu: user.regionSigungu ?? "",
-      },
-      postsCount: user._count.posts,
-      commentsCount: user._count.Comments,
-      breederPrograms: getSortedActiveBreederProgramSummaries(user.breederPrograms),
-      updatedAt: user.regionUpdatedAt?.getTime() ?? 0,
-    }))
-    .sort(
-      (a, b) =>
-        b.postsCount + b.commentsCount - (a.postsCount + a.commentsCount) ||
-        b.updatedAt - a.updatedAt ||
-        a.user.id - b.user.id
-    )
-    .slice(0, limit)
-    .map(({ updatedAt: _updatedAt, ...item }) => item);
-  return { items, total: users.length };
+  if (!viewer?.regionSido || !viewer.regionSigungu) return null;
+  const region: Region = { sido: viewer.regionSido, sigungu: viewer.regionSigungu };
+  return {
+    region,
+    regions: nearbyRegions(region.sido, region.sigungu),
+    label: regionScopeLabel(region.sido, region.sigungu),
+  };
 }
 
-/** 보이는 사람에게만 팔로우 여부·주력 종을 붙인다(쿼리 3번, 인원과 무관). */
-async function withViewerContext(
-  viewerId: number,
-  items: BaseItem[]
-): Promise<NearbyBreederItem[]> {
-  const ids = items.map((item) => item.user.id);
-  const [follows, speciesByUser] = await Promise.all([
-    client.follow.findMany({
-      where: { followerId: viewerId, followingId: { in: ids } },
-      select: { followingId: true },
-    }),
-    getTopSpeciesByUserIds(ids),
-  ]);
-  const followingIds = new Set(follows.map((row) => row.followingId));
-  return items.map((item) => ({
-    ...item,
-    isFollowing: followingIds.has(item.user.id),
-    topSpecies: speciesByUser.get(item.user.id) ?? [],
-  }));
+/** 이번 주(KST 월요일부터) 범위 안 '동네' 주제 글 수. 숨김 글·차단 관계 작성자는 뺀다. */
+export async function countWeeklyGreetings(
+  regions: ScopedRegion[],
+  excludedIds: number[] = [],
+  now: Date = new Date()
+): Promise<number> {
+  if (regions.length === 0) return 0;
+  const { startAt } = getKstWeekWindow(now);
+  return client.post.count({
+    where: {
+      category: REGION_POST_CATEGORY,
+      isHidden: false,
+      createdAt: { gte: startAt },
+      OR: regionScopeOr(regions),
+      ...(excludedIds.length ? { userId: { notIn: excludedIds } } : {}),
+    },
+  });
 }
 
 export async function getNearbyBreeders({
   viewerId,
   limit = NEARBY_LIMIT_DEFAULT,
+  now = new Date(),
 }: {
   viewerId: number;
   limit?: number;
+  now?: Date;
 }): Promise<NearbyBreedersResult> {
-  const viewer = await client.user.findUnique({
-    where: { id: viewerId },
-    select: { regionSido: true, regionSigungu: true },
-  });
-  if (!viewer?.regionSido || !viewer.regionSigungu) {
-    return { scope: "none", region: null, items: [], total: 0 };
+  const scope = await getViewerRegionScope(viewerId);
+  if (!scope) {
+    return { scope: "none", regionLabel: "", total: 0, greetingCount: 0, items: [], region: null };
   }
-  const region: Region = {
-    sido: viewer.regionSido,
-    sigungu: viewer.regionSigungu,
-  };
+  const { region, regions, label } = scope;
+  const distanceOf = new Map(regions.map((r) => [`${r.sido}|${r.sigungu}`, r.distanceKm]));
   const excludedIds = [viewerId, ...(await blockedEitherWay(viewerId))];
+  const where = {
+    status: "ACTIVE" as const,
+    regionVisible: true,
+    id: { notIn: excludedIds },
+    OR: regionScopeOr(regions),
+  };
 
-  const inSigungu = await findVisibleBreeders(
-    { regionSido: region.sido, regionSigungu: region.sigungu },
-    excludedIds,
-    limit
+  const [users, total, greetingCount] = await Promise.all([
+    client.user.findMany({
+      where,
+      select: {
+        id: true,
+        name: true,
+        avatar: true,
+        regionSido: true,
+        regionSigungu: true,
+        regionUpdatedAt: true,
+        _count: {
+          select: {
+            posts: { where: { isHidden: false } },
+            Comments: true,
+          },
+        },
+        breederPrograms: {
+          where: { status: "ACTIVE" },
+          select: breederProgramSummarySelect,
+        },
+      },
+      take: SCAN_LIMIT,
+    }),
+    client.user.count({ where }),
+    countWeeklyGreetings(regions, excludedIds.slice(1), now),
+  ]);
+
+  const ids = users.map((user) => user.id);
+  const [follows, lastPosts] = ids.length
+    ? await Promise.all([
+        client.follow.findMany({
+          where: { followerId: viewerId, followingId: { in: ids } },
+          select: { followingId: true },
+        }),
+        client.post.groupBy({
+          by: ["userId"],
+          where: { userId: { in: ids }, isHidden: false },
+          _max: { createdAt: true },
+        }),
+      ])
+    : [[], []];
+  const followingIds = new Set(follows.map((row) => row.followingId));
+  const lastPostAt = new Map(
+    (lastPosts as Array<{ userId: number; _max: { createdAt: Date | null } }>).map((row) => [
+      row.userId,
+      row._max.createdAt?.getTime() ?? 0,
+    ])
   );
-  if (inSigungu.items.length > 0) {
-    const items = await withViewerContext(viewerId, inSigungu.items);
-    return { scope: "sigungu", region, items, total: inSigungu.total };
+
+  const ranked = users
+    .map((user) => {
+      const sido = user.regionSido ?? "";
+      const sigungu = user.regionSigungu ?? "";
+      const sameRegion = sido === region.sido && sigungu === region.sigungu;
+      return {
+        user,
+        sameRegion,
+        distanceKm: sameRegion ? 0 : distanceOf.get(`${sido}|${sigungu}`) ?? 0,
+        isFollowing: followingIds.has(user.id),
+        activityAt: Math.max(lastPostAt.get(user.id) ?? 0, user.regionUpdatedAt?.getTime() ?? 0),
+      };
+    })
+    .sort(
+      (a, b) =>
+        Number(b.sameRegion) - Number(a.sameRegion) ||
+        a.distanceKm - b.distanceKm ||
+        Number(b.isFollowing) - Number(a.isFollowing) ||
+        b.activityAt - a.activityAt ||
+        a.user.id - b.user.id
+    )
+    .slice(0, limit);
+
+  const shownIds = ranked.map((item) => item.user.id);
+  const [speciesByUser, badgeRows] = shownIds.length
+    ? await Promise.all([
+        getTopSpeciesByUserIds(shownIds),
+        client.userBadge.findMany({
+          where: { userId: { in: shownIds } },
+          select: { userId: true, label: true },
+          orderBy: [{ createdAt: "desc" }, { rank: "asc" }],
+        }),
+      ])
+    : [new Map<number, string[]>(), []];
+  const badgesByUser = new Map<number, string[]>();
+  for (const row of badgeRows) {
+    const list = badgesByUser.get(row.userId) ?? [];
+    if (list.length < 3) list.push(row.label);
+    badgesByUser.set(row.userId, list);
   }
 
-  const inSido = await findVisibleBreeders({ regionSido: region.sido }, excludedIds, limit);
-  if (inSido.items.length > 0) {
-    const items = await withViewerContext(viewerId, inSido.items);
-    return { scope: "sido", region, items, total: inSido.total };
-  }
+  const items: NearbyBreederItem[] = ranked.map(({ user, sameRegion, distanceKm, isFollowing }) => {
+    const programs = getSortedActiveBreederProgramSummaries(user.breederPrograms);
+    return {
+      id: user.id,
+      name: user.name,
+      image: user.avatar,
+      topSpecies: speciesByUser.get(user.id)?.[0] ?? null,
+      regionSido: user.regionSido,
+      regionSigungu: user.regionSigungu,
+      distanceKm,
+      sameRegion,
+      isFollowing,
+      badges: badgesByUser.get(user.id) ?? [],
+      breederPrograms: programs.map((program) => program.programType),
+      // 옛 응답 필드
+      user: { id: user.id, name: user.name, avatar: user.avatar },
+      region: { sido: user.regionSido ?? "", sigungu: user.regionSigungu ?? "" },
+      postsCount: user._count.posts,
+      commentsCount: user._count.Comments,
+      breederProgramSummaries: programs,
+    };
+  });
 
-  return { scope: "none", region, items: [], total: 0 };
+  return {
+    scope: total > 0 ? "near" : "none",
+    regionLabel: label,
+    total,
+    greetingCount,
+    items,
+    region,
+  };
 }

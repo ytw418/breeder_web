@@ -3,10 +3,9 @@ import path from "path";
 import {
   HOME_NEARBY_LIMIT,
   type NeighborhoodCardItem,
-  type NeighborhoodListScope,
-  type NeighborhoodRegion,
   type NeighborhoodSectionState,
   neighborhoodCardCaption,
+  neighborhoodCardLocation,
   neighborhoodNoneCopy,
   neighborhoodSubtitle,
   resolveNeighborhoodSection,
@@ -24,12 +23,13 @@ const cases = JSON.parse(
     expect: NeighborhoodSectionState;
   }[];
   subtitle: { name: string; state: NeighborhoodSectionState; expect: string | null }[];
-  caption: { name: string; item: NeighborhoodCardItem; scope: NeighborhoodListScope; expect: string }[];
+  caption: { name: string; item: NeighborhoodCardItem; expect: string | null }[];
+  location: { name: string; item: NeighborhoodCardItem; expect: string }[];
   noneCopy: {
     name: string;
-    region: NeighborhoodRegion;
-    visible: boolean;
-    expect: { title: string; body: string };
+    regionLabel: string;
+    visitors: number;
+    expect: { title: string; body: string | null; action: string };
   }[];
 };
 
@@ -40,35 +40,54 @@ describe("홈 동네 브리더 섹션 — 공유 케이스", () => {
   it.each(cases.subtitle)("subtitle: $name", ({ state, expect: expected }) => {
     expect(neighborhoodSubtitle(state)).toBe(expected);
   });
-  it.each(cases.caption)("caption: $name", ({ item, scope, expect: expected }) => {
-    expect(neighborhoodCardCaption(item, scope)).toBe(expected);
+  it.each(cases.caption)("caption: $name", ({ item, expect: expected }) => {
+    expect(neighborhoodCardCaption(item)).toBe(expected);
   });
-  it.each(cases.noneCopy)("noneCopy: $name", ({ region, visible, expect: expected }) => {
-    expect(neighborhoodNoneCopy(region, visible)).toEqual(expected);
+  it.each(cases.location)("location: $name", ({ item, expect: expected }) => {
+    expect(neighborhoodCardLocation(item)).toBe(expected);
+  });
+  it.each(cases.noneCopy)("noneCopy: $name", ({ regionLabel, visitors, expect: expected }) => {
+    expect(neighborhoodNoneCopy(regionLabel, visitors)).toEqual(expected);
   });
 });
 
 describe("홈 동네 브리더 섹션 — 웹 전용", () => {
-  it(`카드는 최대 ${HOME_NEARBY_LIMIT}장`, () => {
-    const item = (id: number) => ({
-      user: { id, name: `b${id}`, avatar: null },
-      region: { sido: "서울특별시", sigungu: "강남구" },
-      postsCount: 0,
-      commentsCount: 0,
+  it(`카드는 최대 ${HOME_NEARBY_LIMIT}장, total 은 그대로`, () => {
+    const item = (id: number): NeighborhoodCardItem => ({
+      id,
+      name: `b${id}`,
+      topSpecies: null,
+      regionSido: "서울특별시",
+      regionSigungu: "강남구",
+      distanceKm: 3,
+      sameRegion: false,
+      isFollowing: false,
     });
     const state = resolveNeighborhoodSection({
       loggedIn: true,
       region: { sido: "서울특별시", sigungu: "강남구" },
       regionVisible: true,
-      data: { scope: "sigungu", region: null, items: Array.from({ length: 14 }, (_, i) => item(i)), total: 14 },
+      data: {
+        scope: "near",
+        regionLabel: "서울",
+        total: 14,
+        greetingCount: 0,
+        items: Array.from({ length: 14 }, (_, i) => item(i)),
+      },
       isError: false,
     });
     expect(state.kind).toBe("filled");
     if (state.kind === "filled") {
       expect(state.items).toHaveLength(HOME_NEARBY_LIMIT);
       expect(state.total).toBe(14);
-      // 응답 region 이 없으면 내 동네를 쓴다
-      expect(state.region.sigungu).toBe("강남구");
+    }
+  });
+
+  it("어떤 문구도 '없어요'로 끝나지 않는다", () => {
+    for (const c of cases.noneCopy) {
+      const copy = neighborhoodNoneCopy(c.regionLabel, c.visitors);
+      expect(copy.title).not.toMatch(/없어요$/);
+      expect(copy.body ?? "").not.toMatch(/없어요$/);
     }
   });
 });
