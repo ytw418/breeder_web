@@ -1,5 +1,6 @@
 "use client";
 
+import { markNotificationsSeen } from "@libs/client/notificationSeen";
 import Layout, { toLoginHref } from "@components/features/MainLayout";
 import { EmptyState } from "@components/app/EmptyState";
 import { QueryErrorState } from "@components/app/QueryErrorState";
@@ -19,7 +20,7 @@ import {
   type NotificationIconName,
 } from "@libs/shared/notificationFormat";
 import useSWR, { useSWRConfig } from "swr";
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import type { NotificationItem, NotificationsResponse } from "pages/api/notifications";
 import { getNotificationHref } from "./notificationFormat";
@@ -131,6 +132,12 @@ const NotificationsClient = () => {
   const { mutate: globalMutate } = useSWRConfig();
   const { data, error, isLoading, mutate } = useSWR<NotificationsResponse>("/api/notifications");
   const [markingAll, setMarkingAll] = useState(false);
+
+  // 화면을 열면(그리고 목록을 새로 받을 때마다) '여기까지 봤다'만 남긴다 → 모든 헤더 벨 점이 바로 사라진다.
+  // 개별 알림 읽음은 그대로 둔다(2026-10-11 버그 수정 유지).
+  useEffect(() => {
+    markNotificationsSeen();
+  }, [data]);
   const errorStatus = (error as (Error & { status?: number }) | undefined)?.status;
 
   const setUnreadBadge = useCallback(

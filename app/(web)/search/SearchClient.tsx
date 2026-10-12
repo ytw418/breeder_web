@@ -1,5 +1,6 @@
 "use client";
 
+import { HorizontalRail } from "@components/ui/HorizontalRail";
 import { useRef, useState, type ReactNode } from "react";
 import Link from "next/link";
 import useSWR from "swr";
@@ -311,7 +312,7 @@ const SearchClient = () => {
 
         {/* 카테고리 — 텍스트 칩 1줄 가로 스크롤 */}
         <SectionHeader title="카테고리" />
-        <div className="flex gap-2 overflow-x-auto px-4 scrollbar-hide">
+        <HorizontalRail label="카테고리" className="gap-2 px-4">
           {TOP_LEVEL_CATEGORIES.map((cat) => (
             <TextChip
               key={cat.id}
@@ -322,13 +323,13 @@ const SearchClient = () => {
               }}
             />
           ))}
-        </div>
+        </HorizontalRail>
 
         {/* 추천 상품(가로 스크롤) */}
         {products && products.length > 0 ? (
           <section>
             <SectionHeader title="추천 분양" moreHref="/products" />
-            <div className="flex gap-3 overflow-x-auto px-4 pb-1 scrollbar-hide">
+            <HorizontalRail label="추천 분양" className="gap-3 px-4 pb-1">
               {products.slice(0, 10).map((p) => (
                 <Link key={p.id} href={getProductPath(p.id, p.name)} className="w-36 shrink-0">
                   <div className="relative h-36 w-36 overflow-hidden rounded-xl bg-app-surface">
@@ -351,7 +352,7 @@ const SearchClient = () => {
                   <p className="mt-0.5 text-[16px] font-bold text-app-text">{formatProductPrice(p.price)}</p>
                 </Link>
               ))}
-            </div>
+            </HorizontalRail>
           </section>
         ) : null}
 

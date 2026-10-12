@@ -1,5 +1,7 @@
 "use client";
 
+import { useNotificationsSeenAt } from "@libs/client/notificationSeen";
+import { showNotificationDot } from "@libs/shared/notificationSeen";
 import Link from "next/link";
 import React, { useEffect, useState } from "react";
 import { usePathname, useRouter } from "next/navigation";
@@ -26,6 +28,8 @@ interface LayoutProps {
   icon?: boolean;
   showSearch?: boolean;
   showHome?: boolean;
+  /** 상세 화면: 오른쪽 액션 줄 맨 앞에 홈 아이콘(헤더 오른쪽 headerRight·기본 아이콘 앞). */
+  homeAction?: boolean;
   /**
    * 헤더 오른쪽을 통째로 바꾼다(기본: 알림 벨 + 메뉴). 상세 화면의 ⋮ 등.
    * headerVariant="chat-list" 에서는 알림 벨 왼쪽(검색 자리)에 들어간다.
@@ -33,7 +37,7 @@ interface LayoutProps {
   headerRight?: React.ReactNode;
   /**
    * default: 기존 헤더(로고/뒤로가기 + 가운데 제목 + 오른쪽 아이콘)
-   * chat-list: 제목 좌측 18/700 + headerRight(검색 토글) + 알림 벨
+   * chat-list: 왼쪽 브리디 로고(홈으로) + headerRight(검색 토글) + 알림 벨. 제목은 화면에 쓰지 않는다(sr-only)
    * profile: 뒤로 · 제목 좌측 18/700 · headerRight(공유·더보기·완료). 알림 벨·메뉴 없음(앱 ProfileHeader, 사진형 A안)
    * none: 헤더를 그리지 않는다(화면이 자체 헤더를 그릴 때)
    */
@@ -43,6 +47,8 @@ interface LayoutProps {
 interface UnreadCountResponse {
   success: boolean;
   unreadCount: number;
+  /** 알림 unread-count 만: 가장 최근 안 읽은 알림 시각. */
+  latestUnreadAt?: string | null;
 }
 
 interface BeforeInstallPromptEvent extends Event {
@@ -509,17 +515,25 @@ function SideMenu({
 /* 헤더 알림 벨                                                         */
 /* ------------------------------------------------------------------ */
 
-/** 알림 벨: unread 면 app-danger 벨 + app-danger-soft 원 배경, 뱃지 99+. */
-export function NotificationBell({ unread }: { unread: number }) {
-  const hasUnread = unread > 0;
+/**
+ * 알림 벨(인스타·스레드식, 2026-10-12 사용자 "빨간 숫자 뱃지가 구려"): 숫자 없이 오른쪽 위 6px 빨간 점.
+ * 점은 '알림 화면을 마지막으로 연 뒤 새 알림이 왔을 때'만 보이고, 알림 화면에 들어가면 모든 헤더에서 바로 사라진다.
+ */
+export function NotificationBell({ dot }: { dot: boolean }) {
   return (
-    <HeaderIconButton
-      label="알림"
-      href="/notifications"
-      badge={hasUnread ? unread : null}
-      className={hasUnread ? "bg-app-danger-soft text-app-danger hover:bg-app-danger-soft" : undefined}
-    >
-      <StrokeIcon d={ICON.bell} />
+    <HeaderIconButton label={dot ? "알림, 새 알림 있음" : "알림"} href="/notifications" className="h-10 w-10">
+      <svg width={24} height={24} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.5} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+        <path d="M6 9a6 6 0 1 1 12 0c0 7 3 8 3 8H3s3-1 3-8" />
+        <path d="M10 21a2 2 0 0 0 4 0" />
+      </svg>
+      {dot ? (
+        <span
+          aria-hidden="true"
+          data-testid="notification-dot"
+          className="absolute h-1.5 w-1.5 rounded-full bg-app-danger"
+          style={{ top: 8, right: 8 }}
+        />
+      ) : null}
     </HeaderIconButton>
   );
 }
@@ -527,6 +541,33 @@ export function NotificationBell({ unread }: { unread: number }) {
 /* ------------------------------------------------------------------ */
 /* 레이아웃                                                             */
 /* ------------------------------------------------------------------ */
+
+/** 탭바 홈과 같은 라인 집 아이콘. */
+const HOME_LINE_ICON = "M3 11 12 3l9 8v10h-6v-6H9v6H3z";
+
+/** 헤더 왼쪽 브리디 로고 26(누르면 홈). wordmark 면 옆에 '브리디' 18/700. */
+function BrandHomeLink({ wordmark = false, className }: { wordmark?: boolean; className?: string }) {
+  return (
+    <Link
+      href="/"
+      className={cn("-m-2 flex items-center gap-2 p-2", className)}
+      aria-label="브리디 홈으로 가기"
+      data-testid="header-brand"
+    >
+      <Image src={logo} alt="" width={26} height={26} priority className="h-[26px] w-[26px] rounded-lg" />
+      {wordmark ? <span className="app-t-section">브리디</span> : null}
+    </Link>
+  );
+}
+
+/** 상세 화면 오른쪽 액션 줄 맨 앞에 두는 홈 아이콘(24 라인, 40 터치 영역). 뒤로가기보다 중요해 늘 보인다. */
+export function HeaderHomeButton() {
+  return (
+    <HeaderIconButton label="홈으로 가기" href="/" className="h-10 w-10">
+      <StrokeIcon d={HOME_LINE_ICON} strokeWidth={1.5} />
+    </HeaderIconButton>
+  );
+}
 
 export default function MainLayout({
   title,
@@ -537,6 +578,7 @@ export default function MainLayout({
   icon,
   showSearch,
   showHome,
+  homeAction = false,
   headerRight,
   headerVariant = "default",
 }: LayoutProps) {
@@ -562,6 +604,14 @@ export default function MainLayout({
     notificationUnreadData?.success && notificationUnreadData.unreadCount > 0
       ? notificationUnreadData.unreadCount
       : 0;
+  const notificationsSeenAt = useNotificationsSeenAt();
+  const notificationDot =
+    pathname !== "/notifications" &&
+    showNotificationDot({
+      unreadCount: notificationUnread,
+      latestUnreadAt: notificationUnreadData?.latestUnreadAt,
+      lastSeenAt: notificationsSeenAt,
+    });
   const chatUnread =
     unreadData?.success && unreadData.unreadCount > 0 ? unreadData.unreadCount : 0;
   // 사용자 정보를 받는 중에는 탭을 그대로 두고, 비로그인이 확정되면 로그인으로 보낸다.
@@ -606,7 +656,7 @@ export default function MainLayout({
 
   const defaultRight = (
     <>
-      <NotificationBell unread={notificationUnread} />
+      <NotificationBell dot={notificationDot} />
       <HeaderIconButton label="메뉴" onClick={() => setMenuOpen(true)}>
         <StrokeIcon d={ICON.menu} />
       </HeaderIconButton>
@@ -639,10 +689,11 @@ export default function MainLayout({
           data-scrolled={scrolled ? "true" : "false"}
         >
           <div className="mx-auto flex h-full max-w-xl items-center justify-between pl-4 pr-2">
-            <h1 className="app-t-title">{title}</h1>
+            <BrandHomeLink />
+            {title ? <h1 className="sr-only">{title}</h1> : null}
             <div className="flex items-center gap-1">
               {headerRight}
-              <NotificationBell unread={notificationUnread} />
+              <NotificationBell dot={notificationDot} />
             </div>
           </div>
         </header>
@@ -672,6 +723,7 @@ export default function MainLayout({
               </div>
               {!isToolPath ? (
                 <div className="absolute right-2 flex items-center gap-0.5">
+                  {homeAction ? <HeaderHomeButton /> : null}
                   {headerRight ?? defaultRight}
                 </div>
               ) : null}
@@ -679,28 +731,9 @@ export default function MainLayout({
           ) : null}
           {icon && !isToolPath ? (
             <>
-              {isHomeRoot || !title ? (
-                /* 홈: 왼쪽 로고 26 + 워드마크 '브리디' 18/700(인스타 방식, 가운데 제목 없음). */
-                <Link
-                  href="/"
-                  className="absolute left-4 flex items-center gap-2"
-                  aria-label="홈으로 가기"
-                  data-testid="header-brand"
-                >
-                  <Image
-                    src={logo}
-                    alt="로고"
-                    width={26}
-                    height={26}
-                    priority
-                    className="h-[26px] w-[26px] rounded-lg"
-                  />
-                  <span className="app-t-section">브리디</span>
-                </Link>
-              ) : (
-                /* 다른 탭 루트: 왼쪽 제목 20/700, 로고 없음. */
-                <h1 className="app-t-title absolute left-4 max-w-[55%] truncate">{title}</h1>
-              )}
+              {/* 탭 루트: 왼쪽 브리디 로고(누르면 홈). 홈만 워드마크 '브리디'를 붙이고 다른 탭은 이름을 쓰지 않는다(2026-10-12 사용자). */}
+              <BrandHomeLink wordmark={isHomeRoot} className="absolute left-4" />
+              {title && !isHomeRoot ? <h1 className="sr-only">{title}</h1> : null}
               <div className="absolute right-2 flex items-center gap-0.5">
                 {headerRight ?? (
                   <>
@@ -719,7 +752,17 @@ export default function MainLayout({
             <div className="absolute right-2 flex items-center gap-0.5">{headerRight}</div>
           ) : null}
           {title && !(icon && !isToolPath) ? (
-            <h1 className="max-w-[55%] truncate text-[16px] font-semibold tracking-[-0.02em] text-app-text">
+            <h1
+              className={cn(
+                "truncate text-[16px] font-semibold tracking-[-0.02em] text-app-text",
+                // 오른쪽 아이콘이 늘면(홈 + 벨 + 메뉴) 가운데 제목 폭을 그만큼 줄여 겹치지 않게 한다.
+                !homeAction
+                  ? "max-w-[55%]"
+                  : headerRight
+                    ? "max-w-[calc(100%-200px)]"
+                    : "max-w-[calc(100%-272px)]"
+              )}
+            >
               {title}
             </h1>
           ) : null}

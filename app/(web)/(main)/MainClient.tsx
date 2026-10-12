@@ -1,5 +1,6 @@
 "use client";
 
+import { useRailScroll } from "@components/ui/HorizontalRail";
 import { UIEvent, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import useSWR from "swr";
@@ -261,6 +262,7 @@ const MainClient = ({
     useState<BeforeInstallPromptEvent | null>(null);
   const [installLoading, setInstallLoading] = useState(false);
   const bannerRef = useRef<HTMLDivElement>(null);
+  useRailScroll(bannerRef);
   const sentinelRef = useRef<HTMLDivElement>(null);
   const homeRootRef = useRef<HTMLDivElement>(null);
 
@@ -684,7 +686,7 @@ const MainClient = ({
                   })
                 }
                 className={cn(
-                  "app-card-interactive relative flex min-h-[132px] w-[calc(100vw-32px)] max-w-[calc(36rem-32px)] shrink-0 snap-start flex-col justify-between overflow-hidden rounded-2xl bg-app-brand px-4 py-4 text-white shadow-none",
+                  "app-card-interactive relative flex min-h-[132px] w-[calc(100vw-32px)] max-w-[calc(36rem-32px)] shrink-0 snap-start flex-col justify-between overflow-hidden rounded-2xl border border-white/20 bg-gradient-to-br from-emerald-500 to-teal-500 px-4 py-4 text-white shadow-none",
                   banner.bgClass
                 )}
               >

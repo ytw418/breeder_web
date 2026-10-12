@@ -9,6 +9,7 @@
  * → 내 신청 현황 카드 → 하단 고정 CTA "브리디북 심사 신청".
  * 임시저장은 계정별 localStorage 키(guinness_submission_draft_v2.<userId>), 예전 단일 키는 지운다.
  */
+import { HorizontalRail } from "@components/ui/HorizontalRail";
 import { ChangeEvent, useEffect, useMemo, useState } from "react";
 import useSWR from "swr";
 import Layout from "@components/features/MainLayout";
@@ -507,7 +508,7 @@ export default function GuinnessApplyClient() {
             className={bloodlineInputClass}
           />
           {speciesChips.length > 0 ? (
-            <div className="flex gap-2 overflow-x-auto scrollbar-hide">
+            <HorizontalRail className="gap-2">
               {speciesChips.slice(0, 8).map((item) => (
                 <FilterChip
                   key={item.id}
@@ -516,7 +517,7 @@ export default function GuinnessApplyClient() {
                   onClick={() => setSpecies(item.name)}
                 />
               ))}
-            </div>
+            </HorizontalRail>
           ) : species.trim() ? (
             <p className="text-[13px] text-app-muted">
               검색된 공식 종이 없습니다. 그대로 신청하면 후보 종으로 등록됩니다.
@@ -592,7 +593,7 @@ export default function GuinnessApplyClient() {
         </Field>
 
         <Field label="증빙 사진" helper="원본 사진 최대 3장. 측정 수치와 개체가 식별되게 촬영해주세요.">
-          <div className="flex gap-2 overflow-x-auto scrollbar-hide">
+          <HorizontalRail className="gap-2">
             <label
               htmlFor="guinness-proof"
               aria-label="증빙 사진 추가"
@@ -640,7 +641,7 @@ export default function GuinnessApplyClient() {
                 <RemoveBadge onClick={() => setProofFiles((prev) => prev.filter((_, i) => i !== index))} />
               </div>
             ))}
-          </div>
+          </HorizontalRail>
         </Field>
 
         <Field label="신청 전 체크리스트">

@@ -4,6 +4,7 @@
  * 순서: 내가 만든 앨범(최근 만든 순) → 종별 자동 앨범 → 본인이면 '새 앨범'.
  * 앨범이 하나도 없고 본인도 아니면 그리지 않는다.
  */
+import { HorizontalRail } from "@components/ui/HorizontalRail";
 import Link from "next/link";
 import type { ReactNode } from "react";
 import useSWR from "swr";
@@ -90,7 +91,7 @@ export default function AlbumRow({
   const species = albums ?? [];
   if (!custom.length && !species.length && !isOwner) return null;
   return (
-    <div className="flex gap-3 overflow-x-auto px-4 pb-[18px] scrollbar-hide">
+    <HorizontalRail label="앨범" className="gap-3 px-4 pb-[18px]">
       {custom.map((album) => (
         <AlbumItem
           key={`album-${album.id}`}
@@ -117,6 +118,6 @@ export default function AlbumRow({
           media={<LineIcon name="plus" size={22} className="text-app-text" />}
         />
       ) : null}
-    </div>
+    </HorizontalRail>
   );
 }

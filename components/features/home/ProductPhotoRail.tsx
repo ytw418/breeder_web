@@ -10,6 +10,7 @@ import { makeImageUrl } from "@libs/client/utils";
 import { getProductPath } from "@libs/product-route";
 import { PRODUCT_RAIL_NEW_HOURS } from "@libs/shared/communityVibe";
 import { formatProductPrice } from "@libs/shared/price";
+import { HorizontalRail } from "@components/ui/HorizontalRail";
 
 export type RailProduct = {
   id: number;
@@ -39,7 +40,7 @@ export default function ProductPhotoRail({ items, loading }: { items: RailProduc
           </svg>
         </Link>
       </div>
-      <div className="flex gap-2 overflow-x-auto px-4 scrollbar-hide" data-testid="product-photo-rail">
+      <HorizontalRail label="지금 올라온 분양 목록" className="gap-2 px-4" data-testid="product-photo-rail">
         {loading
           ? [0, 1, 2].map((i) => (
               <div key={i} className="w-[120px] shrink-0" aria-hidden="true">
@@ -84,7 +85,7 @@ export default function ProductPhotoRail({ items, loading }: { items: RailProduc
           <span className="mt-1.5 block truncate text-[14px] font-medium leading-5 text-app-brand">내 개체 올리기</span>
           <span className="block truncate text-[13px] leading-[18px] text-app-muted">첫 분양글이면 상단 고정</span>
         </Link>
-      </div>
+      </HorizontalRail>
     </section>
   );
 }
