@@ -32,6 +32,7 @@ jest.mock("@libs/server/auth", () => ({
 }));
 jest.mock("@libs/server/adminAccess", () => ({
   hasAdminAccess: jest.fn(async () => false),
+  canEditAnyContent: jest.fn(() => false),
 }));
 jest.mock("@libs/server/notification", () => ({ notifyFollowers: jest.fn() }));
 jest.mock("@libs/server/growth", () => ({

@@ -532,7 +532,8 @@ const PostClient = ({
             refreshDetail: () => void mutate(),
             onDeleted: () => router.replace("/posts"),
           }),
-          ...(moderation.isAdmin ? [{ ...byKey.edit, label: "수정하기 (관리자)" }] : []),
+          // 운영자 이메일 계정은 아래 본인 메뉴(수정·삭제)로 이미 고칠 수 있어 겹치지 않게 뺀다.
+          ...(moderation.isAdmin && !canManagePost ? [{ ...byKey.edit, label: "수정하기 (관리자)" }] : []),
         ];
     return [
       ...adminActions,
