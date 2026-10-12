@@ -253,6 +253,7 @@ describe("/api/admin/users 최고 관리자 전용 동작(AC-35)", () => {
     [{ userId: 9, action: "switch_user_session" }],
     [{ userId: 9, action: "delete" }],
     [{ userId: 9, action: "update_status", status: "DELETED" }],
+    [{ userId: 9, action: "update_name", name: "새이름" }],
   ])("허용 목록 밖 관리자는 403 이고 DB 를 바꾸지 않는다: %o", async (body) => {
     mockCanRunSensitive.mockReturnValue(false);
     const res = await post(body);
@@ -267,6 +268,45 @@ describe("/api/admin/users 최고 관리자 전용 동작(AC-35)", () => {
     const res = await post({ userId: 9, action: "update_role", role: "ADMIN" });
     expect(res.statusCode).toBe(200);
     expect(mockClient.user.update).toHaveBeenCalledWith({ where: { id: 9 }, data: { role: "ADMIN" } });
+  });
+});
+
+describe("/api/admin/users update_name", () => {
+  // findUnique 는 isSuperAdmin(관리자 email)과 닉네임 중복 검사(where.name) 둘 다 쓴다.
+  const nameOwner = (owner: { id: number } | null) =>
+    mockClient.user.findUnique.mockImplementation(({ where }: { where: { name?: string } }) =>
+      Promise.resolve(where.name !== undefined ? owner : target())
+    );
+
+  it("최고 관리자는 남의 닉네임을 바꾼다(앞뒤 공백 제거)", async () => {
+    nameOwner(null);
+    const res = await post({ userId: 9, action: "update_name", name: "  크레맘 " });
+    expect(res.statusCode).toBe(200);
+    expect(res.body).toEqual({ success: true, name: "크레맘" });
+    expect(mockClient.user.update).toHaveBeenCalledWith({ where: { id: 9 }, data: { name: "크레맘" } });
+  });
+
+  it("다른 회원이 쓰는 닉네임은 409 이고 바꾸지 않는다", async () => {
+    nameOwner({ id: 10 });
+    const res = await post({ userId: 9, action: "update_name", name: "크레맘" });
+    expect(res.statusCode).toBe(409);
+    expect(res.body.error).toBe("중복된 닉네임입니다.");
+    expect(mockClient.user.update).not.toHaveBeenCalled();
+  });
+
+  it.each([[""], ["열한글자가넘는긴닉네임"]])("형식이 틀리면(%p) 400", async (name) => {
+    nameOwner(null);
+    const res = await post({ userId: 9, action: "update_name", name });
+    expect(res.statusCode).toBe(400);
+    expect(mockClient.user.update).not.toHaveBeenCalled();
+  });
+
+  it("저장 순간 unique 충돌이면 409", async () => {
+    nameOwner(null);
+    mockClient.user.update.mockRejectedValueOnce({ code: "P2002", meta: { target: ["name"] } });
+    const res = await post({ userId: 9, action: "update_name", name: "크레맘" });
+    expect(res.statusCode).toBe(409);
+    expect(res.body.error).toBe("중복된 닉네임입니다.");
   });
 });
 
