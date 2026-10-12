@@ -17,13 +17,15 @@ export default function EditPostClient() {
   const params = useParams();
   const postId = extractPostIdFromPath(params?.id);
   const validId = Number.isInteger(postId) && postId > 0;
-  const { user } = useUser();
+  const { user, isAdmin, canEditAnyContent } = useUser();
 
   const { data, error, isLoading, mutate } = useSWR<PostDetailResponse>(
     validId ? `/api/posts/${postId}` : null
   );
   const post = data?.post;
   const isOwner = Boolean(user?.id && post?.user?.id === user.id);
+  // 관리자는 남의 글도 고칠 수 있다(서버 POST /api/posts/:id 가 같은 규칙으로 허용). 운영자 이메일 계정도 마찬가지.
+  const canEdit = isOwner || canEditAnyContent || Boolean(isAdmin);
 
   const initial = useMemo<PostComposerInitial | null>(
     () =>
@@ -72,7 +74,7 @@ export default function EditPostClient() {
     );
   }
 
-  if (!post || !initial || !isOwner) {
+  if (!post || !initial || !canEdit) {
     return (
       <PostComposerGate title="게시글 수정" onClose={closeScreen}>
         <div className="flex flex-1 flex-col items-center justify-center px-5">

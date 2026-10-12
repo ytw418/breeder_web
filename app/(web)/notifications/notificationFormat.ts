@@ -19,6 +19,8 @@ export function getNotificationHref(
   targetId: number | null,
   commentId?: number | null
 ): string | null {
+  // 순위 상승 알림(RANK_UP, community-vibe §5b)은 대상 id 없이 내 순위로 간다.
+  if (targetType === "ranking") return "/ranking?focus=me";
   if (!targetType || !targetId) return null;
   switch (targetType) {
     case "post":

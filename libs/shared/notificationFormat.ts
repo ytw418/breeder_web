@@ -77,6 +77,7 @@ const KINDS: Record<string, NotificationKind> = {
   NEW_RECORD: { label: "브리디북", icon: "trophy", fromPerson: false },
   BREEDER_RANK_DROP: { label: "랭킹", icon: "chart", fromPerson: false },
   BREEDER_OVERTAKEN: { label: "랭킹", icon: "chart", fromPerson: false },
+  RANK_UP: { label: "랭킹", icon: "trophy", fromPerson: false },
   BLOODLINE_OVERTAKEN: { label: "혈통 랭킹", icon: "chart", fromPerson: false },
   BLOODLINE_RECEIVED: { label: "혈통", icon: "card", fromPerson: true },
   MODERATION: { label: "운영 알림", icon: "shield", fromPerson: false },

@@ -15,6 +15,7 @@ jest.mock("@libs/server/auth", () => ({
 const mockHasAdminAccess = jest.fn();
 jest.mock("@libs/server/adminAccess", () => ({
   hasAdminAccess: (...args: unknown[]) => mockHasAdminAccess(...args),
+  canEditAnyContent: () => false,
 }));
 
 import meHandler from "../pages/api/users/me/index";
@@ -240,6 +241,7 @@ describe("GET /api/users/me", () => {
       success: true,
       profile: { id: 7, name: "브리디", status: "ACTIVE" },
       isAdmin: false,
+      canEditAnyContent: false,
     });
     expect(mockClient.user.findUnique).toHaveBeenCalledWith({
       where: { id: 7 },

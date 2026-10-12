@@ -3,7 +3,7 @@ import withHandler, { ResponseType } from "@libs/server/withHandler";
 
 import client from "@libs/server/client";
 import { withAuth } from "@libs/server/auth";
-import { hasAdminAccess } from "@libs/server/adminAccess";
+import { canEditAnyContent as canEditAnyContentByUser, hasAdminAccess } from "@libs/server/adminAccess";
 import { checkNickname, isUniqueNameError } from "@libs/server/nickname";
 import { NICKNAME_TAKEN_MESSAGE } from "@libs/shared/nickname";
 import {
@@ -18,6 +18,7 @@ import {
   normalizeProfileBanner,
   normalizeProfileLink,
 } from "@libs/shared/profile";
+import { captureServerEvent, resolveClientPlatform } from "@libs/server/analytics";
 
 async function handler(
   req: NextApiRequest,
@@ -31,6 +32,8 @@ async function handler(
         omit: { tokenVersion: true, suspendedUntil: true },
       });
       const isAdmin = profile ? await hasAdminAccess(profile.id) : false;
+      // 운영자 이메일 계정: 남의 글·댓글·분양글·경매 수정·삭제 가능(앱·웹 공통 판단은 서버가 한다).
+      const canEditAnyContent = canEditAnyContentByUser(profile);
 
       // 고정한 카테고리가 그 사이 숨겨졌거나 없어졌으면 빼고 저장한다(PRD 8: 자동으로 전체 보기).
       if (profile) {
@@ -50,6 +53,7 @@ async function handler(
         success: true,
         profile,
         isAdmin,
+        canEditAnyContent,
       });
     }
     if (req.method === "POST") {
@@ -125,15 +129,18 @@ async function handler(
       // 관심 카테고리 온보딩을 마쳤다(건너뛴 것 포함). true 만 받고 처음 한 번만 기록한다.
       // 앱·웹 어디서 마쳤든 다른 쪽에서 다시 묻지 않는다(앱 docs/parity 대응표 O-1).
       const markCategoryOnboarded = body.categoryOnboarded === true;
+      let firstCategoryOnboarding = false;
       if (markCategoryOnboarded) {
-        await client.user.updateMany({
+        const onboarded = await client.user.updateMany({
           where: { id: user?.id, categoryOnboardedAt: null },
           data: { categoryOnboardedAt: new Date() },
         });
+        firstCategoryOnboarding = onboarded.count > 0;
       }
 
       // 내 동네: 두 값을 함께 보낸다. 둘 다 null 이면 해제(노출도 같이 끈다), 목록에 없는 조합은 400.
       const hasRegion = "regionSido" in body || "regionSigungu" in body;
+      let regionSet = false;
       if (hasRegion) {
         if (regionSido == null && regionSigungu == null) {
           await client.user.update({
@@ -156,6 +163,7 @@ async function handler(
             where: { id: user?.id },
             data: { regionSido, regionSigungu, regionUpdatedAt: new Date() },
           });
+          regionSet = true;
         }
       }
 
@@ -245,6 +253,34 @@ async function handler(
           },
         });
       }
+
+      // 계측(응답 직전, 1.5초 상한·실패 무시). 이 API 는 온보딩·동네·프로필 수정을 같이 받는다.
+      const platform = resolveClientPlatform(req);
+      if (firstCategoryOnboarding) {
+        await captureServerEvent(user!.id, "category_onboarding_completed", {
+          pinned_count: savedPinnedCategoryIds?.length ?? 0,
+          platform,
+        });
+      }
+      if (regionSet) {
+        await captureServerEvent(user!.id, "region_set", {
+          region_sido: regionSido,
+          region_visible: regionVisible === true,
+          platform,
+        });
+      }
+      const profileFields = [
+        name != null ? "name" : null,
+        savedBio !== undefined ? "bio" : null,
+        savedProfileLink !== undefined ? "profile_link" : null,
+        savedProfileBanner !== undefined ? "banner" : null,
+        avatarId ? "avatar" : body.removeAvatar === true ? "avatar_removed" : null,
+        typeof regionVisible === "boolean" ? "region_visible" : null,
+      ].filter((field): field is string => field !== null);
+      if (profileFields.length > 0) {
+        await captureServerEvent(user!.id, "profile_updated", { fields: profileFields, platform });
+      }
+
       res.json({
         success: true,
         ...(savedPinnedCategoryIds !== undefined

@@ -160,13 +160,8 @@ export default function AuctionsClient() {
   };
 
   return (
-    <Layout icon hasTabBar seoTitle="경매" showSearch>
+    <Layout icon hasTabBar title="경매" seoTitle="경매" showSearch>
       <div className="flex min-h-full flex-col bg-app-bg pb-28">
-        {/* 제목 */}
-        <div className="px-4 py-3">
-          <h1 className="text-[18px] font-bold tracking-[-0.3px] text-app-text">경매</h1>
-        </div>
-
         {/* 검색 pill */}
         <form
           role="search"

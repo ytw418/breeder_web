@@ -4,6 +4,7 @@ import withHandler from "@libs/server/withHandler";
 import client from "@libs/server/client";
 import { MessageType } from "@prisma/client";
 import { sendAllPushToUsers } from "@libs/server/pushGateway";
+import { captureServerEvent, resolveClientPlatform } from "@libs/server/analytics";
 import { assertCanChat, CHAT_PARTNER_DELETED_MESSAGE } from "@libs/server/blocks";
 
 interface MessageRequest {
@@ -142,6 +143,12 @@ async function handler(
       url: `/chat/${chatRoomId}`,
       tag: `chat-${chatRoomId}`,
     }).catch((error) => console.error("Failed to send chat push:", error));
+
+    await captureServerEvent(user.id, "chat_message_sent", {
+      chat_room_id: +chatRoomId!,
+      message_type: newMessage.type,
+      platform: resolveClientPlatform(req),
+    });
 
     return res.json({
       success: true,

@@ -6,7 +6,12 @@
  * 서버 PostHog 캡처(libs/server/analytics). 의존성 없이 fetch(`${HOST}/capture/`)로 보내고,
  * 키가 없거나 테스트 환경이면 보내지 않으며, 실패·1.5초 초과에도 요청을 막지 않는다.
  */
-import { captureServerEvent, resolveServerAnalyticsConfig } from "@libs/server/analytics";
+import {
+  captureServerEvent,
+  resolveClientPlatform,
+  resolveServerAnalyticsConfig,
+  withSignupPersonProperties,
+} from "@libs/server/analytics";
 
 const PROD_ENV = {
   NODE_ENV: "production",
@@ -101,5 +106,37 @@ describe("captureServerEvent", () => {
     jest.advanceTimersByTime(1500);
     await expect(pending).resolves.toBeUndefined();
     expect((hanging.mock.calls[0][1]?.signal as AbortSignal).aborted).toBe(true);
+  });
+});
+
+describe("resolveClientPlatform", () => {
+  const req = (headers: Record<string, string | undefined>) => ({ headers });
+
+  it("앱이 붙이는 X-Bredy-Client 헤더가 있으면 app", () => {
+    expect(resolveClientPlatform(req({ "x-bredy-client": "app" }))).toBe("app");
+  });
+
+  it("헤더가 없는 옛 앱도 네이티브 fetch User-Agent 로 app", () => {
+    expect(resolveClientPlatform(req({ "user-agent": "okhttp/4.12.0" }))).toBe("app");
+    expect(resolveClientPlatform(req({ "user-agent": "Bredy/42 CFNetwork/1568.100.1 Darwin/24.0.0" }))).toBe("app");
+  });
+
+  it("브라우저는 web", () => {
+    expect(
+      resolveClientPlatform(
+        req({ "user-agent": "Mozilla/5.0 (iPhone; CPU iPhone OS 18_0 like Mac OS X) AppleWebKit/605.1.15" })
+      )
+    ).toBe("web");
+    expect(resolveClientPlatform(req({}))).toBe("web");
+  });
+});
+
+describe("withSignupPersonProperties", () => {
+  it("가입 수단·플랫폼을 사람 속성으로 한 번만 남긴다", () => {
+    expect(withSignupPersonProperties({ method: "kakao", platform: "app" })).toEqual({
+      method: "kakao",
+      platform: "app",
+      $set_once: { signup_method: "kakao", signup_platform: "app" },
+    });
   });
 });

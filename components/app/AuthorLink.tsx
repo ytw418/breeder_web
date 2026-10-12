@@ -8,12 +8,15 @@ import {
 } from "@components/features/breeder/BreederProgramDecorators";
 import { cn, makeImageUrl } from "@libs/client/utils";
 import type { BreederProgramSummary } from "@libs/shared/breeder-program";
+import { avatarInitial, avatarToneClass } from "@components/ui/avatarTone";
 
 export type AuthorLinkUser = {
   id: number;
   name: string;
   avatar?: string | null;
   breederPrograms?: BreederProgramSummary[] | null;
+  /** 작성자 칭호(분양왕·기록왕 등). 있으면 닉네임 뒤에 pill 18 하나(community-vibe F-7). */
+  titleLabel?: string | null;
 };
 
 /** Tailwind 는 동적 클래스를 못 읽어 크기별 클래스를 미리 적는다. */
@@ -60,10 +63,24 @@ export function AuthorLink({
             alt=""
           />
         ) : (
-          <span className={cn(sizeClass, "block rounded-full bg-app-placeholder")} />
+          <span
+            className={cn(
+              sizeClass,
+              "flex items-center justify-center rounded-full font-bold",
+              avatarToneClass(user.name)
+            )}
+            style={{ fontSize: avatarSize <= 16 ? 8 : 10 }}
+          >
+            {avatarInitial(user.name)}
+          </span>
         )}
       </span>
       <span className={cn("min-w-0 truncate", nameClassName)}>{user.name}</span>
+      {user.titleLabel ? (
+        <span className="app-title-pill-sm ml-1.5" data-testid="author-title-pill">
+          {user.titleLabel}
+        </span>
+      ) : null}
     </Link>
   );
 }

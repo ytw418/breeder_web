@@ -27,6 +27,7 @@ import {
 } from "@libs/constants";
 import { setTokens } from "@libs/client/authToken";
 import { authFetch } from "@libs/client/authFetch";
+import { ANALYTICS_EVENTS, trackEvent } from "@libs/client/analytics";
 import { getSafeNextPath, navigateAfterSessionReady } from "@libs/client/postLogin";
 
 const getKakaoRedirectUri = () => {
@@ -127,6 +128,8 @@ const LoginClient = ({ shouldShowTestLogin }: LoginClientProps) => {
 
   /**카카오로그인 */
   const loginWithKakao = () => {
+    // 로그인 퍼널(버튼 → 서버 signup_completed·login_completed)의 시작점. 앱 login_started 와 같다.
+    trackEvent(ANALYTICS_EVENTS.loginStarted, { method: "kakao" });
     const nextPath = getSafeNextPath(searchParams?.get("next") ?? null);
     window.Kakao.Auth.authorize({
       redirectUri: getKakaoRedirectUri(),
@@ -240,6 +243,7 @@ const LoginClient = ({ shouldShowTestLogin }: LoginClientProps) => {
   }, [shouldShowTestLogin]);
 
   const loginWithGoogle = async () => {
+    trackEvent(ANALYTICS_EVENTS.loginStarted, { method: "google" });
     try {
       const nextPath = getSafeNextPath(searchParams?.get("next") ?? null);
       const [{ getAuth, GoogleAuthProvider, signInWithPopup }, { app }] =

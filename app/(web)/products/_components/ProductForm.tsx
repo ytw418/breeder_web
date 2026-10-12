@@ -16,6 +16,8 @@ import {
 import { ChevronRightIcon } from "@components/features/bloodline/BloodlineScreenParts";
 import { useConfirmLeave } from "hooks/useConfirmLeave";
 import useUser from "hooks/useUser";
+import { useCelebrateSheet } from "@components/features/celebrate/CelebrateSheet";
+import type { Celebrate } from "@libs/shared/communityVibe";
 import { authFetch } from "@libs/client/authFetch";
 import { cn } from "@libs/client/utils";
 import { toast } from "@libs/client/toast";
@@ -196,6 +198,7 @@ export function ProductForm({
   const { mutate: globalMutate } = useSWRConfig();
   const isEdit = Boolean(product);
   const { user } = useUser();
+  const celebrateSheet = useCelebrateSheet("product");
 
   const initial = useMemo(() => {
     const branch = findCategoryBranch(product?.category);
@@ -359,6 +362,7 @@ export function ProductForm({
         product?: { id: number };
         error?: string;
         message?: string;
+        celebrate?: Celebrate | null;
       } | null;
       if (!res.ok || !result?.success) {
         throw new Error(
@@ -380,8 +384,10 @@ export function ProductForm({
         });
       } else {
         const id = result.product?.id;
-        toast.success("분양글이 등록되었습니다.");
-        leave(() => router.replace(id ? getProductPath(id, fields.name) : "/"));
+        if (!result.celebrate) toast.success("분양글이 등록되었습니다.");
+        celebrateSheet.show(result.celebrate, () =>
+          leave(() => router.replace(id ? getProductPath(id, fields.name) : "/"))
+        );
         // 구매 문의를 받으려면 알림이 필요하다. 이 브라우저에서 꺼져 있으면 다시 권유한다(앱과 같다).
         if (user) void promptPushAfterProductUpload(user.id);
       }
@@ -630,6 +636,7 @@ export function ProductForm({
         }
       />
       {dialog}
+      {celebrateSheet.sheet}
     </>
   );
 }

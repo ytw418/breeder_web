@@ -4,6 +4,7 @@ import withHandler, { ResponseType } from "@libs/server/withHandler";
 import client from "@libs/server/client";
 import { extractPostIdFromPath } from "@libs/post-route";
 import { withAuth } from "@libs/server/auth";
+import { canEditAnyContent } from "@libs/server/adminAccess";
 import { deleteOwnComment, sendCommentError } from "@libs/server/comments";
 import { validateCommentBody } from "@libs/shared/comment";
 import { parsePositiveIntId } from "@libs/shared/normalize";
@@ -47,7 +48,7 @@ async function handler(req: NextApiRequest, res: NextApiResponse<ResponseType>) 
   if (!target || target.postId !== postId || target.deletedAt) {
     return sendCommentError(res, 404, "COMMENT_NOT_FOUND", "댓글을 찾을 수 없습니다.");
   }
-  if (target.userId !== user.id) {
+  if (target.userId !== user.id && !canEditAnyContent(user)) {
     return sendCommentError(
       res,
       403,

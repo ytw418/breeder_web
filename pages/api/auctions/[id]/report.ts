@@ -3,6 +3,7 @@ import withHandler, { ResponseType } from "@libs/server/withHandler";
 import { withAuth } from "@libs/server/auth";
 import client from "@libs/server/client";
 import { extractAuctionIdFromPath } from "@libs/auction-route";
+import { captureServerEvent, resolveClientPlatform } from "@libs/server/analytics";
 
 const REPORT_REASONS = [
   "허위 분양글 의심",
@@ -130,6 +131,12 @@ async function handler(
       status: true,
       createdAt: true,
     },
+  });
+
+  await captureServerEvent(userId, "report_submitted", {
+    target_type: "auction",
+    reason,
+    platform: resolveClientPlatform(req),
   });
 
   return res.json({

@@ -96,7 +96,7 @@ const ProductClient = ({ product: initialProduct, relatedProducts: initialRelate
   const params = useParams();
   const productId = extractProductId(params?.id as string);
   const detailKey = productId ? `/api/products/${productId}` : null;
-  const { user, isLoading: isUserLoading } = useUser();
+  const { user, isLoading: isUserLoading, canEditAnyContent } = useUser();
   const { mutate: globalMutate } = useSWRConfig();
   const { isBlocked, unblock, isPending: blockPending } = useBlocks();
   const { confirm, confirmDialog } = useConfirmDialog();
@@ -127,7 +127,8 @@ const ProductClient = ({ product: initialProduct, relatedProducts: initialRelate
   const moderation = useAdminModeration();
   // 삭제·숨김 상품은 소유자에게만 내려온다. 안내만 보이고 관리 동선(수정·삭제·상태 변경)은 숨긴다.
   const isInactive = Boolean(product?.isDeleted || product?.isHidden);
-  const canManage = isOwner && !isInactive;
+  // 운영자 이메일 계정은 남의 분양글도 수정·삭제·상태 변경한다(서버가 같은 기준으로 허용).
+  const canManage = (isOwner || canEditAnyContent) && !isInactive;
   const sellerId = product?.user?.id;
   const sellerBlocked = Boolean(sellerId && !isOwner && isBlocked(sellerId));
   const photos = product?.photos?.length ? product.photos : [];
