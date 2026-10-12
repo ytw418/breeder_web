@@ -107,7 +107,8 @@ export default function FollowButton({
   isFollowing: boolean;
   /** 비로그인으로 누르면 로그인 뒤 돌아올 경로. */
   returnPath: string;
-  size: "lg" | "sm" | "card";
+  /** nearby: 홈 동네 카드(30 r8, 팔로우는 흰 바탕+테두리, 팔로잉은 주황 채움 — community-vibe 시안 .nbc .f). */
+  size: "lg" | "sm" | "card" | "nearby";
 }) {
   const { toggle, pending } = useFollowMutation(userId, returnPath);
   const [confirming, setConfirming] = useState(false);
@@ -132,7 +133,14 @@ export default function FollowButton({
           size === "lg" && "h-9 flex-1 rounded-lg text-[14px]",
           size === "sm" && "h-8 w-[74px] rounded-md text-[13px]",
           size === "card" && "h-8 w-full rounded-lg text-[13px]",
-          isFollowing ? "bg-app-surface text-app-text" : "bg-app-brand text-white",
+          size === "nearby" && "h-[30px] w-full rounded-lg border text-[13px]",
+          size === "nearby"
+            ? isFollowing
+              ? "border-app-brand bg-app-brand text-white"
+              : "border-app-border bg-app-bg text-app-text"
+            : isFollowing
+              ? "bg-app-surface text-app-text"
+              : "bg-app-brand text-white",
           pending && "opacity-70"
         )}
       >

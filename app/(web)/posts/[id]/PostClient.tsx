@@ -243,6 +243,16 @@ const PostClient = ({
     [post]
   );
 
+  // 반려생활 '답 기다려요' 카드의 '답하기'(#comment)로 들어오면 댓글 입력칸에 커서를 둔다(community-vibe §5b).
+  const hasPost = Boolean(post);
+  useEffect(() => {
+    if (!hasPost || typeof window === "undefined" || window.location.hash !== "#comment") return;
+    const el = commentInputRef.current;
+    if (!el) return;
+    el.scrollIntoView({ block: "center" });
+    el.focus();
+  }, [hasPost]);
+
   // 댓글 입력칸 높이를 글 줄 수에 맞춘다(등록 후 비우면 한 줄로 돌아온다).
   useLayoutEffect(() => {
     const el = commentInputRef.current;

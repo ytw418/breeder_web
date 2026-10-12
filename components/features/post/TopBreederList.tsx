@@ -19,7 +19,7 @@ export const TOP_BREEDER_COUNT = 3;
 /** 랭킹 API `highlights` 값. 차단한 사람이 상위에서 빠져도 사진이 비지 않게 두 명 더 받는다. */
 export const TOP_BREEDER_HIGHLIGHTS = TOP_BREEDER_COUNT + 2;
 /** 웹 .app-card (앱 makeCardStyles.appCard). */
-const APP_CARD = "rounded-xl border border-app-border bg-app-elevated shadow-card";
+const APP_CARD = "rounded-xl bg-app-gap";
 
 /** 앱 Icon "info"(heroicon) 과 같은 path. */
 const InfoIcon = () => (
@@ -125,9 +125,7 @@ export default function TopBreederList({
                   <div className="flex min-w-0 items-center gap-1.5">
                     <p className="truncate text-[15px] font-semibold leading-5 text-app-strong">{breeder.user.name}</p>
                     {keyword ? (
-                      <span className="shrink-0 rounded-full bg-app-brand-soft px-2 py-[2px] text-[12px] font-semibold leading-4 text-app-brand">
-                        {keyword.emoji} {keyword.label}
-                      </span>
+                      <span className="app-title-pill">{keyword.label}</span>
                     ) : null}
                   </div>
                   {summary ? (

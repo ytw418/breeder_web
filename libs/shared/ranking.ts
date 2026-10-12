@@ -24,6 +24,8 @@ export interface BreederRankingItem {
   bidsCount: number;
   auctionWinsCount: number;
   sellerEndedAuctionsCount: number;
+  /** 질문 글의 첫 답변 수(전체 랭킹만, 운영 계정 제외). 댓글 점수가 FIRST_ANSWER_COMMENT_SCORE 로 오른다. */
+  firstAnswersCount?: number;
   /** 카테고리 범위 랭킹(categoryPath)에서만 채운다: 범위 안 상품 수. */
   productsCount?: number;
   user: {
@@ -52,6 +54,12 @@ export interface BreederHighlight {
   /** 올린 상품(분양·판매) 수. 삭제·숨김 제외, 기간과 관계없이 전체. '분양왕' 칭호용. */
   productsCount: number;
 }
+
+/**
+ * 질문 글의 첫 답변(작성자 본인·운영 계정 댓글 제외, 보이는 루트 댓글 중 가장 먼저 단 것) 점수.
+ * 일반 댓글 점수(BREEDER_SCORE_WEIGHTS.comment) 대신 이 점수를 준다(앱 docs/prd/community-vibe.md §3.5).
+ */
+export { FIRST_ANSWER_COMMENT_SCORE } from "./communityVibe";
 
 /** 전체 랭킹(범위 없음) 브리더 점수 가중치. 반려생활 '점수 기준' 시트도 이 값을 보여 준다. */
 export const BREEDER_SCORE_WEIGHTS: Readonly<
@@ -189,6 +197,11 @@ export interface HotDiscussionItem {
     name: string;
     avatar: string | null;
   };
+  /** 실시간 TOP 토론(앱 community-vibe §3.5): 마지막 댓글·좋아요(없으면 글 작성) 시각. 옛 서버엔 없다. */
+  lastActivityAt?: string;
+  lastActivityKind?: "comment" | "like" | "post";
+  /** 24시간 활동 점수(댓글 3·좋아요 1, 반감기 6시간). */
+  hotScore?: number;
 }
 
 export interface HomeFeedResponse {

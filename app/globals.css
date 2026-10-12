@@ -173,7 +173,8 @@ textarea {
     --app-gap: #f7f8fa;
     --app-surface: #f2f3f6;
     --app-placeholder: #e9ebee;
-    --app-line: #f2f3f6;
+    /* 2026-10-12 community-vibe §3.7: surface(#f2f3f6) 위에서 사라지지 않게 분리(라이트만). */
+    --app-line: #ecedf0;
     --app-border: #e8e9eb;
     --app-text: #212124;
     --app-strong: #191919;
@@ -184,6 +185,19 @@ textarea {
     --app-inverse-text: #ffffff;
     --app-brand: #f97316;
     --app-brand-soft: #fff4ec;
+    /* 주황 소프트 배경 위 글자(칭호 pill·답 기다려요 보조 문구). */
+    --app-brand-text: #c2410c;
+    --app-brand-text-soft: #9a3412;
+    --app-brand-track: #fde1cc;
+    /* 아바타 이니셜 파스텔 4색(avatarTone). */
+    --app-avatar-1-bg: #ffe8d6;
+    --app-avatar-1-fg: #b45309;
+    --app-avatar-2-bg: #dceafe;
+    --app-avatar-2-fg: #1d4ed8;
+    --app-avatar-3-bg: #dff5ea;
+    --app-avatar-3-fg: #047857;
+    --app-avatar-4-bg: #ede4ff;
+    --app-avatar-4-fg: #6d28d9;
     --app-danger: #ef4444;
     --app-danger-soft: #fff1f2;
     --app-success: #10b981;
@@ -244,6 +258,17 @@ textarea {
     --app-inverse-text: #17171a;
     --app-brand: #f97316;
     --app-brand-soft: rgba(249, 115, 22, 0.16);
+    --app-brand-text: #fdba74;
+    --app-brand-text-soft: #fed7aa;
+    --app-brand-track: rgba(249, 115, 22, 0.28);
+    --app-avatar-1-bg: rgba(249, 115, 22, 0.2);
+    --app-avatar-1-fg: #fdba74;
+    --app-avatar-2-bg: rgba(59, 130, 246, 0.2);
+    --app-avatar-2-fg: #93c5fd;
+    --app-avatar-3-bg: rgba(16, 185, 129, 0.2);
+    --app-avatar-3-fg: #6ee7b7;
+    --app-avatar-4-bg: rgba(139, 92, 246, 0.2);
+    --app-avatar-4-fg: #c4b5fd;
     --app-danger: #f87171;
     --app-danger-soft: rgba(239, 68, 68, 0.16);
     --app-success: #34d399;
@@ -429,6 +454,42 @@ textarea {
 
   .app-caption {
     @apply text-[12px] leading-[1.35] font-normal text-app-muted;
+  }
+
+  /* 타이포 6단계(community-vibe §3.7, 앱 src/theme/typography.ts 와 같은 값). */
+  .app-t-title {
+    @apply text-[20px] leading-[26px] font-bold tracking-[-0.4px] text-app-text;
+  }
+
+  .app-t-section {
+    @apply text-[18px] leading-[24px] font-bold tracking-[-0.4px] text-app-text;
+  }
+
+  .app-t-card {
+    @apply text-[16px] leading-[22px] font-semibold tracking-[-0.3px] text-app-text;
+  }
+
+  .app-t-body {
+    @apply text-[15px] leading-[22px] font-normal text-app-text;
+  }
+
+  .app-t-meta {
+    @apply text-[13px] leading-[18px] font-normal text-app-muted;
+  }
+
+  .app-t-cap {
+    @apply text-[12px] leading-[16px] font-normal text-app-muted;
+  }
+
+  /* 칭호 pill(단 칭호: 주황 소프트, 잠금: 회색). */
+  .app-title-pill {
+    @apply inline-flex shrink-0 items-center gap-1 whitespace-nowrap rounded-full bg-app-brand-soft px-2 text-[12px] font-semibold leading-[22px] text-app-brand-text;
+    height: 22px;
+  }
+
+  .app-title-pill-sm {
+    @apply inline-flex shrink-0 items-center whitespace-nowrap rounded-full bg-app-brand-soft px-1.5 text-[11px] font-semibold leading-[18px] text-app-brand-text;
+    height: 18px;
   }
 
   .app-kicker {

@@ -3,6 +3,34 @@ import { createNotification } from "@libs/server/notification";
 import { getAuctionRanking, getBloodlineRanking, getBreederRanking } from "@libs/server/ranking";
 import { getKstWeekWindow } from "@libs/server/season";
 
+/**
+ * 순위 상승 알림(RANK_UP, 앱 docs/prd/community-vibe.md §5b) 조건.
+ * 지난 관측(AlertState)이 이번 주(KST) 안이고 순위가 올랐으며, 이번 주에 아직 RANK_UP 을 보내지 않았을 때만.
+ * 주가 바뀌면 점수가 0 에서 다시 시작해 순위가 크게 흔들리므로 지난주 관측과는 비교하지 않는다.
+ */
+export const shouldNotifyRankUp = ({
+  previousRank,
+  currentRank,
+  observedAt,
+  weekStart,
+  notifiedThisWeek,
+}: {
+  previousRank: number | null;
+  currentRank: number | null;
+  observedAt: Date | null | undefined;
+  weekStart: Date;
+  notifiedThisWeek: boolean;
+}) =>
+  previousRank !== null &&
+  currentRank !== null &&
+  currentRank < previousRank &&
+  !!observedAt &&
+  observedAt.getTime() >= weekStart.getTime() &&
+  !notifiedThisWeek;
+
+export const rankUpMessage = (previousRank: number, currentRank: number) =>
+  `순위가 올랐어요 · ${previousRank}위 → ${currentRank}위`;
+
 const pickTopSellerIds = (items: Awaited<ReturnType<typeof getAuctionRanking>>) => {
   return items.slice(0, 3).map((item, index) => ({
     userId: item.seller.id,
@@ -177,6 +205,35 @@ export const processRankingAlerts = async () => {
           allowSelf: true,
         });
         notified = true;
+      }
+
+      // 순위 상승은 사용자당 구독 하나(BREEDER_RANK_DROP)에서만 판단해 두 번 보내지 않는다.
+      if (subscription.alertType === "BREEDER_RANK_DROP" && previousRank && currentRank && currentRank < previousRank) {
+        const weekStart = getKstWeekWindow().startAt;
+        const sentThisWeek = await client.notification.findFirst({
+          where: { userId: subscription.userId, type: "RANK_UP", createdAt: { gte: weekStart } },
+          select: { id: true },
+        });
+        if (
+          shouldNotifyRankUp({
+            previousRank,
+            currentRank,
+            observedAt: subscription.state?.updatedAt,
+            weekStart,
+            notifiedThisWeek: !!sentThisWeek,
+          })
+        ) {
+          await createNotification({
+            type: "RANK_UP",
+            userId: subscription.userId,
+            senderId: subscription.userId,
+            message: rankUpMessage(previousRank, currentRank),
+            targetId: subscription.entityId,
+            targetType: "ranking",
+            allowSelf: true,
+          });
+          notified = true;
+        }
       }
 
       await updateAlertState({

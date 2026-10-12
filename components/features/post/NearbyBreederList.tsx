@@ -8,30 +8,39 @@ import Image from "@components/atoms/Image";
 import { QueryErrorState } from "@components/app/QueryErrorState";
 import { cn, makeImageUrl } from "@libs/client/utils";
 import type { NearbyBreederItem } from "@libs/server/nearby";
-import type { Region } from "@libs/shared/regions";
 import type { NearbyBreedersResponse } from "pages/api/users/nearby";
 
 /** 반려생활 상단에 보여 줄 인원. 나머지는 '동네 브리더 전체 보기'에서 본다. */
 export const NEARBY_BREEDER_COUNT = 3;
 /** 서버 상한과 같다. */
 export const NEARBY_FULL_LIST_LIMIT = 50;
-/** 웹 .app-card */
-const APP_CARD = "rounded-xl border border-app-border bg-app-elevated shadow-card";
+/** 섹션 카드는 테두리 없이 app-gap 채움(community-vibe §3.7 면 나누기). */
+const APP_CARD = "rounded-xl bg-app-gap";
 
-/** "강남구 브리더" / 넓혔으면 "강남구엔 아직 없어 서울특별시 전체를 보여드려요". scope none 이면 null. */
-export function nearbyCaption(data: Pick<NearbyBreedersResponse, "scope" | "region"> | undefined): string | null {
-  if (!data?.region) return null;
-  if (data.scope === "sigungu") return `${data.region.sigungu} 브리더`;
-  if (data.scope === "sido") return `${data.region.sigungu}엔 아직 없어 ${data.region.sido} 전체를 보여드려요`;
-  return null;
+/** "서울 근처 브리더 12명"(시 단위 + 50km, community-vibe §3.6b). 0명·미설정이면 null. */
+export function nearbyCaption(
+  data: { scope?: string; regionLabel?: string; total?: number; items?: unknown[] } | undefined
+): string | null {
+  if (!data || data.scope !== "near" || !data.regionLabel) return null;
+  const base = data.regionLabel.replace(/\s*근처$/, "");
+  const total = data.total ?? data.items?.length ?? 0;
+  return `${base} 근처 브리더 ${total}명`;
 }
 
 /** 시안 `.nrow`: 40 아바타 · 이름 16/600 · 시/군/구 pill · "게시글 N · 댓글 N". */
+/** "구로구 · 2km" / 같은 시/군/구면 "같은 동네". */
+function placeLabel(item: NearbyBreederItem): string {
+  if (item.sameRegion || item.distanceKm === 0) return "같은 동네";
+  return typeof item.distanceKm === "number"
+    ? `${item.region.sigungu} · ${item.distanceKm}km`
+    : item.region.sigungu;
+}
+
 export function NearbyBreederRow({ item, divider }: { item: NearbyBreederItem; divider?: boolean }) {
   return (
     <Link
       href={`/profiles/${item.user.id}`}
-      aria-label={`${item.user.name}, ${item.region.sigungu}, 게시글 ${item.postsCount} 댓글 ${item.commentsCount}`}
+      aria-label={`${item.user.name}, ${placeLabel(item)}, 게시글 ${item.postsCount} 댓글 ${item.commentsCount}`}
       className={cn(
         "flex items-center gap-3 px-3.5 py-3 transition-colors hover:bg-app-surface",
         divider && "border-t border-app-line"
@@ -52,7 +61,7 @@ export function NearbyBreederRow({ item, divider }: { item: NearbyBreederItem; d
         <span className="flex min-w-0 items-center gap-1.5">
           <span className="truncate text-[16px] font-semibold leading-5 text-app-strong">{item.user.name}</span>
           <span className="shrink-0 rounded-full bg-app-brand-soft px-2 py-[3px] text-[12px] font-semibold leading-4 text-app-brand">
-            {item.region.sigungu}
+            {placeLabel(item)}
           </span>
         </span>
         <span className="mt-0.5 block text-[13px] text-app-muted">
@@ -79,12 +88,21 @@ export function NearbyBreederSkeletonRows({ count }: { count: number }) {
   );
 }
 
-/** 시/도까지 0명일 때(시안 `.empty`). */
-export function NearbyBreederEmpty({ region }: { region: Region | null }) {
+/** 50km 안에도 0명일 때(§3.1: '없어요' 대신 첫 브리더 + 행동). */
+export function NearbyBreederEmpty({ label }: { label: string | null }) {
+  const base = (label ?? "").replace(/\s*근처$/, "");
   return (
     <div className="flex flex-col items-center px-4 py-7 text-center">
-      <p className="break-keep text-[14px] text-app-muted">아직 {region?.sigungu ?? "동네"}에 표시 중인 브리더가 없어요</p>
-      <p className="mt-1 text-[13px] text-app-caption">설정에서 &apos;나를 표시&apos;를 켜면 첫 브리더가 돼요</p>
+      <p className="break-keep text-[15px] font-semibold text-app-text">
+        {base ? `${base} 근처 첫 브리더가 되어 보세요` : "우리 동네 첫 브리더가 되어 보세요"}
+      </p>
+      <p className="mt-1 text-[13px] text-app-muted">설정에서 &apos;나를 표시&apos;를 켜면 근처 브리더 홈에 보여요</p>
+      <Link
+        href="/settings/region"
+        className="mt-3 flex h-9 items-center rounded-lg bg-app-inverse px-3.5 text-[14px] font-semibold text-app-inverse-text"
+      >
+        나도 보이기
+      </Link>
     </div>
   );
 }
@@ -109,7 +127,7 @@ export default function NearbyBreederList({
       {!data ? (
         <NearbyBreederSkeletonRows count={NEARBY_BREEDER_COUNT} />
       ) : items.length === 0 ? (
-        <NearbyBreederEmpty region={data.region} />
+        <NearbyBreederEmpty label={data.regionLabel ?? null} />
       ) : (
         <>
           {caption ? <p className="px-3.5 pb-1 pt-3 text-[13px] text-app-muted">{caption}</p> : null}
