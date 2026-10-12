@@ -13,6 +13,8 @@ import { POST_CATEGORIES } from "@libs/constants";
 import { toPostPath } from "@libs/post-route";
 import { toLoginHref } from "@components/features/MainLayout";
 import useConfirmLeave from "hooks/useConfirmLeave";
+import { useCelebrateSheet } from "@components/features/celebrate/CelebrateSheet";
+import type { Celebrate } from "@libs/shared/communityVibe";
 import useUser from "hooks/useUser";
 import type { CategoriesResponse } from "@libs/shared/categories";
 import { REGION_POST_CATEGORY } from "@libs/shared/postCategory";
@@ -61,6 +63,8 @@ interface PostMutationResponse {
   message?: string;
   /** '동네' 글인데 작성자 동네가 없으면 400 REGION_REQUIRED. */
   errorCode?: string;
+  /** 등록 보상 시트(community-vibe §3.4). 구 서버엔 없다. */
+  celebrate?: Celebrate | null;
 }
 
 async function uploadPostImage(file: File, title: string): Promise<string> {
@@ -253,6 +257,7 @@ export function PostComposer(props: PostComposerProps) {
   const changed = hasComposerChanges(values, body.images, normalizedInitial);
   const canSubmit = canSubmitPost({ values, submitting: isSubmitting, isEdit, changed });
   const { leave, dialog } = useConfirmLeave(changed);
+  const celebrateSheet = useCelebrateSheet("post");
 
   const clearFieldError = (field: keyof PostFormErrors) =>
     setErrors((prev) => {
@@ -359,10 +364,11 @@ export function PostComposer(props: PostComposerProps) {
         return;
       }
       revalidateMyPostActivity();
-      toast.success("게시글이 등록되었습니다.");
       const postPath = toPostPath(result.post.id, result.post.title);
       leaving = true;
-      leave(() => router.replace(postPath));
+      // 보상 시트가 있으면 0.8초 보여 준 뒤 상세로 간다(없으면 바로).
+      if (!result.celebrate) toast.success("게시글이 등록되었습니다.");
+      celebrateSheet.show(result.celebrate, () => leave(() => router.replace(postPath)));
     } catch (error) {
       toast.error(
         error instanceof Error
@@ -549,6 +555,7 @@ export function PostComposer(props: PostComposerProps) {
         }}
       />
       {dialog}
+      {celebrateSheet.sheet}
     </Layout>
   );
 }
