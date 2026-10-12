@@ -7,6 +7,7 @@ import useSWR from "swr";
 import { authFetch } from "@libs/client/authFetch";
 import { toast } from "@libs/client/toast";
 import { Button } from "@components/ui/button";
+import { Input } from "@components/ui/input";
 import useConfirmDialog from "hooks/useConfirmDialog";
 import { REPORT_STATUS_LABEL, REPORT_TARGET_LABEL } from "@libs/shared/report";
 import {
@@ -137,6 +138,9 @@ export default function AdminUserDetailPage() {
   const [tab, setTab] = useState<Tab>("sanctions");
   const [sanction, setSanction] = useState<SanctionFieldsValue>(() => initialSanctionFields("OTHER", "WARNING"));
   const [submitting, setSubmitting] = useState(false);
+  // null 이면 현재 닉네임을 보인다.
+  const [nameDraft, setNameDraft] = useState<string | null>(null);
+  const [savingName, setSavingName] = useState(false);
   const { confirm, confirmDialog } = useConfirmDialog();
 
   if (isLoading) {
@@ -229,6 +233,30 @@ export default function AdminUserDetailPage() {
     if (!result.success) return toast.error(result.error || "역할을 바꾸지 못했어요.");
     toast.success("역할을 바꿨어요.");
     mutate();
+  };
+
+  const changeName = async () => {
+    const name = (nameDraft ?? user.name).trim();
+    if (!name || name === user.name) return;
+    const confirmed = await confirm({ title: `닉네임을 '${name}'(으)로 바꿀까요?`, confirmText: "변경" });
+    if (!confirmed) return;
+    setSavingName(true);
+    try {
+      const res = await authFetch("/api/admin/users", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ userId: user.id, action: "update_name", name }),
+      });
+      const result = await res.json();
+      if (!result.success) return toast.error(result.error || "닉네임을 바꾸지 못했어요.");
+      toast.success("닉네임을 바꿨어요.");
+      setNameDraft(null);
+      mutate();
+    } catch {
+      toast.error("닉네임을 바꾸지 못했어요. 다시 시도해 주세요.");
+    } finally {
+      setSavingName(false);
+    }
   };
 
   const deleteAccount = async () => {
@@ -464,6 +492,24 @@ export default function AdminUserDetailPage() {
         {data.canRunSensitiveActions ? (
           <section className="space-y-3 rounded-xl border border-rose-200 bg-rose-50/40 p-5">
             <h3 className="text-sm font-semibold text-rose-900">최고 관리자 전용</h3>
+            <div className="flex items-center gap-2 text-sm">
+              닉네임
+              <Input
+                value={nameDraft ?? user.name}
+                onChange={(event) => setNameDraft(event.target.value)}
+                maxLength={10}
+                className="h-8 w-40"
+                aria-label="닉네임"
+              />
+              <Button
+                size="sm"
+                variant="outline"
+                disabled={savingName || !(nameDraft ?? user.name).trim() || (nameDraft ?? user.name).trim() === user.name}
+                onClick={changeName}
+              >
+                변경
+              </Button>
+            </div>
             <label className="flex items-center gap-2 text-sm">
               역할
               <select

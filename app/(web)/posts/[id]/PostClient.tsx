@@ -245,6 +245,16 @@ const PostClient = ({
     [post]
   );
 
+  // 반려생활 '답 기다려요' 카드의 '답하기'(#comment)로 들어오면 댓글 입력칸에 커서를 둔다(community-vibe §5b).
+  const hasPost = Boolean(post);
+  useEffect(() => {
+    if (!hasPost || typeof window === "undefined" || window.location.hash !== "#comment") return;
+    const el = commentInputRef.current;
+    if (!el) return;
+    el.scrollIntoView({ block: "center" });
+    el.focus();
+  }, [hasPost]);
+
   // 댓글 입력칸 높이를 글 줄 수에 맞춘다(등록 후 비우면 한 줄로 돌아온다).
   useLayoutEffect(() => {
     const el = commentInputRef.current;
@@ -511,16 +521,19 @@ const PostClient = ({
         onSelect: () => post.user?.id && openBlock({ id: post.user.id, name: post.user.name }),
       },
     };
-    // 관리자는 남의 글(공지 포함)에서 숨기기·삭제를 맨 앞에 본다. 본인 글은 아래 수정·삭제로 충분하다(앱과 같음).
+    // 관리자는 남의 글(공지 포함)에서 숨기기·삭제·수정을 맨 앞에 본다. 본인 글은 아래 수정·삭제로 충분하다(앱과 같음).
     const adminActions = isOwnPost
       ? []
-      : moderation.actionsFor({
-          targetType: "POST",
-          targetId: post.id,
-          isHidden: Boolean(post.isHidden),
-          refreshDetail: () => void mutate(),
-          onDeleted: () => router.replace("/posts"),
-        });
+      : [
+          ...moderation.actionsFor({
+            targetType: "POST",
+            targetId: post.id,
+            isHidden: Boolean(post.isHidden),
+            refreshDetail: () => void mutate(),
+            onDeleted: () => router.replace("/posts"),
+          }),
+          ...(moderation.isAdmin ? [{ ...byKey.edit, label: "수정하기 (관리자)" }] : []),
+        ];
     return [
       ...adminActions,
       ...getPostMenuActionKeys({

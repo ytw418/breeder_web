@@ -10,6 +10,8 @@ import { deleteAccount } from "@libs/server/accountDeletion";
 import { isSuspendedStatus } from "@libs/server/accountStatus";
 import { isSanctionError, issueSanction, type IssueSanctionInput } from "@libs/server/sanctions";
 import { SANCTION_COUNT_WINDOW_DAYS, isSanctionReasonCode } from "@libs/shared/sanction";
+import { checkNickname, isUniqueNameError } from "@libs/server/nickname";
+import { NICKNAME_TAKEN_MESSAGE } from "@libs/shared/nickname";
 
 const ROLE_OPTIONS: UserRole[] = ["USER", "FAKE_USER", "ADMIN", "SUPER_USER"];
 const STATUS_OPTIONS: UserStatus[] = [
@@ -315,6 +317,31 @@ async function handler(req: NextApiRequest, res: NextApiResponse<ResponseType>) 
       return res
         .status(400)
         .json({ success: false, error: "유저 ID가 필요합니다." });
+    }
+
+    // 닉네임 규칙(길이·예약어·중복)은 본인 수정(POST /api/users/me)과 같다.
+    if (action === "update_name") {
+      if (!(await isSuperAdmin(user?.id))) {
+        return res.status(403).json({ success: false, error: SUPER_ADMIN_ONLY_ERROR });
+      }
+      const targetId = Number(userId);
+      const nickname = await checkNickname(req.body.name, targetId);
+      if (!nickname.available) {
+        return res
+          .status(nickname.code === "TAKEN" ? 409 : 400)
+          .json({ success: false, error: nickname.reason });
+      }
+      if (!nickname.isCurrent) {
+        try {
+          await client.user.update({ where: { id: targetId }, data: { name: nickname.name } });
+        } catch (error) {
+          if (isUniqueNameError(error)) {
+            return res.status(409).json({ success: false, error: NICKNAME_TAKEN_MESSAGE });
+          }
+          throw error;
+        }
+      }
+      return res.json({ success: true, name: nickname.name });
     }
 
     if (action === "update_role") {

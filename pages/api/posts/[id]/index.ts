@@ -137,7 +137,12 @@ async function mutatePost(
   if (!post) {
     return sendPostError(res, 404, "POST_NOT_FOUND", NOT_FOUND_MESSAGE);
   }
-  if (post.userId !== user.id && !canEditAnyContent(user)) {
+  const { action } = req.body ?? {};
+
+  // 관리자는 남의 글을 고칠 수만 있다. 삭제는 사유를 남기는 관리자 숨김·삭제(/api/admin/moderation)로 한다.
+  // 운영자 이메일(ytw418…) 계정은 남의 글도 본인 글처럼 수정·삭제한다(canEditAnyContent).
+  const canEditAsAdmin = action === "update" && isModeratorUser(user);
+  if (post.userId !== user.id && !canEditAnyContent(user) && !canEditAsAdmin) {
     return sendPostError(
       res,
       403,
@@ -145,8 +150,6 @@ async function mutatePost(
       "본인 게시글만 수정·삭제할 수 있습니다."
     );
   }
-
-  const { action } = req.body ?? {};
 
   if (action === "delete") {
     // Comment/Like 는 onDelete: Cascade. 알림은 정리하지 않는다(상품 삭제와 동일).

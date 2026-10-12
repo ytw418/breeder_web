@@ -9,6 +9,8 @@ import Image from "@components/atoms/Image";
 import Layout from "@components/features/MainLayout";
 import { PriceInput } from "@components/app/PriceInput";
 import useMutation from "hooks/useMutation";
+import { useCelebrateSheet } from "@components/features/celebrate/CelebrateSheet";
+import type { Celebrate } from "@libs/shared/communityVibe";
 import useUser from "hooks/useUser";
 import { useConfirmLeave } from "hooks/useConfirmLeave";
 import { cn, makeImageUrl } from "@libs/client/utils";
@@ -127,6 +129,7 @@ const CreateAuctionClient = () => {
   const [proofUploading, setProofUploading] = useState(false);
   const [confirmPayload, setConfirmPayload] = useState<CreateAuctionPayload | null>(null);
   const [shareOpen, setShareOpen] = useState(false);
+  const celebrateSheet = useCelebrateSheet("auction");
   const [createdAuctionId, setCreatedAuctionId] = useState<number | null>(null);
   const [createdAuctionTitle, setCreatedAuctionTitle] = useState("");
   const [lastCreatedSignature, setLastCreatedSignature] = useState<string | null>(null);
@@ -311,8 +314,10 @@ const CreateAuctionClient = () => {
       setCreatedAuctionId(result.auction.id);
       setCreatedAuctionTitle(result.auction.title || "");
       setConfirmPayload(null);
-      setShareOpen(true);
-      toast.success("경매가 등록되었습니다. SNS에 공유해보세요!");
+      // 보상 시트(있으면 0.8초) 뒤에 기존 공유 창을 연다.
+      const celebrate = (result as { celebrate?: Celebrate | null }).celebrate;
+      if (!celebrate) toast.success("경매가 등록되었습니다. SNS에 공유해보세요!");
+      celebrateSheet.show(celebrate, () => setShareOpen(true));
       void globalMutate((key) => typeof key === "string" && key.startsWith("/api/auctions"), undefined, {
         revalidate: true,
       });
@@ -718,6 +723,7 @@ const CreateAuctionClient = () => {
         </div>
       </CenterModal>
 
+      {celebrateSheet.sheet}
       {leaveDialog}
     </Layout>
   );
