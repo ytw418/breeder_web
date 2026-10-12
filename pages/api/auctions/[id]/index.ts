@@ -2,7 +2,7 @@ import { NextApiRequest, NextApiResponse } from "next";
 import withHandler, { ResponseType } from "@libs/server/withHandler";
 import client from "@libs/server/client";
 import { withAuth } from "@libs/server/auth";
-import { isModeratorUser } from "@libs/server/adminAccess";
+import { canEditAnyContent, isModeratorUser } from "@libs/server/adminAccess";
 import { Auction, Bid, User } from "@prisma/client";
 import { extractAuctionIdFromPath } from "@libs/auction-route";
 import {
@@ -142,7 +142,7 @@ async function handler(
       });
     }
     const canEdit = canEditAuction({
-      isOwner: Boolean(isOwner),
+      isOwner: Boolean(isOwner) || canEditAnyContent(user),
       createdAt: auction.createdAt,
       status: auction.status,
       bidCount: auction._count.bids,
@@ -259,7 +259,7 @@ async function handler(
       }
 
       const editable = canEditAuction({
-        isOwner: auction.userId === user.id,
+        isOwner: auction.userId === user.id || canEditAnyContent(user),
         createdAt: auction.createdAt,
         status: auction.status,
         bidCount: auction._count.bids,

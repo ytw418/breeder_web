@@ -17,13 +17,13 @@ export default function EditPostClient() {
   const params = useParams();
   const postId = extractPostIdFromPath(params?.id);
   const validId = Number.isInteger(postId) && postId > 0;
-  const { user } = useUser();
+  const { user, canEditAnyContent } = useUser();
 
   const { data, error, isLoading, mutate } = useSWR<PostDetailResponse>(
     validId ? `/api/posts/${postId}` : null
   );
   const post = data?.post;
-  const isOwner = Boolean(user?.id && post?.user?.id === user.id);
+  const isOwner = Boolean(user?.id && post?.user?.id === user.id) || canEditAnyContent;
 
   const initial = useMemo<PostComposerInitial | null>(
     () =>

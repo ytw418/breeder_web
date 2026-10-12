@@ -13,7 +13,7 @@ import { resolvePostImagesInput, withPostImages } from "@libs/postImages";
 import { validatePostDescription } from "@libs/shared/post-body";
 import { canWriteNoticePost, isNoticePostInput } from "@libs/server/postNotice";
 import { commentVisibilityWhere } from "@libs/server/comments";
-import { isModeratorUser } from "@libs/server/adminAccess";
+import { canEditAnyContent, isModeratorUser } from "@libs/server/adminAccess";
 import { Prisma, type Post } from "@prisma/client";
 import { resolveCategoryIdByName } from "@libs/server/categories";
 import { DELETED_COMMENT_TEXT } from "@libs/shared/comment";
@@ -137,7 +137,7 @@ async function mutatePost(
   if (!post) {
     return sendPostError(res, 404, "POST_NOT_FOUND", NOT_FOUND_MESSAGE);
   }
-  if (post.userId !== user.id) {
+  if (post.userId !== user.id && !canEditAnyContent(user)) {
     return sendPostError(
       res,
       403,

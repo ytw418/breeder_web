@@ -3,7 +3,7 @@ import withHandler, { ResponseType } from "@libs/server/withHandler";
 
 import client from "@libs/server/client";
 import { withAuth } from "@libs/server/auth";
-import { hasAdminAccess } from "@libs/server/adminAccess";
+import { canEditAnyContent as canEditAnyContentByUser, hasAdminAccess } from "@libs/server/adminAccess";
 import { checkNickname, isUniqueNameError } from "@libs/server/nickname";
 import { NICKNAME_TAKEN_MESSAGE } from "@libs/shared/nickname";
 import {
@@ -31,6 +31,8 @@ async function handler(
         omit: { tokenVersion: true, suspendedUntil: true },
       });
       const isAdmin = profile ? await hasAdminAccess(profile.id) : false;
+      // 운영자 이메일 계정: 남의 글·댓글·분양글·경매 수정·삭제 가능(앱·웹 공통 판단은 서버가 한다).
+      const canEditAnyContent = canEditAnyContentByUser(profile);
 
       // 고정한 카테고리가 그 사이 숨겨졌거나 없어졌으면 빼고 저장한다(PRD 8: 자동으로 전체 보기).
       if (profile) {
@@ -50,6 +52,7 @@ async function handler(
         success: true,
         profile,
         isAdmin,
+        canEditAnyContent,
       });
     }
     if (req.method === "POST") {

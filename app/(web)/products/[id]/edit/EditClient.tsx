@@ -14,13 +14,13 @@ import { ProductForm } from "../../_components/ProductForm";
  */
 export default function EditClient({ productId }: { productId: string }) {
   const router = useRouter();
-  const { user, isLoading: userLoading } = useUser();
+  const { user, isLoading: userLoading, canEditAnyContent } = useUser();
   const { data, error, isLoading, mutate } = useSWR<ItemDetailResponse>(
     productId ? `/api/products/${productId}` : null,
     { revalidateOnFocus: false }
   );
   const product = data?.product;
-  const isOwner = Boolean(user?.id && product?.user?.id === user.id);
+  const isOwner = Boolean(user?.id && product?.user?.id === user.id) || canEditAnyContent;
   const status = (error as { status?: number } | undefined)?.status;
 
   const renderBody = () => {
