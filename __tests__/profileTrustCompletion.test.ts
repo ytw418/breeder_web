@@ -91,3 +91,49 @@ describe("computeProfileCompletion", () => {
     ]);
   });
 });
+
+describe("완성 카드 보상 문구·목적지(AC-14, 앱 community-vibe §3.8)", () => {
+  const none = {
+    hasAvatar: false,
+    hasBio: false,
+    hasBanner: false,
+    hasLink: false,
+    hasPinnedPhoto: false,
+    hasAlbum: false,
+    hasListing: false,
+  };
+
+  it("단계마다 보상 문구와 목적지가 있다", () => {
+    const { items } = computeProfileCompletion(none);
+    expect(items.map((item) => [item.id, item.reward, item.href])).toEqual([
+      ["avatar", "올리면 홈 '우리 동네 브리더'에 보여요", "/editProfile"],
+      ["bio", "분양글 작성자 줄에 한 줄 소개가 붙어요", "/editProfile"],
+      ["banner", "프로필이 '새로 온 브리더' 레일에 올라가요", "/editProfile"],
+      ["link", "프로필 공유 링크가 깔끔해져요", "/editProfile"],
+      ["pin", "프로필 사진 탭 맨 위에 고정돼요", "/editProfile"],
+      ["album", "프로필 사진 탭이 채워져요", "/albums/edit"],
+      ["listing", "홈 '지금 올라온 분양'에 24시간 보여요", "/products/upload"],
+    ]);
+  });
+
+  it("nextItem 은 다음 할 일 행, 다 하면 null", () => {
+    expect(computeProfileCompletion({ ...none, hasAvatar: true }).nextItem).toMatchObject({
+      id: "bio",
+      reward: "분양글 작성자 줄에 한 줄 소개가 붙어요",
+    });
+    const all = Object.fromEntries(Object.keys(none).map((key) => [key, true])) as typeof none;
+    expect(computeProfileCompletion(all).nextItem).toBeNull();
+  });
+});
+
+describe("profileTrustLine 동네", () => {
+  const now = at(2026, 10, 9);
+  it("공개한 동네 라벨을 끝에 붙인다", () => {
+    expect(profileTrustLine({ createdAt: iso(2026, 9, 1), regionLabel: "구로구" }, now)).toBe("브리디 1개월차 · 구로구");
+    expect(profileTrustLine({ completedSales: 2, createdAt: iso(2026, 9, 1), regionLabel: "보은군 근처" }, now)).toBe(
+      "거래 완료 2 · 브리디 1개월차 · 보은군 근처"
+    );
+    expect(profileTrustLine({ createdAt: iso(2026, 9, 1), regionLabel: " " }, now)).toBe("브리디 1개월차");
+    expect(profileTrustLine({ regionLabel: "서울" }, now)).toBe("서울");
+  });
+});

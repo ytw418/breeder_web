@@ -12,6 +12,8 @@
  * - 수정: 이름은 바꿀 수 없어 잠근다. 사진은 바꿀 수만 있다(삭제 X 없음). 바뀐 칸만 PATCH 한다
  *   (libs/shared/bloodline-edit.ts, 앱과 같은 규칙). 고칠 수 있는 사람은 만든 사람 = 지금 보유자.
  * 서버 오류는 errorCode 로 칸에 붙인다(중복 이름 → 이름 칸).
+ * - 오류가 나면 첫 오류 칸을 화면 가운데로 올린다. 폰에서 아래까지 채우고 하단 CTA 를 누르면 이름 칸 오류가
+ *   화면 위로 벗어나 "눌러도 반응이 없다"로 보였다(2026-10-11 제보 "혈통 등록이 안 된다").
  */
 import { ChangeEvent, FormEvent, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
@@ -68,8 +70,12 @@ const SPECIES_REQUIRED_MESSAGE = BLOODLINE_ERRORS.BLOODLINE_SPECIES_REQUIRED.mes
 const NAME_LOCKED_MESSAGE = "혈통 이름은 바꿀 수 없어요";
 const IMAGE_REQUIRED_MESSAGE = BLOODLINE_ERRORS.BLOODLINE_IMAGE_REQUIRED.message;
 
+type FieldKey = "name" | "species" | "image" | "origin";
+/** 오류를 보일 자리: 칸 하나 또는 폼 위 오류. */
+type ErrorTarget = FieldKey | "form";
+
 /** 서버 오류 코드 → 오류를 붙일 칸. 목록 밖은 폼 위 오류. */
-const FIELD_BY_ERROR: Partial<Record<BloodlineErrorCode, "name" | "species" | "image" | "origin">> = {
+const FIELD_BY_ERROR: Partial<Record<BloodlineErrorCode, FieldKey>> = {
   BLOODLINE_INVALID_NAME: "name",
   BLOODLINE_DUPLICATE_NAME: "name",
   BLOODLINE_SPECIES_REQUIRED: "species",
@@ -209,6 +215,19 @@ export default function BloodlineCardCreateClient({ editCardId }: { editCardId?:
   const [creating, setCreating] = useState(false);
   /** 자르기 창에 띄운 원본(고른 직후). 완료하면 잘린 파일을 올린다. */
   const [cropFile, setCropFile] = useState<File | null>(null);
+  /** 오류를 보일 자리. 오류 글이 그려진 뒤(effect) 그 자리를 화면 가운데로 올린다. seq 는 같은 자리 재시도용. */
+  const [errorReveal, setErrorReveal] = useState<{ target: ErrorTarget; seq: number } | null>(null);
+  const errorAnchorsRef = useRef<Partial<Record<ErrorTarget, HTMLElement | null>>>({});
+  const revealError = (target: ErrorTarget) =>
+    setErrorReveal((prev) => ({ target, seq: (prev?.seq ?? 0) + 1 }));
+  const errorAnchor = (target: ErrorTarget) => (node: HTMLElement | null) => {
+    errorAnchorsRef.current[target] = node;
+  };
+
+  useEffect(() => {
+    if (!errorReveal) return;
+    errorAnchorsRef.current[errorReveal.target]?.scrollIntoView({ behavior: "smooth", block: "center" });
+  }, [errorReveal]);
 
   const loggedOut = !user && !userLoading;
   useBloodlineLoginRedirect(
@@ -336,6 +355,11 @@ export default function BloodlineCardCreateClient({ editCardId }: { editCardId?:
     setImageError("");
   };
 
+  const showFormError = (message: string) => {
+    setFormError(message);
+    revealError("form");
+  };
+
   /** 서버 오류를 칸(이름·종·사진·산지) 또는 폼 위에 붙인다. */
   const showServerError = (payload: { error?: string; errorCode?: string } | null, fallback: string) => {
     const message = bloodlineErrorText(payload, fallback);
@@ -344,7 +368,8 @@ export default function BloodlineCardCreateClient({ editCardId }: { editCardId?:
     else if (field === "species") setSpeciesError(message);
     else if (field === "image") setImageError(message);
     else if (field === "origin") setOriginError(message);
-    else setFormError(message);
+    else return showFormError(message);
+    revealError(field);
   };
 
   const handleSave = async () => {
@@ -373,7 +398,7 @@ export default function BloodlineCardCreateClient({ editCardId }: { editCardId?:
       if (window.history.length > 1) router.back();
       else router.replace(`/bloodline-management/card/${editRoot?.id ?? editCardId}`);
     } catch {
-      setFormError("저장하지 못했어요");
+      showFormError("저장하지 못했어요");
     } finally {
       setCreating(false);
     }
@@ -397,7 +422,10 @@ export default function BloodlineCardCreateClient({ editCardId }: { editCardId?:
     setSpeciesError(nextSpeciesError);
     setImageError(nextImageError);
     setOriginError("");
-    if (!name.ok || nextSpeciesError || nextImageError) return;
+    if (!name.ok || nextSpeciesError || nextImageError) {
+      revealError(nextNameError ? "name" : nextSpeciesError ? "species" : "image");
+      return;
+    }
 
     const description = cardDescription.trim();
     const body: CreateBloodlineCardBody = {
@@ -424,7 +452,7 @@ export default function BloodlineCardCreateClient({ editCardId }: { editCardId?:
       const createdId =
         payload.myBloodlines?.[0]?.id || payload.myCreatedCards?.[0]?.id || payload.ownedCards?.[0]?.id;
       if (!createdId) {
-        setFormError("만든 혈통을 확인하지 못했어요");
+        showFormError("만든 혈통을 확인하지 못했어요");
         return;
       }
 
@@ -436,7 +464,7 @@ export default function BloodlineCardCreateClient({ editCardId }: { editCardId?:
         `/bloodline-management/card/${createdId}?celebration=card-created&name=${encodeURIComponent(name.name)}`
       );
     } catch {
-      setFormError("혈통을 만들지 못했어요");
+      showFormError("혈통을 만들지 못했어요");
     } finally {
       setCreating(false);
     }
@@ -484,40 +512,42 @@ export default function BloodlineCardCreateClient({ editCardId }: { editCardId?:
 
       <form id="bloodline-card-create" onSubmit={handleSubmit} className="px-4 pb-8 pt-4" noValidate>
         {formError ? (
-          <div className="mb-4">
+          <div ref={errorAnchor("form")} className="mb-4">
             <FieldError message={formError} />
           </div>
         ) : null}
 
-        <FieldLabel
-          label="혈통 이름"
-          htmlFor="bloodline-card-name"
-          count={`${cardName.length}/${BLOODLINE_NAME_MAX_LENGTH}`}
-        />
-        <Input
-          id="bloodline-card-name"
-          value={cardName}
-          maxLength={BLOODLINE_NAME_MAX_LENGTH}
-          onChange={(event) => {
-            setCardName(event.target.value);
-            if (nameError) setNameError("");
-          }}
-          placeholder="혈통 이름"
-          disabled={creating || isEdit}
-          readOnly={isEdit}
-          aria-invalid={Boolean(nameError)}
-          aria-describedby={nameError ? "bloodline-card-name-error" : "bloodline-card-name-help"}
-          className={bloodlineInputClass}
-        />
-        {nameError ? (
-          <FieldError id="bloodline-card-name-error" message={nameError} />
-        ) : (
-          <p id="bloodline-card-name-help" className="mt-1.5 text-[13px] tracking-[-0.2px] text-app-muted">
-            {isEdit ? NAME_LOCKED_MESSAGE : BLOODLINE_NAME_HELP}
-          </p>
-        )}
+        <div ref={errorAnchor("name")}>
+          <FieldLabel
+            label="혈통 이름"
+            htmlFor="bloodline-card-name"
+            count={`${cardName.length}/${BLOODLINE_NAME_MAX_LENGTH}`}
+          />
+          <Input
+            id="bloodline-card-name"
+            value={cardName}
+            maxLength={BLOODLINE_NAME_MAX_LENGTH}
+            onChange={(event) => {
+              setCardName(event.target.value);
+              if (nameError) setNameError("");
+            }}
+            placeholder="혈통 이름"
+            disabled={creating || isEdit}
+            readOnly={isEdit}
+            aria-invalid={Boolean(nameError)}
+            aria-describedby={nameError ? "bloodline-card-name-error" : "bloodline-card-name-help"}
+            className={bloodlineInputClass}
+          />
+          {nameError ? (
+            <FieldError id="bloodline-card-name-error" message={nameError} />
+          ) : (
+            <p id="bloodline-card-name-help" className="mt-1.5 text-[13px] tracking-[-0.2px] text-app-muted">
+              {isEdit ? NAME_LOCKED_MESSAGE : BLOODLINE_NAME_HELP}
+            </p>
+          )}
+        </div>
 
-        <div className="mt-5">
+        <div ref={errorAnchor("species")} className="mt-5">
           <FieldLabel label="종" />
           <div className="grid grid-cols-2 gap-2">
             <select
@@ -575,7 +605,7 @@ export default function BloodlineCardCreateClient({ editCardId }: { editCardId?:
           {speciesError ? <FieldError message={speciesError} /> : null}
         </div>
 
-        <div className="mt-5">
+        <div ref={errorAnchor("image")} className="mt-5">
           <FieldLabel label="사진" />
           <div className="flex gap-2">
             <label
@@ -639,7 +669,7 @@ export default function BloodlineCardCreateClient({ editCardId }: { editCardId?:
           </FieldHelp>
         </div>
 
-        <div className="mt-5">
+        <div ref={errorAnchor("origin")} className="mt-5">
           <FieldLabel label="산지 (선택)" />
           <div className="grid grid-cols-2 gap-2">
             <select

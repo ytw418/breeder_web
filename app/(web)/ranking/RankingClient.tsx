@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useMemo } from "react";
+import { useEffect, useMemo, useRef } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import useSWR from "swr";
 
@@ -21,6 +21,9 @@ import {
   TrendingPostItem,
 } from "@libs/shared/ranking";
 import useBlocks from "hooks/useBlocks";
+import useUser from "hooks/useUser";
+import { InitialAvatar } from "@components/ui/InitialAvatar";
+import { normalizeRankingMe, RANKING_ME_KEY } from "@components/features/home/TopBreederRankCard";
 import useCategoryScope, { withCategoryPath } from "hooks/useCategoryScope";
 import { CATEGORY_SCOPE_SURFACES } from "@libs/shared/categories";
 
@@ -149,6 +152,7 @@ function RankRow({
   meta,
   right,
   href,
+  isMe = false,
 }: {
   rank: number;
   imageId?: string | null;
@@ -158,11 +162,18 @@ function RankRow({
   meta: string;
   right?: string;
   href: string;
+  /** 내 행: brand-soft 로 강조하고 ?focus=me 일 때 이 행으로 스크롤한다. */
+  isMe?: boolean;
 }) {
   return (
     <Link
       href={href}
-      className="flex h-[72px] items-center border-b border-app-line bg-app-bg px-4 transition-colors hover:bg-app-surface"
+      data-ranking-me={isMe ? "true" : undefined}
+      aria-current={isMe ? "true" : undefined}
+      className={cn(
+        "flex h-[72px] scroll-mb-24 scroll-mt-20 items-center border-b border-app-line px-4 transition-colors",
+        isMe ? "bg-app-brand-soft" : "bg-app-bg hover:bg-app-surface"
+      )}
     >
       <span className={cn("w-6 shrink-0 text-[20px] font-bold", rank <= 3 ? "text-app-brand" : "text-app-text")}>
         {rank}
@@ -201,6 +212,9 @@ const RankingClient = () => {
   const periodParam = searchParams?.get("period") ?? null;
   const activeTab: RankingTab = isRankingTab(tabParam) ? tabParam : "breeders";
   const period: RankingPeriod = isRankingPeriod(periodParam) ? periodParam : "weekly";
+  // 홈 '내 순위 ›'(/ranking?focus=me): 브리더 랭킹에서 내 행으로 스크롤해 강조한다(community-vibe F-13).
+  const focusMe = searchParams?.get("focus") === "me";
+  const { user } = useUser();
 
   const scope = useCategoryScope();
   const summary = getSummary(activeTab, period, scope.categoryPath ? scope.label : undefined);
@@ -222,6 +236,28 @@ const RankingClient = () => {
     () => withoutBlocked(data?.items ?? [], blockedIds, (item) => getRankingOwnerId(activeTab, item)),
     [activeTab, blockedIds, data?.items]
   );
+
+  const myItem =
+    activeTab === "breeders" && user
+      ? (items as BreederRankingItem[]).find((item) => item.user.id === user.id) ?? null
+      : null;
+  // 목록 밖(50위 밖)이거나 범위 랭킹이면 서버 내 순위로 고정 바를 채운다.
+  const { data: meRaw } = useSWR<unknown>(user && activeTab === "breeders" ? RANKING_ME_KEY : null, {
+    shouldRetryOnError: false,
+  });
+  const me = normalizeRankingMe(meRaw);
+  const myRank = myItem?.rank ?? me?.rank ?? null;
+  const myScore = myItem?.score ?? me?.score ?? 0;
+  const showMyBar = Boolean(user) && activeTab === "breeders";
+
+  const scrolledRef = useRef(false);
+  useEffect(() => {
+    if (!focusMe || scrolledRef.current || !myItem) return;
+    const row = document.querySelector<HTMLElement>("[data-ranking-me]");
+    if (!row) return;
+    scrolledRef.current = true;
+    row.scrollIntoView({ block: "center" });
+  }, [focusMe, myItem]);
 
   let list;
   if (isLoading) {
@@ -287,6 +323,7 @@ const RankingClient = () => {
               }
               right={formatRankDelta(item.rankDelta)}
               href={`/profiles/${item.user.id}`}
+              isMe={item.user.id === user?.id}
             />
           ))}
 
@@ -383,7 +420,46 @@ const RankingClient = () => {
         </div>
 
         <div className="border-t border-app-line">{list}</div>
+        {showMyBar ? <div className="h-20" aria-hidden="true" /> : null}
       </div>
+
+      {/* 하단 내 순위 고정 바(아바타 · "7위 · 26점" · 글쓰기) */}
+      {showMyBar && user ? (
+        <div
+          className="fixed inset-x-0 bottom-0 z-30 bg-app-bg pb-[env(safe-area-inset-bottom)] shadow-[0_-1px_0_var(--app-line)]"
+          data-testid="ranking-my-bar"
+        >
+          <div className="mx-auto flex h-16 max-w-xl items-center gap-3 px-4">
+            <InitialAvatar name={user.name} avatar={user.avatar ?? null} size={36} />
+            <button
+              type="button"
+              onClick={() =>
+                document.querySelector<HTMLElement>("[data-ranking-me]")?.scrollIntoView({ block: "center", behavior: "smooth" })
+              }
+              className="min-w-0 flex-1 text-left"
+            >
+              <span className="block truncate text-[15px] font-semibold leading-5 text-app-text tabular-nums">
+                {myRank ? (
+                  <>
+                    나 <em className="not-italic text-app-brand">{myRank}위</em> · {myScore.toLocaleString()}점
+                  </>
+                ) : (
+                  <>나 · {myScore.toLocaleString()}점</>
+                )}
+              </span>
+              <span className="block truncate text-[12px] leading-4 text-app-muted">
+                {myRank ? (period === "weekly" ? "이번 주 내 순위" : "역대 내 순위") : "글을 쓰면 순위에 올라요"}
+              </span>
+            </button>
+            <Link
+              href="/posts/upload"
+              className="flex h-9 shrink-0 items-center rounded-lg bg-app-inverse px-3.5 text-[14px] font-semibold text-app-inverse-text"
+            >
+              글쓰기
+            </Link>
+          </div>
+        </div>
+      ) : null}
     </Layout>
   );
 };

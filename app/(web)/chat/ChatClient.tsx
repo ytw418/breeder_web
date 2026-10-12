@@ -13,6 +13,7 @@ import Image from "@components/atoms/Image";
 import SkeletonChat from "@components/atoms/SkeletonChat";
 import { FilterChip } from "@components/app/FilterChip";
 import { HeaderIconButton } from "@components/app/HeaderIconButton";
+import EmptyState from "@components/ui/EmptyState";
 import useUser from "hooks/useUser";
 import { makeImageUrl } from "@libs/client/utils";
 import type { ChatListResponse } from "pages/api/chat/chatList";
@@ -153,6 +154,20 @@ const ChatClient = () => {
           {rooms.map((room) => (
             <ChatRow key={room.id} room={room} myId={user?.id} />
           ))}
+        </div>
+      ) : !keyword.trim() && filter === "all" ? (
+        // 대화 0개(§3.1): '없습니다' 대신 다음 행동. 근처 같은 종 사용자 수 API 가 아직 없어 둘째 문구를 쓴다.
+        <div className="flex min-h-[calc(100dvh-240px)] items-center justify-center">
+          <EmptyState
+            icon={
+              <svg width={48} height={48} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.2} strokeLinecap="round" strokeLinejoin="round">
+                <path d="M21 12a8 8 0 0 1-11.6 7.1L4 20l1-4.6A8 8 0 1 1 21 12Z" />
+              </svg>
+            }
+            title="분양글에서 인사를 보내 보세요"
+            description="궁금한 개체에 채팅을 보내면 여기에 모여요"
+            action={{ label: "분양글 둘러보기", href: "/products" }}
+          />
         </div>
       ) : (
         <div className="flex min-h-[calc(100dvh-240px)] items-center justify-center px-[21px]">
