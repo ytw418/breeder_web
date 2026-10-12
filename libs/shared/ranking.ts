@@ -197,6 +197,11 @@ export interface HotDiscussionItem {
     name: string;
     avatar: string | null;
   };
+  /** 실시간 TOP 토론(앱 community-vibe §3.5): 마지막 댓글·좋아요(없으면 글 작성) 시각. 옛 서버엔 없다. */
+  lastActivityAt?: string;
+  lastActivityKind?: "comment" | "like" | "post";
+  /** 24시간 활동 점수(댓글 3·좋아요 1, 반감기 6시간). */
+  hotScore?: number;
 }
 
 export interface HomeFeedResponse {

@@ -15,6 +15,7 @@ import { resolveCategoryIdByName } from "@libs/server/categories";
 import { DEFAULT_DEAL_TYPE } from "@libs/shared/categories";
 import { canAttachBloodline, pedigreeNoteDbValue } from "@libs/server/bloodline-link";
 import { captureServerEvent } from "@libs/server/analytics";
+import { buildCelebrate } from "@libs/server/celebrate";
 
 const handler = async (
   req: NextApiRequest,
@@ -134,9 +135,20 @@ const handler = async (
       });
     }
 
+    // 등록 보상 시트(앱 community-vibe §3.4). 실패하면 null.
+    const celebrate = await buildCelebrate({
+      target: "product",
+      id: product.id,
+      userId: user.id,
+      createdAt: product.createdAt,
+      species: product.category ?? null,
+      categoryId: product.categoryId ?? null,
+    });
+
     return res.json({
       success: true,
       product,
+      celebrate,
     });
   }
 
