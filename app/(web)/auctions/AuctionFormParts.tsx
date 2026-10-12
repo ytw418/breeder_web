@@ -1,5 +1,6 @@
 "use client";
 
+import { HorizontalRail } from "@components/ui/HorizontalRail";
 import { useEffect, useState, type ReactNode } from "react";
 import Image from "@components/atoms/Image";
 import { PriceInput } from "@components/app/PriceInput";
@@ -146,7 +147,7 @@ export function FormChip({ label, active, onClick }: { label: string; active: bo
 }
 
 export function ChipRow({ children, className }: { children: ReactNode; className?: string }) {
-  return <div className={cn("flex gap-1.5 overflow-x-auto scrollbar-hide", className)}>{children}</div>;
+  return <HorizontalRail className={cn("gap-1.5", className)}>{children}</HorizontalRail>;
 }
 
 /** 동의 체크박스 행(앱 CheckboxRow): 20px 주황 체크 + 15/22 글자. */

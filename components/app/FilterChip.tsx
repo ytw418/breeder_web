@@ -1,5 +1,6 @@
 "use client";
 
+import { HorizontalRail } from "@components/ui/HorizontalRail";
 import type { ReactNode } from "react";
 import { cn } from "@libs/client/utils";
 
@@ -55,15 +56,15 @@ export function FilterChipRail({
   className?: string;
 }) {
   return (
-    <div
+    <HorizontalRail
       className={cn(
-        "flex h-11 items-center gap-2 overflow-x-auto px-4 scrollbar-hide",
+        "h-11 items-center gap-2 px-4",
         sticky && "sticky top-14 z-10 bg-app-bg",
         className
       )}
     >
       {children}
-    </div>
+    </HorizontalRail>
   );
 }
 

@@ -1,5 +1,6 @@
 "use client";
 
+import { HorizontalRail } from "@components/ui/HorizontalRail";
 import Link from "next/link";
 import Image from "@components/atoms/Image";
 import { getTimeAgoString, makeImageUrl } from "@libs/client/utils";
@@ -59,10 +60,7 @@ export default function RealtimeHotRail({
   onOpen?: (item: RealtimeHotItem, index: number) => void;
 }) {
   return (
-    <div
-      className="flex gap-2 overflow-x-auto px-4 scrollbar-hide"
-      data-testid="realtime-hot-rail"
-    >
+    <HorizontalRail label="실시간 TOP 토론" className="gap-2 px-4" data-testid="realtime-hot-rail">
       {items.map((item, index) => {
         const meta = realtimeHotMeta(item);
         return (
@@ -99,7 +97,7 @@ export default function RealtimeHotRail({
           </Link>
         );
       })}
-    </div>
+    </HorizontalRail>
   );
 }
 

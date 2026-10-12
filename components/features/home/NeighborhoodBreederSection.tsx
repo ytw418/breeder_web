@@ -15,7 +15,7 @@ import { toLoginHref } from "@components/features/MainLayout";
 import FollowButton from "@components/features/profile/FollowButton";
 import { regionSettingsHref } from "@components/features/region/regionHref";
 import { InitialAvatar } from "@components/ui/InitialAvatar";
-import { HOME_RAIL_CLASS, useDragScroll } from "@components/ui/useDragScroll";
+import { HorizontalRail } from "@components/ui/HorizontalRail";
 import type { ReactNode } from "react";
 import { cn } from "@libs/client/utils";
 import { NEIGHBOR_RADIUS_KM, type NeighborhoodVisitors } from "@libs/shared/communityVibe";
@@ -224,11 +224,10 @@ function SubtitleRow({ label, children }: { label: string; children?: ReactNode 
 
 /** 카드 가로 레일(터치 스와이프 + 마우스 끌기). */
 function NeighborRail({ children }: { children: ReactNode }) {
-  const ref = useDragScroll<HTMLDivElement>();
   return (
-    <div ref={ref} className={cn(HOME_RAIL_CLASS, "mt-3")} data-testid="neighborhood-rail">
+    <HorizontalRail label="우리 동네 브리더 목록" className="mt-3 gap-2 px-4" data-testid="neighborhood-rail">
       {children}
-    </div>
+    </HorizontalRail>
   );
 }
 

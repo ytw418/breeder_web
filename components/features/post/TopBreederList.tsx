@@ -5,6 +5,7 @@
  * 오른쪽 위 '점수 기준'은 점수식 시트를 연다. 나머지는 '전체 랭킹 보기'(/ranking)에서 본다.
  * `breeders` 가 undefined 면 스켈레톤.
  */
+import { HorizontalRail } from "@components/ui/HorizontalRail";
 import { useMemo, useState } from "react";
 import Link from "next/link";
 import Image from "@components/atoms/Image";
@@ -77,11 +78,11 @@ export default function TopBreederList({
                 <span className="h-3 w-[35%] animate-pulse rounded bg-app-placeholder" />
               </div>
             </div>
-            <div className="ml-7 mt-2.5 flex gap-1.5">
+            <HorizontalRail className="ml-7 mt-2.5 gap-1.5">
               {[0, 1, 2].map((j) => (
                 <span key={j} className="h-16 w-16 animate-pulse rounded-lg bg-app-placeholder" />
               ))}
-            </div>
+            </HorizontalRail>
           </div>
         ))
       ) : top.length === 0 ? (

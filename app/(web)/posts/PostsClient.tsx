@@ -1,5 +1,6 @@
 "use client";
 
+import { HorizontalRail } from "@components/ui/HorizontalRail";
 import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import useSWR from "swr";
@@ -401,11 +402,7 @@ export default function PostsClient({ initialCategory }: { initialCategory?: str
 
         {/* 2. 세그먼트: 실시간 TOP 토론 · 답 기다려요 N · 동네 · 랭킹 */}
         <section className="pt-4">
-          <div
-            className="flex gap-2 overflow-x-auto px-4 scrollbar-hide"
-            role="tablist"
-            aria-label="하이라이트 탭"
-          >
+          <HorizontalRail className="gap-2 px-4" role="tablist" aria-label="하이라이트 탭">
             {HIGHLIGHT_TABS.map((tab) => {
               const active = highlightTab === tab.id;
               return (
@@ -432,7 +429,7 @@ export default function PostsClient({ initialCategory }: { initialCategory?: str
                 </button>
               );
             })}
-          </div>
+          </HorizontalRail>
 
           <div className="mt-3" role="tabpanel">
             {highlightTab === "hot" ? (

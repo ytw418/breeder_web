@@ -7,6 +7,7 @@
  * 헤더(뒤로·홈 + 가운데 제목) → 설명 13 muted → 기간 칩 → 종 칩 → 72px 기록 행(순위·사진 44·종/브리더·값 mm)
  * → 하단 고정 CTA "기록 등록하기". 종 목록·기록 조회 실패는 빈 상태와 구분해 오류 + 다시 시도.
  */
+import { HorizontalRail } from "@components/ui/HorizontalRail";
 import { useMemo, useState } from "react";
 import useSWR from "swr";
 import Layout from "@components/features/MainLayout";
@@ -121,7 +122,7 @@ export default function GuinnessClient() {
         심사를 통과한 공식 체장 기록만 올라갑니다
       </p>
 
-      <div className="flex gap-2 overflow-x-auto px-4 pt-3 scrollbar-hide">
+      <HorizontalRail className="gap-2 px-4 pt-3">
         {PERIOD_TABS.map((tab) => (
           <FilterChip
             key={tab.id}
@@ -130,9 +131,9 @@ export default function GuinnessClient() {
             onClick={() => setPeriod(tab.id)}
           />
         ))}
-      </div>
+      </HorizontalRail>
 
-      <div className="flex gap-2 overflow-x-auto px-4 pb-3 pt-2 scrollbar-hide">
+      <HorizontalRail className="gap-2 px-4 pb-3 pt-2">
         {speciesOptions.map((item) => (
           <FilterChip
             key={item}
@@ -144,7 +145,7 @@ export default function GuinnessClient() {
         {!speciesQuery.isLoading && !speciesError && speciesOptions.length === 0 ? (
           <p className="text-[13px] leading-8 text-app-muted">표시할 공식 종이 없습니다.</p>
         ) : null}
-      </div>
+      </HorizontalRail>
 
       {isLoading ? (
         <SkeletonRows />

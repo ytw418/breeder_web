@@ -1,5 +1,6 @@
 "use client";
 
+import { HorizontalRail } from "@components/ui/HorizontalRail";
 import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
 import { useSWRConfig } from "swr";
@@ -177,7 +178,7 @@ function ErrorText({ children, className }: { children?: string; className?: str
 }
 
 function ChipRow({ children }: { children: ReactNode }) {
-  return <div className="flex h-11 items-center gap-1.5 overflow-x-auto scrollbar-hide">{children}</div>;
+  return <HorizontalRail className="h-11 items-center gap-1.5">{children}</HorizontalRail>;
 }
 
 /**
