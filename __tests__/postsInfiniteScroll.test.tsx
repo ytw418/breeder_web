@@ -80,6 +80,9 @@ const post = (id: number) => ({
 function makeFetcher(listPath: "/api/posts?" | "/api/posts/notices?", totalPages: number) {
   const listRequests: number[] = [];
   const fetcher = async (url: string) => {
+    // 반려생활 상단(실시간 TOP 토론·답 기다려요)도 /api/posts 를 부르지만 목록 페이지는 아니다.
+    if (url.includes("hot=realtime")) return { success: true, posts: [] };
+    if (url.includes("unanswered=1")) return { success: true, posts: [], unansweredCount: 0 };
     if (url.startsWith(listPath)) {
       const page = Number(new URL(url, "http://localhost").searchParams.get("page"));
       listRequests.push(page);
