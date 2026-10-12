@@ -699,7 +699,7 @@ export default function BloodlineCardDetailClient({ cardId }: { cardId: number }
   if (isLoading) {
     return (
       <Layout headerVariant="none" seoTitle="혈통">
-        <BloodlineHeader title="혈통" />
+        <BloodlineHeader title="혈통" showHome />
         <div className="flex min-h-[60vh] items-center justify-center">
           <BloodlineSpinner />
         </div>
@@ -715,7 +715,7 @@ export default function BloodlineCardDetailClient({ cardId }: { cardId: number }
     if (!isWaitingForSync && detailError && !detailData && !isNotFound) {
       return (
         <Layout headerVariant="none" seoTitle="혈통">
-          <BloodlineHeader title="혈통" />
+          <BloodlineHeader title="혈통" showHome />
           <div className="flex min-h-[60vh] items-center justify-center px-4">
             <QueryErrorState title="혈통을 불러오지 못했어요" onRetry={() => void mutateCard()} />
           </div>
@@ -724,7 +724,7 @@ export default function BloodlineCardDetailClient({ cardId }: { cardId: number }
     }
     return (
       <Layout headerVariant="none" seoTitle="혈통">
-        <BloodlineHeader title="혈통" />
+        <BloodlineHeader title="혈통" showHome />
         <div className="flex min-h-[60vh] flex-col items-center justify-center px-4 text-center">
           {isWaitingForSync ? (
             <>
@@ -818,6 +818,7 @@ export default function BloodlineCardDetailClient({ cardId }: { cardId: number }
     <Layout headerVariant="none" seoTitle={card.name}>
       <BloodlineHeader
         title={typeLabel}
+        showHome
         right={
           <BloodlineHeaderButton
             label="공유"

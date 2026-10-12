@@ -97,14 +97,17 @@ describe("MainLayout 셸", () => {
     expect(screen.queryByRole("button", { name: "메뉴" })).not.toBeInTheDocument();
   });
 
-  it("chat-list 헤더는 제목 + headerRight + 알림 벨", () => {
+  it("chat-list 헤더는 왼쪽 로고(홈) + headerRight + 알림 벨, 제목 글자는 보이지 않는다", () => {
     mockUseUser.mockReturnValue({ user: undefined, isLoading: false });
     render(
       <MainLayout title="채팅" headerVariant="chat-list" headerRight={<button type="button">검색</button>}>
         <p>본문</p>
       </MainLayout>
     );
-    expect(screen.getByRole("heading", { name: "채팅" })).toHaveClass("app-t-title");
+    const brand = screen.getByTestId("header-brand");
+    expect(brand).toHaveAttribute("href", "/");
+    expect(brand).not.toHaveTextContent("브리디");
+    expect(screen.getByRole("heading", { name: "채팅" })).toHaveClass("sr-only");
     expect(screen.getByRole("button", { name: "검색" })).toBeInTheDocument();
     expect(screen.getByRole("link", { name: "알림" })).toBeInTheDocument();
   });
@@ -138,16 +141,32 @@ describe("MainLayout 셸", () => {
     expect(screen.queryByRole("heading", { name: "브리디" })).toBeNull();
   });
 
-  it("다른 탭 루트는 왼쪽 제목 20/700(app-t-title) 하나, 로고 없음", () => {
+  it("다른 탭 루트는 왼쪽 로고만(누르면 홈), 탭 이름 글자는 보이지 않는다", () => {
     mockUseUser.mockReturnValue({ user: undefined, isLoading: false });
     render(
       <MainLayout title="반려생활" icon showSearch hasTabBar>
         <p>본문</p>
       </MainLayout>
     );
-    expect(screen.getAllByRole("heading", { name: "반려생활" })).toHaveLength(1);
-    expect(screen.getByRole("heading", { name: "반려생활" })).toHaveClass("app-t-title");
-    expect(screen.queryByTestId("header-brand")).toBeNull();
+    const brand = screen.getByTestId("header-brand");
+    expect(brand).toHaveAttribute("href", "/");
+    expect(brand.textContent).toBe("");
+    // 제목은 화면 읽기용(sr-only) 하나만 남는다.
+    expect(screen.getByRole("heading", { name: "반려생활" })).toHaveClass("sr-only");
+  });
+
+  it("상세 화면 homeAction: 오른쪽 액션 줄 맨 앞에 홈 아이콘", () => {
+    mockUseUser.mockReturnValue({ user: undefined, isLoading: false });
+    render(
+      <MainLayout canGoBack homeAction title="상세" headerRight={<button type="button">더보기</button>}>
+        <p>본문</p>
+      </MainLayout>
+    );
+    const home = screen.getByRole("link", { name: "홈으로 가기" });
+    expect(home).toHaveAttribute("href", "/");
+    const group = home.parentElement as HTMLElement;
+    expect(group.firstElementChild).toBe(home);
+    expect(group).toContainElement(screen.getByRole("button", { name: "더보기" }));
   });
 
   it("탭바는 한 세트 아이콘이고 선택 탭만 채움, 경매는 망치 아이콘", () => {

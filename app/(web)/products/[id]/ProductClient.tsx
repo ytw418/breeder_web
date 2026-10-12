@@ -381,7 +381,7 @@ const ProductClient = ({ product: initialProduct, relatedProducts: initialRelate
     const message =
       status === 404 && error instanceof Error ? error.message : "분양글을 불러올 수 없습니다.";
     return (
-      <Layout canGoBack title="분양글 상세" headerRight={<></>}>
+      <Layout canGoBack homeAction title="분양글 상세" headerRight={<></>}>
         <div className="flex min-h-[60vh] items-center justify-center px-6">
           {isLoading || (!error && !data) ? (
             <span
@@ -485,7 +485,7 @@ const ProductClient = ({ product: initialProduct, relatedProducts: initialRelate
   const photoUrls = photos.map((photo) => makeImageUrl(photo, "public"));
 
   return (
-    <Layout canGoBack title={product.name || "상세 정보"} seoTitle={product.name} headerRight={headerRight}>
+    <Layout canGoBack homeAction title={product.name || "상세 정보"} seoTitle={product.name} headerRight={headerRight}>
       {sellerBlocked ? (
         // 게시글 상세의 차단 게이트와 같은 레이아웃
         <div className="flex min-h-[70vh] flex-col items-center justify-center px-6 text-center">

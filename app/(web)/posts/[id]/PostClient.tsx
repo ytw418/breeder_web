@@ -6,7 +6,7 @@ import { useParams, useRouter } from "next/navigation";
 import useSWR, { useSWRConfig } from "swr";
 import { useMarkSeenOnView } from "@libs/client/unreadMarks";
 
-import Layout, { toLoginHref } from "@components/features/MainLayout";
+import Layout, { HeaderHomeButton, toLoginHref } from "@components/features/MainLayout";
 import ConfirmDialog from "@components/atoms/ConfirmDialog";
 import { ActionSheet, type ActionSheetAction } from "@components/app/ActionSheet";
 import { ReportSheet } from "@components/app/moderation/ReportSheet";
@@ -92,16 +92,20 @@ function PostDetailHeader({
           {title}
         </h1>
         <div className="flex-1" />
-        {onMore ? (
-          <button
-            type="button"
-            aria-label="더보기"
-            onClick={onMore}
-            className="-m-1.5 grid h-11 w-11 shrink-0 place-items-center rounded-full text-app-text"
-          >
-            <MoreIcon />
-          </button>
-        ) : null}
+        {/* 홈 아이콘을 오른쪽 액션 맨 앞에(뒤로가기보다 중요, 2026-10-12 사용자). */}
+        <div className="-mr-1.5 flex shrink-0 items-center gap-0.5">
+          <HeaderHomeButton />
+          {onMore ? (
+            <button
+              type="button"
+              aria-label="더보기"
+              onClick={onMore}
+              className="grid h-10 w-10 shrink-0 place-items-center rounded-full text-app-text"
+            >
+              <MoreIcon />
+            </button>
+          ) : null}
+        </div>
       </div>
     </header>
   );

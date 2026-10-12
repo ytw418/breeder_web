@@ -446,7 +446,7 @@ const AuctionDetailClient = () => {
 
   if (canLoadAuction && !auction && !error) {
     return (
-      <Layout canGoBack title="경매" seoTitle="경매">
+      <Layout canGoBack homeAction title="경매" seoTitle="경매">
         <div className="flex h-[60vh] items-center justify-center" role="status" aria-label="불러오는 중">
           <span className="h-6 w-6 animate-spin rounded-full border-2 border-app-border border-t-app-brand" />
         </div>
@@ -457,7 +457,7 @@ const AuctionDetailClient = () => {
   if (!canLoadAuction || !auction || isGone) {
     const canRetry = canLoadAuction && Boolean(error) && !isGone;
     return (
-      <Layout canGoBack title="경매" seoTitle="경매">
+      <Layout canGoBack homeAction title="경매" seoTitle="경매">
         <div className="flex h-[60vh] items-center justify-center px-6">
           {canRetry ? (
             <QueryErrorState onRetry={() => void mutate()} />
@@ -531,6 +531,7 @@ const AuctionDetailClient = () => {
   return (
     <Layout
       canGoBack
+      homeAction
       title={auction.title}
       seoTitle={auction.title}
       headerRight={
