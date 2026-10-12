@@ -3,6 +3,7 @@ import type { Prisma } from "@prisma/client";
 
 import client from "@libs/server/client";
 import { settleExpiredAuctions } from "@libs/server/auctionSettlement";
+import { revokeAppleSignIn } from "@libs/server/appleTokens";
 import { AUCTION_SETTLEMENT_GRACE_DAYS } from "@libs/auctionRules";
 import {
   DELETED_USER_PREFIX,
@@ -148,7 +149,8 @@ export async function deleteAccount(
 
   await settleExpiredAuctions();
 
-  return client.$transaction(async (tx) => {
+  let appleSnsId: string | null = null;
+  const result = await client.$transaction(async (tx) => {
     const user = await tx.user.findUnique({ where: { id: userId } });
     if (!user) return { ok: false, code: "USER_NOT_FOUND" } as const;
     // 예전 관리자 상태 변경은 status 만 DELETED 로 바꿔 개인정보가 남아 있다. snsId 가 해시로 바뀐 행만 탈퇴 완료로 본다.
@@ -165,6 +167,7 @@ export async function deleteAccount(
     }
 
     const snsIdHash = hashSnsId(user.snsId);
+    if (user.provider === "apple") appleSnsId = user.snsId;
 
     await tx.userDeletionRecord.create({
       data: {
@@ -226,6 +229,12 @@ export async function deleteAccount(
 
     return { ok: true, deletedAt: now, purgeAt } as const;
   });
+
+  // 애플로 가입한 계정은 Apple 쪽 로그인 연결도 끊는다(App Store 5.1.1(v)). 네트워크 호출이라 트랜잭션 밖에서 한다.
+  // 실패하면 토큰 행이 남아 보관 기간 파기 때 다시 시도한다.
+  if (result.ok && appleSnsId) await revokeAppleSignIn(appleSnsId);
+
+  return result;
 }
 
 /** 같은 소셜 계정으로 다시 로그인할 때, 아직 보관 기간이면 재가입을 막는다. */
@@ -250,7 +259,12 @@ export async function purgeDeletedAccounts(now = new Date(), limit = 100) {
 
   for (const record of records) {
     try {
+      // 탈퇴 때 실패한 Apple 철회를 한 번 더 시도한다. 결과와 상관없이 토큰은 아래에서 지운다.
+      const appleSnsId = record.provider === "apple" ? record.snsId : null;
+      if (appleSnsId) await revokeAppleSignIn(appleSnsId);
+
       await client.$transaction(async (tx) => {
+        if (appleSnsId) await tx.appleSignInToken.deleteMany({ where: { snsId: appleSnsId } });
         await tx.auction.updateMany({
           where: { userId: record.userId },
           data: {

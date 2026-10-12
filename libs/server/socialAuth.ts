@@ -18,6 +18,8 @@ export interface VerifiedSocialAccount {
   /** 제공자가 인증했다고 확인한 이메일만 담는다(관리자 허용 목록이 이메일 기준이다). */
   email: string | null;
   avatar: string | null;
+  /** apple 만: 토큰을 받은 클라이언트 ID(aud — iOS 번들 ID 또는 Services ID). 철회용 토큰 교환에 쓴다. */
+  appleClientId?: string;
 }
 
 export class SocialAuthError extends Error {
@@ -216,11 +218,13 @@ async function verifyApple(
     audience: getAppleAudiences(),
   });
   checkAppleNonce(payload, nonceOptions);
+  const audience = Array.isArray(payload.aud) ? payload.aud[0] : payload.aud;
 
   return {
     snsId: payload.sub as string,
     email: isTrueClaim(payload.email_verified) ? normalizeEmail(payload.email) : null,
     avatar: null,
+    ...(audience ? { appleClientId: audience } : {}),
   };
 }
 
