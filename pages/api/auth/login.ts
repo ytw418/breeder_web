@@ -107,7 +107,8 @@ async function handler(
 
   const snsId = verified.snsId;
   const normalizedEmail = verified.email;
-  const normalizedAvatar = verified.avatar;
+  // 소셜(카카오·구글) 프로필 사진은 가입·로그인 어디서도 쓰지 않는다. 강제로 넣지 말라는 피드백(2026-10-11)과,
+  // 로그인할 때마다 직접 바꾼 사진을 카카오 사진으로 덮어 '사진이 원래대로 돌아간다'는 제보 때문이다.
 
   try {
     // Prisma를 사용하여 해당 snsId로 사용자 찾기
@@ -136,7 +137,7 @@ async function handler(
         email: normalizedEmail,
         name: uniqueName,
         provider,
-        avatar: normalizedAvatar,
+        avatar: null,
       });
     } else {
       // 정지·차단·탈퇴 계정은 토큰을 발급하지 않는다. 기간 정지가 끝났으면 여기서 해제한다.
@@ -162,16 +163,12 @@ async function handler(
 
       const updateData: {
         email?: string | null;
-        avatar?: string | null;
         provider?: string;
       } = {};
 
-      // Keep social profile data fresh on subsequent logins.
+      // 이메일·제공자만 최신으로 맞춘다(프로필 사진은 사용자가 고른 것을 그대로 둔다).
       if (normalizedEmail && user.email !== normalizedEmail) {
         updateData.email = normalizedEmail;
-      }
-      if (normalizedAvatar && user.avatar !== normalizedAvatar) {
-        updateData.avatar = normalizedAvatar;
       }
       if (user.provider !== provider) {
         updateData.provider = provider;

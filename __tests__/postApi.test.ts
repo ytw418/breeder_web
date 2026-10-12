@@ -69,6 +69,7 @@ async function call(
 
 const me = { id: 7, name: "브리더" } as NextApiRequest["user"];
 const other = { id: 8, name: "다른사람" } as NextApiRequest["user"];
+const adminUser = { id: 2, name: "관리자", role: "ADMIN" } as NextApiRequest["user"];
 
 const storedPost = {
   id: 1,
@@ -172,6 +173,20 @@ describe("POST /api/posts/:id 공통 검사", () => {
   it("남의 글 delete 는 403 POST_FORBIDDEN", async () => {
     const res = await mutate({ action: "delete" }, { user: other });
     expectError(res, 403, "POST_FORBIDDEN", "본인 게시글만 수정·삭제할 수 있습니다.");
+    expect(mockClient.post.delete).not.toHaveBeenCalled();
+  });
+
+  it("관리자는 남의 글을 수정할 수 있고 작성자는 그대로다", async () => {
+    const res = await mutate(updateBody, { user: adminUser });
+    expect(res.statusCode).toBe(200);
+    const { data } = mockClient.post.update.mock.calls[0][0];
+    expect(data.title).toBe("새 제목");
+    expect(data).not.toHaveProperty("userId");
+  });
+
+  it("관리자도 남의 글 delete 는 403 (삭제는 관리자 숨김·삭제 화면에서 사유와 함께)", async () => {
+    const res = await mutate({ action: "delete" }, { user: adminUser });
+    expectError(res, 403, "POST_FORBIDDEN");
     expect(mockClient.post.delete).not.toHaveBeenCalled();
   });
 

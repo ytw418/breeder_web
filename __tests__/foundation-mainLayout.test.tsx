@@ -1,7 +1,8 @@
 import { fireEvent, render, screen } from "@testing-library/react";
 
+const mockPathname = jest.fn(() => "/posts");
 jest.mock("next/navigation", () => ({
-  usePathname: () => "/posts",
+  usePathname: () => mockPathname(),
   useRouter: () => ({ push: jest.fn(), back: jest.fn() }),
 }));
 jest.mock("@images/logo.png", () => ({
@@ -29,6 +30,7 @@ import MainLayout from "@components/features/MainLayout";
 
 beforeEach(() => {
   jest.clearAllMocks();
+  mockPathname.mockReturnValue("/posts");
   mockUseSWR.mockReturnValue({ data: undefined });
 });
 
@@ -102,7 +104,7 @@ describe("MainLayout 셸", () => {
         <p>본문</p>
       </MainLayout>
     );
-    expect(screen.getByRole("heading", { name: "채팅" })).toHaveClass("text-[18px]");
+    expect(screen.getByRole("heading", { name: "채팅" })).toHaveClass("app-t-title");
     expect(screen.getByRole("button", { name: "검색" })).toBeInTheDocument();
     expect(screen.getByRole("link", { name: "알림" })).toBeInTheDocument();
   });
@@ -120,5 +122,49 @@ describe("MainLayout 셸", () => {
       expect(screen.getByText(section)).toBeInTheDocument();
     }
     expect(screen.getByText(/^버전 /)).toBeInTheDocument();
+  });
+
+  it("홈 헤더는 왼쪽 로고 + 워드마크 '브리디', 가운데 제목이 없다(community-vibe §3.7)", () => {
+    mockPathname.mockReturnValue("/");
+    mockUseUser.mockReturnValue({ user: undefined, isLoading: false });
+    render(
+      <MainLayout title="브리디" icon showSearch hasTabBar>
+        <p>본문</p>
+      </MainLayout>
+    );
+    const brand = screen.getByTestId("header-brand");
+    expect(brand).toHaveTextContent("브리디");
+    expect(brand.querySelector(".app-t-section")).not.toBeNull();
+    expect(screen.queryByRole("heading", { name: "브리디" })).toBeNull();
+  });
+
+  it("다른 탭 루트는 왼쪽 제목 20/700(app-t-title) 하나, 로고 없음", () => {
+    mockUseUser.mockReturnValue({ user: undefined, isLoading: false });
+    render(
+      <MainLayout title="반려생활" icon showSearch hasTabBar>
+        <p>본문</p>
+      </MainLayout>
+    );
+    expect(screen.getAllByRole("heading", { name: "반려생활" })).toHaveLength(1);
+    expect(screen.getByRole("heading", { name: "반려생활" })).toHaveClass("app-t-title");
+    expect(screen.queryByTestId("header-brand")).toBeNull();
+  });
+
+  it("탭바는 한 세트 아이콘이고 선택 탭만 채움, 경매는 망치 아이콘", () => {
+    mockUseUser.mockReturnValue({ user: undefined, isLoading: false });
+    const { container } = render(
+      <MainLayout title="반려생활" icon hasTabBar>
+        <p>본문</p>
+      </MainLayout>
+    );
+    const icons = Array.from(container.querySelectorAll("nav svg[data-icon]"));
+    expect(icons.map((el) => el.getAttribute("data-icon"))).toEqual([
+      "home",
+      "posts",
+      "auctions",
+      "chat",
+      "my",
+    ]);
+    expect(icons.filter((el) => el.getAttribute("data-filled") === "true").map((el) => el.getAttribute("data-icon"))).toEqual(["posts"]);
   });
 });

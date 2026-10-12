@@ -16,7 +16,9 @@ import {
   TrendingPostItem,
   SCOPED_BREEDER_SCORE_WEIGHTS,
   scoreScopedBreeder,
+  FIRST_ANSWER_COMMENT_SCORE,
 } from "@libs/shared/ranking";
+import type { RankingMe, RankingNextActionKind } from "@libs/shared/communityVibe";
 import { categoryScopeWhere, resolveScopeCategoryIds } from "@libs/server/categories";
 import {
   findCategoryBranch,
@@ -51,24 +53,126 @@ const badgeMapByUser = (rows: Array<{ userId: number; id: number; badgeType: Sea
 };
 
 // 홈 피드와 개별 랭킹 API, 테스트가 같은 가중치를 공유하도록 점수식을 순수 함수로 뺐다.
+// 질문 글의 첫 답변(firstAnswersCount)은 commentsCount 에도 들어 있으므로 차액만 더한다(댓글 4 → 8).
 export const scoreBreeder = ({
   postsCount,
   commentsCount,
   bidsCount,
   auctionWinsCount,
   sellerEndedAuctionsCount,
+  firstAnswersCount = 0,
 }: {
   postsCount: number;
   commentsCount: number;
   bidsCount: number;
   auctionWinsCount: number;
   sellerEndedAuctionsCount: number;
+  firstAnswersCount?: number;
 }) =>
   postsCount * BREEDER_SCORE_WEIGHTS.post +
   commentsCount * BREEDER_SCORE_WEIGHTS.comment +
+  Math.min(firstAnswersCount, commentsCount) * (FIRST_ANSWER_COMMENT_SCORE - BREEDER_SCORE_WEIGHTS.comment) +
   bidsCount * BREEDER_SCORE_WEIGHTS.bid +
   auctionWinsCount * BREEDER_SCORE_WEIGHTS.auctionWin +
   sellerEndedAuctionsCount * BREEDER_SCORE_WEIGHTS.sellerEndedAuction;
+
+/** 운영(크루) 계정 role. 테스트·운영 계정은 FAKE_USER 로 만든다(libs/shared/test-accounts.ts). */
+const CREW_ROLE = "FAKE_USER" as const;
+
+/**
+ * 사용자별 '질문 첫 답변' 수. 질문 글(숨김 아님)의 보이는 루트 댓글 중 글쓴이 본인·운영 계정을 뺀 가장 이른 댓글이
+ * 기간 안에 달렸으면 그 댓글 작성자에게 1을 센다. window 가 없으면 전체 기간.
+ */
+export const countFirstAnswers = async (
+  window?: { startAt: Date; endAt: Date } | null
+): Promise<CountRow[]> => {
+  const eligible = {
+    isHidden: false,
+    deletedAt: null,
+    parentId: null,
+    post: { category: "질문", isHidden: false },
+    user: { role: { not: CREW_ROLE } },
+  };
+  const select = { id: true, postId: true, userId: true, createdAt: true, post: { select: { userId: true } } };
+  const rows = await client.comment.findMany({
+    where: { ...eligible, ...(window ? { createdAt: { gte: window.startAt, lte: window.endAt } } : {}) },
+    select,
+    orderBy: [{ createdAt: "asc" }, { id: "asc" }],
+  });
+  const firstByPost = new Map<number, number>();
+  for (const row of rows) {
+    if (row.userId === row.post.userId || firstByPost.has(row.postId)) continue;
+    firstByPost.set(row.postId, row.userId);
+  }
+  if (window && firstByPost.size > 0) {
+    // 기간 전에 이미 첫 답변이 달린 글은 뺀다.
+    const earlier = await client.comment.findMany({
+      where: { ...eligible, postId: { in: Array.from(firstByPost.keys()) }, createdAt: { lt: window.startAt } },
+      select,
+    });
+    for (const row of earlier) {
+      if (row.userId !== row.post.userId) firstByPost.delete(row.postId);
+    }
+  }
+  const counts = new Map<number, number>();
+  firstByPost.forEach((userId) => counts.set(userId, (counts.get(userId) ?? 0) + 1));
+  return Array.from(counts, ([key, count]) => ({ key, count }));
+};
+
+/** 내 순위 줄 목표(홈 카드에 보이는 3위). */
+const RANKING_GOAL_RANK = 3;
+const NEXT_ACTION_WEIGHTS: ReadonlyArray<[RankingNextActionKind, number]> = [
+  ["post", BREEDER_SCORE_WEIGHTS.post],
+  ["comment", BREEDER_SCORE_WEIGHTS.comment],
+  ["bid", BREEDER_SCORE_WEIGHTS.bid],
+];
+
+/** 필요한 점수를 채우는 활동 중 개수가 가장 적은 것(같으면 글 → 댓글 → 입찰). */
+export const pickNextAction = (needed: number): RankingMe["nextAction"] => {
+  if (needed <= 0) return null;
+  let best: RankingMe["nextAction"] = null;
+  for (const [kind, weight] of NEXT_ACTION_WEIGHTS) {
+    const count = Math.ceil(needed / weight);
+    if (!best || count < best.count) best = { kind, count };
+  }
+  return best;
+};
+
+/**
+ * 내 순위 목표 계산(앱 docs/prd/community-vibe.md §3.2, §8 RankingMe).
+ * - 목표 순위: 3위 밖(순위 없음 포함)이면 3위, 3위 안이면 바로 위(rank-1), 1위면 없음.
+ * - 목표 점수(nextScore): 그 순위 사람 점수 + 1(동점은 이름순이라 넘어서야 확실히 오른다).
+ *   그 순위에 아무도 없으면(랭킹 인원이 적음) 1점만 있어도 오른다.
+ * - nextAction: (nextScore - score) 를 가중치로 나눠 개수가 가장 적은 활동.
+ * - gapToSecond: 1위일 때 2위와 점수 차(2위가 없으면 내 점수).
+ */
+export const computeRankingMe = (
+  ranking: ReadonlyArray<Pick<BreederRankingItem, "rank" | "score" | "previousRank" | "rankDelta"> & { user: { id: number } }>,
+  userId: number
+): RankingMe => {
+  const me = ranking.find((item) => item.user.id === userId) ?? null;
+  const rank = me?.rank ?? null;
+  const score = me?.score ?? 0;
+  const delta = me && me.previousRank !== null ? me.rankDelta : null;
+  if (rank === 1) {
+    const second = ranking.find((item) => item.user.id !== userId);
+    return { rank, score, delta, nextRank: null, nextScore: null, nextAction: null, gapToSecond: score - (second?.score ?? 0) };
+  }
+  const others = ranking.filter((item) => item.user.id !== userId);
+  const goal = rank === null || rank > RANKING_GOAL_RANK ? RANKING_GOAL_RANK : rank - 1;
+  const holder = others[goal - 1];
+  const nextRank = holder ? goal : Math.min(goal, others.length + 1);
+  const nextScore = holder ? holder.score + 1 : Math.max(1, score);
+  return {
+    rank,
+    score,
+    delta,
+    nextRank,
+    nextScore,
+    nextAction: pickNextAction(nextScore - score),
+    gapToSecond: null,
+  };
+};
 
 export const scoreBloodline = ({
   followCount,
@@ -333,7 +437,7 @@ export const getBreederRanking = async ({
       ? { endAt: { gte: current.startAt, lte: current.endAt } }
       : {};
 
-  const [users, currentPosts, currentComments, currentBids, currentWins, currentSellerEnds] =
+  const [users, currentPosts, currentComments, currentBids, currentWins, currentSellerEnds, currentFirstAnswers] =
     await Promise.all([
       client.user.findMany({
         where: { status: "ACTIVE" },
@@ -359,9 +463,10 @@ export const getBreederRanking = async ({
         winnerId: { not: null },
         ...currentAuctionWindowFilter,
       }),
+      countFirstAnswers(period === "weekly" ? current : null),
     ]);
 
-  const [previousPosts, previousComments, previousBids, previousWins, previousSellerEnds] =
+  const [previousPosts, previousComments, previousBids, previousWins, previousSellerEnds, previousFirstAnswers] =
     period === "weekly"
       ? await Promise.all([
           countByGroup("post", {
@@ -384,8 +489,9 @@ export const getBreederRanking = async ({
             winnerId: { not: null },
             endAt: { gte: previous.startAt, lte: previous.endAt },
           }),
+          countFirstAnswers(previous),
         ])
-      : [[], [], [], [], []];
+      : [[], [], [], [], [], []];
 
   const userMap = new Map(users.map((row) => [row.id, row]));
   const maps = {
@@ -399,6 +505,8 @@ export const getBreederRanking = async ({
     previousBids: toCountMap(previousBids),
     previousWins: toCountMap(previousWins),
     previousSellerEnds: toCountMap(previousSellerEnds),
+    currentFirstAnswers: toCountMap(currentFirstAnswers),
+    previousFirstAnswers: toCountMap(previousFirstAnswers),
   };
 
   const currentScored = users
@@ -409,6 +517,7 @@ export const getBreederRanking = async ({
         bidsCount: maps.currentBids.get(user.id) ?? 0,
         auctionWinsCount: maps.currentWins.get(user.id) ?? 0,
         sellerEndedAuctionsCount: maps.currentSellerEnds.get(user.id) ?? 0,
+        firstAnswersCount: maps.currentFirstAnswers.get(user.id) ?? 0,
       };
       return {
         key: user.id,
@@ -428,6 +537,7 @@ export const getBreederRanking = async ({
         bidsCount: maps.previousBids.get(user.id) ?? 0,
         auctionWinsCount: maps.previousWins.get(user.id) ?? 0,
         sellerEndedAuctionsCount: maps.previousSellerEnds.get(user.id) ?? 0,
+        firstAnswersCount: maps.previousFirstAnswers.get(user.id) ?? 0,
       };
       return {
         key: user.id,
@@ -454,6 +564,7 @@ export const getBreederRanking = async ({
       bidsCount: item.bidsCount,
       auctionWinsCount: item.auctionWinsCount,
       sellerEndedAuctionsCount: item.sellerEndedAuctionsCount,
+      firstAnswersCount: item.firstAnswersCount,
       user: item.user,
       badges: badgeMap.get(item.key) ?? [],
     };
@@ -805,15 +916,19 @@ export const getBloodlineRanking = async ({
   }));
 };
 
-export const getMyRankingSummary = async (userId: number): Promise<RankingMeSummary | null> => {
+export const getMyRankingSummary = async (
+  userId: number
+): Promise<(RankingMeSummary & RankingMe) | null> => {
   const [season, ranking] = await Promise.all([
     ensureCurrentWeeklySeason(),
     getBreederRanking({ limit: 100 }),
   ]);
 
+  const goal = computeRankingMe(ranking, userId);
   const me = ranking.find((item) => item.user.id === userId);
   if (!me) {
     return {
+      ...goal,
       currentSeasonId: season.id,
       currentRank: null,
       previousRank: null,
@@ -839,6 +954,7 @@ export const getMyRankingSummary = async (userId: number): Promise<RankingMeSumm
     });
   }
   return {
+    ...goal,
     currentSeasonId: season.id,
     currentRank: me.rank,
     previousRank: me.previousRank,

@@ -8,7 +8,10 @@ import {
   type NearbyBreedersResult,
 } from "@libs/server/nearby";
 
-/** GET /api/users/nearby?limit=3 — 조회자와 같은 동네의 '나를 표시' 브리더(+ 범위 인원·팔로우 여부·주력 종). 로그인 전용이라 캐시하지 않는다. */
+/**
+ * GET /api/users/nearby?limit=3 — 조회자 동네 50km 범위의 '나를 표시' 브리더(앱 docs/prd/community-vibe.md §8 NearbyBreedersResult).
+ * scope·regionLabel·total·greetingCount·items(거리·같은 동네·팔로우·주력 종). 로그인 전용이라 캐시하지 않는다.
+ */
 export interface NearbyBreedersResponse extends NearbyBreedersResult {
   success: boolean;
 }

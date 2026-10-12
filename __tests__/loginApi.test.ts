@@ -155,7 +155,21 @@ describe("/api/auth/login 소셜 토큰 검증", () => {
     });
   });
 
-  it("새 계정은 검증된 snsId·email 로 만든다", async () => {
+  it("다시 로그인해도 직접 바꾼 프로필 사진을 소셜 사진으로 덮지 않는다", async () => {
+    mockVerifySocialLogin.mockResolvedValue({
+      snsId: "victim-uid",
+      email: "victim@gmail.com",
+      avatar: "https://k.kakaocdn.net/p.jpg",
+    });
+    mockClient.user.findUnique.mockResolvedValue({ ...existingUser, avatar: "my-upload" });
+
+    const res = await login({ token: "valid", name: "x", provider: "google" });
+
+    expect(res.statusCode).toBe(200);
+    expect(mockClient.user.update).not.toHaveBeenCalled();
+  });
+
+  it("새 계정은 검증된 snsId·email 로 만들고 소셜 프로필 사진은 넣지 않는다", async () => {
     mockVerifySocialLogin.mockResolvedValue({
       snsId: "kakao-77",
       email: "verified@kakao.com",
@@ -176,7 +190,7 @@ describe("/api/auth/login 소셜 토큰 검증", () => {
       expect.objectContaining({
         snsId: "kakao-77",
         email: "verified@kakao.com",
-        avatar: "https://k/p.jpg",
+        avatar: null,
         provider: "kakao",
       })
     );

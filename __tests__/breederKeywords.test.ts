@@ -39,7 +39,7 @@ describe("TOP 브리더 칭호(활동은 ○○왕, 쌓인 것은 ○○ 부자)
       1,
     );
     // 1위: 댓글 10/20=0.5, 게시글 4/4=1 → 기록왕
-    expect(first).toEqual({ key: "post", label: "기록왕", emoji: "✍️", detail: "게시글 4개", parts: ["게시글 4개"] });
+    expect(first).toEqual({ key: "post", label: "기록왕", detail: "게시글 4개", parts: ["게시글 4개"] });
   });
 
   it("경매왕은 낙찰·경매 성사·입찰을 합쳐 비교하고 근거를 모두 보여 준다", () => {
@@ -56,7 +56,6 @@ describe("TOP 브리더 칭호(활동은 ○○왕, 쌓인 것은 ○○ 부자)
     expect(first).toEqual({
       key: "auction",
       label: "경매왕",
-      emoji: "🔨",
       detail: "낙찰 1건 · 입찰 1회",
       parts: ["낙찰 1건", "입찰 1회"],
     });
@@ -107,7 +106,6 @@ describe("TOP 브리더 칭호(활동은 ○○왕, 쌓인 것은 ○○ 부자)
     expect(first).toEqual({
       key: "photo",
       label: "사진 맛집",
-      emoji: "📷",
       detail: "사진 24장",
       parts: ["사진 24장"],
     });
@@ -196,5 +194,62 @@ describe("TOP 브리더 점수 기준", () => {
       ["게시글 1개", 1],
       ["분양글 1개", 3],
     ]);
+  });
+});
+
+import {
+  TITLE_THRESHOLDS,
+  lockedTitleLabel,
+  pickLockedTitles,
+  unlockedTitleKeys,
+  type LockedTitleStats,
+} from "@libs/shared/breederKeywords";
+
+describe("칭호 잠금(AC-4)", () => {
+  const zero: LockedTitleStats = {
+    postsCount: 0,
+    productsCount: 0,
+    commentsCount: 0,
+    bidsCount: 0,
+    auctionsCount: 0,
+    bloodlinesCount: 0,
+    followersCount: 0,
+    likesReceivedCount: 0,
+    photosCount: 0,
+  };
+
+  it("임계값은 PRD §8 표와 같다", () => {
+    expect(Object.fromEntries(Object.entries(TITLE_THRESHOLDS).map(([k, v]) => [k, v.count]))).toEqual({
+      auction: 3,
+      listing: 3,
+      bloodline: 3,
+      talk: 5,
+      follower: 10,
+      like: 10,
+      photo: 5,
+      post: 3,
+    });
+  });
+
+  it("남은 양이 적은 순 3개(같으면 칭호 순서)", () => {
+    const locked = pickLockedTitles({ ...zero, commentsCount: 3, postsCount: 2, followersCount: 9, photosCount: 1 });
+    expect(locked).toEqual([
+      { key: "follower", label: "팔로워 부자", remaining: { kind: "follower", count: 1 } },
+      { key: "post", label: "기록왕", remaining: { kind: "post", count: 1 } },
+      { key: "talk", label: "소통왕", remaining: { kind: "comment", count: 2 } },
+    ]);
+    expect(lockedTitleLabel(locked[2])).toBe("소통왕까지 댓글 2");
+  });
+
+  it("단 칭호는 잠금에 없고, 경매왕은 입찰 + 연 경매", () => {
+    const stats = { ...zero, bidsCount: 2, auctionsCount: 1, postsCount: 5 };
+    expect(unlockedTitleKeys(stats)).toEqual(["auction", "post"]);
+    expect(pickLockedTitles(stats, 10).map((t) => t.key)).not.toEqual(expect.arrayContaining(["auction"]));
+    expect(pickLockedTitles(stats, 10)).toHaveLength(6);
+  });
+
+  it("다 달았으면 빈 목록", () => {
+    const all = { ...zero, postsCount: 9, productsCount: 9, commentsCount: 9, bidsCount: 9, bloodlinesCount: 9, followersCount: 99, likesReceivedCount: 99, photosCount: 9 };
+    expect(pickLockedTitles(all)).toEqual([]);
   });
 });

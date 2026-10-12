@@ -4,6 +4,7 @@ import {
   type BloodlineRankingItem,
   type BreederRankingItem,
 } from "@libs/shared/ranking";
+import type { LockedTitle, LockedTitleRemainingKind } from "@libs/shared/communityVibe";
 
 /**
  * TOP 브리더 칭호(앱 src/lib/breederKeywords.ts). 반려생활 TOP 브리더 행과 홈 '이번 주 TOP 브리더' 카드가 쓴다.
@@ -31,20 +32,15 @@ type StatKey = keyof typeof STATS;
  * (게시글은 가장 흔한 활동이라 맨 뒤).
  */
 const TITLES = [
-  {
-    key: "auction",
-    label: "경매왕",
-    emoji: "🔨",
-    stats: ["auctionWinsCount", "sellerEndedAuctionsCount", "bidsCount"],
-  },
-  { key: "listing", label: "분양왕", emoji: "📦", stats: ["productsCount"] },
-  { key: "bloodline", label: "혈통 부자", emoji: "🧬", stats: ["bloodlines"] },
-  { key: "talk", label: "소통왕", emoji: "💬", stats: ["commentsCount"] },
-  { key: "follower", label: "팔로워 부자", emoji: "👥", stats: ["followersCount"] },
-  { key: "like", label: "좋아요 부자", emoji: "❤️", stats: ["likesReceivedCount"] },
-  { key: "photo", label: "사진 맛집", emoji: "📷", stats: ["photosCount"] },
-  { key: "post", label: "기록왕", emoji: "✍️", stats: ["postsCount"] },
-] as const satisfies readonly { key: string; label: string; emoji: string; stats: readonly StatKey[] }[];
+  { key: "auction", label: "경매왕", stats: ["auctionWinsCount", "sellerEndedAuctionsCount", "bidsCount"] },
+  { key: "listing", label: "분양왕", stats: ["productsCount"] },
+  { key: "bloodline", label: "혈통 부자", stats: ["bloodlines"] },
+  { key: "talk", label: "소통왕", stats: ["commentsCount"] },
+  { key: "follower", label: "팔로워 부자", stats: ["followersCount"] },
+  { key: "like", label: "좋아요 부자", stats: ["likesReceivedCount"] },
+  { key: "photo", label: "사진 맛집", stats: ["photosCount"] },
+  { key: "post", label: "기록왕", stats: ["postsCount"] },
+] as const satisfies readonly { key: string; label: string; stats: readonly StatKey[] }[];
 
 type TitleEntry = (typeof TITLES)[number];
 export type BreederTitleKey = TitleEntry["key"];
@@ -66,9 +62,8 @@ const KEYWORD_MIN_VALUE = 3;
 
 export interface BreederKeyword {
   key: BreederTitleKey;
-  /** 예: "경매왕", "팔로워 부자" */
+  /** 예: "경매왕", "팔로워 부자". 운영 UI 에 이모지를 쓰지 않는다(2026-10-12, 앱 community-vibe §3.7). */
   label: string;
-  emoji: string;
   /** 칭호 근거. 예: "낙찰 1건 · 입찰 1회" */
   detail: string;
   /** detail 을 이루는 조각. 활동 요약이 이미 보여 주는 조각은 다시 붙이지 않는다. */
@@ -141,7 +136,7 @@ export function pickBreederKeywords(
       const value = valueOf(item, stat);
       return value > 0 ? [formatStat(stat, value)] : [];
     });
-    return { key: title.key, label: title.label, emoji: title.emoji, detail: parts.join(" · "), parts };
+    return { key: title.key, label: title.label, detail: parts.join(" · "), parts };
   });
 }
 
@@ -193,4 +188,86 @@ export function getBreederScoreRules(scoped: boolean): BreederScoreRule[] {
     { label: "경매 낙찰 1건", hint: "내가 이긴 경매", points: w.auctionWin },
     { label: "경매 거래 성사 1건", hint: "내가 연 경매", points: w.sellerEndedAuction },
   ];
+}
+
+/**
+ * 칭호 잠금 pill 임계값(앱 docs/prd/community-vibe.md §8). 본인 프로필의 '아직 못 단 칭호'에 쓴다.
+ * 값은 전체 기간 누적: 경매왕 = 입찰 + 연 경매, 분양왕 = 분양글, 혈통 부자 = 만든 혈통, 소통왕 = 댓글,
+ * 팔로워 부자 = 팔로워, 좋아요 부자 = 받은 좋아요, 사진 맛집 = 게시글 사진, 기록왕 = 게시글.
+ */
+export const TITLE_THRESHOLDS: Readonly<Record<BreederTitleKey, { kind: LockedTitleRemainingKind; count: number }>> = {
+  auction: { kind: "auction", count: 3 },
+  listing: { kind: "listing", count: 3 },
+  bloodline: { kind: "bloodline", count: 3 },
+  talk: { kind: "comment", count: 5 },
+  follower: { kind: "follower", count: 10 },
+  like: { kind: "like", count: 10 },
+  photo: { kind: "photo", count: 5 },
+  post: { kind: "post", count: 3 },
+};
+
+export interface LockedTitleStats {
+  postsCount: number;
+  productsCount: number;
+  commentsCount: number;
+  /** 입찰 수 */
+  bidsCount: number;
+  /** 연 경매 수 */
+  auctionsCount: number;
+  bloodlinesCount: number;
+  followersCount: number;
+  likesReceivedCount: number;
+  photosCount: number;
+}
+
+const LOCKED_VALUE: Record<BreederTitleKey, (s: LockedTitleStats) => number> = {
+  auction: (s) => s.bidsCount + s.auctionsCount,
+  listing: (s) => s.productsCount,
+  bloodline: (s) => s.bloodlinesCount,
+  talk: (s) => s.commentsCount,
+  follower: (s) => s.followersCount,
+  like: (s) => s.likesReceivedCount,
+  photo: (s) => s.photosCount,
+  post: (s) => s.postsCount,
+};
+
+/** 단 칭호(임계값 이상)의 key 목록. TITLES 순서. */
+export function unlockedTitleKeys(stats: LockedTitleStats): BreederTitleKey[] {
+  return TITLES.filter((title) => LOCKED_VALUE[title.key](stats) >= TITLE_THRESHOLDS[title.key].count).map(
+    (title) => title.key,
+  );
+}
+
+/**
+ * 아직 못 단 칭호 중 남은 양이 적은 순 limit 개(같으면 TITLES 순서). "소통왕까지 댓글 2" 의 재료.
+ */
+export function pickLockedTitles(stats: LockedTitleStats, limit = 3): LockedTitle[] {
+  return TITLES.flatMap((title, order) => {
+    const threshold = TITLE_THRESHOLDS[title.key];
+    const remaining = threshold.count - Math.max(0, LOCKED_VALUE[title.key](stats));
+    return remaining > 0 ? [{ title, order, remaining, kind: threshold.kind }] : [];
+  })
+    .sort((a, b) => a.remaining - b.remaining || a.order - b.order)
+    .slice(0, limit)
+    .map(({ title, remaining, kind }) => ({
+      key: title.key,
+      label: title.label,
+      remaining: { kind, count: remaining },
+    }));
+}
+
+const REMAINING_LABEL: Record<LockedTitleRemainingKind, string> = {
+  post: "글",
+  comment: "댓글",
+  photo: "사진",
+  listing: "분양글",
+  auction: "입찰·경매",
+  bloodline: "혈통",
+  follower: "팔로워",
+  like: "좋아요",
+};
+
+/** 잠금 pill 문구. "소통왕까지 댓글 2" */
+export function lockedTitleLabel(title: Pick<LockedTitle, "label" | "remaining">): string {
+  return `${title.label}까지 ${REMAINING_LABEL[title.remaining.kind]} ${title.remaining.count}`;
 }

@@ -5,7 +5,7 @@ import { useState } from "react";
 import useSWR from "swr";
 import Link from "next/link";
 import { toast } from "@libs/client/toast";
-import { Button } from "@components/ui/button";
+import { Button, buttonVariants } from "@components/ui/button";
 import { Input } from "@components/ui/input";
 import { Textarea } from "@components/ui/textarea";
 import useContentActionDialog from "@components/features/moderation/useContentActionDialog";
@@ -267,6 +267,12 @@ export default function AdminPostsPage() {
                       >
                         {post.isHidden ? "숨김 해제" : "숨김"}
                       </Button>
+                      <Link
+                        href={`/posts/${post.id}/edit`}
+                        className={buttonVariants({ variant: "outline", size: "sm" })}
+                      >
+                        수정
+                      </Link>
                       <Button
                         variant="ghost"
                         size="sm"

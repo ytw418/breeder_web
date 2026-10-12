@@ -12,6 +12,7 @@ import { cn, makeImageUrl } from "@libs/client/utils";
 import useUser from "hooks/useUser";
 import SanctionNoticeModal from "@components/features/moderation/SanctionNoticeModal";
 import useLogout from "hooks/useLogout";
+import { identifyPosthogUser } from "@libs/client/posthog";
 import { version as APP_VERSION } from "../../package.json";
 
 export type HeaderVariant = "default" | "chat-list" | "profile" | "none";
@@ -100,46 +101,115 @@ function StrokeIcon({
 /* 하단 탭바 (앱 (tabs)/_layout.tsx)                                    */
 /* ------------------------------------------------------------------ */
 
+/**
+ * 탭바 아이콘 한 세트(community-vibe §3.7: stroke 1.5, Lucide 계열). 선택 탭은 채움.
+ * 시안 bredy_app design/mockups/community-vibe/A-karrot.html 의 path 그대로. 경매는 동전 대신 망치.
+ */
+type TabIconName = "home" | "posts" | "auctions" | "chat" | "my";
+
+export function TabBarIcon({ name, active }: { name: TabIconName; active: boolean }) {
+  const common = {
+    width: 24,
+    height: 24,
+    viewBox: "0 0 24 24",
+    stroke: "currentColor",
+    strokeWidth: 1.5,
+    strokeLinecap: "round" as const,
+    strokeLinejoin: "round" as const,
+    "aria-hidden": true,
+    "data-icon": name,
+    "data-filled": active ? "true" : "false",
+  };
+  const fill = active ? "currentColor" : "none";
+  switch (name) {
+    case "home":
+      return (
+        <svg {...common} fill={fill}>
+          <path d="M3 11 12 3l9 8v10h-6v-6H9v6H3z" />
+        </svg>
+      );
+    case "posts":
+      return (
+        <svg {...common} fill="none">
+          <path d="M4 5h16v14H4z" fill={fill} />
+          <path d="M8 9h8M8 13h5" stroke={active ? "var(--app-bg)" : "currentColor"} />
+        </svg>
+      );
+    case "auctions":
+      return (
+        <svg {...common} fill="none">
+          <path d="m14 4 6 6-8 8-6-6z" fill={fill} />
+          <path d="m4 20 5-5" />
+          <path d="M14 4 20 10" />
+        </svg>
+      );
+    case "chat":
+      return (
+        <svg {...common} fill={fill}>
+          <path d="M21 12a8 8 0 0 1-11.6 7.1L4 20l1-4.6A8 8 0 1 1 21 12Z" />
+        </svg>
+      );
+    case "my":
+    default:
+      return (
+        <svg {...common} fill={fill}>
+          <circle cx="12" cy="8" r="4" />
+          <path d="M4 21a8 8 0 0 1 16 0" />
+        </svg>
+      );
+  }
+}
+
 const BOTTOM_NAV_ITEMS: {
   label: string;
   href: string;
   requiresAuth?: boolean;
   isActive: (pathname: string) => boolean;
-  d: string;
+  icon: TabIconName;
 }[] = [
-  {
-    label: "홈",
-    href: "/",
-    isActive: (pathname) => pathname === "/",
-    d: "M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6",
-  },
+  { label: "홈", href: "/", isActive: (pathname) => pathname === "/", icon: "home" },
   {
     label: "반려생활",
     href: "/posts",
     isActive: (pathname) => pathname.startsWith("/posts"),
-    d: "M19 20H5a2 2 0 01-2-2V6a2 2 0 012-2h10a2 2 0 012 2v1m2 13a2 2 0 01-2-2V7m2 13a2 2 0 002-2V9a2 2 0 00-2-2h-2m-4-3H9M7 16h6M7 8h6v4H7V8z",
+    icon: "posts",
   },
   {
     label: "경매",
     href: "/auctions",
     isActive: (pathname) => pathname.startsWith("/auctions"),
-    d: "M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z",
+    icon: "auctions",
   },
   {
     label: "채팅",
     href: "/chat",
     requiresAuth: true,
     isActive: (pathname) => pathname.startsWith("/chat"),
-    d: "M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z",
+    icon: "chat",
   },
   {
     label: "마이페이지",
     href: "/myPage",
     requiresAuth: true,
     isActive: (pathname) => pathname.startsWith("/myPage"),
-    d: "M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z",
+    icon: "my",
   },
 ];
+
+/** 스크롤이 조금이라도 내려가면 true. 헤더 아래 구분선은 스크롤 때만 보인다(community-vibe §3.7 모션). */
+function useScrolled(threshold = 2) {
+  const [scrolled, setScrolled] = useState(false);
+  useEffect(() => {
+    const onScroll = () => setScrolled(window.scrollY > threshold);
+    onScroll();
+    window.addEventListener("scroll", onScroll, { passive: true });
+    return () => window.removeEventListener("scroll", onScroll);
+  }, [threshold]);
+  return scrolled;
+}
+
+/** 스크롤 때만 헤더 아래 1px 선(그림자로 그려 레이아웃 높이는 그대로). */
+const HEADER_SCROLLED_CLASS = "shadow-[0_1px_0_var(--app-line)]";
 
 export const toLoginHref = (next: string) => `/auth/login?next=${encodeURIComponent(next)}`;
 
@@ -477,7 +547,7 @@ export default function MainLayout({
   const [deferredInstallPrompt, setDeferredInstallPrompt] =
     useState<BeforeInstallPromptEvent | null>(null);
   const [installLoading, setInstallLoading] = useState(false);
-  const { user, isLoading: userLoading } = useUser();
+  const { user, isAdmin, isLoading: userLoading } = useUser();
   const { data: unreadData } = useSWR<UnreadCountResponse>(
     user ? "/api/chat/unread-count" : null,
     { revalidateOnFocus: false, refreshInterval: UNREAD_REFRESH_MS }
@@ -496,6 +566,11 @@ export default function MainLayout({
     unreadData?.success && unreadData.unreadCount > 0 ? unreadData.unreadCount : 0;
   // 사용자 정보를 받는 중에는 탭을 그대로 두고, 비로그인이 확정되면 로그인으로 보낸다.
   const loggedOut = !user && !userLoading;
+
+  // PostHog 에 로그인 사용자를 묶는다(로그인 사용자 수·재방문·운영팀 제외용). 개인정보는 넘기지 않는다.
+  useEffect(() => {
+    if (user?.id) identifyPosthogUser(user.id, { is_admin: isAdmin });
+  }, [user?.id, isAdmin]);
 
   useEffect(() => {
     const onBeforeInstallPrompt = (event: Event) => {
@@ -526,6 +601,8 @@ export default function MainLayout({
   };
 
   const closeMenu = React.useCallback(() => setMenuOpen(false), []);
+  const scrolled = useScrolled();
+  const isHomeRoot = pathname === "/";
 
   const defaultRight = (
     <>
@@ -557,9 +634,12 @@ export default function MainLayout({
 
     if (headerVariant === "chat-list") {
       return (
-        <header className="sticky top-0 z-30 h-14 w-full bg-app-bg">
+        <header
+          className={cn("sticky top-0 z-30 h-14 w-full bg-app-bg", scrolled && HEADER_SCROLLED_CLASS)}
+          data-scrolled={scrolled ? "true" : "false"}
+        >
           <div className="mx-auto flex h-full max-w-xl items-center justify-between pl-4 pr-2">
-            <h1 className="text-[18px] font-bold tracking-[-0.3px] text-app-text">{title}</h1>
+            <h1 className="app-t-title">{title}</h1>
             <div className="flex items-center gap-1">
               {headerRight}
               <NotificationBell unread={notificationUnread} />
@@ -570,7 +650,13 @@ export default function MainLayout({
     }
 
     return (
-      <header className="sticky top-0 z-30 h-14 w-full border-b border-app-line bg-app-bg text-app-text">
+      <header
+        className={cn(
+          "sticky top-0 z-30 h-14 w-full bg-app-bg text-app-text",
+          scrolled && HEADER_SCROLLED_CLASS
+        )}
+        data-scrolled={scrolled ? "true" : "false"}
+      >
         <div className="relative mx-auto flex h-full max-w-xl items-center justify-center">
           {canGoBack ? (
             <>
@@ -593,16 +679,28 @@ export default function MainLayout({
           ) : null}
           {icon && !isToolPath ? (
             <>
-              <Link href="/" className="absolute left-4 rounded-xl" aria-label="홈으로 가기">
-                <Image
-                  src={logo}
-                  alt="로고"
-                  width={32}
-                  height={32}
-                  priority
-                  className="rounded-xl border border-app-border"
-                />
-              </Link>
+              {isHomeRoot || !title ? (
+                /* 홈: 왼쪽 로고 26 + 워드마크 '브리디' 18/700(인스타 방식, 가운데 제목 없음). */
+                <Link
+                  href="/"
+                  className="absolute left-4 flex items-center gap-2"
+                  aria-label="홈으로 가기"
+                  data-testid="header-brand"
+                >
+                  <Image
+                    src={logo}
+                    alt="로고"
+                    width={26}
+                    height={26}
+                    priority
+                    className="h-[26px] w-[26px] rounded-lg"
+                  />
+                  <span className="app-t-section">브리디</span>
+                </Link>
+              ) : (
+                /* 다른 탭 루트: 왼쪽 제목 20/700, 로고 없음. */
+                <h1 className="app-t-title absolute left-4 max-w-[55%] truncate">{title}</h1>
+              )}
               <div className="absolute right-2 flex items-center gap-0.5">
                 {headerRight ?? (
                   <>
@@ -620,7 +718,7 @@ export default function MainLayout({
           {!canGoBack && !icon && headerRight ? (
             <div className="absolute right-2 flex items-center gap-0.5">{headerRight}</div>
           ) : null}
-          {title ? (
+          {title && !(icon && !isToolPath) ? (
             <h1 className="max-w-[55%] truncate text-[16px] font-semibold tracking-[-0.02em] text-app-text">
               {title}
             </h1>
@@ -677,7 +775,7 @@ export default function MainLayout({
                   )}
                 >
                   <span className="relative inline-flex h-6 w-6 items-center justify-center">
-                    <StrokeIcon d={item.d} className="h-6 w-6" strokeWidth={1.5} />
+                    <TabBarIcon name={item.icon} active={active} />
                     {showChatBadge ? (
                       <span className="absolute -right-2 -top-1 flex h-4 min-w-[16px] items-center justify-center rounded-full bg-app-danger px-1 text-[10px] font-semibold leading-none text-white">
                         {chatUnread > 9 ? "9+" : chatUnread}

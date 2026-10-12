@@ -18,7 +18,7 @@ export interface ProfilePinResponse {
 
 /**
  * POST /api/posts/:id/profile-pin { pinned: boolean } — 내 사진 글을 프로필 사진 그리드 맨 앞에 고정/해제.
- * 멱등: 이미 그 상태면 그대로 200. 한 사람당 최대 3개(넘으면 409 PROFILE_PIN_LIMIT).
+ * 멱등: 이미 그 상태면 그대로 200. 한 사람당 최대 9개(넘으면 409 PROFILE_PIN_LIMIT).
  */
 async function handler(
   req: NextApiRequest,

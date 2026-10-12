@@ -20,10 +20,14 @@ import { uniqueById } from "@libs/productFilters";
 import useUser from "hooks/useUser";
 import useBlocks from "hooks/useBlocks";
 import useCategoryScope, { withCategoryPath, withinScope } from "hooks/useCategoryScope";
+import useSectionImpressions from "hooks/useSectionImpressions";
 import CategoryScopeBar from "@components/features/category/CategoryScopeBar";
 import NeighborhoodBreederSection from "@components/features/home/NeighborhoodBreederSection";
+import ProductPhotoRail, { type RailProduct } from "@components/features/home/ProductPhotoRail";
+import TopBreederRankCard from "@components/features/home/TopBreederRankCard";
+import type { ProductRailFlags } from "@libs/shared/communityVibe";
 import { BreederRankingItem, HomeFeedResponse } from "@libs/shared/ranking";
-import { pickBreederKeywords, type BreederKeyword, type BreederTitleKey } from "@libs/shared/breederKeywords";
+import { pickBreederKeywords } from "@libs/shared/breederKeywords";
 import { filterHomeFeedForBlocked, HomeBanner, ProductsResponse } from "@libs/shared/home";
 import { ProductRowSkeleton } from "../products/_components/ProductRowSkeleton";
 import { ProductFeedEmpty } from "../products/_components/ProductFeedEmpty";
@@ -37,41 +41,46 @@ interface BeforeInstallPromptEvent extends Event {
 const TABS = [{ id: "전체", name: "전체" }, ...TOP_LEVEL_CATEGORIES];
 const HOME_FEED_KEY = "/api/home/feed?scope=public";
 
+/** home_section_view 의 section_id 와 position(화면 위에서부터 순서). 요소에는 data-home-section 으로 붙인다. */
+const HOME_SECTION_ORDER = [
+  "product_rail",
+  "neighborhood_breeders",
+  "hero_breeder",
+  "auction_ranking",
+  "bloodline_ranking",
+  "trending_community",
+  "free_giveaway",
+  "personalized_home",
+] as const;
+type HomeSectionId = (typeof HOME_SECTION_ORDER)[number];
+
 type RankingTabId = "breeders" | "auctions" | "bloodlines" | "community";
 type RankingPeriodId = "weekly" | "all";
 
 const toRankingHref = (tab: RankingTabId, period: RankingPeriodId) =>
   `/ranking?tab=${tab}&period=${period}`;
 
-const formatRankDelta = (rankDelta: number) => {
-  if (rankDelta > 0) return `▲ ${rankDelta}`;
-  if (rankDelta < 0) return `▼ ${Math.abs(rankDelta)}`;
-  return "유지";
-};
-
-/** 섹션 제목(앱 SectionHeader: 18/700 strong + 12 muted 부제 + 오른쪽 13 muted 링크). */
+/** 섹션 제목(community-vibe 시안 .sec-h: section 18/700 + 오른쪽 13 muted 링크 ›). */
 const SectionHeader = ({
   title,
-  subtitle,
   href,
   actionLabel = "더보기",
 }: {
   title: string;
-  subtitle?: string;
   href?: string;
   actionLabel?: string;
 }) => (
   <div className="flex items-end justify-between gap-3 px-4">
-    <div>
-      <h2 className="text-[18px] font-bold tracking-tight text-app-strong">{title}</h2>
-      {subtitle ? <p className="mt-1 text-[12px] font-medium text-app-muted">{subtitle}</p> : null}
-    </div>
+    <h2 className="app-t-section">{title}</h2>
     {href ? (
       <Link
         href={href}
-        className="inline-flex h-7 shrink-0 items-center text-[13px] font-medium text-app-muted"
+        className="inline-flex shrink-0 items-center gap-0.5 text-[13px] leading-[18px] text-app-muted"
       >
-        {actionLabel} ›
+        {actionLabel}
+        <svg width={14} height={14} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} aria-hidden="true">
+          <path d="m9 6 6 6-6 6" />
+        </svg>
       </Link>
     ) : null}
   </div>
@@ -100,6 +109,7 @@ function MiniCard({
   showThumb = true,
   subTone,
   onOpen,
+  sectionId,
 }: {
   title: string;
   subtitle: string;
@@ -107,8 +117,10 @@ function MiniCard({
   href: string;
   loading?: boolean;
   showThumb?: boolean;
-  subTone?: "price";
+  subTone?: "price" | "up";
   onOpen?: () => void;
+  /** 홈 섹션 노출 기록용 id(home_section_view). */
+  sectionId?: string;
 }) {
   const router = useRouter();
   const open = () => {
@@ -119,24 +131,24 @@ function MiniCard({
   const rowContent = (row: MiniCardRow) => (
     <>
       {showThumb ? (
-        <span className="relative h-8 w-8 shrink-0 overflow-hidden rounded-lg bg-app-placeholder">
+        <span className="relative h-9 w-9 shrink-0 overflow-hidden rounded-lg bg-app-placeholder">
           {row.image ? (
             <Image
               src={makeImageUrl(row.image, "public")}
               alt={row.main}
-              width={32}
-              height={32}
+              width={36}
+              height={36}
               className="h-full w-full object-cover"
             />
           ) : null}
         </span>
       ) : null}
       <span className="min-w-0 flex-1">
-        <span className="block truncate text-xs font-medium text-app-sub">{row.main}</span>
+        <span className="block truncate text-[13px] font-medium leading-[18px] text-app-text">{row.main}</span>
         <span
           className={cn(
-            "block text-[10px]",
-            subTone === "price" ? "font-semibold text-app-brand" : "text-app-muted"
+            "block truncate text-[13px] font-semibold leading-[18px] tabular-nums",
+            subTone === "up" ? "text-app-brand" : "text-app-text"
           )}
         >
           {row.sub}
@@ -150,26 +162,24 @@ function MiniCard({
       role="link"
       tabIndex={0}
       aria-label={`${title} 더보기`}
+      data-home-section={sectionId}
       onClick={open}
       onKeyDown={(event) => {
         // 안쪽 행 링크에서 누른 Enter 는 그 링크가 처리한다(카드 이동과 겹치지 않게).
         if (event.target !== event.currentTarget) return;
         if (event.key === "Enter") open();
       }}
-      className="flex min-h-[126px] cursor-pointer flex-col gap-2 rounded-xl border border-app-border bg-app-elevated p-3 shadow-card"
+      className="flex min-h-[150px] cursor-pointer flex-col rounded-2xl bg-app-gap p-3.5 transition-transform active:scale-[0.98]"
     >
       <div>
-        <div className="flex items-center justify-between">
-          <h3 className="text-sm font-bold text-app-strong">{title}</h3>
-          <span className="text-[10px] text-app-muted">더보기 ›</span>
-        </div>
-        <p className="mt-0.5 break-keep text-[10px] text-app-muted">{subtitle}</p>
+        <h3 className="text-[15px] font-bold leading-5 text-app-text">{title}</h3>
+        <p className="mt-0.5 break-keep text-[12px] leading-4 text-app-muted">{subtitle}</p>
       </div>
-      <div className="mt-2 space-y-1.5">
+      <div className="space-y-3 pt-3">
         {loading
           ? [0, 1].map((i) => (
               <div key={i} className="flex items-center gap-2">
-                {showThumb ? <Skeleton className="h-8 w-8 rounded-lg" /> : null}
+                {showThumb ? <Skeleton className="h-9 w-9 rounded-lg" /> : null}
                 <div className="min-w-0 flex-1">
                   <Skeleton className="h-2.5 w-4/5" />
                   <Skeleton className="mt-1 h-2 w-1/2" />
@@ -197,132 +207,32 @@ function MiniCard({
   );
 }
 
-/** 무료나눔이 0건일 때 카드(앱 FreeGiveawayEmptyCard, 2026-10-09 사용자 결정: 숨기지 않고 등록을 권한다). */
+/** 무료나눔이 0건일 때 카드(§3.1: '없어요' 대신 첫 나눔 혜택 + 행동). 등록 화면에서 '무료나눔'을 미리 고른다. */
 function FreeGiveawayEmptyCard() {
   return (
     <Link
-      // 등록 화면에서 가격 '무료나눔'을 미리 고른 채로 연다.
       href="/products/upload?free=1"
-      className="flex min-h-[126px] flex-col items-center justify-center rounded-xl border border-app-border bg-app-elevated p-3 text-center shadow-card"
+      data-home-section="free_giveaway"
+      className="flex min-h-[150px] flex-col items-start justify-center rounded-2xl bg-app-gap p-3.5 transition-transform active:scale-[0.98]"
     >
-      <h3 className="text-sm font-bold text-app-strong">무료나눔</h3>
-      <p className="mt-2 text-xs text-app-muted">아직 무료나눔이 없어요</p>
-      <p className="mt-1 text-[10px] font-semibold text-app-brand">첫 번째로 등록해보세요 ›</p>
+      <h3 className="text-[15px] font-bold leading-5 text-app-text">무료나눔</h3>
+      <p className="mt-1 break-keep text-[13px] leading-[18px] text-app-sub">첫 나눔은 홈 맨 위에 하루 동안 보여요</p>
+      <p className="mt-3 flex items-center gap-0.5 text-[13px] font-semibold leading-[18px] text-app-brand">
+        첫 번째로 나누기
+        <svg width={14} height={14} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} aria-hidden="true">
+          <path d="m9 6 6 6-6 6" />
+        </svg>
+      </p>
     </Link>
   );
 }
 
-/** 칭호 → 아래 숫자 칸 중 강조할 칸(앱 index.tsx HERO_TITLE_STATS). */
-const HERO_TITLE_STATS: Partial<Record<BreederTitleKey, string[]>> = {
-  auction: ["입찰", "낙찰"],
-  talk: ["댓글"],
-  post: ["게시"],
-  listing: ["분양"],
+type RailResponse = {
+  success?: boolean;
+  items?: (ProductsResponse["products"][number] & Partial<ProductRailFlags>)[];
+  products?: (ProductsResponse["products"][number] & Partial<ProductRailFlags>)[];
 };
-
-function HeroBreederCard({
-  hero,
-  keyword,
-  onChallenge,
-}: {
-  hero: BreederRankingItem;
-  /** 칭호('경매왕'·'팔로워 부자' 등, 왜 1위인지). 구 서버면 없다. */
-  keyword: BreederKeyword | null;
-  onChallenge: () => void;
-}) {
-  const badge = hero.badges?.[0];
-  const profileHref = `/profiles/${hero.user.id}`;
-  const highlighted = (keyword && HERO_TITLE_STATS[keyword.key]) || [];
-  return (
-    <div className="overflow-hidden rounded-xl border border-app-border bg-app-elevated shadow-card">
-      <div className="flex items-center gap-3 px-4 pb-3 pt-3.5">
-        <Link
-          href={profileHref}
-          aria-label={`${hero.rank}위 ${hero.user.name}${keyword ? `, ${keyword.label} ${keyword.detail}` : ""}, ${hero.score.toLocaleString()}점, 프로필 보기`}
-          className="flex min-w-0 flex-1 items-center gap-3"
-        >
-          <div className="relative shrink-0">
-            <div className="h-11 w-11 overflow-hidden rounded-full bg-app-placeholder ring-2 ring-amber-400/60">
-              {hero.user.avatar ? (
-                <Image
-                  src={makeImageUrl(hero.user.avatar, "avatar")}
-                  alt={hero.user.name}
-                  width={44}
-                  height={44}
-                  className="h-full w-full object-cover"
-                />
-              ) : (
-                <div className="flex h-full w-full items-center justify-center bg-app-border text-sm font-bold text-app-muted">
-                  {hero.user.name.charAt(0)}
-                </div>
-              )}
-            </div>
-            {/* 다크에서도 amber 위 글자가 읽히도록 테마와 무관한 어두운 잉크를 쓴다(앱 S.onAccent). */}
-            <span className="absolute -bottom-0.5 -right-0.5 flex h-5 w-5 items-center justify-center rounded-full bg-app-warning text-[9px] font-black text-neutral-900">
-              {hero.rank}
-            </span>
-          </div>
-          <div className="min-w-0 flex-1">
-            <div className="flex items-center gap-1.5">
-              <h3 className="truncate text-sm font-bold text-app-strong">{hero.user.name}</h3>
-              {badge ? (
-                <span className="shrink-0 rounded bg-app-warning-soft px-1.5 py-0.5 text-[9px] font-semibold text-app-warning-text">
-                  {badge.label}
-                </span>
-              ) : null}
-            </div>
-            {keyword ? (
-              <div className="mt-1 flex min-w-0 items-center gap-1.5">
-                <span className="shrink-0 rounded-full bg-app-brand-soft px-2 py-[2px] text-[12px] font-semibold leading-4 text-app-brand">
-                  {keyword.emoji} {keyword.label}
-                </span>
-                <span className="truncate text-[12px] text-app-muted">{keyword.detail}</span>
-              </div>
-            ) : null}
-            <p className="mt-0.5 text-xs text-app-muted">
-              {hero.score.toLocaleString()}점 · {formatRankDelta(hero.rankDelta)}
-            </p>
-          </div>
-        </Link>
-        <button
-          type="button"
-          onClick={onChallenge}
-          className="shrink-0 rounded-full bg-app-inverse px-3 py-1.5 text-[11px] font-semibold text-app-inverse-text"
-        >
-          도전하기
-        </button>
-      </div>
-      <Link
-        href={profileHref}
-        tabIndex={-1}
-        aria-hidden="true"
-        className="flex divide-x divide-app-line border-t border-app-line"
-      >
-        {(hero.productsCount !== undefined
-          ? // 관심 카테고리 범위 랭킹은 범위 안 게시글·분양글만 센다(앱 a158757).
-            [
-              { label: "게시", value: hero.postsCount },
-              { label: "분양", value: hero.productsCount },
-            ]
-          : [
-              { label: "게시", value: hero.postsCount },
-              { label: "댓글", value: hero.commentsCount },
-              { label: "입찰", value: hero.bidsCount },
-              { label: "낙찰", value: hero.auctionWinsCount },
-            ]
-        ).map((stat) => {
-          const on = highlighted.includes(stat.label);
-          return (
-            <div key={stat.label} className="flex-1 py-2.5 text-center">
-              <p className={cn("text-sm font-bold", on ? "text-app-brand" : "text-app-strong")}>{stat.value}</p>
-              <p className={cn("text-[10px]", on ? "font-semibold text-app-brand" : "text-app-muted")}>{stat.label}</p>
-            </div>
-          );
-        })}
-      </Link>
-    </div>
-  );
-}
+const RAIL_KEY = "/api/products?rail=1&limit=10";
 
 const MainClient = ({
   initialHomeFeed,
@@ -352,6 +262,7 @@ const MainClient = ({
   const [installLoading, setInstallLoading] = useState(false);
   const bannerRef = useRef<HTMLDivElement>(null);
   const sentinelRef = useRef<HTMLDivElement>(null);
+  const homeRootRef = useRef<HTMLDivElement>(null);
 
   // ── 상품 목록(무한 스크롤) ──────────────────────────────────────────────
   const getKey = (pageIndex: number, previousPageData: ProductsResponse | null) => {
@@ -424,6 +335,12 @@ const MainClient = ({
   );
   const banners = initialBanners;
 
+  // 지금 올라온 분양 레일: 서버 rail=1(최신 10 + 첫 분양글 24시간 맨 앞, isNew). 구 서버면 목록 1페이지로 대신한다.
+  const { data: railData, error: railError } = useSWR<RailResponse>(
+    withCategoryPath(RAIL_KEY, scope.categoryPath),
+    { revalidateOnFocus: false, shouldRetryOnError: false }
+  );
+
   const products = useMemo(
     () =>
       withoutBlocked(
@@ -433,6 +350,21 @@ const MainClient = ({
       ),
     [productPages, blockedIds]
   );
+  const railItems = useMemo<RailProduct[]>(() => {
+    const source: NonNullable<RailResponse["items"]> =
+      railData?.items ?? railData?.products ?? (railError || railData ? productPages?.[0]?.products : undefined) ?? [];
+    return withoutBlocked(source, blockedIds, (product) => product.userId)
+      .slice(0, 10)
+      .map((product) => ({
+        id: product.id,
+        name: product.name,
+        price: product.price,
+        image: product.photos?.[0] ?? null,
+        createdAt: product.createdAt,
+        isNew: product.isNew,
+      }));
+  }, [railData, railError, productPages, blockedIds]);
+  const railLoading = !railData && !railError && !productPages;
   const totalPages = productPages?.[productPages.length - 1]?.pages ?? 0;
   const loadedPages = productPages?.length ?? 0;
   const hasMore = loadedPages > 0 && loadedPages < totalPages;
@@ -491,27 +423,16 @@ const MainClient = ({
     }
   }, [isUserLoading, user]);
 
-  useEffect(() => {
-    if (!feedOk) return;
-    // 랭킹 우선 IA 전환 이후 섹션별 노출량을 비교할 수 있도록 홈 진입 시 한 번에 기록한다.
-    const sectionIds = [
-      "hero_breeder",
-      "auction_ranking",
-      "bloodline_ranking",
-      "trending_community",
-      "neighborhood_breeders",
-      "free_giveaway",
-      "personalized_home",
-    ];
-    sectionIds.forEach((sectionId, index) => {
-      trackEvent(ANALYTICS_EVENTS.homeSectionView, {
-        section_id: sectionId,
-        position: index + 1,
-        user_tier: user ? "member" : "guest",
-        season_id: feedOk.currentSeasonId,
-      });
+  // 섹션이 화면에 절반 이상 보였을 때 섹션마다 한 번 기록한다(홈 진입 때 한꺼번에 찍으면 노출량을 비교할 수 없다).
+  useSectionImpressions(homeRootRef, (sectionId) => {
+    const position = HOME_SECTION_ORDER.indexOf(sectionId as HomeSectionId) + 1;
+    trackEvent(ANALYTICS_EVENTS.homeSectionView, {
+      section_id: sectionId,
+      position: position > 0 ? position : null,
+      user_tier: user ? "member" : "guest",
+      season_id: feedOk?.currentSeasonId ?? null,
     });
-  }, [feedOk?.currentSeasonId, feedOk?.success, user]);
+  });
 
   const handleInstallClick = async () => {
     if (!deferredInstallPrompt) {
@@ -597,7 +518,13 @@ const MainClient = ({
   const trendingRows: MiniCardRow[] = (feed?.trendingPosts ?? []).slice(0, 2).map((t) => ({
     id: t.post.id,
     main: t.post.title,
-    sub: `#${t.rank} 상승중`,
+    // 순위 + 반응(댓글 우선, 없으면 좋아요). 사람의 활동이라 주황(§3.7).
+    sub: [
+      `↑ ${t.rank}위`,
+      t.comments24h > 0 ? `댓글 ${t.comments24h}` : t.likes24h > 0 ? `좋아요 ${t.likes24h}` : null,
+    ]
+      .filter(Boolean)
+      .join(" · "),
   }));
   const freeGiveawayRows: MiniCardRow[] = (feed?.freeGiveawayProducts ?? []).slice(0, 2).map((f) => ({
     id: f.id,
@@ -625,87 +552,27 @@ const MainClient = ({
       : `/products?category=${encodeURIComponent(activeCategory)}`;
 
   return (
-    <div className="flex h-full flex-col bg-app-bg">
-      {/* 현재 관심 분야(고정 범위). 앱처럼 헤더 바로 아래에 고정하고, 누르면 설정 > 관심 카테고리. 온보딩을 마치면 숨는다. */}
-      <div className="sticky top-14 z-20">
-        <CategoryScopeBar />
-      </div>
-      {/* 배너 슬라이더(관리자 배너 API, 웹 그라데이션 카드 유지 — 좌우 여백만 16) */}
-      <section className="relative bg-app-bg pb-1 pt-3">
-        <div
-          ref={bannerRef}
-          onScroll={handleBannerScroll}
-          className="app-rail flex snap-x snap-mandatory scroll-px-4 gap-3 px-4"
-        >
-          {banners.map((banner) => (
-            <Link
-              key={banner.id}
-              href={banner.href}
-              onClick={() =>
-                trackEvent(ANALYTICS_EVENTS.homeBannerClicked, {
-                  banner_id: banner.id,
-                  banner_title: banner.title,
-                  banner_href: banner.href,
-                  user_id: user?.id || null,
-                })
-              }
-              className={cn(
-                "app-card-interactive relative flex min-h-[132px] w-[calc(100vw-32px)] max-w-[calc(36rem-32px)] shrink-0 snap-start flex-col justify-between overflow-hidden rounded-xl border border-white/20 bg-gradient-to-br from-emerald-500 to-teal-500 px-4 py-4 text-white shadow-none",
-                banner.bgClass
-              )}
-            >
-              <div>
-                <span className="text-[11px] font-semibold leading-none text-white/70">Bredy</span>
-                <h2 className="mt-2 text-[20px] font-extrabold leading-tight tracking-normal text-white">
-                  {banner.title}
-                </h2>
-                <p className="mt-1 line-clamp-2 text-[13px] font-medium leading-[1.45] tracking-normal text-white/85">
-                  {banner.description}
-                </p>
-              </div>
-              <span className="mt-4 inline-flex h-7 w-fit items-center rounded-md bg-white/15 px-2.5 text-[11px] font-bold text-white">
-                자세히 보기
-              </span>
-            </Link>
-          ))}
-        </div>
-        {banners.length > 1 ? (
-          <div className="pointer-events-none absolute inset-x-0 bottom-4 flex items-center justify-center">
-            {banners.map((banner, index: number) => (
-              <button
-                key={banner.id}
-                type="button"
-                onClick={() => scrollToBanner(index)}
-                aria-label={`${index + 1}번 배너로 이동`}
-                aria-current={activeBannerIndex === index ? "true" : undefined}
-                className="pointer-events-auto grid h-4 w-4 place-items-center rounded-full"
-              >
-                <span
-                  className={cn(
-                    "h-1.5 w-1.5 rounded-full transition-colors",
-                    activeBannerIndex === index ? "bg-black" : "bg-black/25"
-                  )}
-                />
-              </button>
-            ))}
-          </div>
-        ) : null}
-      </section>
+    <div ref={homeRootRef} className="flex h-full flex-col bg-app-bg">
+      {/* 현재 관심 분야(고정 범위). 온보딩을 마치면 숨는다. 칩이 헤더 바로 아래 붙도록(§9) 이 줄은 고정하지 않는다. */}
+      <CategoryScopeBar />
 
-      {/* 우리 동네 브리더(2026-10-09, 앱과 같이) — '내 혈통 만들기' 이벤트 카드 자리 */}
+      {/* 1. 지금 올라온 분양(사진 레일) */}
+      <ProductPhotoRail items={railItems} loading={railLoading} />
+
+      {/* 2. 우리 동네 브리더(강조, 시 단위 + 50km) */}
       <NeighborhoodBreederSection />
 
-      {/* 이번 주 TOP 브리더 — 집계가 비면 섹션을 숨긴다 */}
+      {/* 3. 이번 주 TOP 브리더 + 내 순위 — 집계가 비면 섹션을 숨긴다 */}
       {showTopBreeder ? (
-        <section className="pb-2 pt-4">
+        <section className="pt-6" data-home-section="hero_breeder">
           <SectionHeader
-            title="이번 주 TOP 브리더"
+            title={heroBreederPeriod === "weekly" ? "이번 주 TOP 브리더" : "TOP 브리더"}
             href={toRankingHref("breeders", heroBreederPeriod)}
-            actionLabel="랭킹 보기"
+            actionLabel="전체 랭킹 보기"
           />
           <div className="mt-3 px-4">
             {feedError ? (
-              <div className="rounded-xl border border-app-border bg-app-elevated shadow-card">
+              <div className="rounded-2xl bg-app-gap">
                 <QueryErrorState
                   title="랭킹을 불러오지 못했어요"
                   onRetry={() => void reloadFeed()}
@@ -713,35 +580,28 @@ const MainClient = ({
                 />
               </div>
             ) : feedLoading ? (
-              <div className="space-y-2 rounded-xl border border-app-border bg-app-elevated p-4 shadow-card">
+              <div className="space-y-2 rounded-2xl bg-app-gap p-4">
                 <Skeleton className="h-3.5 w-1/2" />
                 <Skeleton className="h-3 w-[35%]" />
               </div>
             ) : hero ? (
-              <HeroBreederCard
+              <TopBreederRankCard
                 hero={hero}
                 keyword={heroKeyword}
-                onChallenge={() => {
-                  trackEvent(ANALYTICS_EVENTS.challengeJoin, {
-                    challenge_id: "weekly_breeder_rank",
-                    entry_type: user ? "member" : "guest",
-                  });
-                  router.push(
-                    user
-                      ? weeklyBreederRankingHref
-                      : `/auth/login?next=${encodeURIComponent(weeklyBreederRankingHref)}`
-                  );
-                }}
+                period={heroBreederPeriod}
+                scoped={Boolean(scope.categoryPath)}
+                viewer={user ? { id: user.id, name: user.name, avatar: user.avatar ?? null } : null}
+                viewerLoading={isUserLoading}
               />
             ) : null}
           </div>
         </section>
       ) : null}
 
-      {/* 2x2 그리드 — 피드 오류면 위 오류 상태로 대신하고, 빈 카드는 숨긴다(무료나눔만 등록 권유 카드) */}
+      {/* 4. 2x2 그리드 — 테두리 없이 app-gap 채움 r16. 피드 오류면 위 오류 상태로 대신한다(무료나눔만 등록 권유 카드). */}
       {showGrid ? (
-        <section className="py-2">
-          <div className="grid grid-cols-2 gap-3 px-4">
+        <section className="pt-6">
+          <div className="grid grid-cols-2 gap-2.5 px-4">
             {showMini(topAuctionRows) ? (
               <MiniCard
                 title="최고가 경매"
@@ -750,6 +610,7 @@ const MainClient = ({
                 loading={feedLoading}
                 subTone="price"
                 rows={topAuctionRows}
+                sectionId="auction_ranking"
                 onOpen={() =>
                   trackRankingCard("auction", topAuctionRows[0]?.id ?? "", "auction_ranking")
                 }
@@ -757,11 +618,12 @@ const MainClient = ({
             ) : null}
             {showMini(topBloodlineRows) ? (
               <MiniCard
-                title="인기 혈통 TOP"
-                subtitle="보유자 수 기준 랭킹"
+                title="인기 혈통"
+                subtitle="보유자 수 기준"
                 href={toRankingHref("bloodlines", bloodlinePeriod)}
                 loading={feedLoading}
                 rows={topBloodlineRows}
+                sectionId="bloodline_ranking"
                 onOpen={() =>
                   trackRankingCard("bloodline", topBloodlineRows[0]?.id ?? "", "bloodline_ranking")
                 }
@@ -769,12 +631,14 @@ const MainClient = ({
             ) : null}
             {showMini(trendingRows) ? (
               <MiniCard
-                title="급상승 커뮤니티"
-                subtitle="좋아요와 댓글 반응이 높은 커뮤니티 글"
+                title="급상승 글"
+                subtitle="반응이 빠른 글"
                 href={toRankingHref("community", communityPeriod)}
                 loading={feedLoading}
                 showThumb={false}
+                subTone="up"
                 rows={trendingRows}
+                sectionId="trending_community"
                 onOpen={() =>
                   trackRankingCard("community", trendingRows[0]?.id ?? "", "trending_community")
                 }
@@ -787,6 +651,7 @@ const MainClient = ({
                 href="/products?status=판매중&price=0"
                 loading={feedLoading}
                 rows={freeGiveawayRows}
+                sectionId="free_giveaway"
                 onOpen={() =>
                   trackRankingCard("free_giveaway", freeGiveawayRows[0]?.id ?? "", "free_giveaway")
                 }
@@ -798,9 +663,75 @@ const MainClient = ({
         </section>
       ) : null}
 
-      {/* 카테고리 칩(sticky). 고정 중에도 아래가 비치지 않게 불투명 배경 + 하단 1px line. */}
-      <div className="sticky top-[100px] z-10 border-b border-app-line bg-app-bg py-1">
-        <FilterChipRail>
+      {/* 5. 배너 슬라이더(관리자 배너 API) — 아직 빼지 않기로 해서 그리드 아래로 내렸다 */}
+      {banners.length > 0 ? (
+        <section className="relative bg-app-bg pt-6">
+          <div
+            ref={bannerRef}
+            onScroll={handleBannerScroll}
+            className="app-rail flex snap-x snap-mandatory scroll-px-4 gap-3 px-4"
+          >
+            {banners.map((banner) => (
+              <Link
+                key={banner.id}
+                href={banner.href}
+                onClick={() =>
+                  trackEvent(ANALYTICS_EVENTS.homeBannerClicked, {
+                    banner_id: banner.id,
+                    banner_title: banner.title,
+                    banner_href: banner.href,
+                    user_id: user?.id || null,
+                  })
+                }
+                className={cn(
+                  "app-card-interactive relative flex min-h-[132px] w-[calc(100vw-32px)] max-w-[calc(36rem-32px)] shrink-0 snap-start flex-col justify-between overflow-hidden rounded-2xl bg-app-brand px-4 py-4 text-white shadow-none",
+                  banner.bgClass
+                )}
+              >
+                <div>
+                  <span className="text-[11px] font-semibold leading-none text-white/70">Bredy</span>
+                  <h2 className="mt-2 text-[20px] font-bold leading-tight tracking-normal text-white">
+                    {banner.title}
+                  </h2>
+                  <p className="mt-1 line-clamp-2 text-[13px] font-medium leading-[1.45] tracking-normal text-white/85">
+                    {banner.description}
+                  </p>
+                </div>
+                <span className="mt-4 inline-flex h-7 w-fit items-center rounded-lg bg-white/15 px-2.5 text-[11px] font-bold text-white">
+                  자세히 보기
+                </span>
+              </Link>
+            ))}
+          </div>
+          {banners.length > 1 ? (
+            <div className="pointer-events-none absolute inset-x-0 bottom-0 flex items-center justify-center">
+              {banners.map((banner, index: number) => (
+                <button
+                  key={banner.id}
+                  type="button"
+                  onClick={() => scrollToBanner(index)}
+                  aria-label={`${index + 1}번 배너로 이동`}
+                  aria-current={activeBannerIndex === index ? "true" : undefined}
+                  className="pointer-events-auto grid h-4 w-4 place-items-center rounded-full"
+                >
+                  <span
+                    className={cn(
+                      "h-1.5 w-1.5 rounded-full transition-colors",
+                      activeBannerIndex === index ? "bg-white" : "bg-white/50"
+                    )}
+                  />
+                </button>
+              ))}
+            </div>
+          ) : null}
+        </section>
+      ) : null}
+
+      <div className="mt-6 h-2 bg-app-gap" />
+
+      {/* 6. 카테고리 칩: 스크롤하면 헤더 바로 아래 붙는다(§9, 위 여백 0). */}
+      <div className="sticky top-14 z-10 bg-app-bg" data-testid="home-sticky-chips">
+        <FilterChipRail className="h-[52px]">
           {tabs.map((tab) => (
             <FilterChip
               key={tab.id}
@@ -812,20 +743,17 @@ const MainClient = ({
         </FilterChipRail>
       </div>
 
-      {/* 전체 상품 헤더 */}
-      <section id="all-products" className="flex items-end justify-between bg-app-bg px-4 pb-2 pt-6">
-        <div>
-          <h2 className="text-[18px] font-bold tracking-tight text-app-strong">
-            {activeCategory === "전체" ? "전체 분양" : `${activeCategory} 분양`}
-          </h2>
-          <p className="mt-1 text-[12px] font-medium text-app-muted">최신 등록 순으로 노출됩니다.</p>
-        </div>
-        <Link
+      {/* 7. 전체 분양 헤더('최신 등록 순으로 노출됩니다' 없음, §3.1) */}
+      <section
+        id="all-products"
+        data-home-section="personalized_home"
+        className="bg-app-bg pb-1 pt-2"
+      >
+        <SectionHeader
+          title={activeCategory === "전체" ? "전체 분양" : `${activeCategory} 분양`}
           href={productsHref}
-          className="inline-flex h-7 shrink-0 items-center text-[13px] font-medium text-app-muted"
-        >
-          분양 목록 ›
-        </Link>
+          actionLabel="분양 목록"
+        />
       </section>
 
       {/* 상품 목록 */}
@@ -843,7 +771,7 @@ const MainClient = ({
                 category: product.category,
                 status: product.status,
                 wishCount: product._count?.favs,
-                viewCount: product.viewCount,
+                // 메타는 '종류 · 시간'만(§3.6). 조회 수는 넘기지 않는다.
                 photoCount: product.photos?.length ?? 0,
                 sellerId: product.userId,
                 seller: product.user ?? null,

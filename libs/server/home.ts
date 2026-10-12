@@ -1,6 +1,7 @@
 import { unstable_cache } from "next/cache";
 
 import client from "@libs/server/client";
+import { getRealtimeHotDiscussions } from "@libs/server/hotRealtime";
 import {
   breederProgramSummarySelect,
   getSortedActiveBreederProgramSummaries,
@@ -17,7 +18,6 @@ import {
   getBloodlineRanking,
   getBreederRanking,
   getFreeGiveawayProducts,
-  getHotDiscussions,
   getMyRankingSummary,
   getTrendingCommunityPosts,
 } from "@libs/server/ranking";
@@ -156,7 +156,7 @@ const buildHomeFeed = async ({
     resolvedUserId ? getMyRankingSummary(resolvedUserId) : Promise.resolve(null),
     resolvedUserId ? getUserMissionSummary(resolvedUserId) : Promise.resolve([]),
     getFreeGiveawayProducts({ limit: 6, categoryPath }),
-    getHotDiscussions({ limit: 5, categoryPath }),
+    getRealtimeHotDiscussions({ limit: 5, categoryPath }),
   ]);
 
   const [

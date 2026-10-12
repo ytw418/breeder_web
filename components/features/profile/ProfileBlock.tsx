@@ -3,7 +3,7 @@
  * 프로필 블록(앱 ProfileBlock, 2026-10-09 v4 — 시안 design/mockups/profile/A-karrot.html `.profile`).
  * 아바타 80(누르면 크게 보기) 옆에 게시물·팔로워·팔로잉 3칸 → 이름 16/700 → 브리더 컬러 뱃지 →
  * 주력 종 13 muted → 신뢰 줄 13 muted(v5) → 소개 14/1.5 → 버튼 줄 36. 버튼은 화면이 상태(본인·타인·차단·탈퇴)에 맞게 넘긴다.
- * v6: 커버가 있으면 맨 위 전체 폭 3:1(누르면 크게 보기), 아바타가 32 겹친다. 대표 링크는 소개 바로 아래 한 줄.
+ * v6: 커버가 있으면 맨 위 전체 폭 2:1(2026-10-11 3:1 에서 높임, 누르면 크게 보기), 아바타가 32 겹친다. 대표 링크는 소개 바로 아래 한 줄.
  */
 import Link from "next/link";
 import { useState, type ReactNode } from "react";
@@ -15,6 +15,8 @@ import type { BreederProgramSummary } from "@libs/shared/breeder-program";
 import { DELETED_USER_LABEL, isDeletedUserName } from "@libs/shared/deletedUser";
 import { profileLinkLabel } from "@libs/shared/profile";
 import { profileTrustLine } from "@libs/shared/profileTrust";
+import type { LockedTitle, LockedTitleRemainingKind } from "@libs/shared/communityVibe";
+import { regionScopeLabel } from "@libs/shared/regionScope";
 
 export interface ProfileBlockUser {
   name: string;
@@ -28,7 +30,48 @@ export interface ProfileBlockUser {
   /** 가입 시각(신뢰 줄 '브리디 N개월차'). */
   createdAt?: string | Date;
   _count?: { followers: number; following: number; posts: number; completedSales?: number };
+  /** 내 동네(신뢰 줄 끝 '· 서울', community-vibe §3.8). */
+  regionSido?: string | null;
+  regionSigungu?: string | null;
+  /** 아직 못 단 칭호(본인 조회 때만 서버가 싣는다, 최대 3). */
+  lockedTitles?: LockedTitle[] | null;
 }
+
+/** 잠금 칭호 남은 양 문구: "댓글 2" · "글 1" · "3장". */
+const REMAINING_LABEL: Record<LockedTitleRemainingKind, (n: number) => string> = {
+  post: (n) => `글 ${n}`,
+  comment: (n) => `댓글 ${n}`,
+  photo: (n) => `${n}장`,
+  listing: (n) => `분양글 ${n}`,
+  auction: (n) => `경매 ${n}`,
+  bloodline: (n) => `혈통 ${n}`,
+  follower: (n) => `팔로워 ${n}`,
+  like: (n) => `좋아요 ${n}`,
+};
+
+/** 잠금 pill 을 누르면 그 활동을 하러 간다(§5b). 팔로워·좋아요는 받는 것이라 링크가 없다. */
+const REMAINING_HREF: Partial<Record<LockedTitleRemainingKind, string>> = {
+  post: "/posts/upload",
+  comment: "/posts",
+  photo: "/posts/upload",
+  listing: "/products/upload",
+  auction: "/auctions/create",
+  bloodline: "/bloodline-cards/create",
+};
+
+export function lockedTitleText(title: LockedTitle): string {
+  return `${title.label}까지 ${REMAINING_LABEL[title.remaining.kind]?.(title.remaining.count) ?? title.remaining.count}`;
+}
+
+const LockIcon = () => (
+  <svg width={11} height={11} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" aria-hidden="true" className="opacity-70">
+    <rect x="5" y="11" width="14" height="10" rx="2" />
+    <path d="M8 11V7a4 4 0 0 1 8 0v4" />
+  </svg>
+);
+
+const LOCK_PILL =
+  "inline-flex h-[22px] shrink-0 items-center gap-1 whitespace-nowrap rounded-full bg-app-surface px-2 text-[12px] font-medium leading-[22px] text-app-muted";
 
 const AVATAR_SIZE = 80;
 /** 커버가 있을 때 아바타가 커버 아래로 겹치는 높이(v6). */
@@ -45,9 +88,9 @@ function Stat({ label, value, loading, href }: { label: string; value?: number; 
       {loading ? (
         <Skeleton className="h-5 w-7" />
       ) : (
-        <span className="text-[17px] font-bold leading-[22px] text-app-text">{(value ?? 0).toLocaleString()}</span>
+        <span className="text-[20px] font-bold leading-6 text-app-text tabular-nums">{(value ?? 0).toLocaleString()}</span>
       )}
-      <span className="mt-0.5 text-[13px] leading-[18px] text-app-muted">{label}</span>
+      <span className="text-[12px] leading-4 text-app-muted">{label}</span>
     </>
   );
   const a11yLabel = loading ? `${label} 불러오는 중` : `${label} ${value ?? 0}`;
@@ -103,14 +146,25 @@ export function ProfileBlock({
   const link = user?.profileLink ?? null;
   const badges = user?.badges ?? [];
   const showBioPrompt = isMine && !bio && !loading && Boolean(user);
-  const hasPills = badges.length > 0 || (user?.breederPrograms ?? []).some((program) => program.status === "ACTIVE");
+  // 잠금 칭호는 본인에게만(타인 프로필엔 없다, §3.3).
+  const lockedTitles = isMine ? (user?.lockedTitles ?? []).slice(0, 3) : [];
+  const hasPills =
+    badges.length > 0 ||
+    lockedTitles.length > 0 ||
+    (user?.breederPrograms ?? []).some((program) => program.status === "ACTIVE");
+  const regionLabel = user?.regionSido ? regionScopeLabel(user.regionSido, user.regionSigungu) : "";
   // 신뢰 줄: "거래 완료 12 · 브리디 8개월차"(앱 docs/prd/profile.md v5 F-18). 탈퇴 사용자·로딩 중엔 그리지 않는다.
   const trustLine =
     !loading && user && name !== DELETED_USER_LABEL && !isDeletedUserName(name)
-      ? profileTrustLine({
-          completedSales: user._count?.completedSales,
-          createdAt: user.createdAt ? new Date(user.createdAt).toISOString() : null,
-        })
+      ? [
+          profileTrustLine({
+            completedSales: user._count?.completedSales,
+            createdAt: user.createdAt ? new Date(user.createdAt).toISOString() : null,
+          }),
+          regionLabel || null,
+        ]
+          .filter(Boolean)
+          .join(" · ") || null
       : null;
 
   const avatarNode = <ProfileAvatar avatar={avatar} name={name} programs={user?.breederPrograms} size={AVATAR_SIZE} />;
@@ -122,7 +176,7 @@ export function ProfileBlock({
           type="button"
           aria-label={`${name} 커버 사진 크게 보기`}
           onClick={() => setBannerOpen(true)}
-          className="block aspect-[3/1] w-full overflow-hidden bg-app-placeholder"
+          className="block aspect-[2/1] w-full overflow-hidden bg-app-placeholder"
         >
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img src={makeImageUrl(banner, "public")} alt="" className="h-full w-full object-cover" />
@@ -177,7 +231,7 @@ export function ProfileBlock({
           )}
         </div>
 
-        <h2 className="mt-3 truncate text-[16px] font-bold leading-[22px] text-app-text">{name}</h2>
+        <h2 className="app-t-section mt-3 truncate">{name}</h2>
 
         {loading ? (
           <Skeleton className="mt-1.5 h-[22px] w-[120px] rounded-full" />
@@ -192,6 +246,21 @@ export function ProfileBlock({
                 {badge.label}
               </span>
             ))}
+            {lockedTitles.map((title) => {
+              const href = REMAINING_HREF[title.remaining.kind];
+              const text = lockedTitleText(title);
+              return href ? (
+                <Link key={title.key} href={href} className={LOCK_PILL} data-testid="locked-title-pill">
+                  <LockIcon />
+                  {text}
+                </Link>
+              ) : (
+                <span key={title.key} className={LOCK_PILL} data-testid="locked-title-pill">
+                  <LockIcon />
+                  {text}
+                </span>
+              );
+            })}
           </div>
         ) : null}
 
@@ -260,7 +329,7 @@ export function ProfileBlock({
   );
 }
 
-/** 프로필 블록 보조 버튼(높이 36 · r8, surface 배경 · text 14/600). 메시지·프로필 수정·공유·차단 해제. */
+/** 프로필 블록 보조 버튼(높이 40 · r8, surface 배경 · text 14/600). 메시지·프로필 수정·공유·차단 해제. */
 export function ProfileSecondaryButton({
   label,
   ariaLabel,
@@ -275,7 +344,7 @@ export function ProfileSecondaryButton({
   href?: string;
 }) {
   const className = cn(
-    "inline-flex h-9 flex-1 items-center justify-center rounded-lg bg-app-surface text-[14px] font-semibold text-app-text transition-colors hover:bg-app-placeholder",
+    "inline-flex h-10 flex-1 items-center justify-center rounded-lg bg-app-surface text-[14px] font-semibold text-app-text transition-colors hover:bg-app-placeholder",
     disabled && "pointer-events-none opacity-60"
   );
   if (href) {

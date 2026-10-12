@@ -64,7 +64,8 @@ const requestCheckName = async (name: string, signal: AbortSignal): Promise<Chec
 };
 
 /**
- * 프로필 수정(앱 editProfile.tsx): 맨 위 3:1 커버(v5) + 40 겹친 96 아바타 + 카메라 버튼, 닉네임 입력(h48 r8) + 사전 확인,
+ * 프로필 수정(앱 editProfile.tsx): 맨 위 2:1 커버(v5, 2026-10-11 3:1 에서 높임) + 40 겹친 96 아바타 + 카메라 버튼
+ * + '기본 이미지로'(사진이 있을 때), 닉네임 입력(h48 r8) + 사전 확인,
  * 소개 300자, 대표 링크 1개(v5), 하단 고정 '저장'.
  */
 const EditProfileClient = () => {
@@ -80,6 +81,7 @@ const EditProfileClient = () => {
   const [hasEditedBio, setHasEditedBio] = useState(false);
   const [avatarFile, setAvatarFile] = useState<File | null>(null);
   const [localAvatarUrl, setLocalAvatarUrl] = useState("");
+  const [avatarRemoved, setAvatarRemoved] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [bannerFile, setBannerFile] = useState<File | null>(null);
   const [localBannerUrl, setLocalBannerUrl] = useState("");
@@ -167,13 +169,24 @@ const EditProfileClient = () => {
 
   const onAvatarChange = (event: ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0] ?? null;
-    setLocalAvatarUrl(file ? URL.createObjectURL(file) : "");
+    // 지운 뒤 같은 파일을 다시 골라도 onChange 가 오게 비운다.
+    event.target.value = "";
+    if (!file) return;
+    setLocalAvatarUrl(URL.createObjectURL(file));
     setAvatarFile(file);
+    setAvatarRemoved(false);
   };
+  /** 사진을 지우고 이니셜 기본 이미지로 돌린다(저장해야 반영). */
+  const onAvatarRemove = () => {
+    setLocalAvatarUrl("");
+    setAvatarFile(null);
+    setAvatarRemoved(true);
+  };
+  const removeAvatar = avatarRemoved && !avatarFile && Boolean(user?.avatar);
 
   const hasNameChange = !!name.trim() && name.trim() !== user?.name;
   const canSubmit =
-    (hasNameChange || !!avatarFile || hasBioChange || hasLinkChange || hasBannerChange) &&
+    (hasNameChange || !!avatarFile || removeAvatar || hasBioChange || hasLinkChange || hasBannerChange) &&
     !isLoading &&
     !nameError &&
     !linkError &&
@@ -198,7 +211,14 @@ const EditProfileClient = () => {
     }
     const nextLink = linkResult.link;
     const nextHasLinkChange = (nextLink ?? "") !== currentLink;
-    if (!nextHasNameChange && !avatarFile && !nextHasBioChange && !nextHasLinkChange && !hasBannerChange) {
+    if (
+      !nextHasNameChange &&
+      !avatarFile &&
+      !removeAvatar &&
+      !nextHasBioChange &&
+      !nextHasLinkChange &&
+      !hasBannerChange
+    ) {
       toast.info("변경된 내용이 없습니다.");
       return;
     }
@@ -207,11 +227,13 @@ const EditProfileClient = () => {
     const editProfileBody = {
       name: nextHasNameChange ? nextName : null,
       avatarId: null as string | null,
+      ...(removeAvatar ? { removeAvatar: true } : {}),
       ...(nextHasBioChange ? { bio: nextBio || null } : {}),
       ...(nextHasLinkChange ? { profileLink: nextLink } : {}),
     } as {
       name: string | null;
       avatarId: string | null;
+      removeAvatar?: boolean;
       bio?: string | null;
       profileLink?: string | null;
       bannerId?: string | null;
@@ -244,7 +266,7 @@ const EditProfileClient = () => {
       const nextProfile = {
         ...user,
         name: nextHasNameChange ? nextName : user.name,
-        avatar: editProfileBody.avatarId ?? user.avatar,
+        avatar: editProfileBody.avatarId ?? (removeAvatar ? null : user.avatar),
         ...(nextHasBioChange ? { bio: nextBio || null } : {}),
         ...(nextHasLinkChange ? { profileLink: nextLink } : {}),
         ...("bannerId" in editProfileBody ? { profileBanner: editProfileBody.bannerId ?? null } : {}),
@@ -276,13 +298,13 @@ const EditProfileClient = () => {
     return <LoadingBlock height={320} />;
   }
 
-  const previewSrc = localAvatarUrl || (user.avatar ? makeImageUrl(user.avatar, "avatar") : "");
+  const previewSrc = localAvatarUrl || (user.avatar && !avatarRemoved ? makeImageUrl(user.avatar, "avatar") : "");
   const bannerSrc = localBannerUrl || (!bannerRemoved && currentBanner ? makeImageUrl(currentBanner, "public") : "");
 
   return (
     <form onSubmit={onSubmit} className="bg-app-bg">
-      {/* 커버(v5): 전체 폭 3:1, 오른쪽 위 '커버 변경'·'커버 삭제' 칩(아래는 아바타가 40 겹쳐 좁은 폭에서 칩을 가린다) */}
-      <div className="relative aspect-[3/1] w-full overflow-hidden bg-app-surface">
+      {/* 커버(v5): 전체 폭 2:1, 오른쪽 위 '커버 변경'·'커버 삭제' 칩(아래는 아바타가 40 겹쳐 좁은 폭에서 칩을 가린다) */}
+      <div className="relative aspect-[2/1] w-full overflow-hidden bg-app-surface">
         {bannerSrc ? (
           // eslint-disable-next-line @next/next/no-img-element
           <img src={bannerSrc} alt="커버 사진" className="h-full w-full object-cover" />
@@ -375,6 +397,19 @@ const EditProfileClient = () => {
             />
           </div>
         </div>
+        {/* 사진이 있을 때만: 지우고 기본 이미지로(2026-10-11 — 카카오 사진을 강제로 넣지 말라는 피드백) */}
+        {previewSrc ? (
+          <div className="mt-2 flex justify-center">
+            <button
+              type="button"
+              disabled={isLoading}
+              onClick={onAvatarRemove}
+              className="h-8 px-2 text-[13px] text-app-muted underline underline-offset-2"
+            >
+              기본 이미지로
+            </button>
+          </div>
+        ) : null}
 
         {/* 닉네임 */}
         <div className="mt-8">
