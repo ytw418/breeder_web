@@ -4,6 +4,7 @@
  * 진행 중 경매(마감 임박순) → 판매중·예약중 상품(최신순) 카드 132px. 남은 게 있으면 끝에 '+N 전체 보기' 칸.
  * 비었거나 못 받았으면 아무것도 그리지 않는다(본인 빈 상태는 완성 카드 '첫 분양 글'이 맡는다).
  */
+import { HorizontalRail } from "@components/ui/HorizontalRail";
 import Link from "next/link";
 import useSWR from "swr";
 import Image from "@components/atoms/Image";
@@ -105,7 +106,7 @@ export default function OnSaleRail({
           전체 보기 ›
         </button>
       </div>
-      <div className="app-rail flex scroll-px-4 gap-2.5 px-4">
+      <HorizontalRail label="지금 분양 중" className="snap-x snap-mandatory scroll-px-4 gap-2.5 px-4">
         {data.items.map((item) => (
           <OnSaleCard key={`${item.kind}-${item.id}`} item={item} />
         ))}
@@ -119,7 +120,7 @@ export default function OnSaleRail({
             <span className="mt-0.5 text-[12px] text-app-muted">전체 보기</span>
           </button>
         ) : null}
-      </div>
+      </HorizontalRail>
     </section>
   );
 }

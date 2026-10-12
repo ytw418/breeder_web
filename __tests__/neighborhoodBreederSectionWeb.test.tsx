@@ -50,6 +50,11 @@ describe("홈 우리 동네 브리더(강조, community-vibe §3.6)", () => {
     render(<NeighborhoodBreederSectionView state={state} />);
     expect(screen.getByTestId("neighborhood-location-chip")).toHaveTextContent("서울 근처 50km");
     expect(screen.getByTestId("neighborhood-location-chip")).toHaveAttribute("href", "/settings/region");
+    expect(screen.getByRole("link", { name: /전체 보기/ })).toHaveAttribute("href", "/neighborhood/breeders");
+    // 위치 칩은 부제 줄 오른쪽에 있다.
+    expect(screen.getByTestId("neighborhood-location-chip").parentElement).toContainElement(
+      screen.getByTestId("neighborhood-subtitle")
+    );
     expect(screen.getByTestId("neighborhood-subtitle")).toHaveTextContent("서울 근처 브리더 12명 · 이번 주 인사 글 3개");
     expect(screen.getByText("같은 동네")).toBeInTheDocument();
     expect(screen.getByText("광명시 · 6km")).toBeInTheDocument();
@@ -85,8 +90,9 @@ describe("홈 우리 동네 브리더(강조, community-vibe §3.6)", () => {
     expect(screen.getByTestId("neighborhood-location-chip")).toHaveTextContent("보은군 근처 50km");
   });
 
-  it("unset: 비로그인은 로그인으로, hidden 이면 아무것도 없다", () => {
+  it("unset: 비로그인은 로그인으로(전체 보기 없음), hidden 이면 아무것도 없다", () => {
     const { unmount } = render(<NeighborhoodBreederSectionView state={{ kind: "unset", loggedIn: false }} />);
+    expect(screen.queryByTestId("neighborhood-see-all")).toBeNull();
     expect(screen.getByRole("link", { name: "내 동네 설정" })).toHaveAttribute(
       "href",
       // 로그인을 거쳐 내 동네를 정하면 '완료' 뒤 홈으로 돌아온다(from).

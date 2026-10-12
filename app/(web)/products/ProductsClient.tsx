@@ -1,5 +1,6 @@
 "use client";
 
+import { useRailScroll } from "@components/ui/HorizontalRail";
 import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
@@ -69,6 +70,7 @@ export default function ProductsClient({ initialParams }: { initialParams: Produ
   }, [filters, pathname, router]);
   const [priceSheetOpen, setPriceSheetOpen] = useState(false);
   const categoryRailRef = useRef<HTMLDivElement>(null);
+  useRailScroll(categoryRailRef);
   const sentinelRef = useRef<HTMLDivElement>(null);
   const { blockedIds } = useBlocks();
 

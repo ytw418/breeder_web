@@ -15,6 +15,8 @@ import { toLoginHref } from "@components/features/MainLayout";
 import FollowButton from "@components/features/profile/FollowButton";
 import { regionSettingsHref } from "@components/features/region/regionHref";
 import { InitialAvatar } from "@components/ui/InitialAvatar";
+import { HorizontalRail } from "@components/ui/HorizontalRail";
+import type { ReactNode } from "react";
 import { cn } from "@libs/client/utils";
 import { NEIGHBOR_RADIUS_KM, type NeighborhoodVisitors } from "@libs/shared/communityVibe";
 import { REGION_POST_CATEGORY } from "@libs/shared/postCategory";
@@ -27,6 +29,7 @@ const RETURN_PATH = "/";
 const NEARBY_KEY = `/api/users/nearby?limit=${HOME_NEARBY_LIMIT}`;
 const VISITORS_KEY = "/api/neighborhood/visitors";
 const REGION_SETTINGS = "/settings/region";
+export const NEIGHBORHOOD_ALL_HREF = "/neighborhood/breeders";
 export const LOUNGE_HREF = `/posts?category=${encodeURIComponent(REGION_POST_CATEGORY)}`;
 export const GREET_HREF = `/posts/upload?category=${encodeURIComponent(REGION_POST_CATEGORY)}`;
 
@@ -174,22 +177,57 @@ const BUTTON = "flex h-11 flex-1 items-center justify-center gap-1.5 rounded-lg 
 const SOFT = "bg-app-surface text-app-text";
 const DARK = "bg-app-inverse text-app-inverse-text";
 
-function SectionTitle({ label }: { label: string | null }) {
+const CHEVRON = (
+  <svg width={14} height={14} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} aria-hidden="true">
+    <path d="m9 6 6 6-6 6" />
+  </svg>
+);
+
+/** 제목 + 오른쪽 '전체 보기 ›'(동네가 정해졌을 때만). '지금 올라온 분양'과 같은 모양. */
+function SectionTitle({ showAll }: { showAll: boolean }) {
   return (
     <div className="flex items-end justify-between gap-3 px-4">
       <h2 className="app-t-section">우리 동네 브리더</h2>
-      {label ? (
+      {showAll ? (
         <Link
-          href={REGION_SETTINGS}
-          aria-label={`동네 범위 ${labelBase(label)} 근처 ${NEIGHBOR_RADIUS_KM}km, 바꾸기`}
-          className="flex shrink-0 items-center gap-1 text-[13px] text-app-muted"
-          data-testid="neighborhood-location-chip"
+          href={NEIGHBORHOOD_ALL_HREF}
+          className="flex shrink-0 items-center gap-0.5 text-[13px] text-app-muted"
+          data-testid="neighborhood-see-all"
         >
-          <span className="text-app-text">{PIN}</span>
-          <b className="font-semibold text-app-text">{labelBase(label)}</b> 근처 {NEIGHBOR_RADIUS_KM}km ⌄
+          전체 보기
+          {CHEVRON}
         </Link>
       ) : null}
     </div>
+  );
+}
+
+/** 부제 줄: 왼쪽 부제(있으면) + 오른쪽 위치 칩 "{서울} 근처 50km ⌄"(누르면 동네 설정). */
+function SubtitleRow({ label, children }: { label: string; children?: ReactNode }) {
+  return (
+    <div className="mt-1 flex items-center justify-between gap-3 px-4">
+      <p className="app-t-meta min-w-0 truncate" data-testid="neighborhood-subtitle">
+        {children}
+      </p>
+      <Link
+        href={REGION_SETTINGS}
+        aria-label={`동네 범위 ${labelBase(label)} 근처 ${NEIGHBOR_RADIUS_KM}km, 바꾸기`}
+        className="flex shrink-0 items-center gap-1 text-[13px] text-app-muted"
+        data-testid="neighborhood-location-chip"
+      >
+        <span className="text-app-text">{PIN}</span>
+        <b className="font-semibold text-app-text">{labelBase(label)}</b> 근처 {NEIGHBOR_RADIUS_KM}km ⌄
+      </Link>
+    </div>
+  );
+}
+
+/** 카드 가로 레일(터치 스와이프 + 마우스 끌기). */
+function NeighborRail({ children }: { children: ReactNode }) {
+  return (
+    <HorizontalRail label="우리 동네 브리더 목록" className="mt-3 gap-2 px-4" data-testid="neighborhood-rail">
+      {children}
+    </HorizontalRail>
   );
 }
 
@@ -217,7 +255,8 @@ export function NeighborhoodBreederSectionView({ state }: { state: HomeNeighborh
 
   return (
     <section className="px-0 pt-6" aria-label="우리 동네 브리더" data-home-section="neighborhood_breeders">
-      <SectionTitle label={label} />
+      <SectionTitle showAll={Boolean(label)} />
+      {state.kind === "none" ? <SubtitleRow label={state.label} /> : null}
 
       {state.kind === "loading" ? (
         <div className="mt-3 flex gap-2 overflow-hidden px-4" aria-hidden="true">
@@ -261,12 +300,12 @@ export function NeighborhoodBreederSectionView({ state }: { state: HomeNeighborh
 
       {state.kind === "near" ? (
         <>
-          <p className="app-t-meta mb-3 mt-1 px-4" data-testid="neighborhood-subtitle">
+          <SubtitleRow label={state.label}>
             {labelBase(state.label)} 근처 브리더{" "}
             <em className="font-semibold not-italic text-app-brand">{state.total}명</em>
             {state.greetingCount > 0 ? ` · 이번 주 인사 글 ${state.greetingCount}개` : null}
-          </p>
-          <div className="flex gap-2 overflow-x-auto px-4 scrollbar-hide">
+          </SubtitleRow>
+          <NeighborRail>
             {state.items.map((card) => (
               <NeighborCardView key={card.id} card={card} />
             ))}
@@ -284,7 +323,7 @@ export function NeighborhoodBreederSectionView({ state }: { state: HomeNeighborh
                 </Link>
               </div>
             ) : null}
-          </div>
+          </NeighborRail>
           <div className="mt-3 flex gap-2 px-4">
             <Link href={LOUNGE_HREF} className={cn(BUTTON, SOFT)}>
               {BUBBLE}

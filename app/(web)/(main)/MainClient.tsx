@@ -1,5 +1,6 @@
 "use client";
 
+import { useRailScroll } from "@components/ui/HorizontalRail";
 import { UIEvent, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import useSWR from "swr";
@@ -261,6 +262,7 @@ const MainClient = ({
     useState<BeforeInstallPromptEvent | null>(null);
   const [installLoading, setInstallLoading] = useState(false);
   const bannerRef = useRef<HTMLDivElement>(null);
+  useRailScroll(bannerRef);
   const sentinelRef = useRef<HTMLDivElement>(null);
   const homeRootRef = useRef<HTMLDivElement>(null);
 

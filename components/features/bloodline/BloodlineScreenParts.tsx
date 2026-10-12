@@ -121,9 +121,12 @@ export function BloodlineHeader({
   title,
   searchHref,
   right,
+  showHome = false,
 }: {
   title: string;
   searchHref?: string;
+  /** 상세 화면: 오른쪽 맨 앞에 홈 아이콘(누르면 /). */
+  showHome?: boolean;
   /** 오른쪽 끝 슬롯(상세 공유 아이콘 등) */
   right?: ReactNode;
 }) {
@@ -136,6 +139,13 @@ export function BloodlineHeader({
       <h1 className="ml-1 min-w-0 flex-1 truncate text-[18px] font-bold tracking-[-0.3px] text-app-text">
         {title}
       </h1>
+      {showHome ? (
+        <Link href="/" aria-label="홈으로 가기" className={headerIconClass}>
+          <svg width={24} height={24} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.5} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+            <path d="M3 11 12 3l9 8v10h-6v-6H9v6H3z" />
+          </svg>
+        </Link>
+      ) : null}
       {searchHref ? (
         <Link href={searchHref} aria-label="검색" className={headerIconClass}>
           <SearchIcon />

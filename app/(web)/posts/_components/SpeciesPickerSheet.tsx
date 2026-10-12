@@ -1,5 +1,6 @@
 "use client";
 
+import { HorizontalRail } from "@components/ui/HorizontalRail";
 import { useMemo, useState } from "react";
 import useSWR from "swr";
 
@@ -178,7 +179,7 @@ function SpeciesPickerBody({
 
   return (
     <>
-      <div className="flex h-11 items-center gap-1.5 overflow-x-auto px-4 scrollbar-hide">
+      <HorizontalRail className="h-11 items-center gap-1.5 px-4">
         {hasSuggested ? (
           <button
             type="button"
@@ -198,7 +199,7 @@ function SpeciesPickerBody({
             </button>
           );
         })}
-      </div>
+      </HorizontalRail>
       <div className="mx-4 h-px bg-app-line" />
       <ul className="pb-2 pt-1">
         {rows.map((row) => {
