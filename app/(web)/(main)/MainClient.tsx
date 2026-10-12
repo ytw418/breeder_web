@@ -684,7 +684,7 @@ const MainClient = ({
                   })
                 }
                 className={cn(
-                  "app-card-interactive relative flex min-h-[132px] w-[calc(100vw-32px)] max-w-[calc(36rem-32px)] shrink-0 snap-start flex-col justify-between overflow-hidden rounded-2xl bg-app-brand px-4 py-4 text-white shadow-none",
+                  "app-card-interactive relative flex min-h-[132px] w-[calc(100vw-32px)] max-w-[calc(36rem-32px)] shrink-0 snap-start flex-col justify-between overflow-hidden rounded-2xl border border-white/20 bg-gradient-to-br from-emerald-500 to-teal-500 px-4 py-4 text-white shadow-none",
                   banner.bgClass
                 )}
               >
