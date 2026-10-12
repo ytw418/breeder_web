@@ -191,7 +191,7 @@ const AuctionDetailClient = () => {
   const params = useParams();
   const router = useRouter();
   const pathname = usePathname();
-  const { user } = useUser();
+  const { user, canEditAnyContent } = useUser();
   const auctionId = params?.id ? extractAuctionIdFromPath(params.id) : Number.NaN;
   const canLoadAuction = Number.isFinite(auctionId);
   const isToolRoute = Boolean(pathname?.startsWith("/tool"));
@@ -257,6 +257,8 @@ const AuctionDetailClient = () => {
   const selectedBidAmount = bidInput && bidInput > 0 ? bidInput : minimumBid;
   const isOwner = Boolean(data?.isOwner);
   const canEdit = Boolean(data?.canEdit);
+  // 운영자 이메일 계정은 남의 경매도 수정한다(canEdit 은 서버가 운영자 기준으로 계산).
+  const canManage = isOwner || canEditAnyContent;
   const isTopBidder = Boolean(
     auction?.status === "진행중" && user?.id && auction?.bids?.[0]?.userId === user.id
   );
@@ -619,7 +621,7 @@ const AuctionDetailClient = () => {
           ) : null}
 
           <div className="mt-0.5 flex flex-wrap gap-2">
-            {isOwner && canEdit && !isToolRoute ? (
+            {canManage && canEdit && !isToolRoute ? (
               <Link href={`${auctionPath}/edit`} className={ACTION_BUTTON_CLASS}>
                 <Icon name="pencil" size={14} />
                 경매 수정하기
@@ -629,7 +631,7 @@ const AuctionDetailClient = () => {
             <ActionButton icon="send" label="공유하기" onClick={() => void shareAuction()} />
           </div>
 
-          {isOwner && !canEdit ? (
+          {canManage && !canEdit ? (
             <p className="text-[13px] text-app-muted">
               진행중 상태에서 등록 후 10분 이내, 입찰이 없을 때만 수정할 수 있습니다.
             </p>

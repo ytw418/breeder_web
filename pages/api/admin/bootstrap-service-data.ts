@@ -211,7 +211,7 @@ async function handler(req: NextApiRequest, res: NextApiResponse<ResponseType>) 
     return res.status(403).json({
       success: false,
       error:
-        "데이터 생성은 지정된 운영 계정(ytw418@naver.com, ytw418@gmail.com)에서만 가능합니다.",
+        "데이터 생성은 지정된 운영 계정(아이디가 ytw418 로 시작하는 이메일)에서만 가능합니다.",
     });
   }
 

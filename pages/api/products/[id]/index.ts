@@ -2,7 +2,7 @@ import { NextApiRequest, NextApiResponse } from "next";
 import withHandler, { ResponseType } from "@libs/server/withHandler";
 import client from "@libs/server/client";
 import { withAuth } from "@libs/server/auth";
-import { isModeratorUser } from "@libs/server/adminAccess";
+import { canEditAnyContent, isModeratorUser } from "@libs/server/adminAccess";
 import { Product, User } from "@prisma/client";
 import {
   PRODUCT_BLOODLINE_FORBIDDEN_MESSAGE,
@@ -242,8 +242,8 @@ async function handler(
         break;
     }
 
-    // 판매자 전용 액션
-    if (product.user.id !== user?.id) {
+    // 판매자 전용 액션(운영자 이메일 계정은 남의 분양글도 수정·삭제)
+    if (!user || (product.user.id !== user.id && !canEditAnyContent(user))) {
       return res.status(403).json({ success: false, message: "권한이 없습니다." });
     }
 

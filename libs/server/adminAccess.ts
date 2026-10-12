@@ -1,14 +1,20 @@
 import type { role } from "@prisma/client";
 import client from "@libs/server/client";
+import { isAdminEmail } from "@libs/shared/adminEmail";
 
-const ADMIN_EMAIL_ALLOWLIST = new Set([
-  "ytw418@naver.com",
-  "ytw418@gmail.com",
-]);
+/** 운영자 이메일: 아이디(@ 앞)가 `ytw418` 로 시작하면 운영자다(2026-10-12 사용자 결정). 규칙은 libs/shared/adminEmail.ts. */
+export function isWhitelistedAdminEmail(email?: string | null) {
+  return isAdminEmail(email);
+}
 
-function isWhitelistedAdminEmail(email?: string | null) {
-  if (!email) return false;
-  return ADMIN_EMAIL_ALLOWLIST.has(email.trim().toLowerCase());
+/**
+ * 운영자 이메일 계정은 남의 게시글·댓글·분양글·경매도 본인 것처럼 수정·삭제할 수 있다(2026-10-12 사용자 결정, 앱·웹 같음).
+ * role 만 ADMIN 인 계정은 숨기기·삭제(moderation)만 되고 여기에 들지 않는다.
+ */
+export function canEditAnyContent(
+  user?: { email?: string | null } | null
+) {
+  return isWhitelistedAdminEmail(user?.email);
 }
 
 export function canRunSensitiveAdminAction(email?: string | null) {

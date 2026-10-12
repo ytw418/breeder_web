@@ -13,7 +13,7 @@ import { resolvePostImagesInput, withPostImages } from "@libs/postImages";
 import { validatePostDescription } from "@libs/shared/post-body";
 import { canWriteNoticePost, isNoticePostInput } from "@libs/server/postNotice";
 import { commentVisibilityWhere } from "@libs/server/comments";
-import { isModeratorUser } from "@libs/server/adminAccess";
+import { canEditAnyContent, isModeratorUser } from "@libs/server/adminAccess";
 import { Prisma, type Post } from "@prisma/client";
 import { resolveCategoryIdByName } from "@libs/server/categories";
 import { DELETED_COMMENT_TEXT } from "@libs/shared/comment";
@@ -140,8 +140,9 @@ async function mutatePost(
   const { action } = req.body ?? {};
 
   // 관리자는 남의 글을 고칠 수만 있다. 삭제는 사유를 남기는 관리자 숨김·삭제(/api/admin/moderation)로 한다.
+  // 운영자 이메일(ytw418…) 계정은 남의 글도 본인 글처럼 수정·삭제한다(canEditAnyContent).
   const canEditAsAdmin = action === "update" && isModeratorUser(user);
-  if (post.userId !== user.id && !canEditAsAdmin) {
+  if (post.userId !== user.id && !canEditAnyContent(user) && !canEditAsAdmin) {
     return sendPostError(
       res,
       403,

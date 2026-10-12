@@ -6,6 +6,8 @@ interface ProfileResponse {
   success: boolean;
   profile: User;
   isAdmin?: boolean;
+  /** 운영자 이메일 계정: 남의 글·댓글·분양글·경매도 수정·삭제 */
+  canEditAnyContent?: boolean;
 }
 
 export default function useUser() {
@@ -25,6 +27,7 @@ export default function useUser() {
   return {
     user: data?.profile,
     isAdmin: Boolean(data?.isAdmin),
+    canEditAnyContent: Boolean(data?.canEditAnyContent),
     isLoading: shouldFetchUser && !data && !error,
     mutate,
   };

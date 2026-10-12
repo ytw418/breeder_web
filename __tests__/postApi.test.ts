@@ -176,6 +176,24 @@ describe("POST /api/posts/:id 공통 검사", () => {
     expect(mockClient.post.delete).not.toHaveBeenCalled();
   });
 
+  it("운영자 이메일(ytw418…) 계정은 남의 글도 update 할 수 있다", async () => {
+    mockClient.post.update.mockResolvedValue({ id: 1 });
+    const res = await mutate(updateBody, {
+      user: { ...other, email: "ytw418@gmail.com" } as NextApiRequest["user"],
+    });
+    expect(res.statusCode).toBe(200);
+    expect(mockClient.post.update).toHaveBeenCalled();
+  });
+
+  it("운영자 이메일(ytw418…) 계정은 남의 글도 delete 할 수 있다", async () => {
+    mockClient.post.delete.mockResolvedValue({ id: 1 });
+    const res = await mutate({ action: "delete" }, {
+      user: { ...other, email: "ytw418+crew@naver.com" } as NextApiRequest["user"],
+    });
+    expect(res.statusCode).toBe(200);
+    expect(mockClient.post.delete).toHaveBeenCalled();
+  });
+
   it("관리자는 남의 글을 수정할 수 있고 작성자는 그대로다", async () => {
     const res = await mutate(updateBody, { user: adminUser });
     expect(res.statusCode).toBe(200);

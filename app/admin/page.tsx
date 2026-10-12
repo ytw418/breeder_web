@@ -8,6 +8,7 @@ import { Textarea } from "@components/ui/textarea";
 import useUser from "hooks/useUser";
 import useSWR from "swr";
 import { authFetch } from "@libs/client/authFetch";
+import { isAdminEmail } from "@libs/shared/adminEmail";
 import { setTokens } from "@libs/client/authToken";
 
 type CountStat = {
@@ -174,11 +175,6 @@ const ADMIN_TABS = [
   { id: "notice", label: "공지사항 등록" },
 ] as const;
 
-const SENSITIVE_ACTION_ALLOWED_EMAILS = [
-  "ytw418@naver.com",
-  "ytw418@gmail.com",
-] as const;
-
 export default function AdminDashboardPage() {
   const { user } = useUser();
   const [activeTab, setActiveTab] = useState<(typeof ADMIN_TABS)[number]["id"]>(
@@ -219,14 +215,7 @@ export default function AdminDashboardPage() {
     [adminUsersData?.users]
   );
 
-  const normalizedUserEmail = String(user?.email || "")
-    .trim()
-    .toLowerCase();
-  const canRunSensitiveAdminActions =
-    normalizedUserEmail !== "" &&
-    SENSITIVE_ACTION_ALLOWED_EMAILS.includes(
-      normalizedUserEmail as (typeof SENSITIVE_ACTION_ALLOWED_EMAILS)[number]
-    );
+  const canRunSensitiveAdminActions = isAdminEmail(user?.email);
 
   const handleBootstrapServiceData = async () => {
     if (!canRunSensitiveAdminActions) {
@@ -520,10 +509,10 @@ export default function AdminDashboardPage() {
                   버튼을 누를 때마다 신규 데이터가 누적 추가됩니다.
                 </p>
                 <p className="mt-1 text-xs text-gray-500">
-                  허용 계정: ytw418@naver.com, ytw418@gmail.com
+                  허용 계정: 아이디가 ytw418 로 시작하는 이메일
                 </p>
                 <p className="mt-1 text-xs text-gray-500">
-                  현재 로그인: {normalizedUserEmail || "확인 불가"}
+                  현재 로그인: {user?.email || "확인 불가"}
                 </p>
                 <Button
                   type="button"
