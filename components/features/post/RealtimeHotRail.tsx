@@ -49,8 +49,9 @@ export function realtimeHotMeta(item: RealtimeHotItem, now?: number) {
 }
 
 /**
- * 반려생활 '실시간 TOP 토론' 가로 레일(시안 community-vibe .hot/.hc).
- * 카드 240, app-gap 채움 r12 p12, 순위 숫자 주황 16/700, 제목 2줄 14/600, 메타 12, 썸네일 48 r8.
+ * 반려생활 '실시간 TOP 토론' 가로 레일(2026-10-12 사용자 "섹션이 너무 작다, 이미지를 크게, 내용은 밑에" — 앱과 같다).
+ * 카드 200, 위에 사진 200×150(r12, 순위 뱃지 겹침), 아래 제목 2줄 15/600 + 메타 한 줄 12.
+ * 사진이 없는 글은 같은 자리에 brand-soft 채움 + 제목 17/700 4줄(글 카드), 아래엔 메타만.
  */
 export default function RealtimeHotRail({
   items,
@@ -60,7 +61,7 @@ export default function RealtimeHotRail({
   onOpen?: (item: RealtimeHotItem, index: number) => void;
 }) {
   return (
-    <HorizontalRail label="실시간 TOP 토론" className="gap-2 px-4" data-testid="realtime-hot-rail">
+    <HorizontalRail label="실시간 TOP 토론" className="items-start gap-2.5 px-4" data-testid="realtime-hot-rail">
       {items.map((item, index) => {
         const meta = realtimeHotMeta(item);
         return (
@@ -68,32 +69,40 @@ export default function RealtimeHotRail({
             key={item.id}
             href={toPostPath(item.id, item.title)}
             onClick={() => onOpen?.(item, index)}
-            className="flex w-[240px] shrink-0 gap-2.5 rounded-xl bg-app-gap p-3 transition-transform active:scale-[0.98]"
+            className="block w-[200px] shrink-0 transition-transform active:scale-[0.98]"
           >
-            <span className="w-5 shrink-0 text-[16px] font-bold leading-[22px] text-app-brand tabular-nums">
-              {index + 1}
-            </span>
-            <span className="min-w-0 flex-1">
-              <span className="line-clamp-2 break-keep text-[14px] font-semibold leading-5 text-app-text">
-                {item.title}
-              </span>
-              <span className="mt-1 block truncate text-[12px] leading-4 text-app-muted">
-                {meta.time ? <b className="font-semibold text-app-brand">{meta.time}</b> : null}
-                {meta.time ? " " : null}
-                {meta.rest}
-              </span>
-            </span>
-            {item.image ? (
-              <span className="h-12 w-12 shrink-0 overflow-hidden rounded-lg bg-app-placeholder">
+            <span
+              className={`relative block h-[150px] w-[200px] overflow-hidden rounded-xl ${
+                item.image ? "bg-app-surface" : "bg-app-brand-soft"
+              }`}
+            >
+              {item.image ? (
                 <Image
                   src={makeImageUrl(item.image, "public")}
                   alt=""
-                  width={48}
-                  height={48}
+                  width={200}
+                  height={150}
                   className="h-full w-full object-cover"
                 />
+              ) : (
+                <span className="line-clamp-4 break-keep px-3.5 pt-11 text-[17px] font-bold leading-6 text-app-text">
+                  {item.title}
+                </span>
+              )}
+              <span className="absolute left-2 top-2 flex h-[26px] min-w-[26px] items-center justify-center rounded-full bg-app-brand px-1.5 text-[14px] font-bold leading-[18px] text-white tabular-nums">
+                {index + 1}
+              </span>
+            </span>
+            {item.image ? (
+              <span className="mt-2 line-clamp-2 break-keep text-[15px] font-semibold leading-[21px] text-app-text">
+                {item.title}
               </span>
             ) : null}
+            <span className={`${item.image ? "mt-1" : "mt-2"} block truncate text-[12px] leading-4 text-app-muted`}>
+              {meta.time ? <b className="font-semibold text-app-brand">{meta.time}</b> : null}
+              {meta.time ? " " : null}
+              {meta.rest}
+            </span>
           </Link>
         );
       })}
@@ -103,9 +112,13 @@ export default function RealtimeHotRail({
 
 export function RealtimeHotRailSkeleton() {
   return (
-    <div className="flex gap-2 overflow-hidden px-4">
+    <div className="flex gap-2.5 overflow-hidden px-4">
       {[0, 1].map((i) => (
-        <div key={i} className="h-[84px] w-[240px] shrink-0 animate-pulse rounded-xl bg-app-gap" />
+        <div key={i} className="w-[200px] shrink-0">
+          <div className="h-[150px] w-[200px] animate-pulse rounded-xl bg-app-placeholder" />
+          <div className="mt-2 h-[15px] w-[90%] animate-pulse rounded bg-app-placeholder" />
+          <div className="mt-1.5 h-3 w-[60%] animate-pulse rounded bg-app-placeholder" />
+        </div>
       ))}
     </div>
   );
