@@ -3,6 +3,7 @@ import {
   AUCTION_PHOTOS_MAX,
   AUCTION_PHOTOS_MIN,
 } from "@libs/auctionRules";
+import { AUCTION_RESTART_ERROR_MESSAGES } from "@libs/shared/auctionRestart";
 import {
   PEDIGREE_NOTE_INVALID_MESSAGE,
   PEDIGREE_WITHOUT_BLOODLINE_MESSAGE,
@@ -56,6 +57,8 @@ const AUCTION_ERROR_MESSAGES: Record<string, string> = {
   AUCTION_BLOODLINE_FORBIDDEN: "내가 보유했거나 출처 카드를 받은 혈통만 연결할 수 있어요",
   AUCTION_INVALID_PEDIGREE_NOTE: PEDIGREE_NOTE_INVALID_MESSAGE,
   AUCTION_PEDIGREE_WITHOUT_BLOODLINE: PEDIGREE_WITHOUT_BLOODLINE_MESSAGE,
+  // 경매 다시 시작·이전 낙찰자 입찰 막기(libs/shared/auctionRestart.ts)
+  ...AUCTION_RESTART_ERROR_MESSAGES,
 };
 
 export const getAuctionErrorMessage = (

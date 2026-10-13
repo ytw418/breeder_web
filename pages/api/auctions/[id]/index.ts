@@ -42,6 +42,11 @@ import type { AuctionBloodlineLinkSummary } from "@libs/shared/bloodline-card";
 import { resolveCategoryIdByName } from "@libs/server/categories";
 import { setViewerCacheHeader } from "@libs/server/blocks";
 import {
+  getAuctionRestartState,
+  type AuctionPreviousRound,
+  type AuctionRestartState,
+} from "@libs/shared/auctionRestart";
+import {
   keepStoredContactWhenMasked,
   maskEmail,
   maskPhone,
@@ -75,6 +80,12 @@ export interface AuctionDetailResponse {
   isOwner?: boolean;
   canEdit?: boolean;
   editAvailableUntil?: string;
+  /** 분양자·운영자에게만: 경매 다시 시작 가능 여부(libs/shared/auctionRestart.ts). 그 밖엔 null. */
+  restart?: AuctionRestartState | null;
+  /** 낙찰을 취소하고 다시 시작한 경매의 이전 낙찰자면 true(입찰 불가). */
+  viewerBlocked?: boolean;
+  /** 다시 시작하기 전 회차들(오래된 순). 사유는 분양자·운영자에게만 싣는다. */
+  previousRounds?: AuctionPreviousRound[];
 }
 
 async function handler(
@@ -113,14 +124,16 @@ async function handler(
             },
           },
         },
+        // 입찰 내역·입찰 수는 이번 회차만. 다시 시작한 경매의 지난 회차 입찰은 archivedAt 이 있다.
         bids: {
+          where: { archivedAt: null },
           include: {
             user: { select: { id: true, name: true, avatar: true } },
           },
           orderBy: { amount: "desc" },
           take: 20,
         },
-        _count: { select: { bids: true } },
+        _count: { select: { bids: { where: { archivedAt: null } } } },
       },
     });
 
@@ -141,12 +154,32 @@ async function handler(
         errorCode: "AUCTION_HIDDEN",
       });
     }
+    const canManage = Boolean(isOwner) || canEditAnyContent(user);
     const canEdit = canEditAuction({
-      isOwner: Boolean(isOwner) || canEditAnyContent(user),
+      isOwner: canManage,
       createdAt: auction.createdAt,
       status: auction.status,
       bidCount: auction._count.bids,
     });
+    // 다시 시작한 적이 있는 경매만 기록을 읽는다(이전 낙찰자 입찰 막기·지난 경매 요약).
+    const restarts =
+      auction.round > 1
+        ? await client.auctionRestart.findMany({
+            where: { auctionId },
+            orderBy: { round: "asc" },
+          })
+        : [];
+    const previousRounds: AuctionPreviousRound[] = restarts.map((restart) => ({
+      round: restart.round,
+      status: restart.previousStatus,
+      endedAt: restart.previousEndAt.toISOString(),
+      finalPrice: restart.previousPrice,
+      bidCount: restart.previousBidCount,
+      reason: canManage ? restart.reason : null,
+    }));
+    const viewerBlocked = Boolean(
+      user?.id && restarts.some((restart) => restart.previousWinnerId === user.id)
+    );
 
     // 연결한 혈통 요약(판매자 관계 포함, 뷰어와 무관). 판매자에게는 종료 경매의 낙찰자 보내기 제안용으로
     // 낙찰자가 이미 그 혈통의 출처 카드(또는 혈통 자체)를 가졌는지도 알려 준다.
@@ -193,6 +226,9 @@ async function handler(
       isOwner,
       canEdit,
       editAvailableUntil: getAuctionEditDeadline(auction.createdAt).toISOString(),
+      restart: canManage ? getAuctionRestartState(auction) : null,
+      viewerBlocked,
+      previousRounds,
     });
   }
 

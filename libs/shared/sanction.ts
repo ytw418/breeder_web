@@ -98,6 +98,8 @@ export const REPORT_REASON_TO_SANCTION_REASON: Record<string, SanctionReasonCode
   "허위 매물 의심": "FRAUD", // 옛 문구(저장된 신고·구 앱)
   "입찰 방해/분쟁 유도": "TRADE_ABUSE",
   "비정상 가격 유도": "TRADE_ABUSE",
+  // 분양자가 낙찰된 경매를 다시 시작하며 자동 접수(libs/shared/auctionRestart.ts AUCTION_NO_SHOW_REPORT_REASON)
+  "낙찰 후 노쇼": "TRADE_ABUSE",
   "욕설/부적절 내용": "ABUSE",
   기타: "OTHER",
 };

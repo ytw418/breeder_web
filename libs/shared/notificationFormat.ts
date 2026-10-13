@@ -73,6 +73,7 @@ const KINDS: Record<string, NotificationKind> = {
   OUTBID: { label: "경매", icon: "hammer", fromPerson: false },
   AUCTION_WON: { label: "낙찰", icon: "trophy", fromPerson: false },
   AUCTION_END: { label: "경매 종료", icon: "hammer", fromPerson: false },
+  AUCTION_RESTARTED: { label: "경매 다시 시작", icon: "hammer", fromPerson: true },
   AUCTION_RECORD_BROKEN: { label: "최고가 기록", icon: "trophy", fromPerson: false },
   NEW_RECORD: { label: "브리디북", icon: "trophy", fromPerson: false },
   BREEDER_RANK_DROP: { label: "랭킹", icon: "chart", fromPerson: false },

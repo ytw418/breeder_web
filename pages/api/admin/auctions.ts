@@ -28,6 +28,8 @@ export interface AdminAuctionsResponse {
 }
 
 const ALLOWED_STATUS = new Set(["진행중", "종료", "유찰", "취소"]);
+/** 마감이 지난 경매를 '진행중 복귀'할 때 새 마감까지의 시간. */
+const ADMIN_REOPEN_EXTENSION_MS = 24 * 60 * 60 * 1000;
 
 async function handler(req: NextApiRequest, res: NextApiResponse<ResponseType>) {
   const {
@@ -59,11 +61,12 @@ async function handler(req: NextApiRequest, res: NextApiResponse<ResponseType>) 
         include: {
           user: { select: { id: true, name: true, email: true } },
           bids: {
+            where: { archivedAt: null },
             orderBy: { amount: "desc" },
             take: 1,
             include: { user: { select: { id: true, name: true } } },
           },
-          _count: { select: { bids: true } },
+          _count: { select: { bids: { where: { archivedAt: null } } } },
         },
         orderBy: { createdAt: "desc" },
         take: Number(limit),
@@ -130,6 +133,7 @@ async function handler(req: NextApiRequest, res: NextApiResponse<ResponseType>) 
         where: { id: auctionId },
         include: {
           bids: {
+            where: { archivedAt: null },
             orderBy: { amount: "desc" },
             take: 1,
           },
@@ -142,12 +146,18 @@ async function handler(req: NextApiRequest, res: NextApiResponse<ResponseType>) 
       const nextStatus = String(status);
       const topBid = auction.bids[0];
       const winnerId = nextStatus === "종료" ? topBid?.userId ?? null : null;
+      // '진행중 복귀'인데 마감 시각이 이미 지났으면 다음 조회 때 바로 다시 정산(유찰·종료)되므로 24시간 연장한다.
+      const reopenEndAt =
+        nextStatus === "진행중" && new Date(auction.endAt).getTime() <= Date.now()
+          ? new Date(Date.now() + ADMIN_REOPEN_EXTENSION_MS)
+          : undefined;
 
       await client.auction.update({
         where: { id: auctionId },
         data: {
           status: nextStatus,
           winnerId,
+          ...(reopenEndAt ? { endAt: reopenEndAt } : {}),
         },
       });
 

@@ -14,6 +14,7 @@ import {
 import { settleExpiredAuctions } from "@libs/server/auctionSettlement";
 import { extractAuctionIdFromPath } from "@libs/auction-route";
 import { incrementUserMissionProgress } from "@libs/server/growth";
+import { AUCTION_RESTART_COPY } from "@libs/shared/auctionRestart";
 
 /** 입찰 응답 타입 */
 export interface BidResponse {
@@ -71,7 +72,8 @@ async function handler(
     const auction = await client.auction.findUnique({
       where: { id: auctionId },
       include: {
-        bids: { orderBy: { amount: "desc" }, take: 1 },
+        // 지난 회차 입찰(archivedAt)은 최고 입찰자·더 높은 입찰 알림에서 뺀다.
+        bids: { where: { archivedAt: null }, orderBy: { amount: "desc" }, take: 1 },
       },
     });
 
@@ -99,6 +101,21 @@ async function handler(
         error: "본인 경매에는 입찰할 수 없습니다.",
         errorCode: "BID_SELF_NOT_ALLOWED",
       });
+    }
+
+    // 낙찰을 취소하고 다시 시작한 경매의 이전 낙찰자는 다시 입찰할 수 없다(앱 docs/prd/auction-restart.md).
+    if (auction.round > 1) {
+      const blocked = await client.auctionRestart.findFirst({
+        where: { auctionId, previousWinnerId: user.id },
+        select: { id: true },
+      });
+      if (blocked) {
+        return res.status(403).json({
+          success: false,
+          error: AUCTION_RESTART_COPY.blockedBidderNotice,
+          errorCode: "BID_BLOCKED_PREVIOUS_WINNER",
+        });
+      }
     }
 
     const previousTopBidder = auction.bids[0];
