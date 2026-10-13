@@ -73,7 +73,7 @@ async function handler(
         createdAt: true,
         isHidden: true,
         _count: {
-          select: { bids: true },
+          select: { bids: { where: { archivedAt: null } } },
         },
       },
       orderBy: {

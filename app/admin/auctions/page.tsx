@@ -24,6 +24,7 @@ import {
   AdminAuctionReportsResponse,
 } from "pages/api/admin/auction-reports";
 import { defaultSanctionReason, sanctionActionLabel } from "@libs/shared/sanction";
+import { AUCTION_NO_SHOW_REPORT_REASON } from "@libs/shared/auctionRestart";
 import SanctionFields, {
   initialSanctionFields,
   toSanctionPayload,
@@ -54,7 +55,9 @@ function AuctionResolvePanel({
     sanction: initialSanctionFields(defaultSanctionReason(report.reason)),
     note: "",
   }));
-  const running = report.auction?.status === "진행중";
+  // '낙찰 후 노쇼'는 분양자가 다시 시작하며 자동 접수한 신고라, 진행 중인 경매는 분양자 것이다 — 중단하지 않는다.
+  const noShow = report.reason === AUCTION_NO_SHOW_REPORT_REASON;
+  const running = !noShow && report.auction?.status === "진행중";
 
   return (
     <div className="mt-3 space-y-3 rounded-md border border-rose-100 bg-rose-50/40 p-3">
@@ -79,7 +82,13 @@ function AuctionResolvePanel({
           />
           경매 중단(취소)
         </label>
-        {!running ? <span className="text-xs text-slate-500">진행 중인 경매만 중단할 수 있어요.</span> : null}
+        {noShow ? (
+          <span className="text-xs text-slate-500">
+            분양자가 경매를 다시 시작하며 자동 접수한 신고예요. 피신고자는 낙찰자이고, 경매는 중단하지 않아요.
+          </span>
+        ) : !running ? (
+          <span className="text-xs text-slate-500">진행 중인 경매만 중단할 수 있어요.</span>
+        ) : null}
       </fieldset>
 
       <SanctionFields

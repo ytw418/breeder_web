@@ -125,11 +125,13 @@ async function handler(
               },
             },
           },
-          _count: { select: { bids: true } },
+          // 입찰 수는 이번 회차만(다시 시작한 경매의 지난 회차 입찰은 archivedAt).
+          _count: { select: { bids: { where: { archivedAt: null } } } },
         },
         // 판매자 연락처는 목록에 싣지 않는다(상세에서 판매자·낙찰자에게만 보인다).
         omit: { sellerPhone: true, sellerEmail: true },
-        orderBy: { createdAt: "desc" },
+        // 다시 시작한 경매는 listedAt 이 그 시각이라 맨 위로 온다. listedAt 이 같은 예전 경매는 id(등록 순)로 정렬한다.
+        orderBy: [{ listedAt: "desc" }, { id: "desc" }],
         take: 10,
         skip: page ? (+page - 1) * 10 : 0,
       }),

@@ -482,6 +482,7 @@ enum NotificationType {
   BLOODLINE_RECEIVED   // 출처 카드를 받았거나 혈통을 넘겨받음
   MODERATION           // 운영 조치 안내(경고·정지·해제·숨김·삭제, 신고 처리 결과). 화면에는 보낸 사람 대신 '브리디 운영팀'
   RANK_UP              // 주간 브리더 순위 상승("순위가 올랐어요 · 7위 → 5위", /ranking?focus=me). 앱 docs/prd/community-vibe.md
+  AUCTION_RESTARTED    // 분양자가 경매를 다시 시작(이전 낙찰자·지난 회차 입찰자에게). 앱 docs/prd/auction-restart.md
 }
 
 enum SeasonKind {
@@ -710,6 +711,11 @@ model Auction {
   isHidden        Boolean   @default(false)
   /// { sireMm?, damMm?, generation? } — libs/shared/pedigree-note.ts. bloodlineRootId 가 없으면 null.
   pedigreeNote    Json?
+  /// 회차(1부터). 분양자가 유찰·미입양 경매를 다시 시작할 때마다 +1(libs/shared/auctionRestart.ts).
+  round           Int       @default(1)
+  /// 경매 목록 정렬 시각. 등록·다시 시작 때 now. 이 열을 만들기 전 경매는 모두 마이그레이션 시각이라 목록은 id 로 한 번 더 정렬한다.
+  listedAt        DateTime  @default(now())
+  restarts        AuctionRestart[]
 
   createdAt       DateTime  @default(now())
   updatedAt       DateTime  @updatedAt
@@ -720,6 +726,7 @@ model Auction {
   @@index([category])
   @@index([categoryId])
   @@index([bloodlineRootId, endAt])
+  @@index([listedAt])
 }
 
 model Bid {
@@ -730,9 +737,39 @@ model Bid {
   auction    Auction  @relation(fields: [auctionId], references: [id], onDelete: Cascade)
   auctionId  Int
   createdAt  DateTime @default(now())
+  /// 경매를 다시 시작해 지난 회차가 된 입찰. 현재 회차 입찰·최고가·낙찰은 이 값이 null 인 것만 본다.
+  archivedAt DateTime?
 
   @@index([auctionId])
   @@index([userId])
+}
+
+/// 경매 다시 시작 기록(앱 docs/prd/auction-restart.md). 지난 회차 요약과 입찰 막은 이전 낙찰자(previousWinnerId)의 출처.
+model AuctionRestart {
+  id               Int      @id @default(autoincrement())
+  auctionId        Int
+  /// 마감된 회차 번호(처음 다시 시작하면 1)
+  round            Int
+  /// 마감 상태: 유찰 | 종료
+  previousStatus   String
+  previousEndAt    DateTime
+  /// 마감 때 현재가(낙찰가 또는 시작가)
+  previousPrice    Int
+  previousBidCount Int
+  /// 낙찰 후 입양하지 않아 다시 시작했으면 그 낙찰자. 이 경매에 다시 입찰할 수 없다(Auction.winnerId 처럼 FK 없음).
+  previousWinnerId Int?
+  /// AuctionRestartReasonId(NO_CONTACT|DECLINED|OTHER). 유찰이면 null
+  reason           String?
+  /// 자동 접수한 '낙찰 후 노쇼' AuctionReport.id
+  reportId         Int?
+  restartedBy      Int
+  newEndAt         DateTime
+  createdAt        DateTime @default(now())
+
+  auction Auction @relation(fields: [auctionId], references: [id], onDelete: Cascade)
+
+  @@index([auctionId])
+  @@index([previousWinnerId])
 }
 
 enum AuctionReportStatus {
