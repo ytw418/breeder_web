@@ -4,10 +4,12 @@
  * 채팅 말풍선 묶음 — 앱 bredy_app src/app/chat/[chatRoomId].tsx MessageGroupRow (시안 A-karrot.html .m/.bub/.img/.mt).
  * 상대: 36 아바타 + 말풍선 열 + 시간 / 나: 시간 + 말풍선 열. 말풍선 max 232, padding 9/13, r20, 15/21.
  * 내 것은 brand + 흰 글자, 상대는 surface + text. 이미지는 168x126 r16.
+ * 링크(http·https)는 밑줄 + 새 탭으로 연다. 상대 말풍선은 파란 글자(app-info), 내 주황 말풍선은 파랑이 안 읽혀 흰 글자.
  */
 import Link from "next/link";
 import Image from "@components/atoms/Image";
 import { cn, makeImageUrl } from "@libs/client/utils";
+import { splitLinks } from "@libs/shared/post-body";
 
 export interface ChatBubbleMessage {
   id: number;
@@ -66,7 +68,21 @@ export default function ChatMessageGroup({
               mine ? "bg-app-brand text-white" : "bg-app-surface text-app-text"
             )}
           >
-            {message.message}
+            {splitLinks(message.message ?? "").map((part, index) =>
+              part.type === "link" ? (
+                <a
+                  key={index}
+                  href={part.value}
+                  target="_blank"
+                  rel="noopener noreferrer nofollow ugc"
+                  className={cn("break-all underline underline-offset-2", mine ? "text-white" : "text-app-info")}
+                >
+                  {part.value}
+                </a>
+              ) : (
+                <span key={index}>{part.value}</span>
+              )
+            )}
           </div>
         )
       )}
