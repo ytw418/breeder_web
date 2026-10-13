@@ -5,7 +5,7 @@
  */
 export type RankingTypeId = "breeders" | "bloodlines" | "auctions" | "listings";
 
-export const RANKING_TYPES: ReadonlyArray<{ id: RankingTypeId; label: string }> = [
+export const RANKING_TYPES: readonly { id: RankingTypeId; label: string }[] = [
   { id: "breeders", label: "종합 브리더" },
   { id: "bloodlines", label: "인기 혈통" },
   { id: "auctions", label: "경매 활동" },
@@ -14,7 +14,7 @@ export const RANKING_TYPES: ReadonlyArray<{ id: RankingTypeId; label: string }> 
 
 export type RankingPeriodId = "all" | "weekly" | "monthly";
 
-export const RANKING_PERIODS: ReadonlyArray<{ id: RankingPeriodId; label: string }> = [
+export const RANKING_PERIODS: readonly { id: RankingPeriodId; label: string }[] = [
   { id: "all", label: "역대" },
   { id: "weekly", label: "이번 주" },
   { id: "monthly", label: "이번 달" },
