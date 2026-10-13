@@ -1,6 +1,7 @@
 import client from "@libs/server/client";
 import { getViewerRegionScope } from "@libs/server/nearby";
 import { regionScopeOr } from "@libs/shared/regionScope";
+import { kstDate } from "@libs/server/kstDate";
 
 /**
  * 동네 홈 방문 기록·집계(앱 docs/prd/community-vibe.md §3.1·§4, 계약 NeighborhoodVisitors).
@@ -8,15 +9,9 @@ import { regionScopeOr } from "@libs/shared/regionScope";
  * - 집계: 최근 7일(오늘 포함, KST) 내 범위(50km) 안에서 홈을 본 서로 다른 사용자 수. 나는 뺀다.
  */
 
-const KST_OFFSET_MS = 9 * 60 * 60 * 1000;
-const DAY_MS = 24 * 60 * 60 * 1000;
 export const REGION_VISITOR_DAYS = 7;
 
-/** KST 날짜를 UTC 자정 Date 로(@db.Date 컬럼 값). */
-export function kstDate(now: Date, daysAgo = 0): Date {
-  const kst = new Date(now.getTime() + KST_OFFSET_MS - daysAgo * DAY_MS);
-  return new Date(Date.UTC(kst.getUTCFullYear(), kst.getUTCMonth(), kst.getUTCDate()));
-}
+export { kstDate };
 
 export async function recordRegionVisit(userId: number, now: Date = new Date()): Promise<boolean> {
   const user = await client.user.findUnique({

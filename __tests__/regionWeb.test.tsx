@@ -8,6 +8,8 @@ jest.mock(
   () => ({ __esModule: true, default: () => mockUseUser() }),
   { virtual: true }
 );
+// 동네 브리더 행의 손 흔들어 인사 버튼이 라우터를 쓴다.
+jest.mock("next/navigation", () => ({ useRouter: () => ({ push: jest.fn() }) }));
 jest.mock("@components/features/MainLayout", () => ({
   __esModule: true,
   default: ({ children }: { children: ReactNode }) => <div>{children}</div>,

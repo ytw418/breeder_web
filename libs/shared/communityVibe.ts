@@ -38,6 +38,8 @@ export type NearbyBreederItem = {
   badges: string[];
   /** 활성 브리더 프로그램 타입(programType) 목록. */
   programTypes: string[];
+  /** 내가 이미 손 흔들어 인사했는지(libs/shared/chatWave.ts). 옛 서버는 없다. */
+  waved?: boolean;
 };
 
 export type NearbyBreedersResult = {
@@ -48,6 +50,8 @@ export type NearbyBreedersResult = {
   total: number;
   /** 이번 주 범위 안 동네 주제 글 수. */
   greetingCount: number;
+  /** 오늘(KST) 더 인사할 수 있는 수. 동네 미설정 응답엔 없다. */
+  wavesLeftToday?: number;
   items: NearbyBreederItem[];
 };
 

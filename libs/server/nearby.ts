@@ -12,6 +12,8 @@ import type {
 } from "@libs/shared/communityVibe";
 import { REGION_POST_CATEGORY } from "@libs/shared/postCategory";
 import type { Region } from "@libs/shared/regions";
+import { kstDate } from "@libs/server/kstDate";
+import { WAVE_DAILY_LIMIT } from "@libs/shared/chatWave";
 import { nearbyRegions, regionScopeLabel, regionScopeOr, type ScopedRegion } from "@libs/shared/regionScope";
 
 /**
@@ -189,16 +191,25 @@ export async function getNearbyBreeders({
     .slice(0, limit);
 
   const shownIds = ranked.map((item) => item.user.id);
-  const [speciesByUser, badgeRows] = shownIds.length
-    ? await Promise.all([
-        getTopSpeciesByUserIds(shownIds),
-        client.userBadge.findMany({
+  const [speciesByUser, badgeRows, waveRows, wavesSentToday] = await Promise.all([
+    shownIds.length ? getTopSpeciesByUserIds(shownIds) : new Map<number, string[]>(),
+    shownIds.length
+      ? client.userBadge.findMany({
           where: { userId: { in: shownIds } },
           select: { userId: true, label: true },
           orderBy: [{ createdAt: "desc" }, { rank: "asc" }],
-        }),
-      ])
-    : [new Map<number, string[]>(), []];
+        })
+      : [],
+    // 손 흔들어 인사하기(libs/shared/chatWave.ts): 이미 인사한 사람·오늘 남은 횟수.
+    shownIds.length
+      ? client.chatWave.findMany({
+          where: { senderId: viewerId, recipientId: { in: shownIds } },
+          select: { recipientId: true },
+        })
+      : [],
+    client.chatWave.count({ where: { senderId: viewerId, day: kstDate(now) } }),
+  ]);
+  const wavedIds = new Set(waveRows.map((row) => row.recipientId));
   const badgesByUser = new Map<number, string[]>();
   for (const row of badgeRows) {
     const list = badgesByUser.get(row.userId) ?? [];
@@ -220,6 +231,7 @@ export async function getNearbyBreeders({
       isFollowing,
       badges: badgesByUser.get(user.id) ?? [],
       programTypes: programs.map((program) => program.programType),
+      waved: wavedIds.has(user.id),
       // 옛 응답 필드(모양 그대로)
       user: { id: user.id, name: user.name, avatar: user.avatar },
       region: { sido: user.regionSido ?? "", sigungu: user.regionSigungu ?? "" },
@@ -235,6 +247,7 @@ export async function getNearbyBreeders({
     regionLabel: label,
     total,
     greetingCount,
+    wavesLeftToday: Math.max(0, WAVE_DAILY_LIMIT - wavesSentToday),
     items,
     region,
   };
