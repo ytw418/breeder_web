@@ -7,7 +7,7 @@ export const WAVE_DAILY_LIMIT = 10;
 
 export type WavePresetId = "hello" | "neighbor" | "friend";
 
-export const WAVE_PRESETS: ReadonlyArray<{ id: WavePresetId; text: string }> = [
+export const WAVE_PRESETS: readonly { id: WavePresetId; text: string }[] = [
   { id: "hello", text: "안녕하세요! 같은 동네 브리더예요. 반가워요 👋" },
   { id: "neighbor", text: "이웃사촌끼리 인사드려요. 어떤 아이들 키우세요?" },
   { id: "friend", text: "동네 브리더끼리 친하게 지내요! 동네 친구해요 🙂" },
