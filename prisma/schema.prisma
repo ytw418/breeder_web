@@ -1229,6 +1229,17 @@ model RegionVisit {
   @@index([day, regionSido, regionSigungu])
 }
 
+/// 탈퇴 시 Apple 로그인 연결을 끊기 위한 refresh token(App Store 심사 5.1.1(v), libs/server/appleTokens.ts).
+/// Apple sub(User.snsId) 기준이라 계정을 만들기 전(웹 로그인 콜백)에도 저장한다. 토큰은 AES-GCM 으로 암호화한다.
+model AppleSignInToken {
+  snsId        String   @id
+  /// code 를 만든 클라이언트 ID(iOS 번들 ID 또는 Services ID). 철회도 같은 ID 로 해야 한다.
+  clientId     String
+  refreshToken String
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+}
+
 /// 동네 브리더 '손 흔들어 인사하기'(2026-10-12). 보낸 사람·받는 사람 한 쌍에 1행(같은 사람에겐 한 번),
 /// 보낸 사람은 KST 하루 10명까지(libs/shared/chatWave.ts WAVE_DAILY_LIMIT). 인사 문구는 채팅 메시지로 같이 남는다.
 model ChatWave {

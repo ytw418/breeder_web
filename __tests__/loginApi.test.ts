@@ -40,6 +40,10 @@ jest.mock("@libs/server/socialAuth", () => ({
   verifySocialLogin: (...args: unknown[]) => mockVerifySocialLogin(...args),
 }));
 
+const mockStoreAppleRefreshToken = jest.fn();
+jest.mock("@libs/server/appleTokens", () => ({
+  storeAppleRefreshToken: (...args: unknown[]) => mockStoreAppleRefreshToken(...args),
+}));
 const mockCapture = jest.fn();
 jest.mock("@libs/server/analytics", () => ({
   ...jest.requireActual("@libs/server/analytics"),
@@ -138,6 +142,65 @@ describe("/api/auth/login 소셜 토큰 검증", () => {
     expect(mockVerifySocialLogin).toHaveBeenCalledWith("google", "valid");
     expect(mockClient.user.findUnique).toHaveBeenCalledWith({ where: { snsId: "victim-uid" } });
     expect(mockClient.user.update).not.toHaveBeenCalled();
+  });
+
+  it("Apple 웹 로그인의 nonce 를 토큰 검증에 넘긴다", async () => {
+    mockVerifySocialLogin.mockResolvedValue({ snsId: "001.a.1", email: null, avatar: null });
+    mockClient.user.findUnique.mockResolvedValue({
+      ...existingUser,
+      snsId: "001.a.1",
+      provider: "apple",
+    });
+
+    const res = await login({
+      token: "apple-id-token",
+      name: "Apple User",
+      provider: "apple",
+      nonce: "raw-nonce",
+    });
+
+    expect(res.statusCode).toBe(200);
+    expect(mockVerifySocialLogin).toHaveBeenCalledWith("apple", "apple-id-token", {
+      nonce: "raw-nonce",
+    });
+  });
+
+  it("iOS 애플 로그인의 authorizationCode 를 철회용 토큰으로 저장한다", async () => {
+    mockVerifySocialLogin.mockResolvedValue({
+      snsId: "001.a.1",
+      email: null,
+      avatar: null,
+      appleClientId: "app.bredy.mobile",
+    });
+    mockClient.user.findUnique.mockResolvedValue({
+      ...existingUser,
+      snsId: "001.a.1",
+      provider: "apple",
+    });
+    mockStoreAppleRefreshToken.mockResolvedValue(true);
+
+    const res = await login({
+      token: "apple-id-token",
+      name: "Apple User",
+      provider: "apple",
+      authorizationCode: "c.native",
+    });
+
+    expect(res.statusCode).toBe(200);
+    expect(mockStoreAppleRefreshToken).toHaveBeenCalledWith({
+      snsId: "001.a.1",
+      code: "c.native",
+      clientId: "app.bredy.mobile",
+    });
+  });
+
+  it("애플이 아니면 authorizationCode 를 무시한다", async () => {
+    mockVerifySocialLogin.mockResolvedValue({ snsId: "kakao-1", email: null, avatar: null });
+    mockClient.user.findUnique.mockResolvedValue(existingUser);
+
+    await login({ token: "t", name: "x", provider: "kakao", authorizationCode: "c" });
+
+    expect(mockStoreAppleRefreshToken).not.toHaveBeenCalled();
   });
 
   it("다시 로그인해도 직접 바꾼 프로필 사진을 소셜 사진으로 덮지 않는다", async () => {

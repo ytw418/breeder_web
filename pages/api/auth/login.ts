@@ -16,6 +16,7 @@ import {
 import { withRestrictionNotice } from "@libs/server/sanctions";
 import type { User } from "@prisma/client";
 import { SocialAuthError, verifySocialLogin } from "@libs/server/socialAuth";
+import { storeAppleRefreshToken } from "@libs/server/appleTokens";
 import {
   captureServerEvent,
   resolveClientPlatform,
@@ -34,6 +35,10 @@ export interface LoginReqBody {
   provider: "kakao" | "google" | "apple";
   email?: string | null;
   avatar?: string;
+  /** Apple 웹 로그인(Android·웹)만: /api/auth/apple/start 가 준 원래 nonce. */
+  nonce?: string;
+  /** iOS 애플 로그인만: credential.authorizationCode. 탈퇴 시 철회용 토큰으로 바꿔 둔다. */
+  authorizationCode?: string;
 }
 
 export interface LoginResponseType {
@@ -65,6 +70,8 @@ async function handler(
   res: NextApiResponse<ResponseType>
 ) {
   const { token, snsId: claimedSnsId, provider, name } = req.body;
+  const nonce =
+    typeof req.body.nonce === "string" && req.body.nonce ? (req.body.nonce as string) : undefined;
   const validProviders = ["kakao", "google", "apple"] as const;
 
   if (typeof token !== "string" || !token.trim())
@@ -87,7 +94,9 @@ async function handler(
 
   let verified;
   try {
-    verified = await verifySocialLogin(provider as LoginReqBody["provider"], token);
+    verified = nonce
+      ? await verifySocialLogin(provider as LoginReqBody["provider"], token, { nonce })
+      : await verifySocialLogin(provider as LoginReqBody["provider"], token);
   } catch (error) {
     if (error instanceof SocialAuthError) {
       return res.status(error.status).json({ success: false, message: error.message });
@@ -180,6 +189,21 @@ async function handler(
           data: updateData,
         });
       }
+    }
+
+    const authorizationCode = req.body.authorizationCode;
+    if (
+      provider === "apple" &&
+      typeof authorizationCode === "string" &&
+      authorizationCode &&
+      verified.appleClientId
+    ) {
+      // 실패해도 로그인은 계속한다. 탈퇴 때 철회할 토큰이 없을 뿐이다.
+      await storeAppleRefreshToken({
+        snsId,
+        code: authorizationCode,
+        clientId: verified.appleClientId,
+      });
     }
 
     const authUser = toAuthUser(user);
