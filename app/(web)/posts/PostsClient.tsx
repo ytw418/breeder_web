@@ -21,7 +21,13 @@ import { cn, makeImageUrl } from "@libs/client/utils";
 import { toPostPath } from "@libs/post-route";
 import { POST_CATEGORIES } from "@libs/constants";
 import { ANALYTICS_EVENTS, trackEvent } from "@libs/client/analytics";
-import { TOP_LEVEL_CATEGORIES } from "@libs/categoryTaxonomy";
+import { getSubcategories, TOP_LEVEL_CATEGORIES } from "@libs/categoryTaxonomy";
+import SubcategoryChipRow from "@components/features/category/SubcategoryChipRow";
+import {
+  activeSubcategory,
+  categoryQueryValue,
+  subcategoryChipOptions,
+} from "@libs/shared/subcategoryChips";
 import { withoutBlocked } from "@libs/shared/blockFilter";
 import { FOLLOWING_POST_FILTER, REGION_POST_CATEGORY } from "@libs/shared/postCategory";
 import { regionOf } from "@libs/shared/regions";
@@ -140,6 +146,21 @@ export default function PostsClient({ initialCategory }: { initialCategory?: str
   const activeSpecies = speciesOptions.some((option) => option.value === selectedSpecies)
     ? selectedSpecies
     : "전체";
+  // 종을 고르면 정렬 줄 아래에 소분류 칩(선택, 앱과 같다). 서버 species 는 소분류 이름도 받는다.
+  const [selectedSubSpecies, setSelectedSubSpecies] = useState("");
+  const subSpeciesOptions = useMemo(
+    () =>
+      activeSpecies === "전체"
+        ? []
+        : subcategoryChipOptions(
+            activeSpecies,
+            getSubcategories(activeSpecies),
+            scope.pins.map((pin) => pin.label)
+          ),
+    [activeSpecies, scope.pins]
+  );
+  const activeSubSpecies = activeSubcategory(selectedSubSpecies, subSpeciesOptions);
+  const speciesQuery = categoryQueryValue(activeSpecies, activeSubSpecies);
 
   // '동네' 칩·'우리 동네' 탭은 내 동네(시/도·시/군/구)가 있어야 한다(앱 posts.tsx). 없으면 RegionGateCard 로 안내하고 목록은 받지 않는다.
   const { user, isLoading: userLoading } = useUser();
@@ -164,7 +185,7 @@ export default function PostsClient({ initialCategory }: { initialCategory?: str
           ? `&category=${encodeURIComponent(selectedCategory)}`
           : "";
       const sortParam = selectedSort !== "latest" ? `&sort=${selectedSort}` : "";
-      const speciesParam = activeSpecies !== "전체" ? `&species=${activeSpecies}` : "";
+      const speciesParam = speciesQuery ? `&species=${encodeURIComponent(speciesQuery)}` : "";
       const regionParam = region
         ? `&regionSido=${encodeURIComponent(region.sido)}${
             region.sigungu ? `&regionSigungu=${encodeURIComponent(region.sigungu)}` : ""
@@ -279,6 +300,7 @@ export default function PostsClient({ initialCategory }: { initialCategory?: str
       previous_species: activeSpecies,
     });
     setSelectedSpecies(species);
+    setSelectedSubSpecies("");
     resetList();
   };
 
@@ -560,6 +582,12 @@ export default function PostsClient({ initialCategory }: { initialCategory?: str
               options={SORT_OPTIONS}
             />
           </div>
+          <SubcategoryChipRow
+            options={subSpeciesOptions}
+            value={activeSubSpecies}
+            onChange={setSelectedSubSpecies}
+            className="-mt-1.5 mb-0.5"
+          />
         </div>
 
         {/* 7. 게시글 목록 */}

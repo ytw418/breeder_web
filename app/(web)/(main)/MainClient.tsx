@@ -14,7 +14,13 @@ import { ProductCard } from "@components/app/ProductCard";
 import { QueryErrorState } from "@components/app/QueryErrorState";
 import { RetryFooter } from "@components/app/RetryFooter";
 import { cn, makeImageUrl } from "@libs/client/utils";
-import { TOP_LEVEL_CATEGORIES } from "@libs/categoryTaxonomy";
+import { getSubcategories, TOP_LEVEL_CATEGORIES } from "@libs/categoryTaxonomy";
+import SubcategoryChipRow from "@components/features/category/SubcategoryChipRow";
+import {
+  activeSubcategory,
+  categoryQueryValue,
+  subcategoryChipOptions,
+} from "@libs/shared/subcategoryChips";
 import { ANALYTICS_EVENTS, trackEvent } from "@libs/client/analytics";
 import { withoutBlocked } from "@libs/shared/blockFilter";
 import { uniqueById } from "@libs/productFilters";
@@ -256,6 +262,21 @@ const MainClient = ({
     [scope.topLevelNames]
   );
   const activeCategory = tabs.some((tab) => tab.id === selectedCategory) ? selectedCategory : "전체";
+  // 대분류를 고르면 아래 줄에 소분류 칩(관심 카테고리를 소분류로 고정했으면 그 소분류만, 앱과 같다).
+  const [selectedSub, setSelectedSub] = useState("");
+  const subOptions = useMemo(
+    () =>
+      activeCategory === "전체"
+        ? []
+        : subcategoryChipOptions(
+            activeCategory,
+            getSubcategories(activeCategory),
+            scope.pins.map((pin) => pin.label)
+          ),
+    [activeCategory, scope.pins]
+  );
+  const activeSub = activeSubcategory(selectedSub, subOptions);
+  const productCategory = categoryQueryValue(activeCategory, activeSub);
   const [activeBannerIndex, setActiveBannerIndex] = useState(0);
   const [showPostLoginGuide, setShowPostLoginGuide] = useState(false);
   const [deferredInstallPrompt, setDeferredInstallPrompt] =
@@ -269,8 +290,7 @@ const MainClient = ({
   // ── 상품 목록(무한 스크롤) ──────────────────────────────────────────────
   const getKey = (pageIndex: number, previousPageData: ProductsResponse | null) => {
     if (previousPageData && pageIndex >= (previousPageData.pages ?? 0)) return null;
-    const categoryParam =
-      activeCategory !== "전체" ? `&category=${encodeURIComponent(activeCategory)}` : "";
+    const categoryParam = productCategory ? `&category=${encodeURIComponent(productCategory)}` : "";
     return withCategoryPath(`/api/products?page=${pageIndex + 1}${categoryParam}`, scope.categoryPath);
   };
   // SSR 1페이지는 범위 없는 "전체" 목록이다. 다른 카테고리·범위에 그 값을 보여주지 않게 그때만 넘긴다.
@@ -398,6 +418,7 @@ const MainClient = ({
       user_id: user?.id || null,
     });
     setSelectedCategory(categoryId);
+    setSelectedSub("");
   };
 
   useEffect(() => {
@@ -548,10 +569,9 @@ const MainClient = ({
       section_id: sectionId,
     });
 
-  const productsHref =
-    activeCategory === "전체"
-      ? "/products"
-      : `/products?category=${encodeURIComponent(activeCategory)}`;
+  const productsHref = productCategory
+    ? `/products?category=${encodeURIComponent(productCategory)}`
+    : "/products";
 
   return (
     <div ref={homeRootRef} className="flex h-full flex-col bg-app-bg">
@@ -743,6 +763,7 @@ const MainClient = ({
             />
           ))}
         </FilterChipRail>
+        <SubcategoryChipRow options={subOptions} value={activeSub} onChange={setSelectedSub} className="-mt-1" />
       </div>
 
       {/* 7. 전체 분양 헤더('최신 등록 순으로 노출됩니다' 없음, §3.1) */}
@@ -752,7 +773,7 @@ const MainClient = ({
         className="bg-app-bg pb-1 pt-2"
       >
         <SectionHeader
-          title={activeCategory === "전체" ? "전체 분양" : `${activeCategory} 분양`}
+          title={productCategory ? `${productCategory} 분양` : "전체 분양"}
           href={productsHref}
           actionLabel="분양 목록"
         />
