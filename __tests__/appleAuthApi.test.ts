@@ -17,6 +17,11 @@ jest.mock("@libs/server/socialAuth", () => ({
   verifySocialLogin: (...args: unknown[]) => mockVerifySocialLogin(...args),
 }));
 
+const mockStoreAppleRefreshToken = jest.fn();
+jest.mock("@libs/server/appleTokens", () => ({
+  storeAppleRefreshToken: (...args: unknown[]) => mockStoreAppleRefreshToken(...args),
+}));
+
 import startHandler from "../pages/api/auth/apple/start";
 import callbackHandler from "../pages/api/auth/apple/callback";
 import { hashAppleNonce, signAppleState, verifyAppleState } from "@libs/server/appleOAuth";
@@ -152,6 +157,28 @@ describe("POST /api/auth/apple/callback", () => {
     expect(res.headers["cache-control"]).toBe("no-store");
     expect(res.headers["referrer-policy"]).toBe("no-referrer");
     expect(res.headers["set-cookie"]).toBeUndefined();
+  });
+
+  it("form_post 로 받은 code 를 철회용 토큰으로 바꿔 둔다(Services ID)", async () => {
+    mockVerifySocialLogin.mockResolvedValue({
+      snsId: "001.a.1",
+      email: null,
+      avatar: null,
+      appleClientId: "app.bredy.web",
+    });
+    mockStoreAppleRefreshToken.mockResolvedValue(true);
+
+    const res = await call(callbackHandler, {
+      method: "POST",
+      body: { state: stateFor("app"), id_token: "a.b.c", code: "c.web" },
+    });
+
+    expect(res.statusCode).toBe(303);
+    expect(mockStoreAppleRefreshToken).toHaveBeenCalledWith({
+      snsId: "001.a.1",
+      code: "c.web",
+      clientId: "app.bredy.web",
+    });
   });
 
   it("웹: 토큰을 URL 에 싣지 않고 복귀 페이지(HTML)로 완료 페이지에 넘긴다", async () => {
