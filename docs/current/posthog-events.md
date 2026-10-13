@@ -35,6 +35,7 @@
 | `auction_bid_placed` | `POST /api/auctions/[id]/bid` | `auction_id`, `bid_amount`, `extended` |
 | `chat_room_created` | `POST /api/chat`(새 방만) | `chat_room_id`, `other_user_id` |
 | `chat_message_sent` | `POST /api/chat/[id]/message` | `chat_room_id`, `message_type` |
+| `chat_wave_sent` | `POST /api/chat/wave`(동네 브리더 손 흔들어 인사) | `chat_room_id`, `other_user_id`, `preset_id`, `room_created` |
 | `user_followed` | `POST /api/users/[id]/follow`(팔로우만) | `target_user_id` |
 | `report_submitted` | `POST /api/reports`, `/api/auctions/[id]/report` | `target_type`, `reason` |
 | `region_set` | `POST /api/users/me`(동네 지정) | `region_sido`, `region_visible` |

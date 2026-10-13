@@ -1,9 +1,9 @@
-import client from "@libs/server/client";
 import withHandler from "@libs/server/withHandler";
 import { NextApiRequest, NextApiResponse } from "next";
 import { withAuth } from "@libs/server/auth";
 import { assertCanChat } from "@libs/server/blocks";
-import { captureServerEvent, resolveClientPlatform } from "@libs/server/analytics";
+import { resolveClientPlatform } from "@libs/server/analytics";
+import { findOrCreateDirectRoom } from "@libs/server/chatRoom";
 
 export interface ChatRequestType {
   otherId: number;
@@ -53,48 +53,8 @@ async function handler(
         .json({ success: false, error: canChat.error, errorCode: canChat.errorCode });
     }
 
-    // 기존 1:1 채팅방 찾기
-    const existingChatRoom = await client.chatRoom.findFirst({
-      where: {
-        AND: [
-          {
-            chatRoomMembers: {
-              some: { userId: user.id },
-            },
-          },
-          {
-            chatRoomMembers: {
-              some: { userId: +otherId },
-            },
-          },
-        ],
-      },
-      select: { id: true },
-    });
-
-    // 기존 채팅방이 있으면 해당 채팅방 ID 반환
-    if (existingChatRoom) {
-      return res.json({ success: true, ChatRoomId: existingChatRoom.id });
-    }
-
-    // 새로운 채팅방 생성
-    const newChatRoom = await client.chatRoom.create({
-      data: {
-        chatRoomMembers: {
-          createMany: {
-            data: [{ userId: user.id }, { userId: +otherId }],
-          },
-        },
-      },
-    });
-
-    await captureServerEvent(user.id, "chat_room_created", {
-      chat_room_id: newChatRoom.id,
-      other_user_id: +otherId,
-      platform: resolveClientPlatform(req),
-    });
-
-    return res.json({ success: true, ChatRoomId: newChatRoom.id });
+    const room = await findOrCreateDirectRoom(user.id, +otherId, resolveClientPlatform(req));
+    return res.json({ success: true, ChatRoomId: room.id });
   } catch (error) {
     console.error("Error in chat handler:", error);
     return res.status(500).json({

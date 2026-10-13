@@ -37,7 +37,7 @@ export default function NeighborhoodBreedersClient() {
           {caption ? <p className="px-4 pb-1 pt-3 text-[13px] text-app-muted">{caption}</p> : null}
           {data.items.map((item) => (
             <div key={item.user.id} className="border-b border-app-line">
-              <NearbyBreederRow item={item} />
+              <NearbyBreederRow item={item} wavesLeftToday={data.wavesLeftToday} />
             </div>
           ))}
         </div>

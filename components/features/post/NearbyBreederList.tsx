@@ -6,6 +6,7 @@
 import Link from "next/link";
 import Image from "@components/atoms/Image";
 import { QueryErrorState } from "@components/app/QueryErrorState";
+import WaveButton from "@components/features/chat/WaveButton";
 import { cn, makeImageUrl } from "@libs/client/utils";
 import type { NearbyBreederItem } from "@libs/server/nearby";
 import type { NearbyBreedersResponse } from "pages/api/users/nearby";
@@ -36,15 +37,27 @@ function placeLabel(item: NearbyBreederItem): string {
     : item.region.sigungu;
 }
 
-export function NearbyBreederRow({ item, divider }: { item: NearbyBreederItem; divider?: boolean }) {
+/** 행 오른쪽 끝에 손 흔들어 인사 버튼(libs/shared/chatWave.ts). 프로필 링크와 버튼은 형제라 겹쳐 눌리지 않는다. */
+export function NearbyBreederRow({
+  item,
+  divider,
+  wavesLeftToday,
+}: {
+  item: NearbyBreederItem;
+  divider?: boolean;
+  wavesLeftToday?: number;
+}) {
   return (
+    <div
+      className={cn(
+        "flex items-center gap-2 pr-3.5 transition-colors hover:bg-app-surface",
+        divider && "border-t border-app-line"
+      )}
+    >
     <Link
       href={`/profiles/${item.user.id}`}
       aria-label={`${item.user.name}, ${placeLabel(item)}, 게시글 ${item.postsCount} 댓글 ${item.commentsCount}`}
-      className={cn(
-        "flex items-center gap-3 px-3.5 py-3 transition-colors hover:bg-app-surface",
-        divider && "border-t border-app-line"
-      )}
+      className="flex min-w-0 flex-1 items-center gap-3 py-3 pl-3.5"
     >
       {item.user.avatar ? (
         <Image
@@ -69,6 +82,13 @@ export function NearbyBreederRow({ item, divider }: { item: NearbyBreederItem; d
         </span>
       </span>
     </Link>
+    <WaveButton
+      userId={item.user.id}
+      name={item.user.name}
+      waved={item.waved}
+      wavesLeftToday={wavesLeftToday}
+    />
+    </div>
   );
 }
 
@@ -132,7 +152,7 @@ export default function NearbyBreederList({
         <>
           {caption ? <p className="px-3.5 pb-1 pt-3 text-[13px] text-app-muted">{caption}</p> : null}
           {items.map((item, index) => (
-            <NearbyBreederRow key={item.user.id} item={item} divider={index > 0} />
+            <NearbyBreederRow key={item.user.id} item={item} divider={index > 0} wavesLeftToday={data.wavesLeftToday} />
           ))}
           <Link
             href="/neighborhood/breeders"

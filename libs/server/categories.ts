@@ -161,6 +161,18 @@ export const speciesCategoryWhere = async (
 };
 
 /**
+ * 랭킹 종 필터(`species=크레스티드 게코`) → 그 카테고리와 하위 id. 상위(파충류로만 단 글)는 넣지 않는다 —
+ * 넣으면 볼파이썬·크레스티드 게코 필터에 같은 글이 세어져 두 종의 1등이 같아진다. 트리에 없는 이름이면 [].
+ */
+export const speciesCategoryIds = async (species: string): Promise<number[]> => {
+  const rows = await getAllCategories();
+  const target = LEGACY_NAME_ALIASES[species] ?? species;
+  const found = rows.find((row) => row.name === target);
+  if (!found) return [];
+  return rows.filter((row) => isUnderCategoryPaths(row.path, [found.path])).map((row) => row.id);
+};
+
+/**
  * 종 이름(기존 문자열 카테고리) → Category.id. 이름이 비어 있으면 null,
  * 이름은 있는데 트리에 없으면 '기타'. 숨긴 카테고리라도 쓰기는 막지 않는다(노출 토글은 조회에서만 적용).
  */

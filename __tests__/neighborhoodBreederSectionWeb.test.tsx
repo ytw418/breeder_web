@@ -74,7 +74,7 @@ describe("홈 우리 동네 브리더(강조, community-vibe §3.6)", () => {
   it("옛 응답(user·region·topSpecies 배열)도 카드로 바꾼다", () => {
     expect(
       toNeighborCard({ user: { id: 5, name: "콩", avatar: null }, region: guro, topSpecies: ["레게", "크레", "볼"], isFollowing: true })
-    ).toEqual({ id: 5, name: "콩", image: null, species: "레게 · 크레", place: "구로구", isFollowing: true });
+    ).toEqual({ id: 5, name: "콩", image: null, species: "레게 · 크레", place: "구로구", isFollowing: true, waved: false });
   });
 
   it("none: '없어요'로 끝나지 않고 인사 남기기 버튼, 방문자 수가 있으면 둘째 줄에", () => {

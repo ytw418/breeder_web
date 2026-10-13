@@ -26,6 +26,7 @@ export type ServerAnalyticsEvent =
   | "auction_bid_placed"
   | "chat_room_created"
   | "chat_message_sent"
+  | "chat_wave_sent"
   | "user_followed"
   | "report_submitted"
   | "category_onboarding_completed"
