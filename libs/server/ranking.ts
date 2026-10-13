@@ -17,15 +17,24 @@ import {
   SCOPED_BREEDER_SCORE_WEIGHTS,
   scoreScopedBreeder,
   FIRST_ANSWER_COMMENT_SCORE,
+  AuctionActivityRankingItem,
+  ListingsRankingItem,
+  RankedUserItem,
 } from "@libs/shared/ranking";
+import { LISTING_METRIC, scoreAuctionActivity, type ListingMetric } from "@libs/shared/rankingTypes";
 import type { RankingMe, RankingNextActionKind } from "@libs/shared/communityVibe";
-import { categoryScopeWhere, resolveScopeCategoryIds } from "@libs/server/categories";
+import { categoryScopeWhere, resolveScopeCategoryIds, speciesCategoryIds } from "@libs/server/categories";
 import {
   findCategoryBranch,
   getCategoryFilterValues,
   TOP_LEVEL_CATEGORIES,
 } from "@libs/categoryTaxonomy";
-import { getKstWeekWindow, getMonthWindow, getPreviousKstWeekWindow } from "@libs/server/season";
+import {
+  getKstWeekWindow,
+  getMonthWindow,
+  getPreviousKstWeekWindow,
+  getPreviousMonthWindow,
+} from "@libs/server/season";
 import { ensureAlertSubscription, ensureCurrentWeeklySeason } from "@libs/server/growth";
 
 type CountRow = { key: number; count: number };
@@ -277,6 +286,27 @@ const countByGroup = async (
 const getRankMap = <T extends { key: number; score: number }>(items: T[]) =>
   new Map(items.map((item, index) => [item.key, { rank: index + 1, score: item.score }]));
 
+type RankingWindow = { startAt: Date; endAt: Date };
+
+/** 기간 → 이번 기간·지난 기간(KST). 역대는 둘 다 null(전체, 순위 변동 없음). */
+export const resolveRankingWindows = (
+  period: RankingPeriod,
+  baseDate?: Date
+): { current: RankingWindow | null; previous: RankingWindow | null } => {
+  if (period === "weekly") {
+    return { current: getKstWeekWindow(baseDate), previous: getPreviousKstWeekWindow(baseDate) };
+  }
+  if (period === "monthly") {
+    return { current: getMonthWindow(baseDate), previous: getPreviousMonthWindow(baseDate) };
+  }
+  return { current: null, previous: null };
+};
+
+const createdIn = (window: RankingWindow | null) =>
+  window ? { createdAt: { gte: window.startAt, lte: window.endAt } } : {};
+const endedIn = (window: RankingWindow | null) =>
+  window ? { endAt: { gte: window.startAt, lte: window.endAt } } : {};
+
 /**
  * 카테고리 범위(고정) 탑브리더. 범위 안 게시글·상품만 세고 scoreScopedBreeder 로 점수를 매긴다.
  * 전체 랭킹(scoreBreeder)과 점수식이 달라 섞어 비교하지 않는다.
@@ -293,8 +323,7 @@ const getScopedBreederRanking = async ({
   categoryIds: number[];
 }): Promise<BreederRankingItem[]> => {
   if (categoryIds.length === 0) return [];
-  const current = getKstWeekWindow(baseDate);
-  const previous = getPreviousKstWeekWindow(baseDate);
+  const { current, previous } = resolveRankingWindows(period, baseDate);
   const scopeFilter = { categoryId: { in: categoryIds } };
   const postBase = { ...scopeFilter, isHidden: false, category: { not: "공지" } };
   const productBase = { ...scopeFilter, isHidden: false, isDeleted: false };
@@ -303,9 +332,7 @@ const getScopedBreederRanking = async ({
   const bloodlineBase = { ...scopeFilter, cardType: "BLOODLINE" as const, status: "ACTIVE" as const };
   const countAuctions = SCOPED_BREEDER_SCORE_WEIGHTS.auction > 0;
   const countBloodlines = SCOPED_BREEDER_SCORE_WEIGHTS.bloodline > 0;
-  const windowOf = (window: { startAt: Date; endAt: Date }) => ({
-    createdAt: { gte: window.startAt, lte: window.endAt },
-  });
+  const windowOf = createdIn;
   const optionalCount = (
     enabled: boolean,
     model: "auctionBySeller" | "bloodlineByCreator",
@@ -319,23 +346,23 @@ const getScopedBreederRanking = async ({
     }),
     countByGroup("post", {
       ...postBase,
-      ...(period === "weekly" ? windowOf(current) : {}),
+      ...windowOf(current),
     }),
     countByGroup("product", {
       ...productBase,
-      ...(period === "weekly" ? windowOf(current) : {}),
+      ...windowOf(current),
     }),
     optionalCount(countAuctions, "auctionBySeller", {
       ...auctionBase,
-      ...(period === "weekly" ? windowOf(current) : {}),
+      ...windowOf(current),
     }),
     optionalCount(countBloodlines, "bloodlineByCreator", {
       ...bloodlineBase,
-      ...(period === "weekly" ? windowOf(current) : {}),
+      ...windowOf(current),
     }),
   ]);
   const [previousPosts, previousProducts, previousAuctions, previousBloodlines] =
-    period === "weekly"
+    previous
       ? await Promise.all([
           countByGroup("post", { ...postBase, ...windowOf(previous) }),
           countByGroup("product", { ...productBase, ...windowOf(previous) }),
@@ -411,6 +438,7 @@ export const getBreederRanking = async ({
   userId,
   baseDate,
   categoryPath,
+  species,
 }: {
   limit?: number;
   period?: RankingPeriod;
@@ -418,24 +446,19 @@ export const getBreederRanking = async ({
   baseDate?: Date;
   /** 관심 카테고리 고정 범위(path 쉼표 목록). 있으면 범위 안 게시글·상품만 집계한다. */
   categoryPath?: string;
+  /** 랭킹 화면 종 필터(대·소분류 이름). 있으면 categoryPath 대신 그 종과 하위만 센다(상위는 넣지 않는다). */
+  species?: string;
 } = {}): Promise<BreederRankingItem[]> => {
-  const scopedIds = await resolveScopeCategoryIds(categoryPath);
+  const scopedIds = species ? await speciesCategoryIds(species) : await resolveScopeCategoryIds(categoryPath);
   if (scopedIds) {
     return getScopedBreederRanking({ limit, period, baseDate, categoryIds: scopedIds });
   }
 
-  // KST 현재 주/직전 주를 같은 기준으로 잘라야 rankDelta와 scoreDelta가 흔들리지 않는다.
-  const current = getKstWeekWindow(baseDate);
-  const previous = getPreviousKstWeekWindow(baseDate);
+  // KST 현재 기간/직전 기간을 같은 기준으로 잘라야 rankDelta와 scoreDelta가 흔들리지 않는다.
+  const { current, previous } = resolveRankingWindows(period, baseDate);
 
-  const currentWindowFilter =
-    period === "weekly"
-      ? { createdAt: { gte: current.startAt, lte: current.endAt } }
-      : {};
-  const currentAuctionWindowFilter =
-    period === "weekly"
-      ? { endAt: { gte: current.startAt, lte: current.endAt } }
-      : {};
+  const currentWindowFilter = createdIn(current);
+  const currentAuctionWindowFilter = endedIn(current);
 
   const [users, currentPosts, currentComments, currentBids, currentWins, currentSellerEnds, currentFirstAnswers] =
     await Promise.all([
@@ -463,11 +486,11 @@ export const getBreederRanking = async ({
         winnerId: { not: null },
         ...currentAuctionWindowFilter,
       }),
-      countFirstAnswers(period === "weekly" ? current : null),
+      countFirstAnswers(current),
     ]);
 
   const [previousPosts, previousComments, previousBids, previousWins, previousSellerEnds, previousFirstAnswers] =
-    period === "weekly"
+    previous
       ? await Promise.all([
           countByGroup("post", {
             createdAt: { gte: previous.startAt, lte: previous.endAt },
@@ -811,9 +834,11 @@ export const getAuctionRanking = async ({
 
 export const getBloodlineRanking = async ({
   limit = 20,
-  baseDate: _baseDate,
+  period = "all",
+  baseDate,
   speciesType,
   categoryPath,
+  species,
 }: {
   limit?: number;
   period?: RankingPeriod;
@@ -821,8 +846,11 @@ export const getBloodlineRanking = async ({
   baseDate?: Date;
   /** 관심 카테고리 범위(구조만 — 앱·웹은 CATEGORY_SCOPE_SURFACES.bloodlines 가 켜지면 보낸다). */
   categoryPath?: string;
+  /** 랭킹 화면 종 필터(대·소분류 이름, 하위 포함·상위 제외). 있으면 categoryPath 를 쓰지 않는다. */
+  species?: string;
 } = {}): Promise<BloodlineRankingItem[]> => {
-  // 혈통 랭킹은 실사용 데이터를 우선해 root별 "실제 보유자 수" 중심으로 단순 집계한다.
+  // 혈통 랭킹은 root별 "실제 보유자 수" 중심으로 집계한다. 이번 주·이번 달은 그 기간에 새로 발급된 카드만 센다
+  // (새 보유자 수 → 발급 수 순). 역대는 지금 있는 카드 전부.
   const rootWhere: Record<string, unknown> = {
     cardType: "BLOODLINE",
     status: "ACTIVE",
@@ -831,7 +859,7 @@ export const getBloodlineRanking = async ({
   if (speciesType && speciesType !== "전체") {
     rootWhere.speciesType = speciesType;
   }
-  const scopeIds = await resolveScopeCategoryIds(categoryPath);
+  const scopeIds = species ? await speciesCategoryIds(species) : await resolveScopeCategoryIds(categoryPath);
   if (scopeIds) rootWhere.categoryId = { in: scopeIds };
 
   const roots = await client.bloodlineCard.findMany({
@@ -868,52 +896,185 @@ export const getBloodlineRanking = async ({
       id: true,
       bloodlineReferenceId: true,
       currentOwnerId: true,
+      createdAt: true,
     },
   });
 
-  const ownerMap = new Map<number, Set<number>>();
-  const issuedCountMap = new Map<number, number>();
+  const { current, previous } = resolveRankingWindows(period, baseDate);
+  const inWindow = (window: RankingWindow | null, at: Date) =>
+    !window || (at.getTime() >= window.startAt.getTime() && at.getTime() <= window.endAt.getTime());
 
-  lineageCards.forEach((card) => {
-    const rootId = card.bloodlineReferenceId ?? card.id;
-    const ownerSet = ownerMap.get(rootId) ?? new Set<number>();
-    ownerSet.add(card.currentOwnerId);
-    ownerMap.set(rootId, ownerSet);
-    issuedCountMap.set(rootId, (issuedCountMap.get(rootId) ?? 0) + 1);
+  const tally = (window: RankingWindow | null) => {
+    const owners = new Map<number, Set<number>>();
+    const issued = new Map<number, number>();
+    for (const card of lineageCards) {
+      if (!inWindow(window, card.createdAt)) continue;
+      const rootId = card.bloodlineReferenceId ?? card.id;
+      const set = owners.get(rootId) ?? new Set<number>();
+      set.add(card.currentOwnerId);
+      owners.set(rootId, set);
+      issued.set(rootId, (issued.get(rootId) ?? 0) + 1);
+    }
+    return roots
+      .map((root) => {
+        // 역대는 예전처럼 카드가 안 읽혀도 root 자신을 1로 본다. 기간 랭킹은 그 기간 발급이 없으면 뺀다.
+        const ownerCount = owners.get(root.id)?.size ?? (window ? 0 : 1);
+        const issuedCount = issued.get(root.id) ?? (window ? 0 : 1);
+        return { key: root.id, root, ownerCount, issuedCount, score: ownerCount * 1000 + issuedCount };
+      })
+      .filter((item) => item.ownerCount > 0)
+      .sort(
+        (a, b) =>
+          b.ownerCount - a.ownerCount ||
+          b.issuedCount - a.issuedCount ||
+          b.root.createdAt.getTime() - a.root.createdAt.getTime()
+      );
+  };
+
+  const scored = tally(current);
+  const previousRankMap = previous ? getRankMap(tally(previous)) : new Map<number, { rank: number; score: number }>();
+
+  return scored.slice(0, limit).map((item, index) => {
+    const previousMeta = previousRankMap.get(item.key);
+    return {
+      rank: index + 1,
+      previousRank: previousMeta?.rank ?? null,
+      rankDelta: previousMeta ? previousMeta.rank - (index + 1) : 0,
+      score: item.score,
+      scoreDelta: previous ? item.score - (previousMeta?.score ?? 0) : 0,
+      bloodlineRootId: item.root.id,
+      name: item.root.name,
+      speciesType: item.root.speciesType,
+      image: item.root.image,
+      creator: item.root.creator,
+      ownerCount: item.ownerCount,
+      issuedCount: item.issuedCount,
+    };
   });
+};
 
-  const scored = roots
-    .map((root) => {
-      const ownerCount = ownerMap.get(root.id)?.size ?? 1;
-      const issuedCount = issuedCountMap.get(root.id) ?? 1;
+type ScoredUser<C> = { key: number; counts: C; score: number };
+
+/** 사람별 점수 → 순위 행(이전 기간 순위·점수 차이 포함). 동점은 id 오름차순. */
+const toRankedUserItems = async <C>(
+  current: ScoredUser<C>[],
+  previous: ScoredUser<unknown>[] | null,
+  limit: number
+): Promise<Array<RankedUserItem & { counts: C }>> => {
+  const sortScored = <T extends { key: number; score: number }>(rows: T[]) =>
+    rows.filter((row) => row.score > 0).sort((a, b) => b.score - a.score || a.key - b.key);
+  const ranked = sortScored(current);
+  const previousRankMap = previous ? getRankMap(sortScored(previous)) : new Map<number, { rank: number; score: number }>();
+  const users = await client.user.findMany({
+    where: { id: { in: ranked.map((row) => row.key) }, status: "ACTIVE" },
+    select: { id: true, name: true, avatar: true },
+  });
+  const userMap = new Map(users.map((user) => [user.id, user]));
+  return ranked
+    .filter((row) => userMap.has(row.key))
+    .slice(0, limit)
+    .map((row, index) => {
+      const previousMeta = previousRankMap.get(row.key);
       return {
-        root,
-        ownerCount,
-        issuedCount,
-        score: ownerCount * 1000 + issuedCount,
+        rank: index + 1,
+        previousRank: previousMeta?.rank ?? null,
+        rankDelta: previousMeta ? previousMeta.rank - (index + 1) : 0,
+        score: row.score,
+        scoreDelta: previous ? row.score - (previousMeta?.score ?? 0) : 0,
+        user: userMap.get(row.key)!,
+        counts: row.counts,
       };
-    })
-    .sort(
-      (a, b) =>
-        b.ownerCount - a.ownerCount ||
-        b.issuedCount - a.issuedCount ||
-        b.root.createdAt.getTime() - a.root.createdAt.getTime()
-    );
+    });
+};
 
-  return scored.slice(0, limit).map((item, index) => ({
-    rank: index + 1,
-    previousRank: null,
-    rankDelta: 0,
-    score: item.score,
-    scoreDelta: 0,
-    bloodlineRootId: item.root.id,
-    name: item.root.name,
-    speciesType: item.root.speciesType,
-    image: item.root.image,
-    creator: item.root.creator,
-    ownerCount: item.ownerCount,
-    issuedCount: item.issuedCount,
-  }));
+const speciesIdsOrNull = async (species?: string) => (species ? speciesCategoryIds(species) : null);
+
+/** 경매 활동 랭킹(사람): 기간 안 입찰 수·경매 등록 수·낙찰 수. 종 필터는 경매의 categoryId(하위 포함). */
+export const getAuctionActivityRanking = async ({
+  limit = 50,
+  period = "weekly",
+  species,
+  baseDate,
+}: {
+  limit?: number;
+  period?: RankingPeriod;
+  species?: string;
+  baseDate?: Date;
+} = {}): Promise<AuctionActivityRankingItem[]> => {
+  const ids = await speciesIdsOrNull(species);
+  if (ids && ids.length === 0) return [];
+  const categoryFilter = ids ? { categoryId: { in: ids } } : {};
+  const { current, previous } = resolveRankingWindows(period, baseDate);
+
+  const tally = async (window: RankingWindow | null) => {
+    const [bids, listed, wins] = await Promise.all([
+      countByGroup("bid", { ...createdIn(window), auction: { isHidden: false, ...categoryFilter } }),
+      countByGroup("auctionBySeller", {
+        ...createdIn(window),
+        ...categoryFilter,
+        isHidden: false,
+        status: { not: "취소" },
+      }),
+      countByGroup("auctionByWinner", {
+        ...endedIn(window),
+        ...categoryFilter,
+        isHidden: false,
+        status: "종료",
+        winnerId: { not: null },
+      }),
+    ]);
+    const maps = { bids: toCountMap(bids), listed: toCountMap(listed), wins: toCountMap(wins) };
+    const keys = Array.from(
+      new Set([bids, listed, wins].flatMap((rows) => rows.map((row) => row.key)))
+    );
+    return keys.map((key) => {
+      const counts = {
+        bidsCount: maps.bids.get(key) ?? 0,
+        listedCount: maps.listed.get(key) ?? 0,
+        winsCount: maps.wins.get(key) ?? 0,
+      };
+      return { key, counts, score: scoreAuctionActivity(counts) };
+    });
+  };
+
+  const [currentRows, previousRows] = await Promise.all([tally(current), previous ? tally(previous) : null]);
+  const items = await toRankedUserItems(currentRows, previousRows, limit);
+  return items.map(({ counts, ...item }) => ({ ...item, ...counts }));
+};
+
+/** 분양 랭킹이 세는 분양글 조건. LISTING_METRIC 을 바꾸면 여기 조건만 따라 바뀐다. */
+export const listingMetricWhere = (metric: ListingMetric, window: RankingWindow | null) =>
+  metric === "completed"
+    ? { status: "판매완료", ...(window ? { updatedAt: { gte: window.startAt, lte: window.endAt } } : {}) }
+    : createdIn(window);
+
+/** 분양 랭킹(사람): 기간 안 분양글 수(숨김·삭제 제외). 종 필터는 분양글 categoryId(하위 포함). */
+export const getListingsRanking = async ({
+  limit = 50,
+  period = "weekly",
+  species,
+  baseDate,
+  metric = LISTING_METRIC,
+}: {
+  limit?: number;
+  period?: RankingPeriod;
+  species?: string;
+  baseDate?: Date;
+  metric?: ListingMetric;
+} = {}): Promise<ListingsRankingItem[]> => {
+  const ids = await speciesIdsOrNull(species);
+  if (ids && ids.length === 0) return [];
+  const base = { isHidden: false, isDeleted: false, ...(ids ? { categoryId: { in: ids } } : {}) };
+  const { current, previous } = resolveRankingWindows(period, baseDate);
+  const tally = async (window: RankingWindow | null) =>
+    (await countByGroup("product", { ...base, ...listingMetricWhere(metric, window) })).map((row) => ({
+      key: row.key,
+      counts: { listingsCount: row.count },
+      score: row.count,
+    }));
+  const [currentRows, previousRows] = await Promise.all([tally(current), previous ? tally(previous) : null]);
+  const items = await toRankedUserItems(currentRows, previousRows, limit);
+  return items.map(({ counts, ...item }) => ({ ...item, ...counts, metric }));
 };
 
 export const getMyRankingSummary = async (

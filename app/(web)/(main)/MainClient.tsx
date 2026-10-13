@@ -628,7 +628,7 @@ const MainClient = ({
               <MiniCard
                 title="최고가 경매"
                 subtitle="카테고리별 최고 낙찰가"
-                href={toRankingHref("auctions", auctionPeriod)}
+                href="/auctions"
                 loading={feedLoading}
                 subTone="price"
                 rows={topAuctionRows}
@@ -655,7 +655,7 @@ const MainClient = ({
               <MiniCard
                 title="급상승 글"
                 subtitle="반응이 빠른 글"
-                href={toRankingHref("community", communityPeriod)}
+                href="/posts"
                 loading={feedLoading}
                 showThumb={false}
                 subTone="up"

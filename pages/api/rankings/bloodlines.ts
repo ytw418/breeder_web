@@ -5,7 +5,7 @@ import { BloodlineRankingItem, RankingPeriod } from "@libs/shared/ranking";
 import { getBloodlineRanking } from "@libs/server/ranking";
 
 const isRankingPeriod = (value: string): value is RankingPeriod =>
-  value === "weekly" || value === "all";
+  value === "weekly" || value === "monthly" || value === "all";
 
 export interface BloodlinesRankingResponse {
   success: boolean;
@@ -27,7 +27,10 @@ async function handler(
       : "weekly";
     const categoryPath =
       typeof req.query.categoryPath === "string" ? req.query.categoryPath : undefined;
-    const items = await getBloodlineRanking({ limit, speciesType, period, categoryPath });
+    // 랭킹 화면 종 필터(대·소분류 이름). 있으면 categoryPath 대신 쓴다.
+    const species =
+      typeof req.query.species === "string" && req.query.species.trim() ? req.query.species.trim() : undefined;
+    const items = await getBloodlineRanking({ limit, speciesType, period, categoryPath, species });
 
     res.setHeader("Cache-Control", "public, s-maxage=60, stale-while-revalidate=120");
     return res.json({

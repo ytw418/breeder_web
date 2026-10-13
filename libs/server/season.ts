@@ -42,6 +42,12 @@ export const getMonthWindow = (baseDate = new Date()) => {
   };
 };
 
+/** 지난달(KST 달력 기준). 이번 달 시작 바로 전 1ms 가 지난달 끝이다. */
+export const getPreviousMonthWindow = (baseDate = new Date()) => {
+  const current = getMonthWindow(baseDate);
+  return getMonthWindow(new Date(current.startAt.getTime() - 1));
+};
+
 export const getSeasonLabel = (startAt: Date, endAt: Date) => {
   return `${startAt.toLocaleDateString("ko-KR")} - ${endAt.toLocaleDateString("ko-KR")}`;
 };
