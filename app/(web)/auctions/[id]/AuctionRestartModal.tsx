@@ -15,7 +15,6 @@ import {
 import type { RestartAuctionResponse } from "pages/api/auctions/[id]/restart";
 import {
   CenterModal,
-  ChipRow,
   DURATION_PRESETS,
   FormChip,
   SheetButton,
@@ -106,7 +105,7 @@ export function AuctionRestartModal({
       <p className="mt-4 text-[15px] font-semibold text-app-text">
         {AUCTION_RESTART_COPY.durationLabel}
       </p>
-      <ChipRow className="mt-2">
+      <div className="mt-2 flex flex-wrap gap-1.5">
         {DURATION_PRESETS.map((preset) => (
           <FormChip
             key={preset.hours}
@@ -115,7 +114,7 @@ export function AuctionRestartModal({
             onClick={() => setHours(preset.hours)}
           />
         ))}
-      </ChipRow>
+      </div>
       <p className="mt-2 text-[13px] text-app-muted">
         {AUCTION_RESTART_COPY.endsAt(endAtText)}
       </p>
