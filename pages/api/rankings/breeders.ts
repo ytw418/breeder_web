@@ -9,7 +9,7 @@ import type { RankingMe } from "@libs/shared/communityVibe";
 const ME_RANKING_SCAN = 100;
 
 const isRankingPeriod = (value: string): value is RankingPeriod =>
-  value === "weekly" || value === "all";
+  value === "weekly" || value === "monthly" || value === "all";
 
 export interface BreedersRankingResponse {
   success: boolean;
@@ -32,6 +32,9 @@ async function handler(
     // 관심 카테고리 고정 범위(path 쉼표 목록). 있으면 범위 안 게시글·상품만 집계한다.
     const categoryPath =
       typeof req.query.categoryPath === "string" ? req.query.categoryPath : undefined;
+    // 랭킹 화면 종 필터(대·소분류 이름). 있으면 categoryPath 대신 쓴다.
+    const species =
+      typeof req.query.species === "string" && req.query.species.trim() ? req.query.species.trim() : undefined;
     // 반려생활 TOP 브리더: 상위 N명에게 최근 사진·받은 좋아요·팔로워를 붙인다(highlights=N, 최대 10).
     const parsedHighlights = Number(req.query.highlights || 0);
     const highlights = Number.isFinite(parsedHighlights)
@@ -41,7 +44,7 @@ async function handler(
     const wantsMe = req.query.me === "1";
     const viewerId = req.user?.id;
     const scan = wantsMe && viewerId ? Math.max(limit, ME_RANKING_SCAN) : limit;
-    const ranking = await getBreederRanking({ limit: scan, period, categoryPath });
+    const ranking = await getBreederRanking({ limit: scan, period, categoryPath, species });
     const top = ranking.slice(0, limit);
     const items = highlights > 0 ? await attachBreederHighlights(top, highlights) : top;
 

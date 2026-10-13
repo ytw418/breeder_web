@@ -10,6 +10,7 @@ const mockClient = {
   follow: { findMany: jest.fn() },
   post: { groupBy: jest.fn(), count: jest.fn() },
   product: { groupBy: jest.fn() },
+  chatWave: { findMany: jest.fn(), count: jest.fn() },
 };
 jest.mock("@libs/server/client", () => ({
   __esModule: true,
@@ -95,6 +96,8 @@ beforeEach(() => {
   mockClient.post.groupBy.mockResolvedValue([]);
   mockClient.post.count.mockResolvedValue(0);
   mockClient.product.groupBy.mockResolvedValue([]);
+  mockClient.chatWave.findMany.mockResolvedValue([]);
+  mockClient.chatWave.count.mockResolvedValue(0);
 });
 afterEach(() => jest.useRealTimers());
 
@@ -119,6 +122,18 @@ describe("GET /api/users/nearby (50km 범위)", () => {
     });
     expect(mockClient.user.findMany).not.toHaveBeenCalled();
     expect(res.headers["Cache-Control"]).toContain("no-store");
+  });
+
+  it("손 흔들어 인사: 이미 인사한 사람은 waved, 오늘 남은 횟수는 10 - 오늘 보낸 수", async () => {
+    mockClient.user.findUnique.mockResolvedValue({ regionSido: "충청북도", regionSigungu: "보은군" });
+    seedUsers([row(1, "청주", "충청북도", "청주시"), row(4, "보은", "충청북도", "보은군")]);
+    mockClient.chatWave.findMany.mockResolvedValue([{ recipientId: 1 }]);
+    mockClient.chatWave.count.mockResolvedValue(4);
+    const res = await get({ limit: "10" }, me);
+    expect(res.body.wavesLeftToday).toBe(6);
+    const waved = Object.fromEntries(res.body.items.map((item: any) => [item.id, item.waved]));
+    expect(waved).toEqual({ 1: true, 4: false });
+    expect(mockClient.chatWave.count.mock.calls[0][0].where.day.toISOString()).toBe("2026-10-14T00:00:00.000Z");
   });
 
   it("보은군 사용자에게 청주시·대전 브리더가 보이고 라벨은 '보은군 근처'(AC-18)", async () => {

@@ -151,7 +151,8 @@ const buildHomeFeed = async ({
   ] = await Promise.all([
     getBreederRanking({ limit: 10, period: "weekly", userId: resolvedUserId, categoryPath }),
     getAuctionRanking({ periodScope: "week", limit: 20 }),
-    getBloodlineRanking({ limit: 10, period: "weekly" }),
+    // 홈 인기 혈통은 예전처럼 전체 보유자 기준(2026-10-12 랭킹 화면의 기간 집계와 따로 둔다).
+    getBloodlineRanking({ limit: 10, period: "all" }),
     getTrendingCommunityPosts({ limit: 6, window: "24h", categoryPath }),
     resolvedUserId ? getMyRankingSummary(resolvedUserId) : Promise.resolve(null),
     resolvedUserId ? getUserMissionSummary(resolvedUserId) : Promise.resolve([]),

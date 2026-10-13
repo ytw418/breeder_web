@@ -138,6 +138,8 @@ model User {
   alertSubscriptions AlertSubscription[]
   bloodlineFollows BloodlineFollow[]
   regionVisits    RegionVisit[]
+  wavesSent       ChatWave[]  @relation("WaveSent")
+  wavesReceived   ChatWave[]  @relation("WaveReceived")
   auctionReportsSubmitted AuctionReport[] @relation("AuctionReportReporter")
   auctionReportsReceived  AuctionReport[] @relation("AuctionReportReportedUser")
   auctionReportsResolved  AuctionReport[] @relation("AuctionReportResolver")
@@ -1236,4 +1238,22 @@ model AppleSignInToken {
   refreshToken String
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
+}
+
+/// 동네 브리더 '손 흔들어 인사하기'(2026-10-12). 보낸 사람·받는 사람 한 쌍에 1행(같은 사람에겐 한 번),
+/// 보낸 사람은 KST 하루 10명까지(libs/shared/chatWave.ts WAVE_DAILY_LIMIT). 인사 문구는 채팅 메시지로 같이 남는다.
+model ChatWave {
+  id          Int      @id @default(autoincrement())
+  sender      User     @relation("WaveSent", fields: [senderId], references: [id], onDelete: Cascade)
+  senderId    Int
+  recipient   User     @relation("WaveReceived", fields: [recipientId], references: [id], onDelete: Cascade)
+  recipientId Int
+  chatRoomId  Int
+  presetId    String
+  day         DateTime @db.Date
+  createdAt   DateTime @default(now())
+
+  @@unique([senderId, recipientId])
+  @@index([senderId, day])
+  @@index([recipientId])
 }
