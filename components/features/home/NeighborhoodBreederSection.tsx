@@ -12,6 +12,7 @@
 import Link from "next/link";
 import useSWR from "swr";
 import { toLoginHref } from "@components/features/MainLayout";
+import WaveButton from "@components/features/chat/WaveButton";
 import FollowButton from "@components/features/profile/FollowButton";
 import { regionSettingsHref } from "@components/features/region/regionHref";
 import { InitialAvatar } from "@components/ui/InitialAvatar";
@@ -47,6 +48,8 @@ type NearbyRawItem = {
   distanceKm?: number;
   sameRegion?: boolean;
   isFollowing?: boolean;
+  /** 손 흔들어 인사를 이미 보냈는지(libs/shared/chatWave.ts). */
+  waved?: boolean;
   user?: { id: number; name: string; avatar: string | null };
   region?: { sido: string; sigungu: string } | null;
 };
@@ -56,6 +59,7 @@ export type NearbyRawResponse = {
   regionLabel?: string;
   total?: number;
   greetingCount?: number;
+  wavesLeftToday?: number;
   items?: NearbyRawItem[];
 };
 
@@ -67,6 +71,7 @@ export type NeighborCard = {
   /** "구로구 · 2km" 또는 "같은 동네". */
   place: string;
   isFollowing: boolean | null;
+  waved: boolean;
 };
 
 export type HomeNeighborhoodState =
@@ -79,6 +84,8 @@ export type HomeNeighborhoodState =
       label: string;
       total: number;
       greetingCount: number;
+      /** 오늘 더 인사할 수 있는 수(옛 서버면 undefined). */
+      wavesLeftToday?: number;
       items: NeighborCard[];
       /** 내가 노출을 꺼 두었으면 맨 끝에 '나도 보이기' 카드. */
       me: { name: string; image: string | null; species: string | null } | null;
@@ -110,6 +117,7 @@ export function toNeighborCard(item: NearbyRawItem): NeighborCard | null {
     species: item.species ?? toSpecies(item.topSpecies),
     place,
     isFollowing: typeof item.isFollowing === "boolean" ? item.isFollowing : null,
+    waved: item.waved === true,
   };
 }
 
@@ -139,6 +147,7 @@ export function resolveHomeNeighborhood(input: {
     label,
     total: data.total ?? items.length,
     greetingCount: data.greetingCount ?? 0,
+    wavesLeftToday: data.wavesLeftToday,
     items,
     me: input.regionVisible ? null : input.me,
   };
@@ -231,7 +240,7 @@ function NeighborRail({ children }: { children: ReactNode }) {
   );
 }
 
-function NeighborCardView({ card }: { card: NeighborCard }) {
+function NeighborCardView({ card, wavesLeftToday }: { card: NeighborCard; wavesLeftToday?: number }) {
   return (
     <div className="flex w-[132px] shrink-0 flex-col items-center rounded-xl bg-app-gap p-3 text-center">
       <Link href={`/profiles/${card.id}`} aria-label={`${card.name}, ${card.place}`} className="flex w-full flex-col items-center">
@@ -241,8 +250,17 @@ function NeighborCardView({ card }: { card: NeighborCard }) {
         <span className="mt-0.5 block w-full truncate text-[11px] leading-[14px] text-app-muted">{card.place}</span>
       </Link>
       {card.isFollowing !== null ? (
-        <div className="mt-2.5 w-full">
-          <FollowButton userId={card.id} isFollowing={card.isFollowing} returnPath={RETURN_PATH} size="nearby" />
+        <div className="mt-2.5 flex w-full items-center gap-1.5">
+          <div className="min-w-0 flex-1">
+            <FollowButton userId={card.id} isFollowing={card.isFollowing} returnPath={RETURN_PATH} size="nearby" />
+          </div>
+          <WaveButton
+            userId={card.id}
+            name={card.name}
+            waved={card.waved}
+            wavesLeftToday={wavesLeftToday}
+            className="h-[30px] w-[30px]"
+          />
         </div>
       ) : null}
     </div>
@@ -307,7 +325,7 @@ export function NeighborhoodBreederSectionView({ state }: { state: HomeNeighborh
           </SubtitleRow>
           <NeighborRail>
             {state.items.map((card) => (
-              <NeighborCardView key={card.id} card={card} />
+              <NeighborCardView key={card.id} card={card} wavesLeftToday={state.wavesLeftToday} />
             ))}
             {state.me ? (
               <div className="flex w-[132px] shrink-0 flex-col items-center rounded-xl bg-app-brand-soft p-3 text-center" data-testid="neighborhood-me-card">
