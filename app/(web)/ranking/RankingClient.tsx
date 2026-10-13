@@ -8,48 +8,41 @@ import useSWR from "swr";
 import Image from "@components/atoms/Image";
 import Layout from "@components/features/MainLayout";
 import { FilterChip, FilterChipRail } from "@components/app/FilterChip";
-import { toAuctionPath } from "@libs/auction-route";
+import SubcategoryChipRow from "@components/features/category/SubcategoryChipRow";
+import { getSubcategories, TOP_LEVEL_CATEGORIES } from "@libs/categoryTaxonomy";
 import { cn, makeImageUrl } from "@libs/client/utils";
-import { toPostPath } from "@libs/post-route";
 import { withoutBlocked } from "@libs/shared/blockFilter";
-import {
-  AuctionRankingItem,
+import type {
+  AuctionActivityRankingItem,
   BloodlineRankingItem,
   BreederRankingItem,
-  getRankingOwnerId,
-  RankingPeriod,
-  TrendingPostItem,
+  ListingsRankingItem,
 } from "@libs/shared/ranking";
+import {
+  parseRankingParams,
+  RANKING_PERIODS,
+  RANKING_TYPES,
+  rankingEmptyTitle,
+  rankingNote,
+  rankingRowLabel,
+  type RankingPeriodId,
+  type RankingTypeId,
+} from "@libs/shared/rankingTypes";
+import { categoryQueryValue, subcategoryChipOptions } from "@libs/shared/subcategoryChips";
 import useBlocks from "hooks/useBlocks";
 import useUser from "hooks/useUser";
 import { InitialAvatar } from "@components/ui/InitialAvatar";
 import { normalizeRankingMe, RANKING_ME_KEY } from "@components/features/home/TopBreederRankCard";
-import useCategoryScope, { withCategoryPath } from "hooks/useCategoryScope";
-import { CATEGORY_SCOPE_SURFACES } from "@libs/shared/categories";
 
-const RANKING_TABS = [
-  { id: "breeders", label: "브리더" },
-  { id: "auctions", label: "최고가 경매" },
-  { id: "bloodlines", label: "인기 혈통" },
-  { id: "community", label: "커뮤니티" },
-] as const;
-
-const PERIOD_TABS = [
-  { id: "weekly", label: "이번 주" },
-  { id: "all", label: "역대" },
-] as const;
-
-type RankingTab = (typeof RANKING_TABS)[number]["id"];
+type RankingItem = BreederRankingItem | BloodlineRankingItem | AuctionActivityRankingItem | ListingsRankingItem;
 
 type RankingResponse = {
   success: boolean;
-  items: Array<BreederRankingItem | AuctionRankingItem | BloodlineRankingItem | TrendingPostItem>;
+  items: RankingItem[];
   error?: string;
 };
 
-const isRankingTab = (value: string | null): value is RankingTab => RANKING_TABS.some((tab) => tab.id === value);
-
-const isRankingPeriod = (value: string | null): value is RankingPeriod => value === "weekly" || value === "all";
+const TOP_LEVEL_NAMES = TOP_LEVEL_CATEGORIES.map((category) => category.id);
 
 const formatRankDelta = (rankDelta: number) => {
   if (rankDelta > 0) return `▲ ${rankDelta}`;
@@ -57,70 +50,32 @@ const formatRankDelta = (rankDelta: number) => {
   return "유지";
 };
 
-/** 랭킹 기준 한 줄 + CTA(앱 getSummary 와 같은 문구). */
-const getSummary = (
-  tab: RankingTab,
-  period: RankingPeriod,
-  // 관심 카테고리 범위 랭킹은 범위 안 게시글·상품만 센다(앱 a158757).
-  scopeLabel?: string
-) => {
-  if (tab === "breeders") {
-    const activities = scopeLabel ? `'${scopeLabel}' 게시·분양글` : "게시·댓글·입찰·낙찰";
-    return {
-      note:
-        period === "weekly"
-          ? `이번 주 ${activities} 활동 점수 합계 (KST 기준)`
-          : `누적 ${activities} 활동 점수 합계`,
-      ctaHref: "/posts/upload",
-      ctaLabel: "활동 시작하기",
-    };
-  }
-  if (tab === "auctions") {
-    return {
-      note:
-        period === "weekly"
-          ? "이번 주 종료된 낙찰 경매의 카테고리별 최고가"
-          : "누적 낙찰 기록 기준 카테고리별 최고가",
-      ctaHref: "/auctions/create",
-      ctaLabel: "경매 등록하기",
-    };
-  }
-  if (tab === "bloodlines") {
-    return {
-      note: period === "weekly" ? "실제 보유자 수가 많은 혈통 순" : "보유자 수와 출처 카드 수 기준 인기 혈통 순",
-      ctaHref: "/bloodline-cards/create",
-      ctaLabel: "혈통 만들기",
-    };
-  }
-  return {
-    note:
-      period === "weekly"
-        ? "최근 24시간 좋아요·댓글 반응이 빠르게 늘어난 글"
-        : "누적 좋아요·댓글 반응이 높은 커뮤니티 글",
-    ctaHref: "/posts/upload",
-    ctaLabel: "글 작성하기",
-  };
+/** 탭별 CTA(빈 상태·기준 줄 오른쪽). */
+const RANKING_CTA: Record<RankingTypeId, { href: string; label: string }> = {
+  breeders: { href: "/posts/upload", label: "활동 시작하기" },
+  bloodlines: { href: "/bloodline-cards/create", label: "혈통 만들기" },
+  auctions: { href: "/auctions", label: "경매 보기" },
+  listings: { href: "/products/upload", label: "분양글 올리기" },
 };
 
-const getApiUrl = (tab: RankingTab, period: RankingPeriod, categoryPath?: string) => {
-  // 관심 카테고리 범위는 화면별 스위치(CATEGORY_SCOPE_SURFACES)를 따른다. 지금은 탑브리더만 켜져 있고
-  // 경매·혈통은 구조만 잡아 두었다(커뮤니티 랭킹은 범위 없음 — 앱과 같음).
-  const scoped = (surface: keyof typeof CATEGORY_SCOPE_SURFACES) =>
-    CATEGORY_SCOPE_SURFACES[surface] ? categoryPath : undefined;
-  if (tab === "breeders") {
-    return withCategoryPath(`/api/rankings/breeders?limit=50&period=${period}`, scoped("breeders"));
-  }
-  if (tab === "auctions") {
-    return withCategoryPath(
-      `/api/rankings/auctions?limit=50&periodScope=${period === "weekly" ? "week" : "all"}`,
-      scoped("auctions")
-    );
-  }
-  if (tab === "bloodlines") {
-    return withCategoryPath(`/api/rankings/bloodlines?limit=50&period=${period}`, scoped("bloodlines"));
-  }
-  return `/api/rankings/community?limit=50&window=${period === "weekly" ? "24h" : "all"}`;
+/** 랭킹 API 주소. 종 필터(species)는 대·소분류 이름 하나(하위 포함, 상위 제외 — 서버 speciesCategoryIds). */
+const getApiUrl = (type: RankingTypeId, period: RankingPeriodId, species?: string) => {
+  const params = new URLSearchParams({ limit: "50", period });
+  if (species) params.set("species", species);
+  const path =
+    type === "breeders"
+      ? "breeders"
+      : type === "bloodlines"
+        ? "bloodlines"
+        : type === "auctions"
+          ? "auction-activity"
+          : "listings";
+  return `/api/rankings/${path}?${params.toString()}`;
 };
+
+/** 차단 필터 기준(공개 캐시 응답이라 클라이언트가 거른다): 혈통은 만든 사람, 나머지는 사람 행. */
+const ownerOf = (type: RankingTypeId, item: RankingItem) =>
+  type === "bloodlines" ? (item as BloodlineRankingItem).creator?.id : (item as BreederRankingItem).user?.id;
 
 /* ------------------------------------------------------------------ */
 /* 행                                                                  */
@@ -200,6 +155,52 @@ function RankRow({
   );
 }
 
+/** 1등 카드: 큰 사진·이름·'1등' 뱃지·기준 숫자(시안 없는 화면이라 RankRow 톤을 키운 형태). */
+function TopCard({
+  typeLabel,
+  imageId,
+  imageVariant,
+  circle,
+  title,
+  meta,
+  href,
+}: {
+  typeLabel: string;
+  imageId?: string | null;
+  imageVariant: "avatar" | "public";
+  circle?: boolean;
+  title: string;
+  meta: string;
+  href: string;
+}) {
+  return (
+    <Link
+      href={href}
+      data-testid="ranking-top-card"
+      className="mx-4 mb-3 flex items-center gap-3.5 rounded-xl bg-app-brand-soft px-4 py-4 transition-colors"
+    >
+      <div className={cn("h-16 w-16 shrink-0 overflow-hidden bg-app-surface", circle ? "rounded-full" : "rounded-xl")}>
+        {imageId ? (
+          <Image
+            src={makeImageUrl(imageId, imageVariant)}
+            alt={title}
+            width={64}
+            height={64}
+            className="h-full w-full object-cover"
+          />
+        ) : null}
+      </div>
+      <div className="min-w-0 flex-1">
+        <span className="inline-flex h-6 items-center rounded-full bg-app-brand px-2.5 text-[12px] font-bold text-white">
+          {typeLabel} 1등
+        </span>
+        <p className="mt-1.5 truncate text-[18px] font-bold leading-6 text-app-text">{title}</p>
+        <p className="mt-0.5 truncate text-[13px] text-app-sub">{meta}</p>
+      </div>
+    </Link>
+  );
+}
+
 /* ------------------------------------------------------------------ */
 /* 화면                                                                */
 /* ------------------------------------------------------------------ */
@@ -208,47 +209,60 @@ const RankingClient = () => {
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
-  const tabParam = searchParams?.get("tab") ?? null;
-  const periodParam = searchParams?.get("period") ?? null;
-  const activeTab: RankingTab = isRankingTab(tabParam) ? tabParam : "breeders";
-  const period: RankingPeriod = isRankingPeriod(periodParam) ? periodParam : "weekly";
+  const { type, period, species, sub } = parseRankingParams(
+    {
+      tab: searchParams?.get("tab"),
+      period: searchParams?.get("period"),
+      species: searchParams?.get("species"),
+      sub: searchParams?.get("sub"),
+    },
+    getSubcategories,
+    TOP_LEVEL_NAMES
+  );
+  const typeLabel = RANKING_TYPES.find((t) => t.id === type)?.label ?? "";
   // 홈 '내 순위 ›'(/ranking?focus=me): 브리더 랭킹에서 내 행으로 스크롤해 강조한다(community-vibe F-13).
   const focusMe = searchParams?.get("focus") === "me";
   const { user } = useUser();
 
-  const scope = useCategoryScope();
-  const summary = getSummary(activeTab, period, scope.categoryPath ? scope.label : undefined);
-  const apiUrl = useMemo(
-    () => getApiUrl(activeTab, period, scope.categoryPath),
-    [activeTab, period, scope.categoryPath]
-  );
+  const speciesValue = categoryQueryValue(species || "전체", sub);
+  const subOptions = species ? subcategoryChipOptions(species, getSubcategories(species), []) : [];
+  const note = rankingNote(type, period, speciesValue ?? null);
+  const cta = RANKING_CTA[type];
+  const apiUrl = useMemo(() => getApiUrl(type, period, speciesValue), [type, period, speciesValue]);
   const { data, error, isLoading, mutate } = useSWR<RankingResponse>(apiUrl);
   const { blockedIds } = useBlocks();
 
-  const updateQuery = (nextTab: RankingTab, nextPeriod: RankingPeriod) => {
+  const updateQuery = (next: Partial<{ type: RankingTypeId; period: RankingPeriodId; species: string; sub: string }>) => {
+    const merged = { type, period, species, sub, ...next };
     const params = new URLSearchParams(searchParams?.toString() ?? "");
-    params.set("tab", nextTab);
-    params.set("period", nextPeriod);
+    params.set("tab", merged.type);
+    params.set("period", merged.period);
+    if (merged.species) params.set("species", merged.species);
+    else params.delete("species");
+    if (merged.species && merged.sub) params.set("sub", merged.sub);
+    else params.delete("sub");
     router.replace(`${pathname}?${params.toString()}`, { scroll: false });
   };
 
   const items = useMemo(
-    () => withoutBlocked(data?.items ?? [], blockedIds, (item) => getRankingOwnerId(activeTab, item)),
-    [activeTab, blockedIds, data?.items]
+    () => withoutBlocked(data?.items ?? [], blockedIds, (item) => ownerOf(type, item)),
+    [type, blockedIds, data?.items]
   );
 
   const myItem =
-    activeTab === "breeders" && user
+    type === "breeders" && user
       ? (items as BreederRankingItem[]).find((item) => item.user.id === user.id) ?? null
       : null;
-  // 목록 밖(50위 밖)이거나 범위 랭킹이면 서버 내 순위로 고정 바를 채운다.
-  const { data: meRaw } = useSWR<unknown>(user && activeTab === "breeders" ? RANKING_ME_KEY : null, {
+  // 내 순위 API 는 이번 주 전체 기준이라, 그 조건일 때만 목록 밖(50위 밖) 순위를 채운다.
+  const meMatches = period === "weekly" && !speciesValue;
+  const { data: meRaw } = useSWR<unknown>(user && type === "breeders" && meMatches ? RANKING_ME_KEY : null, {
     shouldRetryOnError: false,
   });
   const me = normalizeRankingMe(meRaw);
-  const myRank = myItem?.rank ?? me?.rank ?? null;
-  const myScore = myItem?.score ?? me?.score ?? 0;
-  const showMyBar = Boolean(user) && activeTab === "breeders";
+  const myRank = myItem?.rank ?? (meMatches ? me?.rank : null) ?? null;
+  const myScore = myItem?.score ?? (meMatches ? me?.score : 0) ?? 0;
+  const showMyBar = Boolean(user) && type === "breeders";
+  const periodLabel = RANKING_PERIODS.find((p) => p.id === period)?.label ?? "";
 
   const scrolledRef = useRef(false);
   useEffect(() => {
@@ -258,6 +272,43 @@ const RankingClient = () => {
     scrolledRef.current = true;
     row.scrollIntoView({ block: "center" });
   }, [focusMe, myItem]);
+
+  /** 행 하나의 그림 값(1등 카드와 목록 행이 같이 쓴다). */
+  const rowOf = (item: RankingItem) => {
+    if (type === "bloodlines") {
+      const bloodline = item as BloodlineRankingItem;
+      return {
+        key: bloodline.bloodlineRootId,
+        imageId: bloodline.image,
+        imageVariant: "public" as const,
+        circle: false,
+        title: bloodline.name,
+        meta: `${bloodline.speciesType || "종 미지정"} · ${rankingRowLabel(type, bloodline, period)}`,
+        href: `/bloodline-management/card/${bloodline.bloodlineRootId}`,
+        isMe: false,
+      };
+    }
+    const person = item as BreederRankingItem | AuctionActivityRankingItem | ListingsRankingItem;
+    const meta =
+      type === "breeders"
+        ? (() => {
+            const breeder = person as BreederRankingItem;
+            return breeder.productsCount !== undefined
+              ? `${rankingRowLabel(type, breeder, period)} · 게시 ${breeder.postsCount} · 분양글 ${breeder.productsCount}`
+              : `${rankingRowLabel(type, breeder, period)} · 게시 ${breeder.postsCount} · 댓글 ${breeder.commentsCount}`;
+          })()
+        : rankingRowLabel(type, person, period);
+    return {
+      key: person.user.id,
+      imageId: person.user.avatar,
+      imageVariant: "avatar" as const,
+      circle: true,
+      title: person.user.name,
+      meta,
+      href: `/profiles/${person.user.id}`,
+      isMe: person.user.id === user?.id,
+    };
+  };
 
   let list;
   if (isLoading) {
@@ -279,91 +330,73 @@ const RankingClient = () => {
     );
   } else if (items.length === 0) {
     list = (
-      <div className="px-4 py-14 text-center">
-        <p className="text-[16px] font-semibold text-app-text">집계 가능한 랭킹 데이터가 없습니다</p>
-        <p className="mt-1.5 text-[14px] text-app-muted">
-          {period === "weekly"
-            ? "이번 주 데이터가 비어 있어요. 역대 기준으로 확인해보세요."
-            : "조건을 만족하는 활동이 아직 없어요."}
-        </p>
-        {period === "weekly" ? (
-          <button
-            type="button"
-            onClick={() => updateQuery(activeTab, "all")}
-            className="mt-4 h-10 rounded-md bg-app-surface px-4 text-[14px] font-semibold text-app-text"
-          >
-            역대 랭킹 보기
-          </button>
-        ) : (
-          <Link
-            href={summary.ctaHref}
-            className="mt-4 inline-flex h-10 items-center rounded-md bg-app-surface px-4 text-[14px] font-semibold text-app-text"
-          >
-            {summary.ctaLabel}
-          </Link>
-        )}
+      <div className="flex flex-col items-center px-4 py-14 text-center">
+        <p className="text-[16px] font-semibold text-app-text">{rankingEmptyTitle(type, period, speciesValue ?? null)}</p>
+        {sub ? (
+          <p className="mt-1.5 text-[13px] text-app-muted">소분류를 고르지 않은 글은 대분류에서만 세요</p>
+        ) : null}
+        <div className="mt-4 flex gap-2">
+          {period !== "all" ? (
+            <button
+              type="button"
+              onClick={() => updateQuery({ period: "all" })}
+              className="h-10 rounded-md bg-app-surface px-4 text-[14px] font-semibold text-app-text"
+            >
+              역대 랭킹 보기
+            </button>
+          ) : null}
+          {speciesValue ? (
+            <button
+              type="button"
+              onClick={() => updateQuery({ species: "", sub: "" })}
+              className="h-10 rounded-md bg-app-surface px-4 text-[14px] font-semibold text-app-text"
+            >
+              전체 종으로 보기
+            </button>
+          ) : (
+            <Link
+              href={cta.href}
+              className="inline-flex h-10 items-center rounded-md bg-app-surface px-4 text-[14px] font-semibold text-app-text"
+            >
+              {cta.label}
+            </Link>
+          )}
+        </div>
       </div>
     );
   } else {
+    const [first, ...rest] = items;
+    const top = rowOf(first);
     list = (
-      <div>
-        {activeTab === "breeders" &&
-          (items as BreederRankingItem[]).map((item) => (
-            <RankRow
-              key={item.user.id}
-              rank={item.rank}
-              imageId={item.user.avatar}
-              imageVariant="avatar"
-              circle
-              title={item.user.name}
-              meta={
-                item.productsCount !== undefined
-                  ? `점수 ${item.score.toLocaleString()} · 게시 ${item.postsCount} · 분양글 ${item.productsCount}`
-                  : `점수 ${item.score.toLocaleString()} · 게시 ${item.postsCount} · 댓글 ${item.commentsCount}`
-              }
-              right={formatRankDelta(item.rankDelta)}
-              href={`/profiles/${item.user.id}`}
-              isMe={item.user.id === user?.id}
-            />
-          ))}
-
-        {activeTab === "auctions" &&
-          (items as AuctionRankingItem[]).map((item) => (
-            <RankRow
-              key={item.auctionId}
-              rank={item.rank}
-              imageId={item.photo}
-              imageVariant="product"
-              title={item.title}
-              meta={`${item.currentPrice.toLocaleString()}원 · ${item.topLevelCategory} · ${item.seller.name}`}
-              href={toAuctionPath(item.auctionId, item.title)}
-            />
-          ))}
-
-        {activeTab === "bloodlines" &&
-          (items as BloodlineRankingItem[]).map((item) => (
-            <RankRow
-              key={item.bloodlineRootId}
-              rank={item.rank}
-              imageId={item.image}
-              title={item.name}
-              meta={`${item.speciesType || "종 미지정"} · 보유자 ${item.ownerCount} · 출처 카드 ${item.issuedCount}`}
-              right={formatRankDelta(item.rankDelta)}
-              href={`/bloodline-management/card/${item.bloodlineRootId}`}
-            />
-          ))}
-
-        {activeTab === "community" &&
-          (items as TrendingPostItem[]).map((item) => (
-            <RankRow
-              key={item.post.id}
-              rank={item.rank}
-              imageId={item.post.image}
-              title={item.post.title}
-              meta={`${item.post.user.name} · 좋아요 ${item.likes24h} · 댓글 ${item.comments24h}`}
-              href={toPostPath(item.post.id, item.post.title)}
-            />
-          ))}
+      <div className="pt-3">
+        <TopCard
+          typeLabel={typeLabel}
+          imageId={top.imageId}
+          imageVariant={top.imageVariant}
+          circle={top.circle}
+          title={top.title}
+          meta={top.meta}
+          href={top.href}
+        />
+        <div className="border-t border-app-line">
+          {rest.map((item) => {
+            const row = rowOf(item);
+            return (
+              <RankRow
+                key={row.key}
+                rank={item.rank}
+                imageId={row.imageId}
+                imageVariant={row.imageVariant}
+                circle={row.circle}
+                title={row.title}
+                meta={row.meta}
+                right={period !== "all" ? formatRankDelta(item.rankDelta) : undefined}
+                href={row.href}
+                isMe={row.isMe}
+              />
+            );
+          })}
+        </div>
       </div>
     );
   }
@@ -371,55 +404,80 @@ const RankingClient = () => {
   return (
     <Layout canGoBack title="랭킹" seoTitle="랭킹">
       <div className="min-h-screen bg-app-bg pb-8">
-        {/* 카테고리 칩 1줄 */}
-        <FilterChipRail className="mt-1">
-          {RANKING_TABS.map((tab) => (
-            <FilterChip
-              key={tab.id}
-              label={tab.label}
-              selected={activeTab === tab.id}
-              onClick={() => updateQuery(tab.id, period)}
-            />
-          ))}
-        </FilterChipRail>
-
-        {/* 기간 텍스트 세그먼트(오른쪽) */}
-        <div className="flex items-center justify-end px-4 pt-2" role="radiogroup" aria-label="랭킹 기간">
-          {PERIOD_TABS.map((periodTab, index) => {
-            const selected = period === periodTab.id;
+        {/* 1단: 랭킹 종류(밑줄 탭 4칸) */}
+        <div role="tablist" aria-label="랭킹 종류" className="flex border-b border-app-line px-2">
+          {RANKING_TYPES.map((tab) => {
+            const selected = type === tab.id;
             return (
-              <span key={periodTab.id} className="flex items-center">
-                {index > 0 ? (
-                  <span className="mx-2 text-[13px] text-app-caption" aria-hidden="true">
-                    ·
-                  </span>
-                ) : null}
-                <button
-                  type="button"
-                  role="radio"
-                  aria-checked={selected}
-                  onClick={() => updateQuery(activeTab, periodTab.id)}
-                  className={cn(
-                    "py-0.5 text-[13px]",
-                    selected ? "font-bold text-app-text" : "font-medium text-app-muted"
-                  )}
-                >
-                  {periodTab.label}
-                </button>
-              </span>
+              <button
+                key={tab.id}
+                type="button"
+                role="tab"
+                aria-selected={selected}
+                onClick={() => updateQuery({ type: tab.id })}
+                className={cn(
+                  "relative h-12 flex-1 text-[15px]",
+                  selected ? "font-bold text-app-text" : "font-medium text-app-muted"
+                )}
+              >
+                {tab.label}
+                {selected ? <span className="absolute inset-x-3 bottom-0 h-0.5 rounded-full bg-app-text" /> : null}
+              </button>
             );
           })}
         </div>
 
+        {/* 2단: 기간(세그먼트 3칸) */}
+        <div className="px-4 pt-3" role="radiogroup" aria-label="랭킹 기간">
+          <div className="flex h-9 rounded-lg bg-app-surface p-0.5">
+            {RANKING_PERIODS.map((periodTab) => {
+              const selected = period === periodTab.id;
+              return (
+                <button
+                  key={periodTab.id}
+                  type="button"
+                  role="radio"
+                  aria-checked={selected}
+                  onClick={() => updateQuery({ period: periodTab.id })}
+                  className={cn(
+                    "flex-1 rounded-md text-[14px]",
+                    selected ? "bg-app-elevated font-semibold text-app-text shadow-sm" : "font-medium text-app-muted"
+                  )}
+                >
+                  {periodTab.label}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+
+        {/* 3단: 종(대분류 칩 + 소분류 칩) */}
+        <FilterChipRail className="mt-1">
+          {[{ id: "", name: "전체" }, ...TOP_LEVEL_CATEGORIES].map((category) => (
+            <FilterChip
+              key={category.id || "all"}
+              label={category.name}
+              selected={species === category.id}
+              onClick={() => updateQuery({ species: category.id, sub: "" })}
+            />
+          ))}
+        </FilterChipRail>
+        <SubcategoryChipRow
+          options={subOptions}
+          value={sub}
+          onChange={(next) => updateQuery({ sub: next })}
+          className="-mt-1"
+        />
+
         {/* 랭킹 기준 한 줄 + 링크 */}
-        <div className="flex items-center px-4 pb-3 pt-2.5">
-          <p className="min-w-0 flex-1 truncate text-[13px] text-app-muted">{summary.note}</p>
-          <Link href={summary.ctaHref} className="ml-2 shrink-0 text-[13px] font-semibold text-app-muted">
-            {summary.ctaLabel} ›
+        <div className="flex items-center px-4 pb-1 pt-2">
+          <p className="min-w-0 flex-1 truncate text-[13px] text-app-muted">{note}</p>
+          <Link href={cta.href} className="ml-2 shrink-0 text-[13px] font-semibold text-app-muted">
+            {cta.label} ›
           </Link>
         </div>
 
-        <div className="border-t border-app-line">{list}</div>
+        <div>{list}</div>
         {showMyBar ? <div className="h-20" aria-hidden="true" /> : null}
       </div>
 
@@ -448,7 +506,7 @@ const RankingClient = () => {
                 )}
               </span>
               <span className="block truncate text-[12px] leading-4 text-app-muted">
-                {myRank ? (period === "weekly" ? "이번 주 내 순위" : "역대 내 순위") : "글을 쓰면 순위에 올라요"}
+                {myRank ? `${periodLabel} 내 순위` : "글을 쓰면 순위에 올라요"}
               </span>
             </button>
             <Link

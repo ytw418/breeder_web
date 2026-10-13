@@ -1,6 +1,6 @@
 import type { BreederKeyword } from "@libs/shared/breederKeywords";
 
-export type RankingPeriod = "weekly" | "all";
+export type RankingPeriod = "weekly" | "monthly" | "all";
 export type AuctionPeriodScope = "week" | "month" | "all";
 export type CommunityWindow = "24h" | "all";
 export type RankingEntityType = "USER" | "BLOODLINE" | "AUCTION";
@@ -221,6 +221,29 @@ export interface HomeFeedResponse {
   currentSeasonId: number | null;
   freeGiveawayProducts: FreeProductItem[];
   hotDiscussions: HotDiscussionItem[];
+}
+
+/** 랭킹 화면 사용자 행 공통(경매 활동·분양). */
+export interface RankedUserItem {
+  rank: number;
+  previousRank: number | null;
+  rankDelta: number;
+  score: number;
+  scoreDelta: number;
+  user: { id: number; name: string; avatar: string | null };
+}
+
+/** 경매 활동: 입찰 2 · 경매 등록 3 · 낙찰 10(libs/shared/rankingTypes.ts AUCTION_ACTIVITY_WEIGHTS). */
+export interface AuctionActivityRankingItem extends RankedUserItem {
+  bidsCount: number;
+  listedCount: number;
+  winsCount: number;
+}
+
+/** 분양: 기간 안 분양글 수(LISTING_METRIC=posted) 또는 분양 완료 수(completed). */
+export interface ListingsRankingItem extends RankedUserItem {
+  listingsCount: number;
+  metric: "posted" | "completed";
 }
 
 export type RankingTabId = "breeders" | "auctions" | "bloodlines" | "community";
