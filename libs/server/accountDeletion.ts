@@ -81,10 +81,12 @@ async function queryDeletionBlockers(
         select: auctionSelect,
       }),
       db.auction.findMany({
-        where: { status: "진행중", bids: { some: { userId } } },
+        // 다시 시작한 경매의 지난 회차 입찰(archivedAt)은 탈퇴를 막지 않는다.
+        where: { status: "진행중", bids: { some: { userId, archivedAt: null } } },
         select: {
           ...auctionSelect,
           bids: {
+            where: { archivedAt: null },
             orderBy: [{ amount: "desc" }, { createdAt: "asc" }],
             take: 1,
             select: { userId: true },

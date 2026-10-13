@@ -49,7 +49,13 @@ export const getNotificationUrl = (targetType?: string, targetId?: number, comme
 };
 
 const getPushTitle = (type: NotificationType) => {
-  if (type === "BID" || type === "OUTBID" || type === "AUCTION_END" || type === "AUCTION_WON") {
+  if (
+    type === "BID" ||
+    type === "OUTBID" ||
+    type === "AUCTION_END" ||
+    type === "AUCTION_WON" ||
+    type === "AUCTION_RESTARTED"
+  ) {
     return "브리디 경매 알림";
   }
   if (type === "MODERATION") return "브리디 운영팀";

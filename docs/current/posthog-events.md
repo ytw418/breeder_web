@@ -33,6 +33,7 @@
 | `product_favorited` | `POST /api/products/[id]/fav`(추가만) | `product_id` |
 | `auction_created` | `POST /api/auctions` | `auction_id`, `category`, `start_price`, `photo_count`, `has_bloodline` |
 | `auction_bid_placed` | `POST /api/auctions/[id]/bid` | `auction_id`, `bid_amount`, `extended` |
+| `auction_restarted` | `POST /api/auctions/[id]/restart`(유찰·입양 안 된 낙찰 경매 다시 시작) | `auction_id`, `round`, `from_status`(유찰·종료), `reason`(종료면 NO_CONTACT·DECLINED·OTHER) |
 | `chat_room_created` | `POST /api/chat`(새 방만) | `chat_room_id`, `other_user_id` |
 | `chat_message_sent` | `POST /api/chat/[id]/message` | `chat_room_id`, `message_type` |
 | `chat_wave_sent` | `POST /api/chat/wave`(동네 브리더 손 흔들어 인사) | `chat_room_id`, `other_user_id`, `preset_id`, `room_created` |

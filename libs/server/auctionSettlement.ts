@@ -1,5 +1,6 @@
 import client from "@libs/server/client";
 import { createNotification } from "@libs/server/notification";
+import { AUCTION_RESTART_NOTIFICATIONS } from "@libs/shared/auctionRestart";
 
 export const settleExpiredAuctions = async (targetAuctionId?: number) => {
   const now = new Date();
@@ -25,8 +26,9 @@ export const settleExpiredAuctions = async (targetAuctionId?: number) => {
   let settledCount = 0;
 
   for (const auction of expiredAuctions) {
+    // 다시 시작한 경매는 지난 회차 입찰(archivedAt)을 빼고 이번 회차에서만 낙찰자를 고른다.
     const topBid = await client.bid.findFirst({
-      where: { auctionId: auction.id },
+      where: { auctionId: auction.id, archivedAt: null },
       orderBy: [{ amount: "desc" }, { createdAt: "asc" }],
       select: {
         amount: true,
@@ -80,11 +82,12 @@ export const settleExpiredAuctions = async (targetAuctionId?: number) => {
       type: "AUCTION_END",
       userId: auction.userId,
       senderId: auction.userId,
-      message: `"${auction.title}" 경매가 유찰로 종료되었습니다.`,
+      message: AUCTION_RESTART_NOTIFICATIONS.unsold(auction.title),
       targetId: auction.id,
       targetType: "auction",
       allowSelf: true,
-      dedupe: true,
+      // 위 updateMany 가 상태 전환을 한 번만 통과시킨다. dedupe 를 켜면 다시 시작한 경매가 또 유찰될 때 알림이 빠진다.
+      dedupe: false,
     });
   }
 

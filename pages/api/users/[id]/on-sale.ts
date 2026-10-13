@@ -91,7 +91,7 @@ async function handler(req: NextApiRequest, res: NextApiResponse<ResponseType | 
         photos: true,
         endAt: true,
         createdAt: true,
-        _count: { select: { bids: true } },
+        _count: { select: { bids: { where: { archivedAt: null } } } },
       },
       orderBy: [{ endAt: "asc" }, { id: "asc" }],
       take: limit,

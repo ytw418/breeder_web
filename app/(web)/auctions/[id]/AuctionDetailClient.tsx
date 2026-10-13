@@ -40,6 +40,12 @@ import {
 import type { AuctionDetailResponse } from "pages/api/auctions/[id]";
 import type { BidResponse } from "pages/api/auctions/[id]/bid";
 import { AuctionBloodlineRows } from "../AuctionBloodlineParts";
+import {
+  AUCTION_RESTART_COPY,
+  auctionRoundLabel,
+  formatAuctionPreviousRound,
+} from "@libs/shared/auctionRestart";
+import { AuctionRestartModal } from "./AuctionRestartModal";
 
 interface AuctionReportResponse {
   success: boolean;
@@ -208,6 +214,8 @@ const AuctionDetailClient = () => {
   const [reportReason, setReportReason] = useState<(typeof REPORT_REASONS)[number]>("허위 분양글 의심");
   const [reportDetail, setReportDetail] = useState("");
   const [confirmBidAmount, setConfirmBidAmount] = useState<number | null>(null);
+  const [restartOpen, setRestartOpen] = useState(false);
+  const [previousRoundsOpen, setPreviousRoundsOpen] = useState(false);
   // 관리자 ⋯ 조치(숨기기·숨김 해제·삭제). 웹 경매 상세는 관리자에게만 ⋯ 를 둔다(앱과 같음).
   const moderation = useAdminModeration();
   const [adminSheetOpen, setAdminSheetOpen] = useState(false);
@@ -262,7 +270,12 @@ const AuctionDetailClient = () => {
   const isTopBidder = Boolean(
     auction?.status === "진행중" && user?.id && auction?.bids?.[0]?.userId === user.id
   );
-  const isBiddable = auction?.status === "진행중" && !countdown.isEnded && !isOwner && !isTopBidder;
+  // 낙찰을 취소하고 다시 시작한 경매의 이전 낙찰자는 입찰할 수 없다(서버 BID_BLOCKED_PREVIOUS_WINNER).
+  const viewerBlocked = Boolean(data?.viewerBlocked);
+  const isBiddable =
+    auction?.status === "진행중" && !countdown.isEnded && !isOwner && !isTopBidder && !viewerBlocked;
+  // 분양자·운영자에게만 온다. 유찰·종료 경매를 기간만 새로 정해 다시 연다(libs/shared/auctionRestart.ts).
+  const restart = data?.restart ?? null;
   const extensionMinutes = Math.floor(AUCTION_EXTENSION_MS / (60 * 1000));
   const extensionWindowMinutes = Math.floor(AUCTION_EXTENSION_WINDOW_MS / (60 * 1000));
   const winnerBid = auction?.winnerId
@@ -476,7 +489,33 @@ const AuctionDetailClient = () => {
       ? "경매가 종료되었습니다."
       : auction.status === "취소"
       ? "운영 처리로 경매가 중단(취소)되었습니다."
+      : restart?.eligible
+      ? AUCTION_RESTART_COPY.unsoldOwnerNotice
       : "유찰되었습니다.";
+  const roundLabel = auctionRoundLabel(auction.round);
+  const previousRounds = data?.previousRounds ?? [];
+  // 분양자 하단 바: 유찰은 주황 버튼, 낙찰된 경매는 입양이 안 됐을 때만 쓰도록 회색 버튼 + 안내.
+  const restartBar =
+    restart?.eligible ? (
+      <>
+        {restart.reasonRequired ? (
+          <p className="text-[13px] text-app-muted">{AUCTION_RESTART_COPY.endedOwnerCaption}</p>
+        ) : null}
+        <button
+          type="button"
+          onClick={() => setRestartOpen(true)}
+          className={cn(
+            "h-[52px] w-full rounded-md text-[16px] font-semibold",
+            restart.reasonRequired ? "bg-app-surface text-app-text" : "bg-app-brand text-white"
+          )}
+        >
+          {AUCTION_RESTART_COPY.button}
+        </button>
+        <p className="text-[13px] text-app-muted">{AUCTION_RESTART_COPY.restartsLeft(restart.restartsLeft)}</p>
+      </>
+    ) : restart?.lock === "limit" ? (
+      <p className="py-2 text-[13px] text-app-muted">{AUCTION_RESTART_COPY.limitReached}</p>
+    ) : null;
 
   const hasSellerTrustInfo = Boolean(
     auction.sellerPhone ||
@@ -599,9 +638,14 @@ const AuctionDetailClient = () => {
 
         {/* 제목·설명 */}
         <div className="flex flex-col gap-2.5 p-4">
-          {auction.category ? (
-            <div className="flex">
-              <span className="rounded-xl bg-app-surface px-2 py-1 text-[12px] text-app-muted">{auction.category}</span>
+          {auction.category || roundLabel ? (
+            <div className="flex gap-1.5">
+              {auction.category ? (
+                <span className="rounded-xl bg-app-surface px-2 py-1 text-[12px] text-app-muted">{auction.category}</span>
+              ) : null}
+              {roundLabel ? (
+                <span className="rounded-xl bg-app-surface px-2 py-1 text-[12px] text-app-muted">{roundLabel}</span>
+              ) : null}
             </div>
           ) : null}
           <h1 className="break-keep text-[18px] font-bold text-app-text [overflow-wrap:anywhere]">{auction.title}</h1>
@@ -632,7 +676,7 @@ const AuctionDetailClient = () => {
             <ActionButton icon="send" label="공유하기" onClick={() => void shareAuction()} />
           </div>
 
-          {canManage && !canEdit ? (
+          {canManage && !canEdit && !restartBar ? (
             <p className="text-[13px] text-app-muted">
               진행중 상태에서 등록 후 10분 이내, 입찰이 없을 때만 수정할 수 있습니다.
             </p>
@@ -749,6 +793,23 @@ const AuctionDetailClient = () => {
           <p className="p-4 text-[13px] text-app-muted">아직 입찰 내역이 없습니다.</p>
         )}
 
+        {/* 지난 경매(다시 시작하기 전 회차, 접힘) */}
+        {previousRounds.length > 0 ? (
+          <div className="px-4">
+            <CollapsibleRow
+              title={AUCTION_RESTART_COPY.previousRoundsTitle}
+              open={previousRoundsOpen}
+              onToggle={() => setPreviousRoundsOpen((v) => !v)}
+            >
+              <ul className="flex flex-col gap-1.5 text-[13px] leading-5 text-app-muted">
+                {previousRounds.map((previous) => (
+                  <li key={previous.round}>{formatAuctionPreviousRound(previous)}</li>
+                ))}
+              </ul>
+            </CollapsibleRow>
+          </div>
+        ) : null}
+
         {/* 신고(접힘) */}
         {!isOwner ? (
           <>
@@ -793,48 +854,54 @@ const AuctionDetailClient = () => {
       {/* 하단 고정 입찰 바 */}
       <div className="fixed inset-x-0 bottom-0 mx-auto max-w-xl z-40 border-t border-app-line bg-app-bg">
         <div className="mx-auto flex max-w-xl flex-col gap-2 px-4 pt-2.5 pb-[max(14px,calc(env(safe-area-inset-bottom)+10px))]">
-          {isBiddable ? (
-            <div className="flex flex-col gap-1.5">
-              <CheckboxRow
-                checked={agreedBidRule}
-                onToggle={() => setAgreedBidRule((v) => !v)}
-                label="입찰 취소 불가, 마감 임박 자동연장 규칙을 확인했습니다."
-              />
-              <CheckboxRow
-                checked={agreedDisputePolicy}
-                onToggle={() => setAgreedDisputePolicy((v) => !v)}
-                label="분쟁 책임 제한 및 신고 접수 정책을 확인했습니다."
-              />
-            </div>
-          ) : null}
-          <div className="flex items-center gap-2">
-            <PriceInput
-              value={bidInput}
-              onChange={setBidInput}
-              disabled={!isBiddable}
-              placeholder={`최소 ${minimumBid.toLocaleString("ko-KR")}원`}
-              aria-label="입찰 금액"
-              className="min-w-0 flex-1"
-            />
-            <button
-              type="button"
-              onClick={handleBid}
-              disabled={bidDisabled}
-              className={cn(
-                "h-[52px] min-w-[112px] shrink-0 rounded-md px-5 text-[16px] font-semibold",
-                bidDisabled ? "bg-app-surface text-app-caption" : "bg-app-brand text-white"
-              )}
-            >
-              {bidLoading ? "입찰 중..." : "입찰하기"}
-            </button>
-          </div>
-          {isOwner ? (
-            <p className="text-[13px] text-app-muted">본인이 등록한 경매에는 입찰할 수 없습니다.</p>
-          ) : isTopBidder ? (
-            <p className="text-[13px] text-app-muted">현재 최고 입찰자는 다시 입찰할 수 없습니다.</p>
-          ) : auction.status !== "진행중" || countdown.isEnded ? (
-            <p className="text-[13px] text-app-muted">종료된 경매입니다.</p>
-          ) : null}
+          {restartBar ?? (
+            <>
+              {isBiddable ? (
+                <div className="flex flex-col gap-1.5">
+                  <CheckboxRow
+                    checked={agreedBidRule}
+                    onToggle={() => setAgreedBidRule((v) => !v)}
+                    label="입찰 취소 불가, 마감 임박 자동연장 규칙을 확인했습니다."
+                  />
+                  <CheckboxRow
+                    checked={agreedDisputePolicy}
+                    onToggle={() => setAgreedDisputePolicy((v) => !v)}
+                    label="분쟁 책임 제한 및 신고 접수 정책을 확인했습니다."
+                  />
+                </div>
+              ) : null}
+              <div className="flex items-center gap-2">
+                <PriceInput
+                  value={bidInput}
+                  onChange={setBidInput}
+                  disabled={!isBiddable}
+                  placeholder={`최소 ${minimumBid.toLocaleString("ko-KR")}원`}
+                  aria-label="입찰 금액"
+                  className="min-w-0 flex-1"
+                />
+                <button
+                  type="button"
+                  onClick={handleBid}
+                  disabled={bidDisabled}
+                  className={cn(
+                    "h-[52px] min-w-[112px] shrink-0 rounded-md px-5 text-[16px] font-semibold",
+                    bidDisabled ? "bg-app-surface text-app-caption" : "bg-app-brand text-white"
+                  )}
+                >
+                  {bidLoading ? "입찰 중..." : "입찰하기"}
+                </button>
+              </div>
+              {isOwner ? (
+                <p className="text-[13px] text-app-muted">본인이 등록한 경매에는 입찰할 수 없습니다.</p>
+              ) : auction.status !== "진행중" || countdown.isEnded ? (
+                <p className="text-[13px] text-app-muted">종료된 경매입니다.</p>
+              ) : viewerBlocked ? (
+                <p className="text-[13px] text-app-muted">{AUCTION_RESTART_COPY.blockedBidderNotice}</p>
+              ) : isTopBidder ? (
+                <p className="text-[13px] text-app-muted">현재 최고 입찰자는 다시 입찰할 수 없습니다.</p>
+              ) : null}
+            </>
+          )}
         </div>
       </div>
 
@@ -861,6 +928,17 @@ const AuctionDetailClient = () => {
         }}
         onCancel={() => setConfirmBidAmount(null)}
       />
+      {restart?.eligible ? (
+        <AuctionRestartModal
+          open={restartOpen}
+          onClose={() => setRestartOpen(false)}
+          auctionId={auction.id}
+          round={auction.round}
+          startPrice={auction.startPrice}
+          restart={restart}
+          onRestarted={() => void mutate()}
+        />
+      ) : null}
       <ActionSheet open={adminSheetOpen} onClose={() => setAdminSheetOpen(false)} actions={adminActions} />
       {moderation.confirmDialog}
     </Layout>

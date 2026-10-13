@@ -24,6 +24,7 @@ export type ServerAnalyticsEvent =
   | "product_favorited"
   | "auction_created"
   | "auction_bid_placed"
+  | "auction_restarted"
   | "chat_room_created"
   | "chat_message_sent"
   | "chat_wave_sent"
