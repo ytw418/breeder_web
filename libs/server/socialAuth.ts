@@ -1,3 +1,4 @@
+import { createHash } from "crypto";
 import { createRemoteJWKSet, jwtVerify, type JWTPayload, type JWTVerifyGetKey } from "jose";
 
 /**
@@ -7,7 +8,7 @@ import { createRemoteJWKSet, jwtVerify, type JWTPayload, type JWTVerifyGetKey } 
  * 토큰을 받을 수 있다. 그래서 로그인 API 는 이 모듈이 돌려준 값만 쓴다.
  * - kakao: access token 으로 카카오 사용자 정보 API 를 호출한 결과의 회원번호
  * - google: Firebase ID 토큰(웹·앱 모두 Firebase Auth 경유)의 uid
- * - apple: identityToken 의 sub
+ * - apple: identityToken 의 sub(iOS 네이티브 aud=번들 ID, Android·웹 aud=Services ID)
  */
 
 export type SocialProvider = "kakao" | "google" | "apple";
@@ -17,6 +18,8 @@ export interface VerifiedSocialAccount {
   /** 제공자가 인증했다고 확인한 이메일만 담는다(관리자 허용 목록이 이메일 기준이다). */
   email: string | null;
   avatar: string | null;
+  /** apple 만: 토큰을 받은 클라이언트 ID(aud — iOS 번들 ID 또는 Services ID). 철회용 토큰 교환에 쓴다. */
+  appleClientId?: string;
 }
 
 export class SocialAuthError extends Error {
@@ -35,6 +38,10 @@ export interface SocialAuthOptions {
   fetchImpl?: typeof fetch;
   googleKeys?: JWTVerifyGetKey;
   appleKeys?: JWTVerifyGetKey;
+  /** Apple 웹 로그인 클라이언트가 보낸 원래 nonce(/api/auth/login). sha256 해시가 토큰 nonce 와 같아야 한다. */
+  nonce?: string;
+  /** Apple 콜백이 서명된 state 에서 꺼낸 nonce 해시. */
+  nonceHash?: string;
 }
 
 const KAKAO_USER_ME_URL = "https://kapi.kakao.com/v2/user/me";
@@ -43,7 +50,8 @@ const FIREBASE_JWKS_URL =
   "https://www.googleapis.com/service_accounts/v1/jwk/securetoken@system.gserviceaccount.com";
 const APPLE_JWKS_URL = "https://appleid.apple.com/auth/keys";
 const APPLE_ISSUER = "https://appleid.apple.com";
-const DEFAULT_APPLE_AUDIENCES = ["app.bredy.mobile"];
+/** iOS 네이티브 로그인 토큰의 aud(번들 ID). */
+const APPLE_NATIVE_AUDIENCE = "app.bredy.mobile";
 
 let firebaseKeys: JWTVerifyGetKey | null = null;
 let appleKeys: JWTVerifyGetKey | null = null;
@@ -78,7 +86,11 @@ function getFirebaseProjectId() {
 
 function getAppleAudiences() {
   const raw = process.env.APPLE_ALLOWED_AUDIENCES?.trim();
-  if (!raw) return DEFAULT_APPLE_AUDIENCES;
+  if (!raw) {
+    // Services ID(Android·웹 로그인)는 설정돼 있을 때만 받는다.
+    const servicesId = process.env.APPLE_SERVICES_ID?.trim();
+    return servicesId ? [APPLE_NATIVE_AUDIENCE, servicesId] : [APPLE_NATIVE_AUDIENCE];
+  }
   return raw
     .split(",")
     .map((value) => value.trim())
@@ -178,19 +190,41 @@ async function verifyGoogle(
   };
 }
 
+/**
+ * Apple 웹 로그인 토큰은 흐름을 시작한 클라이언트의 nonce 와 묶여 있어야 한다(남이 받은 토큰 재사용 차단).
+ * nonce 없이 만든 iOS 네이티브 토큰(aud 번들 ID, nonce 클레임 없음)만 예외로 통과시킨다.
+ */
+function checkAppleNonce(payload: JWTPayload, options: { nonce?: string; nonceHash?: string }) {
+  const expected =
+    options.nonceHash ??
+    (options.nonce ? createHash("sha256").update(options.nonce).digest("hex") : null);
+  const claim = typeof payload.nonce === "string" && payload.nonce ? payload.nonce : null;
+  const audiences = Array.isArray(payload.aud) ? payload.aud : [payload.aud];
+  const isNativeWithoutNonce =
+    audiences.length === 1 && audiences[0] === APPLE_NATIVE_AUDIENCE && !claim && !expected;
+  if (isNativeWithoutNonce) return;
+  if (!expected || claim !== expected) {
+    throw new SocialAuthError("로그인 확인 정보가 일치하지 않습니다.");
+  }
+}
+
 async function verifyApple(
   token: string,
-  keys: JWTVerifyGetKey
+  keys: JWTVerifyGetKey,
+  nonceOptions: { nonce?: string; nonceHash?: string }
 ): Promise<VerifiedSocialAccount> {
   const payload = await verifyJwt(token, keys, {
     issuer: APPLE_ISSUER,
     audience: getAppleAudiences(),
   });
+  checkAppleNonce(payload, nonceOptions);
+  const audience = Array.isArray(payload.aud) ? payload.aud[0] : payload.aud;
 
   return {
     snsId: payload.sub as string,
     email: isTrueClaim(payload.email_verified) ? normalizeEmail(payload.email) : null,
     avatar: null,
+    ...(audience ? { appleClientId: audience } : {}),
   };
 }
 
@@ -209,7 +243,10 @@ export async function verifySocialLogin(
     case "google":
       return verifyGoogle(token, options.googleKeys ?? getFirebaseKeys());
     case "apple":
-      return verifyApple(token, options.appleKeys ?? getAppleKeys());
+      return verifyApple(token, options.appleKeys ?? getAppleKeys(), {
+        nonce: options.nonce,
+        nonceHash: options.nonceHash,
+      });
     default:
       throw new SocialAuthError("지원하지 않는 로그인 방식입니다.", 400);
   }
