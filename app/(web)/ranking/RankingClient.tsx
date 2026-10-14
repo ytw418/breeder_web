@@ -334,7 +334,7 @@ const RankingClient = () => {
   } else if (items.length === 0) {
     list = (
       <div className="flex flex-col items-center px-4 py-14 text-center">
-        <p className="text-[16px] font-semibold text-app-text">{rankingEmptyTitle(type, period, speciesValue ?? null)}</p>
+        <p className="text-[16px] font-semibold text-app-text">{withBreederWord(rankingEmptyTitle(type, period, speciesValue ?? null), breeder)}</p>
         {sub ? (
           <p className="mt-1.5 text-[13px] text-app-muted">소분류를 고르지 않은 글은 대분류에서만 세요</p>
         ) : null}

@@ -271,7 +271,7 @@ function NeighborCardView({ card, wavesLeftToday }: { card: NeighborCard; wavesL
 }
 
 export function NeighborhoodBreederSectionView({ state }: { state: HomeNeighborhoodState }) {
-  const { breeder } = useScopeTerms();
+  const { breeder, mammalOnly } = useScopeTerms();
   if (state.kind === "hidden") return null;
   const label = state.kind === "near" || state.kind === "none" ? state.label : null;
 
@@ -292,7 +292,9 @@ export function NeighborhoodBreederSectionView({ state }: { state: HomeNeighborh
         <div className="mx-4 mt-3 rounded-xl bg-app-gap p-4">
           <p className="app-t-card">가까운 {breeder}를 만나 보세요</p>
           <p className="app-t-meta mt-1 break-keep">
-            곤충·파충류·물고기는 직거래가 생물에게 덜 힘들어요. 내 동네를 고르면 근처 {NEIGHBOR_RADIUS_KM}km {breeder}가 보여요.
+            {/* 포유류만 고정했으면 곤충·파충류 안내는 빼고 동네 안내만 둔다(category-pin §15). */}
+            {mammalOnly ? null : "곤충·파충류·물고기는 직거래가 생물에게 덜 힘들어요. "}내 동네를 고르면 근처 {NEIGHBOR_RADIUS_KM}km {breeder}가
+            보여요.
           </p>
           <div className="mt-3 flex">
             <Link
