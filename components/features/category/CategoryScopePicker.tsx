@@ -199,7 +199,8 @@ export function CategoryScopeForm({
     if (saving) return;
     setSaving(true);
     setPinnedCategories(nextPins);
-    if (mode === "onboarding") markCategoryOnboardingDone();
+    // 설정에서 고른 것도(전체 보기 포함) 마친 것으로 둔다 — 아니면 홈 첫 방문 팝업이 한 번 더 뜬다.
+    markCategoryOnboardingDone();
     onFinish(nextPins);
   };
   const sheet = variant === "sheet";

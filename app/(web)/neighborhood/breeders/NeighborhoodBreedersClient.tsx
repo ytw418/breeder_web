@@ -2,6 +2,7 @@
 /** 동네 브리더 전체 보기(앱 neighborhood/breeders.tsx): 캡션 → 동네 브리더 행(최대 50명). 동네 미설정이면 안내 카드. */
 import useSWR from "swr";
 import useScopeTerms from "@/hooks/useScopeTerms";
+import { withBreederWord } from "@libs/shared/scopeTerms";
 import Layout from "@components/features/MainLayout";
 import { QueryErrorState } from "@components/app/QueryErrorState";
 import {
@@ -23,7 +24,8 @@ export default function NeighborhoodBreedersClient() {
   const { data, error, mutate } = useSWR<NearbyBreedersResponse>(
     region ? `/api/users/nearby?limit=${NEARBY_FULL_LIST_LIMIT}` : null
   );
-  const caption = nearbyCaption(data);
+  const rawCaption = nearbyCaption(data);
+  const caption = rawCaption && withBreederWord(rawCaption, breeder);
   return (
     <Layout canGoBack title={`동네 ${breeder}`} seoTitle={`동네 ${breeder}`}>
       {!region ? (
