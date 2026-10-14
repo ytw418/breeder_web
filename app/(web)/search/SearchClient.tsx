@@ -359,7 +359,7 @@ const SearchClient = () => {
         {/* 최근 게시글 */}
         {posts && posts.length > 0 ? (
           <section>
-            <SectionHeader title="최근 게시글" moreHref="/posts" />
+            <SectionHeader title="최근 게시글" moreHref="/" />
             {posts.slice(0, 5).map((post) => (
               <ResultRow
                 key={post.id}

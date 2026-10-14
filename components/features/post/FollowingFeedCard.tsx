@@ -35,7 +35,7 @@ export default function FollowingFeedCard({
   className?: string;
 }) {
   const copy = COPY[variant];
-  const href = variant === "login" ? toLoginHref("/posts") : "/ranking";
+  const href = variant === "login" ? toLoginHref("/") : "/ranking";
   return (
     <div className={cn("mx-4 rounded-xl border border-app-border bg-app-elevated p-5", className)}>
       <p className="text-[16px] font-semibold text-app-strong">{copy.title}</p>

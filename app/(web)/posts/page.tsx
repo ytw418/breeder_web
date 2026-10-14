@@ -1,43 +1,19 @@
-import React from "react";
-import PostsClient from "./PostsClient";
-import type { Metadata } from "next";
-
-export const metadata: Metadata = {
-  title: "반려생활 게시글 | 브리디",
-  description:
-    "브리디 반려생활 게시판의 최신 글을 모아서 확인하세요. 분양 후기, 거래 팁, 커뮤니티 소식까지 한 곳에서 빠르게 찾아봅니다.",
-  keywords: ["반려생활", "브리디 게시판", "게시글", "반려동물 커뮤니티"],
-  alternates: {
-    canonical: "https://bredy.app/posts",
-  },
-  openGraph: {
-    title: "반려생활 게시글 | 브리디",
-    description: "브리디 반려생활 게시판 최신 글 모음입니다.",
-    type: "website",
-    url: "https://bredy.app/posts",
-    images: [
-      {
-        url: "/opengraph-image",
-        width: 1200,
-        height: 630,
-        alt: "브리디 반려생활 게시글 목록",
-      },
-    ],
-  },
-  twitter: {
-    card: "summary_large_image",
-    title: "반려생활 게시글 | 브리디",
-    description: "반려생활 관련 소식과 게시글을 한 곳에서 확인하세요.",
-    images: ["/opengraph-image"],
-  },
-};
+import { redirect } from "next/navigation";
 
 type SearchParams = Record<string, string | string[] | undefined>;
 
-/** ?category=동네 처럼 들어오면 그 칩으로 시작한다(홈 '동네 사랑방'). 주소는 클라이언트가 한 번 읽고 지운다. */
-const page = async ({ searchParams }: { searchParams: Promise<SearchParams> }) => {
-  const { category } = await searchParams;
-  return <PostsClient initialCategory={typeof category === "string" ? category : undefined} />;
-};
-
-export default page;
+/**
+ * 옛 반려생활 탭(/posts). 2026-10-15 홈 구성 A안(docs/prd/home-ia.md)으로 반려생활 내용이 홈이 됐다.
+ * 알림·공유·검색 결과의 /posts?category=동네 같은 주소는 쿼리를 그대로 홈으로 넘긴다(홈이 칩을 고르고 목록으로 스크롤한다).
+ * 글 상세(/posts/[id])·글쓰기(/posts/upload)·공지(/posts/notices)는 그대로다.
+ */
+export default async function PostsRedirect({ searchParams }: { searchParams: Promise<SearchParams> }) {
+  const params = await searchParams;
+  const query = new URLSearchParams();
+  for (const [key, value] of Object.entries(params)) {
+    if (typeof value === "string") query.set(key, value);
+    else if (Array.isArray(value)) value.forEach((v) => query.append(key, v));
+  }
+  const qs = query.toString();
+  redirect(qs ? `/?${qs}` : "/");
+}

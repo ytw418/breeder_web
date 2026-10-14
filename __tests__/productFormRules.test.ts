@@ -11,7 +11,7 @@ const valid = {
 };
 
 describe("validateProductForm", () => {
-  it("0원(무료나눔)은 통과", () => {
+  it("0원(무료 분양)은 통과", () => {
     expect(validateProductForm(valid)).toEqual({});
   });
 

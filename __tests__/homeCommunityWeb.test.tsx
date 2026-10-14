@@ -1,4 +1,3 @@
-import type { ReactNode } from "react";
 import { render, screen, within } from "@testing-library/react";
 import { SWRConfig } from "swr";
 
@@ -16,14 +15,20 @@ jest.mock(
   "hooks/useCategoryScope",
   () => ({
     __esModule: true,
-    default: () => ({ categoryPath: undefined, topLevelNames: null }),
+    default: () => ({ categoryPath: undefined, topLevelNames: null, pins: [] }),
     withCategoryPath: (url: string) => url,
   }),
   { virtual: true }
 );
+let mockSearch = "";
+jest.mock("next/navigation", () => ({
+  useSearchParams: () => new URLSearchParams(mockSearch),
+  useRouter: () => ({ push: jest.fn(), replace: jest.fn(), back: jest.fn(), prefetch: jest.fn() }),
+  usePathname: () => "/",
+}));
 jest.mock("@components/features/MainLayout", () => ({
   __esModule: true,
-  default: ({ children }: { children: ReactNode }) => <div>{children}</div>,
+  default: ({ children }: { children: React.ReactNode }) => <div>{children}</div>,
   toLoginHref: (next: string) => `/login?next=${encodeURIComponent(next)}`,
 }));
 jest.mock("@libs/client/analytics", () => ({
@@ -31,7 +36,8 @@ jest.mock("@libs/client/analytics", () => ({
   trackEvent: jest.fn(),
 }));
 
-import PostsClient from "../app/(web)/posts/PostsClient";
+import HomeCommunityTop from "../app/(web)/(main)/HomeCommunityTop";
+import HomePostsFeed from "../app/(web)/(main)/HomePostsFeed";
 
 const user = { id: 7, name: "젠크레", avatar: null, breederPrograms: [] };
 const basePost = (id: number, extra: Record<string, unknown> = {}) => ({
@@ -70,7 +76,6 @@ const fetcher = async (url: string) => {
   }
   if (url.startsWith("/api/posts/notices")) return { success: true, posts: [], pages: 0 };
   if (url.startsWith("/api/posts?")) return { success: true, posts: [basePost(2)], pages: 1 };
-  if (url.startsWith("/api/rankings/")) return { success: true, items: [] };
   return {};
 };
 
@@ -86,48 +91,50 @@ beforeAll(() => {
   });
 });
 
-function renderPosts() {
-  return render(
-    <SWRConfig value={{ provider: () => new Map(), fetcher, dedupingInterval: 0 }}>
-      <PostsClient />
-    </SWRConfig>
-  );
-}
+beforeEach(() => {
+  mockSearch = "";
+});
 
-describe("반려생활 상단(community-vibe §3.5)", () => {
-  it("세그먼트는 실시간 TOP 토론 · 답 기다려요 N · 동네 · 랭킹이고 이모지가 없다", async () => {
-    renderPosts();
-    const tablist = screen.getByRole("tablist", { name: "하이라이트 탭" });
-    const tabs = within(tablist).getAllByRole("tab");
-    expect(tabs.map((tab) => tab.textContent?.replace(/\d+$/, ""))).toEqual([
-      "실시간 TOP 토론",
-      "답 기다려요",
-      "동네",
-      "랭킹",
-    ]);
-    expect(await screen.findByTestId("unanswered-count")).toHaveTextContent("3");
-    for (const tab of tabs) expect(tab.textContent).not.toMatch(/[\u{1F300}-\u{1FAFF}]/u);
+const withSWR = (node: React.ReactNode) => (
+  <SWRConfig value={{ provider: () => new Map(), fetcher, dedupingInterval: 0 }}>{node}</SWRConfig>
+);
+
+describe("홈 위쪽 커뮤니티(docs/prd/home-ia.md S-1, 옛 반려생활 상단)", () => {
+  it("세그먼트(탭 목록) 없이 '실시간 TOP 토론' 섹션 제목이 있다", async () => {
+    render(withSWR(<HomeCommunityTop />));
+    expect(screen.getByRole("heading", { name: "실시간 TOP 토론" })).toBeTruthy();
+    expect(screen.queryByRole("tablist")).toBeNull();
   });
 
   it("실시간 토론 카드 메타는 최근 활동 시각이 먼저('방금 댓글 · 작성자 · 댓글 4')", async () => {
-    renderPosts();
+    render(withSWR(<HomeCommunityTop />));
     const rail = await screen.findByTestId("realtime-hot-rail");
     expect(rail.textContent).toContain("방금 댓글 · 젠크레 · 댓글 4");
   });
 
   it("답 기다려요 카드는 질문 제목과 '답하기'(#comment)를 보인다", async () => {
-    renderPosts();
+    render(withSWR(<HomeCommunityTop />));
     const card = await screen.findByTestId("awaiting-answer-card");
     expect(card.textContent).toContain("볼파이썬 탈피 주기가 너무 짧은데 정상인가요?");
-    expect(card.textContent).toContain("3시간째 답이 없어요 · 첫 답변은 소통왕 점수 2배");
     expect(within(card).getByRole("link", { name: "답하기" }).getAttribute("href")).toMatch(/#comment$/);
   });
+});
 
+describe("홈 전체 게시글(옛 반려생활 목록)", () => {
   it("목록 제목에 개수 배지와 '…으로 노출됩니다' 문구가 없다", async () => {
-    renderPosts();
+    render(withSWR(<HomePostsFeed />));
     expect(await screen.findByText("글 2")).toBeTruthy();
     expect(screen.getByRole("heading", { name: "전체 게시글" })).toBeTruthy();
     expect(screen.queryByText(/\d+개$/)).toBeNull();
     expect(screen.queryByText(/노출됩니다/)).toBeNull();
+  });
+
+  it("?category=동네(옛 /posts 링크·홈 '동네 사랑방')로 들어오면 동네 칩을 고르고 주소에서 지운다", async () => {
+    mockSearch = "category=%EB%8F%99%EB%84%A4";
+    const replaceState = jest.spyOn(window.history, "replaceState");
+    render(withSWR(<HomePostsFeed />));
+    expect(await screen.findByRole("heading", { name: "동네 게시글" })).toBeTruthy();
+    expect(replaceState).toHaveBeenCalledWith(null, "", "/");
+    replaceState.mockRestore();
   });
 });

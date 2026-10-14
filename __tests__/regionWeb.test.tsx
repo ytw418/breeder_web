@@ -117,7 +117,7 @@ describe("동네 브리더 목록(앱 NearbyBreederList)", () => {
     mockUseUser.mockReturnValue({ user: undefined });
     render(<RegionGateCard />);
     expect(screen.getByRole("link", { name: "내 동네 설정" }).getAttribute("href")).toBe(
-      `/login?next=${encodeURIComponent("/settings/region?from=%2Fposts")}`
+      `/login?next=${encodeURIComponent("/settings/region?from=%2F")}`
     );
   });
 });

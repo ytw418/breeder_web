@@ -120,7 +120,7 @@ function MyRankRow({
       : kind === "comment"
         ? question
           ? `${toPostPath(question.id, question.title)}#comment`
-          : "/posts"
+          : "/"
         : "/posts/upload";
   const headline = myRankHeadline(me);
   const progress = myRankProgress(me);

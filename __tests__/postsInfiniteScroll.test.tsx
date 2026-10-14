@@ -27,12 +27,18 @@ jest.mock("@components/features/MainLayout", () => ({
   default: ({ children }: { children: ReactNode }) => <div>{children}</div>,
   toLoginHref: (next: string) => `/login?next=${encodeURIComponent(next)}`,
 }));
+// 홈 게시글 피드는 ?category= 를 useSearchParams 로 읽는다(2026-10-15 홈 구성 A안).
+jest.mock("next/navigation", () => ({
+  useSearchParams: () => new URLSearchParams(),
+  useRouter: () => ({ push: jest.fn(), replace: jest.fn(), back: jest.fn(), prefetch: jest.fn() }),
+  usePathname: () => "/",
+}));
 jest.mock("@libs/client/analytics", () => ({
   ANALYTICS_EVENTS: new Proxy({}, { get: (_target, name) => String(name) }),
   trackEvent: jest.fn(),
 }));
 
-import PostsClient from "../app/(web)/posts/PostsClient";
+import HomePostsFeed from "../app/(web)/(main)/HomePostsFeed";
 import NoticePostsClient from "../app/(web)/posts/notices/NoticePostsClient";
 
 /** jsdom 에는 IntersectionObserver 가 없다. 바닥 감시 칸이 보이는 순간을 테스트가 직접 일으킨다. */
@@ -125,10 +131,10 @@ beforeAll(() => {
 
 afterEach(() => observers.clear());
 
-describe("반려생활 목록 무한 스크롤(bredy.app/posts 바닥 무한 갱신)", () => {
+describe("홈 게시글 목록 무한 스크롤(옛 bredy.app/posts 바닥 무한 갱신)", () => {
   it("더 받을 페이지가 없으면 바닥에서 계속 스크롤해도 목록을 다시 받지 않는다", async () => {
     const { fetcher, listRequests } = makeFetcher("/api/posts?", 1);
-    renderWith(<PostsClient />, fetcher);
+    renderWith(<HomePostsFeed />, fetcher);
     expect(await screen.findByText("글 1")).toBeTruthy();
 
     await scrollAtBottom(5);
@@ -143,7 +149,7 @@ describe("반려생활 목록 무한 스크롤(bredy.app/posts 바닥 무한 갱
 
   it("바닥 감시 칸이 보이면 다음 페이지만 한 번 받고, 다 받은 뒤에는 더 부르지 않는다", async () => {
     const { fetcher, listRequests } = makeFetcher("/api/posts?", 2);
-    renderWith(<PostsClient />, fetcher);
+    renderWith(<HomePostsFeed />, fetcher);
     expect(await screen.findByText("글 1")).toBeTruthy();
 
     await act(async () => {

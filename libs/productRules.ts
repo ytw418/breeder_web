@@ -10,7 +10,7 @@ import {
 
 export const PRODUCT_NAME_MIN_LENGTH = 2;
 export const PRODUCT_NAME_MAX_LENGTH = 60;
-/** 0원은 무료나눔이다(홈 무료나눔 카드 → price=0). */
+/** 0원은 무료 분양이다(홈 무료 분양 카드 → price=0). */
 export const PRODUCT_PRICE_MIN = 0;
 export const PRODUCT_PRICE_MAX = 1_000_000_000;
 export const PRODUCT_DESCRIPTION_MIN_LENGTH = 10;
@@ -18,9 +18,9 @@ export const PRODUCT_DESCRIPTION_MAX_LENGTH = 3000;
 /** 상품 사진 최대 장수(0장 허용). 웹 업로드 화면과 앱이 같은 값을 쓴다. */
 export const PRODUCT_PHOTOS_MAX = 10;
 
-/** 상품 가격 표시: 0 → "무료나눔", null/undefined → "가격 미정", 그 외 "1,234원". */
+/** 상품 가격 표시: 0 → "무료 분양", null/undefined → "가격 미정", 그 외 "1,234원". */
 export const formatProductPrice = (price?: number | null) =>
-  price === 0 ? "무료나눔" : price != null ? `${price.toLocaleString()}원` : "가격 미정";
+  price === 0 ? "무료 분양" : price != null ? `${price.toLocaleString()}원` : "가격 미정";
 
 export type ProductValidationErrorCode =
   | "PRODUCT_INVALID_NAME"
@@ -242,7 +242,7 @@ export type ProductFormErrors = {
 
 /**
  * 등록·수정 화면 입력 검사(앱 validateProductFields + 카테고리·타입 필수). 오류가 없으면 빈 객체.
- * price 는 화면 입력값(숫자, 비어 있으면 null). 0 은 무료나눔이다.
+ * price 는 화면 입력값(숫자, 비어 있으면 null). 0 은 무료 분양이다.
  */
 export const validateProductForm = ({
   name,

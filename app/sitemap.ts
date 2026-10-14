@@ -25,8 +25,9 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       changeFrequency: "daily",
       priority: 0.6,
     },
+    // 분양 탭(2026-10-15 홈 구성 A안). 옛 /posts 는 홈으로 리다이렉트한다.
     {
-      url: "https://bredy.app/posts",
+      url: "https://bredy.app/products",
       lastModified: new Date(),
       changeFrequency: "daily",
       priority: 0.7,

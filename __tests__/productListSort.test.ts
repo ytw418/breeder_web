@@ -154,7 +154,7 @@ describe("GET /api/products 가격 범위", () => {
     }
   });
 
-  it("정확한 price 가 있으면 범위보다 우선한다(무료나눔 링크 유지)", async () => {
+  it("정확한 price 가 있으면 범위보다 우선한다(무료 분양 링크 유지)", async () => {
     await list({ price: "0", minPrice: "1000" });
     expect(lastFindMany().where.price).toBe(0);
   });
