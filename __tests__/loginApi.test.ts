@@ -280,3 +280,43 @@ describe("/api/auth/login 가입·로그인 계측", () => {
     expect(mockCapture).not.toHaveBeenCalled();
   });
 });
+
+describe("/api/auth/login 같은 이메일을 쓰는 다른 계정", () => {
+  const byWhere = (bySns: unknown, byEmail: unknown) =>
+    mockClient.user.findUnique.mockImplementation(async ({ where }: { where: Record<string, unknown> }) =>
+      "snsId" in where ? bySns : "email" in where ? byEmail : null
+    );
+
+  it("처음 가입인데 이메일이 다른 계정에 있으면 이메일 없이 별도 계정으로 만든다(500 이 아니라 로그인 성공)", async () => {
+    mockVerifySocialLogin.mockResolvedValue({ snsId: "apple-sub-1", email: "victim@gmail.com", avatar: null });
+    byWhere(null, { id: 1 });
+    mockCreateUser.mockResolvedValue({ ...existingUser, id: 9, snsId: "apple-sub-1", email: null });
+
+    const res = await login({ token: "valid", name: "x", provider: "apple" });
+
+    expect(res.statusCode).toBe(200);
+    expect(mockCreateUser).toHaveBeenCalledWith(
+      expect.objectContaining({ snsId: "apple-sub-1", email: null, provider: "apple" })
+    );
+  });
+
+  it("이메일이 비어 있으면 그대로 저장한다", async () => {
+    mockVerifySocialLogin.mockResolvedValue({ snsId: "apple-sub-2", email: "new@icloud.com", avatar: null });
+    byWhere(null, null);
+    mockCreateUser.mockResolvedValue({ ...existingUser, id: 10, snsId: "apple-sub-2" });
+
+    await login({ token: "valid", name: "x", provider: "apple" });
+
+    expect(mockCreateUser).toHaveBeenCalledWith(expect.objectContaining({ email: "new@icloud.com" }));
+  });
+
+  it("기존 계정 로그인 때 새 이메일이 다른 계정 것이면 이메일을 바꾸지 않는다", async () => {
+    mockVerifySocialLogin.mockResolvedValue({ snsId: "victim-uid", email: "other@gmail.com", avatar: null });
+    byWhere({ ...existingUser, email: null }, { id: 5 });
+
+    const res = await login({ token: "valid", name: "x", provider: "google" });
+
+    expect(res.statusCode).toBe(200);
+    expect(mockClient.user.update).not.toHaveBeenCalled();
+  });
+});
