@@ -102,7 +102,7 @@ export const AUCTION_RESTART_COPY = {
   endedOwnerCaption: "낙찰자가 입양하지 않았다면 경매를 다시 시작할 수 있어요.",
   sheetTitle: "경매 다시 시작",
   sheetDescription: (nextRound: number, startPrice: number) =>
-    `${nextRound}번째 경매로 다시 열어요. 시작가 ${startPrice.toLocaleString("ko-KR")}원부터 다시 입찰을 받고, 사진·설명·입찰 단위는 그대로예요.`,
+    `${nextRound}번째 경매로 다시 열어요. 지난 입찰은 모두 초기화되고 시작가 ${startPrice.toLocaleString("ko-KR")}원부터 다시 입찰을 받아요. 사진·설명·입찰 단위는 그대로예요.`,
   durationLabel: "경매 기간",
   endsAt: (text: string) => `마감 ${text}`,
   reasonLabel: "다시 시작하는 이유",
@@ -128,7 +128,7 @@ export const AUCTION_RESTART_NOTIFICATIONS = {
     `${sellerName}님이 "${title}" 경매의 낙찰을 취소하고 다시 시작했어요. 이 경매에는 다시 입찰할 수 없어요.`,
   /** 다시 시작했을 때 지난 회차 입찰자에게(AUCTION_RESTARTED). */
   bidderInvite: (sellerName: string, title: string, startPrice: number) =>
-    `${sellerName}님이 "${title}" 경매를 다시 시작했어요. 시작가 ${startPrice.toLocaleString("ko-KR")}원부터 다시 입찰할 수 있어요.`,
+    `${sellerName}님이 "${title}" 경매를 다시 시작했어요. 지난 입찰은 초기화됐고, 시작가 ${startPrice.toLocaleString("ko-KR")}원부터 다시 입찰할 수 있어요.`,
 } as const;
 
 export const AUCTION_RESTART_ERROR_MESSAGES: Record<string, string> = {

@@ -136,5 +136,7 @@ describe("GET /api/rankings/auction-activity", () => {
     ]);
     // 역대는 이전 기간을 세지 않는다(그룹 쿼리 3번).
     expect(mockClient.bid.groupBy).toHaveBeenCalledTimes(1);
+    // 다시 시작한 경매의 지난 회차 입찰은 초기화돼 세지 않는다.
+    expect(mockClient.bid.groupBy.mock.calls[0][0].where.archivedAt).toBeNull();
   });
 });
