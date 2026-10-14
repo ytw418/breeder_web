@@ -250,7 +250,12 @@ const countByGroup = async (
     return rows.map((row) => ({ key: row.userId, count: row._count._all }));
   }
   if (model === "bid") {
-    const rows = await client.bid.groupBy({ by: ["userId"], where, _count: { _all: true } });
+    // 경매를 다시 시작하면 지난 회차 입찰(archivedAt)은 초기화된 것으로 보고 점수·입찰 수에서 뺀다.
+    const rows = await client.bid.groupBy({
+      by: ["userId"],
+      where: { ...where, archivedAt: null },
+      _count: { _all: true },
+    });
     return rows.map((row) => ({ key: row.userId, count: row._count._all }));
   }
   if (model === "auctionByWinner") {

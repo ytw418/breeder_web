@@ -283,7 +283,8 @@ async function handler(
 
       const auction = await client.auction.findUnique({
         where: { id: auctionId },
-        include: { _count: { select: { bids: true } } },
+        // GET 의 canEdit 과 같이 이번 회차 입찰만 센다.
+        include: { _count: { select: { bids: { where: { archivedAt: null } } } } },
       });
 
       if (!auction) {
