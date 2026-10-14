@@ -184,7 +184,7 @@ function ChipRow({ children }: { children: ReactNode }) {
 /**
  * 상품 등록·수정 당근 단일 폼(앱 src/app/products/upload.tsx · [id]/edit.tsx).
  * 사진(대표·순서·10장·10MB) → 상품명 0/60 → 카테고리(대분류·하위분류 칩) → 상품 타입 세그먼트
- * → 혈통 행(생물만, 붙이기 시트) → 가격(₩, 무료나눔 칩) → 설명 0/3000. 하단 고정 CTA 52, 업로드 진행 오버레이, 이탈 확인.
+ * → 혈통 행(생물만, 붙이기 시트) → 가격(₩, 무료 분양 칩) → 설명 0/3000. 하단 고정 CTA 52, 업로드 진행 오버레이, 이탈 확인.
  */
 export function ProductForm({
   product,
@@ -192,7 +192,7 @@ export function ProductForm({
 }: {
   /** 있으면 수정 모드 */
   product?: ProductFormInitial;
-  /** 등록 화면 ?free=1 → 무료나눔 미리 선택 */
+  /** 등록 화면 ?free=1 → 무료 분양 미리 선택 */
   initialFree?: boolean;
 }) {
   const router = useRouter();
@@ -217,7 +217,7 @@ export function ProductForm({
       category: branch.parent,
       subcategory: branch.child,
       productType,
-      // 가격 미정(null)은 빈칸, 0원(무료나눔)은 0 그대로 둔다.
+      // 가격 미정(null)은 빈칸, 0원(무료 분양)은 0 그대로 둔다.
       price: product ? product.price : initialFree ? 0 : null,
       description: product?.description ?? "",
       photos: product?.photos ?? [],
@@ -550,7 +550,7 @@ export function ProductForm({
         <div className="-mt-1.5">
           <div className="mb-0.5 flex h-11 items-center justify-between">
             <span className="text-[15px] font-semibold text-app-text">가격</span>
-            <FilterChip label="무료나눔" selected={isFree} onClick={toggleFree} />
+            <FilterChip label="무료 분양" selected={isFree} onClick={toggleFree} />
           </div>
           <PriceInput
             value={price}
@@ -568,7 +568,7 @@ export function ProductForm({
           {errors.price ? (
             <ErrorText>{errors.price}</ErrorText>
           ) : (
-            <p className="mt-1.5 text-[13px] text-app-muted">0원은 무료나눔으로 등록돼요</p>
+            <p className="mt-1.5 text-[13px] text-app-muted">0원은 무료 분양으로 등록돼요</p>
           )}
         </div>
 

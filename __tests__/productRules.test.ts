@@ -65,7 +65,7 @@ describe("productRules", () => {
     if (!result.ok) expect(result.errorCode).toBe("PRODUCT_INVALID_PRICE");
   });
 
-  it("0원(무료나눔)은 0 으로 저장하고, 범위를 벗어나면 0원~10억원 안내를 준다", () => {
+  it("0원(무료 분양)은 0 으로 저장하고, 범위를 벗어나면 0원~10억원 안내를 준다", () => {
     const free = validateProductInput({ ...valid, price: 0 });
     expect(free.ok && free.value.price).toBe(0);
 
@@ -201,8 +201,8 @@ describe("productRules", () => {
 });
 
 describe("formatProductPrice", () => {
-  it("0원은 무료나눔으로 보인다", () => {
-    expect(formatProductPrice(0)).toBe("무료나눔");
+  it("0원은 무료 분양으로 보인다", () => {
+    expect(formatProductPrice(0)).toBe("무료 분양");
   });
 
   it.each([[null], [undefined]])("가격이 없으면(%p) 가격 미정", (price) => {

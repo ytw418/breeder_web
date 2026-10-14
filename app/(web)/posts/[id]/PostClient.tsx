@@ -479,7 +479,7 @@ const PostClient = ({
       setDeleteOpen(false);
       toast.success("게시글이 삭제되었습니다.");
       revalidateMyPostActivity();
-      router.replace("/posts");
+      router.replace("/");
     } catch {
       toast.error("게시글 삭제에 실패했습니다.");
     } finally {
@@ -534,7 +534,7 @@ const PostClient = ({
             targetId: post.id,
             isHidden: Boolean(post.isHidden),
             refreshDetail: () => void mutate(),
-            onDeleted: () => router.replace("/posts"),
+            onDeleted: () => router.replace("/"),
           }),
           // 운영자 이메일 계정은 아래 본인 메뉴(수정·삭제)로 이미 고칠 수 있어 겹치지 않게 뺀다.
           ...(moderation.isAdmin && !canManagePost ? [{ ...byKey.edit, label: "수정하기 (관리자)" }] : []),
@@ -625,7 +625,7 @@ const PostClient = ({
           <div className="mt-5 flex items-center gap-2">
             <button
               type="button"
-              onClick={() => router.replace("/posts")}
+              onClick={() => router.replace("/")}
               className="h-11 rounded-md bg-app-surface px-4 text-[15px] font-semibold text-app-text"
             >
               목록으로
@@ -897,7 +897,7 @@ const PostClient = ({
     <Layout headerVariant="none" seoTitle={post?.title || "게시글"}>
       <PostDetailHeader
         title={headerTitle}
-        onBack={() => (window.history.length > 1 ? router.back() : router.push("/posts"))}
+        onBack={() => (window.history.length > 1 ? router.back() : router.push("/"))}
         onMore={sheetActions.length ? () => setSheetOpen(true) : undefined}
       />
 
@@ -923,7 +923,7 @@ const PostClient = ({
         // 글 작성자를 차단하면 목록으로 나간다. 댓글 작성자는 상세를 다시 받아 댓글만 사라진다.
         onBlocked={
           blockTarget && blockTarget.id === authorId
-            ? () => router.replace("/posts")
+            ? () => router.replace("/")
             : () => void mutate()
         }
       />

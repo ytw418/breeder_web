@@ -45,7 +45,7 @@ export default function EditPostClient() {
   const closeScreen = () => {
     if (window.history.length > 1) router.back();
     else if (validId) router.replace(toPostPath(postId, post?.title));
-    else router.replace("/posts");
+    else router.replace("/");
   };
 
   if (validId && isLoading) {
@@ -84,7 +84,7 @@ export default function EditPostClient() {
           </p>
           <button
             type="button"
-            onClick={() => router.replace("/posts")}
+            onClick={() => router.replace("/")}
             className="mt-5 h-[52px] w-full rounded-md bg-app-brand text-[16px] font-semibold text-white"
           >
             게시글 목록 보기

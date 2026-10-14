@@ -269,7 +269,7 @@ export function PostComposer(props: PostComposerProps) {
 
   const closeScreen = () => {
     if (window.history.length > 1) router.back();
-    else router.replace(initial ? toPostPath(initial.postId, initial.title) : "/posts");
+    else router.replace(initial ? toPostPath(initial.postId, initial.title) : "/");
   };
 
   const openFilePicker = () => {

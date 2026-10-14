@@ -22,12 +22,12 @@ describe("parseProductFilterParams", () => {
     });
   });
 
-  it("홈 무료나눔 카드 링크(status=판매중&price=0)", () => {
+  it("홈 무료 분양 카드 링크(status=판매중&price=0)", () => {
     const filters = parseProductFilterParams(new URLSearchParams("status=판매중&price=0"));
     expect(filters.onSaleOnly).toBe(true);
     expect(filters.minPrice).toBe(0);
     expect(filters.maxPrice).toBe(0);
-    expect(priceChipLabel(filters)).toBe("무료나눔");
+    expect(priceChipLabel(filters)).toBe("무료 분양");
   });
 
   it("하위분류·레거시 별칭을 대분류/하위분류로 나눈다", () => {
@@ -61,7 +61,7 @@ describe("parseProductFilterParams", () => {
 });
 
 describe("toProductQueryParams / toProductsApiUrl", () => {
-  it("하위분류가 있으면 하위분류로 조회하고 무료나눔은 price=0", () => {
+  it("하위분류가 있으면 하위분류로 조회하고 무료 분양은 price=0", () => {
     const query = toProductQueryParams({
       ...DEFAULT_PRODUCT_FILTERS,
       category: "어류",
@@ -147,7 +147,7 @@ describe("필터 ↔ URL 왕복", () => {
     });
   });
 
-  it("무료나눔은 price=0 으로 적는다", () => {
+  it("무료 분양은 price=0 으로 적는다", () => {
     expect(
       serializeProductFilters({ ...DEFAULT_PRODUCT_FILTERS, minPrice: 0, maxPrice: 0 }).toString()
     ).toBe("price=0");

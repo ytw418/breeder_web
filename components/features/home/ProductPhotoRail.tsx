@@ -33,8 +33,9 @@ export default function ProductPhotoRail({ items, loading }: { items: RailProduc
     <section className="pt-3" aria-label="지금 올라온 분양" data-home-section="product_rail">
       <div className="mb-3 flex items-end justify-between px-4">
         <h2 className="app-t-section">지금 올라온 분양</h2>
+        {/* 분양 탭으로(docs/prd/home-ia.md S-1 5번) */}
         <Link href="/products" className="flex items-center gap-0.5 text-[13px] text-app-muted">
-          전체 보기
+          분양 더 보기
           <svg width={14} height={14} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} aria-hidden="true">
             <path d="m9 6 6 6-6 6" />
           </svg>
