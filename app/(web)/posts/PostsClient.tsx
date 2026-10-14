@@ -1,6 +1,8 @@
 "use client";
 
 import { HorizontalRail } from "@components/ui/HorizontalRail";
+import useScopeTerms from "@/hooks/useScopeTerms";
+import { withBreederWord } from "@libs/shared/scopeTerms";
 import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import useSWR from "swr";
@@ -124,6 +126,7 @@ function SkeletonPostRow() {
 }
 
 export default function PostsClient({ initialCategory }: { initialCategory?: string } = {}) {
+  const { breeder } = useScopeTerms();
   // 홈 '동네 사랑방'처럼 ?category=동네 로 들어오면 그 칩으로 시작한다(앱 posts.tsx 와 같다).
   const [selectedCategory, setSelectedCategory] = useState(() =>
     initialCategory && TABS.some((tab) => tab.id === initialCategory) ? initialCategory : "전체"
@@ -501,7 +504,7 @@ export default function PostsClient({ initialCategory }: { initialCategory?: str
                 <div className="mx-4 rounded-xl bg-app-gap px-4 py-4">
                   <p className="text-[15px] font-semibold text-app-text">모든 질문에 답이 달렸어요</p>
                   <p className="mt-0.5 text-[13px] text-app-muted">
-                    궁금한 게 있으면 질문을 올려 보세요. 동네 브리더가 답해 줘요
+                    궁금한 게 있으면 질문을 올려 보세요. 동네 {breeder}가 답해 줘요
                   </p>
                   <Link
                     href={`/posts/upload?category=${encodeURIComponent("질문")}`}
@@ -523,7 +526,7 @@ export default function PostsClient({ initialCategory }: { initialCategory?: str
               )
             ) : breedersError && !breedersData ? (
               <QueryErrorState
-                title="브리더 랭킹을 불러오지 못했어요"
+                title={`${breeder} 랭킹을 불러오지 못했어요`}
                 onRetry={() => void mutateBreeders()}
                 className="py-6"
               />
@@ -636,7 +639,7 @@ export default function PostsClient({ initialCategory }: { initialCategory?: str
                   href={content.href}
                   className="block border-b border-app-line px-4 py-3.5"
                 >
-                  <p className="text-[16px] font-medium text-app-text">{content.title}</p>
+                  <p className="text-[16px] font-medium text-app-text">{withBreederWord(content.title, breeder)}</p>
                   <p className="mt-1 truncate text-[14px] text-app-muted">{content.description}</p>
                   <p className="mt-2 text-[13px] font-semibold text-app-brand">{content.cta}</p>
                 </Link>

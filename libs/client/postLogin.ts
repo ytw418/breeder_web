@@ -1,7 +1,8 @@
 "use client";
 /**
  * 로그인 직후 이동(LoginClient·KakaoLogin 공용). 세션이 잡힌 뒤 이동하고, 관심 카테고리를 아직 고르지 않은
- * 계정·브라우저면 한 번 온보딩(/onboarding)을 거친다 — 앱은 설치 후 첫 실행, 웹은 첫 로그인 직후(대응표 O-1).
+ * 계정·브라우저면 한 번 온보딩(/onboarding)을 거친다 — 앱은 설치 후 첫 실행, 웹은 첫 로그인 직후와
+ * 홈 첫 방문 팝업(CategoryOnboardingPrompt, 비로그인 포함 — 대응표 O-1).
  */
 import { authFetch } from "@libs/client/authFetch";
 import { readStoredCategoryScope } from "@libs/client/categoryScope";
@@ -21,26 +22,31 @@ export const getSafeNextPath = (rawPath: string | null | undefined) => {
   return normalized;
 };
 
-/**
- * 로그인 뒤 갈 곳. 계정이 온보딩을 마쳤거나(앱에서 '전체 보기'를 고른 것 포함) 계정·브라우저에 고정이 있거나
- * 이 브라우저에서 이미 봤으면 바로 간다. 아니면 온보딩을 거친다.
- */
-export function resolvePostLoginDestination({
-  next,
-  serverPinnedIds,
-  serverOnboarded = false,
-  localPinCount,
-  onboarded,
-}: {
-  next: string;
+interface CategoryOnboardingRecord {
   serverPinnedIds: readonly number[] | undefined;
   /** 계정 categoryOnboardedAt 이 있다. */
   serverOnboarded?: boolean;
   localPinCount: number;
   onboarded: boolean;
-}) {
+}
+
+/**
+ * 관심 카테고리를 한 번도 고른 적이 없는지. 계정이 온보딩을 마쳤거나(앱에서 '전체 보기'를 고른 것 포함)
+ * 계정·브라우저에 고정이 있거나 이 브라우저에서 이미 봤으면 false. 로그인 직후 이동과 홈 팝업이 같이 쓴다.
+ */
+export function needsCategoryOnboarding({
+  serverPinnedIds,
+  serverOnboarded = false,
+  localPinCount,
+  onboarded,
+}: CategoryOnboardingRecord) {
+  return !(serverOnboarded || onboarded || localPinCount > 0 || (serverPinnedIds?.length ?? 0) > 0);
+}
+
+/** 로그인 뒤 갈 곳. 관심 카테고리를 고른 적이 있으면 바로 가고, 아니면 온보딩을 거친다. */
+export function resolvePostLoginDestination({ next, ...record }: CategoryOnboardingRecord & { next: string }) {
   const target = getSafeNextPath(next);
-  if (serverOnboarded || onboarded || localPinCount > 0 || (serverPinnedIds?.length ?? 0) > 0) return target;
+  if (!needsCategoryOnboarding(record)) return target;
   if (target === ONBOARDING_PATH || target.startsWith(`${ONBOARDING_PATH}?`)) return target;
   return target === "/"
     ? ONBOARDING_PATH

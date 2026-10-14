@@ -11,6 +11,7 @@ import { HeaderIconButton } from "@components/app/HeaderIconButton";
 import logo from "@images/logo.png";
 import useSWR from "swr";
 import { cn, makeImageUrl } from "@libs/client/utils";
+import useScopeTerms from "@/hooks/useScopeTerms";
 import useUser from "hooks/useUser";
 import SanctionNoticeModal from "@components/features/moderation/SanctionNoticeModal";
 import useLogout from "hooks/useLogout";
@@ -590,6 +591,11 @@ export default function MainLayout({
     useState<BeforeInstallPromptEvent | null>(null);
   const [installLoading, setInstallLoading] = useState(false);
   const { user, isAdmin, isLoading: userLoading } = useUser();
+  // 포유류만 고정했으면 하단 경매 탭을 뺀다(앱 mainTabs useMainTabs, 앱 docs/prd/category-pin.md §15).
+  const { showAuctions } = useScopeTerms();
+  const bottomNavItems = showAuctions
+    ? BOTTOM_NAV_ITEMS
+    : BOTTOM_NAV_ITEMS.filter((item) => item.href !== "/auctions");
   const { data: unreadData } = useSWR<UnreadCountResponse>(
     user ? "/api/chat/unread-count" : null,
     { revalidateOnFocus: false, refreshInterval: UNREAD_REFRESH_MS }
@@ -802,8 +808,13 @@ export default function MainLayout({
           aria-label="하단 메뉴"
           className="fixed inset-x-0 bottom-0 z-40 border-t border-app-line bg-app-bg pb-[env(safe-area-inset-bottom)]"
         >
-          <div className="mx-auto grid h-14 max-w-xl grid-cols-5">
-            {BOTTOM_NAV_ITEMS.map((item) => {
+          <div
+            className={cn(
+              "mx-auto grid h-14 max-w-xl",
+              bottomNavItems.length === 4 ? "grid-cols-4" : "grid-cols-5"
+            )}
+          >
+            {bottomNavItems.map((item) => {
               const active = item.isActive(pathname || "");
               const href = item.requiresAuth && loggedOut ? toLoginHref(item.href) : item.href;
               const showChatBadge = item.href === "/chat" && chatUnread > 0;

@@ -6,6 +6,8 @@
  * - noPosts: 팔로우한 사람들이 아직 글이 없음 → 브리더 찾기
  */
 import Link from "next/link";
+import useScopeTerms from "@/hooks/useScopeTerms";
+import { withBreederWord } from "@libs/shared/scopeTerms";
 import { toLoginHref } from "@components/features/MainLayout";
 import { cn } from "@libs/client/utils";
 
@@ -34,12 +36,13 @@ export default function FollowingFeedCard({
   variant: keyof typeof COPY;
   className?: string;
 }) {
+  const { breeder } = useScopeTerms();
   const copy = COPY[variant];
   const href = variant === "login" ? toLoginHref("/posts") : "/ranking";
   return (
     <div className={cn("mx-4 rounded-xl border border-app-border bg-app-elevated p-5", className)}>
-      <p className="text-[16px] font-semibold text-app-strong">{copy.title}</p>
-      <p className="mt-1 break-keep text-[14px] leading-5 text-app-muted">{copy.body}</p>
+      <p className="text-[16px] font-semibold text-app-strong">{withBreederWord(copy.title, breeder)}</p>
+      <p className="mt-1 break-keep text-[14px] leading-5 text-app-muted">{withBreederWord(copy.body, breeder)}</p>
       <Link
         href={href}
         className={cn(
@@ -47,7 +50,7 @@ export default function FollowingFeedCard({
           variant === "login" ? "bg-app-brand text-white" : "bg-app-surface text-app-strong"
         )}
       >
-        {copy.cta}
+        {withBreederWord(copy.cta, breeder)}
       </Link>
     </div>
   );

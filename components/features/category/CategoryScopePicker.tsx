@@ -1,6 +1,7 @@
 "use client";
 /**
  * 관심 카테고리 고정(Pin) 선택 화면(앱 CategoryScopePicker). 온보딩(첫 로그인 직후)과 설정 > 관심 카테고리가 같이 쓴다.
+ * 홈 첫 방문 팝업(CategoryOnboardingPrompt, 앱 docs/prd/category-pin.md §15)은 같은 폼(CategoryScopeForm)을 시트로 띄운다.
  * 시안 규칙(당근 톤): 흰 배경, 52 행, 1px 라인, 주황은 선택 상태·CTA 에만.
  * - 트리는 깊이 제한이 없다. 하위가 있는 행은 왼쪽 화살표로 펼친다.
  * - 부모를 고르면 하위는 "포함"으로 보이고 따로 고를 수 없다(고정 범위가 같다).
@@ -76,9 +77,19 @@ function ancestorIdsOf(path: string, categories: readonly CategoryItem[]) {
   return ids;
 }
 
-export default function CategoryScopePicker({ mode }: { mode: "onboarding" | "settings" }) {
-  const router = useRouter();
-  const searchParams = useSearchParams();
+/**
+ * 선택 폼(제목·트리·CTA). 고른 고정을 저장하고(온보딩이면 마침 표시까지) onFinish 로 알린다.
+ * variant "page" 는 화면 전체(온보딩은 위에 '건너뛰기' 줄), "sheet" 는 홈 팝업 시트 안이다.
+ */
+export function CategoryScopeForm({
+  mode,
+  variant = "page",
+  onFinish,
+}: {
+  mode: "onboarding" | "settings";
+  variant?: "page" | "sheet";
+  onFinish: (pins: PinnedCategory[]) => void;
+}) {
   const { pins } = useCategoryScopeState();
   const { label: currentLabel } = useCategoryScope();
   const { data, error, mutate, isLoading } = useSWR<CategoriesResponse>(CATEGORIES_KEY, {
@@ -188,15 +199,10 @@ export default function CategoryScopePicker({ mode }: { mode: "onboarding" | "se
     if (saving) return;
     setSaving(true);
     setPinnedCategories(nextPins);
-    if (mode === "onboarding") {
-      markCategoryOnboardingDone();
-      router.replace(getSafeNextPath(searchParams?.get("next")));
-      return;
-    }
-    toast.success(nextPins.length ? "관심 카테고리를 고정했어요" : "전체 보기로 바꿨어요");
-    if (window.history.length > 1) router.back();
-    else router.replace("/settings");
+    if (mode === "onboarding") markCategoryOnboardingDone();
+    onFinish(nextPins);
   };
+  const sheet = variant === "sheet";
 
   const loadingList = isLoading && categories.length === 0;
   const ctaLabel = selectedPins.length
@@ -205,12 +211,26 @@ export default function CategoryScopePicker({ mode }: { mode: "onboarding" | "se
       ? "전체 보기로 둘러보기"
       : "전체 보기";
 
+  const skipButton = (
+    <button
+      type="button"
+      disabled={saving}
+      onClick={() => finish([])}
+      className={cn("h-11 shrink-0 px-2 text-[15px] text-app-muted", sheet && "-mr-2 -mt-2")}
+    >
+      건너뛰기
+    </button>
+  );
+
   const body = (
-    <div className="flex min-h-[calc(100vh-56px)] flex-col bg-app-bg">
-      <div className="px-4 pb-3 pt-4">
-        <h2 className="text-[20px] font-bold tracking-[-0.4px] text-app-strong">
-          {mode === "onboarding" ? "어떤 분야에 관심 있으세요?" : "관심 카테고리"}
-        </h2>
+    <div className={cn("flex flex-col", sheet ? "bg-app-elevated" : "min-h-[calc(100vh-56px)] bg-app-bg")}>
+      <div className={cn("px-4 pb-3", sheet ? "pt-0" : "pt-4")}>
+        <div className="flex items-start justify-between gap-2">
+          <h2 className="text-[20px] font-bold tracking-[-0.4px] text-app-strong">
+            {mode === "onboarding" ? "어떤 분야에 관심 있으세요?" : "관심 카테고리"}
+          </h2>
+          {sheet && mode === "onboarding" ? skipButton : null}
+        </div>
         <p className="mt-1.5 text-[14px] leading-5 text-app-muted">
           {mode === "onboarding"
             ? "고정하면 홈 분양·반려생활·TOP 브리더가 그 분야만 보여요. 여러 개 골라도 되고, 나중에 설정에서 바꿀 수 있어요."
@@ -280,7 +300,12 @@ export default function CategoryScopePicker({ mode }: { mode: "onboarding" | "se
         )}
       </div>
 
-      <div className="sticky bottom-0 border-t border-app-line bg-app-bg px-4 pb-[calc(12px+env(safe-area-inset-bottom))] pt-3">
+      <div
+        className={cn(
+          "sticky bottom-0 border-t border-app-line px-4 pt-3",
+          sheet ? "bg-app-elevated pb-3" : "bg-app-bg pb-[calc(12px+env(safe-area-inset-bottom))]"
+        )}
+      >
         <button
           type="button"
           disabled={saving || loadingList}
@@ -296,26 +321,40 @@ export default function CategoryScopePicker({ mode }: { mode: "onboarding" | "se
     </div>
   );
 
+  if (sheet || mode === "settings") return body;
+  return (
+    <>
+      <header className="sticky top-0 z-30 flex h-14 items-center justify-end bg-app-bg px-2">{skipButton}</header>
+      {body}
+    </>
+  );
+}
+
+/** 온보딩·설정 화면. 마치면 온보딩은 next(없으면 홈)로, 설정은 이전 화면으로 간다. */
+export default function CategoryScopePicker({ mode }: { mode: "onboarding" | "settings" }) {
+  const router = useRouter();
+  const searchParams = useSearchParams();
+
+  const onFinish = (nextPins: PinnedCategory[]) => {
+    if (mode === "onboarding") {
+      router.replace(getSafeNextPath(searchParams?.get("next")));
+      return;
+    }
+    toast.success(nextPins.length ? "관심 카테고리를 고정했어요" : "전체 보기로 바꿨어요");
+    if (window.history.length > 1) router.back();
+    else router.replace("/settings");
+  };
+
   if (mode === "settings") {
     return (
       <Layout canGoBack title="관심 카테고리" seoTitle="관심 카테고리">
-        {body}
+        <CategoryScopeForm mode="settings" onFinish={onFinish} />
       </Layout>
     );
   }
   return (
     <Layout headerVariant="none" seoTitle="관심 카테고리">
-      <header className="sticky top-0 z-30 flex h-14 items-center justify-end bg-app-bg px-2">
-        <button
-          type="button"
-          disabled={saving}
-          onClick={() => finish([])}
-          className="h-11 px-2 text-[15px] text-app-muted"
-        >
-          건너뛰기
-        </button>
-      </header>
-      {body}
+      <CategoryScopeForm mode="onboarding" onFinish={onFinish} />
     </Layout>
   );
 }

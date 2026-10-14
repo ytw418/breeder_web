@@ -4,6 +4,7 @@
  * 서버 점수식과 같은 가중치(getBreederScoreRules)를 보여 준다.
  */
 import { BottomSheet } from "@components/app/BottomSheet";
+import useScopeTerms from "@/hooks/useScopeTerms";
 import { getBreederScoreRules } from "@libs/shared/breederKeywords";
 
 export default function BreederScoreSheet({
@@ -16,12 +17,13 @@ export default function BreederScoreSheet({
   scoped: boolean;
   onClose: () => void;
 }) {
+  const { breeder } = useScopeTerms();
   const rules = getBreederScoreRules(scoped);
   return (
     <BottomSheet
       open={open}
       onClose={onClose}
-      title="TOP 브리더 점수 기준"
+      title={`TOP ${breeder} 점수 기준`}
       footer={
         <button
           type="button"
@@ -50,7 +52,7 @@ export default function BreederScoreSheet({
           ))}
         </ul>
         <p className="mt-3.5 break-keep rounded-lg bg-app-surface px-3.5 py-3 text-[13px] leading-5 text-app-sub">
-          공지글은 세지 않아요. 이름 옆 &apos;경매왕&apos;·&apos;팔로워 부자&apos; 같은 칭호는 상위 브리더끼리 비교해 가장 두드러진 활동이에요.
+          공지글은 세지 않아요. 이름 옆 &apos;경매왕&apos;·&apos;팔로워 부자&apos; 같은 칭호는 상위 {breeder}끼리 비교해 가장 두드러진 활동이에요.
         </p>
       </div>
     </BottomSheet>

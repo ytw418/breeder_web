@@ -6,6 +6,7 @@
  * `breeders` 가 undefined 면 스켈레톤.
  */
 import { HorizontalRail } from "@components/ui/HorizontalRail";
+import useScopeTerms from "@/hooks/useScopeTerms";
 import { useMemo, useState } from "react";
 import Link from "next/link";
 import Image from "@components/atoms/Image";
@@ -46,6 +47,7 @@ export default function TopBreederList({
   scoped?: boolean;
   onOpen?: (breeder: BreederRankingItem, index: number) => void;
 }) {
+  const { breeder } = useScopeTerms();
   const [guideOpen, setGuideOpen] = useState(false);
   const top = useMemo(() => breeders?.slice(0, TOP_BREEDER_COUNT) ?? [], [breeders]);
   const keywords = useMemo(
@@ -86,7 +88,7 @@ export default function TopBreederList({
           </div>
         ))
       ) : top.length === 0 ? (
-        <p className="px-3.5 py-4 text-[13px] font-medium text-app-muted">표시할 브리더 랭킹이 없습니다.</p>
+        <p className="px-3.5 py-4 text-[13px] font-medium text-app-muted">표시할 {breeder} 랭킹이 없습니다.</p>
       ) : (
         top.map((breeder, index) => {
           const keyword = keywords[index];

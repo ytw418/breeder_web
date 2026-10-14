@@ -6,6 +6,7 @@
  * v6: 커버가 있으면 맨 위 전체 폭 2:1(2026-10-11 3:1 에서 높임, 누르면 크게 보기), 아바타가 32 겹친다. 대표 링크는 소개 바로 아래 한 줄.
  */
 import Link from "next/link";
+import useScopeTerms from "@/hooks/useScopeTerms";
 import { useState, type ReactNode } from "react";
 import { BreederProgramProfileBadges } from "@components/features/breeder/BreederProgramDecorators";
 import ImageLightbox from "@components/features/image/ImageLightbox";
@@ -136,6 +137,7 @@ export function ProfileBlock({
   isMine: boolean;
   actions?: ReactNode;
 }) {
+  const { showAuctions } = useScopeTerms();
   const [avatarOpen, setAvatarOpen] = useState(false);
   const [bannerOpen, setBannerOpen] = useState(false);
   const name = user?.name || fallbackName;
@@ -147,7 +149,12 @@ export function ProfileBlock({
   const badges = user?.badges ?? [];
   const showBioPrompt = isMine && !bio && !loading && Boolean(user);
   // 잠금 칭호는 본인에게만(타인 프로필엔 없다, §3.3).
-  const lockedTitles = isMine ? (user?.lockedTitles ?? []).slice(0, 3) : [];
+  // 포유류만 고정했으면 경매로 여는 잠금 칭호는 빼고 고른다(앱 docs/prd/category-pin.md §15).
+  const lockedTitles = isMine
+    ? (user?.lockedTitles ?? [])
+        .filter((title) => showAuctions || title.remaining.kind !== "auction")
+        .slice(0, 3)
+    : [];
   const hasPills =
     badges.length > 0 ||
     lockedTitles.length > 0 ||

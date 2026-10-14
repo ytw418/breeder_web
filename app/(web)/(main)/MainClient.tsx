@@ -27,8 +27,10 @@ import { uniqueById } from "@libs/productFilters";
 import useUser from "hooks/useUser";
 import useBlocks from "hooks/useBlocks";
 import useCategoryScope, { withCategoryPath, withinScope } from "hooks/useCategoryScope";
+import useScopeTerms from "@/hooks/useScopeTerms";
 import useSectionImpressions from "hooks/useSectionImpressions";
 import CategoryScopeBar from "@components/features/category/CategoryScopeBar";
+import CategoryOnboardingPrompt from "@components/features/category/CategoryOnboardingPrompt";
 import NeighborhoodBreederSection from "@components/features/home/NeighborhoodBreederSection";
 import ProductPhotoRail, { type RailProduct } from "@components/features/home/ProductPhotoRail";
 import TopBreederRankCard from "@components/features/home/TopBreederRankCard";
@@ -256,6 +258,8 @@ const MainClient = ({
   const [selectedCategory, setSelectedCategory] = useState("전체");
   // 관심 카테고리 고정 범위(앱 category-pin). 홈 상품·피드가 같은 범위를 쓴다.
   const scope = useCategoryScope();
+  // 포유류만 고정했으면 '집사'로 부르고 '최고가 경매' 카드를 뺀다(앱 docs/prd/category-pin.md §15).
+  const { breeder, showAuctions } = useScopeTerms();
   // 범위 밖 대분류 칩은 숨기고, 고른 칩이 범위 밖으로 나가면 전체로 돌린다.
   const tabs = useMemo(
     () => withinScope(TABS, scope.topLevelNames, (tab) => tab.id, (tab) => tab.id === "전체"),
@@ -577,6 +581,8 @@ const MainClient = ({
     <div ref={homeRootRef} className="flex h-full flex-col bg-app-bg">
       {/* 현재 관심 분야(고정 범위). 온보딩을 마치면 숨는다. 칩이 헤더 바로 아래 붙도록(§9) 이 줄은 고정하지 않는다. */}
       <CategoryScopeBar />
+      {/* 관심 분야를 고른 기록이 계정·브라우저 어디에도 없으면 홈 위에 선택 시트를 띄운다(비로그인 포함). */}
+      <CategoryOnboardingPrompt />
 
       {/* 1. 지금 올라온 분양(사진 레일) */}
       <ProductPhotoRail items={railItems} loading={railLoading} />
@@ -588,7 +594,7 @@ const MainClient = ({
       {showTopBreeder ? (
         <section className="pt-6" data-home-section="hero_breeder">
           <SectionHeader
-            title={heroBreederPeriod === "weekly" ? "이번 주 TOP 브리더" : "TOP 브리더"}
+            title={heroBreederPeriod === "weekly" ? `이번 주 TOP ${breeder}` : `TOP ${breeder}`}
             href={toRankingHref("breeders", heroBreederPeriod)}
             actionLabel="전체 랭킹 보기"
           />
@@ -624,7 +630,7 @@ const MainClient = ({
       {showGrid ? (
         <section className="pt-6">
           <div className="grid grid-cols-2 gap-2.5 px-4">
-            {showMini(topAuctionRows) ? (
+            {showAuctions && showMini(topAuctionRows) ? (
               <MiniCard
                 title="최고가 경매"
                 subtitle="카테고리별 최고 낙찰가"
