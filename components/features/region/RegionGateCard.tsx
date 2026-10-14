@@ -10,7 +10,7 @@ import { regionSettingsHref } from "@components/features/region/regionHref";
 import useUser from "hooks/useUser";
 
 /** from: 로그인을 거쳐 내 동네를 정한 뒤 돌아올 곳. */
-export default function RegionGateCard({ className, from = "/posts" }: { className?: string; from?: string }) {
+export default function RegionGateCard({ className, from = "/" }: { className?: string; from?: string }) {
   const { user } = useUser();
   return (
     <div className={cn("mx-4 rounded-xl border border-app-border bg-app-elevated p-5", className)}>

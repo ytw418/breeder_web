@@ -61,9 +61,9 @@ export function chatEmptyCopy(sameSpeciesNearby: number): EmptyCopy {
   };
 }
 
-/** 홈 무료나눔 0. */
+/** 분양 탭 무료 분양 0(2026-10-15 '무료나눔' → '무료 분양'). */
 export function freeGiveawayEmptyCopy(): EmptyCopy {
-  return { title: "첫 나눔은 홈 맨 위에 하루 동안 보여요", body: null, action: "첫 번째로 나누기" };
+  return { title: "첫 무료 분양은 홈 맨 위에 하루 동안 보여요", body: null, action: "첫 번째로 무료 분양하기" };
 }
 
 /**

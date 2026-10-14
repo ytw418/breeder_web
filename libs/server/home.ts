@@ -93,7 +93,7 @@ type ProductQueryOptions = {
   categoryPath?: string;
   productType?: string;
   status?: string;
-  /** 정확한 가격(원). 0 이면 무료나눔 목록. 0 이상의 정수만 쓴다. */
+  /** 정확한 가격(원). 0 이면 무료 분양 목록. 0 이상의 정수만 쓴다. */
   price?: number;
   /** 가격 범위(원). 0 이상의 정수만 쓴다. price 가 있으면 무시한다. */
   minPrice?: number;

@@ -1,6 +1,6 @@
 import { fireEvent, render, screen } from "@testing-library/react";
 
-const mockPathname = jest.fn(() => "/posts");
+const mockPathname = jest.fn(() => "/products");
 jest.mock("next/navigation", () => ({
   usePathname: () => mockPathname(),
   useRouter: () => ({ push: jest.fn(), back: jest.fn() }),
@@ -30,7 +30,7 @@ import MainLayout from "@components/features/MainLayout";
 
 beforeEach(() => {
   jest.clearAllMocks();
-  mockPathname.mockReturnValue("/posts");
+  mockPathname.mockReturnValue("/products");
   mockUseSWR.mockReturnValue({ data: undefined });
 });
 
@@ -50,7 +50,7 @@ describe("MainLayout 셸", () => {
       "href",
       `/auth/login?next=${encodeURIComponent("/myPage")}`
     );
-    expect(screen.getByRole("link", { name: "반려생활" })).toHaveAttribute("aria-current", "page");
+    expect(screen.getByRole("link", { name: "분양" })).toHaveAttribute("aria-current", "page");
   });
 
   it("로그인이면 채팅 unread 9+ 뱃지, 알림 벨은 숫자 없이 점", () => {
@@ -104,7 +104,7 @@ describe("MainLayout 셸", () => {
     expect(screen.getByRole("link", { name: "알림" })).toBeInTheDocument();
   });
 
-  it("하단 탭(반려생활·경매)에는 안 본 새 글 점을 달지 않는다", () => {
+  it("하단 탭(분양·경매)에는 안 본 새 글 점을 달지 않는다", () => {
     mockUseUser.mockReturnValue({ user: undefined, isLoading: false });
     render(
       <MainLayout title="홈" icon hasTabBar>
@@ -113,7 +113,7 @@ describe("MainLayout 셸", () => {
     );
     expect(screen.queryByLabelText("안 본 새 글")).not.toBeInTheDocument();
     expect(screen.getByRole("link", { name: "경매" })).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: "반려생활" })).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "분양" })).toBeInTheDocument();
   });
 
   it("headerRight 는 뒤로가기 화면의 벨·메뉴 자리를 바꾼다", () => {
@@ -207,13 +207,14 @@ describe("MainLayout 셸", () => {
       </MainLayout>
     );
     const icons = Array.from(container.querySelectorAll("nav svg[data-icon]"));
+    // 2026-10-15 홈 구성 A안(docs/prd/home-ia.md): 반려생활 탭 → 분양 탭(가격표).
     expect(icons.map((el) => el.getAttribute("data-icon"))).toEqual([
       "home",
-      "posts",
+      "sale",
       "auctions",
       "chat",
       "my",
     ]);
-    expect(icons.filter((el) => el.getAttribute("data-filled") === "true").map((el) => el.getAttribute("data-icon"))).toEqual(["posts"]);
+    expect(icons.filter((el) => el.getAttribute("data-filled") === "true").map((el) => el.getAttribute("data-icon"))).toEqual(["sale"]);
   });
 });

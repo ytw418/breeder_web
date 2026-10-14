@@ -52,7 +52,7 @@ const REMAINING_LABEL: Record<LockedTitleRemainingKind, (n: number) => string> =
 /** 잠금 pill 을 누르면 그 활동을 하러 간다(§5b). 팔로워·좋아요는 받는 것이라 링크가 없다. */
 const REMAINING_HREF: Partial<Record<LockedTitleRemainingKind, string>> = {
   post: "/posts/upload",
-  comment: "/posts",
+  comment: "/",
   photo: "/posts/upload",
   listing: "/products/upload",
   auction: "/auctions/create",

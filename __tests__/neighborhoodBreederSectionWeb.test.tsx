@@ -59,7 +59,7 @@ describe("홈 우리 동네 브리더(강조, community-vibe §3.6)", () => {
     expect(screen.getByText("같은 동네")).toBeInTheDocument();
     expect(screen.getByText("광명시 · 6km")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "팔로잉, 누르면 팔로우 취소" })).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: "동네 사랑방" })).toHaveAttribute("href", `/posts?category=${encodeURIComponent("동네")}`);
+    expect(screen.getByRole("link", { name: "동네 사랑방" })).toHaveAttribute("href", `/?category=${encodeURIComponent("동네")}`);
     expect(screen.getByRole("link", { name: "인사 남기기" })).toHaveAttribute("href", `/posts/upload?category=${encodeURIComponent("동네")}`);
     expect(screen.queryByTestId("neighborhood-me-card")).toBeNull();
   });

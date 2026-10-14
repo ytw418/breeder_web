@@ -212,7 +212,7 @@ describe("POST /api/products (create)", () => {
     expect(mockClient.product.create).toHaveBeenCalled();
   });
 
-  it("0원은 무료나눔으로 등록한다", async () => {
+  it("0원은 무료 분양으로 등록한다", async () => {
     const res = await create({ ...validData, price: 0 });
     expect(res.statusCode).toBe(200);
     expect(mockClient.product.create.mock.calls[0][0].data.price).toBe(0);

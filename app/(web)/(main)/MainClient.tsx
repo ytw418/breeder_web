@@ -1,32 +1,19 @@
 "use client";
 
 import { useRailScroll } from "@components/ui/HorizontalRail";
-import { UIEvent, useEffect, useMemo, useRef, useState } from "react";
+import { Suspense, UIEvent, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import useSWR from "swr";
-import useSWRInfinite from "swr/infinite";
 import { useRouter } from "next/navigation";
 
 import FloatingButton from "@components/atoms/floating-button";
-import Image from "@components/atoms/Image";
-import { FilterChip, FilterChipRail } from "@components/app/FilterChip";
-import { ProductCard } from "@components/app/ProductCard";
 import { QueryErrorState } from "@components/app/QueryErrorState";
-import { RetryFooter } from "@components/app/RetryFooter";
-import { cn, makeImageUrl } from "@libs/client/utils";
-import { getSubcategories, TOP_LEVEL_CATEGORIES } from "@libs/categoryTaxonomy";
-import SubcategoryChipRow from "@components/features/category/SubcategoryChipRow";
-import {
-  activeSubcategory,
-  categoryQueryValue,
-  subcategoryChipOptions,
-} from "@libs/shared/subcategoryChips";
+import { cn } from "@libs/client/utils";
 import { ANALYTICS_EVENTS, trackEvent } from "@libs/client/analytics";
 import { withoutBlocked } from "@libs/shared/blockFilter";
-import { uniqueById } from "@libs/productFilters";
 import useUser from "hooks/useUser";
 import useBlocks from "hooks/useBlocks";
-import useCategoryScope, { withCategoryPath, withinScope } from "hooks/useCategoryScope";
+import useCategoryScope, { withCategoryPath } from "hooks/useCategoryScope";
 import useSectionImpressions from "hooks/useSectionImpressions";
 import CategoryScopeBar from "@components/features/category/CategoryScopeBar";
 import NeighborhoodBreederSection from "@components/features/home/NeighborhoodBreederSection";
@@ -36,28 +23,26 @@ import type { ProductRailFlags } from "@libs/shared/communityVibe";
 import { BreederRankingItem, HomeFeedResponse } from "@libs/shared/ranking";
 import { pickBreederKeywords } from "@libs/shared/breederKeywords";
 import { filterHomeFeedForBlocked, HomeBanner, ProductsResponse } from "@libs/shared/home";
-import { ProductRowSkeleton } from "../products/_components/ProductRowSkeleton";
-import { ProductFeedEmpty } from "../products/_components/ProductFeedEmpty";
+import HomeCommunityTop from "./HomeCommunityTop";
+import HomePostsFeed from "./HomePostsFeed";
 
 interface BeforeInstallPromptEvent extends Event {
   prompt: () => Promise<void>;
   userChoice: Promise<{ outcome: "accepted" | "dismissed"; platform: string }>;
 }
 
-/** 탭 목록: "전체" + 대분류(앱 TOP_LEVEL_CATEGORIES) */
-const TABS = [{ id: "전체", name: "전체" }, ...TOP_LEVEL_CATEGORIES];
 const HOME_FEED_KEY = "/api/home/feed?scope=public";
 
-/** home_section_view 의 section_id 와 position(화면 위에서부터 순서). 요소에는 data-home-section 으로 붙인다. */
+/**
+ * home_section_view 의 section_id 와 position(화면 위에서부터 순서). 요소에는 data-home-section 으로 붙인다.
+ * 2026-10-15 홈 구성 A안(docs/prd/home-ia.md): 홈 = 커뮤니티, 분양 목록·2x2 그리드는 분양 탭(/products)으로.
+ */
 const HOME_SECTION_ORDER = [
+  "realtime_discussion",
   "product_rail",
   "neighborhood_breeders",
   "hero_breeder",
-  "auction_ranking",
-  "bloodline_ranking",
-  "trending_community",
-  "free_giveaway",
-  "personalized_home",
+  "posts_feed",
 ] as const;
 type HomeSectionId = (typeof HOME_SECTION_ORDER)[number];
 
@@ -97,143 +82,6 @@ function Skeleton({ className }: { className?: string }) {
   return <span className={cn("block animate-pulse rounded bg-app-surface", className)} />;
 }
 
-type MiniCardRow = {
-  id: string | number;
-  image?: string | null;
-  main: string;
-  sub: string;
-  /** 행을 눌러 이동할 곳(무료나눔 → 상품 상세). */
-  href?: string;
-};
-
-/** 2x2 그리드 카드(앱 MiniCard). 카드 전체가 링크이고, href 가 있는 행은 행 단위로 이동한다. */
-function MiniCard({
-  title,
-  subtitle,
-  rows,
-  href,
-  loading = false,
-  showThumb = true,
-  subTone,
-  onOpen,
-  sectionId,
-}: {
-  title: string;
-  subtitle: string;
-  rows: MiniCardRow[];
-  href: string;
-  loading?: boolean;
-  showThumb?: boolean;
-  subTone?: "price" | "up";
-  onOpen?: () => void;
-  /** 홈 섹션 노출 기록용 id(home_section_view). */
-  sectionId?: string;
-}) {
-  const router = useRouter();
-  const open = () => {
-    onOpen?.();
-    router.push(href);
-  };
-
-  const rowContent = (row: MiniCardRow) => (
-    <>
-      {showThumb ? (
-        <span className="relative h-9 w-9 shrink-0 overflow-hidden rounded-lg bg-app-placeholder">
-          {row.image ? (
-            <Image
-              src={makeImageUrl(row.image, "public")}
-              alt={row.main}
-              width={36}
-              height={36}
-              className="h-full w-full object-cover"
-            />
-          ) : null}
-        </span>
-      ) : null}
-      <span className="min-w-0 flex-1">
-        <span className="block truncate text-[13px] font-medium leading-[18px] text-app-text">{row.main}</span>
-        <span
-          className={cn(
-            "block truncate text-[13px] font-semibold leading-[18px] tabular-nums",
-            subTone === "up" ? "text-app-brand" : "text-app-text"
-          )}
-        >
-          {row.sub}
-        </span>
-      </span>
-    </>
-  );
-
-  return (
-    <div
-      role="link"
-      tabIndex={0}
-      aria-label={`${title} 더보기`}
-      data-home-section={sectionId}
-      onClick={open}
-      onKeyDown={(event) => {
-        // 안쪽 행 링크에서 누른 Enter 는 그 링크가 처리한다(카드 이동과 겹치지 않게).
-        if (event.target !== event.currentTarget) return;
-        if (event.key === "Enter") open();
-      }}
-      className="flex min-h-[150px] cursor-pointer flex-col rounded-2xl bg-app-gap p-3.5 transition-transform active:scale-[0.98]"
-    >
-      <div>
-        <h3 className="text-[15px] font-bold leading-5 text-app-text">{title}</h3>
-        <p className="mt-0.5 break-keep text-[12px] leading-4 text-app-muted">{subtitle}</p>
-      </div>
-      <div className="space-y-3 pt-3">
-        {loading
-          ? [0, 1].map((i) => (
-              <div key={i} className="flex items-center gap-2">
-                {showThumb ? <Skeleton className="h-9 w-9 rounded-lg" /> : null}
-                <div className="min-w-0 flex-1">
-                  <Skeleton className="h-2.5 w-4/5" />
-                  <Skeleton className="mt-1 h-2 w-1/2" />
-                </div>
-              </div>
-            ))
-          : rows.map((row) =>
-              row.href ? (
-                <Link
-                  key={row.id}
-                  href={row.href}
-                  onClick={(event) => event.stopPropagation()}
-                  className="flex items-center gap-2"
-                >
-                  {rowContent(row)}
-                </Link>
-              ) : (
-                <div key={row.id} className="flex items-center gap-2">
-                  {rowContent(row)}
-                </div>
-              )
-            )}
-      </div>
-    </div>
-  );
-}
-
-/** 무료나눔이 0건일 때 카드(§3.1: '없어요' 대신 첫 나눔 혜택 + 행동). 등록 화면에서 '무료나눔'을 미리 고른다. */
-function FreeGiveawayEmptyCard() {
-  return (
-    <Link
-      href="/products/upload?free=1"
-      data-home-section="free_giveaway"
-      className="flex min-h-[150px] flex-col items-start justify-center rounded-2xl bg-app-gap p-3.5 transition-transform active:scale-[0.98]"
-    >
-      <h3 className="text-[15px] font-bold leading-5 text-app-text">무료나눔</h3>
-      <p className="mt-1 break-keep text-[13px] leading-[18px] text-app-sub">첫 나눔은 홈 맨 위에 하루 동안 보여요</p>
-      <p className="mt-3 flex items-center gap-0.5 text-[13px] font-semibold leading-[18px] text-app-brand">
-        첫 번째로 나누기
-        <svg width={14} height={14} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} aria-hidden="true">
-          <path d="m9 6 6 6-6 6" />
-        </svg>
-      </p>
-    </Link>
-  );
-}
-
 type RailResponse = {
   success?: boolean;
   items?: (ProductsResponse["products"][number] & Partial<ProductRailFlags>)[];
@@ -243,40 +91,16 @@ const RAIL_KEY = "/api/products?rail=1&limit=10";
 
 const MainClient = ({
   initialHomeFeed,
-  initialProducts,
   initialBanners,
 }: {
   initialHomeFeed: HomeFeedResponse | null;
-  initialProducts: ProductsResponse | null;
   initialBanners: HomeBanner[];
 }) => {
   const router = useRouter();
   const { user, isLoading: isUserLoading } = useUser();
   const { blockedIds } = useBlocks();
-  const [selectedCategory, setSelectedCategory] = useState("전체");
-  // 관심 카테고리 고정 범위(앱 category-pin). 홈 상품·피드가 같은 범위를 쓴다.
+  // 관심 카테고리 고정 범위(앱 category-pin). 실시간 토론·분양 레일·TOP 브리더·게시글이 같은 범위를 쓴다.
   const scope = useCategoryScope();
-  // 범위 밖 대분류 칩은 숨기고, 고른 칩이 범위 밖으로 나가면 전체로 돌린다.
-  const tabs = useMemo(
-    () => withinScope(TABS, scope.topLevelNames, (tab) => tab.id, (tab) => tab.id === "전체"),
-    [scope.topLevelNames]
-  );
-  const activeCategory = tabs.some((tab) => tab.id === selectedCategory) ? selectedCategory : "전체";
-  // 대분류를 고르면 아래 줄에 소분류 칩(관심 카테고리를 소분류로 고정했으면 그 소분류만, 앱과 같다).
-  const [selectedSub, setSelectedSub] = useState("");
-  const subOptions = useMemo(
-    () =>
-      activeCategory === "전체"
-        ? []
-        : subcategoryChipOptions(
-            activeCategory,
-            getSubcategories(activeCategory),
-            scope.pins.map((pin) => pin.label)
-          ),
-    [activeCategory, scope.pins]
-  );
-  const activeSub = activeSubcategory(selectedSub, subOptions);
-  const productCategory = categoryQueryValue(activeCategory, activeSub);
   const [activeBannerIndex, setActiveBannerIndex] = useState(0);
   const [showPostLoginGuide, setShowPostLoginGuide] = useState(false);
   const [deferredInstallPrompt, setDeferredInstallPrompt] =
@@ -284,34 +108,9 @@ const MainClient = ({
   const [installLoading, setInstallLoading] = useState(false);
   const bannerRef = useRef<HTMLDivElement>(null);
   useRailScroll(bannerRef);
-  const sentinelRef = useRef<HTMLDivElement>(null);
   const homeRootRef = useRef<HTMLDivElement>(null);
 
-  // ── 상품 목록(무한 스크롤) ──────────────────────────────────────────────
-  const getKey = (pageIndex: number, previousPageData: ProductsResponse | null) => {
-    if (previousPageData && pageIndex >= (previousPageData.pages ?? 0)) return null;
-    const categoryParam = productCategory ? `&category=${encodeURIComponent(productCategory)}` : "";
-    return withCategoryPath(`/api/products?page=${pageIndex + 1}${categoryParam}`, scope.categoryPath);
-  };
-  // SSR 1페이지는 범위 없는 "전체" 목록이다. 다른 카테고리·범위에 그 값을 보여주지 않게 그때만 넘긴다.
-  const productFallback =
-    activeCategory === "전체" && !scope.categoryPath && initialProducts ? [initialProducts] : undefined;
-  const {
-    data: productPages,
-    error: productsError,
-    size,
-    setSize,
-    isValidating: productsValidating,
-    mutate: reloadProducts,
-  } = useSWRInfinite<ProductsResponse>(getKey, {
-    fallbackData: productFallback,
-    revalidateFirstPage: false,
-    revalidateOnFocus: false,
-    revalidateOnMount: !productFallback,
-    revalidateIfStale: false,
-  });
-
-  // ── 홈 피드(공개 캐시) ─────────────────────────────────────────────────
+  // ── 홈 피드(공개 캐시): 이번 주 TOP 브리더 ─────────────────────────────
   const {
     data: rawFeed,
     error: feedFetchError,
@@ -357,24 +156,20 @@ const MainClient = ({
   );
   const banners = initialBanners;
 
-  // 지금 올라온 분양 레일: 서버 rail=1(최신 10 + 첫 분양글 24시간 맨 앞, isNew). 구 서버면 목록 1페이지로 대신한다.
+  // 지금 올라온 분양 레일: 서버 rail=1(최신 10 + 첫 분양글 24시간 맨 앞, isNew). 구 서버면 분양 목록 1페이지로 대신한다.
   const { data: railData, error: railError } = useSWR<RailResponse>(
     withCategoryPath(RAIL_KEY, scope.categoryPath),
     { revalidateOnFocus: false, shouldRetryOnError: false }
   );
-
-  const products = useMemo(
-    () =>
-      withoutBlocked(
-        uniqueById((productPages ?? []).flatMap((pageData) => pageData?.products ?? [])),
-        blockedIds,
-        (product) => product.userId
-      ),
-    [productPages, blockedIds]
+  const { data: railFallback } = useSWR<ProductsResponse>(
+    railError || (railData && !railData.items && !railData.products)
+      ? withCategoryPath("/api/products?page=1", scope.categoryPath)
+      : null,
+    { revalidateOnFocus: false }
   );
   const railItems = useMemo<RailProduct[]>(() => {
     const source: NonNullable<RailResponse["items"]> =
-      railData?.items ?? railData?.products ?? (railError || railData ? productPages?.[0]?.products : undefined) ?? [];
+      railData?.items ?? railData?.products ?? railFallback?.products ?? [];
     return withoutBlocked(source, blockedIds, (product) => product.userId)
       .slice(0, 10)
       .map((product) => ({
@@ -385,41 +180,8 @@ const MainClient = ({
         createdAt: product.createdAt,
         isNew: product.isNew,
       }));
-  }, [railData, railError, productPages, blockedIds]);
-  const railLoading = !railData && !railError && !productPages;
-  const totalPages = productPages?.[productPages.length - 1]?.pages ?? 0;
-  const loadedPages = productPages?.length ?? 0;
-  const hasMore = loadedPages > 0 && loadedPages < totalPages;
-  const isLoadingMore = productsValidating && size > loadedPages;
-  const firstPageError = Boolean(productsError) && loadedPages === 0;
-  const nextPageError = Boolean(productsError) && loadedPages > 0;
-
-  // 바닥 근처에 오면 다음 페이지. 다음 페이지가 실패하면 자동으로 다시 부르지 않고 '다시 시도'로만 부른다.
-  useEffect(() => {
-    const target = sentinelRef.current;
-    if (!target || !hasMore || productsError) return;
-    const observer = new IntersectionObserver(
-      (entries) => {
-        if (entries[0]?.isIntersecting && !productsValidating) {
-          void setSize((current) => (current <= loadedPages ? loadedPages + 1 : current));
-        }
-      },
-      { rootMargin: "600px 0px" }
-    );
-    observer.observe(target);
-    return () => observer.disconnect();
-  }, [hasMore, productsError, productsValidating, loadedPages, setSize]);
-
-  const handleCategoryChange = (categoryId: string) => {
-    if (categoryId === activeCategory) return;
-    trackEvent(ANALYTICS_EVENTS.homeCategorySelected, {
-      selected_category: categoryId,
-      previous_category: activeCategory,
-      user_id: user?.id || null,
-    });
-    setSelectedCategory(categoryId);
-    setSelectedSub("");
-  };
+  }, [railData, railFallback, blockedIds]);
+  const railLoading = !railData && !railError;
 
   useEffect(() => {
     const onBeforeInstallPrompt = (event: Event) => {
@@ -520,71 +282,23 @@ const MainClient = ({
   };
 
   const heroBreederPeriod: RankingPeriodId = feed?.heroBreederMode === "all" ? "all" : "weekly";
-  const auctionPeriod: RankingPeriodId = feed?.topAuctionsMode === "all" ? "all" : "weekly";
-  const bloodlinePeriod: RankingPeriodId = feed?.topBloodlinesMode === "all" ? "all" : "weekly";
-  const communityPeriod: RankingPeriodId = feed?.trendingPostsMode === "all" ? "all" : "weekly";
-  const weeklyBreederRankingHref = toRankingHref("breeders", "weekly");
-
-  // 앱과 같은 결정(2026-10-06): 집계가 빈 카드는 숨긴다. 로딩 중에는 스켈레톤으로 자리를 둔다.
-  const topAuctionRows: MiniCardRow[] = (feed?.topAuctionsByCategory ?? []).slice(0, 2).map((a) => ({
-    id: a.auctionId,
-    image: a.photo,
-    main: a.title,
-    sub: `${a.currentPrice.toLocaleString()}원`,
-  }));
-  const topBloodlineRows: MiniCardRow[] = (feed?.topBloodlines ?? []).slice(0, 2).map((b) => ({
-    id: b.bloodlineRootId,
-    image: b.image,
-    main: b.name,
-    sub: `보유자 ${b.ownerCount}명`,
-  }));
-  const trendingRows: MiniCardRow[] = (feed?.trendingPosts ?? []).slice(0, 2).map((t) => ({
-    id: t.post.id,
-    main: t.post.title,
-    // 순위 + 반응(댓글 우선, 없으면 좋아요). 사람의 활동이라 주황(§3.7).
-    sub: [
-      `↑ ${t.rank}위`,
-      t.comments24h > 0 ? `댓글 ${t.comments24h}` : t.likes24h > 0 ? `좋아요 ${t.likes24h}` : null,
-    ]
-      .filter(Boolean)
-      .join(" · "),
-  }));
-  const freeGiveawayRows: MiniCardRow[] = (feed?.freeGiveawayProducts ?? []).slice(0, 2).map((f) => ({
-    id: f.id,
-    image: f.photos[0],
-    main: f.name,
-    sub: f.user.name,
-    href: `/products/${f.id}`,
-  }));
-  const showMini = (rows: MiniCardRow[]) => feedLoading || rows.length > 0;
-  // 무료나눔 카드는 비어도 등록 권유 카드로 남으므로 그리드는 피드 오류일 때만 숨긴다.
-  const showGrid = !feedError;
   const showTopBreeder = feedError || feedLoading || Boolean(hero);
 
-  const trackRankingCard = (rankingType: string, entityId: number | string, sectionId: string) =>
-    trackEvent(ANALYTICS_EVENTS.rankingCardClick, {
-      ranking_type: rankingType,
-      rank: 1,
-      entity_id: entityId,
-      section_id: sectionId,
-    });
-
-  const productsHref = productCategory
-    ? `/products?category=${encodeURIComponent(productCategory)}`
-    : "/products";
-
   return (
-    <div ref={homeRootRef} className="flex h-full flex-col bg-app-bg">
-      {/* 현재 관심 분야(고정 범위). 온보딩을 마치면 숨는다. 칩이 헤더 바로 아래 붙도록(§9) 이 줄은 고정하지 않는다. */}
+    <div ref={homeRootRef} className="flex h-full flex-col bg-app-bg pb-20">
+      {/* 현재 관심 분야(고정 범위). 온보딩을 마치면 숨는다. 칩이 헤더 바로 아래 붙도록 이 줄은 고정하지 않는다. */}
       <CategoryScopeBar />
 
-      {/* 1. 지금 올라온 분양(사진 레일) */}
+      {/* 1~2. 공지 · 실시간 TOP 토론 · 답 기다려요(옛 반려생활 위쪽) */}
+      <HomeCommunityTop />
+
+      {/* 3. 지금 올라온 분양(사진 레일, '분양 더 보기' → 분양 탭) */}
       <ProductPhotoRail items={railItems} loading={railLoading} />
 
-      {/* 2. 우리 동네 브리더(강조, 시 단위 + 50km) */}
+      {/* 4. 우리 동네 브리더(강조, 시 단위 + 50km) */}
       <NeighborhoodBreederSection />
 
-      {/* 3. 이번 주 TOP 브리더 + 내 순위 — 집계가 비면 섹션을 숨긴다 */}
+      {/* 5. 이번 주 TOP 브리더 + 내 순위 — 집계가 비면 섹션을 숨긴다 */}
       {showTopBreeder ? (
         <section className="pt-6" data-home-section="hero_breeder">
           <SectionHeader
@@ -620,72 +334,7 @@ const MainClient = ({
         </section>
       ) : null}
 
-      {/* 4. 2x2 그리드 — 테두리 없이 app-gap 채움 r16. 피드 오류면 위 오류 상태로 대신한다(무료나눔만 등록 권유 카드). */}
-      {showGrid ? (
-        <section className="pt-6">
-          <div className="grid grid-cols-2 gap-2.5 px-4">
-            {showMini(topAuctionRows) ? (
-              <MiniCard
-                title="최고가 경매"
-                subtitle="카테고리별 최고 낙찰가"
-                href="/auctions"
-                loading={feedLoading}
-                subTone="price"
-                rows={topAuctionRows}
-                sectionId="auction_ranking"
-                onOpen={() =>
-                  trackRankingCard("auction", topAuctionRows[0]?.id ?? "", "auction_ranking")
-                }
-              />
-            ) : null}
-            {showMini(topBloodlineRows) ? (
-              <MiniCard
-                title="인기 혈통"
-                subtitle="보유자 수 기준"
-                href={toRankingHref("bloodlines", bloodlinePeriod)}
-                loading={feedLoading}
-                rows={topBloodlineRows}
-                sectionId="bloodline_ranking"
-                onOpen={() =>
-                  trackRankingCard("bloodline", topBloodlineRows[0]?.id ?? "", "bloodline_ranking")
-                }
-              />
-            ) : null}
-            {showMini(trendingRows) ? (
-              <MiniCard
-                title="급상승 글"
-                subtitle="반응이 빠른 글"
-                href="/posts"
-                loading={feedLoading}
-                showThumb={false}
-                subTone="up"
-                rows={trendingRows}
-                sectionId="trending_community"
-                onOpen={() =>
-                  trackRankingCard("community", trendingRows[0]?.id ?? "", "trending_community")
-                }
-              />
-            ) : null}
-            {showMini(freeGiveawayRows) ? (
-              <MiniCard
-                title="무료나눔"
-                subtitle="가격 0원 · 지금 연락하세요"
-                href="/products?status=판매중&price=0"
-                loading={feedLoading}
-                rows={freeGiveawayRows}
-                sectionId="free_giveaway"
-                onOpen={() =>
-                  trackRankingCard("free_giveaway", freeGiveawayRows[0]?.id ?? "", "free_giveaway")
-                }
-              />
-            ) : (
-              <FreeGiveawayEmptyCard />
-            )}
-          </div>
-        </section>
-      ) : null}
-
-      {/* 5. 배너 슬라이더(관리자 배너 API) — 아직 빼지 않기로 해서 그리드 아래로 내렸다 */}
+      {/* 6. 배너 슬라이더(관리자 배너 API) */}
       {banners.length > 0 ? (
         <section className="relative bg-app-bg pt-6">
           <div
@@ -749,90 +398,19 @@ const MainClient = ({
         </section>
       ) : null}
 
-      <div className="mt-6 h-2 bg-app-gap" />
+      {/* 7. 전체 게시글(옛 반려생활 목록). ?category= 를 읽어 useSearchParams 를 쓰므로 Suspense 로 감싼다. */}
+      <Suspense fallback={null}>
+        <HomePostsFeed />
+      </Suspense>
 
-      {/* 6. 카테고리 칩: 스크롤하면 헤더 바로 아래 붙는다(§9, 위 여백 0). */}
-      <div className="sticky top-14 z-10 bg-app-bg" data-testid="home-sticky-chips">
-        <FilterChipRail className="h-[52px]">
-          {tabs.map((tab) => (
-            <FilterChip
-              key={tab.id}
-              label={tab.name}
-              selected={activeCategory === tab.id}
-              onClick={() => handleCategoryChange(tab.id)}
-            />
-          ))}
-        </FilterChipRail>
-        <SubcategoryChipRow options={subOptions} value={activeSub} onChange={setSelectedSub} className="-mt-1" />
-      </div>
-
-      {/* 7. 전체 분양 헤더('최신 등록 순으로 노출됩니다' 없음, §3.1) */}
-      <section
-        id="all-products"
-        data-home-section="personalized_home"
-        className="bg-app-bg pb-1 pt-2"
-      >
-        <SectionHeader
-          title={productCategory ? `${productCategory} 분양` : "전체 분양"}
-          href={productsHref}
-          actionLabel="분양 목록"
-        />
-      </section>
-
-      {/* 상품 목록 */}
-      <div className="bg-app-bg pb-4">
-        {products.length > 0 ? (
-          products.map((product) => (
-            <ProductCard
-              key={product.id}
-              product={{
-                id: product.id,
-                name: product.name,
-                price: product.price,
-                image: product.photos?.[0],
-                createdAt: product.createdAt,
-                category: product.category,
-                status: product.status,
-                wishCount: product._count?.favs,
-                // 메타는 '종류 · 시간'만(§3.6). 조회 수는 넘기지 않는다.
-                photoCount: product.photos?.length ?? 0,
-                sellerId: product.userId,
-                seller: product.user ?? null,
-              }}
-              markUnread
-            />
-          ))
-        ) : firstPageError ? (
-          <QueryErrorState
-            title="분양 목록을 불러오지 못했어요"
-            onRetry={() => void reloadProducts()}
+      <FloatingButton href="/posts/upload" label="글쓰기">
+        <svg className="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+          <path
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            strokeWidth={2}
+            d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"
           />
-        ) : !productPages || (productsValidating && loadedPages === 0) ? (
-          <ProductRowSkeleton count={5} />
-        ) : (
-          <ProductFeedEmpty />
-        )}
-
-        {products.length > 0 ? (
-          <RetryFooter
-            loading={isLoadingMore}
-            error={nextPageError}
-            onRetry={() => void setSize(loadedPages + 1)}
-          />
-        ) : null}
-        <div ref={sentinelRef} aria-hidden="true" />
-      </div>
-
-      <FloatingButton href="/products/upload" label="분양 등록">
-        <svg
-          className="h-6 w-6"
-          xmlns="http://www.w3.org/2000/svg"
-          fill="none"
-          viewBox="0 0 24 24"
-          stroke="currentColor"
-          aria-hidden="true"
-        >
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
         </svg>
       </FloatingButton>
 
@@ -883,4 +461,5 @@ const MainClient = ({
     </div>
   );
 };
+
 export default MainClient;
