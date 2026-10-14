@@ -118,6 +118,14 @@ async function handler(
   // 소셜(카카오·구글) 프로필 사진은 가입·로그인 어디서도 쓰지 않는다. 강제로 넣지 말라는 피드백(2026-10-11)과,
   // 로그인할 때마다 직접 바꾼 사진을 카카오 사진으로 덮어 '사진이 원래대로 돌아간다'는 제보 때문이다.
 
+  // 이메일은 계정마다 하나다(User.email unique). 다른 로그인 수단으로 이미 가입한 사람이 같은 이메일로
+  // 새 수단을 쓰면 이메일을 비운 채 별도 계정으로 만든다(2026-10-14 사용자 결정 — 애플 로그인이 P2002 로 500 이 났다).
+  const isEmailUsedByOther = async (email: string | null, ownerId?: number) => {
+    if (!email) return false;
+    const owner = await client.user.findUnique({ where: { email }, select: { id: true } });
+    return Boolean(owner && owner.id !== ownerId);
+  };
+
   try {
     // Prisma를 사용하여 해당 snsId로 사용자 찾기
     let user = await client.user.findUnique({
@@ -143,7 +151,7 @@ async function handler(
       const uniqueName = await UniqueName();
       user = await createUserWithAutomaticBreederPrograms({
         snsId,
-        email: normalizedEmail,
+        email: (await isEmailUsedByOther(normalizedEmail)) ? null : normalizedEmail,
         name: uniqueName,
         provider,
         avatar: null,
@@ -176,7 +184,11 @@ async function handler(
       } = {};
 
       // 이메일·제공자만 최신으로 맞춘다(프로필 사진은 사용자가 고른 것을 그대로 둔다).
-      if (normalizedEmail && user.email !== normalizedEmail) {
+      if (
+        normalizedEmail &&
+        user.email !== normalizedEmail &&
+        !(await isEmailUsedByOther(normalizedEmail, user.id))
+      ) {
         updateData.email = normalizedEmail;
       }
       if (user.provider !== provider) {
