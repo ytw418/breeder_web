@@ -68,7 +68,9 @@ const REPORT_REASONS = [
   "기타",
 ] as const;
 
-const getCountdown = (endAt: string | Date | undefined, now: number) => {
+const getCountdown = (endAt: string | Date | undefined, now: number | null) => {
+  // 서버 HTML(ISR 로 최대 15초 전)과 첫 화면이 같도록 화면이 붙기 전에는 남은 시간을 비워 둔다.
+  if (now === null) return { text: "", isEnded: false, diff: Number.POSITIVE_INFINITY };
   const diff = endAt ? new Date(endAt).getTime() - now : Number.NaN;
   if (Number.isNaN(diff) || diff <= 0) return { text: "경매 종료", isEnded: true, diff: 0 };
   const days = Math.floor(diff / (1000 * 60 * 60 * 24));
@@ -79,6 +81,22 @@ const getCountdown = (endAt: string | Date | undefined, now: number) => {
   if (hours > 0) return { text: `${hours}시간 ${minutes}분 ${seconds}초`, isEnded: false, diff };
   if (minutes > 0) return { text: `${minutes}분 ${seconds}초`, isEnded: false, diff };
   return { text: `${seconds}초`, isEnded: false, diff };
+};
+
+const KST_OFFSET_MS = 9 * 60 * 60 * 1000;
+const pad2 = (value: number) => String(value).padStart(2, "0");
+/**
+ * 종료 시각을 앱(toLocaleString("ko-KR"))과 같은 'YYYY. M. D. 오후 h:mm:ss' 로 KST 기준으로 쓴다.
+ * 서버(Node)의 toLocaleString 은 '오후' 대신 'PM' 을 내 서버 HTML 과 화면 글자가 달라졌다(하이드레이션 오류).
+ */
+const formatKstEndAt = (value: string | Date) => {
+  const kst = new Date(new Date(value).getTime() + KST_OFFSET_MS);
+  const hours = kst.getUTCHours();
+  const meridiem = hours < 12 ? "오전" : "오후";
+  const hour12 = hours % 12 === 0 ? 12 : hours % 12;
+  return `${kst.getUTCFullYear()}. ${kst.getUTCMonth() + 1}. ${kst.getUTCDate()}. ${meridiem} ${hour12}:${pad2(
+    kst.getUTCMinutes()
+  )}:${pad2(kst.getUTCSeconds())}`;
 };
 
 const formatPrice = (value: number) => `${value.toLocaleString("ko-KR")}원`;
@@ -193,7 +211,12 @@ function CheckboxRow({
 
 /* ------------------------------------------------------------------ */
 
-const AuctionDetailClient = () => {
+const AuctionDetailClient = ({
+  initialData,
+}: {
+  /** 서버가 받은 비로그인 응답. 본문을 서버 HTML 에 그리려고 쓰고, 화면이 붙으면 SWR 이 다시 받는다. */
+  initialData?: AuctionDetailResponse;
+} = {}) => {
   const params = useParams();
   const router = useRouter();
   const pathname = usePathname();
@@ -203,7 +226,7 @@ const AuctionDetailClient = () => {
   const isToolRoute = Boolean(pathname?.startsWith("/tool"));
   const loginPath = isToolRoute ? "/tool/login" : "/auth/login";
 
-  const [now, setNow] = useState(() => Date.now());
+  const [now, setNow] = useState<number | null>(null);
   const [imageIndex, setImageIndex] = useState(0);
   const [viewerOpen, setViewerOpen] = useState(false);
   const [bidInput, setBidInput] = useState<number | null>(null);
@@ -223,7 +246,7 @@ const AuctionDetailClient = () => {
   // 경매 데이터(5초 폴링). 폴링이 실패해도 SWR 은 받아 둔 data 를 그대로 둔다.
   const { data, error, mutate } = useSWR<AuctionDetailResponse>(
     canLoadAuction ? `/api/auctions/${auctionId}` : null,
-    { refreshInterval: 5000 }
+    { refreshInterval: 5000, fallbackData: initialData }
   );
   const [submitBid, { loading: bidLoading }] = useMutation<MutationResult<BidResponse>>(
     canLoadAuction ? `/api/auctions/${auctionId}/bid` : ""
@@ -233,6 +256,7 @@ const AuctionDetailClient = () => {
   );
 
   useEffect(() => {
+    setNow(Date.now());
     const timer = setInterval(() => setNow(Date.now()), 1000);
     return () => clearInterval(timer);
   }, []);
@@ -661,7 +685,7 @@ const AuctionDetailClient = () => {
                 {isWinner ? "낙찰 완료" : "낙찰자"}: {winnerBid.user?.name}
               </p>
               <p>낙찰가: {formatPrice(winnerBid.amount)}</p>
-              <p>종료시각: {new Date(auction.endAt).toLocaleString("ko-KR")}</p>
+              <p>종료시각: {formatKstEndAt(auction.endAt)}</p>
             </div>
           ) : null}
 
@@ -784,7 +808,9 @@ const AuctionDetailClient = () => {
                 </div>
                 <div className="flex shrink-0 items-center gap-2">
                   <span className="text-[14px] font-semibold text-app-text">{formatPrice(bid.amount)}</span>
-                  <span className="text-[12px] text-app-muted">{getTimeAgoString(new Date(bid.createdAt))}</span>
+                  <span className="text-[12px] text-app-muted" suppressHydrationWarning>
+                    {getTimeAgoString(new Date(bid.createdAt))}
+                  </span>
                 </div>
               </li>
             ))}

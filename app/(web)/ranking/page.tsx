@@ -4,7 +4,7 @@ import type { Metadata } from "next";
 import { SITE_OG_IMAGE } from "@libs/shared/ogImage";
 
 export const metadata: Metadata = {
-  title: "인기 랭킹 | 브리디",
+  title: "인기 랭킹",
   description:
     "브리디 유저 랭킹과 인기 곤충·변이 콘텐츠를 확인하세요. 기간별/카테고리별 순위를 한눈에 비교할 수 있습니다.",
   keywords: ["브리디 랭킹", "최고 랭킹", "인기 게시글", "곤충", "변이"],

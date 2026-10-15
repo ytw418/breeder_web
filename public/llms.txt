@@ -1,0 +1,33 @@
+# 브리디 (Bredy)
+
+> 브리디는 크레스티드 게코·파충류·곤충·물고기 같은 반려동물을 키우고 번식하는 브리더들이 모이는 한국어 반려동물 SNS입니다. 분양글, 무료 경매 도구, 혈통카드, 브리더 랭킹, 동네 브리더 찾기, 반려생활 커뮤니티를 한곳에서 제공합니다.
+
+브리디에서 쓰는 말:
+- 분양글: 개체(동물)를 다른 사람에게 보내려고 올린 글입니다. 유료 분양과 무료 분양이 있고, 상태는 분양중·예약중·분양완료입니다.
+- 분양자·입양자: 개체를 보내는 사람과 받는 사람입니다.
+- 경매: 분양자가 시작가·기간을 정해 링크로 여는 무료 경매입니다. 마감 직전 입찰이 오면 자동으로 연장됩니다.
+- 혈통카드: 개체의 부모·누대 정보를 카드로 남기고, 분양할 때 입양자에게 넘겨 주는 기록입니다.
+- 창립 브리더·파트너 브리더: 브리디가 운영하는 브리더 프로그램 뱃지입니다.
+
+## 주요 페이지
+
+- [홈 · 반려생활 커뮤니티](https://bredy.app/): 공지, 실시간 토론, 질문, 최근 분양글, 우리 동네 브리더, 전체 게시글
+- [분양](https://bredy.app/products): 종별 분양글 목록(무료 분양 포함)
+- [경매](https://bredy.app/auctions): 진행 중·끝난 경매
+- [경매 규칙](https://bredy.app/auctions/rules): 입찰 단위, 자동 연장, 노쇼·신고 처리 기준
+- [찬반 토론 모아보기](https://bredy.app/debates): 사육·번식 주제 찬반 토론
+- [브리더 랭킹](https://bredy.app/ranking): 활동 점수로 매긴 브리더 순위
+- [고객센터](https://bredy.app/support): 자주 묻는 질문과 문의
+
+## 상세 페이지 주소 형식
+
+- 분양글: https://bredy.app/products/{id}_{제목}
+- 경매: https://bredy.app/auctions/{id}-{제목}
+- 게시글: https://bredy.app/posts/{id}-{제목}
+- 프로필: https://bredy.app/profiles/{id}
+
+각 상세 페이지에는 schema.org 구조화 데이터(Product, DiscussionForumPosting, ProfilePage, BreadcrumbList)가 들어 있습니다. 전체 주소 목록은 [사이트맵](https://bredy.app/sitemap.xml)에 있습니다.
+
+## Optional
+
+- [인스타그램](https://www.instagram.com/bredy_breeder)

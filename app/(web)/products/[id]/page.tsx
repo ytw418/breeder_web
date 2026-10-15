@@ -7,20 +7,19 @@ import {
   normalizeDeletedUserNames,
 } from "@libs/shared/deletedUser";
 import ProductClient from "./ProductClient";
-import Script from "next/script";
+import JsonLd from "@components/atoms/JsonLd";
 import { SITE_OG_IMAGE } from "@libs/shared/ogImage";
+import {
+  SITE_URL,
+  productAvailability,
+  toMetaDescription,
+  toPublicImageUrl as toSeoImageUrl,
+} from "@libs/shared/seo";
+import { dealTypeLabel, productStatusLabel } from "@libs/shared/productTerms";
 
-const CLOUDFLARE_IMAGE_BASE = "https://imagedelivery.net/OvWZrAz6J6K7n9LKUH5pKw";
 const DEFAULT_OG_IMAGE = SITE_OG_IMAGE;
-
-const toPublicImageUrl = (imageId: string | null | undefined) => {
-  if (!imageId) return DEFAULT_OG_IMAGE;
-  if (imageId.startsWith("/")) return imageId;
-  if (imageId.startsWith("http://") || imageId.startsWith("https://")) {
-    return imageId;
-  }
-  return `${CLOUDFLARE_IMAGE_BASE}/${imageId}/public`;
-};
+const toPublicImageUrl = (imageId: string | null | undefined) =>
+  toSeoImageUrl(imageId, DEFAULT_OG_IMAGE);
 
 interface Props {
   params: Promise<{
@@ -28,7 +27,15 @@ interface Props {
   }>;
 }
 
-export const dynamic = "force-dynamic";
+/**
+ * 상세는 요청이 처음 올 때 만들어 60초 캐시한다(ISR). 빌드 때는 미리 만들지 않는다.
+ * 2026-03-31 Next 16.2 에서 한글 slug 가 x-next-cache-tags 헤더를 깨뜨려(ERR_INVALID_CHAR, next.js#92145)
+ * force-dynamic 으로 돌렸다가, 16.4 에서 태그를 인코딩하도록 고쳐져 ISR 로 되돌렸다.
+ * 로그인 사용자별 값(관심·내 글 여부)은 화면에서 다시 받는다.
+ */
+export const revalidate = 60;
+export const generateStaticParams = async () => [];
+const PRODUCT_REVALIDATE_SECONDS = 60;
 
 /**
  * 동적 메타데이터 생성
@@ -39,7 +46,7 @@ export const dynamic = "force-dynamic";
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { id } = await params;
   const productId = extractProductId(id);
-  const data = await getProduct(productId);
+  const data = await getProduct(productId, { revalidateSeconds: PRODUCT_REVALIDATE_SECONDS });
 
   if (!data.success || !data.product) {
     return {
@@ -53,28 +60,34 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   }
 
   const { product } = data;
-  const description =
-    product.description.length > 160
-      ? `${product.description.slice(0, 160)}...`
-      : product.description;
+  // 검색 결과·AI 답변에 그대로 인용되도록 상태·거래 유형·종을 앞에 둔다.
+  const facts = [
+    productStatusLabel(product.status),
+    dealTypeLabel(product.dealType),
+    product.category,
+  ].filter(Boolean);
+  const description = toMetaDescription(
+    `${facts.length ? `[${facts.join(" · ")}] ` : ""}${product.description}`,
+    160
+  );
   const normalizedImages =
     product.photos?.length > 0
       ? product.photos.map((photo) => toPublicImageUrl(photo)).slice(0, 4)
       : [DEFAULT_OG_IMAGE];
   const twitterImage = normalizedImages[0] || DEFAULT_OG_IMAGE;
-  const canonicalUrl = `https://bredy.app${getProductPath(product.id, product.name)}`;
+  const canonicalUrl = `${SITE_URL}${getProductPath(product.id, product.name)}`;
   const keywordSet = new Set<string>([
     "브리디",
     "반려동물",
-    "중고 거래",
     "분양",
+    "반려동물 분양",
     product.name,
   ]);
   if (product.category) keywordSet.add(product.category);
   if (product.productType) keywordSet.add(product.productType);
 
   return {
-    title: `${String(product.name) || "제목 없음"}`,
+    title: `${String(product.name) || "제목 없음"}${product.category ? ` - ${product.category} 분양` : ""}`,
     description,
     keywords: Array.from(keywordSet),
     openGraph: {
@@ -119,56 +132,47 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   };
 }
 
+type ProductForSeo = NonNullable<Awaited<ReturnType<typeof getProduct>>["product"]>;
+
 /**
- * 상품 정보를 위한 JSON-LD 구조화 데이터 생성
- * - 검색 엔진이 상품 정보를 더 잘 이해할 수 있도록 함
- * - 가격, 판매자, 이미지 등 상세 정보 포함
- * - 검색 결과에서 리치 스니펫 표시 가능성 증가
+ * 분양글 구조화 데이터. 가격·상태·분양자·종을 검색엔진과 AI 검색이 읽게 한다.
  */
-function generateJsonLd(product: any, imageUrls: string[]) {
+function generateJsonLd(product: ProductForSeo, imageUrls: string[]) {
+  const url = `${SITE_URL}${getProductPath(product.id, product.name)}`;
+  const sellerName = displayUserName(product.user?.name);
   return {
     "@context": "https://schema.org",
     "@type": "Product",
     name: product.name,
     description: product.description,
     image: imageUrls,
+    url,
+    ...(product.category ? { category: product.category } : {}),
     offers: {
       "@type": "Offer",
-      price: product.price,
+      url,
+      price: product.price ?? 0,
       priceCurrency: "KRW",
-      availability: "https://schema.org/InStock",
-    },
-    seller: {
-      "@type": "Person",
-      name: displayUserName(product.user?.name),
+      availability: productAvailability(product.status),
+      seller: {
+        "@type": "Person",
+        name: sellerName,
+        ...(product.user?.id ? { url: `${SITE_URL}/profiles/${product.user.id}` } : {}),
+      },
     },
   };
 }
 
-/**
- * 브레드크럼 네비게이션을 위한 JSON-LD 생성
- * - 사이트 구조를 검색 엔진에 명확히 전달
- * - 사용자 경험 개선
- * - 검색 결과에서 사이트 구조 표시 가능
- */
-function generateBreadcrumbJsonLd(product: any) {
-  const canonicalUrl = `https://bredy.app${getProductPath(product.id, product.name)}`;
+/** 브레드크럼: 홈 → 분양 → 이 글. */
+function generateBreadcrumbJsonLd(product: ProductForSeo) {
+  const canonicalUrl = `${SITE_URL}${getProductPath(product.id, product.name)}`;
   return {
     "@context": "https://schema.org",
     "@type": "BreadcrumbList",
     itemListElement: [
-      {
-        "@type": "ListItem",
-        position: 1,
-        name: "홈",
-        item: "https://bredy.app",
-      },
-      {
-        "@type": "ListItem",
-        position: 2,
-        name: product.name,
-        item: canonicalUrl,
-      },
+      { "@type": "ListItem", position: 1, name: "홈", item: SITE_URL },
+      { "@type": "ListItem", position: 2, name: "분양", item: `${SITE_URL}/products` },
+      { "@type": "ListItem", position: 3, name: product.name, item: canonicalUrl },
     ],
   };
 }
@@ -183,7 +187,7 @@ function generateBreadcrumbJsonLd(product: any) {
 export default async function ProductPage({ params }: Props) {
   const { id } = await params;
   const productId = extractProductId(id);
-  const data = await getProduct(productId);
+  const data = await getProduct(productId, { revalidateSeconds: PRODUCT_REVALIDATE_SECONDS });
 
   if (!data.success || !data.product) {
     // 삭제·숨김 상품은 비로그인 SSR 에서 404(PRODUCT_HIDDEN)다. 소유자는 토큰으로 다시 받아 안내를 봐야 하므로
@@ -204,17 +208,8 @@ export default async function ProductPage({ params }: Props) {
 
   return (
     <>
-      {/* 구조화된 데이터 스크립트 */}
-      <Script
-        id="product-jsonld"
-        type="application/ld+json"
-        dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
-      />
-      <Script
-        id="breadcrumb-jsonld"
-        type="application/ld+json"
-        dangerouslySetInnerHTML={{ __html: JSON.stringify(breadcrumbJsonLd) }}
-      />
+      <JsonLd id="product-jsonld" data={jsonLd} />
+      <JsonLd id="breadcrumb-jsonld" data={breadcrumbJsonLd} />
       <ProductClient
         product={normalizeDeletedUserNames(data.product)}
         relatedProducts={normalizeDeletedUserNames(data.relatedProducts)}
