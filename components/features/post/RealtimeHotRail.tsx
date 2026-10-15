@@ -20,6 +20,7 @@ export type RealtimeHotItem = {
 };
 
 const ACTIVITY_LABEL: Record<HotActivityKind, string> = {
+  vote: "투표",
   comment: "댓글",
   like: "좋아요",
   post: "새 글",

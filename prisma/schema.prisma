@@ -140,6 +140,8 @@ model User {
   regionVisits    RegionVisit[]
   wavesSent       ChatWave[]  @relation("WaveSent")
   wavesReceived   ChatWave[]  @relation("WaveReceived")
+  debateVotes     DebateVote[]
+  townMessages    TownMessage[]
   auctionReportsSubmitted AuctionReport[] @relation("AuctionReportReporter")
   auctionReportsReceived  AuctionReport[] @relation("AuctionReportReportedUser")
   auctionReportsResolved  AuctionReport[] @relation("AuctionReportResolver")
@@ -312,6 +314,8 @@ model Post {
   regionSigungu String?
   /// Category.id (종 분류, type 문자열과 함께 저장). 카테고리 고정 범위 조회용.
   categoryId    Int?
+  /// 찬반 토론 글(category '토론')이면 선택지·기간. 앱 docs/prd/live-talk.md
+  debate        Debate?
 
   @@index([userId])
   @@index([category])
@@ -353,6 +357,8 @@ model Comment {
   deletedAt DateTime?
   /// 작성자가 고친 시각. updatedAt 은 운영자 숨김에도 바뀌어 '수정됨' 표시에 쓰지 않는다.
   editedAt  DateTime?
+  /// 토론 글 댓글이면 쓴 순간 작성자가 고른 쪽(작성자가 안 골랐거나 옛 앱이면 null). 나중에 바꿔도 그대로 둔다.
+  stance    DebateSide?
   likes     CommentLike[]
 
   @@index([userId])
@@ -483,6 +489,9 @@ enum NotificationType {
   MODERATION           // 운영 조치 안내(경고·정지·해제·숨김·삭제, 신고 처리 결과). 화면에는 보낸 사람 대신 '브리디 운영팀'
   RANK_UP              // 주간 브리더 순위 상승("순위가 올랐어요 · 7위 → 5위", /ranking?focus=me). 앱 docs/prd/community-vibe.md
   AUCTION_RESTARTED    // 분양자가 경매를 다시 시작(이전 낙찰자·지난 회차 입찰자에게). 앱 docs/prd/auction-restart.md
+  DEBATE_RESULT        // 찬반 토론 결과(투표자·작성자에게, 끝난 뒤 한 번). 앱 docs/prd/live-talk.md
+  DEBATE_MILESTONE     // 내 토론 참여 5·20·50명 도달(작성자에게)
+  TOWN_REPLY           // 동네 사랑방에서 내 메시지에 답장·반겨 주기
 }
 
 enum SeasonKind {
@@ -917,6 +926,7 @@ enum ReportTargetType {
   CHAT_ROOM
   USER
   BLOODLINE_CARD
+  TOWN_MESSAGE
 }
 
 enum ReportStatus {
@@ -1293,4 +1303,75 @@ model ChatWave {
   @@unique([senderId, recipientId])
   @@index([senderId, day])
   @@index([recipientId])
+}
+
+/// 찬반 토론의 쪽. A = 첫 선택지(화면 주황), B = 둘째 선택지(화면 검정).
+enum DebateSide {
+  A
+  B
+}
+
+/// 찬반 토론 글(Post.category === "토론")의 선택지·기간. 글 1개당 1행.
+/// 집계(참여 수·%)는 저장하지 않고 DebateVote 에서 센다(탈퇴 cascade 로 어긋나지 않게). 앱 docs/prd/live-talk.md
+model Debate {
+  post             Post         @relation(fields: [postId], references: [id], onDelete: Cascade)
+  postId           Int          @id
+  optionA          String       @db.VarChar(12)
+  optionB          String       @db.VarChar(12)
+  endsAt           DateTime
+  /// 작성자 말고 처음 투표한 시각. 이 뒤엔 질문·선택지를 못 고친다.
+  firstOtherVoteAt DateTime?
+  /// 앱 안 결과 알림을 만든 시각(한 번만).
+  resultNotifiedAt DateTime?
+  createdAt        DateTime     @default(now())
+  votes            DebateVote[]
+
+  @@index([endsAt])
+}
+
+/// 토론 투표. 한 사람 한 표, 끝나기 전엔 쪽을 바꿀 수 있다(switchedAt = 마지막으로 바꾼 시각).
+model DebateVote {
+  id         Int        @id @default(autoincrement())
+  debate     Debate     @relation(fields: [postId], references: [postId], onDelete: Cascade)
+  postId     Int
+  user       User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId     Int
+  side       DebateSide
+  switchedAt DateTime?
+  createdAt  DateTime   @default(now())
+  updatedAt  DateTime   @updatedAt
+
+  @@unique([postId, userId])
+  @@index([postId, updatedAt])
+  @@index([userId])
+}
+
+enum TownMessageType {
+  TEXT
+  IMAGE
+  PRODUCT
+}
+
+/// 동네 사랑방 메시지. 방이 아니라 보낸 사람의 시/군/구를 저장하고, 읽을 때 읽는 사람의 반경 50km 범위로 거른다.
+/// 최근 7일만 보이고 지우지는 않는다. 앱 docs/prd/live-talk.md §3.4
+model TownMessage {
+  id            Int             @id @default(autoincrement())
+  user          User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId        Int
+  regionSido    String
+  regionSigungu String
+  type          TownMessageType @default(TEXT)
+  body          String?         @db.VarChar(300)
+  image         String?
+  productId     Int?
+  replyToId     Int?
+  /// 운영자 숨김 또는 신고 3건 자동 가림.
+  isHidden      Boolean         @default(false)
+  /// 보낸 사람이 지운 시각('삭제한 메시지예요'로 남긴다).
+  deletedAt     DateTime?
+  createdAt     DateTime        @default(now())
+
+  @@index([regionSido, regionSigungu, id])
+  @@index([userId, createdAt])
+  @@index([createdAt])
 }
