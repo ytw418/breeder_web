@@ -1,4 +1,6 @@
 import { NextApiRequest, NextApiResponse } from "next";
+import { withDetailRevalidation } from "@libs/server/pageRevalidation";
+import { extractProductId } from "@libs/product-route";
 import withHandler, { ResponseType } from "@libs/server/withHandler";
 import client from "@libs/server/client";
 import { withAuth } from "@libs/server/auth";
@@ -395,7 +397,7 @@ async function handler(
 export default withAuth(
   withHandler({
     methods: ["GET", "POST"],
-    handler,
+    handler: withDetailRevalidation(handler, (req) => [{ type: "PRODUCT", id: Number(extractProductId(req.query.id)) }]),
     isPrivate: false,
   })
 );

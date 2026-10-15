@@ -152,6 +152,21 @@ const COMMENT_MAX_HEIGHT = 112;
 const isCoarsePointer = () =>
   typeof window !== "undefined" && Boolean(window.matchMedia?.("(pointer: coarse)").matches);
 
+/** 댓글을 받기 전 자리. 캐시된 HTML 에는 댓글을 넣지 않는다. */
+const CommentsSkeleton = () => (
+  <div aria-hidden className="flex flex-col gap-4 py-4">
+    {[0, 1].map((row) => (
+      <div key={row} className="flex gap-2.5">
+        <span className="h-8 w-8 shrink-0 animate-pulse rounded-full bg-app-placeholder" />
+        <div className="flex flex-1 flex-col gap-1.5">
+          <span className="h-3.5 w-24 animate-pulse rounded bg-app-placeholder" />
+          <span className="h-3.5 w-3/4 animate-pulse rounded bg-app-placeholder" />
+        </div>
+      </div>
+    ))}
+  </div>
+);
+
 /**
  * 알림·프로필 댓글 목록에서 ?commentId= 로 열면 그 댓글을 알린다.
  * 상세는 ISR 이라 서버에서 쿼리를 읽지 않는다. useSearchParams 는 Suspense 안에서만 써야 글 본문이 서버에서 그려진다.
@@ -220,6 +235,8 @@ const PostClient = ({
   // 서버 초기값(initialPost)에는 내 좋아요 여부가 없다. 클라이언트 응답이 오기 전에 누르면 반대로 토글되니 막는다.
   // 로그아웃 상태는 누르면 로그인으로 보내므로 막지 않는다.
   const likeReady = !user || Boolean(data);
+  // 댓글·좋아요 수 같은 실시간 영역은 서버 HTML(ISR 캐시)에 넣지 않고 이 브라우저가 받은 응답으로만 그린다.
+  const live = Boolean(data?.post);
   const isNotice = isNoticePost(post);
   const detailPath = post ? toPostPath(post.id, post.title) : `/posts/${postApiId ?? ""}`;
   const authorId = post?.user?.id;
@@ -664,6 +681,7 @@ const PostClient = ({
           post={post}
           hiddenNotice={post.isHidden ? <HiddenContentNotice targetType="POST" className="mx-4 mt-3" /> : null}
           initialDebate={debate}
+          live={live}
           viewerId={user?.id ?? null}
           onLogin={goLogin}
           onReport={(commentId) => openReport({ type: "COMMENT", id: commentId })}
@@ -735,7 +753,11 @@ const PostClient = ({
 
           {/* 카운트 + 좋아요 버튼 */}
           <div className="flex items-center justify-between px-4 pb-3.5">
-            <span className="text-[13px] text-app-muted">{`좋아요 ${likeCount} · 댓글 ${commentCount}`}</span>
+            {live ? (
+              <span className="text-[13px] text-app-muted">{`좋아요 ${likeCount} · 댓글 ${commentCount}`}</span>
+            ) : (
+              <span aria-hidden className="h-4 w-28 animate-pulse rounded bg-app-placeholder" />
+            )}
             <button
               type="button"
               aria-label="좋아요"
@@ -782,10 +804,25 @@ const PostClient = ({
           {/* 댓글 */}
           <div className="h-2 bg-app-gap" />
           <div className="px-4 pb-1 pt-4">
-            <h3 className="text-[16px] font-bold text-app-text">{`댓글 ${commentCount}`}</h3>
+            <h3 className="text-[16px] font-bold text-app-text">{live ? `댓글 ${commentCount}` : "댓글"}</h3>
           </div>
           <div className="px-4">
-            {commentThreads.length ? (
+            {!live ? (
+              error ? (
+                <div className="flex flex-col items-center gap-2 py-9">
+                  <p className="text-[14px] text-app-muted">댓글을 불러오지 못했어요.</p>
+                  <button
+                    type="button"
+                    onClick={() => void mutate()}
+                    className="text-[14px] font-semibold text-app-text underline underline-offset-[3px]"
+                  >
+                    다시 시도
+                  </button>
+                </div>
+              ) : (
+                <CommentsSkeleton />
+              )
+            ) : commentThreads.length ? (
               commentThreads.map(({ root, replies }, index) => (
                 // 구분선은 묶음(루트 + 답글) 사이에만 둔다.
                 <div

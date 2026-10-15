@@ -209,7 +209,8 @@ const page = async ({ params }: { params: Promise<{ id: string }> }) => {
   return (
     <div>
       <JsonLd id="post-jsonld" data={generatePostJsonLd(data.post)} />
-      <PostClient {...normalizeDeletedUserNames(data)} />
+      {/* 댓글은 캐시된 HTML 에 넣지 않는다. 화면이 열리면 PostClient 가 최신 댓글을 받아 그린다. */}
+      <PostClient {...normalizeDeletedUserNames({ ...data, post: { ...data.post, comments: [] } })} />
     </div>
   );
 };

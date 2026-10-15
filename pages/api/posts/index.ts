@@ -1,4 +1,5 @@
 import type { DebateSummary } from "@libs/shared/debateFormat";
+import { withDetailRevalidation } from "@libs/server/pageRevalidation";
 import { NextApiRequest, NextApiResponse } from "next";
 import withHandler, { ResponseType } from "@libs/server/withHandler";
 
@@ -541,5 +542,9 @@ const handler = async (
 };
 
 export default withAuth(
-  withHandler({ methods: ["POST", "GET"], isPrivate: false, handler })
+  withHandler({
+    methods: ["POST", "GET"],
+    isPrivate: false,
+    handler: withDetailRevalidation(handler, () => [{ type: "HOME" }]),
+  })
 );

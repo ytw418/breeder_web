@@ -1,7 +1,7 @@
 import React from "react";
 import type { Metadata } from "next";
 import AuctionsClient from "./AuctionsClient";
-import Script from "next/script";
+import JsonLd from "@components/atoms/JsonLd";
 import client from "@libs/server/client";
 import { toAuctionPath } from "@libs/auction-route";
 
@@ -95,11 +95,7 @@ const page = async () => {
 
   return (
     <>
-      <Script
-        id="auctions-itemlist-jsonld"
-        type="application/ld+json"
-        dangerouslySetInnerHTML={{ __html: JSON.stringify(itemListJsonLd) }}
-      />
+      <JsonLd id="auctions-itemlist-jsonld" data={itemListJsonLd} />
       <AuctionsClient />
     </>
   );
