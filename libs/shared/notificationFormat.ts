@@ -16,7 +16,8 @@ export type NotificationIconName =
   | "trophy"
   | "chart"
   | "shield"
-  | "bell";
+  | "bell"
+  | "debate";
 
 /** 24 viewBox 라인 아이콘 path. 사람 아바타 위 22 뱃지(12)와 44 원(22)에 같이 쓴다. */
 export const NOTIFICATION_ICON_PATHS: Record<NotificationIconName, string[]> = {
@@ -48,6 +49,8 @@ export const NOTIFICATION_ICON_PATHS: Record<NotificationIconName, string[]> = {
   bell: [
     "M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9",
   ],
+  // 찬반 토론 알림(결과·참여). 말풍선 둘, 앱 시안 design/mockups/live-talk/A-karrot.html '토론 열기' 카드 아이콘.
+  debate: ["M3 5h11v8H8l-3 3v-3H3z", "M14 9h7v8h-2v3l-3-3h-5v-4"],
 };
 
 export interface NotificationKind {
@@ -82,6 +85,11 @@ const KINDS: Record<string, NotificationKind> = {
   BLOODLINE_OVERTAKEN: { label: "혈통 랭킹", icon: "chart", fromPerson: false },
   BLOODLINE_RECEIVED: { label: "혈통", icon: "card", fromPerson: true },
   MODERATION: { label: "운영 알림", icon: "shield", fromPerson: false },
+  // 찬반 토론(앱 docs/prd/live-talk.md §5b): 결과·참여 알림은 시스템 아이콘 원(말풍선 둘).
+  DEBATE_RESULT: { label: "토론", icon: "debate", fromPerson: false },
+  DEBATE_MILESTONE: { label: "토론", icon: "debate", fromPerson: false },
+  // 동네 사랑방 답장·반겨 주기: 보낸 이웃 아바타 + 말풍선 뱃지. targetType "town" → /town?focus=<메시지 id>.
+  TOWN_REPLY: { label: "사랑방", icon: "bubble", fromPerson: true },
 };
 
 const FALLBACK_KIND: NotificationKind = { label: "알림", icon: "bell", fromPerson: false };

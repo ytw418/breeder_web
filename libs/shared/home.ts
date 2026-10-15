@@ -41,6 +41,8 @@ export interface HomeBanner {
 export function filterHomeFeedForBlocked<
   T extends {
     heroBreeder: { user: { id: number } } | null;
+    topBreeders?: { user: { id: number } }[];
+    topBreederKeywords?: unknown[];
     topAuctionsByCategory: { seller?: { id: number } | null }[];
     topBloodlines: { creator?: { id: number } | null }[];
     trendingPosts: { post: { user?: { id: number } | null } }[];
@@ -50,10 +52,20 @@ export function filterHomeFeedForBlocked<
   if (blocked.size === 0) return { ...feed, heroBlocked: false };
   const keep = (id: number | null | undefined) => id == null || !blocked.has(id);
   const heroBlocked = Boolean(feed.heroBreeder && !keep(feed.heroBreeder.user.id));
+  // TOP 브리더 1~3위와 칭호는 같은 순서라 함께 거른다.
+  const keptTop = (feed.topBreeders ?? [])
+    .map((item, index) => ({ item, keyword: feed.topBreederKeywords?.[index] ?? null }))
+    .filter(({ item }) => keep(item.user.id));
   return {
     ...feed,
     heroBlocked,
     heroBreeder: heroBlocked ? null : feed.heroBreeder,
+    ...(feed.topBreeders
+      ? {
+          topBreeders: keptTop.map(({ item }) => item) as T["topBreeders"],
+          topBreederKeywords: keptTop.map(({ keyword }) => keyword) as T["topBreederKeywords"],
+        }
+      : {}),
     topAuctionsByCategory: feed.topAuctionsByCategory.filter((item) => keep(item.seller?.id)),
     topBloodlines: feed.topBloodlines.filter((item) => keep(item.creator?.id)),
     trendingPosts: feed.trendingPosts.filter((item) => keep(item.post.user?.id)),

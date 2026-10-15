@@ -57,7 +57,7 @@ export type NearbyBreedersResult = {
 
 export type NeighborhoodVisitors = { count: number };
 
-export type HotActivityKind = "comment" | "like" | "post";
+export type HotActivityKind = "comment" | "like" | "post" | "vote";
 
 export type HotRealtimeMeta = {
   lastActivityAt: string;

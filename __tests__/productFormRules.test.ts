@@ -66,6 +66,19 @@ describe("filterHomeFeedForBlocked", () => {
     expect(result.trendingPosts).toEqual([{ post: { user: null } }]);
     expect(result.freeGiveawayProducts).toEqual([]);
   });
+
+  it("TOP 브리더 1~3위는 차단한 사람을 빼고 칭호도 같은 순서로 남긴다", () => {
+    const result = filterHomeFeedForBlocked(
+      {
+        ...feed,
+        topBreeders: [{ user: { id: 1 } }, { user: { id: 2 } }, { user: { id: 3 } }],
+        topBreederKeywords: ["경매왕", null, "소통왕"],
+      },
+      new Set([2])
+    );
+    expect(result.topBreeders).toEqual([{ user: { id: 1 } }, { user: { id: 3 } }]);
+    expect(result.topBreederKeywords).toEqual(["경매왕", "소통왕"]);
+  });
 });
 
 describe("resolveProductPhotoIds", () => {

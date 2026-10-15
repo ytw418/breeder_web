@@ -3,7 +3,7 @@
 import { BottomSheet } from "@components/app/BottomSheet";
 
 /** 시안 A-karrot 선택 row 를 누르면 아래에서 올라오는 목록 시트(앱 PostPickerSheet). */
-export type PostPickerOption = { id: string; name: string };
+export type PostPickerOption = { id: string; name: string; /** 이름 아래 한 줄 12 muted(글쓰기 주제 '토론'·'질문'). */ description?: string };
 
 export function PostPickerSheet({
   open,
@@ -41,14 +41,19 @@ export function PostPickerSheet({
                 onClick={() => onSelect(option.id)}
                 className="flex h-14 w-full items-center justify-between px-4 text-left transition-colors hover:bg-app-surface"
               >
-                <span
-                  className={
-                    active
-                      ? "text-[16px] font-semibold text-app-brand"
-                      : "text-[16px] font-normal text-app-text"
-                  }
-                >
-                  {option.name}
+                <span className="min-w-0">
+                  <span
+                    className={
+                      active
+                        ? "block text-[16px] font-semibold text-app-brand"
+                        : "block text-[16px] font-normal text-app-text"
+                    }
+                  >
+                    {option.name}
+                  </span>
+                  {option.description ? (
+                    <span className="block text-[12px] leading-4 text-app-muted">{option.description}</span>
+                  ) : null}
                 </span>
                 {active ? (
                   <svg

@@ -33,6 +33,8 @@ export type Category = (typeof CATEGORIES)[number]["id"];
 export const POST_CATEGORIES = [
   // 동네 글(libs/shared/postCategory.ts REGION_POST_CATEGORY). 앱과 같은 순서로 맨 앞에 둔다.
   { id: "동네", name: "동네" },
+  // 찬반 토론(앱 docs/prd/live-talk.md, 2026-10-15). 글쓰기에서 고르면 토론 열기 화면으로 간다.
+  { id: "토론", name: "토론" },
   { id: "자유", name: "자유" },
   { id: "질문", name: "질문" },
   { id: "정보", name: "정보" },

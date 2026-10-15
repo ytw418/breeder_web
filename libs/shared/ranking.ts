@@ -199,7 +199,7 @@ export interface HotDiscussionItem {
   };
   /** 실시간 TOP 토론(앱 community-vibe §3.5): 마지막 댓글·좋아요(없으면 글 작성) 시각. 옛 서버엔 없다. */
   lastActivityAt?: string;
-  lastActivityKind?: "comment" | "like" | "post";
+  lastActivityKind?: "comment" | "like" | "post" | "vote";
   /** 24시간 활동 점수(댓글 3·좋아요 1, 반감기 6시간). */
   hotScore?: number;
 }
@@ -209,6 +209,10 @@ export interface HomeFeedResponse {
   heroBreeder: BreederRankingItem | null;
   /** 1위의 칭호('경매왕'·'팔로워 부자' 등). 같은 기간 상위 10명끼리 비교한다(pickBreederKeywords). 구 서버엔 없다. */
   heroBreederKeyword?: BreederKeyword | null;
+  /** 홈 TOP 브리더 카드 1~3위(0번 = heroBreeder). 구 서버엔 없다. */
+  topBreeders?: BreederRankingItem[];
+  /** topBreeders 와 같은 순서의 칭호. */
+  topBreederKeywords?: (BreederKeyword | null)[];
   heroBreederMode: RankingPeriod;
   topAuctionsByCategory: AuctionRankingItem[];
   topAuctionsMode: AuctionPeriodScope;

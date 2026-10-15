@@ -189,11 +189,14 @@ function ChipRow({ children }: { children: ReactNode }) {
 export function ProductForm({
   product,
   initialFree = false,
+  initialCategory,
 }: {
   /** 있으면 수정 모드 */
   product?: ProductFormInitial;
   /** 등록 화면 ?free=1 → 무료 분양 미리 선택 */
   initialFree?: boolean;
+  /** 등록 화면 ?category=<종> → 카테고리 미리 선택(끝난 토론 '{종} 첫 분양글 올리기', 앱 docs/prd/live-talk.md §3.6) */
+  initialCategory?: string;
 }) {
   const router = useRouter();
   const { mutate: globalMutate } = useSWRConfig();
@@ -202,7 +205,7 @@ export function ProductForm({
   const celebrateSheet = useCelebrateSheet("product");
 
   const initial = useMemo(() => {
-    const branch = findCategoryBranch(product?.category);
+    const branch = findCategoryBranch(product ? product.category : initialCategory);
     const productType = PRODUCT_TYPES.some((type) => type.id === product?.productType)
       ? (product?.productType as string)
       : "";
@@ -225,7 +228,7 @@ export function ProductForm({
       bloodlineName: attached?.bloodlineName ?? null,
       pedigreeNote: attached ? normalizePedigreeNote(attached.pedigreeNote) : null,
     };
-  }, [product, initialFree]);
+  }, [product, initialFree, initialCategory]);
 
   const [photos, setPhotos] = useState<ProductPhoto[]>(() => toRemoteProductPhotos(initial.photos));
   const [name, setName] = useState(initial.name);

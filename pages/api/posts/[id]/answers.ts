@@ -12,6 +12,12 @@ import { getBlockRelation } from "@libs/server/blocks";
 import { sendCommentError } from "@libs/server/comments";
 import { validateCommentBody } from "@libs/shared/comment";
 import { parsePositiveIntId } from "@libs/shared/normalize";
+import { DEBATE_CATEGORY } from "@libs/shared/debateFormat";
+import { DEBATE_CLIENT_HEADER } from "@libs/shared/liveTalk";
+import { BLOCKED_WORD_MESSAGE, hasBlockedWord } from "@libs/shared/contentFilter";
+
+/** 같은 사람이 이 간격 안에 다시 쓰면 막는다(라이브 댓글 도배 방지, 앱 docs/prd/live-talk.md §4.4). */
+const COMMENT_RATE_MS = 3000;
 
 async function handler(
   req: NextApiRequest,
@@ -46,6 +52,38 @@ async function handler(
   const validation = validateCommentBody(body?.comment);
   if (!validation.ok) {
     return sendCommentError(res, 400, validation.errorCode, validation.message);
+  }
+  if (hasBlockedWord(validation.comment)) {
+    return sendCommentError(res, 400, "BLOCKED_WORD", BLOCKED_WORD_MESSAGE);
+  }
+  if (user?.id) {
+    const last = await client.comment.findFirst({
+      where: { userId: user.id },
+      orderBy: { createdAt: "desc" },
+      select: { createdAt: true },
+    });
+    if (last && Date.now() - last.createdAt.getTime() < COMMENT_RATE_MS) {
+      return sendCommentError(res, 429, "RATE_LIMIT", "조금 천천히 보내 주세요");
+    }
+  }
+
+  // 찬반 토론 글: 끝났으면 막고, 쓴 순간의 쪽(stance)을 남긴다. 새 앱·웹(헤더 있음)은 작성자가 아니면 먼저 골라야 쓴다.
+  // 헤더가 없는 옛 앱은 투표 화면이 없어 막으면 댓글을 못 쓰므로 stance 없이 받는다.
+  let stance: "A" | "B" | null = null;
+  if (post.category === DEBATE_CATEGORY && user?.id) {
+    const debate = await client.debate.findUnique({ where: { postId }, select: { endsAt: true } });
+    if (debate && Date.now() >= debate.endsAt.getTime()) {
+      return sendCommentError(res, 409, "DEBATE_CLOSED", "끝난 토론은 읽기만 할 수 있어요");
+    }
+    const vote = await client.debateVote.findUnique({
+      where: { postId_userId: { postId, userId: user.id } },
+      select: { side: true },
+    });
+    stance = vote?.side ?? null;
+    const debateClient = Boolean(req.headers[DEBATE_CLIENT_HEADER]);
+    if (debate && !stance && debateClient && post.userId !== user.id) {
+      return sendCommentError(res, 409, "DEBATE_PICK_FIRST", "먼저 한쪽을 골라 주세요");
+    }
   }
 
   // 대댓글은 1단계다. 답글에 답글을 달면 그 루트에 붙인다.
@@ -91,6 +129,7 @@ async function handler(
       },
       comment: validation.comment,
       parentId: parent?.id ?? null,
+      stance,
     },
   });
 
@@ -134,6 +173,14 @@ async function handler(
       });
     }
     await incrementUserMissionProgress(user.id, "comment_write");
+    if (post.category === DEBATE_CATEGORY) {
+      await captureServerEvent(user.id, "debate_commented", {
+        post_id: postId,
+        side: stance,
+        is_author: post.userId === user.id,
+        platform: resolveClientPlatform(req),
+      });
+    }
     await captureServerEvent(user.id, "post_answer_created", {
       post_id: postId,
       post_category: post.category ?? null,

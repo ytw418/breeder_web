@@ -1,3 +1,4 @@
+import type { DebateSummary } from "@libs/shared/debateFormat";
 import { NextApiRequest, NextApiResponse } from "next";
 import withHandler, { ResponseType } from "@libs/server/withHandler";
 
@@ -29,6 +30,14 @@ import { getRealtimeHotRanking } from "@libs/server/hotRealtime";
 import { getViewerRegionScope } from "@libs/server/nearby";
 import { regionScopeOr } from "@libs/shared/regionScope";
 import { buildCelebrate } from "@libs/server/celebrate";
+import { attachDebates, kstDayStart } from "@libs/server/debate";
+import {
+  DEBATE_CATEGORY,
+  DEBATE_DAILY_LIMIT,
+  DEBATE_MIN_ACCOUNT_AGE_HOURS,
+  validateDebateInput,
+} from "@libs/shared/debateFormat";
+import { BLOCKED_WORD_MESSAGE, hasBlockedWord } from "@libs/shared/contentFilter";
 
 /** 게시글 목록 응답 타입 */
 export interface PostWithUser extends Post {
@@ -41,6 +50,8 @@ export interface PostWithUser extends Post {
   };
   /** 목록 카드 '최신 댓글 한 줄'. 보이는 댓글이 없으면 null(목록 API 만 싣는다). */
   latestComment?: PostLatestComment | null;
+  /** 찬반 토론 글이면 요약(앱 docs/prd/live-talk.md §4.2). 그 밖의 글·구 서버는 없다. */
+  debate?: DebateSummary | null;
 }
 
 export interface PostLatestComment {
@@ -159,7 +170,8 @@ const handler = async (
         const row = byId.get(postId);
         return row ? [{ ...toListPost(row), ...meta } as HotRealtimePost] : [];
       });
-      return res.json({ success: true, posts, pages: 1 });
+      // 토론 글엔 찬반 요약(debate)을 붙인다(앱 docs/prd/live-talk.md §4.2).
+      return res.json({ success: true, posts: await attachDebates(posts, viewerId), pages: 1 });
     }
 
     // 답 기다려요: 7일 안 보이는 댓글이 없는 질문(숨김 제외), 가장 오래된 순 + 전체 수.
@@ -244,6 +256,10 @@ const handler = async (
     }
     if (and.length) where.AND = and;
 
+    // 지난 토론 모아보기(토론 칩): debateStatus=open 진행 중, ended 끝난 토론.
+    if (req.query.debateStatus === "open") where.debate = { endsAt: { gt: new Date() } };
+    else if (req.query.debateStatus === "ended") where.debate = { endsAt: { lte: new Date() } };
+
     // 동네 글: scope=neighborhood 면 내 50km 범위, 아니면 시/도만 주면 시/도 전체, 시/군/구까지 주면 그 동네만.
     if (!followingOnly && neighborhoodOr) {
       where.OR = neighborhoodOr;
@@ -306,7 +322,7 @@ const handler = async (
       client.post.count({ where }),
     ]);
 
-    const posts = pagePosts.map(toListPost);
+    const posts = await attachDebates(pagePosts.map(toListPost), viewerId);
 
     res.json({
       success: true,
@@ -318,7 +334,7 @@ const handler = async (
 
   if (req.method === "POST") {
     const {
-      body: { description, title, image, images, category, species },
+      body: { description, title, image, images, category, species, debate: debateInput },
       user,
     } = req;
 
@@ -326,6 +342,85 @@ const handler = async (
       return res
         .status(401)
         .json({ success: false, error: "로그인이 필요합니다." });
+    }
+
+    // 찬반 토론 열기(앱 docs/prd/live-talk.md §3.7). 사진 없음, 설명은 선택이라 일반 글 본문 검사를 쓰지 않는다.
+    if (category === DEBATE_CATEGORY) {
+      const input = {
+        title: typeof title === "string" ? title : "",
+        optionA: typeof debateInput?.optionA === "string" ? debateInput.optionA : "",
+        optionB: typeof debateInput?.optionB === "string" ? debateInput.optionB : "",
+        durationHours: Number(debateInput?.durationHours),
+        description: typeof description === "string" ? description : "",
+      };
+      const checked = validateDebateInput(input);
+      if (!checked.ok) {
+        return res.status(400).json({ success: false, error: checked.message, errorCode: checked.errorCode });
+      }
+      if ([input.title, input.optionA, input.optionB, input.description].some((text) => hasBlockedWord(text))) {
+        return res.status(400).json({ success: false, error: BLOCKED_WORD_MESSAGE, errorCode: "BLOCKED_WORD" });
+      }
+      const author = await client.user.findUnique({ where: { id: user.id }, select: { createdAt: true, name: true } });
+      if (!author || Date.now() - author.createdAt.getTime() < DEBATE_MIN_ACCOUNT_AGE_HOURS * 3600_000) {
+        return res.status(403).json({
+          success: false,
+          error: "가입 하루가 지나면 토론을 열 수 있어요",
+          errorCode: "ACCOUNT_TOO_NEW",
+        });
+      }
+      const todayCount = await client.post.count({
+        where: { userId: user.id, category: DEBATE_CATEGORY, createdAt: { gte: kstDayStart() } },
+      });
+      if (todayCount >= DEBATE_DAILY_LIMIT) {
+        return res.status(429).json({
+          success: false,
+          error: `토론은 하루 ${DEBATE_DAILY_LIMIT}개까지 열 수 있어요`,
+          errorCode: "DEBATE_DAILY_LIMIT",
+        });
+      }
+      const post = await client.post.create({
+        data: {
+          title: input.title.trim(),
+          image: "",
+          images: [],
+          description: input.description.trim(),
+          category: DEBATE_CATEGORY,
+          type: species || null,
+          categoryId: await resolveCategoryIdByName(species),
+          user: { connect: { id: user.id } },
+          debate: {
+            create: {
+              optionA: input.optionA.trim(),
+              optionB: input.optionB.trim(),
+              endsAt: new Date(Date.now() + input.durationHours * 3600_000),
+            },
+          },
+        },
+      });
+      notifyFollowers({
+        senderId: user.id,
+        type: "NEW_POST",
+        message: `${author.name}님이 찬반 토론을 열었어요: ${post.title}`,
+        targetId: post.id,
+        targetType: "post",
+      });
+      await incrementUserMissionProgress(user.id, "post_create");
+      await captureServerEvent(user.id, "debate_created", {
+        post_id: post.id,
+        species: species || null,
+        duration_hours: input.durationHours,
+        custom_options: input.optionA.trim() !== "찬성" || input.optionB.trim() !== "반대",
+        platform: resolveClientPlatform(req),
+      });
+      const celebrate = await buildCelebrate({
+        target: "post",
+        id: post.id,
+        userId: user.id,
+        createdAt: post.createdAt,
+        species: post.type ?? null,
+        categoryId: post.categoryId ?? null,
+      });
+      return res.json({ success: true, post, celebrate });
     }
 
     const resolvedImages = resolvePostImagesInput({ image, images });
