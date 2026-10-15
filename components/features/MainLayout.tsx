@@ -112,7 +112,7 @@ function StrokeIcon({
  * 탭바 아이콘 한 세트(community-vibe §3.7: stroke 1.5, Lucide 계열). 선택 탭은 채움.
  * 시안 bredy_app design/mockups/community-vibe/A-karrot.html 의 path 그대로. 경매는 동전 대신 망치.
  */
-type TabIconName = "home" | "posts" | "auctions" | "chat" | "my";
+type TabIconName = "home" | "posts" | "sale" | "auctions" | "chat" | "my";
 
 export function TabBarIcon({ name, active }: { name: TabIconName; active: boolean }) {
   const common = {
@@ -140,6 +140,14 @@ export function TabBarIcon({ name, active }: { name: TabIconName; active: boolea
         <svg {...common} fill="none">
           <path d="M4 5h16v14H4z" fill={fill} />
           <path d="M8 9h8M8 13h5" stroke={active ? "var(--app-bg)" : "currentColor"} />
+        </svg>
+      );
+    case "sale":
+      // 분양 탭 가격표(docs/prd/home-ia.md S-3, 앱 Icon "tab-sale"). 채움일 때 구멍은 배경색으로.
+      return (
+        <svg {...common} fill="none">
+          <path d="M20 12 12 20l-8-8V4h8z" fill={fill} />
+          <circle cx="8.5" cy="8.5" r="1.5" stroke={active ? "var(--app-bg)" : "currentColor"} />
         </svg>
       );
     case "auctions":
@@ -175,11 +183,12 @@ const BOTTOM_NAV_ITEMS: {
   icon: TabIconName;
 }[] = [
   { label: "홈", href: "/", isActive: (pathname) => pathname === "/", icon: "home" },
+  // 2026-10-15 홈 구성 A안(docs/prd/home-ia.md): 반려생활 내용은 홈으로, 분양 목록이 자기 탭을 갖는다(앱 mainTabs.ts 와 같다).
   {
-    label: "반려생활",
-    href: "/posts",
-    isActive: (pathname) => pathname.startsWith("/posts"),
-    icon: "posts",
+    label: "분양",
+    href: "/products",
+    isActive: (pathname) => pathname.startsWith("/products"),
+    icon: "sale",
   },
   {
     label: "경매",

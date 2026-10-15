@@ -23,6 +23,6 @@ export function parseAmount(text: string | null | undefined): number | null {
   return Number.isSafeInteger(value) ? value : null;
 }
 
-/** 상품 가격 표시: 0 → "무료나눔", null/undefined → "가격 미정", 그 외 "1,234원". */
+/** 상품 가격 표시: 0 → "무료 분양", null/undefined → "가격 미정", 그 외 "1,234원". */
 export const formatProductPrice = (price?: number | null): string =>
   formatProductPriceRule(price);

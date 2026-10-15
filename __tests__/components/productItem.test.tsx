@@ -91,10 +91,10 @@ describe("ProfileProductRows 가격 표시", () => {
     refetch: jest.fn(),
   });
 
-  it("0원은 무료나눔, 가격이 없으면 가격 미정으로 보인다", () => {
+  it("0원은 무료 분양, 가격이 없으면 가격 미정으로 보인다", () => {
     render(<ProfileProductRows list={list([product(1, 0), product(2), product(3, 10000)])} />);
 
-    expect(screen.getByText("무료나눔")).toBeInTheDocument();
+    expect(screen.getByText("무료 분양")).toBeInTheDocument();
     expect(screen.getByText("가격 미정")).toBeInTheDocument();
     expect(screen.getByText("10,000원")).toBeInTheDocument();
   });

@@ -28,8 +28,8 @@ describe("가격 입력 유틸", () => {
     expect(parseAmount("abc")).toBeNull();
   });
 
-  it("formatProductPrice: 0 → 무료나눔, 없음 → 가격 미정, 그 외 원", () => {
-    expect(formatProductPrice(0)).toBe("무료나눔");
+  it("formatProductPrice: 0 → 무료 분양, 없음 → 가격 미정, 그 외 원", () => {
+    expect(formatProductPrice(0)).toBe("무료 분양");
     expect(formatProductPrice(null)).toBe("가격 미정");
     expect(formatProductPrice(undefined)).toBe("가격 미정");
     expect(formatProductPrice(12000)).toBe("12,000원");

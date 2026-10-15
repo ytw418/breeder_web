@@ -387,7 +387,7 @@ describe("GET /api/products 목록 (buildProductsResponse)", () => {
     expect(res.headers["cache-control"]).toBe(PRIVATE_NO_STORE);
   });
 
-  it("price=0 이면 가격 0원(무료나눔) 상품만 거른다", async () => {
+  it("price=0 이면 가격 0원(무료 분양) 상품만 거른다", async () => {
     const res = await call(productsHandler, {
       query: { status: "판매중", price: "0" },
     });

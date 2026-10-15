@@ -56,7 +56,7 @@ const LINK_TYPE_OPTIONS: { id: BannerLinkType; label: string }[] = [
 const INTERNAL_ROUTE_PRESETS = [
   { label: "홈", value: "/" },
   { label: "경매", value: "/auctions" },
-  { label: "커뮤니티", value: "/posts" },
+  { label: "커뮤니티(홈)", value: "/" },
   { label: "랭킹", value: "/ranking" },
   { label: "알림", value: "/notifications" },
   { label: "마이페이지", value: "/myPage" },

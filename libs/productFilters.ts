@@ -16,7 +16,7 @@ export type ProductFilters = {
   productType: "" | "생물" | "용품";
   onSaleOnly: boolean;
   sort: ProductSort;
-  /** min=0·max=0 이면 무료나눔(서버 price=0). */
+  /** min=0·max=0 이면 무료 분양(서버 price=0). */
   minPrice?: number;
   maxPrice?: number;
 };
@@ -37,7 +37,7 @@ export const PRODUCT_SORT_OPTIONS: { value: ProductSort; label: string }[] = [
 ];
 
 export const PRICE_PRESETS: { label: string; min?: number; max?: number }[] = [
-  { label: "무료나눔", min: 0, max: 0 },
+  { label: "무료 분양", min: 0, max: 0 },
   { label: "1만원 이하", max: 10_000 },
   { label: "1만~5만원", min: 10_000, max: 50_000 },
   { label: "5만~10만원", min: 50_000, max: 100_000 },
@@ -82,7 +82,7 @@ export function parseProductFilterParams(params: ProductFilterParams): ProductFi
     productType: productType === "생물" || productType === "용품" ? productType : "",
     onSaleOnly: readParam(params, "status") === "판매중",
     sort: PRODUCT_SORTS.includes(sort as ProductSort) ? (sort as ProductSort) : "latest",
-    // 정확한 가격(price)은 min=max 로 본다. 홈 무료나눔 카드 → price=0.
+    // 정확한 가격(price)은 min=max 로 본다. 홈 무료 분양 카드 → price=0.
     minPrice: price ?? toFilterPrice(readParam(params, "minPrice")),
     maxPrice: price ?? toFilterPrice(readParam(params, "maxPrice")),
   };

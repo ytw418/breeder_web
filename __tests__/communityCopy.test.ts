@@ -37,11 +37,11 @@ describe("빈 상태 문구(AC-1)", () => {
     expect(chatEmptyCopy(0).action).toBe("분양글 둘러보기");
   });
 
-  it("무료나눔 0", () => {
+  it("무료 분양 0", () => {
     expect(freeGiveawayEmptyCopy()).toEqual({
-      title: "첫 나눔은 홈 맨 위에 하루 동안 보여요",
+      title: "첫 무료 분양은 홈 맨 위에 하루 동안 보여요",
       body: null,
-      action: "첫 번째로 나누기",
+      action: "첫 번째로 무료 분양하기",
     });
   });
 

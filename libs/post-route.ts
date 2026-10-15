@@ -24,7 +24,7 @@ export const toPostPath = (
   title?: string | null
 ): string => {
   const safeId = String(id).trim();
-  if (!safeId) return "/posts";
+  if (!safeId) return "/";
 
   const slug = title ? normalizeTitleForSlug(title) : "";
   if (!slug) return `/posts/${safeId}`;
