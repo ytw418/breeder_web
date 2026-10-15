@@ -1,4 +1,5 @@
 import client from "@libs/server/client";
+import { RANKABLE_USER_WHERE } from "@libs/server/rankableUser";
 import { categoryScopeWhere } from "@libs/server/categories";
 import type { HotActivityKind, HotRealtimeMeta } from "@libs/shared/communityVibe";
 import type { HotDiscussionItem } from "@libs/shared/ranking";
@@ -68,7 +69,7 @@ export async function getRealtimeHotRanking({
   const postWhere = {
     category: { in: HOT_CATEGORIES },
     isHidden: false,
-    user: { status: "ACTIVE" as const },
+    user: RANKABLE_USER_WHERE,
     ...(Object.keys(scope).length ? { AND: [scope] } : {}),
     ...(excludedIds.length ? { userId: { notIn: excludedIds } } : {}),
   };
