@@ -7,6 +7,8 @@
  * 다 채웠거나 판정에 쓸 값을 아직 못 받았으면 그리지 않는다.
  */
 import { useRouter } from "next/navigation";
+import useScopeTerms from "@/hooks/useScopeTerms";
+import { withBreederWord } from "@libs/shared/scopeTerms";
 import { toast } from "@libs/client/toast";
 import { computeProfileCompletion, type ProfileCompletionItemId } from "@libs/shared/profileCompletion";
 
@@ -29,6 +31,7 @@ export default function ProfileCompletionCard({
   userAlbumCount?: number;
   onGoPhotosTab: () => void;
 }) {
+  const { breeder } = useScopeTerms();
   const router = useRouter();
   if (!user || photoPosts === undefined || userAlbumCount === undefined) return null;
 
@@ -46,7 +49,7 @@ export default function ProfileCompletionCard({
     | ((typeof items)[number] & { reward?: string; href?: string })
     | undefined;
   const nextLabel = nextItem?.label ?? "";
-  const nextReward = nextItem?.reward ?? null;
+  const nextReward = nextItem?.reward ? withBreederWord(nextItem.reward, breeder) : null;
   const nextHref = nextItem?.href ?? null;
 
   const go = (id: ProfileCompletionItemId) => {

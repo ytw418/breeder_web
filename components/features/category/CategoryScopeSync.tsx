@@ -3,7 +3,8 @@
  * 관심 카테고리 고정의 루트 동기화(앱 CategoryScopeSync). 화면 코드엔 범위 적용만 남기고 여기서
  * ① localStorage 복원 ② 카테고리 목록과 고정 항목 맞추기(숨긴 카테고리 → 빼고 안내)
  * ③ 서버(/api/users/me) 고정 목록과 브라우저 고정 목록 동기화를 한다.
- * 온보딩 이동은 하지 않는다 — 웹은 로그인 직후에만 띄운다(libs/client/postLogin.ts, 대응표 O-1).
+ * 온보딩 이동은 하지 않는다 — 웹은 로그인 직후(libs/client/postLogin.ts)와 홈 첫 방문 팝업
+ * (CategoryOnboardingPrompt)에서 띄운다(대응표 O-1).
  */
 import { useEffect, useRef } from "react";
 import useSWR from "swr";

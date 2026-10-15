@@ -4,6 +4,8 @@
  * 반려생활 '우리 동네' 탭은 최대 3명 + '동네 브리더 전체 보기', /neighborhood/breeders 는 같은 행을 이어 그린다.
  */
 import Link from "next/link";
+import useScopeTerms from "@/hooks/useScopeTerms";
+import { withBreederWord } from "@libs/shared/scopeTerms";
 import Image from "@components/atoms/Image";
 import { QueryErrorState } from "@components/app/QueryErrorState";
 import WaveButton from "@components/features/chat/WaveButton";
@@ -110,13 +112,14 @@ export function NearbyBreederSkeletonRows({ count }: { count: number }) {
 
 /** 50km 안에도 0명일 때(§3.1: '없어요' 대신 첫 브리더 + 행동). */
 export function NearbyBreederEmpty({ label }: { label: string | null }) {
+  const { breeder } = useScopeTerms();
   const base = (label ?? "").replace(/\s*근처$/, "");
   return (
     <div className="flex flex-col items-center px-4 py-7 text-center">
       <p className="break-keep text-[15px] font-semibold text-app-text">
-        {base ? `${base} 근처 첫 브리더가 되어 보세요` : "우리 동네 첫 브리더가 되어 보세요"}
+        {base ? `${base} 근처 첫 ${breeder}가 되어 보세요` : `우리 동네 첫 ${breeder}가 되어 보세요`}
       </p>
-      <p className="mt-1 text-[13px] text-app-muted">설정에서 &apos;나를 표시&apos;를 켜면 근처 브리더 홈에 보여요</p>
+      <p className="mt-1 text-[13px] text-app-muted">설정에서 &apos;나를 표시&apos;를 켜면 근처 {breeder} 홈에 보여요</p>
       <Link
         href="/settings/region"
         className="mt-3 flex h-9 items-center rounded-lg bg-app-inverse px-3.5 text-[14px] font-semibold text-app-inverse-text"
@@ -137,10 +140,12 @@ export default function NearbyBreederList({
   isError: boolean;
   onRetry: () => void;
 }) {
+  const { breeder } = useScopeTerms();
   if (isError && !data) {
-    return <QueryErrorState title="동네 브리더를 불러오지 못했어요" onRetry={onRetry} className="py-6" />;
+    return <QueryErrorState title={`동네 ${breeder}를 불러오지 못했어요`} onRetry={onRetry} className="py-6" />;
   }
-  const caption = nearbyCaption(data);
+  const rawCaption = nearbyCaption(data);
+  const caption = rawCaption && withBreederWord(rawCaption, breeder);
   const items = data?.items.slice(0, NEARBY_BREEDER_COUNT) ?? [];
   return (
     <div className={cn(APP_CARD, "mx-4 overflow-hidden")}>
@@ -158,7 +163,7 @@ export default function NearbyBreederList({
             href="/neighborhood/breeders"
             className="flex h-11 items-center justify-center gap-1 border-t border-app-line text-[14px] font-semibold text-app-strong transition-colors hover:bg-app-surface"
           >
-            동네 브리더 전체 보기
+            동네 {breeder} 전체 보기
             <svg width={16} height={16} viewBox="0 0 24 24" fill="none" stroke="currentColor" aria-hidden="true">
               <path d="M9 6l6 6-6 6" strokeWidth={1.5} strokeLinecap="round" strokeLinejoin="round" />
             </svg>
