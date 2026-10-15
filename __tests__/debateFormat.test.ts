@@ -71,6 +71,8 @@ describe("buildDebateSummary", () => {
 describe("문구", () => {
   it("남은 시간·끝난 날짜(KST)", () => {
     expect(remainingLabel(new Date(NOW + 2 * 86_400_000 + 5000), NOW)).toBe("2일 남음");
+    // 3일 토론을 연 직후(71시간 59분)는 3일 남음
+    expect(remainingLabel(new Date(NOW + 72 * 3600_000 - 60_000), NOW)).toBe("3일 남음");
     expect(remainingLabel(new Date(NOW + 18 * 3600_000 + 5000), NOW)).toBe("18시간 남음");
     expect(remainingLabel(new Date(NOW + 42 * 60_000), NOW)).toBe("곧 끝나요 · 42분");
     expect(remainingLabel("2026-10-12T05:00:00Z", NOW)).toBe("끝난 토론 · 10월 12일");
