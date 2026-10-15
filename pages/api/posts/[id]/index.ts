@@ -1,4 +1,5 @@
 import { NextApiRequest, NextApiResponse } from "next";
+import { withDetailRevalidation } from "@libs/server/pageRevalidation";
 import withHandler, { ResponseType } from "@libs/server/withHandler";
 
 import client from "@libs/server/client";
@@ -512,7 +513,7 @@ async function getPostDetail(
 export default withAuth(
   withHandler({
     methods: ["GET", "POST"],
-    handler,
+    handler: withDetailRevalidation(handler, (req) => [{ type: "POST", id: extractPostIdFromPath(req.query.id) }]),
     isPrivate: false,
   })
 );

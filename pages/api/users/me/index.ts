@@ -1,4 +1,5 @@
 import { NextApiRequest, NextApiResponse } from "next";
+import { withDetailRevalidation } from "@libs/server/pageRevalidation";
 import withHandler, { ResponseType } from "@libs/server/withHandler";
 
 import client from "@libs/server/client";
@@ -306,7 +307,7 @@ async function handler(
 export default withAuth(
   withHandler({
     methods: ["GET", "POST"],
-    handler,
+    handler: withDetailRevalidation(handler, (req) => (req.user?.id ? [{ type: "PROFILE", id: req.user.id }] : [])),
     isPrivate: true,
   })
 );

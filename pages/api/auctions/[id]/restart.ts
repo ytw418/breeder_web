@@ -5,6 +5,7 @@ import { canEditAnyContent } from "@libs/server/adminAccess";
 import { extractAuctionIdFromPath } from "@libs/auction-route";
 import { captureServerEvent, resolveClientPlatform } from "@libs/server/analytics";
 import { restartAuction } from "@libs/server/auctionRestart";
+import { withDetailRevalidation } from "@libs/server/pageRevalidation";
 
 /** 경매 다시 시작 응답 타입 */
 export interface RestartAuctionResponse {
@@ -68,4 +69,12 @@ async function handler(req: NextApiRequest, res: NextApiResponse<ResponseType>) 
   });
 }
 
-export default withAuth(withHandler({ methods: ["POST"], handler, isPrivate: true }));
+export default withAuth(
+  withHandler({
+    methods: ["POST"],
+    handler: withDetailRevalidation(handler, (req) => [
+      { type: "AUCTION", id: extractAuctionIdFromPath(req.query.id) },
+    ]),
+    isPrivate: true,
+  })
+);

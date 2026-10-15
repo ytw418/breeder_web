@@ -81,6 +81,7 @@ export default function DebateDetail({
   post,
   hiddenNotice,
   initialDebate,
+  live: summaryReady = true,
   viewerId,
   onLogin,
   onReport,
@@ -90,6 +91,11 @@ export default function DebateDetail({
   /** 운영 숨김(신고 누적 자동 가림 포함)이면 작성자·관리자에게 위 블록 위에 안내. */
   hiddenNotice?: React.ReactNode;
   initialDebate: DebateSummary;
+  /**
+   * 이 브라우저가 글 응답을 받았는지. 받기 전(ISR 캐시 HTML)에는 투표 결과·참여 수를 그리지 않는다
+   * — 캐시된 값은 최대 60초 전이고 내 선택(mySide)도 없다.
+   */
+  live?: boolean;
   viewerId: number | null;
   onLogin: () => void;
   onReport: (commentId: number) => void;
@@ -298,7 +304,16 @@ export default function DebateDetail({
             <p className="mt-3 whitespace-pre-line break-keep text-[15px] leading-[22px] text-app-text">{post.description}</p>
           ) : null}
 
-          {open ? (
+          {!summaryReady ? (
+            // 투표 버튼 + 안내 줄과 같은 높이로 자리를 잡아 응답이 와도 아래 내용이 밀리지 않게 한다.
+            <div aria-hidden className="mt-4">
+              <div className="flex gap-2">
+                <span className="h-14 flex-1 animate-pulse rounded-xl bg-app-placeholder" />
+                <span className="h-14 flex-1 animate-pulse rounded-xl bg-app-placeholder" />
+              </div>
+              <div className="mt-2 h-4" />
+            </div>
+          ) : open ? (
             summary.mySide ? (
               <div className="mt-4">
                 <OpenResult summary={summary} />
@@ -488,7 +503,14 @@ export default function DebateDetail({
               </div>
             </form>
           ) : (
-            <div className="flex items-center gap-2 px-4 pb-[max(calc(env(safe-area-inset-bottom)+10px),16px)] pt-2.5">
+            // 내 선택을 받기 전에는 같은 높이로 비워 둔다(이미 고른 사람에게 '먼저 고르라'가 잠깐 보이지 않게).
+            <div
+              aria-hidden={!summaryReady}
+              className={cn(
+                "flex items-center gap-2 px-4 pb-[max(calc(env(safe-area-inset-bottom)+10px),16px)] pt-2.5",
+                !summaryReady && "invisible"
+              )}
+            >
               <p className="min-w-0 flex-1 truncate text-[14px] text-app-muted">먼저 한쪽을 골라 주세요</p>
               <DebateVoteButtons summary={summary} size="mini" pendingSide={pendingSide} onVote={vote} />
             </div>
