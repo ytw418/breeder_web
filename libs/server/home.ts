@@ -27,6 +27,9 @@ import {
   getUserMissionSummary,
 } from "@libs/server/growth";
 
+/** 홈 '이번 주 TOP 브리더' 카드에 보이는 인원. */
+const TOP_BREEDER_COUNT = 3;
+
 const SAMPLE_BANNERS: HomeBanner[] = [
   {
     id: 10001,
@@ -183,7 +186,9 @@ const buildHomeFeed = async ({
   const heroBreederMode = weeklyBreeders.length > 0 ? "weekly" : "all";
   // 1위의 칭호(왜 1위인지): 같은 기간 상위 10명끼리 비교한다. 분양글·팔로워 등은 highlight 로 붙인다.
   const heroPeers = await attachBreederHighlights(fallbackBreeders, fallbackBreeders.length);
-  const heroBreederKeyword = pickBreederKeywords(heroPeers, fallbackBloodlines, 1)[0] ?? null;
+  // 홈 카드는 1~3위를 보여 준다(2026-10-15 사용자 "한 명은 허전하다"). 칭호는 같은 상위 10명끼리 비교한다.
+  const topBreederKeywords = pickBreederKeywords(heroPeers, fallbackBloodlines, TOP_BREEDER_COUNT);
+  const heroBreederKeyword = topBreederKeywords[0] ?? null;
   const topAuctionsMode = weeklyAuctions.length > 0 ? "week" : "all";
   const topBloodlinesMode = weeklyBloodlines.length > 0 ? "weekly" : "all";
   const trendingPostsMode = recentTrendingPosts.length > 0 ? "24h" : "all";
@@ -220,6 +225,8 @@ const buildHomeFeed = async ({
     success: true,
     heroBreeder: heroPeers[0] ?? null,
     heroBreederKeyword,
+    topBreeders: heroPeers.slice(0, TOP_BREEDER_COUNT),
+    topBreederKeywords: topBreederKeywords.slice(0, TOP_BREEDER_COUNT),
     heroBreederMode,
     topAuctionsByCategory: topAuctionsByCategory.slice(0, 6),
     topAuctionsMode,

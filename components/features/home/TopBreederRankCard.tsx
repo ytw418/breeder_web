@@ -5,6 +5,7 @@
  * 1px line 뒤 내 행: 아바타 40 · "나는 지금 **7위** · 3위까지 글 2개" 15/600 · "26점 · 내 순위 ›"(→ /ranking?focus=me) ·
  * 진행 바 6 주황 · 오른쪽 36 r8 검정 버튼(다음 활동이 글이면 글쓰기, 댓글이면 답 기다리는 질문, 입찰이면 경매).
  * 비로그인은 "로그인하면 내 순위가 보여요" 한 줄 + 로그인.
+ * 2026-10-15(사용자 "한 명은 허전하다"): 1위 행 아래 2·3위 행(순위 15/700 · 아바타 36 · 이름 15/600 + 칭호 · 근거 12 · 점수 13)을 둔다.
  */
 import { useState } from "react";
 import Link from "next/link";
@@ -102,6 +103,47 @@ const CheckIcon = () => (
   </svg>
 );
 
+/** 1위 아래 2·3위 행(48). 누르면 프로필. */
+function PeerRow({
+  item,
+  keyword,
+  when,
+}: {
+  item: BreederRankingItem;
+  keyword: BreederKeyword | null;
+  when: string;
+}) {
+  const reason = keyword?.parts?.[0] ?? keyword?.detail ?? null;
+  return (
+    <Link
+      href={`/profiles/${item.user.id}`}
+      className="mt-3 flex min-h-12 items-center gap-3"
+      aria-label={`${item.rank}위 ${item.user.name} 프로필 보기`}
+      data-testid="top-breeder-peer"
+    >
+      <span className="w-5 shrink-0 text-center text-[15px] font-bold leading-5 text-app-text tabular-nums">{item.rank}</span>
+      <InitialAvatar name={item.user.name} avatar={item.user.avatar} size={36} />
+      <span className="min-w-0 flex-1">
+        <span className="flex min-w-0 items-center gap-1.5">
+          <span className="truncate text-[15px] font-semibold leading-5 text-app-text">{item.user.name}</span>
+          {keyword ? (
+            <span className="app-title-pill">
+              <CheckIcon />
+              {keyword.label}
+            </span>
+          ) : null}
+        </span>
+        <span className="mt-0.5 block truncate text-[12px] leading-4 text-app-muted">
+          {reason ? `${withRo(reason)} ${when} ${item.rank}위` : `${when} ${item.rank}위`}
+        </span>
+      </span>
+      <span className="shrink-0 text-[13px] leading-[18px] text-app-muted tabular-nums">
+        {item.score.toLocaleString()}점
+      </span>
+    </Link>
+  );
+}
+
 function MyRankRow({
   me,
   user,
@@ -153,6 +195,7 @@ function MyRankRow({
 export default function TopBreederRankCard({
   hero,
   keyword,
+  peers = [],
   period,
   scoped,
   viewer,
@@ -160,6 +203,8 @@ export default function TopBreederRankCard({
 }: {
   hero: BreederRankingItem;
   keyword: BreederKeyword | null;
+  /** 2·3위(없으면 1위만). */
+  peers?: { item: BreederRankingItem; keyword: BreederKeyword | null }[];
   period: "weekly" | "all";
   scoped: boolean;
   viewer: { id: number; name: string; avatar: string | null } | null;
@@ -204,6 +249,10 @@ export default function TopBreederRankCard({
           </button>
         </div>
       </div>
+
+      {peers.map((peer) => (
+        <PeerRow key={peer.item.user.id} item={peer.item} keyword={peer.keyword} when={when} />
+      ))}
 
       {viewer ? (
         me ? (

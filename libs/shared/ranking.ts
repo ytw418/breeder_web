@@ -209,6 +209,10 @@ export interface HomeFeedResponse {
   heroBreeder: BreederRankingItem | null;
   /** 1위의 칭호('경매왕'·'팔로워 부자' 등). 같은 기간 상위 10명끼리 비교한다(pickBreederKeywords). 구 서버엔 없다. */
   heroBreederKeyword?: BreederKeyword | null;
+  /** 홈 TOP 브리더 카드 1~3위(0번 = heroBreeder). 구 서버엔 없다. */
+  topBreeders?: BreederRankingItem[];
+  /** topBreeders 와 같은 순서의 칭호. */
+  topBreederKeywords?: (BreederKeyword | null)[];
   heroBreederMode: RankingPeriod;
   topAuctionsByCategory: AuctionRankingItem[];
   topAuctionsMode: AuctionPeriodScope;

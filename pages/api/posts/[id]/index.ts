@@ -91,6 +91,8 @@ export interface PostDetailResponse {
   isLiked?: boolean;
   prevNotice?: AdjacentNotice | null;
   nextNotice?: AdjacentNotice | null;
+  /** 찬반 토론 글이면 요약(앱 docs/prd/live-talk.md §4.2). */
+  debate?: DebateSummary | null;
 }
 
 /** 게시글 수정(action=update) 성공 응답. 실패는 { success:false, error, message, errorCode }. */

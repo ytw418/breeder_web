@@ -31,6 +31,8 @@ import HiddenContentNotice from "@components/app/moderation/HiddenContentNotice"
 import useAdminModeration from "hooks/useAdminModeration";
 import { commentAnchorId, PostCommentItem } from "../_components/PostCommentItem";
 import { COMMENT_MAX_LENGTH, groupCommentThreads } from "@libs/shared/comment";
+import { DEBATE_CATEGORY } from "@libs/shared/debateFormat";
+import DebateDetail from "@components/features/debate/DebateDetail";
 
 type PostComment = NonNullable<PostDetailResponse["post"]>["comments"][number];
 type ReportTarget = { type: "POST" | "COMMENT"; id: number };
@@ -154,6 +156,7 @@ const PostClient = ({
   post: initialPost,
   prevNotice: initialPrevNotice,
   nextNotice: initialNextNotice,
+  debate: initialDebate,
   focusCommentId,
 }: PostDetailResponse & {
   /** 알림·프로필 댓글 목록에서 ?commentId= 로 열면 그 댓글까지 스크롤한다. */
@@ -214,7 +217,9 @@ const PostClient = ({
   const isOwnPost = Boolean(user?.id && authorId && user.id === authorId);
   // 운영자 이메일 계정은 남의 글도 본인 글처럼 수정·삭제한다(서버가 같은 기준으로 허용).
   const canManagePost = isOwnPost || canEditAnyContent;
-  const headerTitle = isNotice ? "공지" : post?.category || "게시글";
+  // 찬반 토론 글이면 라이브 댓글 상세(앱 docs/prd/live-talk.md §3.5). 요약은 클라이언트 응답(내 선택 포함)이 이긴다.
+  const debate = post?.category === DEBATE_CATEGORY ? data?.debate ?? initialDebate ?? null : null;
+  const headerTitle = isNotice ? "공지" : debate ? "찬반 토론" : post?.category || "게시글";
   const likeCount = post?._count?.Likes ?? 0;
   const commentCount = post?._count?.comments ?? 0;
   // 내 사진 글은 프로필 사진 그리드 맨 앞에 고정할 수 있다(사진형 프로필 PRD F-6).
@@ -497,7 +502,13 @@ const PostClient = ({
         label: isProfilePinned ? "프로필 고정 해제" : "프로필에 고정",
         onSelect: () => void setProfilePin(post.id, !isProfilePinned),
       },
-      edit: { key: "edit", label: "수정하기", onSelect: () => router.push(`/posts/${post.id}/edit`) },
+      edit: {
+        key: "edit",
+        label: "수정하기",
+        // 토론은 토론 열기 화면에서 고친다(다른 사람이 처음 투표하기 전엔 전부, 그 뒤엔 설명만).
+        onSelect: () =>
+          router.push(post.category === DEBATE_CATEGORY ? `/posts/debate?edit=${post.id}` : `/posts/${post.id}/edit`),
+      },
       delete: { key: "delete", label: "삭제하기", destructive: true, onSelect: () => setDeleteOpen(true) },
       share: {
         key: "share",
@@ -640,6 +651,19 @@ const PostClient = ({
             </button>
           </div>
         </div>
+      );
+    }
+
+    if (debate) {
+      return (
+        <DebateDetail
+          post={post}
+          initialDebate={debate}
+          viewerId={user?.id ?? null}
+          onLogin={goLogin}
+          onReport={(commentId) => openReport({ type: "COMMENT", id: commentId })}
+          onBlock={(target) => openBlock(target)}
+        />
       );
     }
 

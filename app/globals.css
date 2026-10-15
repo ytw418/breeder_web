@@ -189,6 +189,7 @@ textarea {
     --app-brand-text: #c2410c;
     --app-brand-text-soft: #9a3412;
     --app-brand-track: #fde1cc;
+    --app-stance-b-soft: #e9ebee;
     /* 아바타 이니셜 파스텔 4색(avatarTone). */
     --app-avatar-1-bg: #ffe8d6;
     --app-avatar-1-fg: #b45309;
@@ -261,6 +262,7 @@ textarea {
     --app-brand-text: #fdba74;
     --app-brand-text-soft: #fed7aa;
     --app-brand-track: rgba(249, 115, 22, 0.28);
+    --app-stance-b-soft: #3a3b40;
     --app-avatar-1-bg: rgba(249, 115, 22, 0.2);
     --app-avatar-1-fg: #fdba74;
     --app-avatar-2-bg: rgba(59, 130, 246, 0.2);

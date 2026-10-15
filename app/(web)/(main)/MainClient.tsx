@@ -158,6 +158,21 @@ const MainClient = ({
           : null,
     [feed, replacementPeers]
   );
+  // 2·3위(홈 카드 1~3위, 2026-10-15). 1위를 차단해 바꿨으면 같은 기간 랭킹에서 이어서 고른다.
+  const heroPeers = useMemo(() => {
+    if (!hero) return [];
+    if (feed?.heroBreeder && feed.topBreeders) {
+      return feed.topBreeders
+        .map((item, index) => ({ item, keyword: feed.topBreederKeywords?.[index] ?? null }))
+        .filter(({ item }) => item.user.id !== hero.user.id)
+        .slice(0, 2);
+    }
+    if (feed?.heroBlocked && replacementPeers.length > 1) {
+      const keywords = pickBreederKeywords(replacementPeers, [], 3);
+      return replacementPeers.slice(1, 3).map((item, index) => ({ item, keyword: keywords[index + 1] ?? null }));
+    }
+    return [];
+  }, [hero, feed, replacementPeers]);
   const banners = initialBanners;
 
   // 지금 올라온 분양 레일: 서버 rail=1(최신 10 + 첫 분양글 24시간 맨 앞, isNew). 구 서버면 분양 목록 1페이지로 대신한다.
@@ -330,6 +345,7 @@ const MainClient = ({
               <TopBreederRankCard
                 hero={hero}
                 keyword={heroKeyword}
+                peers={heroPeers}
                 period={heroBreederPeriod}
                 scoped={Boolean(scope.categoryPath)}
                 viewer={user ? { id: user.id, name: user.name, avatar: user.avatar ?? null } : null}

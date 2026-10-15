@@ -21,6 +21,8 @@ const mockClient = {
   userBlock: { findMany: jest.fn(async () => []) },
   comment: { findMany: jest.fn(async ({ where }: any) => comments.filter((c) => c.createdAt.getTime() >= since(where))) },
   like: { findMany: jest.fn(async ({ where }: any) => likes.filter((l) => l.createdAt.getTime() >= since(where))) },
+  // 찬반 토론 투표도 활동 점수에 들어간다(투표 1점). 이 테스트는 토론이 없다.
+  debateVote: { findMany: jest.fn(async () => []) },
   post: {
     findMany: jest.fn(async ({ where, take }: any) => {
       if (where.id?.in) {

@@ -1,3 +1,4 @@
+import type { DebateSummary } from "@libs/shared/debateFormat";
 import { NextApiRequest, NextApiResponse } from "next";
 import withHandler, { ResponseType } from "@libs/server/withHandler";
 
@@ -49,6 +50,8 @@ export interface PostWithUser extends Post {
   };
   /** 목록 카드 '최신 댓글 한 줄'. 보이는 댓글이 없으면 null(목록 API 만 싣는다). */
   latestComment?: PostLatestComment | null;
+  /** 찬반 토론 글이면 요약(앱 docs/prd/live-talk.md §4.2). 그 밖의 글·구 서버는 없다. */
+  debate?: DebateSummary | null;
 }
 
 export interface PostLatestComment {

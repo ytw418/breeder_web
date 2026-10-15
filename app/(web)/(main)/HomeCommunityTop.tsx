@@ -19,6 +19,8 @@ import RealtimeHotRail, {
 } from "@components/features/post/RealtimeHotRail";
 import AwaitingAnswerCard from "@components/features/post/AwaitingAnswerCard";
 import type { HotRealtimeMeta, UnansweredSummary } from "@libs/shared/communityVibe";
+import type { HomeDebateResult } from "@libs/shared/liveTalk";
+import HomeDebateCard from "@components/features/debate/HomeDebateCard";
 
 type RealtimePostsResponse = {
   success?: boolean;
@@ -55,6 +57,13 @@ export default function HomeCommunityTop() {
     realtimeUnsupported ? withCategoryPath("/api/home/feed?scope=public", scope.categoryPath) : null,
     { revalidateOnFocus: false }
   );
+  // 맨 위 토론 카드: 진행 중 토론 중 내가 안 고른 것의 활동 점수 1위(live-talk §3.2). 없으면 레일만.
+  const { data: homeDebateData, mutate: mutateHomeDebate } = useSWR<HomeDebateResult>(
+    withCategoryPath("/api/debates/home", scope.categoryPath),
+    { revalidateOnFocus: false, shouldRetryOnError: false }
+  );
+  const homeDebate =
+    homeDebateData?.post && !blockedIds.has(homeDebateData.post.userId) ? homeDebateData.post : null;
   // 답 기다려요: 가장 오래 답 없는 질문 1개.
   const { data: unansweredData } = useSWR<UnansweredResponse>("/api/posts?unanswered=1&limit=1", {
     revalidateOnFocus: false,
@@ -65,6 +74,7 @@ export default function HomeCommunityTop() {
     if (!realtimeUnsupported) {
       if (!realtimeData) return undefined;
       return withoutBlocked(realtimeData.posts ?? [], blockedIds, (post) => post.user?.id)
+        .filter((post) => post.id !== homeDebate?.id)
         .slice(0, HOT_DISCUSSION_COUNT)
         .map((post) => ({
           id: post.id,
@@ -74,6 +84,7 @@ export default function HomeCommunityTop() {
           comments: post._count?.comments ?? 0,
           lastActivityAt: post.lastActivityAt ?? String(post.createdAt),
           lastActivityKind: post.lastActivityKind ?? "post",
+          debate: post.debate ?? null,
         }));
     }
     if (!homeFeedData) return undefined;
@@ -88,7 +99,7 @@ export default function HomeCommunityTop() {
         lastActivityAt: item.createdAt,
         lastActivityKind: "post" as const,
       }));
-  }, [realtimeUnsupported, realtimeData, homeFeedData, blockedIds]);
+  }, [realtimeUnsupported, realtimeData, homeFeedData, blockedIds, homeDebate?.id]);
   const awaitingQuestion = useMemo(
     () => withoutBlocked(unansweredData?.posts ?? [], blockedIds, (post) => post.user?.id)[0] ?? null,
     [unansweredData, blockedIds]
@@ -117,8 +128,30 @@ export default function HomeCommunityTop() {
 
       {/* 실시간 TOP 토론 + 답 기다려요 */}
       <section className="pb-2 pt-5" data-home-section="realtime_discussion">
-        <h2 className="app-t-section px-4">실시간 TOP 토론</h2>
-        <div className="mt-3">
+        {/* 오른쪽: 토론 열기(만들기) · 모아보기(진행 중·끝난 토론) — 2026-10-15 사용자 요청 */}
+        <div className="flex items-end justify-between gap-3 px-4">
+          <h2 className="app-t-section">실시간 TOP 토론</h2>
+          <div className="flex shrink-0 items-center gap-3 text-[13px] leading-[18px]">
+            <Link href="/posts/debate" className="inline-flex items-center gap-0.5 font-semibold text-app-brand-text">
+              <svg width={14} height={14} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" aria-hidden="true">
+                <path d="M12 5v14M5 12h14" />
+              </svg>
+              토론 열기
+            </Link>
+            <Link href="/debates" className="inline-flex items-center gap-0.5 text-app-muted">
+              모아보기
+              <svg width={14} height={14} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} aria-hidden="true">
+                <path d="m9 6 6 6-6 6" />
+              </svg>
+            </Link>
+          </div>
+        </div>
+        {homeDebate ? (
+          <div className="mt-3">
+            <HomeDebateCard post={homeDebate} onClosed={() => void mutateHomeDebate()} />
+          </div>
+        ) : null}
+        <div className={homeDebate ? "mt-4" : "mt-3"}>
           {realtimeError && homeFeedData === undefined && !hotItems ? (
             <QueryErrorState
               title="실시간 토론을 불러오지 못했어요"
@@ -127,9 +160,11 @@ export default function HomeCommunityTop() {
             />
           ) : !hotItems ? (
             <RealtimeHotRailSkeleton />
-          ) : hotItems.length > 0 ? (
+          ) : hotItems.length > 0 || homeDebate ? (
             <RealtimeHotRail
               items={hotItems}
+              rankOffset={homeDebate ? 1 : 0}
+              endCard={<OpenDebateCard />}
               onOpen={(item, index) =>
                 trackEvent(ANALYTICS_EVENTS.postsHotDiscussionClicked, {
                   post_id: item.id,
@@ -157,5 +192,23 @@ export default function HomeCommunityTop() {
         </div>
       </section>
     </>
+  );
+}
+
+/** 레일 맨 끝 '토론 열기' 카드(132, brand-soft, 시안 .hc.new). */
+function OpenDebateCard() {
+  return (
+    <Link
+      href="/posts/debate"
+      className="flex h-[150px] w-[132px] shrink-0 flex-col justify-center gap-1.5 rounded-xl bg-app-brand-soft px-3.5"
+      data-testid="open-debate-card"
+    >
+      <svg width={22} height={22} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.7} strokeLinecap="round" strokeLinejoin="round" className="text-app-brand-text" aria-hidden="true">
+        <path d="M14 9a5 5 0 0 0-10 0c0 1.2.4 2.3 1.1 3.1L4.5 15l3-1A5 5 0 0 0 14 9Z" />
+        <path d="M10.5 16.6A5 5 0 0 0 19 13.5a5 5 0 0 0-3.2-4.7M19.5 18.5l-.6-2.6" />
+      </svg>
+      <span className="text-[14px] font-bold leading-5 text-app-brand-text">토론 열기</span>
+      <span className="text-[12px] leading-4 text-app-brand-text-soft">궁금한 걸 찬반으로 물어보세요</span>
+    </Link>
   );
 }

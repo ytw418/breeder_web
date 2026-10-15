@@ -9,6 +9,9 @@ import { postCategoryLabel } from "@libs/shared/postCategory";
 import type { BreederProgramSummary } from "@libs/shared/breeder-program";
 import { toPostPlainText } from "@libs/shared/post-body";
 import { useIsUnread } from "@libs/client/unreadMarks";
+import { DEBATE_CATEGORY, type DebateSummary } from "@libs/shared/debateFormat";
+import DebateCardBody from "@components/features/debate/DebateCardBody";
+import { DebatePill } from "@components/features/debate/DebateParts";
 
 export type PostCardData = {
   id: number;
@@ -34,6 +37,8 @@ export type PostCardData = {
   _count?: { Likes?: number; comments?: number } | null;
   /** 목록 API 의 최신 댓글 한 줄. 없으면(구 서버 포함) 줄을 그리지 않는다. */
   latestComment?: { id: number; comment: string; user?: { name: string } | null } | null;
+  /** 찬반 토론 글이면 요약(앱 docs/prd/live-talk.md §3.3). 구 서버엔 없다. */
+  debate?: DebateSummary | null;
 };
 
 /** 질문 카테고리. 제목 앞 '질문' 표시와 '아직 답변이 없어요' 줄을 단다. */
@@ -81,6 +86,8 @@ export function PostCard({ post, className }: { post: PostCardData; className?: 
   const thumbnail = images[0] ?? null;
   const excerpt = toExcerpt(post.content ?? toPostPlainText(post.description ?? ""));
   const isQuestion = post.category === QUESTION_CATEGORY;
+  // 토론 카드: 본문 미리보기·썸네일·최신 댓글 줄 없이 선택지·결과·토론 메타를 둔다.
+  const debate = post.category === DEBATE_CATEGORY ? post.debate ?? null : null;
   const author = post.user;
   const date = toDate(post.createdAt);
   const timeAgo = Number.isNaN(date.getTime()) ? "" : getTimeAgoString(date);
@@ -139,18 +146,26 @@ export function PostCard({ post, className }: { post: PostCardData; className?: 
               <span className="mt-0.5 h-[18px] shrink-0 rounded px-1.5 text-[11px] font-semibold leading-[18px] text-app-sub bg-app-surface">
                 질문
               </span>
+            ) : debate ? (
+              <DebatePill className="mt-0.5" />
             ) : null}
-            <p className="line-clamp-2 min-w-0 break-keep text-[16px] font-medium leading-[22px] text-app-text">
+            <p
+              className={cn(
+                "line-clamp-2 min-w-0 break-keep text-[16px] leading-[22px] text-app-text",
+                debate ? "font-semibold tracking-[-0.3px]" : "font-medium"
+              )}
+            >
               {post.title}
               {comments > 0 ? (
                 <span className="ml-1 font-bold text-app-brand">[{comments}]</span>
               ) : null}
             </p>
           </div>
-          {excerpt ? (
+          {debate ? <DebateCardBody postId={post.id} debate={debate} /> : null}
+          {excerpt && !debate ? (
             <p className="mt-1 line-clamp-2 text-[14px] leading-5 text-app-sub">{excerpt}</p>
           ) : null}
-          {latest ? (
+          {debate ? null : latest ? (
             <p className="mt-1.5 flex min-w-0 items-center gap-1 text-[13px] leading-[18px] text-app-sub">
               <CommentBubbleIcon />
               {latest.user?.name ? (
@@ -164,11 +179,11 @@ export function PostCard({ post, className }: { post: PostCardData; className?: 
               <span className="truncate">아직 답변이 없어요 · 첫 답변을 남겨 주세요</span>
             </p>
           ) : null}
-          {meta ? (
+          {meta && !debate ? (
             <p className="mt-1.5 truncate text-[13px] leading-[18px] text-app-muted">{meta}</p>
           ) : null}
         </div>
-        {thumbnail ? (
+        {thumbnail && !debate ? (
           <div className="relative h-[72px] w-[72px] shrink-0 overflow-hidden rounded-lg bg-app-placeholder">
             <Image
               src={makeImageUrl(thumbnail, "public")}
