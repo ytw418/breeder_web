@@ -1,7 +1,7 @@
 import { Suspense } from "react";
 import { notFound } from "next/navigation";
 import Layout from "@components/features/MainLayout";
-import { BloodlineHeader, BloodlineSpinner } from "@components/features/bloodline/BloodlineScreenParts";
+import { BloodlineSpinner } from "@components/features/bloodline/BloodlineScreenParts";
 import type { Metadata } from "next";
 import {
   BLOODLINE_OG_DEFAULT_DESCRIPTION,
@@ -117,8 +117,7 @@ export default async function BloodlineCardDetailPage({ params }: Props) {
   return (
     <Suspense
       fallback={
-        <Layout headerVariant="none" seoTitle={payload?.name ?? "혈통"}>
-          <BloodlineHeader title="혈통" showHome />
+        <Layout canGoBack homeAction title="혈통" seoTitle={payload?.name ?? "혈통"} headerRight={<></>}>
           <div className="flex min-h-[60vh] items-center justify-center">
             <BloodlineSpinner />
           </div>

@@ -6,7 +6,8 @@ import { useParams, useRouter, useSearchParams } from "next/navigation";
 import useSWR, { useSWRConfig } from "swr";
 import { useMarkSeenOnView } from "@libs/client/unreadMarks";
 
-import Layout, { HeaderHomeButton, HeaderMenuButton, toLoginHref } from "@components/features/MainLayout";
+import Layout, { toLoginHref } from "@components/features/MainLayout";
+import { HeaderIconButton } from "@components/app/HeaderIconButton";
 import ConfirmDialog from "@components/atoms/ConfirmDialog";
 import { ActionSheet, type ActionSheetAction } from "@components/app/ActionSheet";
 import { ReportSheet } from "@components/app/moderation/ReportSheet";
@@ -59,61 +60,12 @@ const timeAgo = (value: string | Date) => {
 
 function MoreIcon() {
   return (
-    <svg width={24} height={24} viewBox="0 0 24 24" fill="none" stroke="currentColor" aria-hidden="true">
-      <circle cx={12} cy={5.5} r={1} strokeWidth={1.5} />
-      <circle cx={12} cy={12} r={1} strokeWidth={1.5} />
-      <circle cx={12} cy={18.5} r={1} strokeWidth={1.5} />
+    // 분양글 상세 헤더의 ⋮ 와 같은 모양
+    <svg className="h-6 w-6" fill="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+      <circle cx="12" cy="5" r="1.75" />
+      <circle cx="12" cy="12" r="1.75" />
+      <circle cx="12" cy="19" r="1.75" />
     </svg>
-  );
-}
-
-/** 헤더: 뒤로 24 + 제목 18/700(왼쪽) + 우측 ⋯ (앱 PostHeader). */
-function PostDetailHeader({
-  title,
-  onBack,
-  onMore,
-}: {
-  title: string;
-  onBack: () => void;
-  onMore?: () => void;
-}) {
-  return (
-    <header className="sticky top-0 z-30 h-14 border-b border-app-line bg-app-bg">
-      <div className="mx-auto flex h-full max-w-xl items-center gap-3 px-4">
-        <button
-          type="button"
-          aria-label="뒤로 가기"
-          onClick={onBack}
-          className="-m-2.5 grid h-11 w-11 shrink-0 place-items-center rounded-full text-app-text"
-        >
-          <svg width={24} height={24} viewBox="0 0 24 24" fill="none" stroke="currentColor" aria-hidden="true">
-            <path d="M14.5 5L8 12l6.5 7" strokeWidth={1.5} strokeLinecap="round" strokeLinejoin="round" />
-          </svg>
-        </button>
-        {/* 뒤로 옆에 브리디 로고(홈). 오른쪽은 ⋯ · 메뉴 두 개만. */}
-        <div className="-ml-1.5">
-          <HeaderHomeButton />
-        </div>
-        {/* 카테고리 이름이라 제목 태그가 아니다. 글 제목이 h1(검색 최적화). */}
-        <p className="min-w-0 shrink truncate text-[18px] font-bold tracking-[-0.3px] text-app-text">
-          {title}
-        </p>
-        <div className="flex-1" />
-        <div className="-mr-1.5 flex shrink-0 items-center gap-0.5">
-          {onMore ? (
-            <button
-              type="button"
-              aria-label="더보기"
-              onClick={onMore}
-              className="grid h-10 w-10 shrink-0 place-items-center rounded-full text-app-text"
-            >
-              <MoreIcon />
-            </button>
-          ) : null}
-          <HeaderMenuButton />
-        </div>
-      </div>
-    </header>
   );
 }
 
@@ -971,16 +923,26 @@ const PostClient = ({
   };
 
   return (
-    <Layout headerVariant="none" seoTitle={post?.title || "게시글"}>
+    // 분양글 상세와 같은 헤더: ← · 브리디 로고 | 가운데 제목 | ⋯ · 메뉴(2026-10-16 사용자 "분양글 헤더 스타일로").
+    <Layout
+      canGoBack
+      homeAction
+      title={post?.title || headerTitle}
+      seoTitle={post?.title || "게시글"}
+      headerRight={
+        sheetActions.length ? (
+          <HeaderIconButton label="더보기" onClick={() => setSheetOpen(true)}>
+            <MoreIcon />
+          </HeaderIconButton>
+        ) : (
+          <></>
+        )
+      }
+    >
       {/* 같은 글에서 다른 댓글 알림으로 들어오면 그 댓글로 다시 스크롤한다. */}
       <Suspense fallback={null}>
         <FocusCommentFromQuery onFocus={setScrollTargetId} />
       </Suspense>
-      <PostDetailHeader
-        title={headerTitle}
-        onBack={() => (window.history.length > 1 ? router.back() : router.push("/"))}
-        onMore={sheetActions.length ? () => setSheetOpen(true) : undefined}
-      />
 
       {renderBody()}
 

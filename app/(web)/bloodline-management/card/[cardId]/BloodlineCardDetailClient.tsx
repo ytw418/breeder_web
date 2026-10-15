@@ -708,8 +708,7 @@ export default function BloodlineCardDetailClient({
   // ── 로딩 ────────────────────────────────────────────────────────────
   if (isLoading) {
     return (
-      <Layout headerVariant="none" seoTitle="혈통">
-        <BloodlineHeader title="혈통" showHome />
+      <Layout canGoBack homeAction title="혈통" seoTitle="혈통" headerRight={<></>}>
         <div className="flex min-h-[60vh] items-center justify-center">
           <BloodlineSpinner />
         </div>
@@ -725,17 +724,15 @@ export default function BloodlineCardDetailClient({
     const isNotFound = isRevoked || status === 404 || status === 403;
     if (!isWaitingForSync && detailError && !detailData && !isNotFound) {
       return (
-        <Layout headerVariant="none" seoTitle="혈통">
-          <BloodlineHeader title="혈통" showHome />
-          <div className="flex min-h-[60vh] items-center justify-center px-4">
+        <Layout canGoBack homeAction title="혈통" seoTitle="혈통" headerRight={<></>}>
+            <div className="flex min-h-[60vh] items-center justify-center px-4">
             <QueryErrorState title="혈통을 불러오지 못했어요" onRetry={() => void mutateCard()} />
           </div>
         </Layout>
       );
     }
     return (
-      <Layout headerVariant="none" seoTitle="혈통">
-        <BloodlineHeader title="혈통" showHome />
+      <Layout canGoBack homeAction title="혈통" seoTitle="혈통" headerRight={<></>}>
         <div className="flex min-h-[60vh] flex-col items-center justify-center px-4 text-center">
           {isWaitingForSync ? (
             <>
@@ -827,24 +824,27 @@ export default function BloodlineCardDetailClient({
   const shareTitle = `${shareTarget.name} · ${shareTarget.speciesType ?? "혈통"}`;
 
   return (
-    <Layout headerVariant="none" seoTitle={card.name}>
-      <BloodlineHeader
-        title={typeLabel}
-        showHome
-        right={
-          <BloodlineHeaderButton
-            label="공유"
-            onClick={() =>
-              void shareOrCopy({
-                title: shareTitle,
-                url: `/bloodline-management/card/${shareTarget.id}`,
-              })
-            }
-          >
-            <ShareIcon />
-          </BloodlineHeaderButton>
-        }
-      />
+    // 분양글 상세와 같은 헤더: ← · 브리디 로고 | 가운데 종류(혈통·출처 카드) | 공유 · 메뉴(2026-10-16 사용자).
+    // 혈통 이름은 본문 h1 에 크게 있다.
+    <Layout
+      canGoBack
+      homeAction
+      title={typeLabel}
+      seoTitle={card.name}
+      headerRight={
+        <BloodlineHeaderButton
+          label="공유"
+          onClick={() =>
+            void shareOrCopy({
+              title: shareTitle,
+              url: `/bloodline-management/card/${shareTarget.id}`,
+            })
+          }
+        >
+          <ShareIcon />
+        </BloodlineHeaderButton>
+      }
+    >
 
       {showCelebration ? (
         <div

@@ -65,7 +65,16 @@ jest.mock("next/navigation", () => ({
 }));
 jest.mock("@components/features/MainLayout", () => ({
   __esModule: true,
-  default: ({ children }: { children: ReactNode }) => <div>{children}</div>,
+  // 헤더(제목·오른쪽 버튼)도 그린다 — 혈통 상세는 MainLayout 헤더를 쓴다.
+  default: ({ children, title, headerRight }: { children: ReactNode; title?: string; headerRight?: ReactNode }) => (
+    <div>
+      <header>
+        <p>{title}</p>
+        {headerRight}
+      </header>
+      {children}
+    </div>
+  ),
   toLoginHref: (next: string) => `/auth/login?next=${encodeURIComponent(next)}`,
   HeaderHomeButton: () => null,
   HeaderMenuButton: () => null,
