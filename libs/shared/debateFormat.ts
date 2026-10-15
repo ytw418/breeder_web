@@ -147,7 +147,8 @@ export function remainingLabel(endsAt: Date | string, now = Date.now()): string 
   if (minutes < 60) return `곧 끝나요 · ${minutes}분`;
   const hours = Math.floor(minutes / 60);
   if (hours < 24) return `${hours}시간 남음`;
-  return `${Math.floor(hours / 24)}일 남음`;
+  // 일은 반올림: 3일 토론을 연 직후(71시간 59분)가 "2일 남음"으로 보이지 않게.
+  return `${Math.round(minutes / 1440)}일 남음`;
 }
 
 /** 최근 활동 시각: "방금" · "N분 전" · "N시간 전". 24시간 넘으면 빈 값(카드 메타에서 뺀다). */
