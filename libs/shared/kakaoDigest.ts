@@ -26,6 +26,13 @@ export const KAKAO_DIGEST_ROOMS: KakaoDigestRoom[] = [
     emoji: "🦎",
     aliases: ["크레스티드 게코", "크레스티드게코", "크레"],
   },
+  {
+    key: "insect",
+    species: "곤충",
+    label: "곤충",
+    emoji: "🪲",
+    aliases: ["곤충", "장수풍뎅이", "사슴벌레", "개미", "나비", "사마귀", "밀웜/귀뚜라미", "기타곤충", "나비/나방"],
+  },
 ];
 
 export const findKakaoDigestRoom = (key: string | null | undefined) =>
