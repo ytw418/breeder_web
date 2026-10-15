@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { SITE_OG_IMAGE } from "@libs/shared/ogImage";
 import { Suspense } from "react";
 import SupportClient, { SupportForm } from "./SupportClient";
 
@@ -15,7 +16,7 @@ export const metadata: Metadata = {
     type: "website",
     images: [
       {
-        url: "/opengraph-image",
+        url: SITE_OG_IMAGE,
         width: 1200,
         height: 630,
         alt: "브리디 고객의 소리 페이지",
@@ -26,7 +27,7 @@ export const metadata: Metadata = {
     card: "summary_large_image",
     title: "고객의 소리 | 브리디",
     description: "문의/버그 제보가 필요한 사항을 쉽게 남겨보세요.",
-    images: ["/opengraph-image"],
+    images: [SITE_OG_IMAGE],
   },
   alternates: {
     canonical: "https://bredy.app/support",

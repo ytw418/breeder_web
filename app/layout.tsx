@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import type { Viewport } from "next";
+import { SITE_OG_IMAGE, SITE_TWITTER_IMAGE } from "@libs/shared/ogImage";
 import { Inter } from "next/font/google";
 import Script from "next/script";
 import "./globals.css";
@@ -85,7 +86,7 @@ export const metadata: Metadata = {
       "브리더들이 소통하는 반려동물 SNS. 분양·거래부터 랭킹, 무료경매, 동네 브리더 찾기까지 브리디에서 한 번에.",
     images: [
       {
-        url: "/opengraph-image",
+        url: SITE_OG_IMAGE,
         width: 1200,
         height: 630,
         alt: "브리디 - 브리더들의 SNS. 분양·거래·랭킹·무료경매·동네 브리더 찾기",
@@ -97,7 +98,7 @@ export const metadata: Metadata = {
     title: "브리디 | 브리더들의 SNS · 분양 · 거래",
     description:
       "브리더들이 소통하는 반려동물 SNS. 분양·거래부터 랭킹, 무료경매, 동네 브리더 찾기까지 브리디에서 한 번에.",
-    images: ["/twitter-image"],
+    images: [SITE_TWITTER_IMAGE],
     site: "@bredy",
     creator: "@bredy",
   },

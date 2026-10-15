@@ -1,6 +1,7 @@
 import React from "react";
 import RankingClient from "./RankingClient";
 import type { Metadata } from "next";
+import { SITE_OG_IMAGE } from "@libs/shared/ogImage";
 
 export const metadata: Metadata = {
   title: "인기 랭킹 | 브리디",
@@ -17,7 +18,7 @@ export const metadata: Metadata = {
     url: "https://bredy.app/ranking",
     images: [
       {
-        url: "/opengraph-image",
+        url: SITE_OG_IMAGE,
         width: 1200,
         height: 630,
         alt: "브리디 랭킹 페이지",
@@ -28,7 +29,7 @@ export const metadata: Metadata = {
     card: "summary_large_image",
     title: "인기 랭킹 | 브리디",
     description: "인기 랭킹, 유저 순위와 변이 순위를 확인하세요.",
-    images: ["/opengraph-image"],
+    images: [SITE_OG_IMAGE],
   },
 };
 

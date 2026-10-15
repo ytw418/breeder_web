@@ -1,9 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 
-const AUCTION_TOOL_OG_IMAGE = "/auction-tool/opengraph-image";
-const AUCTION_TOOL_TWITTER_IMAGE = "/auction-tool/twitter-image";
-
 export const metadata: Metadata = {
   title: "링크형 경매도구",
   description:
@@ -13,21 +10,14 @@ export const metadata: Metadata = {
     description:
       "30초면 경매 링크를 만들고, 신고/신뢰 설정까지 한 번에 운영하세요.",
     type: "website",
-    images: [
-      {
-        url: AUCTION_TOOL_OG_IMAGE,
-        width: 1200,
-        height: 630,
-        alt: "브리디 경매도구 공유 이미지",
-      },
-    ],
+    // 이미지는 같은 폴더 opengraph-image.tsx·twitter-image.tsx 를 Next 가 해시 붙은 주소로 넣는다.
+    // 직접 '/auction-tool/opengraph-image' 로 적으면 404 였다(10-15 확인).
   },
   twitter: {
     card: "summary_large_image",
     title: "브리디 경매도구 | 30초면 만드는 경매 도구",
     description:
       "30초면 경매 링크를 만들고, 신고/신뢰 설정까지 한 번에 운영하세요.",
-    images: [AUCTION_TOOL_TWITTER_IMAGE],
   },
 };
 
