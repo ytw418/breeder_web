@@ -4,7 +4,8 @@ import { notFound } from "next/navigation";
 import AuctionDetailClient from "./AuctionDetailClient";
 import client from "@libs/server/client";
 import { displayUserName } from "@libs/shared/deletedUser";
-import Script from "next/script";
+import JsonLd from "@components/atoms/JsonLd";
+import { getAuction } from "@libs/server/apis";
 import {
   extractAuctionIdFromPath,
   toAuctionPath,
@@ -63,8 +64,11 @@ const getAuctionCanonicalUrl = (auctionId: number, title?: string | null) =>
  * 경매 상세 페이지 ISR 설정
  * - 15초마다 페이지 재생성
  * - 입찰 정보의 실시간성을 위해 짧은 revalidate 시간 사용
+ * - 동적 경로는 generateStaticParams 가 있어야 요청 시 ISR 이 된다. 없으면 revalidate 가 무시되고
+ *   매 요청 렌더링이었다(2026-10-15 운영 응답 cache-control: no-store 로 확인). 빌드 때는 미리 만들지 않는다.
  */
 export const revalidate = 15;
+export const generateStaticParams = async () => [];
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { id } = await params;
@@ -122,7 +126,8 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
       ? `${auction.description.slice(0, 120)}...`
       : auction.description;
 
-  const title = `${auction.title} | 브리디 경매`;
+  const title = `${auction.title} - 경매`;
+  const shareTitle = `${auction.title} | 브리디 경매`;
   const description = `${trimmedDescription} · 현재가 ${auction.currentPrice.toLocaleString()}원`;
   const ogImage = toPublicImageUrl(auction.photos?.[0]);
   return {
@@ -132,7 +137,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
       .filter(Boolean)
       .map((keyword) => String(keyword)),
     openGraph: {
-      title,
+      title: shareTitle,
       description,
       type: "website",
       url: canonicalUrl,
@@ -147,7 +152,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
     },
     twitter: {
       card: "summary_large_image",
-      title,
+      title: shareTitle,
       description,
       images: [ogImage],
     },
@@ -190,10 +195,10 @@ const generateAuctionJsonLd = (auction: Awaited<ReturnType<typeof getAuctionForS
           : "https://schema.org/OutOfStock",
       url: canonicalUrl,
       priceValidUntil: new Date(auction.endAt).toISOString(),
-    },
-    seller: {
-      "@type": "Person",
-      name: displayUserName(auction.user?.name) || "브리디 사용자",
+      seller: {
+        "@type": "Person",
+        name: displayUserName(auction.user?.name) || "브리디 사용자",
+      },
     },
   };
 };
@@ -240,26 +245,17 @@ const page = async ({ params }: Props) => {
     notFound();
   }
 
+  // 본문(사진·설명·입찰 현황)을 서버 HTML 에 그리도록 비로그인 응답을 초기값으로 넘긴다.
+  // 내 경매 여부·연락처 같은 보는 사람별 값은 화면이 붙자마자 SWR 이 다시 받는다.
+  const initialData = await getAuction(String(auctionId), { revalidateSeconds: revalidate });
   const auctionJsonLd = generateAuctionJsonLd(auction);
   const breadcrumbJsonLd = generateBreadcrumbJsonLd(auction);
 
   return (
     <>
-      {auctionJsonLd && (
-        <Script
-          id="auction-jsonld"
-          type="application/ld+json"
-          dangerouslySetInnerHTML={{ __html: JSON.stringify(auctionJsonLd) }}
-        />
-      )}
-      {breadcrumbJsonLd && (
-        <Script
-          id="auction-breadcrumb-jsonld"
-          type="application/ld+json"
-          dangerouslySetInnerHTML={{ __html: JSON.stringify(breadcrumbJsonLd) }}
-        />
-      )}
-      <AuctionDetailClient />
+      <JsonLd id="auction-jsonld" data={auctionJsonLd} />
+      <JsonLd id="auction-breadcrumb-jsonld" data={breadcrumbJsonLd} />
+      <AuctionDetailClient initialData={initialData.success ? initialData : undefined} />
     </>
   );
 };

@@ -1,6 +1,7 @@
 import { act, render } from "@testing-library/react";
 import { useRef } from "react";
 import {
+  POSTHOG_BEFORE_SEND_SOURCE,
   POSTHOG_INIT_OPTIONS,
   POSTHOG_STUB_METHODS,
   identifyPosthogUser,
@@ -36,6 +37,27 @@ describe("PostHog 설정", () => {
     expect(isExpectedAuthStatus(403)).toBe(false);
     expect(isExpectedAuthStatus(500)).toBe(false);
     expect(isExpectedAuthStatus(undefined)).toBe(false);
+  });
+});
+
+describe("오류 분류(before_send)", () => {
+  // layout 인라인 스크립트에 들어가는 원문을 그대로 평가한다
+  const beforeSend = new Function(`return ${POSTHOG_BEFORE_SEND_SOURCE}`)() as (
+    event: Record<string, any>
+  ) => Record<string, any> | null;
+  const exception = (value: string) => ({
+    event: "$exception",
+    properties: { $exception_list: [{ type: "Error", value }] },
+  });
+
+  it("앱 안 브라우저 스크립트 오류는 버리고, 나머지는 종류를 붙여 보낸다", () => {
+    expect(beforeSend(exception("Error invoking postMessage: Java object is gone"))).toBeNull();
+    expect(beforeSend(exception("undefined is not an object (evaluating 'window.webkit.messageHandlers')"))).toBeNull();
+    expect(beforeSend(exception("Script error."))).toBeNull();
+    expect(beforeSend(exception("Minified React error #418; visit https://react.dev/errors/418"))?.properties.bredy_error_kind).toBe("hydration");
+    expect(beforeSend(exception("INTERNAL ASSERTION FAILED: Pending promise was never set"))?.properties.bredy_error_kind).toBe("third_party");
+    expect(beforeSend(exception("TypeError: Cannot read properties of undefined (reading 'id')"))?.properties.bredy_error_kind).toBe("app");
+    expect(beforeSend({ event: "$pageview", properties: {} })).toEqual({ event: "$pageview", properties: {} });
   });
 });
 

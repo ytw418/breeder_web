@@ -4,6 +4,12 @@ import { getProductPath } from "@libs/product-route";
 import { toAuctionPath } from "@libs/auction-route";
 import { toPostPath } from "@libs/post-route";
 
+/** 빌드 때 한 번 만들고 끝나지 않도록 1시간마다 다시 만든다(그 전엔 배포 뒤 올라온 글이 빠졌다). */
+export const revalidate = 3600;
+
+const SITEMAP_POST_LIMIT = 20000;
+const SITEMAP_PROFILE_LIMIT = 10000;
+
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   // 정적 페이지 URL
   const staticPages: MetadataRoute.Sitemap = [
@@ -31,6 +37,12 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       lastModified: new Date(),
       changeFrequency: "daily",
       priority: 0.7,
+    },
+    {
+      url: "https://bredy.app/debates",
+      lastModified: new Date(),
+      changeFrequency: "daily",
+      priority: 0.6,
     },
     {
       url: "https://bredy.app/ranking",
@@ -118,7 +130,8 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       orderBy: {
         updatedAt: "desc",
       },
-      take: 50,
+      // 사이트맵 한 파일은 5만 줄까지다. 넘기 전에 generateSitemaps 로 나눈다.
+      take: SITEMAP_POST_LIMIT,
     });
 
     const postPages: MetadataRoute.Sitemap = posts.map((post) => ({
@@ -128,7 +141,28 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       priority: 0.65,
     }));
 
-    return [...staticPages, ...productPages, ...auctionPages, ...postPages];
+    // 글·분양글이 하나라도 있는 프로필만(빈 프로필은 noindex — profiles/[id]/page.tsx).
+    const profiles = await client.user.findMany({
+      select: { id: true, updatedAt: true },
+      where: {
+        status: { notIn: ["DELETED", "BANNED"] },
+        OR: [
+          { posts: { some: { isHidden: false } } },
+          { products: { some: { isHidden: false, isDeleted: false } } },
+        ],
+      },
+      orderBy: { updatedAt: "desc" },
+      take: SITEMAP_PROFILE_LIMIT,
+    });
+
+    const profilePages: MetadataRoute.Sitemap = profiles.map((profile) => ({
+      url: `https://bredy.app/profiles/${profile.id}`,
+      lastModified: profile.updatedAt,
+      changeFrequency: "weekly",
+      priority: 0.5,
+    }));
+
+    return [...staticPages, ...productPages, ...auctionPages, ...postPages, ...profilePages];
   } catch {
     return staticPages;
   }

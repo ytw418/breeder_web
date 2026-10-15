@@ -12,7 +12,7 @@ export const metadata: Metadata = {
       follow: false,
     },
   },
-  title: "분양 등록 | 브리디",
+  title: "분양 등록",
   description: "로그인 사용자 전용 분양 등록 페이지입니다.",
 };
 

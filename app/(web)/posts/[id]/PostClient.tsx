@@ -1,8 +1,8 @@
 "use client";
 
-import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
+import { Suspense, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
-import { useParams, useRouter } from "next/navigation";
+import { useParams, useRouter, useSearchParams } from "next/navigation";
 import useSWR, { useSWRConfig } from "swr";
 import { useMarkSeenOnView } from "@libs/client/unreadMarks";
 
@@ -152,16 +152,25 @@ const COMMENT_MAX_HEIGHT = 112;
 const isCoarsePointer = () =>
   typeof window !== "undefined" && Boolean(window.matchMedia?.("(pointer: coarse)").matches);
 
+/**
+ * 알림·프로필 댓글 목록에서 ?commentId= 로 열면 그 댓글을 알린다.
+ * 상세는 ISR 이라 서버에서 쿼리를 읽지 않는다. useSearchParams 는 Suspense 안에서만 써야 글 본문이 서버에서 그려진다.
+ */
+const FocusCommentFromQuery = ({ onFocus }: { onFocus: (commentId: number) => void }) => {
+  const raw = useSearchParams()?.get("commentId");
+  useEffect(() => {
+    const commentId = Number(raw);
+    if (Number.isInteger(commentId) && commentId > 0) onFocus(commentId);
+  }, [raw, onFocus]);
+  return null;
+};
+
 const PostClient = ({
   post: initialPost,
   prevNotice: initialPrevNotice,
   nextNotice: initialNextNotice,
   debate: initialDebate,
-  focusCommentId,
-}: PostDetailResponse & {
-  /** 알림·프로필 댓글 목록에서 ?commentId= 로 열면 그 댓글까지 스크롤한다. */
-  focusCommentId?: number;
-}) => {
+}: PostDetailResponse) => {
   const params = useParams();
   const postId = extractPostIdFromPath(params?.id);
   const postApiId = Number.isNaN(postId) ? null : postId;
@@ -189,7 +198,7 @@ const PostClient = ({
   const [commentDelete, setCommentDelete] = useState<PostComment | null>(null);
   const [commentDeleting, setCommentDeleting] = useState(false);
   // 스크롤할 댓글(알림·프로필에서 열었거나 방금 등록함). 한 번 스크롤하면 비워 다시 받아도 다시 움직이지 않는다.
-  const [scrollTargetId, setScrollTargetId] = useState<number | null>(focusCommentId ?? null);
+  const [scrollTargetId, setScrollTargetId] = useState<number | null>(null);
   const [highlightedCommentId, setHighlightedCommentId] = useState<number | null>(null);
   const commentLikePending = useRef(new Set<number>());
   const [reportTarget, setReportTarget] = useState<ReportTarget | null>(null);
@@ -225,11 +234,6 @@ const PostClient = ({
   // 내 사진 글은 프로필 사진 그리드 맨 앞에 고정할 수 있다(사진형 프로필 PRD F-6).
   const { setPin: setProfilePin } = useProfilePin();
   const commentThreads = useMemo(() => groupCommentThreads(post?.comments ?? []), [post?.comments]);
-
-  // 같은 글에서 다른 댓글 알림으로 들어오면 그 댓글로 다시 스크롤한다.
-  useEffect(() => {
-    if (focusCommentId) setScrollTargetId(focusCommentId);
-  }, [focusCommentId]);
 
   useEffect(() => {
     if (scrollTargetId == null) return;
@@ -703,7 +707,8 @@ const PostClient = ({
                 )}
                 {!isNotice ? <BreederProgramBadge programs={post.user?.breederPrograms} /> : null}
               </div>
-              <p className="mt-0.5 text-[13px] text-app-muted">
+              {/* 상대 시간은 서버 HTML(ISR 캐시)과 첫 화면이 몇 분 다를 수 있다. */}
+              <p className="mt-0.5 text-[13px] text-app-muted" suppressHydrationWarning>
                 {postCategoryLabel(post) ? `${postCategoryLabel(post)} · ` : ""}
                 {timeAgo(post.createdAt)}
               </p>
@@ -920,6 +925,10 @@ const PostClient = ({
 
   return (
     <Layout headerVariant="none" seoTitle={post?.title || "게시글"}>
+      {/* 같은 글에서 다른 댓글 알림으로 들어오면 그 댓글로 다시 스크롤한다. */}
+      <Suspense fallback={null}>
+        <FocusCommentFromQuery onFocus={setScrollTargetId} />
+      </Suspense>
       <PostDetailHeader
         title={headerTitle}
         onBack={() => (window.history.length > 1 ? router.back() : router.push("/"))}

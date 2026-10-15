@@ -12,7 +12,7 @@ export const metadata: Metadata = {
       follow: false,
     },
   },
-  title: "게시글 작성 | 브리디",
+  title: "게시글 작성",
   description: "로그인 사용자 전용 게시글 업로드 페이지입니다.",
 };
 

@@ -4,7 +4,7 @@ import CategoryScopePicker from "@components/features/category/CategoryScopePick
 
 export const metadata: Metadata = {
   robots: { index: false, follow: false, googleBot: { index: false, follow: false } },
-  title: "관심 카테고리 | 브리디",
+  title: "관심 카테고리",
   description: "홈·반려생활·TOP 브리더에 보일 관심 분야를 고정합니다.",
 };
 

@@ -9,7 +9,7 @@ const AUCTION_OG_IMAGE = "/designer/og/bredy-og-auction.png";
 const SITE_URL = "https://bredy.app";
 
 export const metadata: Metadata = {
-  title: "진행중 경매 | 브리디",
+  title: "진행중 경매",
   description:
     "브리디 링크형 경매 도구로 진행 중인 경매를 확인하고 바로 참여해보세요.",
   keywords: [
