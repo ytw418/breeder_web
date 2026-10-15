@@ -90,14 +90,16 @@ function PostDetailHeader({
             <path d="M14.5 5L8 12l6.5 7" strokeWidth={1.5} strokeLinecap="round" strokeLinejoin="round" />
           </svg>
         </button>
+        {/* 뒤로 옆에 브리디 로고(홈). 오른쪽은 ⋯ · 메뉴 두 개만. */}
+        <div className="-ml-1.5">
+          <HeaderHomeButton />
+        </div>
         {/* 카테고리 이름이라 제목 태그가 아니다. 글 제목이 h1(검색 최적화). */}
         <p className="min-w-0 shrink truncate text-[18px] font-bold tracking-[-0.3px] text-app-text">
           {title}
         </p>
         <div className="flex-1" />
-        {/* 홈 아이콘을 오른쪽 액션 맨 앞에(뒤로가기보다 중요, 2026-10-12 사용자). */}
         <div className="-mr-1.5 flex shrink-0 items-center gap-0.5">
-          <HeaderHomeButton />
           {onMore ? (
             <button
               type="button"

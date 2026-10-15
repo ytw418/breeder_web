@@ -586,7 +586,7 @@ export function HeaderMenuButton() {
 }
 
 /**
- * 상세 화면 오른쪽 액션 줄 맨 앞의 홈 버튼. 집 아이콘 대신 브리디 로고(24)를 둔다 — 검색·공유 링크로 상세에
+ * 상세 화면 왼쪽 뒤로가기 옆의 홈 버튼. 집 아이콘 대신 브리디 로고(24)를 둔다 — 검색·공유 링크로 상세에
  * 바로 들어온 사람이 어느 서비스인지 알아보게(2026-10-16 사용자). 누르면 홈.
  */
 export function HeaderHomeButton() {
@@ -766,10 +766,11 @@ export default function MainLayout({
                     <StrokeIcon d={ICON.homeNav} />
                   </HeaderIconButton>
                 ) : null}
+                {/* 상세: 뒤로 옆에 브리디 로고(홈). 오른쪽은 화면 액션 + 메뉴 두 개만(2026-10-16 사용자 "아이콘 3개 이상하다"). */}
+                {homeAction && !isToolPath ? <HeaderHomeButton /> : null}
               </div>
               {!isToolPath ? (
                 <div className="absolute right-2 flex items-center gap-0.5">
-                  {homeAction ? <HeaderHomeButton /> : null}
                   {headerRight ? (
                     <>
                       {headerRight}
@@ -814,8 +815,8 @@ export default function MainLayout({
                 !homeAction
                   ? "max-w-[55%]"
                   : headerRight
-                    ? "max-w-[calc(100%-244px)]"
-                    : "max-w-[calc(100%-272px)]"
+                    ? "max-w-[calc(100%-192px)]"
+                    : "max-w-[calc(100%-192px)]"
               )}
             >
               {title}

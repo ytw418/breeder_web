@@ -127,7 +127,7 @@ export function BloodlineHeader({
   title: string;
   searchHref?: string;
   /**
-   * 상세 화면: 오른쪽 맨 앞에 브리디 로고(누르면 홈), 오른쪽 끝에 햄버거 메뉴. 제목은 종류 이름이라
+   * 상세 화면: 뒤로 옆에 브리디 로고(누르면 홈), 오른쪽 끝에 햄버거 메뉴. 제목은 종류 이름이라
    * 제목 태그가 아니다(혈통 이름이 h1, 검색 최적화).
    */
   showHome?: boolean;
@@ -141,10 +141,11 @@ export function BloodlineHeader({
       <button type="button" aria-label="뒤로" onClick={() => router.back()} className={headerIconClass}>
         <BackIcon />
       </button>
+      {/* 상세: 뒤로 옆에 브리디 로고(홈). 오른쪽은 화면 액션 + 메뉴만. */}
+      {showHome ? <HeaderHomeButton /> : null}
       <HeaderTitleTag className="ml-1 min-w-0 flex-1 truncate text-[18px] font-bold tracking-[-0.3px] text-app-text">
         {title}
       </HeaderTitleTag>
-      {showHome ? <HeaderHomeButton /> : null}
       {searchHref ? (
         <Link href={searchHref} aria-label="검색" className={headerIconClass}>
           <SearchIcon />

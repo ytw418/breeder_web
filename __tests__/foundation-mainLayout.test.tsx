@@ -185,7 +185,7 @@ describe("MainLayout 셸", () => {
     expect(screen.getByRole("heading", { name: "반려생활" })).toHaveClass("sr-only");
   });
 
-  it("상세 화면 homeAction: 브리디 로고(홈) · 화면 액션 · 메뉴 순서, 헤더 제목은 제목 태그가 아니다", () => {
+  it("상세 화면 homeAction: 왼쪽 뒤로 옆 브리디 로고(홈), 오른쪽은 화면 액션 · 메뉴, 헤더 제목은 제목 태그가 아니다", () => {
     mockUseUser.mockReturnValue({ user: undefined, isLoading: false });
     render(
       <MainLayout canGoBack homeAction title="상세" headerRight={<button type="button">더보기</button>}>
@@ -194,10 +194,10 @@ describe("MainLayout 셸", () => {
     );
     const home = screen.getByRole("link", { name: "브리디 홈으로 가기" });
     expect(home).toHaveAttribute("href", "/");
-    const group = home.parentElement as HTMLElement;
-    expect(group.firstElementChild).toBe(home);
-    expect(group).toContainElement(screen.getByRole("button", { name: "더보기" }));
-    expect(group.lastElementChild).toBe(screen.getByRole("button", { name: "메뉴" }));
+    expect(home.parentElement).toContainElement(screen.getByRole("button", { name: "뒤로가기" }));
+    const right = screen.getByRole("button", { name: "메뉴" }).parentElement as HTMLElement;
+    expect(right.children).toHaveLength(2);
+    expect(right.firstElementChild).toBe(screen.getByRole("button", { name: "더보기" }));
     // 상세는 본문 제목이 h1 이다(검색 최적화).
     expect(screen.queryByRole("heading", { name: "상세" })).toBeNull();
   });
