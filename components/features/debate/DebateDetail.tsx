@@ -1,5 +1,6 @@
 "use client";
 
+import type React from "react";
 import { Fragment, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import useSWR from "swr";
@@ -78,6 +79,7 @@ const SEND_ERROR: Record<string, string> = {
  */
 export default function DebateDetail({
   post,
+  hiddenNotice,
   initialDebate,
   viewerId,
   onLogin,
@@ -85,6 +87,8 @@ export default function DebateDetail({
   onBlock,
 }: {
   post: DebateDetailPost;
+  /** 운영 숨김(신고 누적 자동 가림 포함)이면 작성자·관리자에게 위 블록 위에 안내. */
+  hiddenNotice?: React.ReactNode;
   initialDebate: DebateSummary;
   viewerId: number | null;
   onLogin: () => void;
@@ -271,6 +275,7 @@ export default function DebateDetail({
   return (
     <>
       <div className={open ? "pb-[calc(88px+env(safe-area-inset-bottom))]" : "pb-[calc(24px+env(safe-area-inset-bottom))]"}>
+        {hiddenNotice}
         {/* 위 블록 */}
         <section className="px-4 pb-5 pt-4">
           <div className="flex items-center gap-1.5">

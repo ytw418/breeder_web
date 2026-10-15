@@ -658,6 +658,7 @@ const PostClient = ({
       return (
         <DebateDetail
           post={post}
+          hiddenNotice={post.isHidden ? <HiddenContentNotice targetType="POST" className="mx-4 mt-3" /> : null}
           initialDebate={debate}
           viewerId={user?.id ?? null}
           onLogin={goLogin}
