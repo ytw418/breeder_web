@@ -6,18 +6,19 @@ import { getHotDiscussions } from "@libs/server/ranking";
 
 /**
  * 반려생활 '실시간 TOP 토론'(앱 docs/prd/community-vibe.md §3.5, AC-19).
- * 최근 24시간 활동 점수(댓글 3·좋아요 1, 반감기 6시간 감쇠)순. 24시간 안 활동 글이 3개 미만이면 7일로 넓히고,
+ * 최근 24시간 활동 점수(댓글 3·좋아요 1·토론 투표 1, 반감기 6시간 감쇠)순. 24시간 안 활동 글이 3개 미만이면 7일로 넓히고,
  * 그래도 모자라면 7일 안 새 글(활동 없음, kind "post")로 채운다. 글마다 마지막 활동 시각·종류를 돌려준다.
  */
 
-export const HOT_ACTIVITY_WEIGHTS = { comment: 3, like: 1 } as const;
+export const HOT_ACTIVITY_WEIGHTS = { comment: 3, like: 1, vote: 1 } as const;
 export const HOT_HALF_LIFE_HOURS = 6;
-export const HOT_CATEGORIES = ["질문", "자유", "정보"];
+/** 찬반 토론(2026-10-15, 앱 docs/prd/live-talk.md §3.3)도 후보다. 투표·선택 바꾸기가 1점. */
+export const HOT_CATEGORIES = ["질문", "자유", "정보", "토론"];
 const HOUR_MS = 60 * 60 * 1000;
 const WINDOWS_HOURS = [24, 24 * 7] as const;
 const MIN_RESULTS = 3;
 
-export type HotActivityEvent = { postId: number; at: Date; kind: "comment" | "like" };
+export type HotActivityEvent = { postId: number; at: Date; kind: "comment" | "like" | "vote" };
 
 export type HotRanked = HotRealtimeMeta & { postId: number };
 
@@ -75,7 +76,7 @@ export async function getRealtimeHotRanking({
   let ranked: HotRanked[] = [];
   for (const hours of WINDOWS_HOURS) {
     const since = new Date(now.getTime() - hours * HOUR_MS);
-    const [comments, likes] = await Promise.all([
+    const [comments, likes, votes] = await Promise.all([
       client.comment.findMany({
         where: {
           isHidden: false,
@@ -90,11 +91,17 @@ export async function getRealtimeHotRanking({
         where: { createdAt: { gte: since }, post: postWhere },
         select: { postId: true, createdAt: true },
       }),
+      // 투표·선택 바꾸기(updatedAt 이 마지막으로 고른 시각).
+      client.debateVote.findMany({
+        where: { updatedAt: { gte: since }, debate: { post: postWhere } },
+        select: { postId: true, updatedAt: true },
+      }),
     ]);
     ranked = rankHotActivity(
       [
         ...comments.map((c) => ({ postId: c.postId, at: c.createdAt, kind: "comment" as const })),
         ...likes.map((l) => ({ postId: l.postId, at: l.createdAt, kind: "like" as const })),
+        ...votes.map((v) => ({ postId: v.postId, at: v.updatedAt, kind: "vote" as const })),
       ],
       now
     );

@@ -32,7 +32,13 @@ export type ServerAnalyticsEvent =
   | "report_submitted"
   | "category_onboarding_completed"
   | "region_set"
-  | "profile_updated";
+  | "profile_updated"
+  // 찬반 토론·사랑방(앱 docs/prd/live-talk.md §7)
+  | "debate_created"
+  | "debate_voted"
+  | "debate_commented"
+  | "town_message_sent"
+  | "town_welcome_sent";
 
 export type ClientPlatform = "app" | "web";
 

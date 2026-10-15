@@ -6,13 +6,15 @@
  * - 부제 "서울 근처 브리더 **12명** · 이번 주 인사 글 3개"
  * - 카드 레일(132, app-gap r12, 아바타 44 · 이름 14/600 · 주력 종 12 · "구로구 · 2km"/"같은 동네" 11 · 팔로우 30) 최대 10
  *   + 내가 안 보이면 맨 끝 brand-soft 카드 "나 · 아직 안 보여요 · 나도 보이기"
- * - 44 버튼 둘: '동네 사랑방'(반려생활 동네 칩) · '인사 남기기'(검정, 글쓰기 주제 동네)
+ * - 레일 아래 '동네 사랑방' 실시간 줄(/town, live-talk §3.4c — 0명일 때도 보인다)
+ * - 44 버튼 둘: '동네 글'(홈 전체 게시글 동네 칩, 옛 이름 '동네 사랑방') · '인사 남기기'(검정, 글쓰기 주제 동네)
  * 0명이면 §3.1 안내 카드, 비로그인·동네 미설정은 기존 안내 카드, 조회 오류면 숨긴다.
  */
 import Link from "next/link";
 import useScopeTerms from "@/hooks/useScopeTerms";
 import { withBreederWord } from "@libs/shared/scopeTerms";
 import useSWR from "swr";
+import TownPreviewStrip from "@components/features/town/TownPreviewStrip";
 import { toLoginHref } from "@components/features/MainLayout";
 import WaveButton from "@components/features/chat/WaveButton";
 import FollowButton from "@components/features/profile/FollowButton";
@@ -322,6 +324,7 @@ export function NeighborhoodBreederSectionView({ state }: { state: HomeNeighborh
           </div>
         </div>
       ) : null}
+      {state.kind === "none" ? <TownPreviewStrip className="mt-3" /> : null}
 
       {state.kind === "near" ? (
         <>
@@ -349,10 +352,11 @@ export function NeighborhoodBreederSectionView({ state }: { state: HomeNeighborh
               </div>
             ) : null}
           </NeighborRail>
-          <div className="mt-3 flex gap-2 px-4">
+          <TownPreviewStrip className="mt-3" />
+          <div className="mt-2 flex gap-2 px-4">
             <Link href={LOUNGE_HREF} className={cn(BUTTON, SOFT)}>
               {BUBBLE}
-              동네 사랑방
+              동네 글
             </Link>
             <Link href={GREET_HREF} className={cn(BUTTON, DARK)}>
               {PENCIL}

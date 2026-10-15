@@ -1,4 +1,6 @@
 import { NextApiRequest, NextApiResponse } from "next";
+import { DEBATE_CATEGORY, DEBATE_REPORT_HIDE_COUNT } from "@libs/shared/debateFormat";
+import { TOWN_REPORT_HIDE_COUNT } from "@libs/shared/townTalk";
 import withHandler, { ResponseType } from "@libs/server/withHandler";
 import { withAuth } from "@libs/server/auth";
 import client from "@libs/server/client";
@@ -140,6 +142,9 @@ async function handler(req: NextApiRequest, res: NextApiResponse<ReportResponse>
     select: { id: true, status: true, createdAt: true },
   });
 
+  // 자동 가림(앱 docs/prd/live-talk.md §4.4): 토론 글 2건, 사랑방 메시지 3건이면 운영자 확인 전까지 가린다.
+  await autoHideReported(targetType, targetId);
+
   await captureServerEvent(userId, "report_submitted", {
     target_type: targetType,
     reason,
@@ -154,6 +159,22 @@ async function handler(req: NextApiRequest, res: NextApiResponse<ReportResponse>
       createdAt: report.createdAt.toISOString(),
     },
   });
+}
+
+async function autoHideReported(targetType: string, targetId: number) {
+  if (targetType !== "POST" && targetType !== "TOWN_MESSAGE") return;
+  const openCount = await client.report.count({
+    where: { targetType: targetType as "POST" | "TOWN_MESSAGE", targetId, status: "OPEN" },
+  });
+  if (targetType === "TOWN_MESSAGE" && openCount >= TOWN_REPORT_HIDE_COUNT) {
+    await client.townMessage.updateMany({ where: { id: targetId, isHidden: false }, data: { isHidden: true } });
+  }
+  if (targetType === "POST" && openCount >= DEBATE_REPORT_HIDE_COUNT) {
+    await client.post.updateMany({
+      where: { id: targetId, category: DEBATE_CATEGORY, isHidden: false },
+      data: { isHidden: true },
+    });
+  }
 }
 
 export default withAuth(

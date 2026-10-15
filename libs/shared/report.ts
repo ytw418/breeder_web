@@ -15,6 +15,7 @@ export const REPORT_TARGET_TYPES = [
   "CHAT_ROOM",
   "USER",
   "BLOODLINE_CARD",
+  "TOWN_MESSAGE",
 ] as const satisfies readonly ReportTargetType[];
 
 export const REPORT_STATUSES = [
@@ -62,6 +63,15 @@ export const REPORT_REASONS: Record<ReportTargetType, readonly string[]> = {
     "스팸·광고",
     OTHER_REASON,
   ],
+  // 동네 사랑방 메시지(앱 docs/prd/live-talk.md §3.4). 3건이면 자동 가림.
+  TOWN_MESSAGE: [
+    "욕설·비하·혐오 표현",
+    "스팸·광고",
+    "거래 유도·사기 의심",
+    "개인정보 노출",
+    "음란·선정적 내용",
+    OTHER_REASON,
+  ],
 };
 
 export const isReportTargetType = (value: unknown): value is ReportTargetType =>
@@ -100,6 +110,7 @@ export const REPORT_TARGET_LABEL: Record<ReportTargetType, string> = {
   CHAT_ROOM: "채팅",
   USER: "사용자",
   BLOODLINE_CARD: "혈통",
+  TOWN_MESSAGE: "사랑방 메시지",
 };
 
 export const REPORT_STATUS_LABEL: Record<ReportStatus, string> = {
@@ -123,4 +134,5 @@ export const REPORT_SHEET_TITLE: Record<ReportTargetType, string> = {
   CHAT_ROOM: "채팅 신고",
   USER: "사용자 신고",
   BLOODLINE_CARD: "혈통 신고",
+  TOWN_MESSAGE: "메시지 신고",
 };

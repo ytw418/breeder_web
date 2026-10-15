@@ -64,7 +64,13 @@ export async function generateMetadata({
   }
 
   const title = `${data.post.title} | 브리디 게시글`;
-  const description = trimText(
+  // 찬반 토론은 공유 미리보기에 선택지·참여 수를 보인다(앱 docs/prd/live-talk.md §3.6).
+  const debate = data.debate;
+  const description = debate
+    ? `${debate.optionA} vs ${debate.optionB} · ${debate.participants}명 참여 · ${
+        debate.state === "open" ? "너는 어느 쪽?" : "결과 보기"
+      }`
+    : trimText(
     `${toPostPlainText(data.post.description)} ${data.post.user?.name ? `(작성자 ${displayUserName(data.post.user.name)})` : ""}`,
     140
   );

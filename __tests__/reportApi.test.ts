@@ -6,7 +6,8 @@ const mockClient = {
   comment: { findUnique: jest.fn() },
   product: { findUnique: jest.fn() },
   chatRoomMember: { findMany: jest.fn() },
-  report: { findFirst: jest.fn(), create: jest.fn() },
+  // count: 게시글(토론)·사랑방 메시지 신고 누적 자동 가림
+  report: { findFirst: jest.fn(), create: jest.fn(), count: jest.fn(async () => 0) },
 };
 jest.mock("@libs/server/client", () => ({
   __esModule: true,
@@ -88,7 +89,7 @@ beforeEach(() => {
 });
 
 describe("신고 사유 상수(libs/shared/report)", () => {
-  it("대상 유형 6종과 대상별 사유 목록, 모든 목록 끝은 기타", () => {
+  it("대상 유형 7종과 대상별 사유 목록, 모든 목록 끝은 기타", () => {
     expect(REPORT_TARGET_TYPES).toEqual([
       "POST",
       "COMMENT",
@@ -96,6 +97,7 @@ describe("신고 사유 상수(libs/shared/report)", () => {
       "CHAT_ROOM",
       "USER",
       "BLOODLINE_CARD",
+      "TOWN_MESSAGE",
     ]);
     expect(REPORT_REASONS.POST).toEqual([
       "스팸·광고",

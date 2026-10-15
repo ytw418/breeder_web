@@ -88,6 +88,8 @@ export const REPORT_REASON_TO_SANCTION_REASON: Record<string, SanctionReasonCode
   "욕설·부적절 내용": "ABUSE",
   "욕설·협박": "HARASSMENT",
   "사기 의심": "FRAUD",
+  // 동네 사랑방 메시지(TOWN_MESSAGE)
+  "거래 유도·사기 의심": "FRAUD",
   "음란 메시지": "SEXUAL",
   사칭: "IMPERSONATION",
   "사기 이력 의심": "FRAUD",
