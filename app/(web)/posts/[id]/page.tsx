@@ -12,6 +12,8 @@ import type { Metadata } from "next";
 import { SITE_OG_IMAGE } from "@libs/shared/ogImage";
 import JsonLd from "@components/atoms/JsonLd";
 import { SITE_URL, toPublicImageUrl } from "@libs/shared/seo";
+import ExploreMore from "@components/app/ExploreMore";
+import { getExploreMore } from "@libs/server/exploreMore";
 
 const DEFAULT_POST_IMAGE = SITE_OG_IMAGE;
 /** 구조화 데이터에 넣는 댓글 수. 토론·질문 답변이 AI 답변에 인용되도록 앞쪽 몇 개만 싣는다. */
@@ -205,12 +207,16 @@ const page = async ({ params }: { params: Promise<{ id: string }> }) => {
   if (!data.success || !data.post) {
     notFound();
   }
+  const explore = await getExploreMore({ kind: "post", id: data.post.id, category: data.post.category });
 
   return (
     <div>
       <JsonLd id="post-jsonld" data={generatePostJsonLd(data.post)} />
       {/* 댓글은 캐시된 HTML 에 넣지 않는다. 화면이 열리면 PostClient 가 최신 댓글을 받아 그린다. */}
-      <PostClient {...normalizeDeletedUserNames({ ...data, post: { ...data.post, comments: [] } })} />
+      <PostClient
+        {...normalizeDeletedUserNames({ ...data, post: { ...data.post, comments: [] } })}
+        footer={<ExploreMore data={explore} similarTitle="비슷한 글" />}
+      />
     </div>
   );
 };

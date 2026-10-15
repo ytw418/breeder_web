@@ -6,7 +6,8 @@ import { useParams, useRouter, useSearchParams } from "next/navigation";
 import useSWR, { useSWRConfig } from "swr";
 import { useMarkSeenOnView } from "@libs/client/unreadMarks";
 
-import Layout, { HeaderHomeButton, toLoginHref } from "@components/features/MainLayout";
+import Layout, { toLoginHref } from "@components/features/MainLayout";
+import { HeaderIconButton } from "@components/app/HeaderIconButton";
 import ConfirmDialog from "@components/atoms/ConfirmDialog";
 import { ActionSheet, type ActionSheetAction } from "@components/app/ActionSheet";
 import { ReportSheet } from "@components/app/moderation/ReportSheet";
@@ -59,57 +60,12 @@ const timeAgo = (value: string | Date) => {
 
 function MoreIcon() {
   return (
-    <svg width={24} height={24} viewBox="0 0 24 24" fill="none" stroke="currentColor" aria-hidden="true">
-      <circle cx={12} cy={5.5} r={1} strokeWidth={1.5} />
-      <circle cx={12} cy={12} r={1} strokeWidth={1.5} />
-      <circle cx={12} cy={18.5} r={1} strokeWidth={1.5} />
+    // 분양글 상세 헤더의 ⋮ 와 같은 모양
+    <svg className="h-6 w-6" fill="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+      <circle cx="12" cy="5" r="1.75" />
+      <circle cx="12" cy="12" r="1.75" />
+      <circle cx="12" cy="19" r="1.75" />
     </svg>
-  );
-}
-
-/** 헤더: 뒤로 24 + 제목 18/700(왼쪽) + 우측 ⋯ (앱 PostHeader). */
-function PostDetailHeader({
-  title,
-  onBack,
-  onMore,
-}: {
-  title: string;
-  onBack: () => void;
-  onMore?: () => void;
-}) {
-  return (
-    <header className="sticky top-0 z-30 h-14 border-b border-app-line bg-app-bg">
-      <div className="mx-auto flex h-full max-w-xl items-center gap-3 px-4">
-        <button
-          type="button"
-          aria-label="뒤로 가기"
-          onClick={onBack}
-          className="-m-2.5 grid h-11 w-11 shrink-0 place-items-center rounded-full text-app-text"
-        >
-          <svg width={24} height={24} viewBox="0 0 24 24" fill="none" stroke="currentColor" aria-hidden="true">
-            <path d="M14.5 5L8 12l6.5 7" strokeWidth={1.5} strokeLinecap="round" strokeLinejoin="round" />
-          </svg>
-        </button>
-        <h1 className="min-w-0 shrink truncate text-[18px] font-bold tracking-[-0.3px] text-app-text">
-          {title}
-        </h1>
-        <div className="flex-1" />
-        {/* 홈 아이콘을 오른쪽 액션 맨 앞에(뒤로가기보다 중요, 2026-10-12 사용자). */}
-        <div className="-mr-1.5 flex shrink-0 items-center gap-0.5">
-          <HeaderHomeButton />
-          {onMore ? (
-            <button
-              type="button"
-              aria-label="더보기"
-              onClick={onMore}
-              className="grid h-10 w-10 shrink-0 place-items-center rounded-full text-app-text"
-            >
-              <MoreIcon />
-            </button>
-          ) : null}
-        </div>
-      </div>
-    </header>
   );
 }
 
@@ -185,7 +141,11 @@ const PostClient = ({
   prevNotice: initialPrevNotice,
   nextNotice: initialNextNotice,
   debate: initialDebate,
-}: PostDetailResponse) => {
+  footer,
+}: PostDetailResponse & {
+  /** 맨 아래 '더 둘러보기'(서버가 그린 비슷한 글·인기 글·바로가기). */
+  footer?: React.ReactNode;
+}) => {
   const params = useParams();
   const postId = extractPostIdFromPath(params?.id);
   const postApiId = Number.isNaN(postId) ? null : postId;
@@ -682,6 +642,7 @@ const PostClient = ({
           hiddenNotice={post.isHidden ? <HiddenContentNotice targetType="POST" className="mx-4 mt-3" /> : null}
           initialDebate={debate}
           live={live}
+          footer={footer}
           viewerId={user?.id ?? null}
           onLogin={goLogin}
           onReport={(commentId) => openReport({ type: "COMMENT", id: commentId })}
@@ -737,9 +698,9 @@ const PostClient = ({
 
           {/* 본문 */}
           <div className="flex flex-col gap-2 px-4 pb-3">
-            <h2 className="break-keep text-[18px] font-bold leading-[26px] text-app-text">
+            <h1 className="break-keep text-[18px] font-bold leading-[26px] text-app-text">
               {post.title}
-            </h2>
+            </h1>
             {/* 글과 사진(최대 10장)을 쓴 자리 그대로. 사진을 누르면 크게 보기 */}
             <PostBody
               description={post.description}
@@ -804,7 +765,7 @@ const PostClient = ({
           {/* 댓글 */}
           <div className="h-2 bg-app-gap" />
           <div className="px-4 pb-1 pt-4">
-            <h3 className="text-[16px] font-bold text-app-text">{live ? `댓글 ${commentCount}` : "댓글"}</h3>
+            <h2 className="text-[16px] font-bold text-app-text">{live ? `댓글 ${commentCount}` : "댓글"}</h2>
           </div>
           <div className="px-4">
             {!live ? (
@@ -852,6 +813,7 @@ const PostClient = ({
               </p>
             )}
           </div>
+          {footer}
         </div>
 
         {/* 입력바: pill 44 surface + 32 주황 원형 전송 */}
@@ -961,16 +923,26 @@ const PostClient = ({
   };
 
   return (
-    <Layout headerVariant="none" seoTitle={post?.title || "게시글"}>
+    // 분양글 상세와 같은 헤더: ← · 브리디 로고 | 가운데 제목 | ⋯ · 메뉴(2026-10-16 사용자 "분양글 헤더 스타일로").
+    <Layout
+      canGoBack
+      homeAction
+      title={post?.title || headerTitle}
+      seoTitle={post?.title || "게시글"}
+      headerRight={
+        sheetActions.length ? (
+          <HeaderIconButton label="더보기" onClick={() => setSheetOpen(true)}>
+            <MoreIcon />
+          </HeaderIconButton>
+        ) : (
+          <></>
+        )
+      }
+    >
       {/* 같은 글에서 다른 댓글 알림으로 들어오면 그 댓글로 다시 스크롤한다. */}
       <Suspense fallback={null}>
         <FocusCommentFromQuery onFocus={setScrollTargetId} />
       </Suspense>
-      <PostDetailHeader
-        title={headerTitle}
-        onBack={() => (window.history.length > 1 ? router.back() : router.push("/"))}
-        onMore={sheetActions.length ? () => setSheetOpen(true) : undefined}
-      />
 
       {renderBody()}
 

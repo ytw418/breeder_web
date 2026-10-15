@@ -65,8 +65,19 @@ jest.mock("next/navigation", () => ({
 }));
 jest.mock("@components/features/MainLayout", () => ({
   __esModule: true,
-  default: ({ children }: { children: ReactNode }) => <div>{children}</div>,
+  // 헤더(제목·오른쪽 버튼)도 그린다 — 혈통 상세는 MainLayout 헤더를 쓴다.
+  default: ({ children, title, headerRight }: { children: ReactNode; title?: string; headerRight?: ReactNode }) => (
+    <div>
+      <header>
+        <p>{title}</p>
+        {headerRight}
+      </header>
+      {children}
+    </div>
+  ),
   toLoginHref: (next: string) => `/auth/login?next=${encodeURIComponent(next)}`,
+  HeaderHomeButton: () => null,
+  HeaderMenuButton: () => null,
 }));
 jest.mock("@libs/client/share", () => ({ shareOrCopy: jest.fn(async () => "copied") }));
 jest.mock("@libs/client/toast", () => ({ toast: { success: jest.fn(), error: jest.fn(), info: jest.fn() } }));
@@ -727,7 +738,8 @@ describe("웹 혈통 상세 (BloodlineCardDetailClient)", () => {
       "href",
       "/bloodline-management/card/5"
     );
-    expect(screen.getByRole("heading", { name: "출처 카드" })).toBeInTheDocument();
+    // 상세 헤더의 종류 이름은 제목 태그가 아니다(카드 이름이 h1).
+    expect(within(screen.getByRole("banner")).getByText("출처 카드")).toBeInTheDocument();
   });
 
   it("출처 카드 보유자에게 '내 닉네임 공개' 토글이 있고 PATCH ownerNameVisible 로 바꾼다 (AC-70)", async () => {
