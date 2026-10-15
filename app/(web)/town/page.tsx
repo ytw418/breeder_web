@@ -6,7 +6,7 @@ import TownClient from "./TownClient";
 
 export const metadata: Metadata = {
   robots: { index: false, follow: false, googleBot: { index: false, follow: false } },
-  title: "동네 사랑방 | 브리디",
+  title: "동네 사랑방",
   description: "반경 50km 이웃 브리더와 이야기하는 동네 사랑방입니다.",
 };
 

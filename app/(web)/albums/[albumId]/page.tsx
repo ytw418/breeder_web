@@ -3,7 +3,7 @@ import AlbumClient from "./AlbumClient";
 
 export const metadata: Metadata = {
   robots: { index: false, follow: true },
-  title: "앨범 | 브리디",
+  title: "앨범",
 };
 
 /** 사용자가 만든 앨범 보기(앱 albums/[albumId].tsx). */

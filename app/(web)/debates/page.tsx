@@ -4,7 +4,7 @@ import type { Metadata } from "next";
 import DebatesClient from "./DebatesClient";
 
 export const metadata: Metadata = {
-  title: "토론 모아보기 | 브리디",
+  title: "토론 모아보기",
   description: "브리디 브리더들의 찬반 토론 — 진행 중인 토론과 끝난 토론 결과를 모아 봐요.",
   alternates: { canonical: "https://bredy.app/debates" },
 };

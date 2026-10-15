@@ -1,12 +1,9 @@
 import { ItemDetailResponse } from "pages/api/products/[id]";
 import { PostDetailResponse } from "pages/api/posts/[id]";
+import type { AuctionDetailResponse } from "pages/api/auctions/[id]";
 
-const CACHE_TIME = 300; // 5분
-
-type ProductFetchMode = "isr" | "no-store";
-
-interface GetProductOptions {
-  mode?: ProductFetchMode;
+interface FetchOptions {
+  /** 지정하면 Next 데이터 캐시에 이 초만큼 둔다(ISR 페이지용). 없으면 매번 새로 받는다. */
   revalidateSeconds?: number;
 }
 
@@ -101,80 +98,66 @@ const parseJsonResponse = async <T>(res: Response) => {
   }
 };
 
-export async function getProduct(
-  id: string,
-  { mode = "no-store", revalidateSeconds = CACHE_TIME }: GetProductOptions = {}
-) {
+/**
+ * 서버 컴포넌트에서 우리 API(비로그인 응답)를 받는다. 배포 주소 후보를 차례로 시도한다.
+ * 상세 페이지는 ISR 이라 로그인 사용자별 값(isOwner 등)은 화면에서 SWR 이 다시 받는다.
+ */
+async function fetchOwnApi<T extends { success: boolean; error?: string }>(
+  path: string,
+  fallbackError: string,
+  { revalidateSeconds }: FetchOptions = {}
+): Promise<T> {
   const baseUrls = resolveBaseUrls();
-  let lastError = "분양글 조회 중 오류가 발생했습니다.";
+  let lastError = fallbackError;
 
   for (const baseUrl of baseUrls) {
     try {
-      const res =
-        mode === "isr"
-          ? await fetch(`${baseUrl}/api/products/${id}`, {
-              next: {
-                revalidate: revalidateSeconds,
-              },
-            })
-          : await fetch(`${baseUrl}/api/products/${id}`, {
-              cache: "no-store",
-            });
+      const res = await fetch(
+        `${baseUrl}${path}`,
+        revalidateSeconds === undefined
+          ? { cache: "no-store" }
+          : { next: { revalidate: revalidateSeconds } }
+      );
 
       if (!res.ok) {
         lastError = `[${baseUrl}] ${await parseErrorMessage(res)}`;
         continue;
       }
 
-      const parsed = await parseJsonResponse<ItemDetailResponse>(res);
+      const parsed = await parseJsonResponse<T>(res);
       if (parsed.success) {
         return parsed.data;
       }
 
       lastError = `[${baseUrl}] ${parsed.error}`;
     } catch (error) {
-      lastError = `[${baseUrl}] ${
-        error instanceof Error ? error.message : "분양글 조회 중 오류가 발생했습니다."
-      }`;
+      lastError = `[${baseUrl}] ${error instanceof Error ? error.message : fallbackError}`;
     }
   }
 
-  return {
-    success: false,
-    error: lastError,
-  } as ItemDetailResponse;
+  return { success: false, error: lastError } as T;
 }
 
-export async function getPost(id: string) {
-  const baseUrls = resolveBaseUrls();
-  let lastError = "게시글 조회 중 오류가 발생했습니다.";
+export function getProduct(id: string, options?: FetchOptions) {
+  return fetchOwnApi<ItemDetailResponse>(
+    `/api/products/${id}`,
+    "분양글 조회 중 오류가 발생했습니다.",
+    options
+  );
+}
 
-  for (const baseUrl of baseUrls) {
-    try {
-      const res = await fetch(`${baseUrl}/api/posts/${id}`, {
-        cache: "no-store",
-      });
+export function getPost(id: string, options?: FetchOptions) {
+  return fetchOwnApi<PostDetailResponse>(
+    `/api/posts/${id}`,
+    "게시글 조회 중 오류가 발생했습니다.",
+    options
+  );
+}
 
-      if (!res.ok) {
-        lastError = `[${baseUrl}] ${await parseErrorMessage(res)}`;
-        continue;
-      }
-
-      const parsed = await parseJsonResponse<PostDetailResponse>(res);
-      if (parsed.success) {
-        return parsed.data;
-      }
-
-      lastError = `[${baseUrl}] ${parsed.error}`;
-    } catch (error) {
-      lastError = `[${baseUrl}] ${
-        error instanceof Error ? error.message : "게시글 조회 중 오류가 발생했습니다."
-      }`;
-    }
-  }
-
-  return {
-    success: false,
-    error: lastError,
-  } as PostDetailResponse;
+export function getAuction(id: string, options?: FetchOptions) {
+  return fetchOwnApi<AuctionDetailResponse>(
+    `/api/auctions/${id}`,
+    "경매 조회 중 오류가 발생했습니다.",
+    options
+  );
 }

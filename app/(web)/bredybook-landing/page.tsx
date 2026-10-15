@@ -3,7 +3,7 @@ import type { Metadata } from "next";
 import { SITE_OG_IMAGE } from "@libs/shared/ogImage";
 
 export const metadata: Metadata = {
-  title: "브리디북 소개 | 브리디",
+  title: "브리디북 소개",
   description:
     "브리디북의 기록 방식과 반려곤충 데이터 축적 방법을 소개합니다. 브리디북을 시작해 반려곤충 기록을 체계적으로 관리하세요.",
   alternates: {

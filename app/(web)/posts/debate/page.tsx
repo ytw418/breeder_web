@@ -6,7 +6,7 @@ import DebateComposeClient from "./DebateComposeClient";
 
 export const metadata: Metadata = {
   robots: { index: false, follow: false, googleBot: { index: false, follow: false } },
-  title: "토론 열기 | 브리디",
+  title: "토론 열기",
   description: "궁금한 걸 찬반으로 물어보는 토론 열기 화면입니다.",
 };
 

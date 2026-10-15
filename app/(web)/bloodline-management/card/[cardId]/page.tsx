@@ -25,7 +25,7 @@ const parseCardId = (cardId: string) => {
   return Number.isInteger(parsed) && parsed > 0 ? parsed : null;
 };
 
-// 루트 레이아웃 title.template("%s | Bredy")을 타지 않게 absolute 로 준다.
+// 루트 레이아웃 title.template("%s | 브리디")을 타지 않게 absolute 로 준다.
 const DEFAULT_METADATA: Metadata = {
   title: { absolute: BLOODLINE_OG_DEFAULT_TITLE },
   description: BLOODLINE_OG_DEFAULT_DESCRIPTION,

@@ -4,7 +4,7 @@ import BloodlineCardCreateClient from "../../../../bloodline-cards/create/Bloodl
 
 export const metadata: Metadata = {
   robots: { index: false, follow: false },
-  title: "혈통 수정 | 브리디",
+  title: "혈통 수정",
 };
 
 /** 혈통 수정(앱 bloodline-management/card/[cardId]/edit.tsx, PRD bloodline-v2.md S-3e). 폼은 만들기와 같다. */
