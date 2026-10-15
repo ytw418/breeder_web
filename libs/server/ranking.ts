@@ -1,4 +1,5 @@
 import client from "@libs/server/client";
+import { RANKABLE_USER_WHERE } from "@libs/server/rankableUser";
 import {
   AuctionPeriodScope,
   AuctionRankingItem,
@@ -85,8 +86,6 @@ export const scoreBreeder = ({
   auctionWinsCount * BREEDER_SCORE_WEIGHTS.auctionWin +
   sellerEndedAuctionsCount * BREEDER_SCORE_WEIGHTS.sellerEndedAuction;
 
-/** 운영(크루) 계정 role. 테스트·운영 계정은 FAKE_USER 로 만든다(libs/shared/test-accounts.ts). */
-const CREW_ROLE = "FAKE_USER" as const;
 
 /**
  * 사용자별 '질문 첫 답변' 수. 질문 글(숨김 아님)의 보이는 루트 댓글 중 글쓴이 본인·운영 계정을 뺀 가장 이른 댓글이
@@ -100,7 +99,7 @@ export const countFirstAnswers = async (
     deletedAt: null,
     parentId: null,
     post: { category: "질문", isHidden: false },
-    user: { role: { not: CREW_ROLE } },
+    user: RANKABLE_USER_WHERE,
   };
   const select = { id: true, postId: true, userId: true, createdAt: true, post: { select: { userId: true } } };
   const rows = await client.comment.findMany({
@@ -346,7 +345,7 @@ const getScopedBreederRanking = async ({
 
   const [users, currentPosts, currentProducts, currentAuctions, currentBloodlines] = await Promise.all([
     client.user.findMany({
-      where: { status: "ACTIVE" },
+      where: RANKABLE_USER_WHERE,
       select: { id: true, name: true, avatar: true },
     }),
     countByGroup("post", {
@@ -468,7 +467,7 @@ export const getBreederRanking = async ({
   const [users, currentPosts, currentComments, currentBids, currentWins, currentSellerEnds, currentFirstAnswers] =
     await Promise.all([
       client.user.findMany({
-        where: { status: "ACTIVE" },
+        where: RANKABLE_USER_WHERE,
         select: { id: true, name: true, avatar: true },
       }),
       countByGroup("post", {
@@ -708,7 +707,7 @@ export const getTrendingCommunityPosts = async ({
         ...(window === "24h" ? { createdAt: { gte: recentBoundary, lte: now } } : {}),
         NOT: { category: "공지" },
         isHidden: false,
-        user: { status: "ACTIVE" },
+        user: RANKABLE_USER_WHERE,
         AND: [scope],
       },
       select: {
@@ -778,7 +777,7 @@ export const getAuctionRanking = async ({
     status: "종료",
     winnerId: { not: null },
     isHidden: false,
-    user: { status: "ACTIVE" },
+    user: RANKABLE_USER_WHERE,
   };
 
   if (periodScope === "week") {
@@ -859,7 +858,7 @@ export const getBloodlineRanking = async ({
   const rootWhere: Record<string, unknown> = {
     cardType: "BLOODLINE",
     status: "ACTIVE",
-    creator: { status: "ACTIVE" },
+    creator: RANKABLE_USER_WHERE,
   };
   if (speciesType && speciesType !== "전체") {
     rootWhere.speciesType = speciesType;
@@ -895,7 +894,7 @@ export const getBloodlineRanking = async ({
         { id: { in: rootIds } },
         { bloodlineReferenceId: { in: rootIds } },
       ],
-      currentOwner: { status: "ACTIVE" },
+      currentOwner: RANKABLE_USER_WHERE,
     },
     select: {
       id: true,
@@ -971,7 +970,7 @@ const toRankedUserItems = async <C>(
   const ranked = sortScored(current);
   const previousRankMap = previous ? getRankMap(sortScored(previous)) : new Map<number, { rank: number; score: number }>();
   const users = await client.user.findMany({
-    where: { id: { in: ranked.map((row) => row.key) }, status: "ACTIVE" },
+    where: { id: { in: ranked.map((row) => row.key) }, ...RANKABLE_USER_WHERE },
     select: { id: true, name: true, avatar: true },
   });
   const userMap = new Map(users.map((user) => [user.id, user]));
@@ -1183,7 +1182,7 @@ export const getHotDiscussions = async ({
       where: {
         category: { in: ["질문", "자유", "정보"] },
         isHidden: false,
-        user: { status: "ACTIVE" },
+        user: RANKABLE_USER_WHERE,
         AND: [scope],
         ...(since ? { createdAt: { gte: since } } : {}),
       },

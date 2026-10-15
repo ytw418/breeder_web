@@ -3,6 +3,7 @@ import withHandler, { ResponseType } from "@libs/server/withHandler";
 import client from "@libs/server/client";
 import { withAuth } from "@libs/server/auth";
 import { InsectRecord, Like, Post, User } from "@prisma/client";
+import { RANKABLE_USER_WHERE } from "@libs/server/rankableUser";
 
 /** 기네스북 기록 응답 */
 export interface RecordWithUser extends InsectRecord {
@@ -155,6 +156,7 @@ async function handler(
       );
       // 유저별 점수 계산을 위해 관련 데이터 조회
       const users = await client.user.findMany({
+        where: RANKABLE_USER_WHERE,
         select: {
           id: true,
           name: true,
