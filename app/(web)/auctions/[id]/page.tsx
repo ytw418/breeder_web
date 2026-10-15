@@ -6,6 +6,7 @@ import client from "@libs/server/client";
 import { displayUserName } from "@libs/shared/deletedUser";
 import JsonLd from "@components/atoms/JsonLd";
 import { getAuction } from "@libs/server/apis";
+import type { AuctionDetailResponse } from "pages/api/auctions/[id]";
 import {
   extractAuctionIdFromPath,
   toAuctionPath,
@@ -232,6 +233,15 @@ const generateBreadcrumbJsonLd = (auction: Awaited<ReturnType<typeof getAuctionF
   };
 };
 
+/**
+ * 캐시된 HTML 에 넣을 경매. 진행 중이면 입찰 내역을 비운다 — 현재가·입찰 내역은 화면이 받은 응답으로만 그린다.
+ * 끝난 경매는 결과가 바뀌지 않아 그대로 둔다(낙찰가·입찰 내역이 검색에도 보인다).
+ */
+const toCacheableAuction = (auction: AuctionDetailResponse["auction"]) => {
+  if (!auction) return undefined;
+  return auction.status === "진행중" ? { ...auction, bids: [] } : auction;
+};
+
 const page = async ({ params }: Props) => {
   const { id } = await params;
   const auctionId = extractAuctionIdFromPath(id);
@@ -245,8 +255,8 @@ const page = async ({ params }: Props) => {
     notFound();
   }
 
-  // 본문(사진·설명·입찰 현황)을 서버 HTML 에 그리도록 비로그인 응답을 초기값으로 넘긴다.
-  // 내 경매 여부·연락처 같은 보는 사람별 값은 화면이 붙자마자 SWR 이 다시 받는다.
+  // 제목·사진·설명을 서버 HTML 에 그리도록 비로그인 응답을 초기값으로 넘긴다(toCacheableAuction).
+  // 내 경매 여부·연락처·현재가 같은 값은 화면이 붙자마자 SWR 이 다시 받는다.
   const initialData = await getAuction(String(auctionId), { revalidateSeconds: revalidate });
   const auctionJsonLd = generateAuctionJsonLd(auction);
   const breadcrumbJsonLd = generateBreadcrumbJsonLd(auction);
@@ -255,7 +265,7 @@ const page = async ({ params }: Props) => {
     <>
       <JsonLd id="auction-jsonld" data={auctionJsonLd} />
       <JsonLd id="auction-breadcrumb-jsonld" data={breadcrumbJsonLd} />
-      <AuctionDetailClient initialData={initialData.success ? initialData : undefined} />
+      <AuctionDetailClient initialAuction={toCacheableAuction(initialData.auction)} />
     </>
   );
 };

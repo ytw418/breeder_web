@@ -1,4 +1,5 @@
 import { NextApiRequest, NextApiResponse } from "next";
+import { withDetailRevalidation } from "@libs/server/pageRevalidation";
 import withHandler, { ResponseType } from "@libs/server/withHandler";
 import client from "@libs/server/client";
 import { withAuth } from "@libs/server/auth";
@@ -454,5 +455,9 @@ async function handler(
 }
 
 export default withAuth(
-  withHandler({ methods: ["GET", "POST"], handler, isPrivate: false })
+  withHandler({
+    methods: ["GET", "POST"],
+    handler: withDetailRevalidation(handler, () => [{ type: "HOME" }]),
+    isPrivate: false,
+  })
 );
