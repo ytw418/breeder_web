@@ -1,4 +1,4 @@
-import { isMammalOnlyScope, scopeTermsFor, withBreederWord } from "@libs/shared/scopeTerms";
+import { isAuctionHref, isMammalOnlyScope, scopeTermsFor, withBreederWord } from "@libs/shared/scopeTerms";
 
 const pins = (...paths: string[]) => paths.map((path) => ({ path }));
 
@@ -13,6 +13,13 @@ describe("포유류 전용 범위(category-pin §15)", () => {
   it("포유류 전용이면 '집사'로 부르고 경매를 숨긴다", () => {
     expect(scopeTermsFor(pins("/mammal/cat/"))).toEqual({ mammalOnly: true, breeder: "집사", showAuctions: false });
     expect(scopeTermsFor(pins("/mammal/", "/fish/"))).toEqual({ mammalOnly: false, breeder: "브리더", showAuctions: true });
+  });
+
+  it("경매로 가는 배너 주소를 알아본다", () => {
+    expect(isAuctionHref("/auctions")).toBe(true);
+    expect(isAuctionHref("https://bredy.app/auctions/12")).toBe(true);
+    expect(isAuctionHref("/auction-tool")).toBe(true);
+    expect(isAuctionHref("/posts")).toBe(false);
   });
 
   it("정적 문구의 '브리더'를 바꾼다", () => {

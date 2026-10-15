@@ -39,3 +39,12 @@ export function scopeTermsFor(pins: readonly { path: string }[]): ScopeTerms {
 export function withBreederWord(text: string, word: BreederWord): string {
   return word === BREEDER_WORD ? text : text.split(BREEDER_WORD).join(word);
 }
+
+/**
+ * 경매로 가는 주소인지(경매 목록·상세·등록, 경매도구 소개). 포유류 전용이면 홈 배너에서 이런 배너를 뺀다(2026-10-15).
+ * 관리자가 bredy.app 전체 주소로 넣어도 같은 경로로 본다.
+ */
+export function isAuctionHref(href: string | null | undefined): boolean {
+  const path = (href ?? "").replace(/^https?:\/\/[^/]+/, "");
+  return /^\/auction(s|-tool)?(\/|\?|#|$)/.test(path);
+}
