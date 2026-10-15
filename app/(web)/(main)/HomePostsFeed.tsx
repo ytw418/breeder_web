@@ -1,6 +1,8 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import useScopeTerms from "@/hooks/useScopeTerms";
+import { withBreederWord } from "@libs/shared/scopeTerms";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import useSWRInfinite from "swr/infinite";
@@ -95,6 +97,7 @@ function SkeletonPostRow() {
  * useSearchParams 를 쓰므로 부모가 Suspense 로 감싼다.
  */
 export default function HomePostsFeed() {
+  const { breeder } = useScopeTerms();
   const [selectedCategory, setSelectedCategory] = useState("전체");
   const [selectedSort, setSelectedSort] = useState<SortType>("latest");
   const [selectedSpecies, setSelectedSpecies] = useState("전체");
@@ -378,7 +381,7 @@ export default function HomePostsFeed() {
                 href={content.href}
                 className="block border-b border-app-line px-4 py-3.5"
               >
-                <p className="text-[16px] font-medium text-app-text">{content.title}</p>
+                <p className="text-[16px] font-medium text-app-text">{withBreederWord(content.title, breeder)}</p>
                 <p className="mt-1 truncate text-[14px] text-app-muted">{content.description}</p>
                 <p className="mt-2 text-[13px] font-semibold text-app-brand">{content.cta}</p>
               </Link>

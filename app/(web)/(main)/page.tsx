@@ -1,6 +1,7 @@
 import React from "react";
 import MainClient from "./MainClient";
 import type { Metadata } from "next";
+import { SITE_OG_IMAGE } from "@libs/shared/ogImage";
 import { getHomeBanners, getHomeFeed } from "@libs/server/home";
 import { normalizeDeletedUserNames } from "@libs/shared/deletedUser";
 
@@ -17,7 +18,7 @@ export const metadata: Metadata = {
     type: "website",
     images: [
       {
-        url: "/opengraph-image",
+        url: SITE_OG_IMAGE,
         width: 1200,
         height: 630,
         alt: "브리디 - 브리더들의 SNS. 분양·거래·랭킹·무료경매·동네 브리더 찾기",
@@ -29,7 +30,7 @@ export const metadata: Metadata = {
     title: "브리디 | 곤충·파충류·물고기, 키우는 사람들이 모이는 곳",
     description:
       "곤충·파충류·물고기 키우는 사람들이 모이는 곳. 실시간 토론과 질문, 동네 브리더, 분양까지 브리디에서 한 번에.",
-    images: ["/opengraph-image"],
+    images: [SITE_OG_IMAGE],
   },
   alternates: {
     canonical: "https://bredy.app",

@@ -17,6 +17,7 @@ import {
 } from "@libs/client/pushPrompt";
 import { toast } from "@libs/client/toast";
 import { PUSH_SUBSCRIPTION_KEY, WebPushPermissionError, enableWebPush } from "@libs/client/webPush";
+import useNeedsCategoryOnboarding from "@/hooks/useNeedsCategoryOnboarding";
 import useUser from "hooks/useUser";
 
 const COPY: Record<PushPromptReason, { title: string; body: string; confirm: string }> = {
@@ -54,14 +55,17 @@ export default function PushPermissionPrompt() {
   const userId = user?.id;
   const [request, setRequest] = useState<PushPromptRequest | null>(null);
   const excluded = isWelcomeExcludedPath(pathname);
+  // 홈 첫 방문 관심 카테고리 팝업(CategoryOnboardingPrompt)이 뜰 수 있는 동안엔 기다렸다가 그 뒤에 권유한다.
+  const needsCategory = useNeedsCategoryOnboarding();
+  const waitCategory = pathname === "/" && needsCategory !== false;
 
   useEffect(() => subscribePushPrompt(setRequest), []);
 
   useEffect(() => {
-    if (!userId || excluded) return;
+    if (!userId || excluded || waitCategory) return;
     const timer = setTimeout(() => void promptPushOnWelcome(), WELCOME_DELAY_MS);
     return () => clearTimeout(timer);
-  }, [userId, excluded]);
+  }, [userId, excluded, waitCategory]);
 
   const handleConfirm = async () => {
     if (!request) return;

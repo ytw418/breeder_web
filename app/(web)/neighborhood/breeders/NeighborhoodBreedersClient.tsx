@@ -1,6 +1,8 @@
 "use client";
 /** 동네 브리더 전체 보기(앱 neighborhood/breeders.tsx): 캡션 → 동네 브리더 행(최대 50명). 동네 미설정이면 안내 카드. */
 import useSWR from "swr";
+import useScopeTerms from "@/hooks/useScopeTerms";
+import { withBreederWord } from "@libs/shared/scopeTerms";
 import Layout from "@components/features/MainLayout";
 import { QueryErrorState } from "@components/app/QueryErrorState";
 import {
@@ -16,18 +18,20 @@ import useUser from "hooks/useUser";
 import type { NearbyBreedersResponse } from "pages/api/users/nearby";
 
 export default function NeighborhoodBreedersClient() {
+  const { breeder } = useScopeTerms();
   const { user } = useUser();
   const region = regionOf(user);
   const { data, error, mutate } = useSWR<NearbyBreedersResponse>(
     region ? `/api/users/nearby?limit=${NEARBY_FULL_LIST_LIMIT}` : null
   );
-  const caption = nearbyCaption(data);
+  const rawCaption = nearbyCaption(data);
+  const caption = rawCaption && withBreederWord(rawCaption, breeder);
   return (
-    <Layout canGoBack title="동네 브리더" seoTitle="동네 브리더">
+    <Layout canGoBack title={`동네 ${breeder}`} seoTitle={`동네 ${breeder}`}>
       {!region ? (
         <RegionGateCard className="mt-4" />
       ) : error && !data ? (
-        <QueryErrorState title="동네 브리더를 불러오지 못했어요" onRetry={() => void mutate()} className="py-[60px]" />
+        <QueryErrorState title={`동네 ${breeder}를 불러오지 못했어요`} onRetry={() => void mutate()} className="py-[60px]" />
       ) : !data ? (
         <NearbyBreederSkeletonRows count={6} />
       ) : data.items.length === 0 ? (

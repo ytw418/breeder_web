@@ -7,6 +7,7 @@
  * 로그인 뒤 이동·주소 입력처럼 이 화면에서 문서가 시작됐으면 뒤로 가지 않고 `from`(연 곳)으로 바꾼다(2026-10-11).
  */
 import { useEffect, useState } from "react";
+import useScopeTerms from "@/hooks/useScopeTerms";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useSWRConfig } from "swr";
@@ -103,6 +104,7 @@ export default function RegionPicker({ sido, selected, from }: { sido?: string; 
 }
 
 function RegionSettings({ from }: { from?: string }) {
+  const { breeder } = useScopeTerms();
   const router = useRouter();
   const { user, mutate: mutateUser } = useUser();
   const { cache, mutate } = useSWRConfig();
@@ -295,10 +297,10 @@ function RegionSettings({ from }: { from?: string }) {
         <div className="mx-auto max-w-xl border-t border-app-line bg-app-bg px-4 pb-[calc(12px+env(safe-area-inset-bottom))]">
           <div className="flex min-h-14 items-center gap-3 py-2">
             <div className="min-w-0 flex-1">
-              <p className="text-[16px] font-medium text-app-text">동네 브리더에 나를 표시</p>
-              <p className="mt-0.5 text-[13px] text-app-muted">같은 동네 브리더에게 닉네임·동네가 보여요</p>
+              <p className="text-[16px] font-medium text-app-text">동네 {breeder}에 나를 표시</p>
+              <p className="mt-0.5 text-[13px] text-app-muted">같은 동네 {breeder}에게 닉네임·동네가 보여요</p>
             </div>
-            <Toggle checked={visible} disabled={Boolean(busy)} onChange={onToggle} label="동네 브리더에 나를 표시" />
+            <Toggle checked={visible} disabled={Boolean(busy)} onChange={onToggle} label={`동네 ${breeder}에 나를 표시`} />
           </div>
           <button
             type="button"
@@ -318,7 +320,7 @@ function RegionSettings({ from }: { from?: string }) {
       <ConfirmDialog
         open={clearOpen}
         title="내 동네 해제"
-        description="동네 글과 동네 브리더 목록에서 빠져요."
+        description={`동네 글과 동네 ${breeder} 목록에서 빠져요.`}
         confirmText="해제"
         tone="danger"
         onCancel={() => setClearOpen(false)}

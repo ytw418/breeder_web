@@ -1,5 +1,6 @@
 import GuinnessClient from "./GuinnessClient";
 import type { Metadata } from "next";
+import { SITE_OG_IMAGE } from "@libs/shared/ogImage";
 
 export const metadata: Metadata = {
   title: "브리디북 랭킹 | 브리디",
@@ -15,7 +16,7 @@ export const metadata: Metadata = {
     url: "https://bredy.app/guinness",
     images: [
       {
-        url: "/opengraph-image",
+        url: SITE_OG_IMAGE,
         width: 1200,
         height: 630,
         alt: "브리디북 랭킹 페이지",
@@ -26,7 +27,7 @@ export const metadata: Metadata = {
     card: "summary_large_image",
     title: "브리디북 랭킹 | 브리디",
     description: "브리디북 기록과 랭킹을 한눈에 확인하세요.",
-    images: ["/opengraph-image"],
+    images: [SITE_OG_IMAGE],
   },
 };
 

@@ -9,9 +9,10 @@ import {
 } from "@libs/shared/deletedUser";
 import { toPostPlainText } from "@libs/shared/post-body";
 import type { Metadata } from "next";
+import { SITE_OG_IMAGE } from "@libs/shared/ogImage";
 
 const SITE_URL = "https://bredy.app";
-const DEFAULT_POST_IMAGE = "/opengraph-image";
+const DEFAULT_POST_IMAGE = SITE_OG_IMAGE;
 
 const trimText = (value: string, length: number) => {
   const normalized = value.trim().replace(/<[^>]*>/g, "").replace(/\s+/g, " ");

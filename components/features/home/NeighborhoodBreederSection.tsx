@@ -10,6 +10,8 @@
  * 0명이면 §3.1 안내 카드, 비로그인·동네 미설정은 기존 안내 카드, 조회 오류면 숨긴다.
  */
 import Link from "next/link";
+import useScopeTerms from "@/hooks/useScopeTerms";
+import { withBreederWord } from "@libs/shared/scopeTerms";
 import useSWR from "swr";
 import { toLoginHref } from "@components/features/MainLayout";
 import WaveButton from "@components/features/chat/WaveButton";
@@ -195,9 +197,10 @@ const CHEVRON = (
 
 /** 제목 + 오른쪽 '전체 보기 ›'(동네가 정해졌을 때만). '지금 올라온 분양'과 같은 모양. */
 function SectionTitle({ showAll }: { showAll: boolean }) {
+  const { breeder } = useScopeTerms();
   return (
     <div className="flex items-end justify-between gap-3 px-4">
-      <h2 className="app-t-section">우리 동네 브리더</h2>
+      <h2 className="app-t-section">우리 동네 {breeder}</h2>
       {showAll ? (
         <Link
           href={NEIGHBORHOOD_ALL_HREF}
@@ -269,11 +272,12 @@ function NeighborCardView({ card, wavesLeftToday }: { card: NeighborCard; wavesL
 }
 
 export function NeighborhoodBreederSectionView({ state }: { state: HomeNeighborhoodState }) {
+  const { breeder, mammalOnly } = useScopeTerms();
   if (state.kind === "hidden") return null;
   const label = state.kind === "near" || state.kind === "none" ? state.label : null;
 
   return (
-    <section className="px-0 pt-6" aria-label="우리 동네 브리더" data-home-section="neighborhood_breeders">
+    <section className="px-0 pt-6" aria-label={`우리 동네 ${breeder}`} data-home-section="neighborhood_breeders">
       <SectionTitle showAll={Boolean(label)} />
       {state.kind === "none" ? <SubtitleRow label={state.label} /> : null}
 
@@ -287,9 +291,11 @@ export function NeighborhoodBreederSectionView({ state }: { state: HomeNeighborh
 
       {state.kind === "unset" ? (
         <div className="mx-4 mt-3 rounded-xl bg-app-gap p-4">
-          <p className="app-t-card">가까운 브리더를 만나 보세요</p>
+          <p className="app-t-card">가까운 {breeder}를 만나 보세요</p>
           <p className="app-t-meta mt-1 break-keep">
-            곤충·파충류·물고기는 직거래가 생물에게 덜 힘들어요. 내 동네를 고르면 근처 {NEIGHBOR_RADIUS_KM}km 브리더가 보여요.
+            {/* 포유류만 고정했으면 곤충·파충류 안내는 빼고 동네 안내만 둔다(category-pin §15). */}
+            {mammalOnly ? null : "곤충·파충류·물고기는 직거래가 생물에게 덜 힘들어요. "}내 동네를 고르면 근처 {NEIGHBOR_RADIUS_KM}km {breeder}가
+            보여요.
           </p>
           <div className="mt-3 flex">
             <Link
@@ -304,9 +310,9 @@ export function NeighborhoodBreederSectionView({ state }: { state: HomeNeighborh
 
       {state.kind === "none" ? (
         <div className="mx-4 mt-3 rounded-xl bg-app-brand-soft p-4" data-testid="neighborhood-empty">
-          <p className="app-t-card break-keep">{neighborhoodEmptyCopy(state.label, state.visitors).title}</p>
+          <p className="app-t-card break-keep">{withBreederWord(neighborhoodEmptyCopy(state.label, state.visitors).title, breeder)}</p>
           <p className="mt-1 break-keep text-[13px] leading-[18px] text-app-brand-text-soft">
-            {neighborhoodEmptyCopy(state.label, state.visitors).body}
+            {withBreederWord(neighborhoodEmptyCopy(state.label, state.visitors).body, breeder)}
           </p>
           <div className="mt-3 flex">
             <Link href={GREET_HREF} className={cn(BUTTON, DARK)}>
@@ -320,7 +326,7 @@ export function NeighborhoodBreederSectionView({ state }: { state: HomeNeighborh
       {state.kind === "near" ? (
         <>
           <SubtitleRow label={state.label}>
-            {labelBase(state.label)} 근처 브리더{" "}
+            {labelBase(state.label)} 근처 {breeder}{" "}
             <em className="font-semibold not-italic text-app-brand">{state.total}명</em>
             {state.greetingCount > 0 ? ` · 이번 주 인사 글 ${state.greetingCount}개` : null}
           </SubtitleRow>

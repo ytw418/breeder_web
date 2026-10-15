@@ -8,9 +8,10 @@ import {
 } from "@libs/shared/deletedUser";
 import ProductClient from "./ProductClient";
 import Script from "next/script";
+import { SITE_OG_IMAGE } from "@libs/shared/ogImage";
 
 const CLOUDFLARE_IMAGE_BASE = "https://imagedelivery.net/OvWZrAz6J6K7n9LKUH5pKw";
-const DEFAULT_OG_IMAGE = "/opengraph-image";
+const DEFAULT_OG_IMAGE = SITE_OG_IMAGE;
 
 const toPublicImageUrl = (imageId: string | null | undefined) => {
   if (!imageId) return DEFAULT_OG_IMAGE;

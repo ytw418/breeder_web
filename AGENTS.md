@@ -22,7 +22,7 @@
 ## 앱·웹 동시 개발 규칙 (MANDATORY — 2026-10-09)
 웹과 앱(bredy_app, Expo)은 화면·기능을 **항상 같이** 바꾼다. 웹에서 시작한 화면 변경은 앱까지, 앱에서 시작한 변경은 웹까지 바꾼다. 기준표는 bredy_app `docs/parity/README.md`(GitHub `ytw418/bredy_app`, 로컬 `~/Desktop/pro/bredy_app`)다. 원칙·판단 순서·플랫폼 대응표·앱 전용/웹 전용 목록·현재 부채가 거기 있다.
 - 예외는 웹에만 있는 것(web-only: 관리자 `/admin`, SEO·OG·랜딩, PWA, 웹 OAuth 처리, 개발용 화면)과 기기에서만 되는 것(app-only: 네이티브 푸시·OS 설정·광고·햅틱)뿐이다.
-- 같은 의도를 플랫폼에 맞게 다르게 구현하는 것은 both 다. 예) 관심 카테고리 온보딩은 앱은 설치 후 첫 실행, 웹은 첫 로그인 직후에 띄운다(대응표 O-1).
+- 같은 의도를 플랫폼에 맞게 다르게 구현하는 것은 both 다. 예) 관심 카테고리 온보딩은 앱은 설치 후 첫 실행, 웹은 첫 로그인 직후와 홈 첫 방문 팝업으로 띄운다(대응표 O-1). 관심 카테고리를 포유류 아래로만 고정한 사람에겐 '브리더' 대신 '집사', 경매 탭·홈 경매 카드를 숨긴다(2026-10-14, 앱 `docs/prd/category-pin.md` §15, 규칙 `libs/shared/scopeTerms.ts`).
 - 디자인 원본은 앱 저장소의 채택 시안(`design/mockups/*`)과 PRD(`docs/prd/*`)다. 웹도 색·간격·문구를 그대로 따른다.
 - API 만 바꾸는 서버 작업은 대상이 아니다. 화면 코드(`app/` 중 api·admin 제외, `components`, `hooks`, `libs/client`, `styles`)를 커밋할 때 트레일러를 단다: `Parity: both — <앱 커밋·브랜치>` 또는 `Parity: web-only — <이유>`. 앱을 미뤄야 하면 답변에 `Parity: pending — <이유>`를 적고 기준표 §7 에 올린다.
 - 훅 `.claude/hooks/parity-guard.py`(bredy_app 사본과 같은 내용)가 강제한다. 커밋 게이트는 트레일러 없는 화면 코드 커밋을 막고, Stop 점검은 한쪽만 고친 세션을 되돌려 보낸다. 바꿀 때는 두 사본을 같이 고치고 `python3 .claude/hooks/parity-guard_test.py`를 돌린다.

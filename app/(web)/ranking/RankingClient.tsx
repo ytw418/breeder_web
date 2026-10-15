@@ -1,6 +1,8 @@
 "use client";
 
 import Link from "next/link";
+import useScopeTerms from "@/hooks/useScopeTerms";
+import { withBreederWord } from "@libs/shared/scopeTerms";
 import { useEffect, useMemo, useRef } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import useSWR from "swr";
@@ -219,7 +221,8 @@ const RankingClient = () => {
     getSubcategories,
     TOP_LEVEL_NAMES
   );
-  const typeLabel = RANKING_TYPES.find((t) => t.id === type)?.label ?? "";
+  const { breeder } = useScopeTerms();
+  const typeLabel = withBreederWord(RANKING_TYPES.find((t) => t.id === type)?.label ?? "", breeder);
   // 홈 '내 순위 ›'(/ranking?focus=me): 브리더 랭킹에서 내 행으로 스크롤해 강조한다(community-vibe F-13).
   const focusMe = searchParams?.get("focus") === "me";
   const { user } = useUser();
@@ -331,7 +334,7 @@ const RankingClient = () => {
   } else if (items.length === 0) {
     list = (
       <div className="flex flex-col items-center px-4 py-14 text-center">
-        <p className="text-[16px] font-semibold text-app-text">{rankingEmptyTitle(type, period, speciesValue ?? null)}</p>
+        <p className="text-[16px] font-semibold text-app-text">{withBreederWord(rankingEmptyTitle(type, period, speciesValue ?? null), breeder)}</p>
         {sub ? (
           <p className="mt-1.5 text-[13px] text-app-muted">소분류를 고르지 않은 글은 대분류에서만 세요</p>
         ) : null}
@@ -420,7 +423,7 @@ const RankingClient = () => {
                   selected ? "font-bold text-app-text" : "font-medium text-app-muted"
                 )}
               >
-                {tab.label}
+                {withBreederWord(tab.label, breeder)}
                 {selected ? <span className="absolute inset-x-3 bottom-0 h-0.5 rounded-full bg-app-text" /> : null}
               </button>
             );

@@ -14,8 +14,10 @@ import { withoutBlocked } from "@libs/shared/blockFilter";
 import useUser from "hooks/useUser";
 import useBlocks from "hooks/useBlocks";
 import useCategoryScope, { withCategoryPath } from "hooks/useCategoryScope";
+import useScopeTerms from "@/hooks/useScopeTerms";
 import useSectionImpressions from "hooks/useSectionImpressions";
 import CategoryScopeBar from "@components/features/category/CategoryScopeBar";
+import CategoryOnboardingPrompt from "@components/features/category/CategoryOnboardingPrompt";
 import NeighborhoodBreederSection from "@components/features/home/NeighborhoodBreederSection";
 import ProductPhotoRail, { type RailProduct } from "@components/features/home/ProductPhotoRail";
 import TopBreederRankCard from "@components/features/home/TopBreederRankCard";
@@ -101,6 +103,8 @@ const MainClient = ({
   const { blockedIds } = useBlocks();
   // 관심 카테고리 고정 범위(앱 category-pin). 실시간 토론·분양 레일·TOP 브리더·게시글이 같은 범위를 쓴다.
   const scope = useCategoryScope();
+  // 포유류만 고정했으면 '브리더' 대신 '집사'로 부른다(앱 docs/prd/category-pin.md §15).
+  const { breeder } = useScopeTerms();
   const [activeBannerIndex, setActiveBannerIndex] = useState(0);
   const [showPostLoginGuide, setShowPostLoginGuide] = useState(false);
   const [deferredInstallPrompt, setDeferredInstallPrompt] =
@@ -288,6 +292,8 @@ const MainClient = ({
     <div ref={homeRootRef} className="flex h-full flex-col bg-app-bg pb-20">
       {/* 현재 관심 분야(고정 범위). 온보딩을 마치면 숨는다. 칩이 헤더 바로 아래 붙도록 이 줄은 고정하지 않는다. */}
       <CategoryScopeBar />
+      {/* 관심 분야를 고른 기록이 계정·브라우저 어디에도 없으면 홈 위에 선택 시트를 띄운다(비로그인 포함). */}
+      <CategoryOnboardingPrompt />
 
       {/* 1~2. 공지 · 실시간 TOP 토론 · 답 기다려요(옛 반려생활 위쪽) */}
       <HomeCommunityTop />
@@ -302,7 +308,7 @@ const MainClient = ({
       {showTopBreeder ? (
         <section className="pt-6" data-home-section="hero_breeder">
           <SectionHeader
-            title={heroBreederPeriod === "weekly" ? "이번 주 TOP 브리더" : "TOP 브리더"}
+            title={heroBreederPeriod === "weekly" ? `이번 주 TOP ${breeder}` : `TOP ${breeder}`}
             href={toRankingHref("breeders", heroBreederPeriod)}
             actionLabel="전체 랭킹 보기"
           />
