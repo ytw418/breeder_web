@@ -92,6 +92,7 @@ jest.mock("@libs/server/growth", () => ({
 }));
 
 import { getHotDiscussions } from "@libs/server/ranking";
+import { RANKABLE_USER_WHERE } from "@libs/server/rankableUser";
 
 const ids = (items: Array<{ id: number }>) => items.map((item) => item.id);
 
@@ -123,7 +124,8 @@ describe("getHotDiscussions 기간 제한", () => {
     const where = mockClient.post.findMany.mock.calls[0][0].where;
     expect(where.createdAt?.gte.getTime()).toBe(NOW.getTime() - 7 * DAY);
     expect(where.category).toEqual({ in: ["질문", "자유", "정보"] });
-    expect(where.user).toEqual({ status: "ACTIVE" });
+    // 운영 계정(크루·관리자·테스트)은 HOT 에서 뺀다(10-16)
+    expect(where.user).toEqual(RANKABLE_USER_WHERE);
   });
 
   it("7일 안에 3개 미만이면 30일 글로 남은 자리를 채운다(최근 글이 먼저)", async () => {
