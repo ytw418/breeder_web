@@ -213,7 +213,10 @@ function CheckboxRow({
 
 const AuctionDetailClient = ({
   initialAuction,
+  footer,
 }: {
+  /** 맨 아래 '더 둘러보기'(서버가 그린 비슷한 경매·인기 글·바로가기). */
+  footer?: React.ReactNode;
   /**
    * 서버(ISR 캐시)가 그린 경매. 제목·사진·설명처럼 잘 안 바뀌는 내용만 이 값으로 먼저 그린다.
    * 진행 중 경매의 현재가·입찰 내역·입찰 바는 이 브라우저가 받은 응답으로만 그린다(서버가 입찰 내역을 비워 보낸다).
@@ -910,6 +913,7 @@ const AuctionDetailClient = ({
             </div>
           </>
         ) : null}
+        {footer}
       </div>
 
       {/* 하단 고정 입찰 바 */}

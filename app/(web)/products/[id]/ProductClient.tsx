@@ -91,7 +91,14 @@ function ImagePlaceholderIcon({ className }: { className: string }) {
  * 판매자 행, 혈통 행(붙인 혈통이 있을 때), "조회 N · 찜 N", 소유자 관리 블록, 하단 고정 바(찜·가격·채팅하기), 연관 상품.
  * SSR 은 비로그인 조회라 삭제·숨김 상품은 product 없이 오고, 소유자 토큰으로 다시 받아 안내만 보인다.
  */
-const ProductClient = ({ product: initialProduct, relatedProducts: initialRelated }: ItemDetailResponse) => {
+const ProductClient = ({
+  product: initialProduct,
+  relatedProducts: initialRelated,
+  footer,
+}: ItemDetailResponse & {
+  /** '비슷한 분양' 아래 '더 둘러보기'(서버가 그린 인기 글·광고·바로가기). */
+  footer?: React.ReactNode;
+}) => {
   const router = useRouter();
   const params = useParams();
   const productId = extractProductId(params?.id as string);
@@ -734,6 +741,7 @@ const ProductClient = ({ product: initialProduct, relatedProducts: initialRelate
                 </div>
               </section>
             ) : null}
+            {footer}
           </div>
 
           {/* 하단 고정 바: 찜 · 가격 · 채팅하기(판매자는 ⋮ 시트나 본문 관리 블록을 쓴다) */}

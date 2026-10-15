@@ -16,6 +16,8 @@ import {
   toPublicImageUrl as toSeoImageUrl,
 } from "@libs/shared/seo";
 import { dealTypeLabel, productStatusLabel } from "@libs/shared/productTerms";
+import ExploreMore from "@components/app/ExploreMore";
+import { getExploreMore } from "@libs/server/exploreMore";
 
 const DEFAULT_OG_IMAGE = SITE_OG_IMAGE;
 const toPublicImageUrl = (imageId: string | null | undefined) =>
@@ -204,6 +206,11 @@ export default async function ProductPage({ params }: Props) {
       ? data.product.photos.map((photo: string) => toPublicImageUrl(photo))
       : [DEFAULT_OG_IMAGE];
   const jsonLd = generateJsonLd(data.product, structuredImageUrls);
+  // 비슷한 분양은 화면의 2열 그리드(API relatedProducts)가 그린다. 여기선 인기 글·광고·바로가기만.
+  const explore = await getExploreMore(
+    { kind: "product", id: data.product.id, category: data.product.category },
+    { includeSimilar: false }
+  );
   const breadcrumbJsonLd = generateBreadcrumbJsonLd(data.product);
 
   return (
@@ -214,6 +221,7 @@ export default async function ProductPage({ params }: Props) {
         product={normalizeDeletedUserNames(data.product)}
         relatedProducts={normalizeDeletedUserNames(data.relatedProducts)}
         success={data.success}
+        footer={<ExploreMore data={explore} similarTitle="비슷한 분양" />}
       />
     </>
   );

@@ -116,7 +116,7 @@ const page = async ({ params }: Props) => {
   return (
     <>
       {isPublicProfile(user) ? <JsonLd id="profile-jsonld" data={generateProfileJsonLd(user)} /> : null}
-      <ProfileClient />
+      <ProfileClient initialName={isPublicProfile(user) ? user.name : undefined} />
     </>
   );
 };
