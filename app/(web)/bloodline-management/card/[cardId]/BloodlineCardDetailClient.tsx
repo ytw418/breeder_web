@@ -167,9 +167,9 @@ function DetailHero({ hero, editHref }: { hero: BloodlineCardItem; editHref?: st
         )}
       </div>
       <div className="px-4 pb-5 pt-4">
-        <h2 className="break-words text-[20px] font-bold leading-[28px] tracking-[-0.4px] text-app-text">
+        <h1 className="break-words text-[20px] font-bold leading-[28px] tracking-[-0.4px] text-app-text">
           {hero.name}
-        </h2>
+        </h1>
         <p className="mt-1 text-[15px] leading-5 text-app-muted">{speciesOrigin}</p>
         <p className="mt-0.5 text-[14px] leading-5 text-app-muted">{createdBy}</p>
         {description ? (
@@ -312,7 +312,17 @@ function NameVisibleSwitch({
   );
 }
 
-export default function BloodlineCardDetailClient({ cardId }: { cardId: number }) {
+export default function BloodlineCardDetailClient({
+  cardId,
+  footer,
+}: {
+  cardId: number;
+  /**
+   * 맨 아래 '더 둘러보기'(서버가 그린 같은 종 분양글·인기 글·바로가기). 본문은 화면에서 받지만 이 링크는
+   * 로딩 중 HTML 에도 넣어 검색엔진이 따라가게 한다.
+   */
+  footer?: React.ReactNode;
+}) {
   const { user } = useUser();
   const router = useRouter();
   const pathname = usePathname();
@@ -703,6 +713,7 @@ export default function BloodlineCardDetailClient({ cardId }: { cardId: number }
         <div className="flex min-h-[60vh] items-center justify-center">
           <BloodlineSpinner />
         </div>
+        {footer}
       </Layout>
     );
   }
@@ -741,6 +752,7 @@ export default function BloodlineCardDetailClient({ cardId }: { cardId: number }
             </p>
           )}
         </div>
+        {footer}
         {!isWaitingForSync ? (
           <BloodlineBottomBar>
             <BloodlinePrimaryButton href="/bloodline-management">혈통관리로 이동</BloodlinePrimaryButton>
@@ -985,6 +997,8 @@ export default function BloodlineCardDetailClient({ cardId }: { cardId: number }
 
         <div className="h-8" />
       </form>
+
+      {footer}
 
       {showActionBar || activeAction !== null ? <BloodlineBottomBarSpacer /> : null}
 

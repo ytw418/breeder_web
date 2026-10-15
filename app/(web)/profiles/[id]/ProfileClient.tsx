@@ -60,7 +60,12 @@ import type { UserBloodlineCardsResponse } from "pages/api/users/[id]/bloodline-
 const isDeletedUser = (name?: string | null) =>
   Boolean(name) && (name === DELETED_USER_LABEL || isDeletedUserName(name));
 
-const ProfileClient = () => {
+const ProfileClient = ({
+  initialName,
+}: {
+  /** 서버가 아는 이름. 화면이 사용자 정보를 받기 전에도 헤더 제목(h1)이 비지 않게 한다(검색 최적화). */
+  initialName?: string;
+} = {}) => {
   const router = useRouter();
   const params = useParams();
   const rawId = params?.id;
@@ -284,7 +289,7 @@ const ProfileClient = () => {
   }
 
   return (
-    <MainLayout headerVariant="profile" title={user?.name} headerRight={headerRight} hasTabBar>
+    <MainLayout headerVariant="profile" title={user?.name ?? initialName} headerRight={headerRight} hasTabBar>
       {body}
       <ActionSheet open={sheetOpen} onClose={() => setSheetOpen(false)} actions={sheetActions} />
       <ProfilePinSheet post={pinTarget} onClose={() => setPinTarget(null)} />

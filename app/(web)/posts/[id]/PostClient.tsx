@@ -6,7 +6,7 @@ import { useParams, useRouter, useSearchParams } from "next/navigation";
 import useSWR, { useSWRConfig } from "swr";
 import { useMarkSeenOnView } from "@libs/client/unreadMarks";
 
-import Layout, { HeaderHomeButton, toLoginHref } from "@components/features/MainLayout";
+import Layout, { HeaderHomeButton, HeaderMenuButton, toLoginHref } from "@components/features/MainLayout";
 import ConfirmDialog from "@components/atoms/ConfirmDialog";
 import { ActionSheet, type ActionSheetAction } from "@components/app/ActionSheet";
 import { ReportSheet } from "@components/app/moderation/ReportSheet";
@@ -90,9 +90,10 @@ function PostDetailHeader({
             <path d="M14.5 5L8 12l6.5 7" strokeWidth={1.5} strokeLinecap="round" strokeLinejoin="round" />
           </svg>
         </button>
-        <h1 className="min-w-0 shrink truncate text-[18px] font-bold tracking-[-0.3px] text-app-text">
+        {/* 카테고리 이름이라 제목 태그가 아니다. 글 제목이 h1(검색 최적화). */}
+        <p className="min-w-0 shrink truncate text-[18px] font-bold tracking-[-0.3px] text-app-text">
           {title}
-        </h1>
+        </p>
         <div className="flex-1" />
         {/* 홈 아이콘을 오른쪽 액션 맨 앞에(뒤로가기보다 중요, 2026-10-12 사용자). */}
         <div className="-mr-1.5 flex shrink-0 items-center gap-0.5">
@@ -107,6 +108,7 @@ function PostDetailHeader({
               <MoreIcon />
             </button>
           ) : null}
+          <HeaderMenuButton />
         </div>
       </div>
     </header>
@@ -185,7 +187,11 @@ const PostClient = ({
   prevNotice: initialPrevNotice,
   nextNotice: initialNextNotice,
   debate: initialDebate,
-}: PostDetailResponse) => {
+  footer,
+}: PostDetailResponse & {
+  /** 맨 아래 '더 둘러보기'(서버가 그린 비슷한 글·인기 글·바로가기). */
+  footer?: React.ReactNode;
+}) => {
   const params = useParams();
   const postId = extractPostIdFromPath(params?.id);
   const postApiId = Number.isNaN(postId) ? null : postId;
@@ -682,6 +688,7 @@ const PostClient = ({
           hiddenNotice={post.isHidden ? <HiddenContentNotice targetType="POST" className="mx-4 mt-3" /> : null}
           initialDebate={debate}
           live={live}
+          footer={footer}
           viewerId={user?.id ?? null}
           onLogin={goLogin}
           onReport={(commentId) => openReport({ type: "COMMENT", id: commentId })}
@@ -737,9 +744,9 @@ const PostClient = ({
 
           {/* 본문 */}
           <div className="flex flex-col gap-2 px-4 pb-3">
-            <h2 className="break-keep text-[18px] font-bold leading-[26px] text-app-text">
+            <h1 className="break-keep text-[18px] font-bold leading-[26px] text-app-text">
               {post.title}
-            </h2>
+            </h1>
             {/* 글과 사진(최대 10장)을 쓴 자리 그대로. 사진을 누르면 크게 보기 */}
             <PostBody
               description={post.description}
@@ -804,7 +811,7 @@ const PostClient = ({
           {/* 댓글 */}
           <div className="h-2 bg-app-gap" />
           <div className="px-4 pb-1 pt-4">
-            <h3 className="text-[16px] font-bold text-app-text">{live ? `댓글 ${commentCount}` : "댓글"}</h3>
+            <h2 className="text-[16px] font-bold text-app-text">{live ? `댓글 ${commentCount}` : "댓글"}</h2>
           </div>
           <div className="px-4">
             {!live ? (
@@ -852,6 +859,7 @@ const PostClient = ({
               </p>
             )}
           </div>
+          {footer}
         </div>
 
         {/* 입력바: pill 44 surface + 32 주황 원형 전송 */}

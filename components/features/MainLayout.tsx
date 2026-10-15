@@ -3,7 +3,7 @@
 import { useNotificationsSeenAt } from "@libs/client/notificationSeen";
 import { showNotificationDot } from "@libs/shared/notificationSeen";
 import Link from "next/link";
-import React, { useEffect, useState } from "react";
+import React, { createContext, useContext, useEffect, useState } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import Image from "@components/atoms/Image";
 import ConfirmDialog from "@components/atoms/ConfirmDialog";
@@ -552,8 +552,6 @@ export function NotificationBell({ dot }: { dot: boolean }) {
 /* 레이아웃                                                             */
 /* ------------------------------------------------------------------ */
 
-/** 탭바 홈과 같은 라인 집 아이콘. */
-const HOME_LINE_ICON = "M3 11 12 3l9 8v10h-6v-6H9v6H3z";
 
 /** 헤더 왼쪽 브리디 로고 26(누르면 홈). wordmark 면 옆에 '브리디' 18/700. */
 function BrandHomeLink({ wordmark = false, className }: { wordmark?: boolean; className?: string }) {
@@ -570,13 +568,45 @@ function BrandHomeLink({ wordmark = false, className }: { wordmark?: boolean; cl
   );
 }
 
-/** 상세 화면 오른쪽 액션 줄 맨 앞에 두는 홈 아이콘(24 라인, 40 터치 영역). 뒤로가기보다 중요해 늘 보인다. */
-export function HeaderHomeButton() {
+/** 화면이 그리는 자체 헤더(게시글·혈통 상세)에서도 사이드 메뉴를 열 수 있게 MainLayout 이 넘긴다. */
+const SideMenuContext = createContext<(() => void) | null>(null);
+
+/**
+ * 햄버거 메뉴 버튼. 상세 화면은 오른쪽 액션(⋯ 등) 뒤에 늘 둔다 — 링크로 들어온 사람이 다른 메뉴로 갈 길(2026-10-16 사용자).
+ * MainLayout 밖이면 그리지 않는다.
+ */
+export function HeaderMenuButton() {
+  const openMenu = useContext(SideMenuContext);
+  if (!openMenu) return null;
   return (
-    <HeaderIconButton label="홈으로 가기" href="/" className="h-10 w-10">
-      <StrokeIcon d={HOME_LINE_ICON} strokeWidth={1.5} />
+    <HeaderIconButton label="메뉴" onClick={openMenu} className="h-10 w-10">
+      <StrokeIcon d={ICON.menu} />
     </HeaderIconButton>
   );
+}
+
+/**
+ * 상세 화면 오른쪽 액션 줄 맨 앞의 홈 버튼. 집 아이콘 대신 브리디 로고(24)를 둔다 — 검색·공유 링크로 상세에
+ * 바로 들어온 사람이 어느 서비스인지 알아보게(2026-10-16 사용자). 누르면 홈.
+ */
+export function HeaderHomeButton() {
+  return (
+    <HeaderIconButton label="브리디 홈으로 가기" href="/" className="h-10 w-10">
+      <Image src={logo} alt="" width={24} height={24} className="h-6 w-6 rounded-md" />
+    </HeaderIconButton>
+  );
+}
+
+function HeaderTitle({
+  as: Tag,
+  className,
+  children,
+}: {
+  as: "h1" | "p";
+  className?: string;
+  children: React.ReactNode;
+}) {
+  return <Tag className={className}>{children}</Tag>;
 }
 
 export default function MainLayout({
@@ -666,6 +696,7 @@ export default function MainLayout({
   };
 
   const closeMenu = React.useCallback(() => setMenuOpen(false), []);
+  const openSideMenu = React.useCallback(() => setMenuOpen(true), []);
   const scrolled = useScrolled();
   const isHomeRoot = pathname === "/";
 
@@ -739,7 +770,14 @@ export default function MainLayout({
               {!isToolPath ? (
                 <div className="absolute right-2 flex items-center gap-0.5">
                   {homeAction ? <HeaderHomeButton /> : null}
-                  {headerRight ?? defaultRight}
+                  {headerRight ? (
+                    <>
+                      {headerRight}
+                      {homeAction ? <HeaderMenuButton /> : null}
+                    </>
+                  ) : (
+                    defaultRight
+                  )}
                 </div>
               ) : null}
             </>
@@ -767,19 +805,21 @@ export default function MainLayout({
             <div className="absolute right-2 flex items-center gap-0.5">{headerRight}</div>
           ) : null}
           {title && !(icon && !isToolPath) ? (
-            <h1
+            // 상세(homeAction)는 본문 제목이 h1 이라 헤더 제목은 글자로만 둔다(한 페이지에 h1 하나, 검색 최적화).
+            <HeaderTitle
+              as={homeAction ? "p" : "h1"}
               className={cn(
                 "truncate text-[16px] font-semibold tracking-[-0.02em] text-app-text",
                 // 오른쪽 아이콘이 늘면(홈 + 벨 + 메뉴) 가운데 제목 폭을 그만큼 줄여 겹치지 않게 한다.
                 !homeAction
                   ? "max-w-[55%]"
                   : headerRight
-                    ? "max-w-[calc(100%-200px)]"
+                    ? "max-w-[calc(100%-244px)]"
                     : "max-w-[calc(100%-272px)]"
               )}
             >
               {title}
-            </h1>
+            </HeaderTitle>
           ) : null}
         </div>
       </header>
@@ -787,6 +827,7 @@ export default function MainLayout({
   };
 
   return (
+    <SideMenuContext.Provider value={openSideMenu}>
     <div className="relative min-h-screen bg-app-bg">
       {renderHeader()}
 
@@ -860,5 +901,6 @@ export default function MainLayout({
         </nav>
       ) : null}
     </div>
+    </SideMenuContext.Provider>
   );
 }

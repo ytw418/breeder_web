@@ -56,10 +56,28 @@ const NEAR_BOTTOM_PX = 160;
 const FRESH_MS = 1200;
 const COMPOSER_MAX_HEIGHT = 112;
 
-const isNearBottom = () =>
-  window.innerHeight + window.scrollY >= document.documentElement.scrollHeight - NEAR_BOTTOM_PX;
-const scrollToBottom = (smooth = true) =>
-  window.scrollTo({ top: document.documentElement.scrollHeight, behavior: smooth ? "smooth" : "auto" });
+/** 라이브 댓글 끝 표시. 그 아래에 '더 둘러보기'가 붙어 페이지 끝이 아니라 이 자리를 '맨 아래'로 본다. */
+const LIVE_END_ID = "debate-live-end";
+/** 하단 고정 입력바 높이(대략). 댓글 끝이 입력바 바로 위에 오게 스크롤한다. */
+const COMPOSER_BAR_PX = 88;
+const liveEndTop = () => document.getElementById(LIVE_END_ID)?.getBoundingClientRect().top ?? null;
+const isNearBottom = () => {
+  const top = liveEndTop();
+  if (top === null) {
+    return window.innerHeight + window.scrollY >= document.documentElement.scrollHeight - NEAR_BOTTOM_PX;
+  }
+  return top <= window.innerHeight - COMPOSER_BAR_PX + NEAR_BOTTOM_PX;
+};
+const scrollToBottom = (smooth = true) => {
+  const top = liveEndTop();
+  window.scrollTo({
+    top:
+      top === null
+        ? document.documentElement.scrollHeight
+        : Math.max(0, window.scrollY + top - (window.innerHeight - COMPOSER_BAR_PX)),
+    behavior: smooth ? "smooth" : "auto",
+  });
+};
 const isCoarsePointer = () =>
   typeof window !== "undefined" && window.matchMedia?.("(pointer: coarse)").matches;
 
@@ -81,6 +99,7 @@ export default function DebateDetail({
   post,
   hiddenNotice,
   initialDebate,
+  footer,
   live: summaryReady = true,
   viewerId,
   onLogin,
@@ -91,6 +110,8 @@ export default function DebateDetail({
   /** 운영 숨김(신고 누적 자동 가림 포함)이면 작성자·관리자에게 위 블록 위에 안내. */
   hiddenNotice?: React.ReactNode;
   initialDebate: DebateSummary;
+  /** 라이브 댓글 아래 '더 둘러보기'(서버가 그린 링크 묶음). */
+  footer?: React.ReactNode;
   /**
    * 이 브라우저가 글 응답을 받았는지. 받기 전(ISR 캐시 HTML)에는 투표 결과·참여 수를 그리지 않는다
    * — 캐시된 값은 최대 60초 전이고 내 선택(mySide)도 없다.
@@ -292,7 +313,7 @@ export default function DebateDetail({
             ) : null}
             <span className="ml-auto text-[13px] text-app-muted">{remainingLabel(summary.endsAt)}</span>
           </div>
-          <h2 className="mt-2.5 break-keep text-[20px] font-bold leading-7 tracking-[-0.4px] text-app-text">{post.title}</h2>
+          <h1 className="mt-2.5 break-keep text-[20px] font-bold leading-7 tracking-[-0.4px] text-app-text">{post.title}</h1>
           <div className="mt-1.5 flex min-h-6 items-center gap-1.5 text-[13px] text-app-muted">
             {post.user ? (
               <AuthorLink user={post.user} avatarSize={20} className="gap-1.5" nameClassName="text-[13px] font-semibold text-app-text" />
@@ -356,9 +377,9 @@ export default function DebateDetail({
               aria-hidden="true"
             />
           ) : null}
-          <h3 className="text-[16px] font-bold leading-[22px] text-app-text">
+          <h2 className="text-[16px] font-bold leading-[22px] text-app-text">
             {open ? "라이브 댓글" : "댓글"} {commentTotal > 0 ? commentTotal.toLocaleString() : ""}
-          </h3>
+          </h2>
           <span className="ml-auto text-[13px] text-app-muted">
             {open
               ? lastCommentAt
@@ -410,6 +431,8 @@ export default function DebateDetail({
             })
           )}
         </div>
+        <div id={LIVE_END_ID} />
+        {footer}
       </div>
 
       {/* '새 댓글 N개 ↓' */}

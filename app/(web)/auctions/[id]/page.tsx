@@ -7,6 +7,8 @@ import { displayUserName } from "@libs/shared/deletedUser";
 import JsonLd from "@components/atoms/JsonLd";
 import { getAuction } from "@libs/server/apis";
 import type { AuctionDetailResponse } from "pages/api/auctions/[id]";
+import ExploreMore from "@components/app/ExploreMore";
+import { getExploreMore } from "@libs/server/exploreMore";
 import {
   extractAuctionIdFromPath,
   toAuctionPath,
@@ -259,13 +261,17 @@ const page = async ({ params }: Props) => {
   // 내 경매 여부·연락처·현재가 같은 값은 화면이 붙자마자 SWR 이 다시 받는다.
   const initialData = await getAuction(String(auctionId), { revalidateSeconds: revalidate });
   const auctionJsonLd = generateAuctionJsonLd(auction);
+  const explore = await getExploreMore({ kind: "auction", id: auction.id, category: auction.category });
   const breadcrumbJsonLd = generateBreadcrumbJsonLd(auction);
 
   return (
     <>
       <JsonLd id="auction-jsonld" data={auctionJsonLd} />
       <JsonLd id="auction-breadcrumb-jsonld" data={breadcrumbJsonLd} />
-      <AuctionDetailClient initialAuction={toCacheableAuction(initialData.auction)} />
+      <AuctionDetailClient
+        initialAuction={toCacheableAuction(initialData.auction)}
+        footer={<ExploreMore data={explore} similarTitle="진행 중인 비슷한 경매" />}
+      />
     </>
   );
 };

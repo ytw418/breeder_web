@@ -1,4 +1,7 @@
+import { Suspense } from "react";
 import { notFound } from "next/navigation";
+import Layout from "@components/features/MainLayout";
+import { BloodlineHeader, BloodlineSpinner } from "@components/features/bloodline/BloodlineScreenParts";
 import type { Metadata } from "next";
 import {
   BLOODLINE_OG_DEFAULT_DESCRIPTION,
@@ -11,6 +14,14 @@ import {
   type BloodlineOgPayload,
 } from "@libs/server/bloodline-og";
 import BloodlineCardDetailClient from "./BloodlineCardDetailClient";
+import ExploreMore from "@components/app/ExploreMore";
+import { getExploreMore } from "@libs/server/exploreMore";
+
+/**
+ * 다른 상세와 같이 요청 시 ISR(60초). 본문은 화면이 받고, 서버는 메타·'더 둘러보기' 링크만 만든다.
+ */
+export const revalidate = 60;
+export const generateStaticParams = async () => [];
 
 type Params = {
   cardId: string;
@@ -88,5 +99,34 @@ export default async function BloodlineCardDetailPage({ params }: Props) {
     notFound();
   }
 
-  return <BloodlineCardDetailClient cardId={parsedCardId} />;
+  let payload: BloodlineOgPayload | null = null;
+  try {
+    payload = await loadBloodlineOgPayload(parsedCardId);
+  } catch {
+    payload = null;
+  }
+  const explore = await getExploreMore({ kind: "bloodline", speciesType: payload?.speciesType ?? null });
+
+  // 종을 모르는 혈통은 같은 종을 고를 수 없어 최근 분양글을 보인다(exploreMore loadSimilar).
+  const footer = (
+    <ExploreMore data={explore} similarTitle={payload?.speciesType ? "같은 종 분양" : "최근 분양"} />
+  );
+
+  // 본문은 useSearchParams 를 써서 서버(ISR)에선 Suspense fallback 까지만 그려진다. fallback 에 헤더·'더 둘러보기'를
+  // 넣어 서버 HTML 에도 링크가 남게 한다(화면이 붙으면 본문의 로딩 → 내용으로 바뀐다).
+  return (
+    <Suspense
+      fallback={
+        <Layout headerVariant="none" seoTitle={payload?.name ?? "혈통"}>
+          <BloodlineHeader title="혈통" showHome />
+          <div className="flex min-h-[60vh] items-center justify-center">
+            <BloodlineSpinner />
+          </div>
+          {footer}
+        </Layout>
+      }
+    >
+      <BloodlineCardDetailClient cardId={parsedCardId} footer={footer} />
+    </Suspense>
+  );
 }

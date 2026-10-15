@@ -27,6 +27,14 @@ jest.mock("next/og", () => ({
 }));
 
 // 페이지 본문(클라이언트 컴포넌트)은 메타데이터 검사와 무관하다.
+// page.tsx 가 Suspense fallback·'더 둘러보기'에 쓰는 화면 조각(이미지 import 등)은 이 테스트와 상관없다.
+jest.mock("@components/features/MainLayout", () => ({ __esModule: true, default: () => null }));
+jest.mock("@components/features/bloodline/BloodlineScreenParts", () => ({
+  BloodlineHeader: () => null,
+  BloodlineSpinner: () => null,
+}));
+jest.mock("@components/app/ExploreMore", () => ({ __esModule: true, default: () => null }));
+jest.mock("@libs/server/exploreMore", () => ({ getExploreMore: jest.fn() }));
 jest.mock("../app/(web)/bloodline-management/card/[cardId]/BloodlineCardDetailClient", () => ({
   __esModule: true,
   default: () => null,
