@@ -1,11 +1,16 @@
 import client from "@libs/server/client";
 import { speciesCategoryIds } from "@libs/server/categories";
+import { sendPushToUsers } from "@libs/server/push";
+import { ADMIN_EMAIL_ID_PREFIX, isAdminEmail } from "@libs/shared/adminEmail";
 import {
   formatKakaoDigest,
   KAKAO_DIGEST_ROOMS,
   type KakaoDigestData,
   type KakaoDigestRoom,
 } from "@libs/shared/kakaoDigest";
+
+/** 푸시를 누르면 열 복사 화면 */
+export const KAKAO_DIGEST_ADMIN_PATH = "/admin/kakao-digest";
 
 const HOUR_MS = 60 * 60 * 1000;
 /** 새 분양글·마감 경매를 보는 기간 */
@@ -103,24 +108,34 @@ export const buildAllKakaoDigests = (now: Date = new Date()) =>
   Promise.all(KAKAO_DIGEST_ROOMS.map((room) => buildKakaoDigest(room, now)));
 
 /**
- * 슬랙 Incoming Webhook 으로 문구를 보낸다. 카톡에 그대로 복사하도록 코드 블록에 넣는다.
- * 웹훅이 없으면(로컬·프리뷰) 보내지 않고 false.
+ * 운영자(ytw418* 이메일) 계정 기기로 '오늘의 오픈채팅 소식' 푸시를 보낸다. 누르면 복사 화면이 열린다
+ * (앱은 /admin 경로를 브라우저로 연다). 카톡에 붙일 글 자체는 길어서 푸시에 싣지 않는다.
+ * 돌려주는 값은 받는 운영자 계정 수(기기 구독이 없는 계정도 센다).
  */
-export async function sendKakaoDigestToSlack(digests: KakaoDigestResult[]): Promise<boolean> {
-  const webhookUrl = process.env.KAKAO_DIGEST_SLACK_WEBHOOK_URL;
-  if (!webhookUrl) return false;
-
-  const text = digests
-    .map(({ room, text: body }) => `*${room.emoji} ${room.label} 오픈채팅방 소식* — 복사해서 붙여넣어 주세요\n\`\`\`${body}\`\`\``)
-    .join("\n\n");
-
-  const res = await fetch(webhookUrl, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ text }),
+export async function notifyKakaoDigestReady(digests: KakaoDigestResult[]): Promise<number> {
+  const candidates = await client.user.findMany({
+    where: { email: { startsWith: ADMIN_EMAIL_ID_PREFIX, mode: "insensitive" } },
+    select: { id: true, email: true },
   });
-  if (!res.ok) {
-    throw new Error(`Slack webhook ${res.status}`);
-  }
-  return true;
+  const adminIds = candidates.filter((user) => isAdminEmail(user.email)).map((user) => user.id);
+  if (!adminIds.length) return 0;
+
+  const summary = digests
+    .map(({ room, data }) => {
+      const parts = [
+        data.newProductCount ? `새 분양 ${data.newProductCount}` : "",
+        data.endingAuctions.length ? `마감 경매 ${data.endingAuctions.length}` : "",
+        data.openQuestions.length ? `질문 ${data.openQuestions.length}` : "",
+      ].filter(Boolean);
+      return `${room.emoji}${room.label} ${parts.length ? parts.join("·") : "조용"}`;
+    })
+    .join(" / ");
+
+  await sendPushToUsers(adminIds, {
+    title: "오늘의 오픈채팅 소식이 준비됐어요",
+    body: `${summary} — 눌러서 복사해 카톡방에 붙여넣어 주세요`,
+    url: KAKAO_DIGEST_ADMIN_PATH,
+    tag: "kakao-digest",
+  });
+  return adminIds.length;
 }

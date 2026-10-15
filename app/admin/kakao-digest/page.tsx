@@ -22,7 +22,6 @@ interface KakaoDigestItem {
 interface KakaoDigestResponse {
   success: boolean;
   digests?: KakaoDigestItem[];
-  slackConfigured?: boolean;
   error?: string;
 }
 
@@ -39,15 +38,19 @@ export default function AdminKakaoDigestPage() {
     }
   };
 
-  const handleSendSlack = async () => {
+  const handleNotify = async () => {
     try {
       setSending(true);
       const res = await authFetch("/api/admin/kakao-digest", { method: "POST" });
       const result = await res.json();
       if (!res.ok || !result.success) {
-        return toast.error(result.error || "슬랙 발송에 실패했습니다.");
+        return toast.error(result.error || "알림 발송에 실패했습니다.");
       }
-      toast.success("슬랙으로 보냈습니다.");
+      toast.success(
+        result.recipients
+          ? `운영자 계정 ${result.recipients}개에 알림을 보냈습니다.`
+          : "알림을 받을 운영자 계정이 없습니다."
+      );
     } catch {
       toast.error("요청 중 오류가 발생했습니다.");
     } finally {
@@ -65,10 +68,10 @@ export default function AdminKakaoDigestPage() {
           </Button>
           <Button
             size="sm"
-            disabled={sending || !data?.slackConfigured}
-            onClick={handleSendSlack}
+            disabled={sending}
+            onClick={handleNotify}
           >
-            {sending ? "보내는 중..." : "지금 슬랙으로 보내기"}
+            {sending ? "보내는 중..." : "지금 내 폰으로 알림"}
           </Button>
         </div>
       </div>
@@ -77,8 +80,7 @@ export default function AdminKakaoDigestPage() {
         카톡 오픈채팅방에 붙여넣을 종별 소식입니다. 지난 24시간 새 분양글·24시간 안에 끝나는 경매·최근
         3일 많이 본 이야기·답 없는 질문을 모읍니다. 링크에는 방별 utm 이 붙습니다.
         <br />
-        매일 오전 8시에 슬랙으로도 보냅니다
-        {data && !data.slackConfigured ? " — 지금은 슬랙 웹훅(KAKAO_DIGEST_SLACK_WEBHOOK_URL)이 없어 보내지 않습니다." : "."}
+        매일 오전 8시에 운영자 계정(ytw418*) 기기로 알림을 보냅니다. 알림을 누르면 이 화면이 열립니다.
       </div>
 
       {isLoading ? <p className="text-sm text-gray-500">불러오는 중...</p> : null}
