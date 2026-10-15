@@ -90,7 +90,9 @@ describe("문구", () => {
       { ...base, endsAt: new Date(NOW + 2 * 86_400_000 + 5000), countA: 9, countB: 5, lastActivityAt: new Date(NOW - 120_000) },
       NOW
     );
-    expect(debateMetaParts(open, NOW)).toEqual({ activity: "2분 전", rest: "14명 참여 · 2일 남음" });
+    expect(debateMetaParts(open, NOW)).toEqual({ activity: "2분 전", activityWord: "댓글", rest: "14명 참여 · 2일 남음" });
+    expect(debateMetaParts({ ...open, lastActivityKind: "vote" }, NOW).activityWord).toBe("투표");
+    expect(debateMetaParts({ ...open, lastActivityAt: null, lastActivityKind: null }, NOW)).toMatchObject({ activity: "", activityWord: "" });
     const decided = buildDebateSummary({ ...base, endsAt: new Date(NOW - 1), countA: 27, countB: 11 }, NOW);
     expect(debateMetaParts(decided, NOW).rest).toBe("끝남 · '냉동' 71% · 38명 참여");
     const undecided = buildDebateSummary({ ...base, endsAt: new Date(NOW - 1), countA: 2 }, NOW);

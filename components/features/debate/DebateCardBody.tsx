@@ -25,7 +25,7 @@ export default function DebateCardBody({ postId, debate }: { postId: number; deb
       <p className="mt-2 truncate text-[13px] leading-[18px] text-app-muted">
         {meta.activity ? (
           <>
-            <b className="font-semibold text-app-brand">{meta.activity}</b> 댓글 ·{" "}
+            <b className="font-semibold text-app-brand">{meta.activity}</b> {meta.activityWord} ·{" "}
           </>
         ) : null}
         {meta.rest}

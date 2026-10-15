@@ -244,7 +244,8 @@ const buildHomeFeed = async ({
 
 const getCachedPublicHomeFeed = unstable_cache(
   async () => buildHomeFeed({ includePersonalized: false }),
-  ["home-feed-public"],
+  // 응답 모양이 바뀌면 키를 올린다(옛 캐시가 1시간 남지 않게). v2: TOP 브리더 1~3위(topBreeders).
+  ["home-feed-public", "v2"],
   {
     revalidate: 60 * 60, // 1시간
   }

@@ -62,7 +62,8 @@ export async function getDebateSummaries(
       .map((row) => row._max.updatedAt?.getTime() ?? 0)
       .reduce((a, b) => Math.max(a, b), 0);
     const lastCommentAt = lastComment.get(debate.postId)?.getTime() ?? 0;
-    const last = Math.max(lastVote, lastCommentAt, debate.createdAt.getTime());
+    // 사람이 움직인 시각만(만든 시각은 빼서 새 토론이 "방금 댓글"로 보이지 않게 한다).
+    const last = Math.max(lastVote, lastCommentAt);
     result.set(
       debate.postId,
       buildDebateSummary(
@@ -74,7 +75,8 @@ export async function getDebateSummaries(
           countB,
           mySide: mySide.get(debate.postId) ?? null,
           switchCount: switchCount.get(debate.postId) ?? 0,
-          lastActivityAt: new Date(last),
+          lastActivityAt: last ? new Date(last) : null,
+          lastActivityKind: last ? (lastCommentAt >= lastVote ? "comment" : "vote") : null,
           isAuthor: viewerId != null && authorById.get(debate.postId) === viewerId,
           firstOtherVoteAt: debate.firstOtherVoteAt,
         },

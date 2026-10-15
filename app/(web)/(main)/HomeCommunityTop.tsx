@@ -47,7 +47,8 @@ export default function HomeCommunityTop() {
     error: realtimeError,
     mutate: mutateRealtime,
   } = useSWR<RealtimePostsResponse>(
-    withCategoryPath(`/api/posts?hot=realtime&limit=${HOT_DISCUSSION_COUNT}`, scope.categoryPath),
+    // 맨 위 토론 카드 글을 레일에서 빼도 3장이 남게 하나 더 받는다(앱과 같다).
+    withCategoryPath(`/api/posts?hot=realtime&limit=${HOT_DISCUSSION_COUNT + 1}`, scope.categoryPath),
     { revalidateOnFocus: false }
   );
   const realtimeUnsupported = Boolean(
@@ -181,10 +182,10 @@ export default function HomeCommunityTop() {
                 댓글이 달리면 여기 맨 위에 실시간으로 올라와요
               </p>
               <Link
-                href="/posts/upload"
+                href="/posts/debate"
                 className="mt-3 inline-flex h-9 items-center rounded-lg bg-app-inverse px-3.5 text-[14px] font-semibold text-app-inverse-text"
               >
-                글쓰기
+                토론 열기
               </Link>
             </div>
           )}

@@ -40,7 +40,10 @@ export interface DebateSummary {
   winner: DebateSide | "tie" | null;
   mySide: DebateSide | null;
   switchCount: number;
+  /** 마지막 댓글·투표 시각(만든 시각은 넣지 않는다 — 아무도 안 움직인 토론은 null). */
   lastActivityAt: string | null;
+  /** lastActivityAt 이 댓글인지 투표(선택 바꾸기 포함)인지. 카드 메타 "2분 전 댓글"·"2분 전 투표". */
+  lastActivityKind: "comment" | "vote" | null;
   /** 작성자 본인이고 다른 사람이 아직 투표하지 않았으면 질문·선택지를 고칠 수 있다. */
   editable: boolean;
 }
@@ -54,6 +57,7 @@ export interface DebateSummaryInput {
   mySide: DebateSide | null;
   switchCount: number;
   lastActivityAt: Date | string | null;
+  lastActivityKind?: "comment" | "vote" | null;
   isAuthor: boolean;
   firstOtherVoteAt: Date | string | null;
 }
@@ -118,6 +122,7 @@ export function buildDebateSummary(input: DebateSummaryInput, now = Date.now()):
     mySide: input.mySide,
     switchCount: input.switchCount,
     lastActivityAt: toIso(input.lastActivityAt),
+    lastActivityKind: input.lastActivityAt ? input.lastActivityKind ?? "comment" : null,
     editable: input.isAuthor && input.firstOtherVoteAt == null && state === "open",
   };
 }
@@ -161,20 +166,25 @@ export const pendingResultLabel = (participants: number) =>
 
 /**
  * 목록·레일 카드 메타 한 줄.
- * open: "2분 전 댓글 · 14명 참여 · 2일 남음"(활동이 24시간 넘었으면 앞부분 생략)
+ * open: "2분 전 댓글 · 14명 참여 · 2일 남음"(활동 시각 activity 는 주황 600, 뒤 activityWord 는 댓글·투표.
+ *       아무도 안 움직였거나 24시간 넘었으면 앞부분 생략)
  * decided: "끝남 · '냉동' 71% · 38명 참여" / 동률 "끝남 · 팽팽하게 끝났어요 · 38명 참여"
  * undecided: "끝남 · 2명 참여 · 결론 없음"
  */
-export function debateMetaParts(summary: DebateSummary, now = Date.now()): { activity: string; rest: string } {
+export function debateMetaParts(
+  summary: DebateSummary,
+  now = Date.now()
+): { activity: string; activityWord: string; rest: string } {
   if (summary.state === "open") {
     const activity = activityLabel(summary.lastActivityAt, now);
     return {
       activity,
+      activityWord: activity ? (summary.lastActivityKind === "vote" ? "투표" : "댓글") : "",
       rest: [participantsLabel(summary.participants), remainingLabel(summary.endsAt, now)].join(" · "),
     };
   }
   if (summary.state === "undecided") {
-    return { activity: "", rest: `끝남 · ${summary.participants}명 참여 · 결론 없음` };
+    return { activity: "", activityWord: "", rest: `끝남 · ${summary.participants}명 참여 · 결론 없음` };
   }
   const winnerText =
     summary.winner === "tie" || !summary.result
@@ -182,7 +192,7 @@ export function debateMetaParts(summary: DebateSummary, now = Date.now()): { act
       : `'${sideLabel(summary, summary.winner as DebateSide)}' ${
           summary.winner === "A" ? summary.result.a : summary.result.b
         }%`;
-  return { activity: "", rest: `끝남 · ${winnerText} · ${participantsLabel(summary.participants)}` };
+  return { activity: "", activityWord: "", rest: `끝남 · ${winnerText} · ${participantsLabel(summary.participants)}` };
 }
 
 /** 결과 카드 제목. */

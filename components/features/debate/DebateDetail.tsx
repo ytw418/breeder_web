@@ -262,8 +262,10 @@ export default function DebateDetail({
     window.setTimeout(() => inputRef.current?.focus(), 0);
   };
 
-  const lastActivity = summary.lastActivityAt;
-  const live = open && isLiveActive(lastActivity);
+  // 실시간 점: 최근 10분 안 댓글·투표. 머리 오른쪽 문구는 마지막 댓글 시각.
+  const live = open && isLiveActive(summary.lastActivityAt);
+  const visibleComments = feed.items.filter((item) => !item.deleted);
+  const lastCommentAt = visibleComments[visibleComments.length - 1]?.createdAt ?? null;
   const myLabel = summary.mySide ? sideLabel(summary, summary.mySide) : null;
 
   return (
@@ -339,10 +341,10 @@ export default function DebateDetail({
           </h3>
           <span className="ml-auto text-[13px] text-app-muted">
             {open
-              ? lastActivity
-                ? activityLabel(lastActivity) === "방금"
+              ? lastCommentAt
+                ? activityLabel(lastCommentAt) === "방금"
                   ? "방금 댓글"
-                  : `마지막 댓글 ${getTimeAgoString(new Date(lastActivity))}`
+                  : `마지막 댓글 ${getTimeAgoString(new Date(lastCommentAt))}`
                 : ""
               : "끝난 토론은 읽기만 할 수 있어요"}
           </span>
@@ -639,7 +641,7 @@ function ClosedExtras({
         : null}
       {species && saleCount != null ? (
         <Link
-          href={saleCount > 0 ? `/products?category=${encodeURIComponent(species)}` : "/products/upload"}
+          href={`/products${saleCount > 0 ? "" : "/upload"}?category=${encodeURIComponent(species)}`}
           className="mx-4 mt-3 flex h-[52px] items-center gap-2.5 border-y border-app-line text-[15px] font-semibold text-app-text"
         >
           <span className="grid h-8 w-8 shrink-0 place-items-center rounded-lg bg-app-surface">

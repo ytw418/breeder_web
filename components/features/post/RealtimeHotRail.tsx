@@ -7,7 +7,7 @@ import Image from "@components/atoms/Image";
 import { getTimeAgoString, makeImageUrl } from "@libs/client/utils";
 import { toPostPath } from "@libs/post-route";
 import type { HotActivityKind } from "@libs/shared/communityVibe";
-import { activityLabel, participantsLabel, remainingLabel, type DebateSummary } from "@libs/shared/debateFormat";
+import { debateMetaParts, type DebateSummary } from "@libs/shared/debateFormat";
 import { DebatePill } from "@components/features/debate/DebateParts";
 
 /** 실시간 TOP 토론 카드 한 장에 필요한 값(서버 hot=realtime 또는 구 home/feed 를 맞춘 모양). */
@@ -42,13 +42,8 @@ export function activityTimeLabel(at: string, now: number = Date.now()): string 
 /** 카드 메타: '방금 댓글 · 젠크레 · 댓글 4'(최근 활동 시각이 먼저, community-vibe §3.5). 토론은 '방금 댓글 · 23명 참여 · 18시간 남음'. */
 export function realtimeHotMeta(item: RealtimeHotItem, now?: number) {
   if (item.debate && item.debate.state === "open") {
-    const time = activityLabel(item.debate.lastActivityAt, now);
-    return {
-      time,
-      rest: [time ? "댓글" : null, participantsLabel(item.debate.participants), remainingLabel(item.debate.endsAt, now)]
-        .filter(Boolean)
-        .join(" · "),
-    };
+    const meta = debateMetaParts(item.debate, now);
+    return { time: meta.activity, rest: [meta.activityWord, meta.rest].filter(Boolean).join(" · ") };
   }
   const time = activityTimeLabel(item.lastActivityAt, now);
   return {

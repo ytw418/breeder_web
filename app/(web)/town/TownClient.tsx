@@ -302,7 +302,9 @@ export default function TownClient() {
             </h1>
             {scope ? (
               <p className="truncate text-[12px] leading-4 text-app-muted">
-                반경 {scope.radiusKm}km 이웃 {meta?.neighbors ?? 0}명
+                {meta?.neighbors
+                  ? `반경 ${scope.radiusKm}km 이웃 ${meta.neighbors}명`
+                  : `반경 ${scope.radiusKm}km 이웃에게 보여요`}
               </p>
             ) : null}
           </div>
