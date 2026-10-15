@@ -21,6 +21,7 @@ import AwaitingAnswerCard from "@components/features/post/AwaitingAnswerCard";
 import type { HotRealtimeMeta, UnansweredSummary } from "@libs/shared/communityVibe";
 import type { HomeDebateResult } from "@libs/shared/liveTalk";
 import HomeDebateCard from "@components/features/debate/HomeDebateCard";
+import { DEBATE_CATEGORY } from "@libs/shared/debateFormat";
 
 type RealtimePostsResponse = {
   success?: boolean;
@@ -29,6 +30,7 @@ type RealtimePostsResponse = {
 type UnansweredResponse = { success?: boolean; posts?: PostsListResponse["posts"] } & Partial<UnansweredSummary>;
 /** HOT 토론은 상위 3개만 보여 준다(앱 d8f0211). */
 const HOT_DISCUSSION_COUNT = 3;
+const HOT_FETCH_COUNT = 8;
 const NOTICE_FALLBACK_TITLE = "게시글 작성 전 커뮤니티 운영 가이드를 확인해 주세요.";
 
 /**
@@ -47,8 +49,8 @@ export default function HomeCommunityTop() {
     error: realtimeError,
     mutate: mutateRealtime,
   } = useSWR<RealtimePostsResponse>(
-    // 맨 위 토론 카드 글을 레일에서 빼도 3장이 남게 하나 더 받는다(앱과 같다).
-    withCategoryPath(`/api/posts?hot=realtime&limit=${HOT_DISCUSSION_COUNT + 1}`, scope.categoryPath),
+    // 레일엔 토론 글을 넣지 않으니(맨 위 카드·모아보기가 맡는다) 넉넉히 받아 3장을 채운다(앱과 같다).
+    withCategoryPath(`/api/posts?hot=realtime&limit=${HOT_FETCH_COUNT}`, scope.categoryPath),
     { revalidateOnFocus: false }
   );
   const realtimeUnsupported = Boolean(
@@ -75,7 +77,8 @@ export default function HomeCommunityTop() {
     if (!realtimeUnsupported) {
       if (!realtimeData) return undefined;
       return withoutBlocked(realtimeData.posts ?? [], blockedIds, (post) => post.user?.id)
-        .filter((post) => post.id !== homeDebate?.id)
+        // 2026-10-15 사용자 "자리를 너무 차지한다": 글자만 있는 토론 카드는 레일에서 뺀다.
+        .filter((post) => post.category !== DEBATE_CATEGORY)
         .slice(0, HOT_DISCUSSION_COUNT)
         .map((post) => ({
           id: post.id,
@@ -85,7 +88,6 @@ export default function HomeCommunityTop() {
           comments: post._count?.comments ?? 0,
           lastActivityAt: post.lastActivityAt ?? String(post.createdAt),
           lastActivityKind: post.lastActivityKind ?? "post",
-          debate: post.debate ?? null,
         }));
     }
     if (!homeFeedData) return undefined;
@@ -100,7 +102,7 @@ export default function HomeCommunityTop() {
         lastActivityAt: item.createdAt,
         lastActivityKind: "post" as const,
       }));
-  }, [realtimeUnsupported, realtimeData, homeFeedData, blockedIds, homeDebate?.id]);
+  }, [realtimeUnsupported, realtimeData, homeFeedData, blockedIds]);
   const awaitingQuestion = useMemo(
     () => withoutBlocked(unansweredData?.posts ?? [], blockedIds, (post) => post.user?.id)[0] ?? null,
     [unansweredData, blockedIds]
@@ -161,11 +163,10 @@ export default function HomeCommunityTop() {
             />
           ) : !hotItems ? (
             <RealtimeHotRailSkeleton />
-          ) : hotItems.length > 0 || homeDebate ? (
+          ) : hotItems.length > 0 ? (
             <RealtimeHotRail
               items={hotItems}
               rankOffset={homeDebate ? 1 : 0}
-              endCard={<OpenDebateCard />}
               onOpen={(item, index) =>
                 trackEvent(ANALYTICS_EVENTS.postsHotDiscussionClicked, {
                   post_id: item.id,
@@ -175,7 +176,7 @@ export default function HomeCommunityTop() {
                 })
               }
             />
-          ) : (
+          ) : homeDebate ? null : (
             <div className="mx-4 rounded-xl bg-app-gap px-4 py-4">
               <p className="text-[15px] font-semibold text-app-text">지금 첫 토론을 열어 보세요</p>
               <p className="mt-0.5 text-[13px] text-app-muted">
@@ -193,23 +194,5 @@ export default function HomeCommunityTop() {
         </div>
       </section>
     </>
-  );
-}
-
-/** 레일 맨 끝 '토론 열기' 카드(132, brand-soft, 시안 .hc.new). */
-function OpenDebateCard() {
-  return (
-    <Link
-      href="/posts/debate"
-      className="flex h-[150px] w-[132px] shrink-0 flex-col justify-center gap-1.5 rounded-xl bg-app-brand-soft px-3.5"
-      data-testid="open-debate-card"
-    >
-      <svg width={22} height={22} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.7} strokeLinecap="round" strokeLinejoin="round" className="text-app-brand-text" aria-hidden="true">
-        <path d="M14 9a5 5 0 0 0-10 0c0 1.2.4 2.3 1.1 3.1L4.5 15l3-1A5 5 0 0 0 14 9Z" />
-        <path d="M10.5 16.6A5 5 0 0 0 19 13.5a5 5 0 0 0-3.2-4.7M19.5 18.5l-.6-2.6" />
-      </svg>
-      <span className="text-[14px] font-bold leading-5 text-app-brand-text">토론 열기</span>
-      <span className="text-[12px] leading-4 text-app-brand-text-soft">궁금한 걸 찬반으로 물어보세요</span>
-    </Link>
   );
 }
