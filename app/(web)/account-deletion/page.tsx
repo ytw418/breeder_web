@@ -43,11 +43,11 @@ export default function AccountDeletionPage() {
 
         <div className="mt-5 flex flex-col gap-2.5">
           <Section title="1. 앱에서 탈퇴하기">
-            <p>브리디 앱 → 메뉴(☰) → 설정 → 회원탈퇴 → 탈퇴하기 → 확인 창에서 탈퇴하기</p>
+            <p>브리디 앱 → 메뉴(☰) → 설정 → 회원탈퇴 → 탈퇴하기 → 확인 창에 &lsquo;탈퇴&rsquo; 입력 → 탈퇴하기</p>
           </Section>
 
           <Section title="2. 웹에서 탈퇴하기">
-            <p>bredy.app 에 로그인 → 메뉴(☰) → 설정 → 회원탈퇴 → 탈퇴하기</p>
+            <p>bredy.app 에 로그인 → 메뉴(☰) → 설정 → 회원탈퇴 → 탈퇴하기 → 확인 창에 &lsquo;탈퇴&rsquo; 입력 → 탈퇴하기</p>
             <p>
               <Link
                 href="/settings/delete-account"
@@ -89,7 +89,8 @@ export default function AccountDeletionPage() {
             <p>
               앱 사용 통계(어떤 화면을 열었는지 등)는 회원 번호로만 남아 서비스 개선에
               쓰입니다. 구글로 가입했다면 로그인 인증 기록(Google Firebase)도 남습니다.
-              둘 다 지우기를 원하면 위 메일로 요청해 주세요.
+              둘 다 지우기를 원하면 위 메일로 요청해 주세요. 카카오로 가입했다면 카카오
+              설정의 &lsquo;연결된 서비스 관리&rsquo;에서 브리디 연결을 끊을 수 있습니다.
             </p>
           </Section>
 
@@ -98,6 +99,13 @@ export default function AccountDeletionPage() {
               잘못된 탈퇴 복구와 거래 분쟁 대응을 위해 이메일·전화번호·닉네임·소셜 로그인
               식별값 원문을 탈퇴일로부터 {RETENTION_DAYS}일 동안 따로 보관한 뒤 파기합니다.
               이 기간에는 같은 소셜 계정으로 다시 가입할 수 없습니다.
+            </p>
+            <p>
+              그 밖의 보관 기간은{" "}
+              <a href="https://bredy.app/privacy" className="font-semibold underline">
+                개인정보처리방침
+              </a>
+              을 따릅니다.
             </p>
           </Section>
 

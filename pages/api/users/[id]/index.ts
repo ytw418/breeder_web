@@ -178,12 +178,12 @@ async function handler(
     },
   };
 
-  // 다른 사람에게는 로그인 식별자(snsId)·연락처(phone)·이메일 원문을 내려주지 않는다.
+  // 다른 사람에게는 로그인 식별자(snsId)·연락처(phone)·이메일(가린 것 포함)을 내려주지 않는다.
   const { snsId: _snsId, phone: _phone, ...publicUser } = userWithCounts;
   const safeUser: UserWithCounts =
     myId === userId
       ? { ...userWithCounts, maskedEmail: maskEmail(user.email) }
-      : { ...publicUser, email: null, maskedEmail: maskEmail(user.email) };
+      : { ...publicUser, email: null, maskedEmail: null };
   // 동네는 opt-in(regionVisible)이다. 공개하지 않았으면 본인 말고는 동네를 내려주지 않는다.
   if (myId !== userId && !user.regionVisible) {
     safeUser.regionSido = null;
