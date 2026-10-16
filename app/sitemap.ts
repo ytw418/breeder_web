@@ -57,6 +57,12 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       priority: 0.45,
     },
     {
+      url: "https://bredy.app/account-deletion",
+      lastModified: new Date(),
+      changeFrequency: "yearly",
+      priority: 0.2,
+    },
+    {
       url: "https://bredy.app/auction-tool",
       lastModified: new Date(),
       changeFrequency: "monthly",
