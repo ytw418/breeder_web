@@ -70,7 +70,8 @@ export default function AccountDeletionPage() {
 
           <Section title="바로 지워지는 정보">
             <ul className="list-disc pl-5">
-              <li>이메일, 전화번호, 프로필 사진, 소개글</li>
+              <li>이메일, 전화번호, 프로필 사진, 소개글, 커버 사진, 대표 링크</li>
+              <li>내 동네 설정과 동네 방문 기록, 관심 카테고리 설정</li>
               <li>닉네임 — &lsquo;탈퇴한 사용자&rsquo;로 바뀝니다</li>
               <li>소셜 로그인 식별값 — 되돌릴 수 없는 값으로 바뀌고 모든 기기에서 로그아웃됩니다</li>
               <li>푸시 알림 토큰, 관심 목록, 팔로우·팔로워, 알림, 프로필 앨범</li>
@@ -87,7 +88,8 @@ export default function AccountDeletionPage() {
             </p>
             <p>
               앱 사용 통계(어떤 화면을 열었는지 등)는 회원 번호로만 남아 서비스 개선에
-              쓰입니다. 지우기를 원하면 위 메일로 요청해 주세요.
+              쓰입니다. 구글로 가입했다면 로그인 인증 기록(Google Firebase)도 남습니다.
+              둘 다 지우기를 원하면 위 메일로 요청해 주세요.
             </p>
           </Section>
 
