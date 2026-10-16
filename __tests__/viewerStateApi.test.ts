@@ -280,7 +280,7 @@ describe("GET /api/users/{id} 로그인 식별자 비노출", () => {
   it.each([
     ["비로그인", undefined],
     ["다른 유저", asUser(2)],
-  ])("%s 에게는 snsId·phone·email 을 내려주지 않는다", async (_label, user) => {
+  ])("%s 에게는 snsId·phone·email(가린 이메일 포함)을 내려주지 않는다", async (_label, user) => {
     mockClient.user.findUnique.mockResolvedValue(profileRow());
 
     const res = await call(userDetailHandler, { query: { id: "1" }, user });
@@ -289,7 +289,8 @@ describe("GET /api/users/{id} 로그인 식별자 비노출", () => {
     expect(res.body.user).not.toHaveProperty("snsId");
     expect(res.body.user).not.toHaveProperty("phone");
     expect(res.body.user.email).toBeNull();
-    expect(res.body.user.maskedEmail).toBe("a*@b****.app");
+    // 가린 이메일도 본인에게만 보여 준다(Play 데이터 보안: 이메일은 공유하지 않음).
+    expect(res.body.user.maskedEmail).toBeNull();
   });
 
   it("본인에게는 그대로 내려준다", async () => {
