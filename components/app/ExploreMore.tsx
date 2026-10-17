@@ -1,33 +1,28 @@
+import type { ReactNode } from "react";
 import Link from "next/link";
 import NextImage from "next/image";
 import { makeImageUrl } from "@libs/client/utils";
 import type { ExploreItem, ExploreMoreData } from "@libs/shared/exploreMore";
-import AdSlot from "@components/app/AdSlot";
 
 /**
  * 공개 상세 페이지 맨 아래 '더 둘러보기'(서버 컴포넌트). 링크가 서버 HTML 에 들어가 검색엔진이 따라간다.
  * 비슷한 글 → 광고 → 인기 글 → 혈통·토론 바로가기 순서. 시간·좋아요 수 같은 실시간 값은 그리지 않는다.
+ * 광고는 페이지가 고른다(게시글은 AdSense, 분양·경매는 쿠팡, 공지·숨김 글은 없음). 광고는 스스로 구분선을 둔다.
  */
 export default function ExploreMore({
   data,
   similarTitle,
+  ad,
 }: {
   data: ExploreMoreData;
   /** '비슷한 글' / '비슷한 분양' / '진행 중인 비슷한 경매' */
   similarTitle: string;
+  ad?: ReactNode;
 }) {
-  const adClient = process.env.NEXT_PUBLIC_ADSENSE_CLIENT;
-  const adSlot = process.env.NEXT_PUBLIC_ADSENSE_SLOT_DETAIL;
-
   return (
     <div data-testid="explore-more">
       {data.similar.length ? <ExploreSection title={similarTitle} items={data.similar} /> : null}
-      {adClient && adSlot ? (
-        <>
-          <div className="h-2 bg-app-gap" />
-          <AdSlot client={adClient} slot={adSlot} />
-        </>
-      ) : null}
+      {ad}
       {data.popular.length ? <ExploreSection title="지금 인기 글" items={data.popular} /> : null}
       <div className="h-2 bg-app-gap" />
       <nav aria-label="브리디 더 둘러보기" className="flex flex-col gap-2 px-4 py-5">
@@ -46,6 +41,11 @@ export default function ExploreMore({
         <Link href="/" className="py-2 text-center text-[14px] text-app-muted underline underline-offset-[3px]">
           브리디 홈에서 더 보기
         </Link>
+        <p className="text-center text-[12px] text-app-muted">
+          <Link href="/privacy">개인정보처리방침</Link>
+          <span aria-hidden> · </span>
+          <Link href="/terms">이용약관</Link>
+        </p>
       </nav>
     </div>
   );
