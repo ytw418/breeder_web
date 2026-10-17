@@ -16,6 +16,7 @@ const ADMIN_MENUS = [
   { name: "기네스북 심사", href: "/admin/guinness" },
   { name: "유저 관리", href: "/admin/users" },
   { name: "고객의 소리", href: "/admin/voice" },
+  { name: "오픈채팅 소식", href: "/admin/kakao-digest" },
   { name: "게시물 관리", href: "/admin/posts" },
   { name: "분양 관리", href: "/admin/products" },
 ];
