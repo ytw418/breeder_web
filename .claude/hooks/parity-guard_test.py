@@ -115,7 +115,7 @@ def stop_case(lines: list, sub_lines: list = None, active: bool = False, session
 
 A_SCREEN = os.path.join(APP, "src/app/(tabs)/index.tsx")
 A_NEW = os.path.join(APP, "src/components/features/home/NewBar.tsx")  # 아직 없는 파일
-A_ADS = os.path.join(APP, "src/lib/ads/adRows.ts")
+A_ADS = os.path.join(APP, "src/lib/ads/googleMobileAds.ts")
 A_DOC = os.path.join(APP, "docs/a.md")
 W_SCREEN = os.path.join(WEB, "app/(web)/(main)/MainClient.tsx")
 W_API = os.path.join(WEB, "app/api/x/route.ts")
@@ -133,7 +133,7 @@ CASES = [
     ("deny", commit_case(APP, ["src/app/(tabs)/index.tsx"], 'git commit -m "x" -m "Parity: app-only"')),       # 이유 없음
     ("deny", commit_case(APP, ["src/app/(tabs)/index.tsx"], 'git commit -m "x" -m "Parity: web-only — SEO"')),  # 저장소와 안 맞음
     ("allow", commit_case(APP, ["docs/a.md"], 'git commit -m "docs: 문서"')),
-    ("allow", commit_case(APP, ["src/lib/ads/adRows.ts"], 'git commit -m "fix(ads): 광고 행"')),               # 앱 전용 경로
+    ("deny", commit_case(APP, ["src/lib/ads/adRows.ts"], 'git commit -m "fix(ads): 광고 행"')),               # 웹과 같이 가는 광고 규칙(앱 전용 아님)
     ("allow", commit_case(APP, ["src/app/__tests__/x.test.tsx"], 'git commit -m "test: x"')),
     ("deny", commit_case(APP, [], 'git add src/app/posts.tsx && git commit -m "feat: x"', modified=["src/app/posts.tsx"])),
     ("deny", commit_case(APP, [], 'git add -A && git commit -m "feat: x"', modified=["src/app/posts.tsx"])),

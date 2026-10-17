@@ -25,6 +25,8 @@ import { postCategoryLabel } from "@libs/shared/postCategory";
 import type { PostDetailResponse } from "pages/api/posts/[id]";
 import { MY_ACTIVITY_KEY_PREFIXES, POST_KEY_PREFIXES, revalidateByPrefix } from "@libs/client/swrRevalidate";
 import { getPostMenuActionKeys, isNoticePost, type PostMenuActionKey } from "../_lib/postComposer";
+import AdSenseUnit from "@components/app/ads/AdSenseUnit";
+import CoupangBanner from "@components/app/ads/CoupangBanner";
 import { PostAvatar } from "../_components/PostAvatar";
 import { PostBody } from "../_components/PostBody";
 import { useProfilePin } from "@components/features/profile/ProfilePinSheet";
@@ -198,6 +200,7 @@ const PostClient = ({
   // 댓글·좋아요 수 같은 실시간 영역은 서버 HTML(ISR 캐시)에 넣지 않고 이 브라우저가 받은 응답으로만 그린다.
   const live = Boolean(data?.post);
   const isNotice = isNoticePost(post);
+  const showAds = Boolean(post) && !isNotice && !post?.isHidden;
   const detailPath = post ? toPostPath(post.id, post.title) : `/posts/${postApiId ?? ""}`;
   const authorId = post?.user?.id;
   const isOwnPost = Boolean(user?.id && authorId && user.id === authorId);
@@ -752,6 +755,9 @@ const PostClient = ({
             </button>
           </div>
 
+          {/* 본문 아래 AdSense. 운영 공지·숨김 글에는 광고를 두지 않는다(앱 InlineBannerAd 와 같은 자리). */}
+          {showAds ? <AdSenseUnit placement="postInline" format="horizontal" className="px-4 pb-3.5" /> : null}
+
           {isNotice && (prevNotice || nextNotice) ? (
             <section className="border-t border-app-line px-4 py-3.5">
               <h3 className="text-[14px] font-semibold text-app-text">다른 공지 보기</h3>
@@ -813,6 +819,8 @@ const PostClient = ({
               </p>
             )}
           </div>
+          {/* 쿠팡 배너는 위 AdSense 와 붙지 않게 댓글 맨 아래에 둔다(앱과 같다). */}
+          {showAds ? <CoupangBanner /> : null}
           {footer}
         </div>
 

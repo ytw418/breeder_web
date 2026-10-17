@@ -17,6 +17,7 @@ import {
 } from "@libs/shared/seo";
 import { dealTypeLabel, productStatusLabel } from "@libs/shared/productTerms";
 import ExploreMore from "@components/app/ExploreMore";
+import CoupangBanner from "@components/app/ads/CoupangBanner";
 import { getExploreMore } from "@libs/server/exploreMore";
 
 const DEFAULT_OG_IMAGE = SITE_OG_IMAGE;
@@ -221,7 +222,14 @@ export default async function ProductPage({ params }: Props) {
         product={normalizeDeletedUserNames(data.product)}
         relatedProducts={normalizeDeletedUserNames(data.relatedProducts)}
         success={data.success}
-        footer={<ExploreMore data={explore} similarTitle="비슷한 분양" />}
+        footer={
+          <ExploreMore
+            data={explore}
+            similarTitle="비슷한 분양"
+            // 분양·경매 화면은 AdSense 대신 쿠팡만 둔다(생물 거래 콘텐츠 수익화 정책). 숨김·삭제 글에는 없다.
+            ad={data.product.isDeleted || data.product.isHidden ? null : <CoupangBanner />}
+          />
+        }
       />
     </>
   );

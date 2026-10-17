@@ -36,7 +36,9 @@ GUIDE = "bredy_app docs/parity/README.md"
 
 APP_UI = re.compile(r"^src/(app|components|hooks|lib|theme|constants)/")
 APP_ONLY_PATHS = re.compile(
-    r"^src/(lib/ads/|components/features/ads/|lib/notifications/"
+    # 광고는 AdMob SDK 파일만 앱 전용이다. 광고 행 규칙(adRows)·쿠팡 배너는 웹과 같이 간다(2026-10-17).
+    r"^src/(lib/ads/(googleMobileAds|nativeAdSlots)\.ts$"
+    r"|components/features/ads/(NativeAdRows|InlineBannerAd)\.tsx$|lib/notifications/"
     r"|components/features/PushPermissionPrompt\.tsx$|lib/haptics\.ts$)"
 )
 WEB_UI = re.compile(r"^(app/|components/|hooks/|libs/client/|styles/)")
