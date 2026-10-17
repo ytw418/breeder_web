@@ -11,6 +11,9 @@ import CategoryScopeBar from "@components/features/category/CategoryScopeBar";
 import FreeGiveawaySection from "@components/features/product/FreeGiveawaySection";
 import { FilterChip, FilterChipRail } from "@components/app/FilterChip";
 import { ProductCard } from "@components/app/ProductCard";
+import CoupangBanner from "@components/app/ads/CoupangBanner";
+import { getCoupangWebConfig } from "@libs/client/adsConfig";
+import { withAdRows } from "@libs/shared/ads/adRows";
 import { QueryErrorState } from "@components/app/QueryErrorState";
 import { RetryFooter } from "@components/app/RetryFooter";
 import { PRODUCT_TYPES } from "@libs/constants";
@@ -38,6 +41,8 @@ import { ProductFeedEmpty } from "./_components/ProductFeedEmpty";
 import { PriceRangeSheet } from "./_components/PriceRangeSheet";
 import { ProductRowSkeleton } from "./_components/ProductRowSkeleton";
 import { SortDropdown } from "./_components/SortDropdown";
+
+const SALE_ADS_ENABLED = Boolean(getCoupangWebConfig());
 
 const PAGE_SIZE = 12;
 const CATEGORY_TABS = [{ id: "전체", name: "전체" }, ...TOP_LEVEL_CATEGORIES];
@@ -298,7 +303,11 @@ export default function ProductsClient({ initialParams }: { initialParams: Produ
 
       <div className="pb-24">
         {products.length > 0
-          ? products.map((product) => (
+          ? // 8개마다 쿠팡 배너 한 줄(앱 분양 탭은 같은 간격의 AdMob 네이티브, 웹은 생물 거래 화면이라 AdSense 대신 쿠팡).
+            withAdRows(products, SALE_ADS_ENABLED).map((product) =>
+              "kind" in product ? (
+                <CoupangBanner key={`ad-${product.slot}`} variant="row" />
+              ) : (
               <ProductCard
                 key={product.id}
                 product={{
@@ -317,7 +326,8 @@ export default function ProductsClient({ initialParams }: { initialParams: Produ
                 }}
                 markUnread
               />
-            ))
+              ),
+            )
           : renderState()}
 
         {products.length > 0 ? (

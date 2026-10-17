@@ -1,7 +1,7 @@
 import React from "react";
 import type { Metadata } from "next";
 import AuctionsClient from "./AuctionsClient";
-import Script from "next/script";
+import JsonLd from "@components/atoms/JsonLd";
 import client from "@libs/server/client";
 import { toAuctionPath } from "@libs/auction-route";
 
@@ -9,7 +9,7 @@ const AUCTION_OG_IMAGE = "/designer/og/bredy-og-auction.png";
 const SITE_URL = "https://bredy.app";
 
 export const metadata: Metadata = {
-  title: "진행중 경매 | 브리디",
+  title: "진행중 경매",
   description:
     "브리디 링크형 경매 도구로 진행 중인 경매를 확인하고 바로 참여해보세요.",
   keywords: [
@@ -95,11 +95,7 @@ const page = async () => {
 
   return (
     <>
-      <Script
-        id="auctions-itemlist-jsonld"
-        type="application/ld+json"
-        dangerouslySetInnerHTML={{ __html: JSON.stringify(itemListJsonLd) }}
-      />
+      <JsonLd id="auctions-itemlist-jsonld" data={itemListJsonLd} />
       <AuctionsClient />
     </>
   );

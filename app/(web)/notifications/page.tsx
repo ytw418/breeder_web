@@ -11,7 +11,7 @@ export const metadata: Metadata = {
       follow: false,
     },
   },
-  title: "알림 | 브리디",
+  title: "알림",
   description: "브리디 알림 목록 페이지입니다.",
 };
 

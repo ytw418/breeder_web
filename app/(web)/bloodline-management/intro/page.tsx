@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import IntroClient from "./IntroClient";
 
 export const metadata: Metadata = {
-  title: "혈통 안내 | 브리디",
+  title: "혈통 안내",
   description: "내 혈통 이름을 지키고, 분양할 때 출처 카드를 함께 넘기는 방법을 안내합니다.",
 };
 

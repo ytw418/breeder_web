@@ -25,6 +25,7 @@ const matches = (c: FakeComment, where: any) => {
   if (where.parentId === null && c.parentId) return false;
   if (where.post?.category && c.postCategory !== where.post.category) return false;
   if (where.user?.role?.not && c.role === where.user.role.not) return false;
+  if (where.user?.role?.notIn?.includes(c.role)) return false; // RANKABLE_USER_WHERE(운영 계정 제외)
   if (where.postId?.in && !where.postId.in.includes(c.postId)) return false;
   const t = c.createdAt.getTime();
   if (where.createdAt?.gte && t < where.createdAt.gte.getTime()) return false;

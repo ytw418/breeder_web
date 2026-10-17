@@ -19,6 +19,9 @@ import RealtimeHotRail, {
 } from "@components/features/post/RealtimeHotRail";
 import AwaitingAnswerCard from "@components/features/post/AwaitingAnswerCard";
 import type { HotRealtimeMeta, UnansweredSummary } from "@libs/shared/communityVibe";
+import type { HomeDebateResult } from "@libs/shared/liveTalk";
+import HomeDebateCard from "@components/features/debate/HomeDebateCard";
+import { DEBATE_CATEGORY } from "@libs/shared/debateFormat";
 
 type RealtimePostsResponse = {
   success?: boolean;
@@ -27,6 +30,7 @@ type RealtimePostsResponse = {
 type UnansweredResponse = { success?: boolean; posts?: PostsListResponse["posts"] } & Partial<UnansweredSummary>;
 /** HOT 토론은 상위 3개만 보여 준다(앱 d8f0211). */
 const HOT_DISCUSSION_COUNT = 3;
+const HOT_FETCH_COUNT = 8;
 const NOTICE_FALLBACK_TITLE = "게시글 작성 전 커뮤니티 운영 가이드를 확인해 주세요.";
 
 /**
@@ -45,7 +49,8 @@ export default function HomeCommunityTop() {
     error: realtimeError,
     mutate: mutateRealtime,
   } = useSWR<RealtimePostsResponse>(
-    withCategoryPath(`/api/posts?hot=realtime&limit=${HOT_DISCUSSION_COUNT}`, scope.categoryPath),
+    // 레일엔 토론 글을 넣지 않으니(맨 위 카드·모아보기가 맡는다) 넉넉히 받아 3장을 채운다(앱과 같다).
+    withCategoryPath(`/api/posts?hot=realtime&limit=${HOT_FETCH_COUNT}`, scope.categoryPath),
     { revalidateOnFocus: false }
   );
   const realtimeUnsupported = Boolean(
@@ -55,6 +60,13 @@ export default function HomeCommunityTop() {
     realtimeUnsupported ? withCategoryPath("/api/home/feed?scope=public", scope.categoryPath) : null,
     { revalidateOnFocus: false }
   );
+  // 맨 위 토론 카드: 진행 중 토론 중 내가 안 고른 것의 활동 점수 1위(live-talk §3.2). 없으면 레일만.
+  const { data: homeDebateData, mutate: mutateHomeDebate } = useSWR<HomeDebateResult>(
+    withCategoryPath("/api/debates/home", scope.categoryPath),
+    { revalidateOnFocus: false, shouldRetryOnError: false }
+  );
+  const homeDebate =
+    homeDebateData?.post && !blockedIds.has(homeDebateData.post.userId) ? homeDebateData.post : null;
   // 답 기다려요: 가장 오래 답 없는 질문 1개.
   const { data: unansweredData } = useSWR<UnansweredResponse>("/api/posts?unanswered=1&limit=1", {
     revalidateOnFocus: false,
@@ -65,6 +77,8 @@ export default function HomeCommunityTop() {
     if (!realtimeUnsupported) {
       if (!realtimeData) return undefined;
       return withoutBlocked(realtimeData.posts ?? [], blockedIds, (post) => post.user?.id)
+        // 2026-10-15 사용자 "자리를 너무 차지한다": 글자만 있는 토론 카드는 레일에서 뺀다.
+        .filter((post) => post.category !== DEBATE_CATEGORY)
         .slice(0, HOT_DISCUSSION_COUNT)
         .map((post) => ({
           id: post.id,
@@ -117,8 +131,30 @@ export default function HomeCommunityTop() {
 
       {/* 실시간 TOP 토론 + 답 기다려요 */}
       <section className="pb-2 pt-5" data-home-section="realtime_discussion">
-        <h2 className="app-t-section px-4">실시간 TOP 토론</h2>
-        <div className="mt-3">
+        {/* 오른쪽: 토론 열기(만들기) · 모아보기(진행 중·끝난 토론) — 2026-10-15 사용자 요청 */}
+        <div className="flex items-end justify-between gap-3 px-4">
+          <h2 className="app-t-section">실시간 TOP 토론</h2>
+          <div className="flex shrink-0 items-center gap-3 text-[13px] leading-[18px]">
+            <Link href="/posts/debate" className="inline-flex items-center gap-0.5 font-semibold text-app-brand-text">
+              <svg width={14} height={14} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" aria-hidden="true">
+                <path d="M12 5v14M5 12h14" />
+              </svg>
+              토론 열기
+            </Link>
+            <Link href="/debates" className="inline-flex items-center gap-0.5 text-app-muted">
+              모아보기
+              <svg width={14} height={14} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} aria-hidden="true">
+                <path d="m9 6 6 6-6 6" />
+              </svg>
+            </Link>
+          </div>
+        </div>
+        {homeDebate ? (
+          <div className="mt-3">
+            <HomeDebateCard post={homeDebate} onClosed={() => void mutateHomeDebate()} />
+          </div>
+        ) : null}
+        <div className={homeDebate ? "mt-4" : "mt-3"}>
           {realtimeError && homeFeedData === undefined && !hotItems ? (
             <QueryErrorState
               title="실시간 토론을 불러오지 못했어요"
@@ -130,6 +166,7 @@ export default function HomeCommunityTop() {
           ) : hotItems.length > 0 ? (
             <RealtimeHotRail
               items={hotItems}
+              rankOffset={homeDebate ? 1 : 0}
               onOpen={(item, index) =>
                 trackEvent(ANALYTICS_EVENTS.postsHotDiscussionClicked, {
                   post_id: item.id,
@@ -139,17 +176,17 @@ export default function HomeCommunityTop() {
                 })
               }
             />
-          ) : (
+          ) : homeDebate ? null : (
             <div className="mx-4 rounded-xl bg-app-gap px-4 py-4">
               <p className="text-[15px] font-semibold text-app-text">지금 첫 토론을 열어 보세요</p>
               <p className="mt-0.5 text-[13px] text-app-muted">
                 댓글이 달리면 여기 맨 위에 실시간으로 올라와요
               </p>
               <Link
-                href="/posts/upload"
+                href="/posts/debate"
                 className="mt-3 inline-flex h-9 items-center rounded-lg bg-app-inverse px-3.5 text-[14px] font-semibold text-app-inverse-text"
               >
-                글쓰기
+                토론 열기
               </Link>
             </div>
           )}

@@ -4,7 +4,7 @@ import EditPostClient from "./EditPostClient";
 
 export const metadata: Metadata = {
   robots: { index: false, follow: false, googleBot: { index: false, follow: false } },
-  title: "게시글 수정 | 브리디",
+  title: "게시글 수정",
   description: "작성한 게시글을 수정하는 페이지입니다.",
 };
 

@@ -3,9 +3,14 @@ import type { Viewport } from "next";
 import { SITE_OG_IMAGE, SITE_TWITTER_IMAGE } from "@libs/shared/ogImage";
 import { Inter } from "next/font/google";
 import Script from "next/script";
+import JsonLd from "@components/atoms/JsonLd";
 import "./globals.css";
 import { VariousProvider } from "@libs/client/VariousProvider";
-import { POSTHOG_INIT_OPTIONS, POSTHOG_STUB_METHODS } from "@libs/client/posthog";
+import {
+  POSTHOG_BEFORE_SEND_SOURCE,
+  POSTHOG_INIT_OPTIONS,
+  POSTHOG_STUB_METHODS,
+} from "@libs/client/posthog";
 import ClientComp from "./ClientComp";
 import { Analytics } from "@vercel/analytics/next";
 import { ThemeProvider } from "@components/features/theme-provider";
@@ -22,7 +27,9 @@ const siteUrl = "https://bredy.app";
 const websiteJsonLd = {
   "@context": "https://schema.org",
   "@type": "WebSite",
-  name: "Bredy",
+  name: "브리디",
+  alternateName: "Bredy",
+  inLanguage: "ko-KR",
   url: siteUrl,
   description: "브리더들이 소통하는 반려동물 SNS. 분양·거래·랭킹·무료경매·동네 브리더 찾기",
   potentialAction: {
@@ -35,7 +42,8 @@ const websiteJsonLd = {
 const organizationJsonLd = {
   "@context": "https://schema.org",
   "@type": "Organization",
-  name: "Bredy",
+  name: "브리디",
+  alternateName: "Bredy",
   url: siteUrl,
   logo: `${siteUrl}/images/pwa/icon-512.png`,
   sameAs: ["https://www.instagram.com/bredy_breeder"],
@@ -55,7 +63,8 @@ export const metadata: Metadata = {
   metadataBase: new URL(siteUrl),
   title: {
     default: "브리디 | 브리더들의 SNS · 분양 · 거래",
-    template: "%s | Bredy",
+    // 한국어 검색은 '브리디'로 찾는다. 페이지 제목에는 브랜드를 다시 붙이지 않는다.
+    template: "%s | 브리디",
   },
   description:
     "브리더들이 소통하는 반려동물 SNS. 분양·거래부터 랭킹, 무료경매, 동네 브리더 찾기까지 브리디에서 한 번에.",
@@ -160,22 +169,8 @@ export default function RootLayout({
           content="ca-pub-8957945516038764"
         ></meta>
         <meta name="mobile-web-app-capable" content="yes" />
-        <Script
-          id="website-jsonld"
-          type="application/ld+json"
-          strategy="beforeInteractive"
-          dangerouslySetInnerHTML={{
-            __html: JSON.stringify(websiteJsonLd),
-          }}
-        />
-        <Script
-          id="organization-jsonld"
-          type="application/ld+json"
-          strategy="beforeInteractive"
-          dangerouslySetInnerHTML={{
-            __html: JSON.stringify(organizationJsonLd),
-          }}
-        />
+        <JsonLd id="website-jsonld" data={websiteJsonLd} />
+        <JsonLd id="organization-jsonld" data={organizationJsonLd} />
         {posthogKey ? (
           <Script
             id="posthog-init"
@@ -183,10 +178,10 @@ export default function RootLayout({
             dangerouslySetInnerHTML={{
               __html: `!function(t,e){var o,n,p,r;e.__SV||(window.posthog=e,e._i=[],e.init=function(i,s,a){function g(t,e){var o=e.split(".");2==o.length&&(t=t[o[0]],e=o[1]),t[e]=function(){t.push([e].concat(Array.prototype.slice.call(arguments,0)))}}(p=t.createElement("script")).type="text/javascript",p.async=!0,p.src=s.api_host.replace(".i.posthog.com","-assets.i.posthog.com")+"/static/array.js",(r=t.getElementsByTagName("script")[0]).parentNode.insertBefore(p,r);var u=e;for(void 0!==a?u=e[a]=[]:a="posthog",u.people=u.people||[],u.toString=function(t){var e="posthog";return"posthog"!==a&&(e+="."+a),t||(e+=" (stub)"),e},u.people.toString=function(){return u.toString(1)+".people (stub)"},o=${JSON.stringify(POSTHOG_STUB_METHODS)}.split(" "),n=0;n<o.length;n++)g(u,o[n]);e._i.push([i,s,a])},e.__SV=1)}(document,window.posthog||[]);posthog.init(${JSON.stringify(
                 posthogKey
-              )},${JSON.stringify({
+              )},Object.assign(${JSON.stringify({
                 api_host: posthogHost,
                 ...POSTHOG_INIT_OPTIONS,
-              })});`,
+              })},{before_send:${POSTHOG_BEFORE_SEND_SOURCE}}));`,
             }}
           />
         ) : null}

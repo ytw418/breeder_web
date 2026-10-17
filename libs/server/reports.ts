@@ -101,6 +101,13 @@ export async function resolveReportTarget(
       });
       return card && card.status === "ACTIVE" ? found(card.creatorId) : TARGET_NOT_FOUND;
     }
+    case "TOWN_MESSAGE": {
+      const message = await client.townMessage.findUnique({
+        where: { id: targetId },
+        select: { userId: true, deletedAt: true },
+      });
+      return message && !message.deletedAt ? found(message.userId) : TARGET_NOT_FOUND;
+    }
     default:
       return TARGET_NOT_FOUND;
   }
@@ -177,6 +184,13 @@ export async function buildTargetSnapshots(
   const userIds = uniqueTargetIds(reports, "USER");
   const roomIds = uniqueTargetIds(reports, "CHAT_ROOM");
   const bloodlineIds = uniqueTargetIds(reports, "BLOODLINE_CARD");
+  const townMessageIds = uniqueTargetIds(reports, "TOWN_MESSAGE");
+  const townMessages = townMessageIds.length
+    ? await client.townMessage.findMany({
+        where: { id: { in: townMessageIds } },
+        select: { id: true, body: true, type: true, isHidden: true, regionSigungu: true },
+      })
+    : [];
 
   const [posts, comments, products, users, rooms, bloodlineCards] = await Promise.all([
     postIds.length
@@ -278,6 +292,14 @@ export async function buildTargetSnapshots(
       excerpt: toExcerpt(card.description || card.speciesType || ""),
       // 숨김·회수된 혈통은 상세가 404(BLOODLINE_REVOKED)라 링크를 주지 않는다.
       href: state ? null : bloodlineCardPath(card.id),
+    });
+  }
+  for (const message of townMessages) {
+    snapshots.set(key("TOWN_MESSAGE", message.id), {
+      exists: true,
+      title: `${message.isHidden ? "[숨김] " : ""}사랑방 메시지 · ${message.regionSigungu}`,
+      excerpt: toExcerpt(message.body || (message.type === "IMAGE" ? "[사진]" : "[분양글]")),
+      href: "/town",
     });
   }
   for (const [roomId, messages] of Array.from(roomMessages.entries())) {

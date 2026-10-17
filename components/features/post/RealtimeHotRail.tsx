@@ -20,6 +20,7 @@ export type RealtimeHotItem = {
 };
 
 const ACTIVITY_LABEL: Record<HotActivityKind, string> = {
+  vote: "투표",
   comment: "댓글",
   like: "좋아요",
   post: "새 글",
@@ -56,9 +57,12 @@ export function realtimeHotMeta(item: RealtimeHotItem, now?: number) {
 export default function RealtimeHotRail({
   items,
   onOpen,
+  rankOffset = 0,
 }: {
   items: RealtimeHotItem[];
   onOpen?: (item: RealtimeHotItem, index: number) => void;
+  /** 위에 맨 위 토론 카드가 1위로 따로 있으면 1, 레일 순위가 2부터 시작한다. */
+  rankOffset?: number;
 }) {
   return (
     <HorizontalRail label="실시간 TOP 토론" className="items-start gap-2.5 px-4" data-testid="realtime-hot-rail">
@@ -90,7 +94,7 @@ export default function RealtimeHotRail({
                 </span>
               )}
               <span className="absolute left-2 top-2 flex h-[26px] min-w-[26px] items-center justify-center rounded-full bg-app-brand px-1.5 text-[14px] font-bold leading-[18px] text-white tabular-nums">
-                {index + 1}
+                {index + 1 + rankOffset}
               </span>
             </span>
             {item.image ? (

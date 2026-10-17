@@ -4,7 +4,7 @@ import { Suspense } from "react";
 import SupportClient, { SupportForm } from "./SupportClient";
 
 export const metadata: Metadata = {
-  title: "고객의 소리 | 브리디",
+  title: "고객의 소리",
   description:
     "브리디 서비스 이용 중 버그 제보, 기능 요청, 문의가 필요한 경우 고객의 소리를 남겨주세요.",
   keywords: ["브리디 고객지원", "문의", "버그 제보", "기능 요청"],

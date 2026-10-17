@@ -12,7 +12,7 @@ export const metadata: Metadata = {
       follow: false,
     },
   },
-  title: "프로필 수정 | 브리디",
+  title: "프로필 수정",
   description: "브리디 사용자 프로필 수정 페이지입니다.",
 };
 

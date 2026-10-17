@@ -15,6 +15,7 @@ import useUser from "hooks/useUser";
 import useBlocks from "hooks/useBlocks";
 import useCategoryScope, { withCategoryPath } from "hooks/useCategoryScope";
 import useScopeTerms from "@/hooks/useScopeTerms";
+import { isAuctionHref } from "@libs/shared/scopeTerms";
 import useSectionImpressions from "hooks/useSectionImpressions";
 import CategoryScopeBar from "@components/features/category/CategoryScopeBar";
 import CategoryOnboardingPrompt from "@components/features/category/CategoryOnboardingPrompt";
@@ -104,7 +105,7 @@ const MainClient = ({
   // 관심 카테고리 고정 범위(앱 category-pin). 실시간 토론·분양 레일·TOP 브리더·게시글이 같은 범위를 쓴다.
   const scope = useCategoryScope();
   // 포유류만 고정했으면 '브리더' 대신 '집사'로 부른다(앱 docs/prd/category-pin.md §15).
-  const { breeder } = useScopeTerms();
+  const { breeder, showAuctions } = useScopeTerms();
   const [activeBannerIndex, setActiveBannerIndex] = useState(0);
   const [showPostLoginGuide, setShowPostLoginGuide] = useState(false);
   const [deferredInstallPrompt, setDeferredInstallPrompt] =
@@ -158,7 +159,23 @@ const MainClient = ({
           : null,
     [feed, replacementPeers]
   );
-  const banners = initialBanners;
+  // 2·3위(홈 카드 1~3위, 2026-10-15). 1위를 차단해 바꿨으면 같은 기간 랭킹에서 이어서 고른다.
+  const heroPeers = useMemo(() => {
+    if (!hero) return [];
+    if (feed?.heroBreeder && feed.topBreeders) {
+      return feed.topBreeders
+        .map((item, index) => ({ item, keyword: feed.topBreederKeywords?.[index] ?? null }))
+        .filter(({ item }) => item.user.id !== hero.user.id)
+        .slice(0, 2);
+    }
+    if (feed?.heroBlocked && replacementPeers.length > 1) {
+      const keywords = pickBreederKeywords(replacementPeers, [], 3);
+      return replacementPeers.slice(1, 3).map((item, index) => ({ item, keyword: keywords[index + 1] ?? null }));
+    }
+    return [];
+  }, [hero, feed, replacementPeers]);
+  // 포유류만 고정했으면 경매로 가는 배너('실시간 경매 진행 중' 등)는 뺀다(앱 docs/prd/category-pin.md §15).
+  const banners = showAuctions ? initialBanners : initialBanners.filter((banner) => !isAuctionHref(banner.href));
 
   // 지금 올라온 분양 레일: 서버 rail=1(최신 10 + 첫 분양글 24시간 맨 앞, isNew). 구 서버면 분양 목록 1페이지로 대신한다.
   const { data: railData, error: railError } = useSWR<RailResponse>(
@@ -330,6 +347,7 @@ const MainClient = ({
               <TopBreederRankCard
                 hero={hero}
                 keyword={heroKeyword}
+                peers={heroPeers}
                 period={heroBreederPeriod}
                 scoped={Boolean(scope.categoryPath)}
                 viewer={user ? { id: user.id, name: user.name, avatar: user.avatar ?? null } : null}

@@ -4,7 +4,7 @@ import FollowsClient from "./FollowsClient";
 
 export const metadata: Metadata = {
   robots: { index: false, follow: true },
-  title: "팔로워·팔로잉 | 브리디",
+  title: "팔로워·팔로잉",
 };
 
 /** 팔로워·팔로잉 목록(앱 profiles/[id]/follows.tsx). ?tab=following 이면 팔로잉 탭으로 연다. */

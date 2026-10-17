@@ -38,11 +38,11 @@ export const metadata: Metadata = {
 };
 
 /**
- * 메인 페이지 ISR 설정
- * - 60초마다 페이지 재생성
- * - 자주 변경되는 인기 콘텐츠를 적절한 주기로 업데이트
+ * 메인 페이지 ISR: 60초마다 다시 만든다. 새 게시글·분양글·경매를 올리면 그 API 가 바로 다시 만든다
+ * (libs/server/pageRevalidation.ts). 홈 피드는 이 HTML 의 값을 그대로 쓰고 화면에서 다시 받지 않으므로
+ * (MainClient revalidateOnMount) 이 주기가 곧 홈 섹션이 늦게 보일 수 있는 최대 시간이다(전엔 1시간).
  */
-export const revalidate = 3600; // 1시간
+export const revalidate = 60;
 
 const page = async () => {
   // 피드 집계가 실패해도 페이지는 그린다. 클라이언트가 다시 받아 스켈레톤·오류 상태를 보인다.

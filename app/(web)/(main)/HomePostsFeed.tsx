@@ -9,6 +9,9 @@ import useSWRInfinite from "swr/infinite";
 
 import { FilterChip, FilterChipRail } from "@components/app/FilterChip";
 import { PostCard } from "@components/app/PostCard";
+import AdSenseUnit from "@components/app/ads/AdSenseUnit";
+import { getAdSenseSlot } from "@libs/client/adsConfig";
+import { withAdRows } from "@libs/shared/ads/adRows";
 import { QueryErrorState } from "@components/app/QueryErrorState";
 import { RetryFooter } from "@components/app/RetryFooter";
 import useBlocks from "hooks/useBlocks";
@@ -33,6 +36,8 @@ import RegionGateCard from "@components/features/region/RegionGateCard";
 import FollowingFeedCard from "@components/features/post/FollowingFeedCard";
 import { LOUNGE_HREF } from "@components/features/home/NeighborhoodBreederSection";
 import { PostFilterDropdown } from "../posts/_components/PostFilterDropdown";
+
+const FEED_ADS_ENABLED = Boolean(getAdSenseSlot("feed"));
 
 /** 카테고리 칩 목록. '팔로잉'은 카테고리가 아니라 내가 팔로우한 사람의 글 필터다(앱 (tabs)/index.tsx). */
 export const HOME_POST_TABS = [
@@ -390,9 +395,19 @@ export default function HomePostsFeed() {
         </div>
       ) : (
         <div>
-          {posts.map((post) => (
-            <PostCard key={post.id} post={post} />
-          ))}
+          {/* 8개마다 AdSense 한 줄(앱 홈 전체 게시글 네이티브 광고와 같은 간격). 슬롯 번호가 위치로 정해져 다음 페이지가 붙어도 그대로다. */}
+          {withAdRows(posts, FEED_ADS_ENABLED).map((row) =>
+            "kind" in row ? (
+              <AdSenseUnit
+                key={`ad-${row.slot}`}
+                placement="feed"
+                format="horizontal"
+                className="border-b border-app-line px-4 py-3.5"
+              />
+            ) : (
+              <PostCard key={row.id} post={row} />
+            ),
+          )}
         </div>
       )}
 

@@ -10,7 +10,8 @@ const mockClient = {
   user: { findUnique: jest.fn() },
   userBlock: { findMany: jest.fn() },
   follow: { findFirst: jest.fn(), create: jest.fn(), delete: jest.fn() },
-  comment: { create: jest.fn() },
+  // findFirst: 댓글 3초 속도 제한(직전 댓글 시각)
+  comment: { create: jest.fn(), findFirst: jest.fn(async () => null) },
   post: { findUnique: jest.fn() },
 };
 jest.mock("@libs/server/client", () => ({

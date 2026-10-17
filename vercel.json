@@ -14,6 +14,10 @@
       "schedule": "15 0 * * *"
     },
     {
+      "path": "/api/internal/cron/debate-digest",
+      "schedule": "0 11 * * *"
+    },
+    {
       "path": "/api/internal/cron/kakao-digest",
       "schedule": "0 23 * * *"
     }

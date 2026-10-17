@@ -68,7 +68,9 @@ const REPORT_REASONS = [
   "기타",
 ] as const;
 
-const getCountdown = (endAt: string | Date | undefined, now: number) => {
+const getCountdown = (endAt: string | Date | undefined, now: number | null) => {
+  // 서버 HTML(ISR 로 최대 15초 전)과 첫 화면이 같도록 화면이 붙기 전에는 남은 시간을 비워 둔다.
+  if (now === null) return { text: "", isEnded: false, diff: Number.POSITIVE_INFINITY };
   const diff = endAt ? new Date(endAt).getTime() - now : Number.NaN;
   if (Number.isNaN(diff) || diff <= 0) return { text: "경매 종료", isEnded: true, diff: 0 };
   const days = Math.floor(diff / (1000 * 60 * 60 * 24));
@@ -79,6 +81,22 @@ const getCountdown = (endAt: string | Date | undefined, now: number) => {
   if (hours > 0) return { text: `${hours}시간 ${minutes}분 ${seconds}초`, isEnded: false, diff };
   if (minutes > 0) return { text: `${minutes}분 ${seconds}초`, isEnded: false, diff };
   return { text: `${seconds}초`, isEnded: false, diff };
+};
+
+const KST_OFFSET_MS = 9 * 60 * 60 * 1000;
+const pad2 = (value: number) => String(value).padStart(2, "0");
+/**
+ * 종료 시각을 앱(toLocaleString("ko-KR"))과 같은 'YYYY. M. D. 오후 h:mm:ss' 로 KST 기준으로 쓴다.
+ * 서버(Node)의 toLocaleString 은 '오후' 대신 'PM' 을 내 서버 HTML 과 화면 글자가 달라졌다(하이드레이션 오류).
+ */
+const formatKstEndAt = (value: string | Date) => {
+  const kst = new Date(new Date(value).getTime() + KST_OFFSET_MS);
+  const hours = kst.getUTCHours();
+  const meridiem = hours < 12 ? "오전" : "오후";
+  const hour12 = hours % 12 === 0 ? 12 : hours % 12;
+  return `${kst.getUTCFullYear()}. ${kst.getUTCMonth() + 1}. ${kst.getUTCDate()}. ${meridiem} ${hour12}:${pad2(
+    kst.getUTCMinutes()
+  )}:${pad2(kst.getUTCSeconds())}`;
 };
 
 const formatPrice = (value: number) => `${value.toLocaleString("ko-KR")}원`;
@@ -193,7 +211,18 @@ function CheckboxRow({
 
 /* ------------------------------------------------------------------ */
 
-const AuctionDetailClient = () => {
+const AuctionDetailClient = ({
+  initialAuction,
+  footer,
+}: {
+  /** 맨 아래 '더 둘러보기'(서버가 그린 비슷한 경매·인기 글·바로가기). */
+  footer?: React.ReactNode;
+  /**
+   * 서버(ISR 캐시)가 그린 경매. 제목·사진·설명처럼 잘 안 바뀌는 내용만 이 값으로 먼저 그린다.
+   * 진행 중 경매의 현재가·입찰 내역·입찰 바는 이 브라우저가 받은 응답으로만 그린다(서버가 입찰 내역을 비워 보낸다).
+   */
+  initialAuction?: AuctionDetailResponse["auction"];
+} = {}) => {
   const params = useParams();
   const router = useRouter();
   const pathname = usePathname();
@@ -203,7 +232,7 @@ const AuctionDetailClient = () => {
   const isToolRoute = Boolean(pathname?.startsWith("/tool"));
   const loginPath = isToolRoute ? "/tool/login" : "/auth/login";
 
-  const [now, setNow] = useState(() => Date.now());
+  const [now, setNow] = useState<number | null>(null);
   const [imageIndex, setImageIndex] = useState(0);
   const [viewerOpen, setViewerOpen] = useState(false);
   const [bidInput, setBidInput] = useState<number | null>(null);
@@ -233,11 +262,15 @@ const AuctionDetailClient = () => {
   );
 
   useEffect(() => {
+    setNow(Date.now());
     const timer = setInterval(() => setNow(Date.now()), 1000);
     return () => clearInterval(timer);
   }, []);
 
-  const auction = data?.auction;
+  const auction = data?.auction ?? initialAuction;
+  // 실시간 영역을 그려도 되는지: 이 브라우저가 응답을 받았거나, 이미 끝나 결과가 바뀌지 않는 경매.
+  const live = Boolean(data?.auction) || Boolean(auction && auction.status !== "진행중");
+  const fetched = Boolean(data?.auction);
   // 목록의 '안 본 경매' 빨간 점을 지운다(이 브라우저 기록).
   useMarkSeenOnView("auction", auction);
 
@@ -273,6 +306,7 @@ const AuctionDetailClient = () => {
   // 낙찰을 취소하고 다시 시작한 경매의 이전 낙찰자는 입찰할 수 없다(서버 BID_BLOCKED_PREVIOUS_WINNER).
   const viewerBlocked = Boolean(data?.viewerBlocked);
   const isBiddable =
+    fetched &&
     auction?.status === "진행중" && !countdown.isEnded && !isOwner && !isTopBidder && !viewerBlocked;
   // 분양자·운영자에게만 온다. 유찰·종료 경매를 기간만 새로 정해 다시 연다(libs/shared/auctionRestart.ts).
   const restart = data?.restart ?? null;
@@ -606,9 +640,11 @@ const AuctionDetailClient = () => {
               <Icon name="image" size={40} />
             </div>
           )}
-          <span className="pointer-events-none absolute left-3 top-3 rounded-[14px] bg-black/70 px-2.5 py-[5px] text-[12px] text-white">
-            {auction.status}
-          </span>
+          {live ? (
+            <span className="pointer-events-none absolute left-3 top-3 rounded-[14px] bg-black/70 px-2.5 py-[5px] text-[12px] text-white">
+              {auction.status}
+            </span>
+          ) : null}
         </div>
 
         {/* 판매자 행 */}
@@ -661,7 +697,7 @@ const AuctionDetailClient = () => {
                 {isWinner ? "낙찰 완료" : "낙찰자"}: {winnerBid.user?.name}
               </p>
               <p>낙찰가: {formatPrice(winnerBid.amount)}</p>
-              <p>종료시각: {new Date(auction.endAt).toLocaleString("ko-KR")}</p>
+              <p>종료시각: {formatKstEndAt(auction.endAt)}</p>
             </div>
           ) : null}
 
@@ -691,11 +727,20 @@ const AuctionDetailClient = () => {
           <div className="flex items-end justify-between gap-3">
             <div className="flex flex-col gap-0.5">
               <p className="text-[13px] text-app-muted">현재 최고가</p>
-              <p className="text-[22px] font-bold text-app-text">{formatPrice(auction.currentPrice)}</p>
+              {live ? (
+                <p className="text-[22px] font-bold text-app-text">{formatPrice(auction.currentPrice)}</p>
+              ) : (
+                // 22px 글자 한 줄(줄 높이 28)과 같은 높이로 자리를 잡는다.
+                <span aria-hidden className="my-0.5 h-6 w-32 animate-pulse rounded bg-app-placeholder" />
+              )}
             </div>
-            <p className={cn("text-[14px] font-semibold", isUrgent ? "text-app-brand" : "text-app-text")}>
-              {auction.status === "진행중" ? countdown.text : "경매 종료"}
-            </p>
+            {live ? (
+              <p className={cn("text-[14px] font-semibold", isUrgent ? "text-app-brand" : "text-app-text")}>
+                {auction.status === "진행중" ? countdown.text : "경매 종료"}
+              </p>
+            ) : (
+              <span aria-hidden className="h-5 w-20 animate-pulse rounded bg-app-placeholder" />
+            )}
           </div>
         </div>
 
@@ -724,7 +769,7 @@ const AuctionDetailClient = () => {
         <Divider />
 
         {/* 판매자 신뢰 정보 */}
-        {hasSellerTrustInfo ? (
+        {hasSellerTrustInfo && fetched ? (
           <>
             <div className="flex flex-col gap-1.5 p-4 text-[13px] text-app-muted">
               <p className="text-[15px] font-semibold text-app-text">분양자 정보</p>
@@ -762,9 +807,26 @@ const AuctionDetailClient = () => {
 
         {/* 입찰 내역 */}
         <div className="px-4 pt-4">
-          <h2 className="text-[15px] font-semibold text-app-text">입찰 내역 {auction._count.bids}건</h2>
+          <h2 className="text-[15px] font-semibold text-app-text">
+            {live ? `입찰 내역 ${auction._count.bids}건` : "입찰 내역"}
+          </h2>
         </div>
-        {auction.bids.length > 0 ? (
+        {!live ? (
+          error ? (
+            <div className="p-4">
+              <QueryErrorState onRetry={() => void mutate()} />
+            </div>
+          ) : (
+            <div aria-hidden className="flex flex-col gap-3 p-4">
+              {[0, 1].map((row) => (
+                <div key={row} className="flex items-center justify-between">
+                  <span className="h-4 w-28 animate-pulse rounded bg-app-placeholder" />
+                  <span className="h-4 w-20 animate-pulse rounded bg-app-placeholder" />
+                </div>
+              ))}
+            </div>
+          )
+        ) : auction.bids.length > 0 ? (
           <ul className="mt-1 px-4">
             {auction.bids.map((bid, index) => (
               <li
@@ -784,7 +846,9 @@ const AuctionDetailClient = () => {
                 </div>
                 <div className="flex shrink-0 items-center gap-2">
                   <span className="text-[14px] font-semibold text-app-text">{formatPrice(bid.amount)}</span>
-                  <span className="text-[12px] text-app-muted">{getTimeAgoString(new Date(bid.createdAt))}</span>
+                  <span className="text-[12px] text-app-muted" suppressHydrationWarning>
+                    {getTimeAgoString(new Date(bid.createdAt))}
+                  </span>
                 </div>
               </li>
             ))}
@@ -849,6 +913,7 @@ const AuctionDetailClient = () => {
             </div>
           </>
         ) : null}
+        {footer}
       </div>
 
       {/* 하단 고정 입찰 바 */}
@@ -875,7 +940,7 @@ const AuctionDetailClient = () => {
                   value={bidInput}
                   onChange={setBidInput}
                   disabled={!isBiddable}
-                  placeholder={`최소 ${minimumBid.toLocaleString("ko-KR")}원`}
+                  placeholder={live ? `최소 ${minimumBid.toLocaleString("ko-KR")}원` : "입찰 정보를 불러오는 중"}
                   aria-label="입찰 금액"
                   className="min-w-0 flex-1"
                 />

@@ -18,6 +18,7 @@ import type { Celebrate } from "@libs/shared/communityVibe";
 import useUser from "hooks/useUser";
 import type { CategoriesResponse } from "@libs/shared/categories";
 import { REGION_POST_CATEGORY } from "@libs/shared/postCategory";
+import { DEBATE_CATEGORY, DEBATE_MIN_ACCOUNT_AGE_HOURS } from "@libs/shared/debateFormat";
 import { regionOf } from "@libs/shared/regions";
 import { MY_ACTIVITY_KEY_PREFIXES, POST_KEY_PREFIXES, revalidateByPrefix } from "@libs/client/swrRevalidate";
 import {
@@ -46,6 +47,15 @@ import {
 
 type SubmitStep = "idle" | "image" | "submit";
 type PickerTarget = "category" | "species" | null;
+
+/** 글쓰기 주제 시트: '토론'·'질문'엔 설명 한 줄(앱 PostComposer TOPIC_OPTIONS 와 같다). */
+const TOPIC_DESCRIPTIONS: Record<string, string> = {
+  토론: "찬반으로 의견을 모아요",
+  질문: "답을 구해요",
+};
+const TOPIC_OPTIONS = POST_CATEGORIES.map((option) =>
+  TOPIC_DESCRIPTIONS[option.id] ? { ...option, description: TOPIC_DESCRIPTIONS[option.id] } : option
+);
 
 type PostComposerProps =
   | { mode: "create"; defaultCategory?: string }
@@ -219,6 +229,7 @@ export function PostComposer(props: PostComposerProps) {
     initial?.category ??
       (defaultCategory &&
       POST_CATEGORIES.some((o) => o.id === defaultCategory) &&
+      defaultCategory !== DEBATE_CATEGORY &&
       (defaultCategory !== REGION_POST_CATEGORY || myRegion)
         ? defaultCategory
         : "")
@@ -510,10 +521,20 @@ export function PostComposer(props: PostComposerProps) {
       <PostPickerSheet
         open={picker === "category"}
         title="게시글 주제"
-        options={POST_CATEGORIES}
+        options={isEdit ? POST_CATEGORIES.filter((o) => o.id !== DEBATE_CATEGORY) : TOPIC_OPTIONS}
         selectedId={category}
         onSelect={(id) => {
           setPicker(null);
+          // '토론'은 토론 열기 화면으로 바꿔 연다(앱 docs/prd/live-talk.md §3.3). 가입 하루 전이면 안내만.
+          if (id === DEBATE_CATEGORY) {
+            const joinedAt = user?.createdAt ? new Date(user.createdAt).getTime() : 0;
+            if (joinedAt && Date.now() - joinedAt < DEBATE_MIN_ACCOUNT_AGE_HOURS * 3600_000) {
+              toast("가입 하루가 지나면 토론을 열 수 있어요");
+              return;
+            }
+            leave(() => router.replace("/posts/debate"));
+            return;
+          }
           // '동네' 글은 동네가 있어야 쓸 수 있다. 주제는 이전 값 그대로 둔다.
           if (id === REGION_POST_CATEGORY && !myRegion) {
             setRegionPromptOpen(true);

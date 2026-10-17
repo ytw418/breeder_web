@@ -39,6 +39,8 @@ module.exports = {
           "brand-text": "var(--app-brand-text)",
           "brand-text-soft": "var(--app-brand-text-soft)",
           "brand-track": "var(--app-brand-track)",
+          // 찬반 토론 B 쪽 칩 배경(앱 palette stanceBSoft, docs/prd/live-talk.md §3.1)
+          "stance-b-soft": "var(--app-stance-b-soft)",
           "avatar-1-bg": "var(--app-avatar-1-bg)",
           "avatar-1-fg": "var(--app-avatar-1-fg)",
           "avatar-2-bg": "var(--app-avatar-2-bg)",

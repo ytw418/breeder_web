@@ -1,4 +1,5 @@
 import { NextApiRequest, NextApiResponse } from "next";
+import { withDetailRevalidation } from "@libs/server/pageRevalidation";
 import withHandler, { ResponseType } from "@libs/server/withHandler";
 import { withAuth } from "@libs/server/auth";
 import client from "@libs/server/client";
@@ -106,6 +107,6 @@ export default withAuth(
   withHandler({
     methods: ["GET", "DELETE"],
     isPrivate: false,
-    handler,
+    handler: withDetailRevalidation(handler, (req) => [{ type: "PRODUCT", id: Number(req.query.id) }]),
   })
 );

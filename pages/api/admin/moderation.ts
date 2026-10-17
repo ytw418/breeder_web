@@ -1,4 +1,5 @@
 import { NextApiRequest, NextApiResponse } from "next";
+import { isDetailTarget, toModerationTarget, withDetailRevalidation } from "@libs/server/pageRevalidation";
 import withHandler, { ResponseType } from "@libs/server/withHandler";
 import { withAuth } from "@libs/server/auth";
 import { hasAdminAccess } from "@libs/server/adminAccess";
@@ -72,6 +73,6 @@ export default withAuth(
   withHandler({
     methods: ["POST"],
     isPrivate: false,
-    handler,
+    handler: withDetailRevalidation(handler, (req) => [toModerationTarget(req.body?.targetType, Number(req.body?.targetId))].filter(isDetailTarget)),
   })
 );

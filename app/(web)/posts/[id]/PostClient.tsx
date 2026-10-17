@@ -1,12 +1,13 @@
 "use client";
 
-import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
+import { Suspense, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
-import { useParams, useRouter } from "next/navigation";
+import { useParams, useRouter, useSearchParams } from "next/navigation";
 import useSWR, { useSWRConfig } from "swr";
 import { useMarkSeenOnView } from "@libs/client/unreadMarks";
 
-import Layout, { HeaderHomeButton, toLoginHref } from "@components/features/MainLayout";
+import Layout, { toLoginHref } from "@components/features/MainLayout";
+import { HeaderIconButton } from "@components/app/HeaderIconButton";
 import ConfirmDialog from "@components/atoms/ConfirmDialog";
 import { ActionSheet, type ActionSheetAction } from "@components/app/ActionSheet";
 import { ReportSheet } from "@components/app/moderation/ReportSheet";
@@ -24,6 +25,8 @@ import { postCategoryLabel } from "@libs/shared/postCategory";
 import type { PostDetailResponse } from "pages/api/posts/[id]";
 import { MY_ACTIVITY_KEY_PREFIXES, POST_KEY_PREFIXES, revalidateByPrefix } from "@libs/client/swrRevalidate";
 import { getPostMenuActionKeys, isNoticePost, type PostMenuActionKey } from "../_lib/postComposer";
+import AdSenseUnit from "@components/app/ads/AdSenseUnit";
+import CoupangBanner from "@components/app/ads/CoupangBanner";
 import { PostAvatar } from "../_components/PostAvatar";
 import { PostBody } from "../_components/PostBody";
 import { useProfilePin } from "@components/features/profile/ProfilePinSheet";
@@ -31,6 +34,8 @@ import HiddenContentNotice from "@components/app/moderation/HiddenContentNotice"
 import useAdminModeration from "hooks/useAdminModeration";
 import { commentAnchorId, PostCommentItem } from "../_components/PostCommentItem";
 import { COMMENT_MAX_LENGTH, groupCommentThreads } from "@libs/shared/comment";
+import { DEBATE_CATEGORY } from "@libs/shared/debateFormat";
+import DebateDetail from "@components/features/debate/DebateDetail";
 
 type PostComment = NonNullable<PostDetailResponse["post"]>["comments"][number];
 type ReportTarget = { type: "POST" | "COMMENT"; id: number };
@@ -57,57 +62,12 @@ const timeAgo = (value: string | Date) => {
 
 function MoreIcon() {
   return (
-    <svg width={24} height={24} viewBox="0 0 24 24" fill="none" stroke="currentColor" aria-hidden="true">
-      <circle cx={12} cy={5.5} r={1} strokeWidth={1.5} />
-      <circle cx={12} cy={12} r={1} strokeWidth={1.5} />
-      <circle cx={12} cy={18.5} r={1} strokeWidth={1.5} />
+    // 분양글 상세 헤더의 ⋮ 와 같은 모양
+    <svg className="h-6 w-6" fill="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+      <circle cx="12" cy="5" r="1.75" />
+      <circle cx="12" cy="12" r="1.75" />
+      <circle cx="12" cy="19" r="1.75" />
     </svg>
-  );
-}
-
-/** 헤더: 뒤로 24 + 제목 18/700(왼쪽) + 우측 ⋯ (앱 PostHeader). */
-function PostDetailHeader({
-  title,
-  onBack,
-  onMore,
-}: {
-  title: string;
-  onBack: () => void;
-  onMore?: () => void;
-}) {
-  return (
-    <header className="sticky top-0 z-30 h-14 border-b border-app-line bg-app-bg">
-      <div className="mx-auto flex h-full max-w-xl items-center gap-3 px-4">
-        <button
-          type="button"
-          aria-label="뒤로 가기"
-          onClick={onBack}
-          className="-m-2.5 grid h-11 w-11 shrink-0 place-items-center rounded-full text-app-text"
-        >
-          <svg width={24} height={24} viewBox="0 0 24 24" fill="none" stroke="currentColor" aria-hidden="true">
-            <path d="M14.5 5L8 12l6.5 7" strokeWidth={1.5} strokeLinecap="round" strokeLinejoin="round" />
-          </svg>
-        </button>
-        <h1 className="min-w-0 shrink truncate text-[18px] font-bold tracking-[-0.3px] text-app-text">
-          {title}
-        </h1>
-        <div className="flex-1" />
-        {/* 홈 아이콘을 오른쪽 액션 맨 앞에(뒤로가기보다 중요, 2026-10-12 사용자). */}
-        <div className="-mr-1.5 flex shrink-0 items-center gap-0.5">
-          <HeaderHomeButton />
-          {onMore ? (
-            <button
-              type="button"
-              aria-label="더보기"
-              onClick={onMore}
-              className="grid h-10 w-10 shrink-0 place-items-center rounded-full text-app-text"
-            >
-              <MoreIcon />
-            </button>
-          ) : null}
-        </div>
-      </div>
-    </header>
   );
 }
 
@@ -150,14 +110,43 @@ const COMMENT_MAX_HEIGHT = 112;
 const isCoarsePointer = () =>
   typeof window !== "undefined" && Boolean(window.matchMedia?.("(pointer: coarse)").matches);
 
+/** 댓글을 받기 전 자리. 캐시된 HTML 에는 댓글을 넣지 않는다. */
+const CommentsSkeleton = () => (
+  <div aria-hidden className="flex flex-col gap-4 py-4">
+    {[0, 1].map((row) => (
+      <div key={row} className="flex gap-2.5">
+        <span className="h-8 w-8 shrink-0 animate-pulse rounded-full bg-app-placeholder" />
+        <div className="flex flex-1 flex-col gap-1.5">
+          <span className="h-3.5 w-24 animate-pulse rounded bg-app-placeholder" />
+          <span className="h-3.5 w-3/4 animate-pulse rounded bg-app-placeholder" />
+        </div>
+      </div>
+    ))}
+  </div>
+);
+
+/**
+ * 알림·프로필 댓글 목록에서 ?commentId= 로 열면 그 댓글을 알린다.
+ * 상세는 ISR 이라 서버에서 쿼리를 읽지 않는다. useSearchParams 는 Suspense 안에서만 써야 글 본문이 서버에서 그려진다.
+ */
+const FocusCommentFromQuery = ({ onFocus }: { onFocus: (commentId: number) => void }) => {
+  const raw = useSearchParams()?.get("commentId");
+  useEffect(() => {
+    const commentId = Number(raw);
+    if (Number.isInteger(commentId) && commentId > 0) onFocus(commentId);
+  }, [raw, onFocus]);
+  return null;
+};
+
 const PostClient = ({
   post: initialPost,
   prevNotice: initialPrevNotice,
   nextNotice: initialNextNotice,
-  focusCommentId,
+  debate: initialDebate,
+  footer,
 }: PostDetailResponse & {
-  /** 알림·프로필 댓글 목록에서 ?commentId= 로 열면 그 댓글까지 스크롤한다. */
-  focusCommentId?: number;
+  /** 맨 아래 '더 둘러보기'(서버가 그린 비슷한 글·인기 글·바로가기). */
+  footer?: React.ReactNode;
 }) => {
   const params = useParams();
   const postId = extractPostIdFromPath(params?.id);
@@ -186,7 +175,7 @@ const PostClient = ({
   const [commentDelete, setCommentDelete] = useState<PostComment | null>(null);
   const [commentDeleting, setCommentDeleting] = useState(false);
   // 스크롤할 댓글(알림·프로필에서 열었거나 방금 등록함). 한 번 스크롤하면 비워 다시 받아도 다시 움직이지 않는다.
-  const [scrollTargetId, setScrollTargetId] = useState<number | null>(focusCommentId ?? null);
+  const [scrollTargetId, setScrollTargetId] = useState<number | null>(null);
   const [highlightedCommentId, setHighlightedCommentId] = useState<number | null>(null);
   const commentLikePending = useRef(new Set<number>());
   const [reportTarget, setReportTarget] = useState<ReportTarget | null>(null);
@@ -208,23 +197,23 @@ const PostClient = ({
   // 서버 초기값(initialPost)에는 내 좋아요 여부가 없다. 클라이언트 응답이 오기 전에 누르면 반대로 토글되니 막는다.
   // 로그아웃 상태는 누르면 로그인으로 보내므로 막지 않는다.
   const likeReady = !user || Boolean(data);
+  // 댓글·좋아요 수 같은 실시간 영역은 서버 HTML(ISR 캐시)에 넣지 않고 이 브라우저가 받은 응답으로만 그린다.
+  const live = Boolean(data?.post);
   const isNotice = isNoticePost(post);
+  const showAds = Boolean(post) && !isNotice && !post?.isHidden;
   const detailPath = post ? toPostPath(post.id, post.title) : `/posts/${postApiId ?? ""}`;
   const authorId = post?.user?.id;
   const isOwnPost = Boolean(user?.id && authorId && user.id === authorId);
   // 운영자 이메일 계정은 남의 글도 본인 글처럼 수정·삭제한다(서버가 같은 기준으로 허용).
   const canManagePost = isOwnPost || canEditAnyContent;
-  const headerTitle = isNotice ? "공지" : post?.category || "게시글";
+  // 찬반 토론 글이면 라이브 댓글 상세(앱 docs/prd/live-talk.md §3.5). 요약은 클라이언트 응답(내 선택 포함)이 이긴다.
+  const debate = post?.category === DEBATE_CATEGORY ? data?.debate ?? initialDebate ?? null : null;
+  const headerTitle = isNotice ? "공지" : debate ? "찬반 토론" : post?.category || "게시글";
   const likeCount = post?._count?.Likes ?? 0;
   const commentCount = post?._count?.comments ?? 0;
   // 내 사진 글은 프로필 사진 그리드 맨 앞에 고정할 수 있다(사진형 프로필 PRD F-6).
   const { setPin: setProfilePin } = useProfilePin();
   const commentThreads = useMemo(() => groupCommentThreads(post?.comments ?? []), [post?.comments]);
-
-  // 같은 글에서 다른 댓글 알림으로 들어오면 그 댓글로 다시 스크롤한다.
-  useEffect(() => {
-    if (focusCommentId) setScrollTargetId(focusCommentId);
-  }, [focusCommentId]);
 
   useEffect(() => {
     if (scrollTargetId == null) return;
@@ -497,7 +486,13 @@ const PostClient = ({
         label: isProfilePinned ? "프로필 고정 해제" : "프로필에 고정",
         onSelect: () => void setProfilePin(post.id, !isProfilePinned),
       },
-      edit: { key: "edit", label: "수정하기", onSelect: () => router.push(`/posts/${post.id}/edit`) },
+      edit: {
+        key: "edit",
+        label: "수정하기",
+        // 토론은 토론 열기 화면에서 고친다(다른 사람이 처음 투표하기 전엔 전부, 그 뒤엔 설명만).
+        onSelect: () =>
+          router.push(post.category === DEBATE_CATEGORY ? `/posts/debate?edit=${post.id}` : `/posts/${post.id}/edit`),
+      },
       delete: { key: "delete", label: "삭제하기", destructive: true, onSelect: () => setDeleteOpen(true) },
       share: {
         key: "share",
@@ -643,6 +638,22 @@ const PostClient = ({
       );
     }
 
+    if (debate) {
+      return (
+        <DebateDetail
+          post={post}
+          hiddenNotice={post.isHidden ? <HiddenContentNotice targetType="POST" className="mx-4 mt-3" /> : null}
+          initialDebate={debate}
+          live={live}
+          footer={footer}
+          viewerId={user?.id ?? null}
+          onLogin={goLogin}
+          onReport={(commentId) => openReport({ type: "COMMENT", id: commentId })}
+          onBlock={(target) => openBlock(target)}
+        />
+      );
+    }
+
     return (
       <>
         {/* 답글·수정 모드 줄(36)이 생기면 그만큼 더 띄워 마지막 댓글이 입력바에 가리지 않게 한다. */}
@@ -678,7 +689,8 @@ const PostClient = ({
                 )}
                 {!isNotice ? <BreederProgramBadge programs={post.user?.breederPrograms} /> : null}
               </div>
-              <p className="mt-0.5 text-[13px] text-app-muted">
+              {/* 상대 시간은 서버 HTML(ISR 캐시)과 첫 화면이 몇 분 다를 수 있다. */}
+              <p className="mt-0.5 text-[13px] text-app-muted" suppressHydrationWarning>
                 {postCategoryLabel(post) ? `${postCategoryLabel(post)} · ` : ""}
                 {timeAgo(post.createdAt)}
               </p>
@@ -689,9 +701,9 @@ const PostClient = ({
 
           {/* 본문 */}
           <div className="flex flex-col gap-2 px-4 pb-3">
-            <h2 className="break-keep text-[18px] font-bold leading-[26px] text-app-text">
+            <h1 className="break-keep text-[18px] font-bold leading-[26px] text-app-text">
               {post.title}
-            </h2>
+            </h1>
             {/* 글과 사진(최대 10장)을 쓴 자리 그대로. 사진을 누르면 크게 보기 */}
             <PostBody
               description={post.description}
@@ -705,7 +717,11 @@ const PostClient = ({
 
           {/* 카운트 + 좋아요 버튼 */}
           <div className="flex items-center justify-between px-4 pb-3.5">
-            <span className="text-[13px] text-app-muted">{`좋아요 ${likeCount} · 댓글 ${commentCount}`}</span>
+            {live ? (
+              <span className="text-[13px] text-app-muted">{`좋아요 ${likeCount} · 댓글 ${commentCount}`}</span>
+            ) : (
+              <span aria-hidden className="h-4 w-28 animate-pulse rounded bg-app-placeholder" />
+            )}
             <button
               type="button"
               aria-label="좋아요"
@@ -739,6 +755,9 @@ const PostClient = ({
             </button>
           </div>
 
+          {/* 본문 아래 AdSense. 운영 공지·숨김 글에는 광고를 두지 않는다(앱 InlineBannerAd 와 같은 자리). */}
+          {showAds ? <AdSenseUnit placement="postInline" format="horizontal" className="px-4 pb-3.5" /> : null}
+
           {isNotice && (prevNotice || nextNotice) ? (
             <section className="border-t border-app-line px-4 py-3.5">
               <h3 className="text-[14px] font-semibold text-app-text">다른 공지 보기</h3>
@@ -752,10 +771,25 @@ const PostClient = ({
           {/* 댓글 */}
           <div className="h-2 bg-app-gap" />
           <div className="px-4 pb-1 pt-4">
-            <h3 className="text-[16px] font-bold text-app-text">{`댓글 ${commentCount}`}</h3>
+            <h2 className="text-[16px] font-bold text-app-text">{live ? `댓글 ${commentCount}` : "댓글"}</h2>
           </div>
           <div className="px-4">
-            {commentThreads.length ? (
+            {!live ? (
+              error ? (
+                <div className="flex flex-col items-center gap-2 py-9">
+                  <p className="text-[14px] text-app-muted">댓글을 불러오지 못했어요.</p>
+                  <button
+                    type="button"
+                    onClick={() => void mutate()}
+                    className="text-[14px] font-semibold text-app-text underline underline-offset-[3px]"
+                  >
+                    다시 시도
+                  </button>
+                </div>
+              ) : (
+                <CommentsSkeleton />
+              )
+            ) : commentThreads.length ? (
               commentThreads.map(({ root, replies }, index) => (
                 // 구분선은 묶음(루트 + 답글) 사이에만 둔다.
                 <div
@@ -785,6 +819,9 @@ const PostClient = ({
               </p>
             )}
           </div>
+          {/* 쿠팡 배너는 위 AdSense 와 붙지 않게 댓글 맨 아래에 둔다(앱과 같다). */}
+          {showAds ? <CoupangBanner /> : null}
+          {footer}
         </div>
 
         {/* 입력바: pill 44 surface + 32 주황 원형 전송 */}
@@ -894,12 +931,26 @@ const PostClient = ({
   };
 
   return (
-    <Layout headerVariant="none" seoTitle={post?.title || "게시글"}>
-      <PostDetailHeader
-        title={headerTitle}
-        onBack={() => (window.history.length > 1 ? router.back() : router.push("/"))}
-        onMore={sheetActions.length ? () => setSheetOpen(true) : undefined}
-      />
+    // 분양글 상세와 같은 헤더: ← · 브리디 로고 | 가운데 제목 | ⋯ · 메뉴(2026-10-16 사용자 "분양글 헤더 스타일로").
+    <Layout
+      canGoBack
+      homeAction
+      title={post?.title || headerTitle}
+      seoTitle={post?.title || "게시글"}
+      headerRight={
+        sheetActions.length ? (
+          <HeaderIconButton label="더보기" onClick={() => setSheetOpen(true)}>
+            <MoreIcon />
+          </HeaderIconButton>
+        ) : (
+          <></>
+        )
+      }
+    >
+      {/* 같은 글에서 다른 댓글 알림으로 들어오면 그 댓글로 다시 스크롤한다. */}
+      <Suspense fallback={null}>
+        <FocusCommentFromQuery onFocus={setScrollTargetId} />
+      </Suspense>
 
       {renderBody()}
 

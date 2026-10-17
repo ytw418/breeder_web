@@ -12,7 +12,7 @@ export const metadata: Metadata = {
       follow: false,
     },
   },
-  title: "채팅 | 브리디",
+  title: "채팅",
   description: "로그인 사용자 전용 채팅 목록 페이지입니다.",
 };
 

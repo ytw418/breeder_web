@@ -4,7 +4,7 @@ import DeleteAccountClient from "./DeleteAccountClient";
 
 export const metadata: Metadata = {
   robots: { index: false, follow: false, googleBot: { index: false, follow: false } },
-  title: "회원탈퇴 | 브리디",
+  title: "회원탈퇴",
   description: "브리디 회원탈퇴 페이지입니다.",
 };
 

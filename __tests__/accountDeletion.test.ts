@@ -14,6 +14,7 @@ const mockClient = {
   alertSubscription: { deleteMany: jest.fn() },
   bloodlineFollow: { deleteMany: jest.fn() },
   profileAlbum: { deleteMany: jest.fn() },
+  regionVisit: { deleteMany: jest.fn() },
   notification: { deleteMany: jest.fn() },
   voiceInquiry: { updateMany: jest.fn() },
   guinnessSubmission: { updateMany: jest.fn() },
@@ -244,6 +245,14 @@ describe("deleteAccount", () => {
         phone: null,
         avatar: null,
         bio: null,
+        // 커버·대표 링크·동네·관심 카테고리도 개인이 정한 값이라 지운다(/account-deletion 안내와 같게).
+        profileBanner: null,
+        profileLink: null,
+        regionSido: null,
+        regionSigungu: null,
+        regionVisible: false,
+        regionUpdatedAt: null,
+        pinnedCategoryIds: [],
         snsId: `deleted:${hashSnsId("kakao-123")}`,
         // 탈퇴하면 모든 기기의 access/refresh 토큰을 즉시 무효화한다.
         tokenVersion: { increment: 1 },
@@ -305,6 +314,7 @@ describe("deleteAccount", () => {
     expect(mockClient.alertSubscription.deleteMany).toHaveBeenCalledWith({ where: { userId: USER_ID } });
     expect(mockClient.bloodlineFollow.deleteMany).toHaveBeenCalledWith({ where: { userId: USER_ID } });
     expect(mockClient.profileAlbum.deleteMany).toHaveBeenCalledWith({ where: { userId: USER_ID } });
+    expect(mockClient.regionVisit.deleteMany).toHaveBeenCalledWith({ where: { userId: USER_ID } });
     expect(mockClient.notification.deleteMany).toHaveBeenCalledWith({ where: { userId: USER_ID } });
     // 보낸 알림 문구("브리더님이 회원님을 팔로우했습니다.")에 박힌 원래 닉네임도 남기지 않는다.
     expect(mockClient.notification.deleteMany).toHaveBeenCalledWith({

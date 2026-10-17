@@ -1,4 +1,5 @@
 import { NextApiRequest, NextApiResponse } from "next";
+import { withDetailRevalidation } from "@libs/server/pageRevalidation";
 import withHandler, { ResponseType } from "@libs/server/withHandler";
 
 import client from "@libs/server/client";
@@ -17,6 +18,14 @@ import { canEditAnyContent, isModeratorUser } from "@libs/server/adminAccess";
 import { Prisma, type Post } from "@prisma/client";
 import { resolveCategoryIdByName } from "@libs/server/categories";
 import { DELETED_COMMENT_TEXT } from "@libs/shared/comment";
+import { getDebateSummaries, notifyDebateResult } from "@libs/server/debate";
+import {
+  DEBATE_CATEGORY,
+  validateDebateInput,
+  type DebateSide,
+  type DebateSummary,
+} from "@libs/shared/debateFormat";
+import { BLOCKED_WORD_MESSAGE, hasBlockedWord } from "@libs/shared/contentFilter";
 
 interface PostDetail {
   user: {
@@ -47,6 +56,8 @@ interface PostDetail {
     likeCount: number;
     /** viewer 가 좋아요했는지(비로그인 false) */
     isLiked: boolean;
+    /** 토론 댓글이면 쓴 순간의 쪽(앱 docs/prd/live-talk.md) */
+    stance: DebateSide | null;
   }[];
   _count: {
     comments: number;
@@ -81,6 +92,8 @@ export interface PostDetailResponse {
   isLiked?: boolean;
   prevNotice?: AdjacentNotice | null;
   nextNotice?: AdjacentNotice | null;
+  /** 찬반 토론 글이면 요약(앱 docs/prd/live-talk.md §4.2). */
+  debate?: DebateSummary | null;
 }
 
 /** 게시글 수정(action=update) 성공 응답. 실패는 { success:false, error, message, errorCode }. */
@@ -132,7 +145,15 @@ async function mutatePost(
 
   const post = await client.post.findUnique({
     where: { id: postId },
-    select: { id: true, userId: true, image: true, images: true },
+    select: {
+      id: true,
+      userId: true,
+      image: true,
+      images: true,
+      category: true,
+      title: true,
+      debate: { select: { optionA: true, optionB: true, endsAt: true, firstOtherVoteAt: true } },
+    },
   });
   if (!post) {
     return sendPostError(res, 404, "POST_NOT_FOUND", NOT_FOUND_MESSAGE);
@@ -170,6 +191,35 @@ async function mutatePost(
 
   if (action !== "update") {
     return sendPostError(res, 400, "POST_INVALID_ACTION", "지원하지 않는 요청입니다.");
+  }
+
+  // 찬반 토론 수정(앱 docs/prd/live-talk.md §3.7): 남이 처음 투표하기 전엔 질문·선택지·설명, 그 뒤엔 설명만. 기간·카테고리는 그대로.
+  if (post.category === DEBATE_CATEGORY && post.debate) {
+    const locked = post.debate.firstOtherVoteAt != null;
+    const nextTitle = locked ? post.title : trimmedText(req.body.title) || post.title;
+    const nextA = locked ? post.debate.optionA : trimmedText(req.body.debate?.optionA) || post.debate.optionA;
+    const nextB = locked ? post.debate.optionB : trimmedText(req.body.debate?.optionB) || post.debate.optionB;
+    const nextDescription = typeof req.body.description === "string" ? req.body.description.trim() : "";
+    const checked = validateDebateInput({
+      title: nextTitle,
+      optionA: nextA,
+      optionB: nextB,
+      durationHours: 72,
+      description: nextDescription,
+    });
+    if (!checked.ok) return sendPostError(res, 400, checked.errorCode, checked.message);
+    if ([nextTitle, nextA, nextB, nextDescription].some((text) => hasBlockedWord(text))) {
+      return sendPostError(res, 400, "BLOCKED_WORD", BLOCKED_WORD_MESSAGE);
+    }
+    const updatedDebatePost = await client.post.update({
+      where: { id: postId },
+      data: {
+        title: nextTitle,
+        description: nextDescription,
+        ...(locked ? {} : { debate: { update: { optionA: nextA, optionB: nextB } } }),
+      },
+    });
+    return res.json({ success: true, post: withPostImages(updatedDebatePost), locked });
   }
 
   const { image, images, category, species } = req.body;
@@ -297,6 +347,7 @@ async function getPostDetail(
           parentId: true,
           editedAt: true,
           deletedAt: true,
+          stance: true,
           _count: { select: { likes: true } },
           user: {
             select: {
@@ -442,19 +493,27 @@ async function getPostDetail(
     })),
   };
 
+  // 찬반 토론이면 요약(막대·참여 수·내 선택). 끝난 토론은 결과 알림을 한 번 만든다.
+  let debate: DebateSummary | null = null;
+  if (post.category === DEBATE_CATEGORY) {
+    debate = (await getDebateSummaries([post], user?.id)).get(post.id) ?? null;
+    if (debate && debate.state !== "open") void notifyDebateResult(post.id).catch(() => undefined);
+  }
+
   res.json({
     success: true,
     post: serializedPost,
     isLiked,
     prevNotice,
     nextNotice,
+    debate,
   });
 }
 
 export default withAuth(
   withHandler({
     methods: ["GET", "POST"],
-    handler,
+    handler: withDetailRevalidation(handler, (req) => [{ type: "POST", id: extractPostIdFromPath(req.query.id) }]),
     isPrivate: false,
   })
 );

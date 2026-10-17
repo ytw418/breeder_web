@@ -167,9 +167,9 @@ function DetailHero({ hero, editHref }: { hero: BloodlineCardItem; editHref?: st
         )}
       </div>
       <div className="px-4 pb-5 pt-4">
-        <h2 className="break-words text-[20px] font-bold leading-[28px] tracking-[-0.4px] text-app-text">
+        <h1 className="break-words text-[20px] font-bold leading-[28px] tracking-[-0.4px] text-app-text">
           {hero.name}
-        </h2>
+        </h1>
         <p className="mt-1 text-[15px] leading-5 text-app-muted">{speciesOrigin}</p>
         <p className="mt-0.5 text-[14px] leading-5 text-app-muted">{createdBy}</p>
         {description ? (
@@ -312,7 +312,17 @@ function NameVisibleSwitch({
   );
 }
 
-export default function BloodlineCardDetailClient({ cardId }: { cardId: number }) {
+export default function BloodlineCardDetailClient({
+  cardId,
+  footer,
+}: {
+  cardId: number;
+  /**
+   * 맨 아래 '더 둘러보기'(서버가 그린 같은 종 분양글·인기 글·바로가기). 본문은 화면에서 받지만 이 링크는
+   * 로딩 중 HTML 에도 넣어 검색엔진이 따라가게 한다.
+   */
+  footer?: React.ReactNode;
+}) {
   const { user } = useUser();
   const router = useRouter();
   const pathname = usePathname();
@@ -698,11 +708,11 @@ export default function BloodlineCardDetailClient({ cardId }: { cardId: number }
   // ── 로딩 ────────────────────────────────────────────────────────────
   if (isLoading) {
     return (
-      <Layout headerVariant="none" seoTitle="혈통">
-        <BloodlineHeader title="혈통" showHome />
+      <Layout canGoBack homeAction title="혈통" seoTitle="혈통" headerRight={<></>}>
         <div className="flex min-h-[60vh] items-center justify-center">
           <BloodlineSpinner />
         </div>
+        {footer}
       </Layout>
     );
   }
@@ -714,17 +724,15 @@ export default function BloodlineCardDetailClient({ cardId }: { cardId: number }
     const isNotFound = isRevoked || status === 404 || status === 403;
     if (!isWaitingForSync && detailError && !detailData && !isNotFound) {
       return (
-        <Layout headerVariant="none" seoTitle="혈통">
-          <BloodlineHeader title="혈통" showHome />
-          <div className="flex min-h-[60vh] items-center justify-center px-4">
+        <Layout canGoBack homeAction title="혈통" seoTitle="혈통" headerRight={<></>}>
+            <div className="flex min-h-[60vh] items-center justify-center px-4">
             <QueryErrorState title="혈통을 불러오지 못했어요" onRetry={() => void mutateCard()} />
           </div>
         </Layout>
       );
     }
     return (
-      <Layout headerVariant="none" seoTitle="혈통">
-        <BloodlineHeader title="혈통" showHome />
+      <Layout canGoBack homeAction title="혈통" seoTitle="혈통" headerRight={<></>}>
         <div className="flex min-h-[60vh] flex-col items-center justify-center px-4 text-center">
           {isWaitingForSync ? (
             <>
@@ -741,6 +749,7 @@ export default function BloodlineCardDetailClient({ cardId }: { cardId: number }
             </p>
           )}
         </div>
+        {footer}
         {!isWaitingForSync ? (
           <BloodlineBottomBar>
             <BloodlinePrimaryButton href="/bloodline-management">혈통관리로 이동</BloodlinePrimaryButton>
@@ -815,24 +824,27 @@ export default function BloodlineCardDetailClient({ cardId }: { cardId: number }
   const shareTitle = `${shareTarget.name} · ${shareTarget.speciesType ?? "혈통"}`;
 
   return (
-    <Layout headerVariant="none" seoTitle={card.name}>
-      <BloodlineHeader
-        title={typeLabel}
-        showHome
-        right={
-          <BloodlineHeaderButton
-            label="공유"
-            onClick={() =>
-              void shareOrCopy({
-                title: shareTitle,
-                url: `/bloodline-management/card/${shareTarget.id}`,
-              })
-            }
-          >
-            <ShareIcon />
-          </BloodlineHeaderButton>
-        }
-      />
+    // 분양글 상세와 같은 헤더: ← · 브리디 로고 | 가운데 종류(혈통·출처 카드) | 공유 · 메뉴(2026-10-16 사용자).
+    // 혈통 이름은 본문 h1 에 크게 있다.
+    <Layout
+      canGoBack
+      homeAction
+      title={typeLabel}
+      seoTitle={card.name}
+      headerRight={
+        <BloodlineHeaderButton
+          label="공유"
+          onClick={() =>
+            void shareOrCopy({
+              title: shareTitle,
+              url: `/bloodline-management/card/${shareTarget.id}`,
+            })
+          }
+        >
+          <ShareIcon />
+        </BloodlineHeaderButton>
+      }
+    >
 
       {showCelebration ? (
         <div
@@ -985,6 +997,8 @@ export default function BloodlineCardDetailClient({ cardId }: { cardId: number }
 
         <div className="h-8" />
       </form>
+
+      {footer}
 
       {showActionBar || activeAction !== null ? <BloodlineBottomBarSpacer /> : null}
 

@@ -42,6 +42,11 @@
 | `region_set` | `POST /api/users/me`(동네 지정) | `region_sido`, `region_visible` |
 | `profile_updated` | `POST /api/users/me`(프로필 필드) | `fields` |
 | `bloodline_created`·`bloodline_sent`·`product_bloodline_attached`·`auction_bloodline_attached` | 혈통 API | 기존 이벤트 |
+| `debate_created` | `POST /api/posts`(category 토론, 2026-10-15) | `post_id`, `species`, `duration_hours`, `custom_options`(찬성·반대를 바꿨는지) |
+| `debate_voted` | `POST /api/posts/[id]/vote` | `post_id`, `side`, `switched`(선택 바꾸기), `source`(home·feed·rail·detail) |
+| `debate_commented` | `POST /api/posts/[id]/answers`(토론 글) | `post_id`, `side`, `is_author` |
+| `town_message_sent` | `POST /api/town/messages`(동네 사랑방) | `type`(TEXT·IMAGE·PRODUCT), `is_newcomer`, `from_prompt`(대화 거리 칩) |
+| `town_welcome_sent` | `POST /api/town/welcome`(반겨 주기) | 없음 |
 
 ## 화면·세션(이탈 지점)
 

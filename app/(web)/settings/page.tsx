@@ -10,7 +10,7 @@ export const metadata: Metadata = {
       follow: false,
     },
   },
-  title: "계정 설정 | 브리디",
+  title: "계정 설정",
   description: "브리디 계정 설정 페이지입니다.",
 };
 
