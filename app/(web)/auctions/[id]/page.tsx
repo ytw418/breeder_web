@@ -8,6 +8,7 @@ import JsonLd from "@components/atoms/JsonLd";
 import { getAuction } from "@libs/server/apis";
 import type { AuctionDetailResponse } from "pages/api/auctions/[id]";
 import ExploreMore from "@components/app/ExploreMore";
+import CoupangBanner from "@components/app/ads/CoupangBanner";
 import { getExploreMore } from "@libs/server/exploreMore";
 import {
   extractAuctionIdFromPath,
@@ -270,7 +271,14 @@ const page = async ({ params }: Props) => {
       <JsonLd id="auction-breadcrumb-jsonld" data={breadcrumbJsonLd} />
       <AuctionDetailClient
         initialAuction={toCacheableAuction(initialData.auction)}
-        footer={<ExploreMore data={explore} similarTitle="진행 중인 비슷한 경매" />}
+        footer={
+          <ExploreMore
+            data={explore}
+            similarTitle="진행 중인 비슷한 경매"
+            // 분양·경매 화면은 AdSense 대신 쿠팡만 둔다(생물 거래 콘텐츠 수익화 정책). 숨김 경매는 이 페이지에 오지 않는다.
+            ad={<CoupangBanner />}
+          />
+        }
       />
     </>
   );

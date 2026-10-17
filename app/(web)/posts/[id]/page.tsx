@@ -13,6 +13,8 @@ import { SITE_OG_IMAGE } from "@libs/shared/ogImage";
 import JsonLd from "@components/atoms/JsonLd";
 import { SITE_URL, toPublicImageUrl } from "@libs/shared/seo";
 import ExploreMore from "@components/app/ExploreMore";
+import AdSenseUnit from "@components/app/ads/AdSenseUnit";
+import { isNoticePostInput } from "@libs/server/postNotice";
 import { getExploreMore } from "@libs/server/exploreMore";
 
 const DEFAULT_POST_IMAGE = SITE_OG_IMAGE;
@@ -208,6 +210,8 @@ const page = async ({ params }: { params: Promise<{ id: string }> }) => {
     notFound();
   }
   const explore = await getExploreMore({ kind: "post", id: data.post.id, category: data.post.category });
+  // 운영 공지·숨김 글에는 광고를 두지 않는다(앱과 같다).
+  const showAds = !isNoticePostInput(data.post) && !data.post.isHidden;
 
   return (
     <div>
@@ -215,7 +219,13 @@ const page = async ({ params }: { params: Promise<{ id: string }> }) => {
       {/* 댓글은 캐시된 HTML 에 넣지 않는다. 화면이 열리면 PostClient 가 최신 댓글을 받아 그린다. */}
       <PostClient
         {...normalizeDeletedUserNames({ ...data, post: { ...data.post, comments: [] } })}
-        footer={<ExploreMore data={explore} similarTitle="비슷한 글" />}
+        footer={
+          <ExploreMore
+            data={explore}
+            similarTitle="비슷한 글"
+            ad={showAds ? <AdSenseUnit placement="postDetail" format="rectangle" withGap className="px-4 py-5" /> : null}
+          />
+        }
       />
     </div>
   );
