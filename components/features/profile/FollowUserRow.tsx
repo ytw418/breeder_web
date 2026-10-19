@@ -29,7 +29,7 @@ export default function FollowUserRow({
       {user.avatar ? (
         <Image
           src={makeImageUrl(user.avatar, "avatar")}
-          alt=""
+          alt={`${user.name} 프로필 사진`}
           width={44}
           height={44}
           className="h-11 w-11 shrink-0 rounded-full object-cover"

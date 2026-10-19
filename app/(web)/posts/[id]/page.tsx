@@ -1,6 +1,6 @@
 import React from "react";
 import PostClient from "./PostClient";
-import { getPost } from "@libs/server/apis";
+import { getPost, throwIfTransientFailure } from "@libs/server/apis";
 import { extractPostIdFromPath, toPostPath } from "@libs/post-route";
 import { notFound } from "next/navigation";
 import {
@@ -11,7 +11,7 @@ import { toPostPlainText } from "@libs/shared/post-body";
 import type { Metadata } from "next";
 import { SITE_OG_IMAGE } from "@libs/shared/ogImage";
 import JsonLd from "@components/atoms/JsonLd";
-import { SITE_URL, toPublicImageUrl } from "@libs/shared/seo";
+import { SITE_URL, toPageTitle, toPublicImageUrl } from "@libs/shared/seo";
 import ExploreMore from "@components/app/ExploreMore";
 import AdSenseUnit from "@components/app/ads/AdSenseUnit";
 import { isNoticePostInput } from "@libs/server/postNotice";
@@ -61,6 +61,7 @@ export async function generateMetadata({
   }
 
   const data = await getPost(String(postId), { revalidateSeconds: POST_REVALIDATE_SECONDS });
+  throwIfTransientFailure(data);
   const canonical = getPostCanonical(postId, data.post?.title);
 
   if (!data.success || !data.post) {
@@ -79,7 +80,7 @@ export async function generateMetadata({
   }
 
   // 페이지 제목은 레이아웃 템플릿이 ' | 브리디'를 붙인다. 공유 미리보기 제목엔 직접 붙인다.
-  const title = data.post.category ? `${data.post.title} - ${data.post.category}` : data.post.title;
+  const title = toPageTitle(data.post.title, data.post.category);
   const shareTitle = `${data.post.title} | 브리디`;
   const firstImage = data.post.images?.[0] || data.post.image;
   const shareImage = firstImage ? toPublicImageUrl(firstImage, DEFAULT_POST_IMAGE) : DEFAULT_POST_IMAGE;
@@ -206,6 +207,7 @@ const page = async ({ params }: { params: Promise<{ id: string }> }) => {
   }
 
   const data = await getPost(String(postId), { revalidateSeconds: POST_REVALIDATE_SECONDS });
+  throwIfTransientFailure(data);
   if (!data.success || !data.post) {
     notFound();
   }

@@ -25,7 +25,7 @@ export function InitialAvatar({
         src={makeImageUrl(avatar, "avatar")}
         width={size}
         height={size}
-        alt=""
+        alt={name ? `${name} 프로필 사진` : "프로필 사진"}
         className={cn("shrink-0 rounded-full object-cover", className)}
         style={{ width: size, height: size }}
       />

@@ -10,6 +10,7 @@ import type { AuctionDetailResponse } from "pages/api/auctions/[id]";
 import ExploreMore from "@components/app/ExploreMore";
 import CoupangBanner from "@components/app/ads/CoupangBanner";
 import { getExploreMore } from "@libs/server/exploreMore";
+import { toPageTitle } from "@libs/shared/seo";
 import {
   extractAuctionIdFromPath,
   toAuctionPath,
@@ -34,9 +35,9 @@ const toPublicImageUrl = (imageId: string | null | undefined) => {
   return `${CLOUDFLARE_IMAGE_BASE}/${imageId}/public`;
 };
 
-const getAuctionForSeo = async (auctionId: number) => {
-  try {
-    return await client.auction.findUnique({
+// DB 오류는 던진다. null(404)로 바꾸면 일시 장애 때 검색 로봇이 경매를 지운다(libs/server/apis.ts throwIfTransientFailure).
+const getAuctionForSeo = async (auctionId: number) =>
+  client.auction.findUnique({
       where: { id: auctionId },
       select: {
         id: true,
@@ -56,10 +57,6 @@ const getAuctionForSeo = async (auctionId: number) => {
         },
       },
     });
-  } catch {
-    return null;
-  }
-};
 
 const getAuctionCanonicalUrl = (auctionId: number, title?: string | null) =>
   `${SITE_URL}${toAuctionPath(auctionId, title)}`;
@@ -130,7 +127,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
       ? `${auction.description.slice(0, 120)}...`
       : auction.description;
 
-  const title = `${auction.title} - 경매`;
+  const title = toPageTitle(auction.title, "경매");
   const shareTitle = `${auction.title} | 브리디 경매`;
   const description = `${trimmedDescription} · 현재가 ${auction.currentPrice.toLocaleString()}원`;
   const ogImage = toPublicImageUrl(auction.photos?.[0]);

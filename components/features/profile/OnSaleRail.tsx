@@ -46,7 +46,7 @@ function OnSaleCard({ item }: { item: OnSaleItem }) {
         {item.photo ? (
           <Image
             src={makeImageUrl(item.photo, "public")}
-            alt=""
+            alt={title}
             fill
             sizes="132px"
             className="object-cover"

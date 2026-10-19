@@ -109,7 +109,7 @@ export function BloodlineVisualCard({
         {showImage ? (
           <Image
             src={src}
-            alt=""
+            alt={`${name} 혈통 사진`}
             fill
             sizes="(max-width: 576px) 100vw, 576px"
             className="object-cover object-center"

@@ -27,7 +27,7 @@ const SECONDARY_CTA =
 
 export default function BredybookLandingClient() {
   return (
-    <Layout title="브리디북" seoTitle="브리디북" icon>
+    <Layout title="브리디북" seoTitle="브리디북" icon bodyHasH1>
       <div className="min-h-full bg-app-bg">
         <section className="mx-auto max-w-5xl px-4 pb-8 pt-6">
           <span className="inline-flex rounded-md bg-app-surface px-2 py-1 text-[12px] font-semibold text-app-muted">

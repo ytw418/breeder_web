@@ -109,7 +109,7 @@ export default function ChatMessageGroup({
               className="relative h-9 w-9 shrink-0 overflow-hidden rounded-full bg-app-placeholder"
             >
               {avatar ? (
-                <Image src={makeImageUrl(avatar, "avatar")} alt="" fill sizes="36px" className="object-cover" />
+                <Image src={makeImageUrl(avatar, "avatar")} alt="상대 프로필 사진" fill sizes="36px" className="object-cover" />
               ) : null}
             </Link>
             {bubbles}

@@ -44,3 +44,20 @@ export const toMetaDescription = (value: string | null | undefined, length = 150
     .trim();
   return normalized.length <= length ? normalized : `${normalized.slice(0, length)}…`;
 };
+
+/** 레이아웃 템플릿이 붙이는 ' | 브리디' 를 합친 제목 최대 길이(네이버 서치어드바이저 '제목 길이 확인 필요'). */
+export const PAGE_TITLE_MAX = 40;
+const TITLE_TEMPLATE_LENGTH = ` | ${SITE_NAME}`.length;
+
+/**
+ * 상세 제목. 글 제목 뒤에 종·종류(' - 크레스티드 게코 분양')를 붙이되, 넘치면 꼬리를 빼고 그래도 길면 글 제목을 자른다.
+ * 결과에는 템플릿 꼬리(' | 브리디')가 없다.
+ */
+export const toPageTitle = (main: string, suffix?: string | null) => {
+  const limit = PAGE_TITLE_MAX - TITLE_TEMPLATE_LENGTH;
+  const base = main.trim().replace(/\s+/g, " ");
+  const withSuffix = suffix ? `${base} - ${suffix}` : base;
+  if (withSuffix.length <= limit) return withSuffix;
+  if (base.length <= limit) return base;
+  return `${base.slice(0, limit - 1).trimEnd()}…`;
+};

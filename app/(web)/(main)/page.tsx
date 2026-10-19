@@ -6,7 +6,8 @@ import { getHomeBanners, getHomeFeed } from "@libs/server/home";
 import { normalizeDeletedUserNames } from "@libs/shared/deletedUser";
 
 export const metadata: Metadata = {
-  title: "브리디 | 곤충·파충류·물고기, 키우는 사람들이 모이는 곳",
+  // 레이아웃 템플릿(' | 브리디')을 붙이면 '브리디'가 두 번 나온다. 홈만 제목을 그대로 쓴다.
+  title: { absolute: "브리디 | 곤충·파충류·물고기, 키우는 사람들이 모이는 곳" },
   description:
     "곤충·파충류·물고기 키우는 사람들이 모이는 곳. 실시간 토론과 질문, 동네 브리더, 분양까지 브리디에서 한 번에.",
   openGraph: {

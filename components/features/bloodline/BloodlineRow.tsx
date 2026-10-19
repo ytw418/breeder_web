@@ -56,14 +56,14 @@ export const BloodlineChevronIcon = ({ size = 20 }: { size?: number }) => (
 );
 
 /** 56 썸네일 / 44 아바타. 사진이 없으면 placeholder + 라인 아이콘. */
-export function BloodlineThumb({ imageId, avatar }: { imageId?: string | null; avatar?: boolean }) {
+export function BloodlineThumb({ imageId, avatar, alt }: { imageId?: string | null; avatar?: boolean; alt?: string }) {
   const size = avatar ? 44 : 56;
   const shape = avatar ? "rounded-full" : "rounded-xl";
   if (imageId?.trim()) {
     return (
       <Image
         src={makeImageUrl(imageId, avatar ? "avatar" : "product")}
-        alt=""
+        alt={alt ?? (avatar ? "프로필 사진" : "혈통 사진")}
         width={size}
         height={size}
         className={cn("shrink-0 object-cover", shape)}
@@ -118,7 +118,7 @@ export function BloodlineRow({
 }) {
   const body = (
     <span className="flex min-w-0 items-center gap-3">
-      <BloodlineThumb imageId={imageId} avatar={avatar} />
+      <BloodlineThumb imageId={imageId} avatar={avatar} alt={avatar ? `${title} 프로필 사진` : `${title} 혈통 사진`} />
       <span className="min-w-0 flex-1">
         <span
           className={cn(

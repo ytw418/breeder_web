@@ -64,7 +64,7 @@ export function NearbyBreederRow({
       {item.user.avatar ? (
         <Image
           src={makeImageUrl(item.user.avatar, "avatar")}
-          alt=""
+          alt={`${item.user.name} 프로필 사진`}
           width={40}
           height={40}
           className="h-10 w-10 shrink-0 rounded-full object-cover"

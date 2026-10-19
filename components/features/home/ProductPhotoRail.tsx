@@ -59,7 +59,7 @@ export default function ProductPhotoRail({ items, loading }: { items: RailProduc
                   {item.image ? (
                     <Image
                       src={makeImageUrl(item.image, "product")}
-                      alt=""
+                      alt={item.name}
                       width={120}
                       height={120}
                       className="h-full w-full object-cover"

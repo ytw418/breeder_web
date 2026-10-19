@@ -31,7 +31,7 @@ function Section({ title, children }: { title: string; children: ReactNode }) {
 
 export default function AccountDeletionPage() {
   return (
-    <Layout canGoBack title="계정·데이터 삭제" seoTitle="브리디 계정·데이터 삭제 안내">
+    <Layout canGoBack bodyHasH1 title="계정·데이터 삭제" seoTitle="브리디 계정·데이터 삭제 안내">
       <div className="mx-auto min-h-full max-w-2xl bg-app-bg px-4 pb-10 pt-4">
         <h1 className="text-[22px] font-bold text-app-text">
           브리디 계정·데이터 삭제 안내

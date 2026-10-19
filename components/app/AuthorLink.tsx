@@ -60,7 +60,7 @@ export function AuthorLink({
             className={cn(sizeClass, "rounded-full object-cover")}
             width={avatarSize}
             height={avatarSize}
-            alt=""
+            alt={`${user.name} 프로필 사진`}
           />
         ) : (
           <span

@@ -78,7 +78,7 @@ export default function PhotoGrid({
                 {coverOf(post) ? (
                   <Image
                     src={makeImageUrl(coverOf(post), "public")}
-                    alt=""
+                    alt={post.title}
                     fill
                     sizes="(max-width: 576px) 33vw, 192px"
                     className="object-cover"

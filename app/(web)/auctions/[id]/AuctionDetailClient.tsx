@@ -577,7 +577,7 @@ const AuctionDetailClient = ({
             className="h-11 w-11 rounded-full object-cover"
             width={44}
             height={44}
-            alt=""
+            alt={`${sellerName ?? "분양자"} 프로필 사진`}
           />
         ) : (
           <div className="h-11 w-11 rounded-full bg-app-surface" />
