@@ -3,6 +3,7 @@ import Link from "next/link";
 
 export const metadata: Metadata = {
   title: "링크형 경매도구",
+  alternates: { canonical: "https://bredy.app/auction-tool" },
   description:
     "카페·밴드·오픈채팅에서 링크 하나로 바로 입찰하고 마감할 수 있는 경매도구를 소개합니다.",
   openGraph: {

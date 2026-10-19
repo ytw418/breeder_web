@@ -129,9 +129,7 @@ export const metadata: Metadata = {
       "naver-site-verification": "7f6743de2fa3d6b5a9eea0f841b8e35bc57ee644",
     },
   },
-  alternates: {
-    canonical: "https://bredy.app",
-  },
+  // canonical 기본값을 두지 않는다. 두면 자기 주소를 안 정한 페이지가 모두 '홈의 복사본'이 된다(2026-10-19).
   manifest: "/manifest.webmanifest",
   appleWebApp: {
     capable: true,
@@ -156,14 +154,6 @@ export default function RootLayout({
   return (
     <html lang="ko" suppressHydrationWarning>
       <head>
-        <meta
-          name="naver-site-verification"
-          content="7f6743de2fa3d6b5a9eea0f841b8e35bc57ee644"
-        />
-        <meta
-          name="google-site-verification"
-          content="YV_Riopc7DmVS7LUL6geEhhs2DmQghxBUUBoeuTWhR0"
-        />
         <meta
           name="google-adsense-account"
           content="ca-pub-8957945516038764"

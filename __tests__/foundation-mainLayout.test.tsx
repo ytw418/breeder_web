@@ -168,7 +168,8 @@ describe("MainLayout 셸", () => {
     const brand = screen.getByTestId("header-brand");
     expect(brand).toHaveTextContent("브리디");
     expect(brand.querySelector(".app-t-section")).not.toBeNull();
-    expect(screen.queryByRole("heading", { name: "브리디" })).toBeNull();
+    // 검색엔진용 h1 은 화면에 보이지 않게(sr-only)만 둔다.
+    expect(screen.getByRole("heading", { level: 1, name: "브리디" })).toHaveClass("sr-only");
   });
 
   it("다른 탭 루트는 왼쪽 로고만(누르면 홈), 탭 이름 글자는 보이지 않는다", () => {
