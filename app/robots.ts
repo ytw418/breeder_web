@@ -3,7 +3,6 @@ import { MetadataRoute } from "next";
 /** 로그인·개인 화면·작성 화면. 어떤 봇도 들어가지 않는다. */
 const PRIVATE_PATHS = [
   "/api/",
-  "/_next/",
   "/private/",
   "/admin/",
   "/auth",

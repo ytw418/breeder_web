@@ -562,7 +562,7 @@ export default function TownClient() {
                 >
                   <span className="h-12 w-12 shrink-0 overflow-hidden rounded-lg bg-app-placeholder">
                     {product.photo ? (
-                      <Image src={makeImageUrl(product.photo, "product")} alt="" width={48} height={48} className="h-full w-full object-cover" />
+                      <Image src={makeImageUrl(product.photo, "product")} alt={product.name} width={48} height={48} className="h-full w-full object-cover" />
                     ) : null}
                   </span>
                   <span className="min-w-0 flex-1">
@@ -643,7 +643,7 @@ function TownBubble({
     >
       <span className="h-12 w-12 shrink-0 overflow-hidden rounded-lg bg-app-placeholder">
         {message.product.image ? (
-          <Image src={makeImageUrl(message.product.image, "product")} alt="" width={48} height={48} className="h-full w-full object-cover" />
+          <Image src={makeImageUrl(message.product.image, "product")} alt={message.product.name} width={48} height={48} className="h-full w-full object-cover" />
         ) : null}
       </span>
       <span className="min-w-0 flex-1">

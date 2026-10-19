@@ -114,7 +114,7 @@ function NotificationRow({ notification, onPress }: { notification: Notification
       {notification.targetImage ? (
         <Image
           src={makeImageUrl(notification.targetImage, "product")}
-          alt=""
+          alt="알림 대상 사진"
           width={48}
           height={48}
           className="h-12 w-12 shrink-0 rounded-lg bg-app-placeholder object-cover"

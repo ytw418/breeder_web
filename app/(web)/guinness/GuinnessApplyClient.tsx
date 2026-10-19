@@ -621,7 +621,7 @@ export default function GuinnessApplyClient() {
               >
                 <Image
                   src={makeImageUrl(photoId, "public")}
-                  alt=""
+                  alt={`등록된 증빙 사진 ${index + 1}`}
                   width={80}
                   height={80}
                   className="h-20 w-20 object-cover"

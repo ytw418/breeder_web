@@ -106,9 +106,12 @@ async function fetchOwnApi<T extends { success: boolean; error?: string }>(
   path: string,
   fallbackError: string,
   { revalidateSeconds }: FetchOptions = {}
-): Promise<T> {
+): Promise<T & { notFound?: boolean }> {
   const baseUrls = resolveBaseUrls();
   let lastError = fallbackError;
+  // 404 를 받은 적이 있을 때만 '없는 글'이다. DB 연결 오류(500) 같은 일시 장애까지 404 로 내면
+  // 검색 로봇이 멀쩡한 글을 지운다(2026-10-19 EMAXCONN 때 sitemap 글 31개가 404).
+  let notFound = false;
 
   for (const baseUrl of baseUrls) {
     try {
@@ -120,6 +123,7 @@ async function fetchOwnApi<T extends { success: boolean; error?: string }>(
       );
 
       if (!res.ok) {
+        if (res.status === 404) notFound = true;
         lastError = `[${baseUrl}] ${await parseErrorMessage(res)}`;
         continue;
       }
@@ -135,7 +139,14 @@ async function fetchOwnApi<T extends { success: boolean; error?: string }>(
     }
   }
 
-  return { success: false, error: lastError } as T;
+  return { success: false, error: lastError, notFound } as T & { notFound: boolean };
+}
+
+/** 없는 글이 아니라 일시 장애로 못 받았으면 던진다. ISR 은 이전 화면을 계속 보이고, 첫 요청이면 500 이 된다. */
+export function throwIfTransientFailure(data: { success: boolean; error?: string; notFound?: boolean }) {
+  if (!data.success && !data.notFound) {
+    throw new Error(data.error || "상세 조회에 실패했습니다.");
+  }
 }
 
 export function getProduct(id: string, options?: FetchOptions) {

@@ -60,7 +60,7 @@ function AlbumItem({
           (cover ? (
             <Image
               src={makeImageUrl(cover, "public")}
-              alt=""
+              alt={label}
               width={70}
               height={62}
               className="h-full w-full object-cover"

@@ -63,7 +63,7 @@ function ExploreSection({ title, items }: { title: string; items: ExploreItem[] 
               {item.image ? (
                 <NextImage
                   src={makeImageUrl(item.image, "product")}
-                  alt=""
+                  alt={item.title}
                   width={56}
                   height={56}
                   className="h-14 w-14 shrink-0 rounded-xl bg-app-placeholder object-cover"

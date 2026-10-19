@@ -157,7 +157,7 @@ function AttachableRowButton({
         {item.image ? (
           <Image
             src={makeImageUrl(item.image, "product")}
-            alt=""
+            alt={`${item.name} 혈통 사진`}
             width={44}
             height={44}
             className="h-full w-full object-cover"

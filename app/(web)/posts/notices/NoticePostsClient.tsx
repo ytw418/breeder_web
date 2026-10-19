@@ -121,7 +121,7 @@ export default function NoticePostsClient() {
                       className="h-full w-full object-cover"
                       width={56}
                       height={56}
-                      alt=""
+                      alt={post.title}
                     />
                   </div>
                 ) : null}
