@@ -42,6 +42,29 @@ const getKakaoRedirectUri = () => {
   return `${process.env.NEXT_PUBLIC_DOMAIN_URL || ""}/login-loading`;
 };
 
+const KAKAO_SDK_URL = "https://t1.kakaocdn.net/kakao_js_sdk/2.7.2/kakao.min.js";
+
+/** 카카오 SDK 가 준비될 때까지 기다린다. 느린 망·차단기로 늦게 오거나 끝내 안 오면 false. */
+const waitForKakaoSdk = (timeoutMs = 5000) =>
+  new Promise<boolean>((resolve) => {
+    const startedAt = Date.now();
+    const check = () => {
+      if (window.Kakao?.Auth) {
+        if (!window.Kakao.isInitialized?.()) {
+          window.Kakao.init(process.env.NEXT_PUBLIC_KAKAO_JAVASCRIPT_KEY);
+        }
+        resolve(true);
+        return;
+      }
+      if (Date.now() - startedAt >= timeoutMs) {
+        resolve(false);
+        return;
+      }
+      setTimeout(check, 100);
+    };
+    check();
+  });
+
 const markPostLoginGuide = () => {
   if (typeof window === "undefined") return;
   try {
@@ -148,10 +171,18 @@ const LoginClient = ({ shouldShowTestLogin }: LoginClientProps) => {
   }, [appleError, router]);
 
   /**카카오로그인 */
-  const loginWithKakao = () => {
+  const loginWithKakao = async () => {
     // 로그인 퍼널(버튼 → 서버 signup_completed·login_completed)의 시작점. 앱 login_started 와 같다.
     trackEvent(ANALYTICS_EVENTS.loginStarted, { method: "kakao" });
     const nextPath = getSafeNextPath(searchParams?.get("next") ?? null);
+    // SDK 가 아직 안 왔는데 누르면 window.Kakao 가 없어 버튼이 아무 반응 없이 멈췄다(Sentry, iOS Safari).
+    if (!window.Kakao?.Auth) {
+      loadScript(KAKAO_SDK_URL, "kakao");
+      if (!(await waitForKakaoSdk())) {
+        alert("카카오 로그인을 불러오지 못했어요. 네트워크를 확인하고 다시 시도해주세요.");
+        return;
+      }
+    }
     window.Kakao.Auth.authorize({
       redirectUri: getKakaoRedirectUri(),
       prompt: "select_account",
@@ -173,6 +204,8 @@ const LoginClient = ({ shouldShowTestLogin }: LoginClientProps) => {
         }
       } else if (e.type === "error") {
         console.log(e.error);
+        // 실패한 태그가 남아 있으면 다음 시도에서 다시 불러오지 않는다.
+        e.target?.remove?.();
       }
     };
     if (typeof window !== "undefined") {
@@ -210,10 +243,7 @@ const LoginClient = ({ shouldShowTestLogin }: LoginClientProps) => {
   };
 
   useEffect(() => {
-    loadScript(
-      "https://t1.kakaocdn.net/kakao_js_sdk/2.7.2/kakao.min.js",
-      "kakao",
-    );
+    loadScript(KAKAO_SDK_URL, "kakao");
   }, []);
 
   useEffect(() => {

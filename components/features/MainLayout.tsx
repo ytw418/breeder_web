@@ -31,6 +31,8 @@ interface LayoutProps {
   showHome?: boolean;
   /** 상세 화면: 오른쪽 액션 줄 맨 앞에 홈 아이콘(헤더 오른쪽 headerRight·기본 아이콘 앞). */
   homeAction?: boolean;
+  /** 본문이 h1 을 따로 그린다. 헤더 제목은 h1 대신 글자로 둔다(한 페이지에 h1 하나, 네이버 서치어드바이저). */
+  bodyHasH1?: boolean;
   /**
    * 헤더 오른쪽을 통째로 바꾼다(기본: 알림 벨 + 메뉴). 상세 화면의 ⋮ 등.
    * headerVariant="chat-list" 에서는 알림 벨 왼쪽(검색 자리)에 들어간다.
@@ -415,7 +417,7 @@ function SideMenu({
               {user.avatar ? (
                 <Image
                   src={makeImageUrl(user.avatar, "avatar")}
-                  alt=""
+                  alt={`${user.name} 프로필 사진`}
                   width={44}
                   height={44}
                   className="h-11 w-11 shrink-0 rounded-full object-cover"
@@ -562,7 +564,7 @@ function BrandHomeLink({ wordmark = false, className }: { wordmark?: boolean; cl
       aria-label="브리디 홈으로 가기"
       data-testid="header-brand"
     >
-      <Image src={logo} alt="" width={26} height={26} priority className="h-[26px] w-[26px] rounded-lg" />
+      <Image src={logo} alt="브리디 로고" width={26} height={26} priority className="h-[26px] w-[26px] rounded-lg" />
       {wordmark ? <span className="app-t-section">브리디</span> : null}
     </Link>
   );
@@ -592,7 +594,7 @@ export function HeaderMenuButton() {
 export function HeaderHomeButton() {
   return (
     <HeaderIconButton label="브리디 홈으로 가기" href="/" className="h-10 w-10">
-      <Image src={logo} alt="" width={24} height={24} className="h-6 w-6 rounded-md" />
+      <Image src={logo} alt="브리디 로고" width={24} height={24} className="h-6 w-6 rounded-md" />
     </HeaderIconButton>
   );
 }
@@ -619,6 +621,7 @@ export default function MainLayout({
   showSearch,
   showHome,
   homeAction = false,
+  bodyHasH1 = false,
   headerRight,
   headerVariant = "default",
 }: LayoutProps) {
@@ -787,7 +790,8 @@ export default function MainLayout({
             <>
               {/* 탭 루트: 왼쪽 브리디 로고(누르면 홈). 홈만 워드마크 '브리디'를 붙이고 다른 탭은 이름을 쓰지 않는다(2026-10-12 사용자). */}
               <BrandHomeLink wordmark={isHomeRoot} className="absolute left-4" />
-              {title && !isHomeRoot ? <h1 className="sr-only">{title}</h1> : null}
+              {/* 홈도 h1 을 둔다(워드마크와 같은 글자라도). 렌더 경로에 따라 빠지면 검색 진단에 'h1 없음'으로 잡힌다. */}
+              {title && !bodyHasH1 ? <h1 className="sr-only">{title}</h1> : null}
               <div className="absolute right-2 flex items-center gap-0.5">
                 {headerRight ?? (
                   <>
@@ -808,7 +812,7 @@ export default function MainLayout({
           {title && !(icon && !isToolPath) ? (
             // 상세(homeAction)는 본문 제목이 h1 이라 헤더 제목은 글자로만 둔다(한 페이지에 h1 하나, 검색 최적화).
             <HeaderTitle
-              as={homeAction ? "p" : "h1"}
+              as={homeAction || bodyHasH1 ? "p" : "h1"}
               className={cn(
                 "truncate text-[16px] font-semibold tracking-[-0.02em] text-app-text",
                 // 오른쪽 아이콘이 늘면(홈 + 벨 + 메뉴) 가운데 제목 폭을 그만큼 줄여 겹치지 않게 한다.

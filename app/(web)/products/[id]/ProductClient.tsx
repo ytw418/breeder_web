@@ -558,7 +558,7 @@ const ProductClient = ({
                 {product.user?.avatar ? (
                   <Image
                     src={makeImageUrl(product.user.avatar, "avatar")}
-                    alt=""
+                    alt={`${product.user.name} 프로필 사진`}
                     width={44}
                     height={44}
                     className="h-full w-full object-cover"

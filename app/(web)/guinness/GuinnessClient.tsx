@@ -78,7 +78,7 @@ function RecordRow({
         {photo ? (
           <Image
             src={makeImageUrl(photo, "avatar")}
-            alt=""
+            alt={`${breeder} ${species} 사진`}
             width={44}
             height={44}
             className="h-11 w-11 object-cover"

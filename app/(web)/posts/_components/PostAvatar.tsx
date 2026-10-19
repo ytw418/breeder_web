@@ -16,13 +16,13 @@ export function PostAvatar({
   user,
   size,
 }: {
-  user?: { avatar?: string | null; breederPrograms?: BreederProgramSummary[] | null } | null;
+  user?: { name?: string | null; avatar?: string | null; breederPrograms?: BreederProgramSummary[] | null } | null;
   size: number;
 }) {
   const image = user?.avatar ? (
     <Image
       src={makeImageUrl(user.avatar, "avatar")}
-      alt=""
+      alt={user?.name ? `${user.name} 프로필 사진` : "프로필 사진"}
       width={size}
       height={size}
       className="rounded-full object-cover"

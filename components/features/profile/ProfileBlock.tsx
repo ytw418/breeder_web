@@ -186,7 +186,7 @@ export function ProfileBlock({
           className="block aspect-[2/1] w-full overflow-hidden bg-app-placeholder"
         >
           {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src={makeImageUrl(banner, "public")} alt="" className="h-full w-full object-cover" />
+          <img src={makeImageUrl(banner, "public")} alt={`${name} 커버 사진`} className="h-full w-full object-cover" />
         </button>
       ) : null}
       <div className={cn("px-4 pb-4", banner ? "relative" : "pt-3")}>

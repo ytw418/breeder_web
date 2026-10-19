@@ -1,6 +1,6 @@
 import { Metadata } from "next";
 import { notFound } from "next/navigation";
-import { getProduct } from "@libs/server/apis";
+import { getProduct, throwIfTransientFailure } from "@libs/server/apis";
 import { extractProductId, getProductPath } from "@libs/product-route";
 import {
   displayUserName,
@@ -13,6 +13,7 @@ import {
   SITE_URL,
   productAvailability,
   toMetaDescription,
+  toPageTitle,
   toPublicImageUrl as toSeoImageUrl,
 } from "@libs/shared/seo";
 import { dealTypeLabel, productStatusLabel } from "@libs/shared/productTerms";
@@ -50,6 +51,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { id } = await params;
   const productId = extractProductId(id);
   const data = await getProduct(productId, { revalidateSeconds: PRODUCT_REVALIDATE_SECONDS });
+  throwIfTransientFailure(data);
 
   if (!data.success || !data.product) {
     return {
@@ -90,7 +92,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   if (product.productType) keywordSet.add(product.productType);
 
   return {
-    title: `${String(product.name) || "제목 없음"}${product.category ? ` - ${product.category} 분양` : ""}`,
+    title: toPageTitle(String(product.name) || "제목 없음", product.category ? `${product.category} 분양` : null),
     description,
     keywords: Array.from(keywordSet),
     openGraph: {
@@ -191,6 +193,7 @@ export default async function ProductPage({ params }: Props) {
   const { id } = await params;
   const productId = extractProductId(id);
   const data = await getProduct(productId, { revalidateSeconds: PRODUCT_REVALIDATE_SECONDS });
+  throwIfTransientFailure(data);
 
   if (!data.success || !data.product) {
     // 삭제·숨김 상품은 비로그인 SSR 에서 404(PRODUCT_HIDDEN)다. 소유자는 토큰으로 다시 받아 안내를 봐야 하므로

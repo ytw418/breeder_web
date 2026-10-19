@@ -95,7 +95,7 @@ export default function FreeGiveawaySection({
                     {item.photos?.[0] ? (
                       <Image
                         src={makeImageUrl(item.photos[0], "product")}
-                        alt=""
+                        alt={item.name}
                         width={120}
                         height={120}
                         className="h-full w-full object-cover"

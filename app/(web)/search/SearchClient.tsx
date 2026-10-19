@@ -86,7 +86,7 @@ function ResultRow({
       {imageId ? (
         <Image
           src={makeImageUrl(imageId, imageVariant)}
-          alt=""
+          alt={title}
           width={56}
           height={56}
           className="h-14 w-14 shrink-0 rounded-lg bg-app-surface object-cover"
@@ -263,7 +263,7 @@ const SearchClient = () => {
                   {user.avatar ? (
                     <Image
                       src={makeImageUrl(user.avatar, "avatar")}
-                      alt=""
+                      alt={`${user.name} 프로필 사진`}
                       width={44}
                       height={44}
                       className="h-full w-full object-cover"

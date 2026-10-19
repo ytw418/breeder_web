@@ -83,7 +83,7 @@ export default function RealtimeHotRail({
               {item.image ? (
                 <Image
                   src={makeImageUrl(item.image, "public")}
-                  alt=""
+                  alt={item.title}
                   width={200}
                   height={150}
                   className="h-full w-full object-cover"

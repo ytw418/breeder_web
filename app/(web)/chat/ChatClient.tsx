@@ -47,7 +47,7 @@ function ChatRow({ room, myId }: { room: ChatRoomItem; myId?: number }) {
         {other?.avatar ? (
           <Image
             src={makeImageUrl(other.avatar, "avatar")}
-            alt=""
+            alt={`${name} 프로필 사진`}
             width={44}
             height={44}
             className="h-11 w-11 object-cover"
