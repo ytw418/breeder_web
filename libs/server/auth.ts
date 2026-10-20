@@ -7,12 +7,14 @@ import {
   extractBearerToken,
   verifyAccessToken,
 } from "./jwt";
+import { touchLastActive } from "./lastActive";
 
 /**
  * 서명이 유효한 access 토큰의 유저가 지금도 쓸 수 있는 계정인지 DB 로 확인한다.
  * - status 가 ACTIVE 가 아니거나(정지·차단·탈퇴) tokenVersion 이 토큰의 tv 와 다르면 null.
  * - tv 가 없는 기존 토큰은 tv=0 으로 본다(배포 시 강제 로그아웃 없음).
  * - DB 오류는 fail-closed(null) — 만료 토큰과 같게 취급해 앱은 refresh → 실패 시 로그아웃한다.
+ * - 통과하면 마지막 활동 시각(lastActiveAt)을 KST 하루 한 번 기다리지 않고 갱신한다(libs/server/lastActive).
  */
 export async function resolveAuthUser(
   payload: AccessTokenPayload
@@ -20,10 +22,11 @@ export async function resolveAuthUser(
   try {
     const current = await client.user.findUnique({
       where: { id: payload.user.id },
-      select: { status: true, tokenVersion: true, role: true, email: true },
+      select: { status: true, tokenVersion: true, role: true, email: true, lastActiveAt: true },
     });
     if (!current || current.status !== "ACTIVE") return null;
     if (current.tokenVersion !== (payload.tv ?? 0)) return null;
+    touchLastActive(payload.user.id, current.lastActiveAt);
     // role·email 은 토큰 발급 뒤 바뀔 수 있어 DB 값을 쓴다(isModeratorUser 판별용).
     return { ...payload.user, role: current.role, email: current.email ?? payload.user.email };
   } catch (error) {

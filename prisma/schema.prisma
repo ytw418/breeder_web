@@ -112,6 +112,8 @@ model User {
   regionUpdatedAt DateTime?
   /// 알림 종류별 끄기·방해 금지(libs/shared/notificationPrefs.ts normalizePrefs). 비어 있으면 모두 켜짐·방해 금지 꺼짐. 앱 docs/prd/notifications.md
   notificationPrefs Json?
+  /// 마지막 활동(로그인한 요청이 들어온) 시각. 인증(libs/server/auth.ts)에서 KST 하루 한 번만 갱신한다. 배포 전 활동은 비어 있다. 주간 요약 푸시·운영자 발송 대상(커뮤니티 감사 #22)
+  lastActiveAt    DateTime?
   createdAt       DateTime    @default(now())
   updatedAt       DateTime    @updatedAt
   products        Product[]
@@ -169,6 +171,7 @@ model User {
 
   @@index([status, deletedAt])
   @@index([regionSido, regionSigungu, regionVisible])
+  @@index([lastActiveAt])
 }
 model ChatRoom {
   id              Int               @id @default(autoincrement())
@@ -494,6 +497,8 @@ enum NotificationType {
   DEBATE_RESULT        // 찬반 토론 결과(투표자·작성자에게, 끝난 뒤 한 번). 앱 docs/prd/live-talk.md
   DEBATE_MILESTONE     // 내 토론 참여 5·20·50명 도달(작성자에게)
   TOWN_REPLY           // 동네 사랑방에서 내 메시지에 답장·반겨 주기
+  WEEKLY_DIGEST        // 며칠 안 온 회원에게 주 1회 '이번 주 인기글·내 글 반응' 요약(본인이 보낸 사람). 커뮤니티 감사 #22
+  ADMIN_BROADCAST      // 운영자 푸시 발송(/admin/push·공지 '푸시도 보내기'). 화면에는 '브리디 운영팀', 하루 1회
 }
 
 enum SeasonKind {
