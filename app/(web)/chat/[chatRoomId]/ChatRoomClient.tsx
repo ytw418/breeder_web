@@ -31,7 +31,7 @@ import {
   buildChatItems,
   composerPlaceholder,
   findPartner,
-  findReadReceiptMessageId,
+  findUnreadByPartnerIds,
   formatChatTime,
   imageUploadNotices,
   isDeletedPartnerName,
@@ -151,9 +151,10 @@ const ChatRoomClient = () => {
   const composerLocked = partnerDeleted || partnerBlocked;
   const canModerate = Boolean(partner && !partnerDeleted);
 
-  const readReceiptMessageId = useMemo(
-    () => findReadReceiptMessageId(messages, otherMember?.lastReadAt, user?.id),
-    [messages, otherMember?.lastReadAt, user?.id]
+  // 카톡 '1': 상대가 안 읽은 내 메시지. 탈퇴한 상대는 읽을 수 없으니 표시하지 않는다.
+  const unreadIds = useMemo(
+    () => findUnreadByPartnerIds(messages, partnerDeleted ? null : otherMember, user?.id),
+    [messages, partnerDeleted, otherMember, user?.id]
   );
   const items = useMemo(() => buildChatItems(messages, user?.id), [messages, user?.id]);
 
@@ -376,7 +377,7 @@ const ChatRoomClient = () => {
                         avatar={item.avatar}
                         userId={item.userId}
                         timeLabel={formatChatTime(last?.createdAt)}
-                        showReadReceipt={item.mine && readReceiptMessageId != null && last?.id === readReceiptMessageId}
+                        unreadIds={item.mine ? unreadIds : undefined}
                         onOpenImage={setViewerImageId}
                       />
                     );

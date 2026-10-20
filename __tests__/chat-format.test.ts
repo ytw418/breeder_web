@@ -4,7 +4,7 @@ import {
   chatPreview,
   composerPlaceholder,
   filterChatRooms,
-  findReadReceiptMessageId,
+  findUnreadByPartnerIds,
   formatChatDay,
   formatChatListTime,
   formatChatTime,
@@ -126,11 +126,12 @@ describe("채팅방", () => {
     expect(groups.map((i) => (i.type === "group" ? i.userId : null))).toEqual([2, 1, 1, 2]);
   });
 
-  it("읽음 표시는 상대 lastReadAt 이전의 내 마지막 메시지", () => {
-    expect(findReadReceiptMessageId(list, at(2026, 2, 14, 14, 50).toISOString(), 1)).toBe(3);
-    expect(findReadReceiptMessageId(list, at(2026, 2, 14, 15).toISOString(), 1)).toBe(4);
-    expect(findReadReceiptMessageId(list, null, 1)).toBeNull();
-    expect(findReadReceiptMessageId(list, at(2026, 2, 1).toISOString(), 1)).toBeNull();
+  it("'1' 은 상대 lastReadAt 뒤에 보낸 내 메시지에만, 상대가 없으면 표시하지 않는다", () => {
+    const ids = (lastReadAt: string | null) => Array.from(findUnreadByPartnerIds(list, { lastReadAt }, 1));
+    expect(ids(at(2026, 2, 14, 14, 50).toISOString())).toEqual([4]);
+    expect(ids(at(2026, 2, 14, 15).toISOString())).toEqual([]);
+    expect(ids(null)).toEqual([2, 3, 4]);
+    expect(findUnreadByPartnerIds(list, undefined, 1).size).toBe(0);
   });
 
   it("탈퇴·차단 잠금 문구", () => {
