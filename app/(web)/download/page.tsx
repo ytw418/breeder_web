@@ -10,9 +10,9 @@ import { SITE_NAME, SITE_URL } from "@libs/shared/seo";
  * web-only: 스토어로 보내는 페이지라 앱 안에는 없다(docs/parity §5 SEO·공유).
  */
 const canonical = `${SITE_URL}${DOWNLOAD_PAGE_PATH}`;
-const title = "브리디 앱 — 곤충·파충류·물고기 키우는 사람들이 모이는 곳";
-const description = "사진 기록, 질문·토론, 분양·경매, 혈통카드까지. 브리디를 앱스토어와 구글 플레이에서 무료로 받아 보세요.";
-const ogImage = { url: `${SITE_URL}/landing/og.jpg`, width: 1200, height: 630, alt: "브리디 — 곤충·파충류·물고기, 키우는 사람들이 모이는 곳" };
+const title = "브리디 앱 — 강아지·고양이부터 곤충·파충류까지 키우는 사람들의 커뮤니티";
+const description = "강아지·고양이부터 곤충·파충류·물고기까지. 사진 기록, 질문·토론, 분양·경매, 혈통카드를 한 앱에서. 앱스토어와 구글 플레이에서 무료로 받아 보세요.";
+const ogImage = { url: `${SITE_URL}/landing/og-v2.jpg`, width: 1200, height: 630, alt: "브리디 — 강아지·고양이부터 곤충·파충류·물고기까지 키우는 사람들의 커뮤니티" };
 
 export const metadata: Metadata = {
   title: { absolute: title },
