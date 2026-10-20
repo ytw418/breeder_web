@@ -6,7 +6,7 @@
  * - sm: 팔로워·팔로잉 행(74×32)
  * - card: 홈 '우리 동네 브리더' 카드(높이 32 · r8, 카드 폭을 채운다)
  * '팔로잉'을 누르면 '팔로우 취소' 하나만 있는 시트를 거친다(PRD F-11). 팔로우는 바로 된다.
- * 누르는 즉시 캐시(프로필 숫자·목록 행)를 바꾸고, 실패하면 그 사람 몫만 되돌린다. 서버는 토글이라 응답이 최종 상태다.
+ * 누르는 즉시 캐시(프로필 숫자·목록 행)를 바꾸고, 실패하면 그 사람 몫만 되돌린다. 바꿀 상태를 보내고, 응답이 최종 상태다.
  */
 import { useState } from "react";
 import { useRouter } from "next/navigation";
@@ -74,7 +74,12 @@ function useFollowMutation(targetUserId: number, returnPath: string) {
     setPending(true);
     apply(next, next ? 1 : -1);
     try {
-      const res = await authFetch(`/api/users/${targetUserId}/follow`, { method: "POST" });
+      // 바꿀 상태를 보낸다. 이미 그 상태면 서버가 그대로 둔다(화면 값이 낡아도 반대로 뒤집히지 않는다).
+      const res = await authFetch(`/api/users/${targetUserId}/follow`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ follow: next }),
+      });
       const result = (await res.json().catch(() => null)) as {
         success?: boolean;
         isFollowing?: boolean;

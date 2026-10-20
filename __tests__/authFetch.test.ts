@@ -62,6 +62,22 @@ describe("authFetch refresh 실패 처리", () => {
   });
 });
 
+describe("authFetch 만료 토큰 미리 갱신", () => {
+  it("access 토큰이 만료됐으면 보내기 전에 refresh 해서 새 토큰으로 보낸다(공개 GET 은 401 이 안 와서)", async () => {
+    const payload = Buffer.from(JSON.stringify({ user: { id: 4 }, exp: Math.floor(Date.now() / 1000) - 10 }));
+    setTokens({ accessToken: `h.${payload.toString("base64url")}.s`, refreshToken: "old-refresh" });
+    fetchMock
+      .mockResolvedValueOnce(response(200, { accessToken: "new-access", refreshToken: "new-refresh" }))
+      .mockResolvedValueOnce(response(200, { success: true, isFollowing: true }));
+
+    await authFetch("/api/users/4");
+
+    expect(fetchMock.mock.calls[0][0]).toBe("/api/auth/refresh");
+    const init = fetchMock.mock.calls[1][1] as RequestInit;
+    expect(new Headers(init.headers).get("Authorization")).toBe("Bearer new-access");
+  });
+});
+
 describe("authFetch 쓰는 중 정지(refresh 403 ACCOUNT_*)", () => {
   beforeEach(() => {
     mockOpenNotice.mockReset();
