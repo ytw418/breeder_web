@@ -671,7 +671,8 @@ export function ProductForm({
         {isEdit ? null : (
           <div>
             <div className="flex items-start gap-3">
-              <div className="min-w-0 flex-1">
+              {/* 단어 중간에서 줄이 끊기지 않게(word-break 는 상속된다) */}
+              <div className="min-w-0 flex-1 break-keep">
                 <AgreeRow
                   checked={agreedTradeRules}
                   onToggle={() => {
