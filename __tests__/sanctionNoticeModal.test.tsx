@@ -10,6 +10,10 @@ const mockToastError = jest.fn();
 jest.mock("@libs/client/toast", () => ({
   toast: { error: (...args: unknown[]) => mockToastError(...args), success: jest.fn() },
 }));
+let mockPathname = "/";
+jest.mock("next/navigation", () => ({
+  usePathname: () => mockPathname,
+}));
 
 import SanctionNoticeModal from "@components/features/moderation/SanctionNoticeModal";
 import {
@@ -46,22 +50,19 @@ const endedSuspension = {
 
 let notices: unknown[] = [];
 
+const swrValue = {
+  provider: () => new Map(),
+  dedupingInterval: 0,
+  fetcher: async () => ({ success: true, sanctions: notices, recentWarningCount: 1, recentSuspensionCount: 1 }),
+};
+
 function renderModal(children: ReactNode = <SanctionNoticeModal enabled />) {
-  return render(
-    <SWRConfig
-      value={{
-        provider: () => new Map(),
-        dedupingInterval: 0,
-        fetcher: async () => ({ success: true, sanctions: notices, recentWarningCount: 1, recentSuspensionCount: 1 }),
-      }}
-    >
-      {children}
-    </SWRConfig>
-  );
+  return render(<SWRConfig value={swrValue}>{children}</SWRConfig>);
 }
 
 beforeEach(() => {
   jest.clearAllMocks();
+  mockPathname = "/";
   notices = [warning, endedSuspension];
   mockAuthFetch.mockImplementation(async (_url: string, init: { body: string }) => {
     const { id } = JSON.parse(init.body);
@@ -79,8 +80,8 @@ describe("SanctionNoticeModal(웹 S-5)", () => {
     expect(screen.getByText("초보면 가만히나 있지")).toBeTruthy();
     expect(screen.getByText("2026.10.09 14:20")).toBeTruthy();
     expect(screen.getByText("최근 180일 경고 1회. 계속 위반하면 이용이 정지될 수 있어요.")).toBeTruthy();
-    // 운영정책 문서가 없어 '운영정책 보기'는 두지 않는다.
-    expect(screen.queryByText("운영정책 보기")).toBeNull();
+    // 경고에만 근거 문서(이용 규칙) 링크를 둔다.
+    expect(screen.getByRole("link", { name: "운영정책 보기" }).getAttribute("href")).toBe("/content/community-rules");
   });
 
   it("Esc 로 닫히지 않고, 확인하면 PATCH 후 다음(끝난 정지) 안내를 보여 준다(AC-21·AC-22·AC-23)", async () => {
@@ -96,6 +97,7 @@ describe("SanctionNoticeModal(웹 S-5)", () => {
     expect(mockAuthFetch).toHaveBeenCalledWith("/api/users/me/sanctions", expect.objectContaining({ method: "PATCH", body: JSON.stringify({ id: 3 }) }));
     expect(await screen.findByRole("dialog", { name: "이용 정지가 끝났어요" })).toBeTruthy();
     expect(screen.getByText("3일 (2026.10.06 ~ 2026.10.09)")).toBeTruthy();
+    expect(screen.queryByText("운영정책 보기")).toBeNull();
 
     await act(async () => {
       fireEvent.click(screen.getByRole("button", { name: "확인했어요" }));
@@ -111,6 +113,24 @@ describe("SanctionNoticeModal(웹 S-5)", () => {
       fireEvent.click(screen.getByRole("button", { name: "확인했어요" }));
     });
     expect(mockToastError).toHaveBeenCalledWith("잠시 후 다시 시도해 주세요.");
+    expect(screen.getByRole("dialog", { name: "운영정책 위반 안내" })).toBeTruthy();
+  });
+
+  it("이용 규칙 화면에서는 창을 내리고, 다른 화면으로 가면 다시 띄운다", async () => {
+    mockPathname = "/content/community-rules";
+    const { rerender } = renderModal();
+    // 안내를 받아 온 뒤에도 그리지 않는다.
+    await act(async () => {
+      await new Promise((resolve) => setTimeout(resolve, 0));
+    });
+    expect(screen.queryByRole("dialog")).toBeNull();
+
+    mockPathname = "/";
+    rerender(
+      <SWRConfig value={swrValue}>
+        <SanctionNoticeModal enabled />
+      </SWRConfig>
+    );
     expect(screen.getByRole("dialog", { name: "운영정책 위반 안내" })).toBeTruthy();
   });
 

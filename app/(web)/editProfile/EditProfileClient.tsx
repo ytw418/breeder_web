@@ -4,6 +4,7 @@ import { ChangeEvent, FormEvent, useEffect, useMemo, useRef, useState } from "re
 
 import useMutation from "hooks/useMutation";
 import useUser from "hooks/useUser";
+import { useConfirmLeave } from "hooks/useConfirmLeave";
 import Image from "@components/atoms/Image";
 import { useRouter } from "next/navigation";
 
@@ -45,6 +46,22 @@ const uploadImage = async (file: File, name: string) => {
 };
 
 const NAME_HELP = `닉네임은 최대 ${NICKNAME_MAX_LENGTH}글자까지 입력할 수 있어요.`;
+/** 닉네임을 바꾼 뒤 다시 바꿀 수 있기까지(서버 P4-13 규칙과 같다, 앱 editProfile 과 같은 문구). */
+const NAME_CHANGE_COOLDOWN_DAYS = 30;
+
+/**
+ * '닉네임은 11월 20일부터 바꿀 수 있어요'(KST). /api/users/me 의 nameChangedAt 이 없거나(구 서버)
+ * 30일이 지났으면 null — 안내 줄을 그리지 않는다.
+ */
+function nextNameChangeNotice(nameChangedAt: string | null | undefined, now = Date.now()) {
+  if (!nameChangedAt) return null;
+  const changedAt = Date.parse(nameChangedAt);
+  if (Number.isNaN(changedAt)) return null;
+  const nextAt = changedAt + NAME_CHANGE_COOLDOWN_DAYS * 86_400_000;
+  if (nextAt <= now) return null;
+  const kst = new Date(nextAt + 9 * 3_600_000);
+  return `닉네임은 ${kst.getUTCMonth() + 1}월 ${kst.getUTCDate()}일부터 바꿀 수 있어요`;
+}
 const CAMERA_PATHS = [
   "M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.414-.828A2 2 0 0110.93 3h2.14a2 2 0 011.664.89l.414.828A2 2 0 0016.07 7H17a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z",
   "M15 13a3 3 0 11-6 0 3 3 0 016 0z",
@@ -191,6 +208,14 @@ const EditProfileClient = () => {
     !nameError &&
     !linkError &&
     !(hasNameChange && (nameCheck === "checking" || nameCheck === "unavailable"));
+  // 바꾼 값이 있으면 떠나기 전에 확인한다(앱 editProfile 과 같다). 저장 성공 뒤 이동은 묻지 않는다.
+  const { leave, dialog } = useConfirmLeave(
+    hasNameChange || !!avatarFile || removeAvatar || hasBioChange || hasLinkChange || hasBannerChange
+  );
+  // nameChangedAt 은 서버(P4-13)가 넣는 선택 필드다. 구 서버엔 없어 안내 줄을 그리지 않는다.
+  const nameChangeNotice = nextNameChangeNotice(
+    (user as { nameChangedAt?: string | null } | undefined)?.nameChangedAt
+  );
 
   const onSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -286,7 +311,11 @@ const EditProfileClient = () => {
       revalidateByPrefix({ cache: swrCache, mutate: globalMutate }, PROFILE_DEPENDENT_KEY_PREFIXES);
 
       toast.success("프로필이 저장되었습니다.");
-      router.replace("/myPage");
+      // 들어온 화면으로 돌아간다. 이 탭에서 처음 연 화면이면 마이페이지(앱 router.canGoBack 과 같다).
+      leave(() => {
+        if (window.history.length > 1) router.back();
+        else router.replace("/myPage");
+      });
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "프로필 저장 중 오류가 발생했습니다.");
     } finally {
@@ -438,6 +467,7 @@ const EditProfileClient = () => {
           >
             {nameError || NAME_HELP}
           </p>
+          {nameChangeNotice ? <p className="mt-1 text-[12px] text-app-muted">{nameChangeNotice}</p> : null}
         </div>
 
         {/* 소개(사진형 프로필 A안 S-5) */}
@@ -510,6 +540,7 @@ const EditProfileClient = () => {
           </button>
         </div>
       </div>
+      {dialog}
     </form>
   );
 };

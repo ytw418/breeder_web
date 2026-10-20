@@ -5,7 +5,7 @@
  * 그래서 401 때만 refresh 하면 30분 뒤부터 isFollowing·isLiked 가 false 로 내려오고, 팔로우한 사람에게
  * '팔로우'가 보여 누르면 토글 API 가 언팔로우했다(2026-10-20 "프로필에서 팔로우가 안 된다").
  * authFetch 는 보내기 전에 이 함수로 확인하고 먼저 refresh 한다.
- * 테스트: __tests__/authFetch.test.ts (앱 npm run test:token-expiry)
+ * 테스트: __tests__/authFetch.test.ts (앱 node --test scripts/test-token-expiry.mjs)
  */
 
 /** 만료 이만큼 전부터 미리 갱신한다(기기 시계 오차·요청 왕복 시간). */

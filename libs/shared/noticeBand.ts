@@ -1,7 +1,7 @@
 /**
  * 홈 첫 줄 공지 띠 규칙(앱 docs/prd/home-ia.md S-1 1번, 2026-10-21 커뮤니티 감사 #5).
  * - 앱 `src/lib/noticeBand.ts` 와 같은 파일이다. 고칠 때는 두 곳을 같이 고치고
- *   웹 `npx jest noticeBand` + 앱 `npm run test:notice-band` 로 확인한다.
+ *   웹 `npx jest noticeBand` + 앱 `node --test scripts/test-notice-band.mjs` 로 확인한다.
  * - 플랫폼 import 를 두지 않는다(앱 테스트가 Node 타입 스트리핑으로 돌린다. enum·namespace 금지).
  *
  * 규칙:

@@ -394,7 +394,29 @@
       }
     ],
     "plainText": "",
-    "textCount": 0
+    "textCount": 0,
+    "validation": {
+      "ok": true
+    }
+  },
+  {
+    "name": "사진 없이 9자는 짧다",
+    "description": "본문이 아홉 글자",
+    "images": [],
+    "blocks": [
+      {
+        "type": "text",
+        "text": "본문이 아홉 글자",
+        "size": "normal",
+        "bold": false
+      }
+    ],
+    "plainText": "본문이 아홉 글자",
+    "textCount": 9,
+    "validation": {
+      "ok": false,
+      "errorCode": "POST_DESCRIPTION_TOO_SHORT"
+    }
   },
   {
     "name": "빈 큰 줄은 스타일 없이 빈 줄로 저장한다",

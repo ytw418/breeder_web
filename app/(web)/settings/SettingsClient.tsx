@@ -416,6 +416,7 @@ const SettingsClient = () => {
         <SectionGap />
 
         <SectionTitle title="서비스 정보" />
+        <Row label="이용 규칙" icon="document" chevron href="/content/community-rules" />
         <Row label="이용약관" icon="document" chevron href={TERMS_OF_SERVICE_URL} />
         <Row label="개인정보 처리방침" icon="shield" chevron href={PRIVACY_POLICY_URL} />
         <Row label="고객의 소리" icon="support" chevron href="/support" />

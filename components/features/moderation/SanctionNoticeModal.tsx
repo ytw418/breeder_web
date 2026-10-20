@@ -1,6 +1,8 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import Link from "next/link";
+import { usePathname } from "next/navigation";
 import useSWR from "swr";
 import { authFetch } from "@libs/client/authFetch";
 import { toast } from "@libs/client/toast";
@@ -18,6 +20,8 @@ import {
  */
 
 const NOTICE_KEY = "/api/users/me/sanctions?unacknowledged=1";
+/** 이용 규칙(관리자 랜딩 페이지 slug community-rules, 앱 docs/content/community-rules.md). */
+const COMMUNITY_RULES_PATH = "/content/community-rules";
 
 function Row({ label, value }: { label: string; value: string }) {
   return (
@@ -37,7 +41,10 @@ export default function SanctionNoticeModal({ enabled }: { enabled: boolean }) {
   const [submitting, setSubmitting] = useState(false);
   // 열릴 때 대화상자에 포커스를 둔다(버튼에 두면 포커스 테두리가 그려진다). Tab 으로 버튼에 갈 수 있다.
   const dialogRef = useRef<HTMLDivElement>(null);
-  const notice = data?.success ? data.sanctions[0] : undefined;
+  const pathname = usePathname();
+  // '운영정책 보기'로 이용 규칙을 보는 동안은 창을 내린다. 다른 화면으로 가면 다시 뜬다(앱과 같다).
+  const notice =
+    data?.success && pathname !== COMMUNITY_RULES_PATH ? data.sanctions[0] : undefined;
 
   useEffect(() => {
     if (!notice) return;
@@ -145,6 +152,15 @@ export default function SanctionNoticeModal({ enabled }: { enabled: boolean }) {
         >
           확인했어요
         </button>
+        {/* 경고 근거 문서(2026-10-21, 앱 docs/prd/admin-moderation.md S-5) */}
+        {isWarning ? (
+          <Link
+            href={COMMUNITY_RULES_PATH}
+            className="mt-1 flex h-11 w-full items-center justify-center text-[14px] font-semibold text-app-muted"
+          >
+            운영정책 보기
+          </Link>
+        ) : null}
       </div>
     </div>
   );
