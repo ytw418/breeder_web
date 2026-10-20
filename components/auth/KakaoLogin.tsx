@@ -10,6 +10,7 @@ import { Spinner } from "@components/atoms/Spinner";
 import { hasTokens, setTokens } from "@libs/client/authToken";
 import { toast } from "@libs/client/toast";
 import { getSafeNextPath, navigateAfterSessionReady } from "@libs/client/postLogin";
+import { ANALYTICS_EVENTS, trackEvent } from "@libs/client/analytics";
 import {
   ACCOUNT_RESTRICTED_LOGIN_PATH,
   saveAccountRestriction,
@@ -24,6 +25,13 @@ const getKakaoRedirectUri = () => {
 };
 
 const KAKAO_LOGIN_FAILED = "카카오 로그인에 실패했어요. 다시 시도해 주세요";
+
+/** 로그인 실패 기록(LoginClient·앱 login_failed 와 같은 이름). */
+const trackKakaoLoginFailed = (reason: unknown) =>
+  trackEvent(ANALYTICS_EVENTS.loginFailed, {
+    method: "kakao",
+    reason: String(reason instanceof Error ? reason.message : reason ?? "unknown").slice(0, 120),
+  });
 
 const markPostLoginGuide = () => {
   if (typeof window === "undefined") return;
@@ -77,6 +85,7 @@ export const KakaoLogin = () => {
         router.replace("/");
         return;
       }
+      trackKakaoLoginFailed(data.error_description || data.error);
       toast.error(KAKAO_LOGIN_FAILED);
       router.replace("/auth/login");
       return;
@@ -136,10 +145,11 @@ export const KakaoLogin = () => {
             const redirectPath = getSafeNextPath(
               searchParams.get("state") || searchParams.get("next")
             );
-            void navigateAfterSessionReady(redirectPath);
+            void navigateAfterSessionReady(redirectPath, { isNewUser: result.isNewUser === true });
           } else {
             // 정지·영구 정지 계정은 알림창 대신 로그인 화면의 이용 제한 안내로 보낸다.
             const restriction = toAccountRestriction(result);
+            trackKakaoLoginFailed(restriction ? `restricted:${(result as { errorCode?: string }).errorCode ?? ""}` : result.error);
             if (restriction) {
               saveAccountRestriction(restriction);
               router.replace(ACCOUNT_RESTRICTED_LOGIN_PATH);
@@ -150,11 +160,13 @@ export const KakaoLogin = () => {
           }
         },
         onError(error) {
+          trackKakaoLoginFailed(error);
           router.replace("/auth/login");
           alert(error);
         },
       });
     } else {
+      trackKakaoLoginFailed("kakao_user_me_failed");
       alert(
         "카카오로그인 요청에 오류가 생겼습니다. 잠시 후 다시 시도해주세요."
       );

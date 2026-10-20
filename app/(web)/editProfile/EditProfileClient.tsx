@@ -9,6 +9,7 @@ import Image from "@components/atoms/Image";
 import { useRouter } from "next/navigation";
 
 import { toast } from "@libs/client/toast";
+import { uploadImageFile } from "@libs/client/uploadImage";
 import { cn, makeImageUrl } from "@libs/client/utils";
 import { NICKNAME_MAX_LENGTH } from "@libs/shared/nickname";
 import { BIO_MAX, PROFILE_LINK_MAX, normalizeBio, normalizeProfileLink } from "@libs/shared/profile";
@@ -28,22 +29,6 @@ interface EditProfileResponse {
   message?: string;
   errorCode?: string;
 }
-
-/** Cloudflare 직접 업로드 후 이미지 id 를 돌려준다(아바타·커버 공용). */
-const uploadImage = async (file: File, name: string) => {
-  const fileApiRes = await authFetch(`/api/files`);
-  if (!fileApiRes.ok) throw new Error("이미지 업로드 URL을 가져오지 못했습니다.");
-  const { uploadURL } = await fileApiRes.json();
-  if (!uploadURL) throw new Error("이미지 업로드 URL이 유효하지 않습니다.");
-  const form = new FormData();
-  form.append("file", file, name);
-  const uploadRes = await fetch(uploadURL, { method: "POST", body: form });
-  if (!uploadRes.ok) throw new Error("이미지 업로드에 실패했습니다.");
-  const uploadData = await uploadRes.json();
-  const id = uploadData?.result?.id;
-  if (!id) throw new Error("업로드 이미지 ID를 확인할 수 없습니다.");
-  return id as string;
-};
 
 const NAME_HELP = `닉네임은 최대 ${NICKNAME_MAX_LENGTH}글자까지 입력할 수 있어요.`;
 /** 닉네임을 바꾼 뒤 다시 바꿀 수 있기까지(서버 P4-13 규칙과 같다, 앱 editProfile 과 같은 문구). */
@@ -266,11 +251,11 @@ const EditProfileClient = () => {
 
     try {
       if (avatarFile) {
-        editProfileBody.avatarId = await uploadImage(avatarFile, user.id + "");
+        editProfileBody.avatarId = await uploadImageFile(avatarFile, user.id + "");
       }
       if (bannerFile) {
         try {
-          editProfileBody.bannerId = await uploadImage(bannerFile, `${user.id}-banner`);
+          editProfileBody.bannerId = await uploadImageFile(bannerFile, `${user.id}-banner`);
         } catch {
           throw new Error("커버 사진을 올리지 못했어요.");
         }

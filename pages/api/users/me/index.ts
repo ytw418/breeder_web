@@ -20,6 +20,7 @@ import {
   normalizeProfileLink,
 } from "@libs/shared/profile";
 import { captureServerEvent, resolveClientPlatform } from "@libs/server/analytics";
+import { isCrewUser } from "@libs/server/crew";
 
 async function handler(
   req: NextApiRequest,
@@ -55,6 +56,8 @@ async function handler(
         profile,
         isAdmin,
         canEditAnyContent,
+        // 운영 크루 계정이면 true. 분석 identify(is_crew)에만 쓴다.
+        isCrew: isCrewUser(profile),
       });
     }
     if (req.method === "POST") {

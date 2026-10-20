@@ -242,6 +242,7 @@ describe("GET /api/users/me", () => {
       profile: { id: 7, name: "브리디", status: "ACTIVE" },
       isAdmin: false,
       canEditAnyContent: false,
+      isCrew: false,
     });
     expect(mockClient.user.findUnique).toHaveBeenCalledWith({
       where: { id: 7 },
