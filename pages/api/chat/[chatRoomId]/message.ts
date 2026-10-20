@@ -4,6 +4,7 @@ import withHandler from "@libs/server/withHandler";
 import client from "@libs/server/client";
 import { MessageType } from "@prisma/client";
 import { sendAllPushToUsers } from "@libs/server/pushGateway";
+import { filterPushRecipients } from "@libs/server/notificationGate";
 import { captureServerEvent, resolveClientPlatform } from "@libs/server/analytics";
 import { assertCanChat, CHAT_PARTNER_DELETED_MESSAGE } from "@libs/server/blocks";
 
@@ -129,8 +130,8 @@ async function handler(
       }),
     ]);
 
-    // 발신자를 채팅방 멤버에게만 알림을 보낸다.
-    const pushRecipientIds = otherMembers.map((member) => member.userId);
+    // 발신자를 채팅방 멤버에게만 알림을 보낸다. 채팅 알림을 껐거나 방해 금지 시간인 사람은 뺀다.
+    const pushRecipientIds = await filterPushRecipients(otherMembers.map((member) => member.userId), "CHAT");
     const pushBody =
       newMessage.type === "IMAGE"
         ? `${newMessage.user.name}님이 사진을 보냈습니다.`

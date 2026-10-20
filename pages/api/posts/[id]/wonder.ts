@@ -7,6 +7,17 @@ import { withAuth } from "@libs/server/auth";
 import { createNotification } from "@libs/server/notification";
 import { captureServerEvent, resolveClientPlatform } from "@libs/server/analytics";
 
+/** 좋아요 알림 문구에 넣는 글 제목 길이. 넘으면 말줄임. */
+const LIKE_TITLE_MAX = 30;
+
+/** '홍길동님이 "크레 첫 탈피했어요" 글을 좋아해요'. 제목이 없으면 '회원님의 글을 좋아해요'. */
+const likeNotificationMessage = (senderName: string, postTitle: string | null | undefined) => {
+  const title = (postTitle ?? "").trim();
+  if (!title) return `${senderName}님이 회원님의 글을 좋아해요`;
+  const short = title.length > LIKE_TITLE_MAX ? `${title.slice(0, LIKE_TITLE_MAX)}…` : title;
+  return `${senderName}님이 "${short}" 글을 좋아해요`;
+};
+
 async function handler(
   req: NextApiRequest,
   res: NextApiResponse<ResponseType>
@@ -57,7 +68,7 @@ async function handler(
     try {
       const post = await client.post.findUnique({
         where: { id: postId },
-        select: { userId: true },
+        select: { userId: true, title: true },
       });
       const senderUser = await client.user.findUnique({
         where: { id: user?.id },
@@ -69,10 +80,12 @@ async function handler(
           type: "LIKE",
           userId: post.userId,
           senderId: user.id,
-          message: `${senderUser.name}님이 회원님의 게시글에 좋아요를 눌렀습니다.`,
+          message: likeNotificationMessage(senderUser.name, post.title),
           targetId: postId,
           targetType: "post",
           dedupe: true,
+          // 푸시 제목은 '브리디 알림' 대신 글 제목(어떤 글인지 바로 알게).
+          pushTitle: post.title?.trim() || undefined,
         });
       }
     } catch (error) {

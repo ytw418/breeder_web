@@ -12,6 +12,8 @@ const mockClient = {
   alertState: { upsert: jest.fn() },
   notification: { findFirst: jest.fn(), create: jest.fn() },
   auction: { findUnique: jest.fn() },
+  // 푸시 전 알림 설정 조회(libs/server/notificationGate). 저장된 적 없으면 모두 켜짐.
+  user: { findUnique: jest.fn(async () => null) },
 };
 jest.mock("@libs/server/client", () => ({ __esModule: true, default: mockClient }));
 jest.mock("@libs/server/pushGateway", () => ({ sendAllPushToUsers: (...args: unknown[]) => mockSendPush(...args) }));
@@ -69,6 +71,24 @@ describe("processRankingAlerts RANK_UP", () => {
     ]);
     expect(mockSendPush.mock.calls[0][1]).toMatchObject({ url: "/ranking?focus=me" });
     expect(mockClient.notification.findFirst.mock.calls[0][0].where).toMatchObject({ userId: 7, type: "RANK_UP" });
+  });
+
+  it("3위 → 5위로 내려가면 구독이 둘이어도 하락 알림 한 통, 누르면 랭킹", async () => {
+    const observed = new Date("2026-10-13T00:00:00.000Z");
+    mockClient.alertSubscription.findMany.mockResolvedValue([
+      sub("BREEDER_RANK_DROP", 3, observed),
+      sub("BREEDER_OVERTAKEN", 3, observed),
+    ]);
+    await processRankingAlerts();
+    const created = mockClient.notification.create.mock.calls.map((c) => c[0].data);
+    expect(created).toEqual([
+      expect.objectContaining({
+        type: "BREEDER_RANK_DROP",
+        message: "순위가 #3에서 #5로 내려갔어요 · 추월한 브리더 2명",
+        targetType: "ranking",
+      }),
+    ]);
+    expect(mockSendPush.mock.calls[0][1]).toMatchObject({ url: "/ranking?focus=me" });
   });
 
   it("이번 주에 이미 보냈으면 보내지 않는다", async () => {

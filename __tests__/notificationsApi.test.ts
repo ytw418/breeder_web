@@ -6,6 +6,8 @@ const mockClient = {
   product: { findMany: jest.fn().mockResolvedValue([]) },
   auction: { findMany: jest.fn().mockResolvedValue([]) },
   bloodlineCard: { findMany: jest.fn().mockResolvedValue([]) },
+  // 차단한 발신자 제외(libs/server/notificationGate visibleNotificationWhere)
+  userBlock: { findMany: jest.fn().mockResolvedValue([]) },
 };
 jest.mock("@libs/server/client", () => ({
   __esModule: true,

@@ -174,6 +174,7 @@ export const ensureAlertSubscription = async ({
   entityId: number;
 }) => {
   // 홈 노출만으로도 기본 FOMO 알림 구독이 누락되지 않게 upsert로 묶었다.
+  // 이미 있는 구독은 그대로 둔다(enabled 를 다시 true 로 덮으면 끈 구독이 홈을 열 때마다 되살아난다).
   return client.alertSubscription.upsert({
     where: {
       userId_alertType_entityType_entityId: {
@@ -183,9 +184,7 @@ export const ensureAlertSubscription = async ({
         entityId,
       },
     },
-    update: {
-      enabled: true,
-    },
+    update: {},
     create: {
       userId,
       alertType,

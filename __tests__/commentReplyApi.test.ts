@@ -194,17 +194,14 @@ describe("대댓글", () => {
     expect(res.body.errorCode).toBe("COMMENT_INVALID_PARENT");
   });
 
-  it("부모 작성자가 나를 차단했으면 답글은 저장하되 부모 작성자에게 알리지 않는다", async () => {
+  it("원댓글 작성자가 나를 차단했으면 답글은 403 COMMENT_NOT_ALLOWED 이고 저장·알림하지 않는다", async () => {
     blocks = [{ blockerId: PARENT_AUTHOR, blockedId: ME }];
-    await post({ comment: "답글", parentId: ROOT_ID });
+    const res = await post({ comment: "답글", parentId: ROOT_ID });
 
-    expect(mockClient.comment.create).toHaveBeenCalledTimes(1);
-    expect(mockCreateNotification).not.toHaveBeenCalledWith(
-      expect.objectContaining({ userId: PARENT_AUTHOR })
-    );
-    expect(mockCreateNotification).toHaveBeenCalledWith(
-      expect.objectContaining({ userId: POST_AUTHOR })
-    );
+    expect(res.statusCode).toBe(403);
+    expect(res.body.errorCode).toBe("COMMENT_NOT_ALLOWED");
+    expect(mockClient.comment.create).not.toHaveBeenCalled();
+    expect(mockCreateNotification).not.toHaveBeenCalled();
   });
 });
 

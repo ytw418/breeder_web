@@ -1,6 +1,7 @@
 import client from "@libs/server/client";
 import { createNotification } from "@libs/server/notification";
 import { sendAllPushToUsers } from "@libs/server/pushGateway";
+import { shouldPushTo } from "@libs/server/notificationGate";
 import {
   buildDebateSummary,
   DEBATE_CATEGORY,
@@ -238,6 +239,8 @@ export async function sendDebateDigestPush(now = new Date()): Promise<number> {
     _count: { _all: true },
   });
   for (const row of rows) {
+    // '브리디 소식'을 껐거나 방해 금지 시간이면 묶음 푸시도 보내지 않는다(결과 알림은 목록에 있다).
+    if (!(await shouldPushTo(row.userId, "DEBATE_RESULT", now))) continue;
     await sendAllPushToUsers([row.userId], {
       title: "브리디 토론",
       body: `오늘 끝난 토론 ${row._count._all}개 결과가 나왔어요`,

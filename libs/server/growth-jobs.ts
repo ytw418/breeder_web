@@ -31,6 +31,10 @@ export const shouldNotifyRankUp = ({
 export const rankUpMessage = (previousRank: number, currentRank: number) =>
   `순위가 올랐어요 · ${previousRank}위 → ${currentRank}위`;
 
+/** 순위 하락 알림 한 통(BREEDER_RANK_DROP). 추월은 같은 일이라 따로 보내지 않고 인원만 붙인다. */
+export const rankDropMessage = (previousRank: number, currentRank: number) =>
+  `순위가 #${previousRank}에서 #${currentRank}로 내려갔어요 · 추월한 브리더 ${currentRank - previousRank}명`;
+
 const pickTopSellerIds = (items: Awaited<ReturnType<typeof getAuctionRanking>>) => {
   return items.slice(0, 3).map((item, index) => ({
     userId: item.seller.id,
@@ -177,31 +181,14 @@ export const processRankingAlerts = async () => {
         currentRank &&
         currentRank > previousRank
       ) {
+        // 같은 하락에 '추월' 알림(BREEDER_OVERTAKEN)을 따로 보내지 않는다. 누르면 전체 랭킹의 내 행으로 간다.
         await createNotification({
           type: "BREEDER_RANK_DROP",
           userId: subscription.userId,
           senderId: subscription.userId,
-          message: `이번 주 브리더 순위가 #${previousRank}에서 #${currentRank}로 하락했습니다.`,
-          targetId: subscription.entityId,
-          targetType: "user",
-          allowSelf: true,
-        });
-        notified = true;
-      }
-
-      if (
-        subscription.alertType === "BREEDER_OVERTAKEN" &&
-        previousRank &&
-        currentRank &&
-        currentRank > previousRank
-      ) {
-        await createNotification({
-          type: "BREEDER_OVERTAKEN",
-          userId: subscription.userId,
-          senderId: subscription.userId,
-          message: `다른 브리더에게 추월당했습니다. 현재 순위는 #${currentRank}입니다.`,
-          targetId: subscription.entityId,
-          targetType: "user",
+          message: rankDropMessage(previousRank, currentRank),
+          targetId: subscription.userId,
+          targetType: "ranking",
           allowSelf: true,
         });
         notified = true;

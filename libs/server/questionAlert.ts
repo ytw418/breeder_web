@@ -1,5 +1,6 @@
 import client from "@libs/server/client";
 import { sendAllPushToUsers } from "@libs/server/pushGateway";
+import { filterPushRecipients } from "@libs/server/notificationGate";
 
 /**
  * 새 질문 알림. 질문 글이 올라오면 그 글 분야(또는 상위 분야)를 관심 카테고리로 고정한 사람에게
@@ -8,6 +9,7 @@ import { sendAllPushToUsers } from "@libs/server/pushGateway";
  * - 12시간 안에 이미 질문 알림을 받은 사람에게는 보내지 않는다(질문이 몰려도 하루 두 번 이하).
  * - 종을 고르지 않아 분야가 없는 질문은 보내지 않는다.
  * 알림 형식을 새로 만들지 않고 NEW_POST 를 써서 구 앱·웹도 그대로 보여 준다.
+ * - 알림 행은 모두 만들고, 푸시는 '팔로우·새 글' 종류를 켠 사람(방해 금지 시간 밖)에게만 보낸다.
  */
 export const QUESTION_ALERT_MESSAGE_PREFIX = "답변을 기다리는 질문이 올라왔어요";
 export const QUESTION_ALERT_COOLDOWN_MS = 12 * 60 * 60 * 1000;
@@ -94,7 +96,9 @@ export async function notifyQuestionToInterestedUsers({
         targetType: "post",
       })),
     });
-    await sendAllPushToUsers(recipients, {
+    const pushRecipients = await filterPushRecipients(recipients, "NEW_POST");
+    if (pushRecipients.length === 0) return recipients;
+    await sendAllPushToUsers(pushRecipients, {
       title: "브리디 알림",
       body: message,
       url: `/posts/${postId}`,

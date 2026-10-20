@@ -110,6 +110,8 @@ model User {
   /// 동네 브리더 목록에 나를 보여줄지(opt-in, 기본 false). 동네를 지우면 같이 false.
   regionVisible   Boolean     @default(false)
   regionUpdatedAt DateTime?
+  /// 알림 종류별 끄기·방해 금지(libs/shared/notificationPrefs.ts normalizePrefs). 비어 있으면 모두 켜짐·방해 금지 꺼짐. 앱 docs/prd/notifications.md
+  notificationPrefs Json?
   createdAt       DateTime    @default(now())
   updatedAt       DateTime    @updatedAt
   products        Product[]
