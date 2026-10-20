@@ -87,6 +87,8 @@ model User {
   phone           String?     @unique
   email           String?     @unique
   name            String      @unique
+  /// 마지막으로 본인이 닉네임을 바꾼 시각. 30일 안이면 다시 못 바꾼다(libs/shared/nickname.ts). null = 가입 때 받은 이름 그대로(첫 변경은 바로 된다).
+  nameChangedAt   DateTime?
   avatar          String?
   /// 프로필 소개(최대 300자, libs/shared/profile.ts normalizeBio). 비우면 null. (docs/prd: 앱 profile.md)
   bio             String?

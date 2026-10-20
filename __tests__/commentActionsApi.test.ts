@@ -112,6 +112,14 @@ describe("PATCH 댓글 수정", () => {
     expect(mockClient.comment.update).not.toHaveBeenCalled();
   });
 
+  it("욕설로 고치면 등록 때처럼 400 BLOCKED_WORD 로 막는다(커뮤니티 감사 #13)", async () => {
+    const res = await call({ method: "PATCH", user: me, body: { comment: "씨 발 진짜" } });
+
+    expect(res.statusCode).toBe(400);
+    expect(res.body.errorCode).toBe("BLOCKED_WORD");
+    expect(mockClient.comment.update).not.toHaveBeenCalled();
+  });
+
   it("공백뿐이면 400 COMMENT_EMPTY", async () => {
     const res = await call({ method: "PATCH", user: me, body: { comment: "   " } });
 

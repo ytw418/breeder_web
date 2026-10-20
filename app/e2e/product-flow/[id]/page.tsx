@@ -42,6 +42,7 @@ const e2eProduct: NonNullable<ItemDetailResponse["product"]> = {
     categoryOnboardedAt: null,
     email: "seller@e2e.local",
     name: "테스트 판매자",
+    nameChangedAt: null,
     avatar: null,
     bio: null,
     profileBanner: null,

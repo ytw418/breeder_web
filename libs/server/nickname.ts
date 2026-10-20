@@ -1,4 +1,5 @@
 import client from "@libs/server/client";
+import { isAdminEmail } from "@libs/shared/adminEmail";
 import {
   NICKNAME_TAKEN_MESSAGE,
   validateNickname,
@@ -34,10 +35,22 @@ export type NicknameCheckResult =
   | { available: true; name: string; /** 본인의 현재 닉네임과 같음(저장 생략 가능) */ isCurrent: boolean }
   | { available: false; code: NicknameRejectCode; reason: string };
 
-/** 형식 검사 → 중복 검사. 형식 오류면 DB 를 조회하지 않는다. */
-export async function checkNickname(raw: unknown, selfId: number): Promise<NicknameCheckResult> {
-  const validation = validateNickname(raw);
+/**
+ * 형식 검사 → 중복 검사. 빈 값·길이 오류면 DB 를 조회하지 않는다.
+ * viewerEmail: 바꾸는 사람의 이메일. 운영자 이메일 계정은 운영자 낱말(브리디·운영 등)을 쓸 수 있다.
+ * 예약어·금칙어에 걸려도 이미 내 닉네임이면 그대로 둔다 — 규칙이 생기기 전에 정한 이름으로도 프로필(소개 등)을 저장할 수 있게.
+ */
+export async function checkNickname(
+  raw: unknown,
+  selfId: number,
+  { viewerEmail }: { viewerEmail?: string | null } = {}
+): Promise<NicknameCheckResult> {
+  const validation = validateNickname(raw, { allowReserved: isAdminEmail(viewerEmail) });
   if (!validation.ok) {
+    if (validation.code === "RESERVED") {
+      const name = String(raw).trim();
+      if ((await findNameOwnerId(name)) === selfId) return { available: true, name, isCurrent: true };
+    }
     return { available: false, code: validation.code, reason: validation.reason };
   }
 
