@@ -236,13 +236,15 @@ describe("POST /api/chat/:id/message 전송 차단 가드", () => {
 describe("GET /api/chat/chatList 차단 상대 방 숨김", () => {
   const list = () => call(chatListHandler, { method: "GET", user: me });
 
-  it("차단 목록이 비어 있으면 where 는 기존 그대로", async () => {
+  it("차단 목록이 비어 있으면 내 방 중 메시지가 있는 방만", async () => {
     const res = await list();
 
     expect(res.statusCode).toBe(200);
     expect(mockClient.chatRoom.findMany).toHaveBeenCalledTimes(1);
+    // '채팅하기'만 누른 빈 방은 양쪽 목록에서 빠진다(감사 9번).
     expect(mockClient.chatRoom.findMany.mock.calls[0][0].where).toEqual({
       chatRoomMembers: { some: { userId: ME } },
+      messages: { some: {} },
     });
   });
 
@@ -264,12 +266,16 @@ describe("GET /api/chat/chatList 차단 상대 방 숨김", () => {
 describe("GET /api/chat/unread-count 차단 상대 방 제외", () => {
   const count = () => call(unreadCountHandler, { method: "GET", user: me });
 
-  it("차단 목록이 비어 있으면 where 는 기존 그대로", async () => {
+  it("차단 목록이 비어 있으면 메시지가 있는 방의 멤버십만", async () => {
     mockClient.chatRoomMember.findMany.mockResolvedValue([]);
     const res = await count();
 
     expect(res.statusCode).toBe(200);
-    expect(mockClient.chatRoomMember.findMany.mock.calls[0][0].where).toEqual({ userId: ME, mutedAt: null });
+    expect(mockClient.chatRoomMember.findMany.mock.calls[0][0].where).toEqual({
+      userId: ME,
+      mutedAt: null,
+      chatRoom: { messages: { some: {} } },
+    });
   });
 
   it("내가 차단한 사람이 있는 방의 멤버십은 세지 않는다", async () => {
@@ -280,7 +286,7 @@ describe("GET /api/chat/unread-count 차단 상대 방 제외", () => {
     expect(mockClient.chatRoomMember.findMany.mock.calls[0][0].where).toEqual({
       userId: ME,
       mutedAt: null,
-      chatRoom: { chatRoomMembers: { none: { userId: { in: [PARTNER] } } } },
+      chatRoom: { messages: { some: {} }, chatRoomMembers: { none: { userId: { in: [PARTNER] } } } },
     });
   });
 });

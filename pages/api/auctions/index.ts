@@ -29,6 +29,7 @@ import { excludedAuthorIds, setViewerCacheHeader } from "@libs/server/blocks";
 import { canAttachBloodline, pedigreeNoteDbValue } from "@libs/server/bloodline-link";
 import { captureServerEvent, resolveClientPlatform } from "@libs/server/analytics";
 import { buildCelebrate } from "@libs/server/celebrate";
+import { assertWriteAllowed } from "@libs/server/writeLimits";
 import {
   parsePedigreeNote,
   PEDIGREE_NOTE_INVALID_MESSAGE,
@@ -386,6 +387,20 @@ async function handler(
             "동일한 내용의 경매가 이미 등록되었습니다. 기존 경매를 공유하거나 수정해주세요.",
           errorCode: "AUCTION_DUPLICATE_RECENT",
           auctionId: duplicatedAuction.id,
+        });
+      }
+
+      // 가입 7일 미만 하루 3개(분양글 합계)·같은 설명 10분 3번(감사 24번). 운영자·크루는 제외.
+      const writeLimit = await assertWriteAllowed({
+        userId: user.id,
+        kind: "auction",
+        text: normalizedDescription,
+      });
+      if (writeLimit) {
+        return res.status(writeLimit.status).json({
+          success: false,
+          error: writeLimit.error,
+          errorCode: writeLimit.errorCode,
         });
       }
 

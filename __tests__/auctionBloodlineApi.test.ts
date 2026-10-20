@@ -66,6 +66,8 @@ jest.mock("@libs/server/auth", () => ({
 jest.mock("@libs/server/auctionSettlement", () => ({
   settleExpiredAuctions: jest.fn(),
 }));
+// 작성 제한(가입 7일·같은 설명)은 __tests__/writeLimits.test.ts 에서 본다.
+jest.mock("@libs/server/writeLimits", () => ({ assertWriteAllowed: jest.fn().mockResolvedValue(null) }));
 jest.mock("@libs/server/breeder-programs", () => ({
   breederProgramSummarySelect: {},
   getSortedActiveBreederProgramSummaries: () => [],

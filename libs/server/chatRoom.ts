@@ -10,16 +10,8 @@ export async function findOrCreateDirectRoom(
   otherId: number,
   platform: ClientPlatform
 ): Promise<{ id: number; created: boolean }> {
-  const existing = await client.chatRoom.findFirst({
-    where: {
-      AND: [
-        { chatRoomMembers: { some: { userId } } },
-        { chatRoomMembers: { some: { userId: otherId } } },
-      ],
-    },
-    select: { id: true },
-  });
-  if (existing) return { id: existing.id, created: false };
+  const existingId = await findDirectRoomId(userId, otherId);
+  if (existingId) return { id: existingId, created: false };
 
   const room = await client.chatRoom.create({
     data: {
@@ -35,6 +27,20 @@ export async function findOrCreateDirectRoom(
     platform,
   });
   return { id: room.id, created: true };
+}
+
+/** 두 사람의 1:1 채팅방 id. 없으면 null. 새 방 하루 한도(writeLimits)는 방이 없을 때만 센다. */
+export async function findDirectRoomId(userId: number, otherId: number): Promise<number | null> {
+  const existing = await client.chatRoom.findFirst({
+    where: {
+      AND: [
+        { chatRoomMembers: { some: { userId } } },
+        { chatRoomMembers: { some: { userId: otherId } } },
+      ],
+    },
+    select: { id: true },
+  });
+  return existing?.id ?? null;
 }
 
 /**

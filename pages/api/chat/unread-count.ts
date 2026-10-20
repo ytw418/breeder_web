@@ -28,13 +28,17 @@ async function handler(
     const blockedIds = await getBlockedUserIds(userId);
 
     // 현재 유저가 속한 채팅방 멤버 정보 조회. 알림을 끈 방은 하단 탭 숫자에서 뺀다(목록에는 회색으로 남는다).
+    // 메시지가 없는 방은 목록에서 빠지므로 여기서도 뺀다(채팅 목록과 같은 기준).
     const memberships = await client.chatRoomMember.findMany({
       where: {
         userId,
         mutedAt: null,
-        ...(blockedIds.length
-          ? { chatRoom: { chatRoomMembers: { none: { userId: { in: blockedIds } } } } }
-          : {}),
+        chatRoom: {
+          messages: { some: {} },
+          ...(blockedIds.length
+            ? { chatRoomMembers: { none: { userId: { in: blockedIds } } } }
+            : {}),
+        },
       },
       select: {
         chatRoomId: true,

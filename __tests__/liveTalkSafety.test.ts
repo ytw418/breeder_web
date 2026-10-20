@@ -1,5 +1,5 @@
 import { findBlockedWord } from "@libs/shared/contentFilter";
-import { maskContactsInText } from "@libs/shared/contactInText";
+import { detectRiskyContact, maskContactsInText } from "@libs/shared/contactInText";
 import { isGroupedWithPrevious, townPromptsFor, townQuietMinutes, townTitle } from "@libs/shared/townTalk";
 
 describe("금칙어", () => {
@@ -17,6 +17,14 @@ describe("글 속 연락처 가림", () => {
     expect(maskContactsInText("01012345678").text).toBe("010-****-5678");
     expect(maskContactsInText("https://open.kakao.com/o/abc 여기로").text).toBe("(오픈채팅 링크는 가렸어요) 여기로");
     expect(maskContactsInText("구피 3마리 5000원").masked).toBe(false);
+  });
+  it("은행 이름 가까이 있는 계좌번호만 가리고, 채팅 주의 감지는 계좌·카톡 아이디를 찾는다(감사 24번)", () => {
+    expect(maskContactsInText("국민 123456-01-234567 로 입금").text).toBe("국민 (계좌번호는 가렸어요) 로 입금");
+    expect(detectRiskyContact("선입금 부탁해요 카카오뱅크 3333-01-1234567")).toEqual({ account: true, openChat: false, kakaoId: false });
+    expect(detectRiskyContact("카톡 아이디: bredy99 로 연락 주세요").kakaoId).toBe(true);
+    // 전화번호·은행 이름 없는 숫자는 계좌가 아니다.
+    expect(detectRiskyContact("입금 확인은 010-1234-5678 로 문자 주세요").account).toBe(false);
+    expect(detectRiskyContact("주문번호 1234567890123 확인했어요").account).toBe(false);
   });
 });
 

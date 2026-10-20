@@ -49,13 +49,15 @@ async function handler(
     // 내가 차단한 사람이 있는 방은 내 목록에서 숨긴다(상대 목록에는 그대로 보인다).
     const blockedIds = await getBlockedUserIds(userId);
 
-    // 채팅방 목록 조회 (마지막 메시지 1개만 가져옴)
+    // 채팅방 목록 조회 (마지막 메시지 1개만 가져옴).
+    // '채팅하기'만 누르고 아무도 말하지 않은 방은 양쪽 목록에서 뺀다(2026-10-21 감사 9번).
     const chatRooms = await client.chatRoom.findMany({
       where: {
         chatRoomMembers: {
           some: { userId },
           ...(blockedIds.length ? { none: { userId: { in: blockedIds } } } : {}),
         },
+        messages: { some: {} },
       },
       include: {
         chatRoomMembers: {

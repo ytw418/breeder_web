@@ -7,6 +7,7 @@ import { sendAllPushToUsers } from "@libs/server/pushGateway";
 import { filterPushRecipients } from "@libs/server/notificationGate";
 import { captureServerEvent, resolveClientPlatform } from "@libs/server/analytics";
 import { assertCanChat, CHAT_PARTNER_DELETED_MESSAGE } from "@libs/server/blocks";
+import { assertWriteAllowed } from "@libs/server/writeLimits";
 
 interface MessageRequest {
   type?: MessageType;
@@ -101,6 +102,16 @@ async function handler(
       return res
         .status(canChat.status)
         .json({ success: false, error: canChat.error, errorCode: canChat.errorCode });
+    }
+
+    // 같은 글을 10분에 3번 넘게 보내면 막는다(감사 24번, 여러 방에 같은 글 뿌리기). 사진은 세지 않는다.
+    if (type === "TEXT") {
+      const writeLimit = await assertWriteAllowed({ userId: user.id, kind: "message", text: message });
+      if (writeLimit) {
+        return res
+          .status(writeLimit.status)
+          .json({ success: false, error: writeLimit.error, errorCode: writeLimit.errorCode });
+      }
     }
 
     // 메시지 생성 + 채팅방 updatedAt 갱신을 트랜잭션으로 처리
