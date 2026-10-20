@@ -61,6 +61,18 @@ it("unanswered=1 이면 최근 7일 안의 보이는 댓글 없는 글만(공지
   expect(mockClient.post.count.mock.calls[0][0].where).toEqual(where);
 });
 
+it("newcomer=1 이면 가입 7일 안 작성자의 글만, unanswered 와 같이 걸 수 있다(감사 #20)", async () => {
+  await list({ unanswered: "1", newcomer: "1" });
+
+  const where = mockClient.post.findMany.mock.calls[0][0].where;
+  expect(where).toEqual(
+    expect.objectContaining({
+      comments: { none: { isHidden: false, deletedAt: null } },
+      user: { createdAt: { gte: new Date(NOW.getTime() - 7 * 24 * 60 * 60 * 1000) } },
+    })
+  );
+});
+
 it("필터가 없으면 기존처럼 전체", async () => {
   await list({});
   expect(mockClient.post.findMany.mock.calls[0][0].where).toEqual({});

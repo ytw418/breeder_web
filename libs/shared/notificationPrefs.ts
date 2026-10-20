@@ -24,7 +24,7 @@ export const NOTIFICATION_PREF_COPY: Record<NotificationPrefKind, { label: strin
   trade: { label: "거래·경매", description: "입찰·더 높은 입찰·낙찰·찜" },
   reaction: { label: "내 글 반응", description: "좋아요·댓글·답글" },
   follow: { label: "팔로우·새 글", description: "새 팔로워·팔로우한 브리더의 새 글·관심 분야 질문" },
-  news: { label: "브리디 소식(순위·토론)", description: "순위 변화·토론 결과·기록·동네 사랑방" },
+  news: { label: "브리디 소식(순위·토론)", description: "순위·토론 결과·기록·사랑방·주간 요약·공지" },
 };
 
 export interface QuietHours {

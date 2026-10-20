@@ -6,7 +6,8 @@ import withHandler, { ResponseType } from "@libs/server/withHandler";
 import client from "@libs/server/client";
 import { withAuth } from "@libs/server/auth";
 import { notifyFollowers } from "@libs/server/notification";
-import { notifyQuestionToInterestedUsers } from "@libs/server/questionAlert";
+import { notifyInterestedUsers, notifyQuestionToInterestedUsers } from "@libs/server/questionAlert";
+import { isNewcomer } from "@libs/shared/newcomer";
 import { Post, Prisma, User } from "@prisma/client";
 import { incrementUserMissionProgress } from "@libs/server/growth";
 import {
@@ -91,6 +92,8 @@ const postListInclude = (excluded: number[]) =>
         id: true,
         name: true,
         avatar: true,
+        // 가입 7일 안이면 카드 작성자 줄에 '새로 왔어요'(libs/shared/newcomer, 커뮤니티 감사 #20).
+        createdAt: true,
         breederPrograms: {
           where: { status: "ACTIVE" as const },
           select: breederProgramSummarySelect,
@@ -523,7 +526,7 @@ const handler = async (
     const author = user?.id
       ? await client.user.findUnique({
           where: { id: user.id },
-          select: { name: true },
+          select: { name: true, createdAt: true },
         })
       : null;
 
@@ -538,14 +541,30 @@ const handler = async (
               categoryId: post.categoryId ?? null,
             })
           : [];
+      // 가입 7일 안 회원의 첫 글이면 같은 분야를 고정한 사람에게 '새 회원 첫 글' 알림(하루 1통, 커뮤니티 감사 #20).
+      // 공지는 운영자 글이라 뺀다. 질문 알림을 이미 받은 사람도 뺀다.
+      const newcomerRecipients =
+        isNewcomer(author.createdAt) &&
+        !isNoticePostInput({ category, title }) &&
+        (await client.post.count({ where: { userId: user.id } })) === 1
+          ? await notifyInterestedUsers({
+              kind: "newcomer",
+              postId: post.id,
+              authorId: user.id,
+              authorName: author.name,
+              title,
+              categoryId: post.categoryId ?? null,
+              excludeUserIds: questionRecipients,
+            })
+          : [];
       notifyFollowers({
         senderId: user.id,
         type: "NEW_POST",
         message: `${author.name}님이 새 글을 작성했습니다: ${title}`,
         targetId: post.id,
         targetType: "post",
-        // 질문 알림을 받은 팔로워에게 같은 글 알림이 두 번 쌓이지 않게 한다.
-        excludeUserIds: questionRecipients,
+        // 질문·새 회원 알림을 받은 팔로워에게 같은 글 알림이 두 번 쌓이지 않게 한다.
+        excludeUserIds: [...questionRecipients, ...newcomerRecipients],
       });
       await incrementUserMissionProgress(user.id, "post_create");
       await captureServerEvent(user.id, "post_created", {

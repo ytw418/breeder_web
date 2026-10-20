@@ -1,0 +1,28 @@
+name: 새 회원 첫 글 확인
+
+# 매시 운영 서버의 /api/internal/cron/first-post-watch 를 부른다(커뮤니티 감사 #20, libs/server/firstPostWatch.ts).
+# Vercel Hobby 는 하루 한 번보다 잦은 크론을 못 써서 매시 호출은 여기서 한다(vercel.json 에는 하루 한 번 줍기만 있다).
+# 같은 글은 한 번만 알리므로 늦게 돌거나 겹쳐도 된다. 저장소 비밀값 CRON_SECRET(Vercel 운영 env 와 같은 값)이 없으면 건너뛴다.
+on:
+  schedule:
+    - cron: "17 * * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    steps:
+      - name: 첫 글 확인 호출
+        env:
+          CRON_SECRET: ${{ secrets.CRON_SECRET }}
+          SITE_URL: https://bredy.app
+        run: |
+          if [ -z "$CRON_SECRET" ]; then
+            echo "CRON_SECRET 비밀값이 없어 건너뛴다."
+            exit 0
+          fi
+          curl -fsS --max-time 60 -H "Authorization: Bearer $CRON_SECRET" "$SITE_URL/api/internal/cron/first-post-watch"
