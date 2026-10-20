@@ -1121,7 +1121,9 @@ export const getMyRankingSummary = async (
     };
   }
 
-  if (me.rank <= 20) {
+  // 순위 하락·추월 알림(processRankingAlerts)은 전체 랭킹 순위로 보낸다. 범위 랭킹은 사람이 적어 거의 다 20위 안이라,
+  // 구독은 전체 기준 호출(홈 피드·categoryPath 없는 /api/rankings/me)에서만 만든다.
+  if (!categoryPath && me.rank <= 20) {
     await ensureAlertSubscription({
       userId,
       alertType: "BREEDER_RANK_DROP",
