@@ -5,7 +5,7 @@
  * - 운영 알림(MODERATION)은 종류·방해 금지와 관계없이 항상 보낸다.
  * - 방해 금지 시간은 KST 시(0~23) 기준 [start, end) 이고, 22~8 처럼 자정을 넘을 수 있다.
  * 웹 breeder_web libs/shared/notificationPrefs.ts = 앱 bredy_app src/lib/notificationPrefs.ts 사본이라 함께 고치고
- * 웹 `npx jest notificationPrefs`·앱 `npm run test:notification-prefs` 로 확인한다.
+ * 웹 `npx jest notificationPrefs`·앱 `node --test scripts/test-notification-prefs.mjs` 로 확인한다.
  */
 
 export type NotificationPrefKind = "chat" | "trade" | "reaction" | "follow" | "news";
