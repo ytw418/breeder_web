@@ -7,7 +7,8 @@
  * 규칙:
  * - 띠에는 최근 14일 안에 올린 공지만 둔다(서버 GET /api/posts/notices?band=1 도 같은 기간만 준다).
  *   없으면 띠를 그리지 않는다(8개월 전 베타 공지가 첫 줄에 남던 문제).
- * - 읽은 공지는 숨긴다: 띠를 눌러 연 공지까지(그 id 이하)와, 상세를 열어 '봄'으로 기록된 공지(unread-marks).
+ * - 읽은 공지는 숨긴다: 띠를 누르거나 상세에서 연 공지까지(그 id 이하, noticeBandSeen)와, '봄'으로 기록된 공지(unread-marks).
+ *   상세에서 연 공지를 noticeBandSeen 에도 남기는 까닭: unread-marks 는 올린 지 7일 지난 기록을 지워 14일 띠를 못 덮는다.
  * - 제목은 앞 '[공지]'·이모지를 떼고 ' · M.D'(한국 날짜)를 붙인다.
  */
 
@@ -43,7 +44,7 @@ export function noticeBandTitle(title: string, createdAt: string | Date): string
 
 /**
  * 띠에 보일 공지 하나(최신순 목록의 첫 번째 조건 맞는 것). 없으면 null.
- * seenUpToId: 띠를 눌러 연 공지 id(그 이하 공지는 다 본 것으로 친다). isSeen: 상세를 연 기록(unread-marks).
+ * seenUpToId: 띠나 상세에서 연 공지 id(그 이하 공지는 다 본 것으로 친다). isSeen: 상세를 연 기록(unread-marks, 7일).
  */
 export function pickBandNotice<T extends NoticeBandItem>(
   notices: readonly T[],

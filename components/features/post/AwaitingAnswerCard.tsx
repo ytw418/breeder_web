@@ -3,6 +3,8 @@
 import Link from "next/link";
 import { InitialAvatar } from "@components/ui/InitialAvatar";
 import { toPostPath } from "@libs/post-route";
+import useScopeTerms from "@/hooks/useScopeTerms";
+import { withBreederWord } from "@libs/shared/scopeTerms";
 
 export type AwaitingQuestion = {
   id: number;
@@ -42,6 +44,8 @@ type AwaitingAnswerCardProps =
  */
 export default function AwaitingAnswerCard(props: AwaitingAnswerCardProps) {
   const { className } = props;
+  // 포유류만 고정한 계정은 '집사'로 부른다(scopeTerms, 앱과 같다).
+  const { breeder } = useScopeTerms();
   if (props.variant === "empty") {
     return (
       <div
@@ -59,7 +63,7 @@ export default function AwaitingAnswerCard(props: AwaitingAnswerCardProps) {
             {askQuestionTitle(props.speciesName)}
           </p>
           <p className="mt-0.5 break-keep text-[12px] leading-4 text-app-brand-text-soft">
-            질문을 올리면 관심 분야 브리더에게 알림이 가요
+            {withBreederWord("질문을 올리면 관심 분야 브리더에게 알림이 가요", breeder)}
           </p>
         </Link>
         <Link
