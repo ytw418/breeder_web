@@ -4,7 +4,7 @@
  */
 
 import { POST_IMAGES_MAX } from "@libs/postImages";
-import { countPostBodyText } from "@libs/shared/post-body";
+import { countPostBodyText, postBodyTextMin } from "@libs/shared/post-body";
 
 export const POST_TITLE_MIN = 2;
 export const POST_TITLE_MAX = 80;
@@ -37,8 +37,8 @@ export type ComposerPhoto =
   | { kind: "remote"; key: string; id: string }
   | { kind: "local"; key: string; file: File; previewUrl: string };
 
-/** 제출 전 검사. 앱 validate() 와 같은 문구. */
-export function validatePostForm(values: PostFormValues): PostFormErrors {
+/** 제출 전 검사. 앱 validate() 와 같은 문구. 사진이 한 장이라도 있으면 본문 글자가 없어도 된다(photoCount). */
+export function validatePostForm(values: PostFormValues, photoCount = 0): PostFormErrors {
   const errors: PostFormErrors = {};
   const title = values.title.trim();
   const description = values.description.trim();
@@ -49,9 +49,9 @@ export function validatePostForm(values: PostFormValues): PostFormErrors {
   else if (title.length > POST_TITLE_MAX) errors.title = "제목은 80자 이하로 입력해주세요.";
   // 글자 수는 사진 자리·크게·굵게 표시를 뺀 글자로 센다(libs/shared/post-body.ts, 앱과 같음).
   const bodyLength = countPostBodyText(description);
-  if (!description) errors.description = "내용을 입력해주세요.";
-  else if (bodyLength < POST_DESCRIPTION_MIN)
-    errors.description = "내용을 10자 이상 입력해주세요.";
+  if (!bodyLength && !photoCount) errors.description = "내용을 입력해주세요.";
+  else if (bodyLength < postBodyTextMin(photoCount))
+    errors.description = `내용을 ${POST_DESCRIPTION_MIN}자 이상 입력해주세요.`;
   else if (bodyLength > POST_DESCRIPTION_MAX)
     errors.description = "내용은 2000자 이하로 입력해주세요.";
   return errors;
@@ -78,14 +78,16 @@ export function hasComposerChanges(
   );
 }
 
-/** 헤더 "완료"/"수정하기" 활성 조건: 주제·제목·내용이 모두 있고(수정은 바뀐 게 있고) 제출 중이 아님. */
+/** 헤더 "완료"/"수정하기" 활성 조건: 주제·제목·내용(글자 또는 사진)이 있고(수정은 바뀐 게 있고) 제출 중이 아님. */
 export function canSubmitPost({
   values,
+  photoCount = 0,
   submitting,
   isEdit,
   changed,
 }: {
   values: PostFormValues;
+  photoCount?: number;
   submitting: boolean;
   isEdit: boolean;
   changed: boolean;
@@ -95,8 +97,8 @@ export function canSubmitPost({
     (!isEdit || changed) &&
     Boolean(values.category) &&
     Boolean(values.title.trim()) &&
-    // 사진만 있는 본문은 글자가 없어 '완료'를 켜지 않는다(앱 editor.textCount > 0 과 같음).
-    countPostBodyText(values.description) > 0
+    // 사진만 있는 글도 '완료'를 켠다(2026-10-21, 앱 editor.textCount > 0 || photoCount > 0 과 같음).
+    (countPostBodyText(values.description) > 0 || photoCount > 0)
   );
 }
 

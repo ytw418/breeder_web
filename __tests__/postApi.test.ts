@@ -458,8 +458,8 @@ describe("게시글 본문 사진·글 블록 검증 (libs/shared/post-body)", (
     expect(mockClient.post.create).not.toHaveBeenCalled();
   });
 
-  it("POST: 표시 기호를 뺀 글자가 10자 미만이면 400 POST_DESCRIPTION_TOO_SHORT", async () => {
-    const res = await createPost({ description: "## **짧아요**\n[[photo:1]]", images: ["cf-a"] });
+  it("POST: 사진 없이 표시 기호를 뺀 글자가 10자 미만이면 400 POST_DESCRIPTION_TOO_SHORT", async () => {
+    const res = await createPost({ description: "## **짧아요**" });
     expectError(res, 400, "POST_DESCRIPTION_TOO_SHORT", "내용을 10자 이상 입력해주세요.");
     expect(mockClient.post.create).not.toHaveBeenCalled();
   });
@@ -488,8 +488,8 @@ describe("게시글 본문 사진·글 블록 검증 (libs/shared/post-body)", (
     expectError(bad, 400, "POST_BODY_INVALID_PHOTO");
   });
 
-  it("update: 표시 기호를 뺀 글자가 10자 미만이면 400 POST_DESCRIPTION_TOO_SHORT", async () => {
-    const res = await mutate({ ...updateBody, description: "**짧은 글**" });
+  it("update: 사진 없이 표시 기호를 뺀 글자가 10자 미만이면 400 POST_DESCRIPTION_TOO_SHORT", async () => {
+    const res = await mutate({ ...updateBody, images: [], description: "**짧은 글**" });
     expectError(res, 400, "POST_DESCRIPTION_TOO_SHORT");
     expect(mockClient.post.update).not.toHaveBeenCalled();
   });

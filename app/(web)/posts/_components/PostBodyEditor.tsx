@@ -2,6 +2,7 @@
 
 import { useEffect, useLayoutEffect, useRef, useState, type ReactNode } from "react";
 import { cn, makeImageUrl } from "@libs/client/utils";
+import { POST_BODY_COUNTER_FROM, POST_BODY_TEXT_MAX } from "@libs/shared/post-body";
 import {
   LINE_SENTINEL,
   countEditorText,
@@ -148,6 +149,20 @@ export function usePostBodyEditor(description: string, imageIds: readonly string
     setBlocks(result.blocks);
   };
 
+  /**
+   * 올라간 사진(local, key)을 그 자리에서 서버 사진(remote)으로 바꾼다. 등록이 실패해 다시 누르면 이 사진은 건너뛴다.
+   * 여러 장이 동시에 끝나므로 이전 상태 기준으로 바꾼다(앱 replacePhoto 와 같다).
+   */
+  const replacePhoto = (key: string, remoteId: string) => {
+    setBlocks((prev) =>
+      prev.map((block) => {
+        if (block.type !== "image" || block.photo.key !== key) return block;
+        if (block.photo.kind === "local") URL.revokeObjectURL(block.photo.previewUrl);
+        return { ...block, photo: toRemoteComposerPhoto(remoteId) };
+      })
+    );
+  };
+
   const toggleStyle = (style: "size" | "bold") => {
     if (!activeId) return;
     setBlocks(toggleEditorTextStyle(blocks, activeId, style));
@@ -195,6 +210,7 @@ export function usePostBodyEditor(description: string, imageIds: readonly string
     },
     insertFiles,
     removePhoto,
+    replacePhoto,
     toggleStyle,
     moveLine,
     /** 제목 칸을 누르면 툴바의 크기·굵게가 본문 줄에 걸리지 않게 한다. */
@@ -413,4 +429,20 @@ export function PostBodyToolbarButtons({
 /** 저장된 본문을 에디터 기준으로 다시 쓴 값(옛 글은 사진 자리 표시가 붙는다). 수정 화면의 '바뀐 게 있나' 기준. */
 export function normalizedPostBody(description: string, imageIds: readonly string[]) {
   return editorBlocksToBody(createEditorBlocks(description, imageIds, (id) => id));
+}
+
+/**
+ * 툴바 글자 수 '1,520/2,000'. 본문이 1,500자를 넘으면 사진 수 왼쪽에 보이고 2,000 초과면 danger(앱 PostBodyToolbar 와 같다).
+ * 시안: 앱 design/mockups/post-upload/A2-karrot.html ④(2026-10-21)
+ */
+export function PostBodyTextCounter({ count }: { count: number }) {
+  if (count < POST_BODY_COUNTER_FROM) return null;
+  return (
+    <span
+      aria-label={`글자 수 ${count}자, 최대 ${POST_BODY_TEXT_MAX}자`}
+      className={cn("ml-auto pr-3 text-[12px]", count > POST_BODY_TEXT_MAX ? "text-app-danger" : "text-app-muted")}
+    >
+      {count.toLocaleString("ko-KR")}/{POST_BODY_TEXT_MAX.toLocaleString("ko-KR")}
+    </span>
+  );
 }

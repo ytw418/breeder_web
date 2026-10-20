@@ -8,6 +8,7 @@ import Layout from "@components/features/MainLayout";
 import ConfirmDialog from "@components/atoms/ConfirmDialog";
 import { authFetch } from "@libs/client/authFetch";
 import { toast } from "@libs/client/toast";
+import { uploadInOrder } from "@libs/client/uploadQueue";
 import { cn } from "@libs/client/utils";
 import { POST_CATEGORIES } from "@libs/constants";
 import { toPostPath } from "@libs/post-route";
@@ -18,6 +19,7 @@ import type { Celebrate } from "@libs/shared/communityVibe";
 import useUser from "hooks/useUser";
 import type { CategoriesResponse } from "@libs/shared/categories";
 import { REGION_POST_CATEGORY } from "@libs/shared/postCategory";
+import { POST_BODY_COUNTER_FROM } from "@libs/shared/post-body";
 import { DEBATE_CATEGORY, DEBATE_MIN_ACCOUNT_AGE_HOURS } from "@libs/shared/debateFormat";
 import { regionOf } from "@libs/shared/regions";
 import { MY_ACTIVITY_KEY_PREFIXES, POST_KEY_PREFIXES, revalidateByPrefix } from "@libs/client/swrRevalidate";
@@ -27,6 +29,7 @@ import {
   filterPickedPhotos,
   hasComposerChanges,
   validatePostForm,
+  type ComposerPhoto,
   type PostComposerInitial,
   type PostFormErrors,
 } from "../_lib/postComposer";
@@ -34,6 +37,7 @@ import { PostPickerSheet } from "./PostPickerSheet";
 import { SpeciesPickerSheet, defaultSpeciesFromPins } from "./SpeciesPickerSheet";
 import {
   PostBodyEditor,
+  PostBodyTextCounter,
   PostBodyToolbarButtons,
   normalizedPostBody,
   usePostBodyEditor,
@@ -46,6 +50,7 @@ import {
  */
 
 type SubmitStep = "idle" | "image" | "submit";
+type LocalComposerPhoto = Extract<ComposerPhoto, { kind: "local" }>;
 type PickerTarget = "category" | "species" | null;
 
 /** 글쓰기 주제 시트: '토론'·'질문'엔 설명 한 줄(앱 PostComposer TOPIC_OPTIONS 와 같다). */
@@ -259,6 +264,8 @@ export function PostComposer(props: PostComposerProps) {
   });
   const [errors, setErrors] = useState<PostFormErrors>({});
   const [submitStep, setSubmitStep] = useState<SubmitStep>("idle");
+  // 사진 올리는 중 진행(완료 장 수/올릴 장 수). 앱과 같은 오버레이 카드(시안 A2 ⑤).
+  const [uploadProgress, setUploadProgress] = useState({ done: 0, total: 0 });
   const [picker, setPicker] = useState<PickerTarget>(null);
   // 동네 미설정 안내(앱 PostComposer promptRegionRequired). '설정하기' 는 내 동네 설정으로 보낸다.
   const [regionPromptOpen, setRegionPromptOpen] = useState(false);
@@ -268,7 +275,13 @@ export function PostComposer(props: PostComposerProps) {
   const values = { title, description: body.description, category, species };
   const isSubmitting = submitStep !== "idle";
   const changed = hasComposerChanges(values, body.images, normalizedInitial);
-  const canSubmit = canSubmitPost({ values, submitting: isSubmitting, isEdit, changed });
+  const canSubmit = canSubmitPost({
+    values,
+    photoCount: body.images.length,
+    submitting: isSubmitting,
+    isEdit,
+    changed,
+  });
   const { leave, dialog } = useConfirmLeave(changed);
   const celebrateSheet = useCelebrateSheet("post");
 
@@ -312,7 +325,7 @@ export function PostComposer(props: PostComposerProps) {
 
   const submit = async () => {
     if (!canSubmit) return;
-    const nextErrors = validatePostForm(values);
+    const nextErrors = validatePostForm(values, body.images.length);
     setErrors(nextErrors);
     if (Object.keys(nextErrors).length) {
       toast.error("입력값을 확인해주세요.");
@@ -322,14 +335,24 @@ export function PostComposer(props: PostComposerProps) {
     // 저장에 성공해 이동하면 버튼을 잠근 채 둔다(다시 누르기·이탈 가드 재무장 방지).
     let leaving = false;
     try {
-      // 순서를 지키도록 한 장씩 올린다. 기존 사진(remote)은 다시 올리지 않고 id 를 그대로 보낸다.
-      const imageIds: string[] = [];
-      if (body.images.some((photo) => photo.kind === "local")) setSubmitStep("image");
-      for (const photo of body.images) {
-        imageIds.push(
-          photo.kind === "remote" ? photo.id : await uploadPostImage(photo.file, title.trim())
-        );
-      }
+      // 새로 고른 사진(local)만 3장씩 동시에 올리고, 결과는 본문 순서대로 받는다(libs/client/uploadQueue.ts).
+      // 올라간 사진은 바로 remote 로 바꿔 둔다. 한 장이 실패해 다시 누르면 남은 사진만 올린다.
+      // 기존 사진(remote)은 다시 올리지 않고 id 를 그대로 보낸다.
+      const pending = body.images.filter((photo): photo is LocalComposerPhoto => photo.kind === "local");
+      if (pending.length) setSubmitStep("image");
+      const uploadedIds = await uploadInOrder(
+        pending,
+        async (photo) => {
+          const id = await uploadPostImage(photo.file, title.trim());
+          editor.replacePhoto(photo.key, id);
+          return id;
+        },
+        { concurrency: 3, onProgress: (done, total) => setUploadProgress({ done, total }) }
+      );
+      let uploadedIndex = 0;
+      const imageIds = body.images.map((photo) =>
+        photo.kind === "remote" ? photo.id : uploadedIds[uploadedIndex++]
+      );
 
       setSubmitStep("submit");
       const payload = {
@@ -506,7 +529,13 @@ export function PostComposer(props: PostComposerProps) {
       <div className="fixed inset-x-0 bottom-0 mx-auto max-w-xl z-30 border-t border-app-line bg-app-bg pb-[env(safe-area-inset-bottom)]">
         <div className="mx-auto flex h-[52px] max-w-xl items-center px-2">
           <PostBodyToolbarButtons editor={editor} disabled={isSubmitting} onPickPhotos={openFilePicker} />
-          <span className="ml-auto pr-2 text-[14px] text-app-muted">
+          <PostBodyTextCounter count={editor.textCount} />
+          <span
+            className={cn(
+              "pr-2 text-[14px] text-app-muted",
+              editor.textCount >= POST_BODY_COUNTER_FROM ? "" : "ml-auto"
+            )}
+          >
             {editor.photoCount}/{POST_COMPOSER_IMAGE_MAX}
           </span>
         </div>
@@ -560,9 +589,31 @@ export function PostComposer(props: PostComposerProps) {
         onClose={() => setPicker(null)}
       />
 
-      {/* 제출 중 화면 전체 터치 차단 */}
+      {/* 제출 중 화면 전체 터치 차단 + 사진 올리는 중 n/N 진행 막대(시안 A2 ⑤) */}
       {isSubmitting ? (
-        <div className="fixed inset-0 z-[60] bg-app-bg opacity-40" aria-hidden="true" />
+        <div className="fixed inset-0 z-[60] flex items-center justify-center">
+          <div className="absolute inset-0 bg-app-bg opacity-40" aria-hidden="true" />
+          {submitStep === "image" && uploadProgress.total > 0 ? (
+            <div
+              role="progressbar"
+              aria-valuemin={0}
+              aria-valuemax={uploadProgress.total}
+              aria-valuenow={uploadProgress.done}
+              aria-label={`사진 올리는 중 ${uploadProgress.done}/${uploadProgress.total}`}
+              className="relative w-60 rounded-xl border border-app-border bg-app-elevated p-6 shadow-popover"
+            >
+              <p className="text-center text-[15px] font-semibold text-app-text">
+                사진 올리는 중 {uploadProgress.done}/{uploadProgress.total}
+              </p>
+              <div className="mt-3 h-1 overflow-hidden rounded-full bg-app-surface">
+                <div
+                  className="h-1 bg-app-brand transition-[width]"
+                  style={{ width: `${Math.round((uploadProgress.done / uploadProgress.total) * 100)}%` }}
+                />
+              </div>
+            </div>
+          ) : null}
+        </div>
       ) : null}
 
       <ConfirmDialog

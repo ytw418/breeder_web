@@ -31,6 +31,8 @@ export type ParsedPostBodyBlock =
 
 export const POST_BODY_TEXT_MIN = 10;
 export const POST_BODY_TEXT_MAX = 2000;
+/** 글쓰기 툴바에 'n/2,000' 글자 수를 보이기 시작하는 글자 수. */
+export const POST_BODY_COUNTER_FROM = 1500;
 /** 표시 기호까지 포함한 저장 문자열 상한(사진 10장·줄 표시 여유분). */
 export const POST_BODY_RAW_MAX = 4000;
 
@@ -179,10 +181,15 @@ export type PostDescriptionCheck =
   | { ok: true }
   | { ok: false; errorCode: PostDescriptionErrorCode; message: string };
 
+/** 본문 최소 글자 수. 사진이 한 장이라도 있으면 글 없이 올릴 수 있다(2026-10-21, docs/prd/post-upload.md AC-16). */
+export function postBodyTextMin(imageCount: number): number {
+  return imageCount > 0 ? 0 : POST_BODY_TEXT_MIN;
+}
+
 /** 서버·클라 공용 본문 검증. 빈 값(필수)은 호출하는 쪽이 먼저 막는다. */
 export function validatePostDescription(description: string, imageCount: number): PostDescriptionCheck {
   const count = countPostBodyText(description);
-  if (count < POST_BODY_TEXT_MIN) {
+  if (count < postBodyTextMin(imageCount)) {
     return {
       ok: false,
       errorCode: "POST_DESCRIPTION_TOO_SHORT",
