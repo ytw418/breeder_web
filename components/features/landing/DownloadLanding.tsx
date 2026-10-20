@@ -14,12 +14,12 @@ import { GUIDE_INDEX_HREF } from "@libs/shared/guides";
 
 /** 스토어 스크린샷과 같은 디자인 세트(bredy_app store-assets/screenshots/ios, 2026-10-20). 문구가 이미지 안에 있어 alt 로 같은 문구를 둔다. */
 const SCREENS = [
-  { src: "/landing/store-01-home-v2.jpg", alt: "키우는 사람들의 커뮤니티, 브리디 — 강아지·고양이·곤충·파충류·물고기까지" },
-  { src: "/landing/store-02-products-v2.jpg", alt: "보고 싶은 종만 골라서 분양 보기" },
-  { src: "/landing/store-03-product-detail.jpg", alt: "분양글 올리기는 무료예요" },
-  { src: "/landing/store-04-auction-detail.jpg", alt: "경매로 투명하게 분양해요" },
-  { src: "/landing/store-05-guide.jpg", alt: "처음 키운다면 사육 가이드부터" },
-  { src: "/landing/store-06-bloodline.jpg", alt: "혈통을 카드로 남겨요" },
+  { src: "/landing/store-v3-01-home.jpg", alt: "강아지·고양이부터 곤충·파충류까지, 키우는 사람들이 모이는 커뮤니티" },
+  { src: "/landing/store-v3-02-categories.jpg", alt: "관심 있는 동물만 골라 보세요" },
+  { src: "/landing/store-v3-03-products.jpg", alt: "보고 싶은 종만 골라서 분양 보기" },
+  { src: "/landing/store-v3-04-product-detail.jpg", alt: "분양글 올리기는 무료예요" },
+  { src: "/landing/store-v3-05-auction-detail.jpg", alt: "경매로 투명하게 분양해요" },
+  { src: "/landing/store-v3-06-guide.jpg", alt: "처음 키운다면 사육 가이드부터" },
 ];
 
 /** heroicons outline 1.5px */
