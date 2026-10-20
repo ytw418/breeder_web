@@ -7,6 +7,8 @@ import useSWR from "swr";
 import { useRouter } from "next/navigation";
 
 import FloatingButton from "@components/atoms/floating-button";
+import { ActionSheet } from "@components/app/ActionSheet";
+import { ASK_QUESTION_HREF } from "@components/features/post/AwaitingAnswerCard";
 import { QueryErrorState } from "@components/app/QueryErrorState";
 import { cn } from "@libs/client/utils";
 import { ANALYTICS_EVENTS, trackEvent } from "@libs/client/analytics";
@@ -108,6 +110,8 @@ const MainClient = ({
   const { breeder, showAuctions } = useScopeTerms();
   const [activeBannerIndex, setActiveBannerIndex] = useState(0);
   const [showPostLoginGuide, setShowPostLoginGuide] = useState(false);
+  // 글쓰기 FAB 시트: 글쓰기 · 질문하기 · 토론 열기(2026-10-21 감사 #1 — 질문을 올리는 입구).
+  const [writeSheetOpen, setWriteSheetOpen] = useState(false);
   const [deferredInstallPrompt, setDeferredInstallPrompt] =
     useState<BeforeInstallPromptEvent | null>(null);
   const [installLoading, setInstallLoading] = useState(false);
@@ -350,6 +354,7 @@ const MainClient = ({
                 peers={heroPeers}
                 period={heroBreederPeriod}
                 scoped={Boolean(scope.categoryPath)}
+                categoryPath={scope.categoryPath}
                 viewer={user ? { id: user.id, name: user.name, avatar: user.avatar ?? null } : null}
                 viewerLoading={isUserLoading}
               />
@@ -427,7 +432,7 @@ const MainClient = ({
         <HomePostsFeed />
       </Suspense>
 
-      <FloatingButton href="/posts/upload" label="글쓰기">
+      <FloatingButton onClick={() => setWriteSheetOpen(true)} label="글쓰기">
         <svg className="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
           <path
             strokeLinecap="round"
@@ -437,6 +442,15 @@ const MainClient = ({
           />
         </svg>
       </FloatingButton>
+      <ActionSheet
+        open={writeSheetOpen}
+        onClose={() => setWriteSheetOpen(false)}
+        actions={[
+          { key: "post", label: "글쓰기", onSelect: () => router.push("/posts/upload") },
+          { key: "question", label: "질문하기", onSelect: () => router.push(ASK_QUESTION_HREF) },
+          { key: "debate", label: "토론 열기", onSelect: () => router.push("/posts/debate") },
+        ]}
+      />
 
       {showPostLoginGuide && (
         <div className="fixed inset-0 z-50 bg-app-overlay px-4 py-8">

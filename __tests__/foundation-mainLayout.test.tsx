@@ -157,8 +157,9 @@ describe("MainLayout 셸", () => {
     expect(screen.getByText(/^버전 /)).toBeInTheDocument();
   });
 
-  it("홈 헤더는 왼쪽 로고 + 워드마크 '브리디', 가운데 제목이 없다(community-vibe §3.7)", () => {
-    mockPathname.mockReturnValue("/");
+  // "/index": ISR 로 미리 만든 홈의 서버 렌더 경로(RSC c:["","index"]). '/' 와 똑같이 그려야 첫 방문 #418 이 안 난다(감사 #5).
+  it.each(["/", "/index"])("홈(%s) 헤더는 왼쪽 로고 + 워드마크 '브리디', 가운데 제목이 없다(community-vibe §3.7)", (path) => {
+    mockPathname.mockReturnValue(path);
     mockUseUser.mockReturnValue({ user: undefined, isLoading: false });
     render(
       <MainLayout title="브리디" icon showSearch hasTabBar>
@@ -170,6 +171,7 @@ describe("MainLayout 셸", () => {
     expect(brand.querySelector(".app-t-section")).not.toBeNull();
     // 검색엔진용 h1 은 화면에 보이지 않게(sr-only)만 둔다.
     expect(screen.getByRole("heading", { level: 1, name: "브리디" })).toHaveClass("sr-only");
+    expect(screen.getByRole("link", { name: "홈" })).toHaveAttribute("aria-current", "page");
   });
 
   it("다른 탭 루트는 왼쪽 로고만(누르면 홈), 탭 이름 글자는 보이지 않는다", () => {
