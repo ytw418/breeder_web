@@ -3,6 +3,7 @@ import { withDetailRevalidation } from "@libs/server/pageRevalidation";
 import { extractProductId } from "@libs/product-route";
 import withHandler, { ResponseType } from "@libs/server/withHandler";
 import client from "@libs/server/client";
+import { viewerFollows } from "@libs/server/viewerFollow";
 import { withAuth } from "@libs/server/auth";
 import { canEditAnyContent, isModeratorUser } from "@libs/server/adminAccess";
 import { Product, User } from "@prisma/client";
@@ -27,7 +28,8 @@ import {
 import type { BloodlineLinkSummary } from "@libs/shared/bloodline-card";
 
 export interface ProductWithUser extends Omit<Product, "pedigreeNote" | "bloodlineRootId"> {
-  user: User;
+  /** isFollowing: 상세 GET 에서만, viewer 가 분양자를 팔로우하는지(비로그인·본인 false). */
+  user: User & { isFollowing?: boolean };
   /** 연결한 뿌리 혈통 id. 새 응답 필드라 optional 이다(구 응답·테스트 픽스처 호환). */
   bloodlineRootId?: number | null;
   /** 부·모 크기·누대(규칙에 맞는 키만). 혈통을 붙이지 않았으면 null. */
@@ -172,6 +174,8 @@ async function handler(
 
     const isLiked = Boolean(isLikedResult);
     const hasPurchased = Boolean(hasPurchasedResult);
+    // 분양자 줄 팔로우 버튼(비로그인·본인 false).
+    const isFollowingSeller = await viewerFollows(user?.id, product.userId);
 
     const terms = product.name.split(" ").map((word) => ({
       name: {
@@ -200,6 +204,7 @@ async function handler(
       success: true,
       product: {
         ...product,
+        user: { ...product.user, isFollowing: isFollowingSeller },
         pedigreeNote: readStoredPedigreeNote(product.pedigreeNote),
         bloodline,
       },

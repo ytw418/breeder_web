@@ -3,6 +3,7 @@ import { withDetailRevalidation } from "@libs/server/pageRevalidation";
 import withHandler, { ResponseType } from "@libs/server/withHandler";
 
 import client from "@libs/server/client";
+import { viewerFollows } from "@libs/server/viewerFollow";
 import { extractPostIdFromPath } from "@libs/post-route";
 import { withAuth } from "@libs/server/auth";
 import {
@@ -33,6 +34,8 @@ interface PostDetail {
     name: string;
     avatar: string | null;
     breederPrograms: BreederProgramSummary[];
+    /** viewer 가 글쓴이를 팔로우하는지(비로그인·내 글 false). 작성자 줄 팔로우 버튼. */
+    isFollowing: boolean;
   };
   comments: {
     id: number;
@@ -58,6 +61,9 @@ interface PostDetail {
     isLiked: boolean;
     /** 토론 댓글이면 쓴 순간의 쪽(앱 docs/prd/live-talk.md) */
     stance: DebateSide | null;
+    /** 답글에 단 답글이면 그 답글 작성자 id·이름(본문 맨 앞 '@닉네임' 표시, libs/shared/comment-mention). 아니면 null. */
+    replyToUserId: number | null;
+    replyToUser: { id: number; name: string } | null;
   }[];
   _count: {
     comments: number;
@@ -77,6 +83,10 @@ interface PostDetail {
   images: string[];
   /** 운영자 숨김. 작성자·관리자만 숨긴 글을 받는다. */
   isHidden: boolean;
+  /** 질문 글에서 질문자가 채택한 댓글 id(없으면 null). 그 댓글에 '질문자 채택' 띠를 붙인다. */
+  acceptedCommentId: number | null;
+  /** 채택한 시각(목록 질문 pill 이 '해결'로 바뀐다). */
+  resolvedAt: Date | null;
 }
 
 interface AdjacentNotice {
@@ -94,6 +104,8 @@ export interface PostDetailResponse {
   nextNotice?: AdjacentNotice | null;
   /** 찬반 토론 글이면 요약(앱 docs/prd/live-talk.md §4.2). */
   debate?: DebateSummary | null;
+  /** viewer 의 이 글 새 댓글 알림 구독(댓글을 달면 생긴다). 없거나 비로그인이면 null. */
+  mySubscription?: { muted: boolean } | null;
 }
 
 /** 게시글 수정(action=update) 성공 응답. 실패는 { success:false, error, message, errorCode }. */
@@ -300,6 +312,19 @@ async function handler(
   return getPostDetail(req, res);
 }
 
+/** 상세 ⋯ '이 글 알림 끄기·받기' 상태. 곁가지 정보라 실패하면 null(메뉴는 '이 글 알림 받기'). */
+async function findMySubscription(userId: number, postId: number) {
+  try {
+    return await client.postSubscription.findUnique({
+      where: { userId_postId: { userId, postId } },
+      select: { muted: true },
+    });
+  } catch (error) {
+    console.error("[api/posts/:id][subscription]", error);
+    return null;
+  }
+}
+
 async function getPostDetail(
   req: NextApiRequest,
   res: NextApiResponse<ResponseType>
@@ -348,6 +373,7 @@ async function getPostDetail(
           editedAt: true,
           deletedAt: true,
           stance: true,
+          replyToUserId: true,
           _count: { select: { likes: true } },
           user: {
             select: {
@@ -470,6 +496,20 @@ async function getPostDetail(
       : []
   );
 
+  // 답글의 답글 대상 이름('@닉네임'). 관계가 없어 한 번에 따로 받는다.
+  const replyToIds = Array.from(
+    new Set(post.comments.map((comment) => comment.replyToUserId).filter((id): id is number => id != null))
+  );
+  const replyToUsers = new Map(
+    replyToIds.length
+      ? (
+          await client.user.findMany({ where: { id: { in: replyToIds } }, select: { id: true, name: true } })
+        ).map((row) => [row.id, row] as const)
+      : []
+  );
+  const mySubscription = user?.id ? await findMySubscription(user.id, postId) : null;
+  const isFollowingAuthor = await viewerFollows(user?.id, post.userId);
+
   const serializedPost: PostDetail = {
     ...withPostImages(post),
     user: {
@@ -477,6 +517,7 @@ async function getPostDetail(
       breederPrograms: getSortedActiveBreederProgramSummaries(
         post.user.breederPrograms
       ),
+      isFollowing: isFollowingAuthor,
     },
     comments: post.comments.map(({ _count, ...comment }) => ({
       ...comment,
@@ -484,6 +525,7 @@ async function getPostDetail(
       comment: comment.deletedAt ? DELETED_COMMENT_TEXT : comment.comment,
       likeCount: _count?.likes ?? 0,
       isLiked: likedCommentIds.has(comment.id),
+      replyToUser: comment.replyToUserId != null ? replyToUsers.get(comment.replyToUserId) ?? null : null,
       user: {
         ...comment.user,
         breederPrograms: getSortedActiveBreederProgramSummaries(
@@ -507,6 +549,7 @@ async function getPostDetail(
     prevNotice,
     nextNotice,
     debate,
+    mySubscription: mySubscription ?? null,
   });
 }
 

@@ -42,6 +42,8 @@ export type PostCardData = {
   latestComment?: { id: number; comment: string; user?: { name: string } | null } | null;
   /** 찬반 토론 글이면 요약(앱 docs/prd/live-talk.md §3.3). 구 서버엔 없다. */
   debate?: DebateSummary | null;
+  /** 질문자가 답변을 채택한 시각. 있으면 질문 pill 이 '해결'(brand-soft)로 바뀐다(2026-10-21). */
+  resolvedAt?: string | Date | null;
 };
 
 /** 질문 카테고리. 제목 앞 '질문' 표시와 '아직 답변이 없어요' 줄을 단다. */
@@ -152,9 +154,15 @@ export function PostCard({ post, className }: { post: PostCardData; className?: 
               />
             ) : null}
             {isQuestion ? (
-              <span className="mt-0.5 h-[18px] shrink-0 rounded px-1.5 text-[11px] font-semibold leading-[18px] text-app-sub bg-app-surface">
-                질문
-              </span>
+              post.resolvedAt ? (
+                <span className="mt-0.5 h-[18px] shrink-0 rounded bg-app-brand-soft px-1.5 text-[11px] font-semibold leading-[18px] text-app-brand-text">
+                  해결
+                </span>
+              ) : (
+                <span className="mt-0.5 h-[18px] shrink-0 rounded px-1.5 text-[11px] font-semibold leading-[18px] text-app-sub bg-app-surface">
+                  질문
+                </span>
+              )
             ) : debate ? (
               <DebatePill className="mt-0.5" />
             ) : null}

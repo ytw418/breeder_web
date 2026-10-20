@@ -123,6 +123,8 @@ type PostListRow = Prisma.PostGetPayload<{ include: ReturnType<typeof postListIn
 
 const toListPost = ({ comments, ...post }: PostListRow) => ({
   ...withPostImages(post),
+  // 질문 채택 시각(카드 질문 pill 이 '해결'로 바뀐다, 앱 docs/prd/feed-engagement.md 2026-10-21).
+  resolvedAt: post.resolvedAt ?? null,
   latestComment: comments?.[0] ?? null,
   user: {
     ...post.user,

@@ -17,7 +17,8 @@ export type NotificationIconName =
   | "chart"
   | "shield"
   | "bell"
-  | "debate";
+  | "debate"
+  | "check";
 
 /** 24 viewBox 라인 아이콘 path. 사람 아바타 위 22 뱃지(12)와 44 원(22)에 같이 쓴다. */
 export const NOTIFICATION_ICON_PATHS: Record<NotificationIconName, string[]> = {
@@ -51,6 +52,8 @@ export const NOTIFICATION_ICON_PATHS: Record<NotificationIconName, string[]> = {
   ],
   // 찬반 토론 알림(결과·참여). 말풍선 둘, 앱 시안 design/mockups/live-talk/A-karrot.html '토론 열기' 카드 아이콘.
   debate: ["M3 5h11v8H8l-3 3v-3H3z", "M14 9h7v8h-2v3l-3-3h-5v-4"],
+  // 질문 답변 채택(ANSWER_ACCEPTED). 댓글 '질문자 채택' 띠의 체크와 같은 모양.
+  check: ["M5 12.5l4.5 4.5L19 7"],
 };
 
 export interface NotificationKind {
@@ -94,6 +97,8 @@ const KINDS: Record<string, NotificationKind> = {
   WEEKLY_DIGEST: { label: "주간 소식", icon: "chart", fromPerson: false },
   // 운영자 푸시(/admin/push·공지 '푸시도 보내기'): 보낸 사람 자리는 '브리디 운영팀'.
   ADMIN_BROADCAST: { label: "브리디 소식", icon: "bell", fromPerson: false },
+  // 질문자가 내 답변을 채택(2026-10-21): 질문자 아바타 + 체크 뱃지. 누르면 그 댓글로 간다.
+  ANSWER_ACCEPTED: { label: "채택", icon: "check", fromPerson: true },
 };
 
 const FALLBACK_KIND: NotificationKind = { label: "알림", icon: "bell", fromPerson: false };
