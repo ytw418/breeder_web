@@ -128,12 +128,18 @@ describe("GET /api/users/:id lockedTitles", () => {
     });
   });
 
-  it("타인·비로그인에게는 없다(조회도 하지 않는다)", async () => {
+  it("타인·비로그인에게는 잠금 칭호 없이 단 칭호만, 게시물 수는 숨김 글 제외(감사 #15·#29)", async () => {
+    mockClient.user.findUnique.mockResolvedValue(baseUser({ titleKey: "listing" }));
     for (const viewer of [undefined, 9]) {
       const res = await getUser(OWNER, viewer);
       expect(res.body.user).not.toHaveProperty("lockedTitles");
+      expect(res.body.user.earnedTitles).toEqual(["listing"]);
     }
-    expect(mockClient.post.findMany).not.toHaveBeenCalled();
+    expect(mockClient.user.findUnique.mock.calls[0][0].include._count.select.posts).toEqual({
+      where: { isHidden: false },
+    });
+    await getUser(OWNER, OWNER);
+    expect(mockClient.user.findUnique.mock.calls[2][0].include._count.select.posts).toBe(true);
   });
 
   it("집계가 실패해도 프로필은 내려가고 잠금 칭호는 빈 목록", async () => {
