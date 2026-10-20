@@ -20,11 +20,12 @@ const mockClient = {
         : []
     ),
   },
+  product: { groupBy: jest.fn(async () => []) },
   comment: { groupBy: jest.fn(async () => []), findMany: jest.fn(async () => []) },
   bid: { groupBy: jest.fn(async () => []) },
   auction: { groupBy: jest.fn(async () => []) },
   userBadge: { findMany: jest.fn(async () => []) },
-  category: { findMany: jest.fn(async () => []) },
+  category: { findMany: jest.fn(async (): Promise<any[]> => []) },
 };
 jest.mock("@libs/server/client", () => ({ __esModule: true, default: mockClient }));
 jest.mock("@libs/server/auth", () => ({ withAuth: (handler: unknown) => handler }));
@@ -34,6 +35,7 @@ jest.mock("@libs/server/growth", () => ({
 }));
 
 import { computeRankingMe, pickNextAction } from "@libs/server/ranking";
+import { invalidateCategoryCache } from "@libs/server/categories";
 import meHandler from "../pages/api/rankings/me";
 import breedersHandler from "../pages/api/rankings/breeders";
 
@@ -146,6 +148,18 @@ describe("GET /api/rankings/me", () => {
     });
     expect(res.body.item).toMatchObject({ currentSeasonId: 9, currentRank: 4, nextRank: 3 });
     expect(res.headers["Cache-Control"]).toContain("no-store");
+  });
+
+  it("categoryPath 가 있으면 관심 분야 범위 랭킹(글 1점)에서 내 순위·다음 목표(글 개수)를 낸다", async () => {
+    invalidateCategoryCache();
+    mockClient.category.findMany.mockResolvedValueOnce([
+      { id: 5, name: "고양이", slug: "cat", parentId: null, path: "/cat/", sortOrder: 0, isVisible: true },
+    ]);
+    const res = await call(meHandler, { categoryPath: "/cat/" }, { id: 7 });
+    // 범위 점수: u1 8 · u2 6 · u3 4 · u7 2 → 4위, 3위(4점)를 넘으려면 글 3개.
+    expect(res.body.me).toMatchObject({ rank: 4, score: 2, nextRank: 3, nextScore: 5, nextAction: { kind: "post", count: 3 } });
+    expect(mockClient.post.groupBy.mock.calls.at(-1)?.[0].where.categoryId).toEqual({ in: [5] });
+    invalidateCategoryCache();
   });
 });
 

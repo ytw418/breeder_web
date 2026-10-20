@@ -17,9 +17,16 @@ import { toPostPath } from "@libs/post-route";
 import type { BreederKeyword } from "@libs/shared/breederKeywords";
 import type { RankingMe, RankingNextActionKind } from "@libs/shared/communityVibe";
 import type { BreederRankingItem } from "@libs/shared/ranking";
+import { withCategoryPath } from "@/hooks/useCategoryScope";
 
-export const RANKING_ME_KEY = "/api/rankings/me?period=weekly";
-const UNANSWERED_KEY = "/api/posts?unanswered=1&limit=1";
+/**
+ * 내 순위 API 주소. 관심 카테고리를 고정했으면 홈 TOP 브리더·랭킹 '관심 분야 기준'과 같은 범위로 센다
+ * (2026-10-21 감사 #25 — 홈 1~3위·랭킹 화면 행 번호·내 순위가 같은 숫자).
+ */
+export const rankingMeKey = (categoryPath?: string) =>
+  withCategoryPath("/api/rankings/me?period=weekly", categoryPath);
+const unansweredKey = (categoryPath?: string) =>
+  withCategoryPath("/api/posts?unanswered=1&limit=1", categoryPath);
 export const MY_RANK_HREF = "/ranking?focus=me";
 
 /** 받침이 있으면(ㄹ 제외) '으로', 아니면 '로'. 숫자로 끝나면 읽는 소리 기준. */
@@ -147,13 +154,15 @@ function PeerRow({
 function MyRankRow({
   me,
   user,
+  categoryPath,
 }: {
   me: RankingMe;
   user: { name: string; avatar: string | null };
+  categoryPath?: string;
 }) {
   const kind = me.nextAction?.kind ?? "post";
   const { data: unanswered } = useSWR<{ posts?: { id: number; title: string }[] }>(
-    kind === "comment" ? UNANSWERED_KEY : null
+    kind === "comment" ? unansweredKey(categoryPath) : null
   );
   const question = unanswered?.posts?.[0];
   const ctaHref =
@@ -198,6 +207,7 @@ export default function TopBreederRankCard({
   peers = [],
   period,
   scoped,
+  categoryPath,
   viewer,
   viewerLoading,
 }: {
@@ -207,11 +217,13 @@ export default function TopBreederRankCard({
   peers?: { item: BreederRankingItem; keyword: BreederKeyword | null }[];
   period: "weekly" | "all";
   scoped: boolean;
+  /** 관심 카테고리 고정 범위. 있으면 내 순위도 그 범위 랭킹 기준이다. */
+  categoryPath?: string;
   viewer: { id: number; name: string; avatar: string | null } | null;
   viewerLoading: boolean;
 }) {
   const [sheetOpen, setSheetOpen] = useState(false);
-  const { data: meRaw } = useSWR<unknown>(viewer ? RANKING_ME_KEY : null, { shouldRetryOnError: false });
+  const { data: meRaw } = useSWR<unknown>(viewer ? rankingMeKey(categoryPath) : null, { shouldRetryOnError: false });
   const me = normalizeRankingMe(meRaw);
   const when = period === "weekly" ? "이번 주" : "전체";
   const reason = keyword?.parts?.[0] ?? keyword?.detail ?? null;
@@ -256,7 +268,7 @@ export default function TopBreederRankCard({
 
       {viewer ? (
         me ? (
-          <MyRankRow me={me} user={viewer} />
+          <MyRankRow me={me} user={viewer} categoryPath={categoryPath} />
         ) : null
       ) : !viewerLoading ? (
         <div className="mt-3 flex items-center gap-3 border-t border-app-line pt-3" data-testid="my-rank-login">

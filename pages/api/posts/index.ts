@@ -132,6 +132,13 @@ const parseSpecialLimit = (value: unknown, fallback: number) => {
   return Number.isInteger(n) && n > 0 ? Math.min(n, SPECIAL_LIST_MAX) : fallback;
 };
 
+/** '답 기다리는 질문' 목록 한 페이지 크기(기본 1 = 홈 카드, 최대 20 = 모아 보기 화면). */
+const UNANSWERED_LIST_MAX = 20;
+const parseUnansweredLimit = (value: unknown) => {
+  const n = Number(value);
+  return Number.isInteger(n) && n > 0 ? Math.min(n, UNANSWERED_LIST_MAX) : 1;
+};
+
 const handler = async (
   req: NextApiRequest,
   res: NextApiResponse<ResponseType>
@@ -175,31 +182,53 @@ const handler = async (
       return res.json({ success: true, posts: await attachDebates(posts, viewerId), pages: 1 });
     }
 
-    // 답 기다려요: 7일 안 보이는 댓글이 없는 질문(숨김 제외), 가장 오래된 순 + 전체 수.
+    // 답 기다려요: 7일 안 질문 중 질문자가 아닌 사람의 보이는 댓글이 없는 것(숨김 제외), 가장 오래된 순 + 전체 수.
+    // 질문자 본인 댓글('아무도 없나요?')만 달린 질문도 남는다. Prisma 는 관계 필터에서 글 작성자와 댓글 작성자를
+    // 비교하지 못해 두 단계로 센다: 후보 질문(7일 안이라 적다) → 보이는 댓글을 (글, 작성자)로 묶어 남이 단 글을 뺀다.
+    // page·limit(최대 20)로 '답 기다리는 질문 N개' 목록 페이지를 넘긴다.
     if (req.query.unanswered === "1") {
       const excluded = await excludedAuthorIds(viewerId);
       res.setHeader("Cache-Control", "public, s-maxage=30, stale-while-revalidate=60");
       setViewerCacheHeader(res, viewerId);
       const scope = await categoryScopeWhere(categoryPath);
-      const unansweredWhere: Prisma.PostWhereInput = {
+      const candidateWhere: Prisma.PostWhereInput = {
         category: "질문",
         isHidden: false,
         createdAt: { gte: new Date(Date.now() - UNANSWERED_WINDOW_MS) },
-        comments: { none: { isHidden: false, deletedAt: null } },
         user: { status: "ACTIVE" },
         ...(Object.keys(scope).length ? { AND: [scope] } : {}),
         ...(excluded.length ? { userId: { notIn: excluded } } : {}),
       };
-      const [rows, unansweredCount] = await Promise.all([
-        client.post.findMany({
-          where: unansweredWhere,
-          include: postListInclude(excluded),
-          orderBy: [{ createdAt: "asc" }, { id: "asc" }],
-          take: parseSpecialLimit(req.query.limit, 1),
-        }),
-        client.post.count({ where: unansweredWhere }),
-      ]);
-      return res.json({ success: true, posts: rows.map(toListPost), pages: 1, unansweredCount });
+      const candidates = await client.post.findMany({
+        where: candidateWhere,
+        select: { id: true, userId: true },
+        orderBy: [{ createdAt: "asc" }, { id: "asc" }],
+      });
+      const authorOf = new Map(candidates.map((post) => [post.id, post.userId]));
+      const commenters = candidates.length
+        ? await client.comment.groupBy({
+            by: ["postId", "userId"],
+            where: { postId: { in: candidates.map((post) => post.id) }, isHidden: false, deletedAt: null },
+          })
+        : [];
+      const answered = new Set(
+        commenters.filter((row) => row.userId !== authorOf.get(row.postId)).map((row) => row.postId)
+      );
+      const unansweredIds = candidates.filter((post) => !answered.has(post.id)).map((post) => post.id);
+      const limit = parseUnansweredLimit(req.query.limit);
+      const pageNumber = Math.max(1, Math.floor(Number(page)) || 1);
+      const pageIds = unansweredIds.slice((pageNumber - 1) * limit, pageNumber * limit);
+      const rows = pageIds.length
+        ? await client.post.findMany({ where: { id: { in: pageIds } }, include: postListInclude(excluded) })
+        : [];
+      const order = new Map(pageIds.map((id, index) => [id, index]));
+      rows.sort((a, b) => (order.get(a.id) ?? 0) - (order.get(b.id) ?? 0));
+      return res.json({
+        success: true,
+        posts: rows.map(toListPost),
+        pages: Math.max(1, Math.ceil(unansweredIds.length / limit)),
+        unansweredCount: unansweredIds.length,
+      });
     }
 
     // 동네 범위(50km, libs/shared/regionScope): 로그인 필요, 동네가 없으면 빈 목록.

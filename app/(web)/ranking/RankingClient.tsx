@@ -3,7 +3,7 @@
 import Link from "next/link";
 import useScopeTerms from "@/hooks/useScopeTerms";
 import { withBreederWord } from "@libs/shared/scopeTerms";
-import { useEffect, useMemo, useRef } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import useSWR from "swr";
 
@@ -33,8 +33,9 @@ import {
 import { categoryQueryValue, subcategoryChipOptions } from "@libs/shared/subcategoryChips";
 import useBlocks from "hooks/useBlocks";
 import useUser from "hooks/useUser";
+import useCategoryScope from "hooks/useCategoryScope";
 import { InitialAvatar } from "@components/ui/InitialAvatar";
-import { normalizeRankingMe, RANKING_ME_KEY } from "@components/features/home/TopBreederRankCard";
+import { normalizeRankingMe, rankingMeKey } from "@components/features/home/TopBreederRankCard";
 
 type RankingItem = BreederRankingItem | BloodlineRankingItem | AuctionActivityRankingItem | ListingsRankingItem;
 
@@ -60,10 +61,14 @@ const RANKING_CTA: Record<RankingTypeId, { href: string; label: string }> = {
   listings: { href: "/products/upload", label: "분양글 올리기" },
 };
 
-/** 랭킹 API 주소. 종 필터(species)는 대·소분류 이름 하나(하위 포함, 상위 제외 — 서버 speciesCategoryIds). */
-const getApiUrl = (type: RankingTypeId, period: RankingPeriodId, species?: string) => {
+/**
+ * 랭킹 API 주소. 종 필터(species)는 대·소분류 이름 하나(하위 포함, 상위 제외 — 서버 speciesCategoryIds).
+ * categoryPath 는 종합 브리더 '관심 분야 기준'(관심 카테고리 고정 범위, 홈 TOP 브리더와 같은 랭킹)일 때만 보낸다.
+ */
+const getApiUrl = (type: RankingTypeId, period: RankingPeriodId, species?: string, categoryPath?: string) => {
   const params = new URLSearchParams({ limit: "50", period });
   if (species) params.set("species", species);
+  else if (categoryPath) params.set("categoryPath", categoryPath);
   const path =
     type === "breeders"
       ? "breeders"
@@ -229,10 +234,23 @@ const RankingClient = () => {
 
   const speciesValue = categoryQueryValue(species || "전체", sub);
   const subOptions = species ? subcategoryChipOptions(species, getSubcategories(species), []) : [];
-  const note = rankingNote(type, period, speciesValue ?? null);
+  // 관심 카테고리를 고정했으면 종합 브리더(종 필터 없음)는 관심 분야 기준이 기본이고 '전체 보기'로 바꿀 수 있다.
+  // 홈 TOP 브리더 1~3위·내 순위와 같은 숫자가 되게 한다(2026-10-21 감사 #25). 전체 보기 선택은 저장하지 않는다.
+  const scope = useCategoryScope();
+  const [showAllScope, setShowAllScope] = useState(false);
+  const scopeToggle = type === "breeders" && !speciesValue && Boolean(scope.categoryPath);
+  const rankingCategoryPath = scopeToggle && !showAllScope ? scope.categoryPath : undefined;
+  const note = rankingCategoryPath
+    ? rankingNote(type, period, "관심 분야")
+    : rankingNote(type, period, speciesValue ?? null);
   const cta = RANKING_CTA[type];
-  const apiUrl = useMemo(() => getApiUrl(type, period, speciesValue), [type, period, speciesValue]);
-  const { data, error, isLoading, mutate } = useSWR<RankingResponse>(apiUrl);
+  const apiUrl = useMemo(
+    () => getApiUrl(type, period, speciesValue, rankingCategoryPath),
+    [type, period, speciesValue, rankingCategoryPath]
+  );
+  // 관심 카테고리 복원 전엔 받지 않는다(전체 랭킹이 잠깐 보였다 바뀌지 않게).
+  const { data, error, isLoading: fetching, mutate } = useSWR<RankingResponse>(scope.hydrated ? apiUrl : null);
+  const isLoading = fetching || !scope.hydrated;
   const { blockedIds } = useBlocks();
 
   const updateQuery = (next: Partial<{ type: RankingTypeId; period: RankingPeriodId; species: string; sub: string }>) => {
@@ -256,9 +274,9 @@ const RankingClient = () => {
     type === "breeders" && user
       ? (items as BreederRankingItem[]).find((item) => item.user.id === user.id) ?? null
       : null;
-  // 내 순위 API 는 이번 주 전체 기준이라, 그 조건일 때만 목록 밖(50위 밖) 순위를 채운다.
+  // 내 순위 API 는 이번 주 기준(관심 분야 기준이면 같은 범위)이라, 그 조건일 때만 목록 밖(50위 밖) 순위를 채운다.
   const meMatches = period === "weekly" && !speciesValue;
-  const { data: meRaw } = useSWR<unknown>(user && type === "breeders" && meMatches ? RANKING_ME_KEY : null, {
+  const { data: meRaw } = useSWR<unknown>(user && type === "breeders" && meMatches ? rankingMeKey(rankingCategoryPath) : null, {
     shouldRetryOnError: false,
   });
   const me = normalizeRankingMe(meRaw);
@@ -429,6 +447,33 @@ const RankingClient = () => {
             );
           })}
         </div>
+
+        {/* 관심 분야 기준 · 전체 보기(종합 브리더 + 관심 카테고리 고정 + 종 필터 없음일 때만, 높이 32) */}
+        {scopeToggle ? (
+          <div className="flex h-8 items-center gap-2 px-4 pt-1 text-[13px]" role="radiogroup" aria-label="랭킹 범위">
+            {[
+              { all: false, label: "관심 분야 기준" },
+              { all: true, label: "전체 보기" },
+            ].map((option, index) => (
+              <span key={option.label} className="flex items-center gap-2">
+                {index > 0 ? (
+                  <span className="text-app-caption" aria-hidden="true">
+                    ·
+                  </span>
+                ) : null}
+                <button
+                  type="button"
+                  role="radio"
+                  aria-checked={showAllScope === option.all}
+                  onClick={() => setShowAllScope(option.all)}
+                  className={showAllScope === option.all ? "font-semibold text-app-brand-text" : "text-app-muted"}
+                >
+                  {option.label}
+                </button>
+              </span>
+            ))}
+          </div>
+        ) : null}
 
         {/* 2단: 기간(세그먼트 3칸) */}
         <div className="px-4 pt-3" role="radiogroup" aria-label="랭킹 기간">
