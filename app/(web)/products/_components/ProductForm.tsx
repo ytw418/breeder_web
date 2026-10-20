@@ -8,6 +8,13 @@ import { useSWRConfig } from "swr";
 
 import { FilterChip } from "@components/app/FilterChip";
 import { AgreeRow } from "../../auctions/AuctionFormParts";
+import { ComposeDraftSheet } from "@components/app/ComposeDraftSheet";
+import {
+  deleteComposeDraft,
+  readComposeDraft,
+  useComposeDraftAutosave,
+  type ProductDraft,
+} from "@libs/client/composeDraft";
 import { PhotoGridEditor } from "@components/app/PhotoGridEditor";
 import { PriceInput } from "@components/app/PriceInput";
 import MarkdownEditor from "@components/features/product/MarkdownEditor";
@@ -255,6 +262,63 @@ export function ProductForm({
   const [submitStep, setSubmitStep] = useState<SubmitStep>("idle");
   const busy = submitStep !== "idle";
 
+  // 임시저장(새 글만, 앱 products/upload.tsx·libs/client/composeDraft.ts 와 같다): 쓰던 분양글이 있으면 시트로 묻고,
+  // 답한 뒤 1초마다 저장한다. 사진은 파일이라 저장하지 않는다.
+  const draftUserId = isEdit ? null : (user?.id ?? null);
+  const [draftPrompt, setDraftPrompt] = useState<ProductDraft | null>(null);
+  const [draftReady, setDraftReady] = useState(isEdit);
+  const draftCheckedRef = useRef(false);
+  useEffect(() => {
+    if (draftUserId == null || draftCheckedRef.current) return;
+    draftCheckedRef.current = true;
+    const draft = readComposeDraft("product", draftUserId);
+    if (draft && (draft.name.trim() || draft.description.trim() || draft.productType)) setDraftPrompt(draft);
+    else setDraftReady(true);
+  }, [draftUserId]);
+  const draftValue =
+    !isEdit && (name.trim() || description.trim() || productType || bloodline.rootId != null)
+      ? {
+          name,
+          price,
+          category: subcategory || category,
+          productType,
+          dealType,
+          description,
+          bloodlineRootId: bloodline.rootId,
+          pedigreeNote: bloodline.rootId != null ? bloodline.note : null,
+          // 웹 붙이기 행은 혈통 이름을 상태로 들고 있어 함께 둔다(앱은 목록에서 다시 찾는다).
+          bloodlineName: bloodline.rootId != null ? bloodline.name : null,
+        }
+      : null;
+  const draftAutosave = useComposeDraftAutosave("product", draftUserId, draftValue, draftReady && !busy);
+  const resumeDraft = () => {
+    if (draftPrompt) {
+      const branch = findCategoryBranch(draftPrompt.category);
+      setName(draftPrompt.name);
+      setPrice(draftPrompt.price);
+      setIsFree(draftPrompt.price === 0);
+      setCategory(branch.parent);
+      setSubcategory(branch.child);
+      setProductType(draftPrompt.productType);
+      setDealType(draftPrompt.dealType);
+      setDescription(draftPrompt.description);
+      if (draftPrompt.bloodlineRootId != null) {
+        setBloodline({
+          rootId: draftPrompt.bloodlineRootId,
+          name: draftPrompt.bloodlineName ?? null,
+          note: draftPrompt.pedigreeNote ?? {},
+        });
+      }
+    }
+    setDraftPrompt(null);
+    setDraftReady(true);
+  };
+  const discardDraft = () => {
+    if (draftUserId != null) deleteComposeDraft("product", draftUserId);
+    setDraftPrompt(null);
+    setDraftReady(true);
+  };
+
   // 로컬 미리보기 주소는 화면을 떠날 때 정리한다.
   const photosRef = useRef(photos);
   photosRef.current = photos;
@@ -396,6 +460,9 @@ export function ProductForm({
         });
       } else {
         const id = result.product?.id;
+        // 등록했으면 임시저장을 지운다(기다리던 저장도 버린다).
+        draftAutosave.stop();
+        if (draftUserId != null) deleteComposeDraft("product", draftUserId);
         if (!result.celebrate) toast.success("분양글이 등록되었습니다.");
         celebrateSheet.show(result.celebrate, () =>
           leave(() => router.replace(id ? getProductPath(id, fields.name) : "/"))
@@ -677,6 +744,13 @@ export function ProductForm({
             ? product.bloodlineSummary
             : null
         }
+      />
+      <ComposeDraftSheet
+        open={draftPrompt !== null}
+        title={draftPrompt?.name ?? ""}
+        savedAt={draftPrompt?.savedAt ?? ""}
+        onResume={resumeDraft}
+        onDiscard={discardDraft}
       />
       {dialog}
       {celebrateSheet.sheet}

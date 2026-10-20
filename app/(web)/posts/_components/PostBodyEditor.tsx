@@ -185,6 +185,15 @@ export function usePostBodyEditor(description: string, imageIds: readonly string
     return false;
   };
 
+  /** 임시저장한 글을 이어 쓸 때 본문을 통째로 바꾼다(사진은 이미 올라간 id 만). */
+  const reset = (nextDescription: string, nextImageIds: readonly string[]) => {
+    blocks.forEach((block) => {
+      if (block.type === "image" && block.photo.kind === "local") URL.revokeObjectURL(block.photo.previewUrl);
+    });
+    setBlocks(createEditorBlocks(nextDescription, nextImageIds, toRemoteComposerPhoto));
+    setActiveId(null);
+  };
+
   /** 본문 아래 빈 곳을 누르면 마지막 줄 끝에 커서를 둔다. */
   const focusEnd = () => {
     const last = blocks[blocks.length - 1];
@@ -211,6 +220,7 @@ export function usePostBodyEditor(description: string, imageIds: readonly string
     insertFiles,
     removePhoto,
     replacePhoto,
+    reset,
     toggleStyle,
     moveLine,
     /** 제목 칸을 누르면 툴바의 크기·굵게가 본문 줄에 걸리지 않게 한다. */

@@ -19,7 +19,14 @@ import type { Celebrate } from "@libs/shared/communityVibe";
 import useUser from "hooks/useUser";
 import type { CategoriesResponse } from "@libs/shared/categories";
 import { REGION_POST_CATEGORY } from "@libs/shared/postCategory";
-import { POST_BODY_COUNTER_FROM } from "@libs/shared/post-body";
+import { POST_BODY_COUNTER_FROM, countPostBodyText, removePostBodyImage } from "@libs/shared/post-body";
+import {
+  deleteComposeDraft,
+  readComposeDraft,
+  useComposeDraftAutosave,
+  type PostDraft,
+} from "@libs/client/composeDraft";
+import { ComposeDraftSheet } from "@components/app/ComposeDraftSheet";
 import { DEBATE_CATEGORY, DEBATE_MIN_ACCOUNT_AGE_HOURS } from "@libs/shared/debateFormat";
 import { regionOf } from "@libs/shared/regions";
 import { MY_ACTIVITY_KEY_PREFIXES, POST_KEY_PREFIXES, revalidateByPrefix } from "@libs/client/swrRevalidate";
@@ -80,6 +87,19 @@ interface PostMutationResponse {
   errorCode?: string;
   /** 등록 보상 시트(community-vibe §3.4). 구 서버엔 없다. */
   celebrate?: Celebrate | null;
+}
+
+/**
+ * 임시저장할 본문: 새로 고른 파일 사진(local)은 다시 열 수 없어 자리 표시째 빼고, 올라간 사진 id 만 남긴다(앱과 같다).
+ * 뒤 번호부터 빼야 앞 사진 번호가 그대로다.
+ */
+function toPostDraftBody(body: { description: string; images: ComposerPhoto[] }) {
+  let description = body.description;
+  for (let index = body.images.length - 1; index >= 0; index -= 1) {
+    if (body.images[index].kind === "local") description = removePostBodyImage(description, index);
+  }
+  const remoteImageIds = body.images.flatMap((photo) => (photo.kind === "remote" ? [photo.id] : []));
+  return { description, remoteImageIds };
 }
 
 async function uploadPostImage(file: File, title: string): Promise<string> {
@@ -285,6 +305,47 @@ export function PostComposer(props: PostComposerProps) {
   const { leave, dialog } = useConfirmLeave(changed);
   const celebrateSheet = useCelebrateSheet("post");
 
+  // 임시저장(새 글만, 앱 docs/prd/post-upload.md S-1.임시저장): 열 때 쓰던 글이 있으면 시트로 묻고,
+  // 답하기 전엔 저장하지 않는다. 그 뒤로는 1초마다 계정별 localStorage 에 저장한다.
+  const draftUserId = isEdit ? null : (user?.id ?? null);
+  const [draftPrompt, setDraftPrompt] = useState<PostDraft | null>(null);
+  const [draftReady, setDraftReady] = useState(isEdit);
+  const draftCheckedRef = useRef(false);
+  useEffect(() => {
+    if (draftUserId == null || draftCheckedRef.current) return;
+    draftCheckedRef.current = true;
+    const draft = readComposeDraft("post", draftUserId);
+    const hasContent =
+      draft && (draft.title.trim() || countPostBodyText(draft.description) > 0 || draft.remoteImageIds.length > 0);
+    if (hasContent) setDraftPrompt(draft);
+    else setDraftReady(true);
+  }, [draftUserId]);
+  const draftBody = toPostDraftBody(body);
+  const draftValue =
+    !isEdit &&
+    (title.trim() || countPostBodyText(draftBody.description) > 0 || draftBody.remoteImageIds.length > 0)
+      ? { title, category, species, ...draftBody }
+      : null;
+  const draftAutosave = useComposeDraftAutosave("post", draftUserId, draftValue, draftReady && !isSubmitting);
+
+  const resumeDraft = () => {
+    if (draftPrompt) {
+      setTitle(draftPrompt.title);
+      // '동네' 글은 동네가 있어야 쓸 수 있다(그 사이 동네를 지웠으면 주제를 비운다).
+      setCategory(draftPrompt.category === REGION_POST_CATEGORY && !myRegion ? "" : draftPrompt.category);
+      speciesTouchedRef.current = true;
+      setSpecies(draftPrompt.species);
+      editor.reset(draftPrompt.description, draftPrompt.remoteImageIds);
+    }
+    setDraftPrompt(null);
+    setDraftReady(true);
+  };
+  const discardDraft = () => {
+    if (draftUserId != null) deleteComposeDraft("post", draftUserId);
+    setDraftPrompt(null);
+    setDraftReady(true);
+  };
+
   const clearFieldError = (field: keyof PostFormErrors) =>
     setErrors((prev) => {
       if (!prev[field]) return prev;
@@ -372,7 +433,9 @@ export function PostComposer(props: PostComposerProps) {
       const result = (await response.json().catch(() => null)) as PostMutationResponse | null;
 
       if (response.status === 401) {
-        toast.error("로그인이 필요합니다.");
+        // 새 글은 쓰던 내용을 임시저장한 뒤 로그인으로 보낸다. 돌아오면 '쓰던 글이 있어요' 시트로 이어 쓴다.
+        if (!initial) draftAutosave.save();
+        toast.error(initial ? "로그인이 필요합니다." : "로그인이 필요합니다. 쓰던 글은 저장해 두었어요.");
         leaving = true;
         leave(() => router.push(toLoginHref(initial ? `/posts/${initial.postId}/edit` : "/posts/upload")));
         return;
@@ -399,6 +462,9 @@ export function PostComposer(props: PostComposerProps) {
         toast.error(result?.error || result?.message || "게시글 등록에 실패했습니다.");
         return;
       }
+      // 등록했으면 임시저장을 지운다(기다리던 저장도 버린다).
+      draftAutosave.stop();
+      if (draftUserId != null) deleteComposeDraft("post", draftUserId);
       revalidateMyPostActivity();
       const postPath = toPostPath(result.post.id, result.post.title);
       leaving = true;
@@ -627,6 +693,13 @@ export function PostComposer(props: PostComposerProps) {
           setRegionPromptOpen(false);
           leave(() => router.push("/settings/region"));
         }}
+      />
+      <ComposeDraftSheet
+        open={draftPrompt !== null}
+        title={draftPrompt?.title ?? ""}
+        savedAt={draftPrompt?.savedAt ?? ""}
+        onResume={resumeDraft}
+        onDiscard={discardDraft}
       />
       {dialog}
       {celebrateSheet.sheet}

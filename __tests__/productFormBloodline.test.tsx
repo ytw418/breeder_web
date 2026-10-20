@@ -92,6 +92,8 @@ const lastBody = () => {
 };
 
 beforeEach(() => {
+  // 등록 폼은 쓰던 글을 localStorage 에 임시저장한다. 앞 테스트의 임시저장이 '쓰던 글이 있어요' 시트를 띄우지 않게 비운다.
+  window.localStorage.clear();
   mockUseUser.mockReturnValue({ user: { id: 7 } });
   mockAuthFetch.mockReset();
   mockAuthFetch.mockResolvedValue({
