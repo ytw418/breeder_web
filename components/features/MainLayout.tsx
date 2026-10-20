@@ -270,6 +270,9 @@ const MENU_ICONS = {
   comment: [
     "M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z",
   ],
+  academic: [
+    "M4.26 10.147a60.438 60.438 0 0 0-.491 6.347A48.62 48.62 0 0 1 12 20.904a48.62 48.62 0 0 1 8.232-4.41 60.46 60.46 0 0 0-.491-6.347m-15.482 0a50.636 50.636 0 0 0-2.658-.813A59.906 59.906 0 0 1 12 3.493a59.903 59.903 0 0 1 10.399 5.84c-.896.248-1.783.52-2.658.814m-15.482 0A50.717 50.717 0 0 1 12 13.489a50.702 50.702 0 0 1 7.74-3.342M6.75 15a.75.75 0 1 0 0-1.5.75.75 0 0 0 0 1.5Zm0 0v-3.675A55.378 55.378 0 0 1 12 8.443m-7.007 11.55A5.981 5.981 0 0 0 6.75 15.75v-1.5",
+  ],
 } as const;
 
 type MenuIconName = keyof typeof MENU_ICONS;
@@ -292,6 +295,7 @@ function buildMenuSections(userId: number | null): { title: string; rows: MenuRo
       rows: [
         { label: "알림", icon: "bell", href: "/notifications", badge: true },
         { label: "랭킹", icon: "chart", href: "/ranking" },
+        { label: "사육 가이드", icon: "academic", href: "/guide" },
         { label: "브리디북", icon: "book", href: "/guinness" },
         { label: "내 댓글", icon: "comment", href: `/profiles/${owner}/comments`, requiresAuth: true },
       ],
