@@ -253,6 +253,8 @@ describe("ProductForm 등록 요청", () => {
     fireEvent.change(screen.getByLabelText("설명"), {
       target: { value: "건강한 3령 애벌레입니다. 직거래 가능합니다." },
     });
+    // 새 분양글은 거래 금지 종·신고 의무 동의가 있어야 등록된다(2026-10-21).
+    fireEvent.click(screen.getByRole("checkbox", { name: /거래 금지 종이 아니며/ }));
   };
 
   it("생물에 혈통을 붙여 등록하면 id 와 부모 정보가 실린다", async () => {

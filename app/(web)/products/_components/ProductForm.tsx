@@ -2,10 +2,12 @@
 
 import { HorizontalRail } from "@components/ui/HorizontalRail";
 import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useSWRConfig } from "swr";
 
 import { FilterChip } from "@components/app/FilterChip";
+import { AgreeRow } from "../../auctions/AuctionFormParts";
 import { PhotoGridEditor } from "@components/app/PhotoGridEditor";
 import { PriceInput } from "@components/app/PriceInput";
 import MarkdownEditor from "@components/features/product/MarkdownEditor";
@@ -246,6 +248,10 @@ export function ProductForm({
   }));
   const [attachOpen, setAttachOpen] = useState(false);
   const [errors, setErrors] = useState<ProductFormErrors>({});
+  // 거래 금지 종·신고 의무 동의(새 글만, 수정엔 없다 — 앱 products/upload.tsx 와 같다). 동의 시각은 저장하지 않는다.
+  const [agreedTradeRules, setAgreedTradeRules] = useState(false);
+  const [agreementError, setAgreementError] = useState("");
+  const needsAgreement = !isEdit && !agreedTradeRules;
   const [submitStep, setSubmitStep] = useState<SubmitStep>("idle");
   const busy = submitStep !== "idle";
 
@@ -321,7 +327,9 @@ export function ProductForm({
     if (busy) return;
     const nextErrors = validateProductForm({ name, price, description, category, productType });
     setErrors(nextErrors);
-    const firstError = firstProductFormError(nextErrors);
+    const nextAgreementError = needsAgreement ? "동의가 필요합니다" : "";
+    setAgreementError(nextAgreementError);
+    const firstError = firstProductFormError(nextErrors) || nextAgreementError;
     if (firstError) {
       toast.error(firstError);
       return;
@@ -592,16 +600,47 @@ export function ProductForm({
           <ErrorText>{errors.description}</ErrorText>
         </div>
 
+        {/* 거래 금지 종·신고 의무 동의(새 글만, 등록 버튼 바로 위). 경매 '운영 룰 동의' 체크와 같은 모양 */}
+        {isEdit ? null : (
+          <div>
+            <div className="flex items-start gap-3">
+              <div className="min-w-0 flex-1">
+                <AgreeRow
+                  checked={agreedTradeRules}
+                  onToggle={() => {
+                    setAgreedTradeRules((prev) => !prev);
+                    setAgreementError("");
+                  }}
+                  label="거래 금지 종이 아니며 필요한 신고를 하겠습니다"
+                />
+              </div>
+              {/* 웹은 화면을 쌓아 둘 수 없어 쓰던 폼을 두고 새 탭으로 연다(경매 툴 '룰 전체 보기'와 같다). */}
+              <Link
+                href="/content/community-rules"
+                target="_blank"
+                rel="noopener noreferrer"
+                aria-label="이용 규칙 자세히 보기"
+                className="shrink-0 text-[14px] font-semibold leading-[22px] text-app-brand"
+              >
+                자세히
+              </Link>
+            </div>
+            <ErrorText>{agreementError}</ErrorText>
+          </div>
+        )}
+
         {/* 하단 고정 CTA */}
         <div className="fixed inset-x-0 bottom-0 mx-auto max-w-xl z-30 border-t border-app-line bg-app-bg pb-[env(safe-area-inset-bottom)]">
           <div className="mx-auto max-w-xl px-5 py-2">
             <button
               type="submit"
               aria-label={ctaLabel}
+              aria-disabled={busy || needsAgreement}
               disabled={busy}
               className={cn(
                 "flex h-[52px] w-full items-center justify-center rounded-md text-[16px] font-semibold",
-                busy ? "bg-app-surface text-app-caption" : "bg-app-brand text-white"
+                // 동의 전엔 꺼진 색(누르면 '동의가 필요합니다', 요청은 보내지 않는다)
+                busy || needsAgreement ? "bg-app-surface text-app-caption" : "bg-app-brand text-white"
               )}
             >
               {busy ? (
