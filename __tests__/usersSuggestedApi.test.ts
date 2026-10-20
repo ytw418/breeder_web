@@ -92,4 +92,38 @@ describe("/api/users/suggested", () => {
       expect.arrayContaining([ME, BLOCKED_BY_ME, BLOCKED_ME, FOLLOWING])
     );
   });
+
+  it("동네 노출을 끈 사람은 같은 시/군/구여도 동네 후보·가산점에 쓰지 않는다", async () => {
+    const OTHER = 20;
+    const HIDDEN_NEIGHBOR = 21;
+    const region = { regionSido: "서울", regionSigungu: "강남구" };
+    mockClient.user.findUnique.mockResolvedValue({ pinnedCategoryIds: [], ...region });
+    mockClient.userBlock.findMany.mockResolvedValue([]);
+    mockClient.follow.findMany.mockResolvedValue([]);
+    const activity = [OTHER, HIDDEN_NEIGHBOR].map((userId) => ({ userId, _max: { createdAt: recent } }));
+    mockClient.post.groupBy.mockImplementation((args: { by: string[] }) =>
+      Promise.resolve(args.by.includes("type") ? [] : activity)
+    );
+    mockClient.user.findMany.mockReset();
+    mockClient.user.findMany.mockImplementation((args: { where: { id?: { in?: number[] } } }) =>
+      Promise.resolve(
+        args.where.id?.in
+          ? [candidate(OTHER), { ...candidate(HIDDEN_NEIGHBOR), ...region, regionVisible: false }]
+          : []
+      )
+    );
+
+    const res = createRes();
+    await suggestedHandler(
+      { method: "GET", headers: {}, query: {}, body: {}, user: { id: ME } } as unknown as NextApiRequest,
+      res as unknown as NextApiResponse
+    );
+
+    // 같은 동네 +2 가 붙었다면 HIDDEN_NEIGHBOR 가 먼저 온다. 점수가 같으니 id 순.
+    expect(res.body.users.map((u: { id: number }) => u.id)).toEqual([OTHER, HIDDEN_NEIGHBOR]);
+    const regionQuery = mockClient.user.findMany.mock.calls.find(
+      ([args]: [{ where: { regionSigungu?: string } }]) => args.where.regionSigungu
+    );
+    expect(regionQuery?.[0].where.regionVisible).toBe(true);
+  });
 });

@@ -13,6 +13,7 @@ import type { BreederProgramSummary } from "@libs/shared/breeder-program";
 /**
  * GET /api/users/suggested?limit=3 — 팔로우 추천(가입 직후 '시작하기' 화면·반려생활 팔로잉 빈 상태, 2026-10-21 감사 19번).
  * - 후보: 최근 30일 글·댓글을 쓴 사람 + 같은 관심 카테고리를 고정한 사람 + 같은 시/군/구 사람(각 상한).
+ * - 동네 기준(후보·+2)은 '동네 브리더로 보이기'(regionVisible)를 켠 사람만 쓴다 — 동네 노출은 opt-in 이다(libs/server/nearby.ts).
  * - 제외: 본인·차단 관계(양방향)·이미 팔로우한 사람·ACTIVE 가 아닌 계정. 글도 최근 활동도 없는 사람도 뺀다.
  * - 점수: 같은 고정 카테고리 또는 주력 종 3 + 같은 시/군/구 2 + 최근 7일 글·댓글 1. 같으면 최근 활동 → 글 수 순.
  */
@@ -92,7 +93,7 @@ export async function getSuggestedUsers({
         : Promise.resolve([] as { id: number }[]),
       region
         ? client.user.findMany({
-            where: { status: "ACTIVE", id: { notIn }, ...region },
+            where: { status: "ACTIVE", id: { notIn }, regionVisible: true, ...region },
             select: { id: true },
             take: POOL_CAP,
           })
@@ -127,6 +128,7 @@ export async function getSuggestedUsers({
         pinnedCategoryIds: true,
         regionSido: true,
         regionSigungu: true,
+        regionVisible: true,
         _count: { select: { posts: { where: { isHidden: false } } } },
         breederPrograms: { where: { status: "ACTIVE" }, select: breederProgramSummarySelect },
       },
@@ -148,6 +150,7 @@ export async function getSuggestedUsers({
         topSpecies.some((label) => mySpecies.has(label));
       const sameRegion =
         Boolean(region) &&
+        user.regionVisible === true &&
         user.regionSido === region?.regionSido &&
         user.regionSigungu === region?.regionSigungu;
       const score = (sameInterest ? 3 : 0) + (sameRegion ? 2 : 0) + (lastAt >= activeSince ? 1 : 0);
