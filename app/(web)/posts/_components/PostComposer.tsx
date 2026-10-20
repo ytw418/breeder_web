@@ -102,8 +102,20 @@ function toPostDraftBody(body: { description: string; images: ComposerPhoto[] })
   return { description, remoteImageIds };
 }
 
+/**
+ * 세션이 끝나 업로드 URL 발급(/api/files, 로그인 필요)이 401 이면 던진다.
+ * 저장 응답 401 과 같은 길(쓰던 글 임시저장 → 로그인)로 보낸다.
+ */
+class AuthRequiredError extends Error {
+  constructor() {
+    super("로그인이 필요합니다.");
+    this.name = "AuthRequiredError";
+  }
+}
+
 async function uploadPostImage(file: File, title: string): Promise<string> {
   const urlResponse = await authFetch("/api/files");
+  if (urlResponse.status === 401) throw new AuthRequiredError();
   const urlResult = (await urlResponse.json().catch(() => null)) as FileUploadUrlResponse | null;
   if (!urlResponse.ok || !urlResult?.uploadURL) {
     throw new Error("이미지 업로드에 실패했습니다.");
@@ -395,6 +407,14 @@ export function PostComposer(props: PostComposerProps) {
 
     // 저장에 성공해 이동하면 버튼을 잠근 채 둔다(다시 누르기·이탈 가드 재무장 방지).
     let leaving = false;
+    // 세션이 끝났으면(사진 업로드 URL 이나 저장이 401) 새 글은 쓰던 내용을 임시저장한 뒤 로그인으로 보낸다.
+    // 돌아오면 '쓰던 글이 있어요' 시트로 이어 쓴다.
+    const goLoginKeepingDraft = () => {
+      if (!initial) draftAutosave.save();
+      toast.error(initial ? "로그인이 필요합니다." : "로그인이 필요합니다. 쓰던 글은 저장해 두었어요.");
+      leaving = true;
+      leave(() => router.push(toLoginHref(initial ? `/posts/${initial.postId}/edit` : "/posts/upload")));
+    };
     try {
       // 새로 고른 사진(local)만 3장씩 동시에 올리고, 결과는 본문 순서대로 받는다(libs/client/uploadQueue.ts).
       // 올라간 사진은 바로 remote 로 바꿔 둔다. 한 장이 실패해 다시 누르면 남은 사진만 올린다.
@@ -433,11 +453,7 @@ export function PostComposer(props: PostComposerProps) {
       const result = (await response.json().catch(() => null)) as PostMutationResponse | null;
 
       if (response.status === 401) {
-        // 새 글은 쓰던 내용을 임시저장한 뒤 로그인으로 보낸다. 돌아오면 '쓰던 글이 있어요' 시트로 이어 쓴다.
-        if (!initial) draftAutosave.save();
-        toast.error(initial ? "로그인이 필요합니다." : "로그인이 필요합니다. 쓰던 글은 저장해 두었어요.");
-        leaving = true;
-        leave(() => router.push(toLoginHref(initial ? `/posts/${initial.postId}/edit` : "/posts/upload")));
+        goLoginKeepingDraft();
         return;
       }
 
@@ -472,6 +488,10 @@ export function PostComposer(props: PostComposerProps) {
       if (!result.celebrate) toast.success("게시글이 등록되었습니다.");
       celebrateSheet.show(result.celebrate, () => leave(() => router.replace(postPath)));
     } catch (error) {
+      if (error instanceof AuthRequiredError) {
+        goLoginKeepingDraft();
+        return;
+      }
       toast.error(
         error instanceof Error
           ? error.message
