@@ -134,6 +134,19 @@ describe("POST /api/users/:id/follow", () => {
     );
   });
 
+  it("바꿀 상태(follow:true)를 보냈는데 이미 팔로우 중이면 언팔로우하지 않는다", async () => {
+    mockClient.follow.findFirst.mockResolvedValue({ id: 5 });
+    const res = await call(followHandler, {
+      user: me,
+      query: { id: String(OTHER) },
+      body: { follow: true },
+    });
+
+    expect(res.body).toEqual({ success: true, isFollowing: true });
+    expect(mockClient.follow.delete).not.toHaveBeenCalled();
+    expect(mockCreateNotification).not.toHaveBeenCalled();
+  });
+
   it("이미 팔로우 중이면 차단 여부와 관계없이 언팔로우는 된다", async () => {
     blocks = [{ blockerId: OTHER, blockedId: ME }];
     mockClient.follow.findFirst.mockResolvedValue({ id: 5 });

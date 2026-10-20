@@ -9,6 +9,7 @@ import {
   saveAccountRestriction,
   toAccountRestriction,
 } from "./accountRestriction";
+import { isAccessTokenExpiring } from "./tokenExpiry";
 
 /**
  * 쓰는 중에 계정이 정지되면 refresh 가 403 ACCOUNT_SUSPENDED/BANNED(사유·해제일)를 준다.
@@ -85,6 +86,17 @@ function withAuthHeader(init: RequestInit, token: string | null): RequestInit {
   return { ...init, headers };
 }
 
+/**
+ * 보내기 전에 access 토큰이 만료됐으면(곧 만료면) 먼저 refresh 한다.
+ * 공개 GET 은 만료 토큰을 401 없이 비로그인으로 처리해 401 재시도 경로를 타지 않는다(tokenExpiry.ts).
+ * refresh 가 거절되면 runRefresh 가 토큰을 지웠으니 토큰 없이, 일시 실패(5xx·네트워크)면 원래 토큰으로 보낸다.
+ */
+async function refreshIfExpiring(token: string | null): Promise<string | null> {
+  if (!token || !isAccessTokenExpiring(token, Date.now()) || !getRefreshToken()) return token;
+  const newToken = await refreshAccessToken();
+  return newToken ?? getAccessToken();
+}
+
 /** 외부 도메인(예: 카카오 OAuth)에는 토큰을 붙이지 않는다. */
 function isSameOrigin(input: RequestInfo | URL): boolean {
   if (typeof window === "undefined") return false;
@@ -116,7 +128,7 @@ export async function authFetch(
     return fetch(input, init);
   }
 
-  const accessToken = getAccessToken();
+  const accessToken = await refreshIfExpiring(getAccessToken());
   const res = await fetch(input, withAuthHeader(init, accessToken));
 
   // access 토큰 만료(401)면 refresh 후 1회 재시도
