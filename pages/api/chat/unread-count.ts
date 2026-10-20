@@ -3,6 +3,7 @@ import { withAuth } from "@libs/server/auth";
 import withHandler from "@libs/server/withHandler";
 import client from "@libs/server/client";
 import { getBlockedUserIds } from "@libs/server/blocks";
+import { unreadSince } from "@libs/server/chatRoom";
 
 export interface UnreadCountResponse {
   success: boolean;
@@ -26,10 +27,11 @@ async function handler(
     // 내가 차단한 사람이 있는 방은 unread 에서도 뺀다(채팅 목록과 같은 기준).
     const blockedIds = await getBlockedUserIds(userId);
 
-    // 현재 유저가 속한 모든 채팅방 멤버 정보 조회
+    // 현재 유저가 속한 채팅방 멤버 정보 조회. 알림을 끈 방은 하단 탭 숫자에서 뺀다(목록에는 회색으로 남는다).
     const memberships = await client.chatRoomMember.findMany({
       where: {
         userId,
+        mutedAt: null,
         ...(blockedIds.length
           ? { chatRoom: { chatRoomMembers: { none: { userId: { in: blockedIds } } } } }
           : {}),
@@ -37,6 +39,7 @@ async function handler(
       select: {
         chatRoomId: true,
         lastReadAt: true,
+        leftAt: true,
       },
     });
 
@@ -44,13 +47,12 @@ async function handler(
     let totalUnreadCount = 0;
 
     for (const membership of memberships) {
+      const since = unreadSince(membership);
       const count = await client.message.count({
         where: {
           chatRoomId: membership.chatRoomId,
           userId: { not: userId },
-          ...(membership.lastReadAt
-            ? { createdAt: { gt: membership.lastReadAt } }
-            : {}),
+          ...(since ? { createdAt: { gt: since } } : {}),
         },
       });
       totalUnreadCount += count;

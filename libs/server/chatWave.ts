@@ -3,7 +3,7 @@ import { Prisma } from "@prisma/client";
 import client from "@libs/server/client";
 import { captureServerEvent, type ClientPlatform } from "@libs/server/analytics";
 import { assertCanChat } from "@libs/server/blocks";
-import { findOrCreateDirectRoom } from "@libs/server/chatRoom";
+import { findOrCreateDirectRoom, withoutMutedMembers } from "@libs/server/chatRoom";
 import { getViewerRegionScope } from "@libs/server/nearby";
 import { sendAllPushToUsers } from "@libs/server/pushGateway";
 import { kstDate } from "@libs/server/kstDate";
@@ -86,7 +86,8 @@ export async function sendWave({
   if (outcome === "already") return { ok: false, status: 409, errorCode: "WAVE_ALREADY", chatRoomId: room.id };
 
   const sender = await client.user.findUnique({ where: { id: senderId }, select: { name: true } });
-  sendAllPushToUsers([otherId], {
+  const pushRecipientIds = await withoutMutedMembers(room.id, [otherId]);
+  if (pushRecipientIds.length > 0) sendAllPushToUsers(pushRecipientIds, {
     title: "👋 동네 브리더의 인사",
     body: `${sender?.name ?? "동네 브리더"}님: ${text}`,
     url: `/chat/${room.id}`,

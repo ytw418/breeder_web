@@ -50,6 +50,18 @@ export function MoreIcon() {
   );
 }
 
+/** 알림 꺼짐(종 + 사선). 채팅방 헤더 이름 옆·목록 이름 옆. */
+export function BellOffIcon({ size = 14 }: { size?: number }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <path d="M8.7 4.4A6 6 0 0 1 18 9.5c0 3 .7 5 1.5 6.5H8" />
+      <path d="M6.3 7.2A6 6 0 0 0 6 9.5c0 3-.7 5-1.5 6.5H8" />
+      <path d="M10 19.5a2.2 2.2 0 0 0 4 0" />
+      <path d="M3.5 3.5l17 17" />
+    </svg>
+  );
+}
+
 export function PlusIcon() {
   return (
     <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" aria-hidden="true">

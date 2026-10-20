@@ -2,7 +2,7 @@
 
 /**
  * 채팅방 — 앱 bredy_app src/app/chat/[chatRoomId].tsx (시안 A-karrot.html 우측 화면) 1:1.
- * 헤더(뒤로 + 상대 이름 18/700 + ⋮ 신고·차단) / 날짜 구분 / 말풍선 묶음 / "읽음" / 입력바(+ · pill · 전송).
+ * 헤더(뒤로 + 상대 이름 18/700 + 알림 꺼짐 종 + ⋮ 알림·신고·차단·나가기) / 날짜 구분 / 말풍선 묶음 / "읽음" / 입력바(+ · pill · 전송).
  * 최신 메시지가 아래, 이전 대화는 맨 위 "이전 대화 보기". 상품 맥락 바는 서버가 상품을 주지 않아 그리지 않는다.
  */
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
@@ -39,7 +39,10 @@ import {
   olderMessagesCursor,
   planImageUploads,
 } from "../chatFormat";
-import { BackIcon, ChatCenterNotice, MoreIcon, PlusIcon, SendIcon } from "../chatUi";
+import { BackIcon, BellOffIcon, ChatCenterNotice, MoreIcon, PlusIcon, SendIcon } from "../chatUi";
+import { LeaveChatDialog } from "../LeaveChatDialog";
+import { useChatRoomSettings } from "../useChatRoomSettings";
+import { chatRoomActions } from "@libs/shared/chatRoomSettings";
 
 type ChatMessage = NonNullable<ChatRoomResponse["chatRoom"]>["messages"][number];
 
@@ -63,13 +66,28 @@ async function uploadChatImage(file: File): Promise<string> {
   return imageId;
 }
 
-function RoomHeader({ title, onBack, onMore }: { title: string; onBack: () => void; onMore?: () => void }) {
+function RoomHeader({
+  title,
+  muted = false,
+  onBack,
+  onMore,
+}: {
+  title: string;
+  muted?: boolean;
+  onBack: () => void;
+  onMore?: () => void;
+}) {
   return (
     <header className="flex h-14 shrink-0 items-center gap-3 border-b border-app-line bg-app-bg px-4 text-app-text">
       <button type="button" onClick={onBack} aria-label="뒤로 가기" className="-m-2.5 grid shrink-0 place-items-center p-2.5">
         <BackIcon />
       </button>
       <h1 className="min-w-0 truncate text-[18px] font-bold tracking-[-0.3px] text-app-text">{title}</h1>
+      {muted ? (
+        <span className="-ml-2 shrink-0 text-app-muted" aria-label="알림 꺼짐" role="img">
+          <BellOffIcon size={16} />
+        </span>
+      ) : null}
       <div className="flex-1" />
       {onMore ? (
         <button
@@ -108,6 +126,7 @@ const ChatRoomClient = () => {
   const [sheetOpen, setSheetOpen] = useState(false);
   const [reportOpen, setReportOpen] = useState(false);
   const [blockTarget, setBlockTarget] = useState<{ id: number; name: string } | null>(null);
+  const [leaveOpen, setLeaveOpen] = useState(false);
 
   const scrollRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
@@ -120,6 +139,7 @@ const ChatRoomClient = () => {
   const latestReadKeyRef = useRef<string | null>(null);
 
   const { isBlocked, unblock } = useBlocks();
+  const roomSettings = useChatRoomSettings();
 
   const { data, error, isLoading, mutate } = useSWR<ChatRoomResponse>(
     roomId ? `/api/chat/${roomId}?limit=${CHAT_PAGE_SIZE}` : null,
@@ -150,6 +170,7 @@ const ChatRoomClient = () => {
   const partnerDeleted = Boolean(room) && (!partner || isDeletedPartnerName(partner.name));
   const composerLocked = partnerDeleted || partnerBlocked;
   const canModerate = Boolean(partner && !partnerDeleted);
+  const muted = Boolean(data?.me?.muted);
 
   // 카톡 '1': 상대가 안 읽은 내 메시지. 탈퇴한 상대는 읽을 수 없으니 표시하지 않는다.
   const unreadIds = useMemo(
@@ -306,19 +327,30 @@ const ChatRoomClient = () => {
     else router.push("/chat");
   };
 
-  const sheetActions: ActionSheetAction[] = partner
-    ? [
-        { key: "report", label: "신고하기", onSelect: () => setReportOpen(true) },
-        partnerBlocked
-          ? { key: "unblock", label: "차단 해제", onSelect: () => void unblock(partner.id) }
-          : {
-              key: "block",
-              label: "차단하기",
-              destructive: true,
-              onSelect: () => setBlockTarget({ id: partner.id, name: partner.name }),
-            },
-      ]
+  const runAction: Record<string, () => void> = {
+    mute: () => room && void roomSettings.setMuted(room.id, true),
+    unmute: () => room && void roomSettings.setMuted(room.id, false),
+    report: () => setReportOpen(true),
+    block: () => partner && setBlockTarget({ id: partner.id, name: partner.name }),
+    unblock: () => partner && void unblock(partner.id),
+    leave: () => setLeaveOpen(true),
+  };
+  const sheetActions: ActionSheetAction[] = room
+    ? chatRoomActions({ muted, partnerBlocked, canModerate }).map((action) => ({
+        key: action.id,
+        label: action.label,
+        destructive: action.destructive,
+        onSelect: runAction[action.id],
+      }))
     : [];
+
+  const confirmLeave = async (withBlock: boolean) => {
+    if (!room) return;
+    const ok = await roomSettings.leave(room.id, withBlock && partner ? partner.id : null);
+    if (!ok) return;
+    setLeaveOpen(false);
+    router.replace("/chat");
+  };
 
   const isError = (Boolean(error) && !data) || (data ? !data.success : false);
   const isRoomLoading = isLoading && !data;
@@ -337,7 +369,7 @@ const ChatRoomClient = () => {
           </>
         ) : (
           <>
-            <RoomHeader title={title} onBack={goBack} onMore={canModerate ? () => setSheetOpen(true) : undefined} />
+            <RoomHeader title={title} muted={muted} onBack={goBack} onMore={room ? () => setSheetOpen(true) : undefined} />
 
             <div ref={scrollRef} onScroll={handleScroll} className="min-h-0 flex-1 overflow-y-auto overscroll-contain">
               {isRoomLoading ? (
@@ -470,6 +502,18 @@ const ChatRoomClient = () => {
         onClose={() => setReportOpen(false)}
       />
       <BlockConfirmDialog target={blockTarget} onClose={() => setBlockTarget(null)} />
+      <LeaveChatDialog
+        open={leaveOpen}
+        partnerName={canModerate && partner ? partner.name : null}
+        canBlock={canModerate && !partnerBlocked}
+        loading={roomSettings.pending}
+        onCancel={() => setLeaveOpen(false)}
+        onConfirm={(withBlock) => void confirmLeave(withBlock)}
+        onReport={() => {
+          setLeaveOpen(false);
+          setReportOpen(true);
+        }}
+      />
     </div>
   );
 };

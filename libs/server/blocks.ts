@@ -12,7 +12,8 @@ export const BLOCK_LIMIT = 500;
 /** POST /api/blocks/sync 한 번에 받는 최대 인원(앱 로컬 차단 목록 이관용) */
 export const BLOCK_SYNC_MAX = 200;
 
-export const CHAT_BLOCKED_MESSAGE = "이 사용자에게는 메시지를 보낼 수 없습니다.";
+/** 어느 쪽이 차단했든 같은 문구. 차단 사실이 덜 드러나게 쓴다(앱 docs/prd/chat-room-settings.md S-4). */
+export const CHAT_BLOCKED_MESSAGE = "지금은 이 사용자와 대화할 수 없어요.";
 export const CHAT_PARTNER_DELETED_MESSAGE = "탈퇴한 사용자에게는 메시지를 보낼 수 없습니다.";
 /** 어느 쪽이 차단했든 같은 문구로 새 팔로우를 막는다(피차단자에게 차단 사실을 드러내지 않는다). */
 export const FOLLOW_BLOCKED_MESSAGE = "이 사용자를 팔로우할 수 없습니다.";

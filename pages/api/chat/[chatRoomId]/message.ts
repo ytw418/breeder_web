@@ -83,7 +83,7 @@ async function handler(
         chatRoomId: +chatRoomId!,
         userId: { not: user.id },
       },
-      select: { userId: true },
+      select: { userId: true, mutedAt: true },
     });
 
     // 차단(양방향)·탈퇴한 상대에게는 보내지 않는다. 저장·푸시 전에 막는다.
@@ -129,15 +129,17 @@ async function handler(
       }),
     ]);
 
-    // 발신자를 채팅방 멤버에게만 알림을 보낸다.
-    const pushRecipientIds = otherMembers.map((member) => member.userId);
+    // 발신자를 뺀 채팅방 멤버 중 이 방 알림을 끄지 않은 사람에게만 푸시를 보낸다.
+    const pushRecipientIds = otherMembers
+      .filter((member) => !member.mutedAt)
+      .map((member) => member.userId);
     const pushBody =
       newMessage.type === "IMAGE"
         ? `${newMessage.user.name}님이 사진을 보냈습니다.`
         : `${newMessage.user.name}: ${newMessage.message}`;
 
     // 푸시 전송은 부가 기능이므로 응답 지연을 막기 위해 비동기로 분리한다.
-    sendAllPushToUsers(pushRecipientIds, {
+    if (pushRecipientIds.length > 0) sendAllPushToUsers(pushRecipientIds, {
       title: "새 채팅 메시지",
       body: pushBody,
       url: `/chat/${chatRoomId}`,
