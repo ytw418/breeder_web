@@ -97,8 +97,9 @@ export function useBlocks() {
     [globalMutate, mutate]
   );
 
+  /** silent 면 성공 토스트를 띄우지 않는다(부르는 쪽이 '차단하고 나가기'처럼 한 번에 알릴 때). 실패 토스트는 띄운다. */
   const block = useCallback(
-    async (userId: number): Promise<boolean> => {
+    async (userId: number, options?: { silent?: boolean }): Promise<boolean> => {
       if (pending) return false;
       setPending(true);
       try {
@@ -112,7 +113,7 @@ export function useBlocks() {
           return false;
         }
         await applyResult(result?.blockedUserIds ?? Array.from(blockedIds).concat(userId));
-        toast.success("차단했어요. 설정 > 차단 관리에서 해제할 수 있어요.");
+        if (!options?.silent) toast.success("차단했어요. 설정 > 차단 관리에서 해제할 수 있어요.");
         return true;
       } catch {
         toast.error("차단 중 오류가 발생했습니다.");

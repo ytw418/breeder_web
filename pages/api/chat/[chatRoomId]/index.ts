@@ -49,6 +49,8 @@ export interface ChatRoomResponse {
   success: boolean;
   error?: string;
   chatRoom?: ChatRoom;
+  /** 내 방 설정. 상대의 알림·나가기 상태는 내려주지 않는다. */
+  me?: { muted: boolean };
   pagination?: ChatPagination;
 }
 
@@ -117,10 +119,19 @@ async function handler(
         .json({ success: false, error: "채팅방을 찾을 수 없습니다." });
     }
 
+    // 내가 나간 방이면 나간 뒤 메시지만 보여 준다(상대 화면은 그대로다).
+    const myMembership = await client.chatRoomMember.findUnique({
+      where: { userId_chatRoomId: { userId: user.id, chatRoomId: roomId } },
+      select: { leftAt: true, mutedAt: true },
+    });
+    const leftAt = myMembership?.leftAt ?? null;
+
     const messageWhere: {
       chatRoomId: number;
       id?: { lt: number };
+      createdAt?: { gt: Date };
     } = { chatRoomId: roomId };
+    if (leftAt) messageWhere.createdAt = { gt: leftAt };
     if (hasBeforeCursor && parsedBeforeId !== null) {
       messageWhere.id = { lt: parsedBeforeId };
     }
@@ -154,6 +165,7 @@ async function handler(
           where: {
             chatRoomId: roomId,
             id: { lt: oldestMessageId },
+            ...(leftAt ? { createdAt: { gt: leftAt } } : {}),
           },
           select: { id: true },
           orderBy: { id: "desc" },
@@ -176,6 +188,7 @@ async function handler(
           lastReadAt: member.lastReadAt?.toISOString() || null,
         })),
       },
+      me: { muted: Boolean(myMembership?.mutedAt) },
       pagination: {
         limit: pageSize,
         hasMore,

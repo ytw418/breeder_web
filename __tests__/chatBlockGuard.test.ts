@@ -140,7 +140,7 @@ describe("POST /api/chat 방 생성 차단 가드", () => {
     expect(res.statusCode).toBe(403);
     expect(res.body).toEqual({
       success: false,
-      error: "이 사용자에게는 메시지를 보낼 수 없습니다.",
+      error: "지금은 이 사용자와 대화할 수 없어요.",
       errorCode: "CHAT_BLOCKED",
     });
     expect(mockClient.chatRoom.findFirst).not.toHaveBeenCalled();
@@ -153,7 +153,7 @@ describe("POST /api/chat 방 생성 차단 가드", () => {
 
     expect(res.statusCode).toBe(403);
     expect(res.body.errorCode).toBe("CHAT_BLOCKED");
-    expect(res.body.error).toBe("이 사용자에게는 메시지를 보낼 수 없습니다.");
+    expect(res.body.error).toBe("지금은 이 사용자와 대화할 수 없어요.");
     expect(mockClient.chatRoom.create).not.toHaveBeenCalled();
   });
 
@@ -195,7 +195,7 @@ describe("POST /api/chat/:id/message 전송 차단 가드", () => {
     expect(res.statusCode).toBe(403);
     expect(res.body).toEqual({
       success: false,
-      error: "이 사용자에게는 메시지를 보낼 수 없습니다.",
+      error: "지금은 이 사용자와 대화할 수 없어요.",
       errorCode: "CHAT_BLOCKED",
     });
     expect(mockClient.message.create).not.toHaveBeenCalled();
@@ -269,7 +269,7 @@ describe("GET /api/chat/unread-count 차단 상대 방 제외", () => {
     const res = await count();
 
     expect(res.statusCode).toBe(200);
-    expect(mockClient.chatRoomMember.findMany.mock.calls[0][0].where).toEqual({ userId: ME });
+    expect(mockClient.chatRoomMember.findMany.mock.calls[0][0].where).toEqual({ userId: ME, mutedAt: null });
   });
 
   it("내가 차단한 사람이 있는 방의 멤버십은 세지 않는다", async () => {
@@ -279,6 +279,7 @@ describe("GET /api/chat/unread-count 차단 상대 방 제외", () => {
 
     expect(mockClient.chatRoomMember.findMany.mock.calls[0][0].where).toEqual({
       userId: ME,
+      mutedAt: null,
       chatRoom: { chatRoomMembers: { none: { userId: { in: [PARTNER] } } } },
     });
   });

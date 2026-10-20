@@ -3,6 +3,7 @@
 /**
  * 채팅 목록 — 앱 bredy_app src/app/(tabs)/chat.tsx (시안 A-karrot.html 좌측 화면) 1:1.
  * 헤더 "채팅" 좌측 + 검색 토글 + 알림 벨 / 전체·안 읽음 칩 / 행(44 아바타·이름·시간·미리보기·주황 unread 뱃지).
+ * 알림 끈 방은 이름 옆 종 끔 + 회색 뱃지. 행을 길게 누르거나 우클릭하면 알림·신고·차단·나가기 시트(docs/prd/chat-room-settings.md).
  * 상품 썸네일은 서버가 방에 상품을 주지 않아 앱처럼 그리지 않는다.
  */
 import { useMemo, useState } from "react";
@@ -15,7 +16,15 @@ import { FilterChip } from "@components/app/FilterChip";
 import { HeaderIconButton } from "@components/app/HeaderIconButton";
 import EmptyState from "@components/ui/EmptyState";
 import useUser from "hooks/useUser";
-import { makeImageUrl } from "@libs/client/utils";
+import { useBlocks } from "hooks/useBlocks";
+import { ActionSheet, type ActionSheetAction } from "@components/app/ActionSheet";
+import { ReportSheet } from "@components/app/moderation/ReportSheet";
+import { BlockConfirmDialog } from "@components/app/moderation/BlockConfirmDialog";
+import { chatRoomActions, chatRoomSheetTitle } from "@libs/shared/chatRoomSettings";
+import { LeaveChatDialog } from "./LeaveChatDialog";
+import { useChatRoomSettings } from "./useChatRoomSettings";
+import { useLongPress } from "./useLongPress";
+import { cn, makeImageUrl } from "@libs/client/utils";
 import type { ChatListResponse } from "pages/api/chat/chatList";
 import {
   CHAT_LIST_POLL_MS,
@@ -24,24 +33,27 @@ import {
   filterChatRooms,
   findPartner,
   formatChatListTime,
+  isDeletedPartnerName,
   type ChatFilter,
 } from "./chatFormat";
-import { ChatCenterNotice, PersonIcon, SearchIcon } from "./chatUi";
+import { BellOffIcon, ChatCenterNotice, PersonIcon, SearchIcon } from "./chatUi";
 
 type ChatRoomItem = ChatListResponse["chatRooms"][number];
 
-function ChatRow({ room, myId }: { room: ChatRoomItem; myId?: number }) {
+function ChatRow({ room, myId, onLongPress }: { room: ChatRoomItem; myId?: number; onLongPress: () => void }) {
   const other = findPartner(room.chatRoomMembers, myId)?.user;
   const last = room.lastMessage;
   const mine = Boolean(last && myId != null && last.userId === myId);
   const name = other?.name ?? "알 수 없음";
   const preview = chatPreview(last);
   const time = formatChatListTime(last?.createdAt);
+  const longPress = useLongPress(onLongPress);
 
   return (
     <Link
       href={`/chat/${room.id}`}
-      className="flex items-center gap-3 border-b border-app-line bg-app-bg px-4 py-[14px] transition-colors hover:bg-app-surface"
+      {...longPress}
+      className="flex select-none items-center gap-3 border-b border-app-line bg-app-bg px-4 py-[14px] transition-colors [-webkit-touch-callout:none] hover:bg-app-surface"
     >
       <div className="flex h-11 w-11 shrink-0 items-center justify-center overflow-hidden rounded-full bg-app-placeholder">
         {other?.avatar ? (
@@ -60,6 +72,11 @@ function ChatRow({ room, myId }: { room: ChatRoomItem; myId?: number }) {
       <div className="min-w-0 flex-1">
         <div className="flex items-baseline gap-1.5">
           <span className="truncate text-[16px] font-semibold tracking-[-0.3px] text-app-text">{name}</span>
+          {room.muted ? (
+            <span className="shrink-0 self-center text-app-muted" aria-label="알림 꺼짐" role="img">
+              <BellOffIcon />
+            </span>
+          ) : null}
           <span className="shrink-0 text-[13px] text-app-muted">{time}</span>
         </div>
         <p className="mt-[3px] truncate text-[14px] tracking-[-0.2px] text-app-muted">
@@ -70,7 +87,10 @@ function ChatRow({ room, myId }: { room: ChatRoomItem; myId?: number }) {
 
       {room.unreadCount > 0 ? (
         <span
-          className="flex h-5 min-w-[20px] shrink-0 items-center justify-center rounded-[10px] bg-app-brand px-1.5 text-[12px] font-bold text-white"
+          className={cn(
+            "flex h-5 min-w-[20px] shrink-0 items-center justify-center rounded-[10px] px-1.5 text-[12px] font-bold text-white",
+            room.muted ? "bg-app-caption" : "bg-app-brand"
+          )}
           aria-label={`안 읽은 메시지 ${room.unreadCount}개`}
         >
           {room.unreadCount}
@@ -85,6 +105,13 @@ const ChatClient = () => {
   const [keyword, setKeyword] = useState("");
   const [searchOpen, setSearchOpen] = useState(false);
   const [filter, setFilter] = useState<ChatFilter>("all");
+  // 길게 누른 방(시트) → 신고·차단·나가기 대상
+  const [menuRoom, setMenuRoom] = useState<ChatRoomItem | null>(null);
+  const [reportRoomId, setReportRoomId] = useState<number | null>(null);
+  const [blockTarget, setBlockTarget] = useState<{ id: number; name: string } | null>(null);
+  const [leaveRoom, setLeaveRoom] = useState<ChatRoomItem | null>(null);
+  const { isBlocked } = useBlocks();
+  const roomSettings = useChatRoomSettings();
 
   const { data, error, isLoading, mutate } = useSWR<ChatListResponse>("/api/chat/chatList", {
     refreshInterval: CHAT_LIST_POLL_MS,
@@ -104,6 +131,32 @@ const ChatClient = () => {
 
   const isError = (Boolean(error) && !data) || (data ? !data.success : false);
   const isFirstLoading = isLoading && !data;
+
+  const partnerOf = (room: ChatRoomItem | null) => (room ? findPartner(room.chatRoomMembers, user?.id)?.user : undefined);
+  const menuPartner = partnerOf(menuRoom);
+  const menuCanModerate = Boolean(menuPartner && !isDeletedPartnerName(menuPartner.name));
+  const menuActions: ActionSheetAction[] = menuRoom
+    ? chatRoomActions({
+        muted: menuRoom.muted,
+        partnerBlocked: isBlocked(menuPartner?.id),
+        canModerate: menuCanModerate,
+      })
+        // 차단한 상대의 방은 목록에 없으므로 '차단 해제'는 나오지 않는다.
+        .filter((action) => action.id !== "unblock")
+        .map((action) => {
+          const target = menuRoom;
+          const run: Record<string, () => void> = {
+            mute: () => void roomSettings.setMuted(target.id, true),
+            unmute: () => void roomSettings.setMuted(target.id, false),
+            report: () => setReportRoomId(target.id),
+            block: () => menuPartner && setBlockTarget({ id: menuPartner.id, name: menuPartner.name }),
+            leave: () => setLeaveRoom(target),
+          };
+          return { key: action.id, label: action.label, destructive: action.destructive, onSelect: run[action.id] };
+        })
+    : [];
+  const leavePartner = partnerOf(leaveRoom);
+  const leaveCanModerate = Boolean(leavePartner && !isDeletedPartnerName(leavePartner.name));
 
   return (
     <Layout
@@ -152,7 +205,7 @@ const ChatClient = () => {
       ) : rooms.length > 0 ? (
         <div>
           {rooms.map((room) => (
-            <ChatRow key={room.id} room={room} myId={user?.id} />
+            <ChatRow key={room.id} room={room} myId={user?.id} onLongPress={() => setMenuRoom(room)} />
           ))}
         </div>
       ) : !keyword.trim() && filter === "all" ? (
@@ -174,6 +227,37 @@ const ChatClient = () => {
           <p className="text-center text-[14px] text-app-muted">{chatListEmptyMessage(keyword, filter)}</p>
         </div>
       )}
+
+      <ActionSheet
+        open={Boolean(menuRoom)}
+        onClose={() => setMenuRoom(null)}
+        title={chatRoomSheetTitle(menuCanModerate ? menuPartner?.name : null)}
+        actions={menuActions}
+      />
+      <ReportSheet
+        open={reportRoomId !== null}
+        targetType="CHAT_ROOM"
+        targetId={reportRoomId}
+        onClose={() => setReportRoomId(null)}
+      />
+      <BlockConfirmDialog target={blockTarget} onClose={() => setBlockTarget(null)} />
+      <LeaveChatDialog
+        open={Boolean(leaveRoom)}
+        partnerName={leaveCanModerate && leavePartner ? leavePartner.name : null}
+        canBlock={leaveCanModerate}
+        loading={roomSettings.pending}
+        onCancel={() => setLeaveRoom(null)}
+        onConfirm={async (withBlock) => {
+          if (!leaveRoom) return;
+          const ok = await roomSettings.leave(leaveRoom.id, withBlock && leavePartner ? leavePartner.id : null);
+          if (ok) setLeaveRoom(null);
+        }}
+        onReport={() => {
+          if (!leaveRoom) return;
+          setReportRoomId(leaveRoom.id);
+          setLeaveRoom(null);
+        }}
+      />
     </Layout>
   );
 };

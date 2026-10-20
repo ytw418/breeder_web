@@ -4,6 +4,7 @@ import withHandler from "@libs/server/withHandler";
 import client from "@libs/server/client";
 import { MessageType } from "@prisma/client";
 import { getBlockedUserIds } from "@libs/server/blocks";
+import { unreadSince } from "@libs/server/chatRoom";
 
 export interface ChatListResponse {
   success: boolean;
@@ -27,6 +28,8 @@ export interface ChatListResponse {
       userId: number;
     } | null;
     unreadCount: number;
+    /** 내가 이 방 알림을 껐는지. 상대의 설정은 내려주지 않는다. */
+    muted: boolean;
   }[];
 }
 
@@ -88,23 +91,29 @@ async function handler(
         const member = chatRoom.chatRoomMembers.find(
           (m) => m.userId === userId
         );
-        const lastReadAt = member?.lastReadAt;
+        const lastMessage = chatRoom.messages[0] || null;
 
-        // DB 레벨에서 안 읽은 메시지 수 카운트
+        // 나간 방은 나간 뒤 새 메시지가 올 때까지 목록에서 뺀다(상대가 다시 보내면 다시 나타난다).
+        const leftAt = member?.leftAt ?? null;
+        if (leftAt && (!lastMessage || lastMessage.createdAt <= leftAt)) {
+          return null;
+        }
+
+        // DB 레벨에서 안 읽은 메시지 수 카운트(나간 방은 나간 뒤 메시지만)
+        const since = member ? unreadSince(member) : null;
         const unreadCount = await client.message.count({
           where: {
             chatRoomId: chatRoom.id,
             userId: { not: userId },
-            ...(lastReadAt ? { createdAt: { gt: lastReadAt } } : {}),
+            ...(since ? { createdAt: { gt: since } } : {}),
           },
         });
-
-        const lastMessage = chatRoom.messages[0] || null;
 
         return {
           id: chatRoom.id,
           updatedAt: chatRoom.updatedAt.toISOString(),
-          chatRoomMembers: chatRoom.chatRoomMembers,
+          // 멤버의 읽음·나가기·알림 상태는 내려주지 않는다(상대 설정 노출 방지).
+          chatRoomMembers: chatRoom.chatRoomMembers.map((m) => ({ user: m.user })),
           lastMessage: lastMessage
             ? {
                 ...lastMessage,
@@ -112,8 +121,11 @@ async function handler(
               }
             : null,
           unreadCount,
+          muted: Boolean(member?.mutedAt),
         };
       })
+    ).then((rooms) =>
+      rooms.filter((room): room is NonNullable<typeof room> => room !== null)
     );
 
     return res.json({
