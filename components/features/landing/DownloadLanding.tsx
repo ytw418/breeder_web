@@ -12,11 +12,14 @@ import { shareOrCopy } from "@libs/client/share";
 import { APP_STORE_URL, DOWNLOAD_PAGE_PATH, PLAY_STORE_URL } from "@libs/shared/appLinks";
 import { GUIDE_INDEX_HREF } from "@libs/shared/guides";
 
+/** 스토어 스크린샷과 같은 디자인 세트(bredy_app store-assets/screenshots/ios, 2026-10-20). 문구가 이미지 안에 있어 alt 로 같은 문구를 둔다. */
 const SCREENS = [
-  { src: "/landing/screen-01-home.jpg", caption: "지금 올라온 분양·동네 브리더" },
-  { src: "/landing/screen-02-posts.jpg", caption: "질문·정보·자랑 커뮤니티" },
-  { src: "/landing/screen-03-auctions.jpg", caption: "진행 중인 경매" },
-  { src: "/landing/screen-04-auction-detail.jpg", caption: "경매 상세와 입찰" },
+  { src: "/landing/store-01-home.jpg", alt: "곤충·파충류·물고기 키우는 사람들의 커뮤니티" },
+  { src: "/landing/store-02-products.jpg", alt: "보고 싶은 종만 골라서 분양 보기" },
+  { src: "/landing/store-03-product-detail.jpg", alt: "분양글 올리기는 무료예요" },
+  { src: "/landing/store-04-auction-detail.jpg", alt: "경매로 투명하게 분양해요" },
+  { src: "/landing/store-05-guide.jpg", alt: "처음 키운다면 사육 가이드부터" },
+  { src: "/landing/store-06-bloodline.jpg", alt: "혈통을 카드로 남겨요" },
 ];
 
 /** heroicons outline 1.5px */
@@ -123,12 +126,9 @@ export default function DownloadLanding() {
       <section aria-label="앱 화면" className="pt-8">
         <HorizontalRail label="앱 화면" className="snap-x snap-mandatory scroll-px-4 gap-3 px-4">
           {SCREENS.map((s) => (
-            <figure key={s.src} className="w-[200px] shrink-0 snap-start">
-              <span className="block overflow-hidden rounded-2xl border border-app-line bg-app-placeholder">
-                <Image src={s.src} alt={s.caption} width={600} height={1303} sizes="200px" className="h-auto w-full" />
-              </span>
-              <figcaption className="mt-2 text-center text-[13px] text-app-muted">{s.caption}</figcaption>
-            </figure>
+            <span key={s.src} className="block w-[220px] shrink-0 snap-start overflow-hidden rounded-2xl border border-app-line">
+              <Image src={s.src} alt={s.alt} width={600} height={1303} sizes="220px" className="h-auto w-full" />
+            </span>
           ))}
         </HorizontalRail>
       </section>
