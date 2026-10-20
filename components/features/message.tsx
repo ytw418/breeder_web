@@ -2,7 +2,8 @@
 
 /**
  * 채팅 말풍선 묶음 — 앱 bredy_app src/app/chat/[chatRoomId].tsx MessageGroupRow (시안 A-karrot.html .m/.bub/.img/.mt).
- * 상대: 36 아바타 + 말풍선 열 + 시간 / 나: 시간 + 말풍선 열. 말풍선 max 232, padding 9/13, r20, 15/21.
+ * 상대: 36 아바타 + 말풍선 열 + 시간 / 나: 말풍선마다 왼쪽에 상대가 안 읽었으면 '1'(카톡식, 11/600 brand-text),
+ * 묶음 마지막 말풍선은 그 아래 시간. 말풍선 max 232, padding 9/13, r20, 15/21.
  * 내 것은 brand + 흰 글자, 상대는 surface + text. 이미지는 168x126 r16.
  * 링크(http·https)는 밑줄 + 새 탭으로 연다. 상대 말풍선은 파란 글자(app-info), 내 주황 말풍선은 파랑이 안 읽혀 흰 글자.
  */
@@ -27,8 +28,8 @@ export interface ChatMessageGroupProps {
   userId: number;
   /** 묶음 마지막 메시지 시간("오후 2:41") */
   timeLabel: string;
-  /** 내 마지막 말풍선이고 상대가 읽었을 때만 true → 말풍선 아래 "읽음" */
-  showReadReceipt?: boolean;
+  /** 상대가 아직 안 읽은 내 메시지 id → 말풍선 옆 '1' */
+  unreadIds?: ReadonlySet<number>;
   onOpenImage: (imageId: string) => void;
 }
 
@@ -38,69 +39,91 @@ export default function ChatMessageGroup({
   avatar,
   userId,
   timeLabel,
-  showReadReceipt = false,
+  unreadIds,
   onOpenImage,
 }: ChatMessageGroupProps) {
-  const bubbles = (
-    <div className={cn("flex min-w-0 shrink flex-col gap-[3px]", mine ? "items-end" : "items-start")}>
-      {messages.map((message) =>
-        message.type === "IMAGE" && message.image ? (
-          <button
-            key={message.id}
-            type="button"
-            onClick={() => onOpenImage(message.image!)}
-            aria-label="채팅 이미지 크게 보기"
-            className="relative h-[126px] w-[168px] shrink-0 overflow-hidden rounded-2xl bg-app-placeholder"
-          >
-            <Image
-              src={makeImageUrl(message.image, "public")}
-              alt="채팅 이미지"
-              fill
-              sizes="168px"
-              className="object-cover"
-            />
-          </button>
-        ) : (
-          <div
-            key={message.id}
-            className={cn(
-              "max-w-[232px] whitespace-pre-wrap rounded-[20px] px-[13px] py-[9px] text-[15px] leading-[21px] tracking-[-0.2px] break-words",
-              mine ? "bg-app-brand text-white" : "bg-app-surface text-app-text"
-            )}
-          >
-            {splitLinks(message.message ?? "").map((part, index) =>
-              part.type === "link" ? (
-                <a
-                  key={index}
-                  href={part.value}
-                  target="_blank"
-                  rel="noopener noreferrer nofollow ugc"
-                  className={cn("break-all underline underline-offset-2", mine ? "text-white" : "text-app-info")}
-                >
-                  {part.value}
-                </a>
-              ) : (
-                <span key={index}>{part.value}</span>
-              )
-            )}
-          </div>
-        )
-      )}
-    </div>
-  );
+  const renderBubble = (message: ChatBubbleMessage) =>
+    message.type === "IMAGE" && message.image ? (
+      <button
+        key={message.id}
+        type="button"
+        onClick={() => onOpenImage(message.image!)}
+        aria-label="채팅 이미지 크게 보기"
+        className="relative h-[126px] w-[168px] shrink-0 overflow-hidden rounded-2xl bg-app-placeholder"
+      >
+        <Image
+          src={makeImageUrl(message.image, "public")}
+          alt="채팅 이미지"
+          fill
+          sizes="168px"
+          className="object-cover"
+        />
+      </button>
+    ) : (
+      <div
+        key={message.id}
+        className={cn(
+          "max-w-[232px] whitespace-pre-wrap rounded-[20px] px-[13px] py-[9px] text-[15px] leading-[21px] tracking-[-0.2px] break-words",
+          mine ? "bg-app-brand text-white" : "bg-app-surface text-app-text"
+        )}
+      >
+        {splitLinks(message.message ?? "").map((part, index) =>
+          part.type === "link" ? (
+            <a
+              key={index}
+              href={part.value}
+              target="_blank"
+              rel="noopener noreferrer nofollow ugc"
+              className={cn("break-all underline underline-offset-2", mine ? "text-white" : "text-app-info")}
+            >
+              {part.value}
+            </a>
+          ) : (
+            <span key={index}>{part.value}</span>
+          )
+        )}
+      </div>
+    );
 
   const time = timeLabel ? (
     <span className="shrink-0 whitespace-nowrap pb-0.5 text-[12px] text-app-muted">{timeLabel}</span>
   ) : null;
 
+  // 내 것: 말풍선마다 ['1' + (묶음 마지막이면) 시간][말풍선] 한 줄. 상대 것: 말풍선 열 하나.
+  const bubbles = mine ? (
+    <div className="flex min-w-0 shrink flex-col items-end gap-[3px]">
+      {messages.map((message, index) => {
+        const unread = unreadIds?.has(message.id) ?? false;
+        const meta = index === messages.length - 1 ? time : null;
+        return (
+          <div key={message.id} className="flex min-w-0 items-end justify-end gap-2">
+            {unread || meta ? (
+              <div className="flex shrink-0 flex-col items-end">
+                {unread ? (
+                  <span
+                    aria-label="상대가 안 읽음"
+                    className="text-[11px] font-semibold leading-[14px] text-app-brand-text"
+                  >
+                    1
+                  </span>
+                ) : null}
+                {meta}
+              </div>
+            ) : null}
+            {renderBubble(message)}
+          </div>
+        );
+      })}
+    </div>
+  ) : (
+    <div className="flex min-w-0 shrink flex-col items-start gap-[3px]">{messages.map(renderBubble)}</div>
+  );
+
   return (
     <div className="mb-3">
       <div className={cn("flex items-end gap-2", mine ? "justify-end" : "justify-start")}>
         {mine ? (
-          <>
-            {time}
-            {bubbles}
-          </>
+          bubbles
         ) : (
           <>
             <Link
@@ -117,7 +140,6 @@ export default function ChatMessageGroup({
           </>
         )}
       </div>
-      {showReadReceipt ? <p className="mt-1 text-right text-[11px] text-app-muted">읽음</p> : null}
     </div>
   );
 }
