@@ -324,6 +324,7 @@ function buildMenuSections(userId: number | null): { title: string; rows: MenuRo
       title: "기타",
       rows: [
         { label: "설정", icon: "settings", href: "/settings" },
+        { label: "앱 다운로드", icon: "install", href: "/download" },
         { label: "고객센터", icon: "support", href: "/support" },
       ],
     },
