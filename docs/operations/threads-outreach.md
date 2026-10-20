@@ -39,5 +39,10 @@ node scripts/marketing/threads-outreach.mjs post <글 파일> <주제> --dry-run
 
 - 컨셉: 사실만 쓴 짧은 후킹 글 + "DM 주면 알려줄게". **없던 실적(다 팔았다·최고가·유기견 찾았다)은 쓰지 않는다**(실거래 0, 표시광고법·신뢰). 실제 첫 분양·낙찰이 나오면 동의 받고 사례로 쓴다.
 - 상대가 먼저 보낸 DM 은 '요청'함으로 오고, **수락하면 일반 대화라 링크를 보낼 수 있다**(요청함 안내문). 그래서 요청 답장에는 링크를 넣는다.
-- 대기열 `~/Documents/bredy-outreach/threads/posts-queue.json`(10개), 요청 답장 `request-reply.txt`, 하루 일정 `scripts/marketing/threads-daily.sh`(9·19시 30분 글 1개 + 첫 댓글 `여기예요 👉 https://bredy.app` + 요청 답장, 13·22시 30분 요청 답장만). `scripts/marketing/threads-loop.sh` 를 nohup 으로 켜 둔다(재부팅하면 다시 켠다). 운영 중인 사본은 `~/Desktop/pro/breeder_web-wt/threads-outreach` 워크트리에서 돈다.
+- 대기열 `~/Documents/bredy-outreach/threads/posts-queue.json`(10개), 요청 답장 `request-reply.txt`, 하루 일정 `scripts/marketing/threads-daily.sh`(9·19시 30분 글 1개 + 첫 댓글 `여기예요 👉 https://bredy.app` + 요청 답장, 13·22시 30분 요청 답장만). Paseo 일정 `01ae4abc`(9:30·13:30·19:30·22:30, sonnet)가 이 스크립트를 부른다 — 10-20 재부팅으로 nohup 루프(`threads-loop.sh`)가 꺼진 뒤 바꿨다. 운영 사본은 `~/Desktop/pro/breeder_web-wt/threads-outreach` 워크트리.
 - 받은 메시지함(이미 수락된 대화)은 자동으로 건드리지 않는다.
+
+## 안전장치 (10-20)
+
+- 같은 자동화 크롬의 스레드에 다른 계정(개인 `lcaros_rn`)이 로그인돼 있던 일이 있었다 → 도구는 시작할 때 로그인 계정이 `bredy_breeder` 인지 확인하고 아니면 아무것도 하지 않는다. 되돌리기: 스레드 로그아웃 → 로그인 화면 'Instagram으로 계속하기 bredy_breeder'(인스타가 bredy_breeder 일 때, 비밀번호 없음).
+- 4시간 안에 올린 글이 있으면 `post` 는 건너뛴다(수동 게시 직후 일정이 또 올리지 않게).

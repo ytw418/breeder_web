@@ -219,6 +219,11 @@ async function run(planFile) {
 // 내 글 올리기: 홈 '새로운 소식을 공유해보세요' → 본문 → 주제(선택) → 게시 → 프로필에서 첫 줄로 글 주소 찾기
 async function post(file, topic, dryRun) {
   const text = fs.readFileSync(file, "utf8").trim();
+  // 수동으로 올린 직후 일정이 또 올리지 않게: 4시간 안에 올린 글이 있으면 건너뛴다
+  const recent = readLog().some(
+    (r) => r[2] === "post" && r[4] === "ok" && Date.now() - Date.parse(`${r[0]}T${r[1]}:00+09:00`) < 4 * 3600_000,
+  );
+  if (recent && !dryRun) return console.log("최근 4시간 안에 올린 글이 있어 건너뜀");
   const { page, done } = await open();
   try {
     await page.goto("https://www.threads.com/");
