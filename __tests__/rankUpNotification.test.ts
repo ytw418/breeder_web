@@ -2,7 +2,7 @@
  * @jest-environment node
  */
 /**
- * RANK_UP 알림: 같은 주(KST) 안에서 순위가 올랐을 때 주 1회 "순위가 올랐어요 · 7위 → 5위", url /ranking?focus=me.
+ * RANK_UP·BREEDER_RANK_DROP 알림: 같은 주(KST) 안에서 순위가 바뀌었을 때 방향마다 주 1회, url /ranking?focus=me.
  */
 const NOW = new Date("2026-10-14T00:00:00.000Z"); // 수요일 09:00 KST (주 시작 10-11T15:00Z)
 const mockCreateNotification = jest.fn();
@@ -94,6 +94,20 @@ describe("processRankingAlerts RANK_UP", () => {
   it("이번 주에 이미 보냈으면 보내지 않는다", async () => {
     mockClient.alertSubscription.findMany.mockResolvedValue([sub("BREEDER_RANK_DROP", 7, new Date("2026-10-13T00:00:00.000Z"))]);
     mockClient.notification.findFirst.mockResolvedValue({ id: 1 });
+    await processRankingAlerts();
+    expect(mockClient.notification.create).not.toHaveBeenCalled();
+  });
+
+  it("같은 주 두 번째 하락은 보내지 않는다", async () => {
+    mockClient.alertSubscription.findMany.mockResolvedValue([sub("BREEDER_RANK_DROP", 3, new Date("2026-10-13T00:00:00.000Z"))]);
+    mockClient.notification.findFirst.mockResolvedValue({ id: 1 });
+    await processRankingAlerts();
+    expect(mockClient.notification.findFirst.mock.calls[0][0].where).toMatchObject({ userId: 7, type: "BREEDER_RANK_DROP" });
+    expect(mockClient.notification.create).not.toHaveBeenCalled();
+  });
+
+  it("하락도 지난주 관측과는 비교하지 않는다(월요일 첫 실행의 가짜 하락)", async () => {
+    mockClient.alertSubscription.findMany.mockResolvedValue([sub("BREEDER_RANK_DROP", 3, new Date("2026-10-11T00:00:00.000Z"))]);
     await processRankingAlerts();
     expect(mockClient.notification.create).not.toHaveBeenCalled();
   });
