@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useParams, useRouter, useSearchParams } from "next/navigation";
 import useSWR, { useSWRConfig } from "swr";
 import { useMarkSeenOnView } from "@libs/client/unreadMarks";
+import { markNoticeBandSeen } from "@libs/client/noticeBandSeen";
 
 import Layout, { toLoginHref } from "@components/features/MainLayout";
 import { HeaderIconButton } from "@components/app/HeaderIconButton";
@@ -201,6 +202,11 @@ const PostClient = ({
   const live = Boolean(data?.post);
   const isNotice = isNoticePost(post);
   const showAds = Boolean(post) && !isNotice && !post?.isHidden;
+  // 연 공지는 홈 공지 띠에서도 숨긴다(띠는 14일, 위 '안 본 글' 기록은 7일이라 따로 남긴다. 앱 posts/[id] 와 같다).
+  const noticeId = isNotice ? post?.id : undefined;
+  useEffect(() => {
+    if (noticeId != null) markNoticeBandSeen(noticeId);
+  }, [noticeId]);
   const detailPath = post ? toPostPath(post.id, post.title) : `/posts/${postApiId ?? ""}`;
   const authorId = post?.user?.id;
   const isOwnPost = Boolean(user?.id && authorId && user.id === authorId);

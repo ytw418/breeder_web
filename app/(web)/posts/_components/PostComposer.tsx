@@ -8,6 +8,7 @@ import Layout from "@components/features/MainLayout";
 import ConfirmDialog from "@components/atoms/ConfirmDialog";
 import { authFetch } from "@libs/client/authFetch";
 import { toast } from "@libs/client/toast";
+import { uploadInOrder } from "@libs/client/uploadQueue";
 import { cn } from "@libs/client/utils";
 import { POST_CATEGORIES } from "@libs/constants";
 import { toPostPath } from "@libs/post-route";
@@ -18,6 +19,14 @@ import type { Celebrate } from "@libs/shared/communityVibe";
 import useUser from "hooks/useUser";
 import type { CategoriesResponse } from "@libs/shared/categories";
 import { REGION_POST_CATEGORY } from "@libs/shared/postCategory";
+import { POST_BODY_COUNTER_FROM, countPostBodyText, removePostBodyImage } from "@libs/shared/post-body";
+import {
+  deleteComposeDraft,
+  readComposeDraft,
+  useComposeDraftAutosave,
+  type PostDraft,
+} from "@libs/client/composeDraft";
+import { ComposeDraftSheet } from "@components/app/ComposeDraftSheet";
 import { DEBATE_CATEGORY, DEBATE_MIN_ACCOUNT_AGE_HOURS } from "@libs/shared/debateFormat";
 import { regionOf } from "@libs/shared/regions";
 import { MY_ACTIVITY_KEY_PREFIXES, POST_KEY_PREFIXES, revalidateByPrefix } from "@libs/client/swrRevalidate";
@@ -27,6 +36,7 @@ import {
   filterPickedPhotos,
   hasComposerChanges,
   validatePostForm,
+  type ComposerPhoto,
   type PostComposerInitial,
   type PostFormErrors,
 } from "../_lib/postComposer";
@@ -34,6 +44,7 @@ import { PostPickerSheet } from "./PostPickerSheet";
 import { SpeciesPickerSheet, defaultSpeciesFromPins } from "./SpeciesPickerSheet";
 import {
   PostBodyEditor,
+  PostBodyTextCounter,
   PostBodyToolbarButtons,
   normalizedPostBody,
   usePostBodyEditor,
@@ -46,6 +57,7 @@ import {
  */
 
 type SubmitStep = "idle" | "image" | "submit";
+type LocalComposerPhoto = Extract<ComposerPhoto, { kind: "local" }>;
 type PickerTarget = "category" | "species" | null;
 
 /** 글쓰기 주제 시트: '토론'·'질문'엔 설명 한 줄(앱 PostComposer TOPIC_OPTIONS 와 같다). */
@@ -77,8 +89,33 @@ interface PostMutationResponse {
   celebrate?: Celebrate | null;
 }
 
+/**
+ * 임시저장할 본문: 새로 고른 파일 사진(local)은 다시 열 수 없어 자리 표시째 빼고, 올라간 사진 id 만 남긴다(앱과 같다).
+ * 뒤 번호부터 빼야 앞 사진 번호가 그대로다.
+ */
+function toPostDraftBody(body: { description: string; images: ComposerPhoto[] }) {
+  let description = body.description;
+  for (let index = body.images.length - 1; index >= 0; index -= 1) {
+    if (body.images[index].kind === "local") description = removePostBodyImage(description, index);
+  }
+  const remoteImageIds = body.images.flatMap((photo) => (photo.kind === "remote" ? [photo.id] : []));
+  return { description, remoteImageIds };
+}
+
+/**
+ * 세션이 끝나 업로드 URL 발급(/api/files, 로그인 필요)이 401 이면 던진다.
+ * 저장 응답 401 과 같은 길(쓰던 글 임시저장 → 로그인)로 보낸다.
+ */
+class AuthRequiredError extends Error {
+  constructor() {
+    super("로그인이 필요합니다.");
+    this.name = "AuthRequiredError";
+  }
+}
+
 async function uploadPostImage(file: File, title: string): Promise<string> {
   const urlResponse = await authFetch("/api/files");
+  if (urlResponse.status === 401) throw new AuthRequiredError();
   const urlResult = (await urlResponse.json().catch(() => null)) as FileUploadUrlResponse | null;
   if (!urlResponse.ok || !urlResult?.uploadURL) {
     throw new Error("이미지 업로드에 실패했습니다.");
@@ -259,6 +296,8 @@ export function PostComposer(props: PostComposerProps) {
   });
   const [errors, setErrors] = useState<PostFormErrors>({});
   const [submitStep, setSubmitStep] = useState<SubmitStep>("idle");
+  // 사진 올리는 중 진행(완료 장 수/올릴 장 수). 앱과 같은 오버레이 카드(시안 A2 ⑤).
+  const [uploadProgress, setUploadProgress] = useState({ done: 0, total: 0 });
   const [picker, setPicker] = useState<PickerTarget>(null);
   // 동네 미설정 안내(앱 PostComposer promptRegionRequired). '설정하기' 는 내 동네 설정으로 보낸다.
   const [regionPromptOpen, setRegionPromptOpen] = useState(false);
@@ -268,9 +307,56 @@ export function PostComposer(props: PostComposerProps) {
   const values = { title, description: body.description, category, species };
   const isSubmitting = submitStep !== "idle";
   const changed = hasComposerChanges(values, body.images, normalizedInitial);
-  const canSubmit = canSubmitPost({ values, submitting: isSubmitting, isEdit, changed });
+  const canSubmit = canSubmitPost({
+    values,
+    photoCount: body.images.length,
+    submitting: isSubmitting,
+    isEdit,
+    changed,
+  });
   const { leave, dialog } = useConfirmLeave(changed);
   const celebrateSheet = useCelebrateSheet("post");
+
+  // 임시저장(새 글만, 앱 docs/prd/post-upload.md S-1.임시저장): 열 때 쓰던 글이 있으면 시트로 묻고,
+  // 답하기 전엔 저장하지 않는다. 그 뒤로는 1초마다 계정별 localStorage 에 저장한다.
+  const draftUserId = isEdit ? null : (user?.id ?? null);
+  const [draftPrompt, setDraftPrompt] = useState<PostDraft | null>(null);
+  const [draftReady, setDraftReady] = useState(isEdit);
+  const draftCheckedRef = useRef(false);
+  useEffect(() => {
+    if (draftUserId == null || draftCheckedRef.current) return;
+    draftCheckedRef.current = true;
+    const draft = readComposeDraft("post", draftUserId);
+    const hasContent =
+      draft && (draft.title.trim() || countPostBodyText(draft.description) > 0 || draft.remoteImageIds.length > 0);
+    if (hasContent) setDraftPrompt(draft);
+    else setDraftReady(true);
+  }, [draftUserId]);
+  const draftBody = toPostDraftBody(body);
+  const draftValue =
+    !isEdit &&
+    (title.trim() || countPostBodyText(draftBody.description) > 0 || draftBody.remoteImageIds.length > 0)
+      ? { title, category, species, ...draftBody }
+      : null;
+  const draftAutosave = useComposeDraftAutosave("post", draftUserId, draftValue, draftReady && !isSubmitting);
+
+  const resumeDraft = () => {
+    if (draftPrompt) {
+      setTitle(draftPrompt.title);
+      // '동네' 글은 동네가 있어야 쓸 수 있다(그 사이 동네를 지웠으면 주제를 비운다).
+      setCategory(draftPrompt.category === REGION_POST_CATEGORY && !myRegion ? "" : draftPrompt.category);
+      speciesTouchedRef.current = true;
+      setSpecies(draftPrompt.species);
+      editor.reset(draftPrompt.description, draftPrompt.remoteImageIds);
+    }
+    setDraftPrompt(null);
+    setDraftReady(true);
+  };
+  const discardDraft = () => {
+    if (draftUserId != null) deleteComposeDraft("post", draftUserId);
+    setDraftPrompt(null);
+    setDraftReady(true);
+  };
 
   const clearFieldError = (field: keyof PostFormErrors) =>
     setErrors((prev) => {
@@ -312,7 +398,7 @@ export function PostComposer(props: PostComposerProps) {
 
   const submit = async () => {
     if (!canSubmit) return;
-    const nextErrors = validatePostForm(values);
+    const nextErrors = validatePostForm(values, body.images.length);
     setErrors(nextErrors);
     if (Object.keys(nextErrors).length) {
       toast.error("입력값을 확인해주세요.");
@@ -321,15 +407,33 @@ export function PostComposer(props: PostComposerProps) {
 
     // 저장에 성공해 이동하면 버튼을 잠근 채 둔다(다시 누르기·이탈 가드 재무장 방지).
     let leaving = false;
+    // 세션이 끝났으면(사진 업로드 URL 이나 저장이 401) 새 글은 쓰던 내용을 임시저장한 뒤 로그인으로 보낸다.
+    // 돌아오면 '쓰던 글이 있어요' 시트로 이어 쓴다.
+    const goLoginKeepingDraft = () => {
+      if (!initial) draftAutosave.save();
+      toast.error(initial ? "로그인이 필요합니다." : "로그인이 필요합니다. 쓰던 글은 저장해 두었어요.");
+      leaving = true;
+      leave(() => router.push(toLoginHref(initial ? `/posts/${initial.postId}/edit` : "/posts/upload")));
+    };
     try {
-      // 순서를 지키도록 한 장씩 올린다. 기존 사진(remote)은 다시 올리지 않고 id 를 그대로 보낸다.
-      const imageIds: string[] = [];
-      if (body.images.some((photo) => photo.kind === "local")) setSubmitStep("image");
-      for (const photo of body.images) {
-        imageIds.push(
-          photo.kind === "remote" ? photo.id : await uploadPostImage(photo.file, title.trim())
-        );
-      }
+      // 새로 고른 사진(local)만 3장씩 동시에 올리고, 결과는 본문 순서대로 받는다(libs/client/uploadQueue.ts).
+      // 올라간 사진은 바로 remote 로 바꿔 둔다. 한 장이 실패해 다시 누르면 남은 사진만 올린다.
+      // 기존 사진(remote)은 다시 올리지 않고 id 를 그대로 보낸다.
+      const pending = body.images.filter((photo): photo is LocalComposerPhoto => photo.kind === "local");
+      if (pending.length) setSubmitStep("image");
+      const uploadedIds = await uploadInOrder(
+        pending,
+        async (photo) => {
+          const id = await uploadPostImage(photo.file, title.trim());
+          editor.replacePhoto(photo.key, id);
+          return id;
+        },
+        { concurrency: 3, onProgress: (done, total) => setUploadProgress({ done, total }) }
+      );
+      let uploadedIndex = 0;
+      const imageIds = body.images.map((photo) =>
+        photo.kind === "remote" ? photo.id : uploadedIds[uploadedIndex++]
+      );
 
       setSubmitStep("submit");
       const payload = {
@@ -349,9 +453,7 @@ export function PostComposer(props: PostComposerProps) {
       const result = (await response.json().catch(() => null)) as PostMutationResponse | null;
 
       if (response.status === 401) {
-        toast.error("로그인이 필요합니다.");
-        leaving = true;
-        leave(() => router.push(toLoginHref(initial ? `/posts/${initial.postId}/edit` : "/posts/upload")));
+        goLoginKeepingDraft();
         return;
       }
 
@@ -376,6 +478,9 @@ export function PostComposer(props: PostComposerProps) {
         toast.error(result?.error || result?.message || "게시글 등록에 실패했습니다.");
         return;
       }
+      // 등록했으면 임시저장을 지운다(기다리던 저장도 버린다).
+      draftAutosave.stop();
+      if (draftUserId != null) deleteComposeDraft("post", draftUserId);
       revalidateMyPostActivity();
       const postPath = toPostPath(result.post.id, result.post.title);
       leaving = true;
@@ -383,6 +488,10 @@ export function PostComposer(props: PostComposerProps) {
       if (!result.celebrate) toast.success("게시글이 등록되었습니다.");
       celebrateSheet.show(result.celebrate, () => leave(() => router.replace(postPath)));
     } catch (error) {
+      if (error instanceof AuthRequiredError) {
+        goLoginKeepingDraft();
+        return;
+      }
       toast.error(
         error instanceof Error
           ? error.message
@@ -506,7 +615,13 @@ export function PostComposer(props: PostComposerProps) {
       <div className="fixed inset-x-0 bottom-0 mx-auto max-w-xl z-30 border-t border-app-line bg-app-bg pb-[env(safe-area-inset-bottom)]">
         <div className="mx-auto flex h-[52px] max-w-xl items-center px-2">
           <PostBodyToolbarButtons editor={editor} disabled={isSubmitting} onPickPhotos={openFilePicker} />
-          <span className="ml-auto pr-2 text-[14px] text-app-muted">
+          <PostBodyTextCounter count={editor.textCount} />
+          <span
+            className={cn(
+              "pr-2 text-[14px] text-app-muted",
+              editor.textCount >= POST_BODY_COUNTER_FROM ? "" : "ml-auto"
+            )}
+          >
             {editor.photoCount}/{POST_COMPOSER_IMAGE_MAX}
           </span>
         </div>
@@ -560,9 +675,31 @@ export function PostComposer(props: PostComposerProps) {
         onClose={() => setPicker(null)}
       />
 
-      {/* 제출 중 화면 전체 터치 차단 */}
+      {/* 제출 중 화면 전체 터치 차단 + 사진 올리는 중 n/N 진행 막대(시안 A2 ⑤) */}
       {isSubmitting ? (
-        <div className="fixed inset-0 z-[60] bg-app-bg opacity-40" aria-hidden="true" />
+        <div className="fixed inset-0 z-[60] flex items-center justify-center">
+          <div className="absolute inset-0 bg-app-bg opacity-40" aria-hidden="true" />
+          {submitStep === "image" && uploadProgress.total > 0 ? (
+            <div
+              role="progressbar"
+              aria-valuemin={0}
+              aria-valuemax={uploadProgress.total}
+              aria-valuenow={uploadProgress.done}
+              aria-label={`사진 올리는 중 ${uploadProgress.done}/${uploadProgress.total}`}
+              className="relative w-60 rounded-xl border border-app-border bg-app-elevated p-6 shadow-popover"
+            >
+              <p className="text-center text-[15px] font-semibold text-app-text">
+                사진 올리는 중 {uploadProgress.done}/{uploadProgress.total}
+              </p>
+              <div className="mt-3 h-1 overflow-hidden rounded-full bg-app-surface">
+                <div
+                  className="h-1 bg-app-brand transition-[width]"
+                  style={{ width: `${Math.round((uploadProgress.done / uploadProgress.total) * 100)}%` }}
+                />
+              </div>
+            </div>
+          ) : null}
+        </div>
       ) : null}
 
       <ConfirmDialog
@@ -576,6 +713,13 @@ export function PostComposer(props: PostComposerProps) {
           setRegionPromptOpen(false);
           leave(() => router.push("/settings/region"));
         }}
+      />
+      <ComposeDraftSheet
+        open={draftPrompt !== null}
+        title={draftPrompt?.title ?? ""}
+        savedAt={draftPrompt?.savedAt ?? ""}
+        onResume={resumeDraft}
+        onDiscard={discardDraft}
       />
       {dialog}
       {celebrateSheet.sheet}

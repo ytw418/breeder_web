@@ -16,6 +16,7 @@ import {
   WebPushPermissionError,
   disableWebPush,
   enableWebPush,
+  isReceivingOnThisBrowser,
   type PushSubscriptionStatusResponse,
 } from "@libs/client/webPush";
 import useLogout from "hooks/useLogout";
@@ -215,14 +216,17 @@ const SettingsClient = () => {
     return theme === "dark" ? "다크" : "라이트";
   }, [themeMounted, theme, resolvedTheme]);
 
+  // 스위치는 계정이 아니라 이 브라우저 기준이다. 다른 기기에서만 켠 계정은 여기서 꺼짐으로 보인다(2026-10-21).
+  const receivingHere = Boolean(user && pushStatus && isReceivingOnThisBrowser(user.id, pushStatus));
+
   const pushStatusLabel = useMemo(() => {
     if (!user) return "로그인 필요";
     if (isPushStatusLoading) return "설정 확인 중";
     if (pushStatusError) return "설정 확인 실패";
     if (!pushStatus) return "설정 확인 중";
     if (!pushStatus.configured) return "지금은 사용할 수 없음";
-    return pushStatus.subscribed ? "켜짐" : "꺼짐";
-  }, [isPushStatusLoading, pushStatusError, pushStatus, user]);
+    return receivingHere ? "켜짐" : "꺼짐";
+  }, [isPushStatusLoading, pushStatusError, pushStatus, receivingHere, user]);
 
   // 현재 단말 기준으로 알림 권한 복구 경로를 가볍게 안내한다(웹 전용).
   const permissionGuide = useMemo(() => {
@@ -259,8 +263,8 @@ const SettingsClient = () => {
     setShowPermissionGuide(false);
 
     try {
-      if (pushStatus?.subscribed) {
-        // 해제 시 브라우저 토큰 삭제 + 서버 토큰 삭제를 모두 수행한다.
+      if (receivingHere) {
+        // 이 브라우저 토큰만 지우고 서버에서도 그 토큰만 해제한다(다른 기기 알림은 그대로).
         await disableWebPush(pushStatus, currentPushToken);
         setCurrentPushToken("");
         await mutatePushStatus();
@@ -365,17 +369,23 @@ const SettingsClient = () => {
 
         <SectionTitle title="알림" />
         <Row
-          label="푸시 알림"
+          label="이 브라우저에서 알림 받기"
           icon="bell"
           value={pushLoading ? "처리 중..." : pushStatusLabel}
           right={
             <Toggle
-              label="푸시 알림"
-              checked={Boolean(pushStatus?.subscribed)}
+              label="이 브라우저에서 알림 받기"
+              checked={receivingHere}
               disabled={pushLoading || (Boolean(user) && isPushStatusLoading)}
               onChange={() => void handleTogglePush()}
             />
           }
+        />
+        <Row
+          label="알림 종류"
+          sub
+          chevron
+          href={user ? "/settings/notifications" : toLoginHref("/settings/notifications")}
         />
         {showPushTest ? (
           <Row
@@ -406,6 +416,7 @@ const SettingsClient = () => {
         <SectionGap />
 
         <SectionTitle title="서비스 정보" />
+        <Row label="이용 규칙" icon="document" chevron href="/content/community-rules" />
         <Row label="이용약관" icon="document" chevron href={TERMS_OF_SERVICE_URL} />
         <Row label="개인정보 처리방침" icon="shield" chevron href={PRIVACY_POLICY_URL} />
         <Row label="고객의 소리" icon="support" chevron href="/support" />

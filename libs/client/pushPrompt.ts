@@ -5,6 +5,8 @@
  * - welcome: 웹은 첫 로그인 뒤(온보딩을 마친 화면에서) 이 브라우저에 한 번. 이미 알림을 허용한 브라우저는 건너뛴다.
  *   앱은 설치 후 첫 실행에 한 번이다(온보딩 시점 O-1 과 같은 대응).
  * - product: 상품 등록 직후 이 브라우저에서 알림을 못 받는 상태면 매번.
+ * - question·comment·bid·chat: 질문 등록·댓글·입찰·첫 채팅 직후, 이 브라우저에서 알림을 못 받는 상태면
+ *   사유마다 7일에 한 번(앱 pushPrompt.ts 와 같다, 2026-10-21 앱 docs/prd/notifications.md).
  * 브라우저 권한 창은 시트에서 사용자가 켜기를 눌렀을 때만 띄운다. 웹 푸시가 안 되는 브라우저나 서버 푸시가
  * 설정되지 않은 환경에서는 묻지 않는다.
  */
@@ -15,7 +17,9 @@ import {
   type PushSubscriptionStatusResponse,
 } from "@libs/client/webPush";
 
-export type PushPromptReason = "welcome" | "product";
+export type PushPromptReason = "welcome" | "product" | "question" | "comment" | "bid" | "chat";
+/** 필요한 순간에 띄우는 권유(사유마다 7일에 한 번). */
+export type PushPromptMomentReason = Exclude<PushPromptReason, "welcome" | "product">;
 
 export interface PushPromptRequest {
   reason: PushPromptReason;
@@ -30,6 +34,8 @@ type PushPromptListener = (request: PushPromptRequest | null) => void;
 export const PUSH_PROMPT_WELCOME_KEY = "bredy.pushPrompt.welcomeShown";
 /** 상품 상세로 넘어가는 전환과 등록 토스트를 본 뒤에 띄운다(앱과 같다). */
 const PRODUCT_PROMPT_DELAY_MS = 700;
+const MOMENT_PROMPT_COOLDOWN_MS = 7 * 24 * 60 * 60 * 1000;
+const momentShownKey = (reason: PushPromptMomentReason, userId: number) => `bredy.pushPrompt.${reason}.${userId}`;
 
 let current: PushPromptRequest | null = null;
 const listeners = new Set<PushPromptListener>();
@@ -40,8 +46,9 @@ function emit(next: PushPromptRequest | null) {
 }
 
 function open(request: PushPromptRequest) {
-  if (current) return;
+  if (current) return false;
   emit(request);
+  return true;
 }
 
 export function subscribePushPrompt(listener: PushPromptListener) {
@@ -89,20 +96,50 @@ export async function promptPushOnWelcome() {
   }
 }
 
-/** 상품 등록 직후: 이 브라우저에서 이 계정 알림을 못 받는 상태면 다시 권유한다. */
-export async function promptPushAfterProductUpload(userId: number) {
+function readShownAt(key: string) {
+  try {
+    return Number(window.localStorage.getItem(key)) || 0;
+  } catch {
+    // 저장소를 못 쓰면 매번 묻게 되므로 묻지 않는다.
+    return Number.POSITIVE_INFINITY;
+  }
+}
+
+function writeShownAt(key: string) {
+  try {
+    window.localStorage.setItem(key, String(Date.now()));
+  } catch {
+    // noop
+  }
+}
+
+/** 이 브라우저에서 이 계정 알림을 못 받는 상태면 전환·토스트를 본 뒤 권유 시트를 연다. 열었으면 true. */
+async function promptIfNotReceiving(reason: PushPromptReason, userId: number) {
   const startedAt = Date.now();
   try {
     const permission = getWebPushPermission();
-    if (permission === "unsupported") return;
+    if (permission === "unsupported") return false;
     const status = await fetchPushSubscriptionStatus();
-    if (!status?.configured) return;
-    if (isReceivingOnThisBrowser(userId, status)) return;
+    if (!status?.configured) return false;
+    if (isReceivingOnThisBrowser(userId, status)) return false;
 
     const wait = PRODUCT_PROMPT_DELAY_MS - (Date.now() - startedAt);
     if (wait > 0) await new Promise((resolve) => setTimeout(resolve, wait));
-    open({ reason: "product", permission, status });
+    return open({ reason, permission, status });
   } catch {
     // 상태를 확인하지 못하면 묻지 않는다.
+    return false;
   }
+}
+
+/** 상품 등록 직후: 이 브라우저에서 이 계정 알림을 못 받는 상태면 다시 권유한다. */
+export async function promptPushAfterProductUpload(userId: number) {
+  await promptIfNotReceiving("product", userId);
+}
+
+/** 질문 등록·댓글·입찰·첫 채팅 직후: 이 브라우저에서 못 받는 상태면 권유한다. 사유마다 7일에 한 번. */
+export async function promptPushAfter(reason: PushPromptMomentReason, userId: number) {
+  const key = momentShownKey(reason, userId);
+  if (Date.now() - readShownAt(key) < MOMENT_PROMPT_COOLDOWN_MS) return;
+  if (await promptIfNotReceiving(reason, userId)) writeShownAt(key);
 }

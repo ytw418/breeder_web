@@ -27,6 +27,10 @@ async function handler(
       return res.status(400).json({ success: false, error: "자기 자신을 팔로우할 수 없습니다." });
     }
 
+    // 본문 follow(true/false)는 바꿀 상태다. 이미 그 상태면 그대로 둔다 — 화면 값이 낡았을 때
+    // '팔로우'를 눌러 언팔로우되던 문제(2026-10-20). 본문이 없는 옛 앱은 지금 상태를 뒤집는다(토글).
+    const desired = typeof req.body?.follow === "boolean" ? (req.body.follow as boolean) : null;
+
     // 이미 팔로우 중인지 확인
     const existing = await client.follow.findFirst({
       where: {
@@ -34,6 +38,10 @@ async function handler(
         followingId: targetUserId,
       },
     });
+
+    if (desired !== null && desired === Boolean(existing)) {
+      return res.json({ success: true, isFollowing: desired });
+    }
 
     if (existing) {
       // 언팔로우

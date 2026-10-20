@@ -22,6 +22,8 @@ type Case = {
   plainText: string;
   textCount: number;
   serialized?: { description: string; images: string[] };
+  /** 있으면 사진 수(images 길이)로 validatePostDescription 결과를 본다. */
+  validation?: { ok: boolean; errorCode?: string };
 };
 
 const cases: Case[] = JSON.parse(
@@ -41,6 +43,9 @@ describe("post-body 공유 케이스", () => {
     expect(serializePostBody(parsePostBody(c.description, c.images))).toEqual(expected);
     // 저장 형식은 다시 읽고 써도 그대로다.
     expect(serializePostBody(parsePostBody(expected.description, expected.images))).toEqual(expected);
+    if (c.validation) {
+      expect(validatePostDescription(c.description, c.images.length)).toMatchObject(c.validation);
+    }
   });
 });
 
@@ -122,15 +127,11 @@ describe("validatePostDescription", () => {
     expect(validatePostDescription("앞 설명 열 글자 이상\n[[photo:1]]\n[[photo:2]]", 2)).toEqual({ ok: true });
   });
 
-  it("사진만 있거나 글자가 10자 미만이면 짧다", () => {
-    expect(validatePostDescription("[[photo:1]]", 1)).toMatchObject({
-      ok: false,
-      errorCode: "POST_DESCRIPTION_TOO_SHORT",
-      message: "내용을 10자 이상 입력해주세요.",
-    });
+  it("사진이 없으면 글자가 10자 미만일 때 짧다(사진이 있으면 0자도 된다 — 공유 케이스)", () => {
     expect(validatePostDescription("## **여덟글자입니다요**", 0)).toMatchObject({
       ok: false,
       errorCode: "POST_DESCRIPTION_TOO_SHORT",
+      message: "내용을 10자 이상 입력해주세요.",
     });
   });
 

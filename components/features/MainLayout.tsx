@@ -177,6 +177,16 @@ export function TabBarIcon({ name, active }: { name: TabIconName; active: boolea
   }
 }
 
+/**
+ * 지금 경로. ISR 로 미리 만든 홈('/')은 서버 렌더에서 usePathname() 이 '/index' 를 준다(RSC c:["","index"]).
+ * 클라이언트는 '/' 라 홈 로고 옆 '브리디' 글자·홈 탭 표시가 서버와 갈려 첫 방문마다 React #418 이 났다
+ * (2026-10-21 감사 #5, 운영 홈 260여 건). 둘을 같은 값으로 맞춘다.
+ */
+function useAppPathname(): string | null {
+  const pathname = usePathname();
+  return pathname === "/index" ? "/" : pathname;
+}
+
 const BOTTOM_NAV_ITEMS: {
   label: string;
   href: string;
@@ -267,6 +277,9 @@ const MENU_ICONS = {
     "M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-4l-3 3-3-3z",
   ],
   install: ["M12 16V4m0 12l-3-3m3 3l3-3M5 20h14"],
+  document: [
+    "M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z",
+  ],
   comment: [
     "M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z",
   ],
@@ -324,6 +337,8 @@ function buildMenuSections(userId: number | null): { title: string; rows: MenuRo
       title: "기타",
       rows: [
         { label: "설정", icon: "settings", href: "/settings" },
+        // 금지 행동·거래 금지 종·제재 단계(관리자 랜딩 페이지 slug community-rules, 앱 SideMenu 와 같다)
+        { label: "이용 규칙", icon: "document", href: "/content/community-rules" },
         { label: "앱 다운로드", icon: "install", href: "/download" },
         { label: "고객센터", icon: "support", href: "/support" },
       ],
@@ -347,7 +362,7 @@ function SideMenu({
   onInstall: () => void;
 }) {
   const router = useRouter();
-  const pathname = usePathname();
+  const pathname = useAppPathname();
   const { user } = useUser();
   const logout = useLogout();
   const [logoutConfirmOpen, setLogoutConfirmOpen] = useState(false);
@@ -631,7 +646,7 @@ export default function MainLayout({
   headerVariant = "default",
 }: LayoutProps) {
   const router = useRouter();
-  const pathname = usePathname();
+  const pathname = useAppPathname();
   const isToolPath = pathname?.startsWith("/tool");
   const [menuOpen, setMenuOpen] = useState(false);
   const [deferredInstallPrompt, setDeferredInstallPrompt] =

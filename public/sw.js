@@ -132,15 +132,44 @@ self.addEventListener("push", (event) => {
     console.error("Push payload parse failed:", error);
   }
 
-  event.waitUntil(
-    self.registration.showNotification(payload.title, {
-      body: payload.body,
-      icon: "/images/pwa/icon-192.png",
-      badge: "/images/pwa/icon-192.png",
-      tag: payload.tag,
-      data: { url: payload.url },
-    })
-  );
+  // 지금 보고 있는 채팅방(/chat/:id)으로 온 푸시는 배너·소리를 내지 않는다(앱 nativePush isViewingChatRoomOf 와 같은 범위).
+  // 채팅방은 화면이 스스로 새로 받는다. 게시글·분양글·프로필 등은 새로 받지 않아 생략하면 새 댓글을 놓치므로 그대로 띄운다.
+  // 그 밖에는 같은 tag 로 덮어써도 다시 울리게 renotify 를 켠다(앱 docs/prd/notifications.md §7).
+  const pathOf = (url) => {
+    try {
+      return new URL(url, self.location.origin).pathname;
+    } catch {
+      return "";
+    }
+  };
+  const isChatRoomPath = (path) => /^\/chat\/[^/]+\/?$/.test(path);
+  // Chromium 계열만 보이는 탭이 있을 때 알림 없는 push 를 봐준다. Safari(macOS·iOS 홈 화면 PWA)·Firefox 는
+  // 알림 없는 push 를 silent push 로 세어 몇 번 쌓이면 구독을 지운다(WebKit 'Enforce silent push quota').
+  const skipsSilentPushPenalty = Boolean(self.navigator && self.navigator.userAgentData);
+  const options = {
+    body: payload.body,
+    icon: "/images/pwa/icon-192.png",
+    badge: "/images/pwa/icon-192.png",
+    tag: payload.tag,
+    data: { url: payload.url },
+  };
+  event.waitUntil((async () => {
+    const targetPath = pathOf(payload.url);
+    const viewing =
+      isChatRoomPath(targetPath) &&
+      (await self.clients.matchAll({ type: "window", includeUncontrolled: true })).some(
+        (client) => client.focused && client.visibilityState === "visible" && pathOf(client.url) === targetPath
+      );
+    if (!viewing) {
+      await self.registration.showNotification(payload.title, { ...options, renotify: true });
+      return;
+    }
+    if (skipsSilentPushPenalty) return;
+    // 소리·진동 없이 띄운 뒤 바로 닫는다(띄운 것으로 세어 구독이 유지된다).
+    await self.registration.showNotification(payload.title, { ...options, silent: true });
+    const shown = await self.registration.getNotifications({ tag: payload.tag });
+    shown.forEach((notification) => notification.close());
+  })());
 });
 
 self.addEventListener("notificationclick", (event) => {

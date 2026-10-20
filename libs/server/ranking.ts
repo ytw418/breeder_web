@@ -135,11 +135,19 @@ const NEXT_ACTION_WEIGHTS: ReadonlyArray<[RankingNextActionKind, number]> = [
   ["bid", BREEDER_SCORE_WEIGHTS.bid],
 ];
 
+/** 관심 카테고리 범위 랭킹은 글·분양글만 센다(댓글·입찰 0점). 다음 활동은 글로만 권한다. */
+const SCOPED_NEXT_ACTION_WEIGHTS: ReadonlyArray<[RankingNextActionKind, number]> = [
+  ["post", SCOPED_BREEDER_SCORE_WEIGHTS.post],
+];
+
 /** 필요한 점수를 채우는 활동 중 개수가 가장 적은 것(같으면 글 → 댓글 → 입찰). */
-export const pickNextAction = (needed: number): RankingMe["nextAction"] => {
+export const pickNextAction = (
+  needed: number,
+  weights: ReadonlyArray<[RankingNextActionKind, number]> = NEXT_ACTION_WEIGHTS
+): RankingMe["nextAction"] => {
   if (needed <= 0) return null;
   let best: RankingMe["nextAction"] = null;
-  for (const [kind, weight] of NEXT_ACTION_WEIGHTS) {
+  for (const [kind, weight] of weights) {
     const count = Math.ceil(needed / weight);
     if (!best || count < best.count) best = { kind, count };
   }
@@ -153,11 +161,15 @@ export const pickNextAction = (needed: number): RankingMe["nextAction"] => {
  *   그 순위에 아무도 없으면(랭킹 인원이 적음) 1점만 있어도 오른다.
  * - nextAction: (nextScore - score) 를 가중치로 나눠 개수가 가장 적은 활동.
  * - gapToSecond: 1위일 때 2위와 점수 차(2위가 없으면 내 점수).
+ * - 관심 카테고리 범위 랭킹(행에 productsCount 가 있다)이면 범위 점수식대로 글 개수만 권한다.
  */
 export const computeRankingMe = (
-  ranking: ReadonlyArray<Pick<BreederRankingItem, "rank" | "score" | "previousRank" | "rankDelta"> & { user: { id: number } }>,
+  ranking: ReadonlyArray<
+    Pick<BreederRankingItem, "rank" | "score" | "previousRank" | "rankDelta" | "productsCount"> & { user: { id: number } }
+  >,
   userId: number
 ): RankingMe => {
+  const scoped = ranking.some((item) => item.productsCount !== undefined);
   const me = ranking.find((item) => item.user.id === userId) ?? null;
   const rank = me?.rank ?? null;
   const score = me?.score ?? 0;
@@ -177,7 +189,7 @@ export const computeRankingMe = (
     delta,
     nextRank,
     nextScore,
-    nextAction: pickNextAction(nextScore - score),
+    nextAction: pickNextAction(nextScore - score, scoped ? SCOPED_NEXT_ACTION_WEIGHTS : NEXT_ACTION_WEIGHTS),
     gapToSecond: null,
   };
 };
@@ -1081,12 +1093,17 @@ export const getListingsRanking = async ({
   return items.map(({ counts, ...item }) => ({ ...item, ...counts, metric }));
 };
 
+/**
+ * 이번 주 내 순위. categoryPath(관심 카테고리 고정)가 있으면 홈 TOP 브리더·랭킹 화면 '관심 분야 기준'과 같은
+ * 범위 랭킹에서 내 행·다음 목표를 계산한다(2026-10-21 감사 #25 — 홈 1~3위·랭킹 화면·내 순위 숫자를 맞춘다).
+ */
 export const getMyRankingSummary = async (
-  userId: number
+  userId: number,
+  { categoryPath }: { categoryPath?: string } = {}
 ): Promise<(RankingMeSummary & RankingMe) | null> => {
   const [season, ranking] = await Promise.all([
     ensureCurrentWeeklySeason(),
-    getBreederRanking({ limit: 100 }),
+    getBreederRanking({ limit: 100, categoryPath }),
   ]);
 
   const goal = computeRankingMe(ranking, userId);
@@ -1104,7 +1121,9 @@ export const getMyRankingSummary = async (
     };
   }
 
-  if (me.rank <= 20) {
+  // 순위 하락·추월 알림(processRankingAlerts)은 전체 랭킹 순위로 보낸다. 범위 랭킹은 사람이 적어 거의 다 20위 안이라,
+  // 구독은 전체 기준 호출(홈 피드·categoryPath 없는 /api/rankings/me)에서만 만든다.
+  if (!categoryPath && me.rank <= 20) {
     await ensureAlertSubscription({
       userId,
       alertType: "BREEDER_RANK_DROP",

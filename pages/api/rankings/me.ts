@@ -6,7 +6,7 @@ import type { RankingMe } from "@libs/shared/communityVibe";
 import { getMyRankingSummary } from "@libs/server/ranking";
 
 /**
- * GET /api/rankings/me — 이번 주 내 브리더 순위.
+ * GET /api/rankings/me?categoryPath= — 이번 주 내 브리더 순위. categoryPath(관심 카테고리 고정)가 있으면 그 범위 랭킹 기준.
  * `item` 은 옛 요약(RankingMeSummary)에 내 순위 목표(RankingMe: nextRank·nextScore·nextAction·gapToSecond)를 더한 것,
  * `me` 는 계약 RankingMe 만(앱 docs/prd/community-vibe.md §8).
  */
@@ -42,7 +42,9 @@ async function handler(
       });
     }
 
-    const item = await getMyRankingSummary(userId);
+    const categoryPath =
+      typeof req.query.categoryPath === "string" && req.query.categoryPath ? req.query.categoryPath : undefined;
+    const item = await getMyRankingSummary(userId, { categoryPath });
     res.setHeader("Cache-Control", "private, no-store");
     return res.json({
       success: true,

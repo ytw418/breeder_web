@@ -3,6 +3,8 @@
 import Link from "next/link";
 import { InitialAvatar } from "@components/ui/InitialAvatar";
 import { toPostPath } from "@libs/post-route";
+import useScopeTerms from "@/hooks/useScopeTerms";
+import { withBreederWord } from "@libs/shared/scopeTerms";
 
 export type AwaitingQuestion = {
   id: number;
@@ -22,17 +24,58 @@ export function waitingDurationLabel(createdAt: string | Date, now: number = Dat
   return `${Math.floor(hours / 24)}일째 답이 없어요`;
 }
 
+/** 질문하기 주소: 글쓰기를 '질문' 주제로 연다. */
+export const ASK_QUESTION_HREF = `/posts/upload?category=${encodeURIComponent("질문")}`;
+
+/** 빈 상태 카드 제목: 고정한 종이 하나면 "크레스티드 게코 키우며 궁금한 게 있나요?", 아니면 일반 문구(앱과 같다). */
+export function askQuestionTitle(speciesName?: string | null): string {
+  return speciesName ? `${speciesName} 키우며 궁금한 게 있나요?` : "키우며 궁금한 것 물어보기";
+}
+
+type AwaitingAnswerCardProps =
+  | { variant?: "question"; question: AwaitingQuestion; className?: string }
+  /** 답 없는 질문이 없을 때 같은 자리에 두는 '물어보기' 카드(2026-10-21 감사 #1, 시안 home-ia .wait.empty). */
+  | { variant: "empty"; speciesName?: string | null; className?: string };
+
 /**
  * 반려생활 '답 기다려요' 카드(시안 community-vibe .wait, PRD §3.5).
  * app-brand-soft r12, 아바타 40 · "질문 제목" 15/600 · 보조 12 brand-text-soft · '답하기' 36 주황 → 상세 #comment.
+ * variant="empty": 물음표 원 40(brand-track) · 질문 권유 15/600 · '질문을 올리면 관심 분야 브리더에게 알림이 가요' · '질문하기' 36 주황.
  */
-export default function AwaitingAnswerCard({
-  question,
-  className,
-}: {
-  question: AwaitingQuestion;
-  className?: string;
-}) {
+export default function AwaitingAnswerCard(props: AwaitingAnswerCardProps) {
+  const { className } = props;
+  // 포유류만 고정한 계정은 '집사'로 부른다(scopeTerms, 앱과 같다).
+  const { breeder } = useScopeTerms();
+  if (props.variant === "empty") {
+    return (
+      <div
+        className={`flex items-center gap-3 rounded-xl bg-app-brand-soft px-3.5 py-3 ${className ?? ""}`}
+        data-testid="awaiting-answer-empty"
+      >
+        <span className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-app-brand-track text-app-brand" aria-hidden="true">
+          <svg width={22} height={22} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+            <path d="M9.1 9a3 3 0 0 1 5.8 1c0 2-3 3-3 3" />
+            <path d="M12 17h.01" />
+          </svg>
+        </span>
+        <Link href={ASK_QUESTION_HREF} className="min-w-0 flex-1">
+          <p className="line-clamp-2 break-keep text-[15px] font-semibold leading-5 text-app-text">
+            {askQuestionTitle(props.speciesName)}
+          </p>
+          <p className="mt-0.5 break-keep text-[12px] leading-4 text-app-brand-text-soft">
+            {withBreederWord("질문을 올리면 관심 분야 브리더에게 알림이 가요", breeder)}
+          </p>
+        </Link>
+        <Link
+          href={ASK_QUESTION_HREF}
+          className="flex h-9 shrink-0 items-center rounded-lg bg-app-brand px-3.5 text-[14px] font-semibold text-white"
+        >
+          질문하기
+        </Link>
+      </div>
+    );
+  }
+  const { question } = props;
   const href = `${toPostPath(question.id, question.title)}#comment`;
   return (
     <div

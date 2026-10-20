@@ -4,6 +4,7 @@ import { withAuth } from "@libs/server/auth";
 import client from "@libs/server/client";
 import { withPostImages } from "@libs/postImages";
 import { Post, User } from "@prisma/client";
+import { NOTICE_BAND_WINDOW_MS } from "@libs/shared/noticeBand";
 
 export interface NoticePost extends Post {
   user: Pick<User, "id" | "name" | "avatar">;
@@ -35,9 +36,12 @@ const handler = async (
       ? Math.min(parsedTake, 50)
       : 10;
 
+  // 홈 공지 띠(?band=1): 14일 안에 올린 공지만(libs/shared/noticeBand.ts). 오래된 베타 공지가 첫 줄에 남지 않게.
+  const band = req.query.band === "1";
   const where = {
     isHidden: false,
     OR: [{ category: "공지" }, { title: { startsWith: "[공지]" } }],
+    ...(band ? { createdAt: { gte: new Date(Date.now() - NOTICE_BAND_WINDOW_MS) } } : {}),
   };
 
   const [posts, totalNoticeCount] = await Promise.all([

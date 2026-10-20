@@ -18,6 +18,10 @@ import { BLOCKED_WORD_MESSAGE, hasBlockedWord } from "@libs/shared/contentFilter
 
 /** 같은 사람이 이 간격 안에 다시 쓰면 막는다(라이브 댓글 도배 방지, 앱 docs/prd/live-talk.md §4.4). */
 const COMMENT_RATE_MS = 3000;
+/** 글쓴이(답글이면 원댓글 작성자)가 차단한 사람의 댓글은 막는다. 차단 사실은 드러내지 않는다. */
+const COMMENT_NOT_ALLOWED_MESSAGE = "이 게시글에는 댓글을 남길 수 없습니다.";
+const blockedByOwner = async (ownerId: number, commenterId?: number) =>
+  !!commenterId && ownerId !== commenterId && (await getBlockRelation(ownerId, commenterId)).blockedByMe;
 
 async function handler(
   req: NextApiRequest,
@@ -47,6 +51,9 @@ async function handler(
       success: false,
       error: "운영 정책에 따라 비공개된 게시글입니다.",
     });
+  }
+  if (await blockedByOwner(post.userId, user?.id)) {
+    return sendCommentError(res, 403, "COMMENT_NOT_ALLOWED", COMMENT_NOT_ALLOWED_MESSAGE);
   }
 
   const validation = validateCommentBody(body?.comment);
@@ -109,6 +116,9 @@ async function handler(
       root?.isHidden && root.userId !== user?.id && !isModeratorUser(user);
     if (!root || root.postId !== postId || hiddenFromViewer) {
       return sendCommentError(res, 404, "COMMENT_PARENT_NOT_FOUND", "답글을 남길 댓글을 찾을 수 없습니다.");
+    }
+    if (await blockedByOwner(root.userId, user?.id)) {
+      return sendCommentError(res, 403, "COMMENT_NOT_ALLOWED", COMMENT_NOT_ALLOWED_MESSAGE);
     }
     // 답글의 답글은 그 답글 작성자에게 알린다(입력창 대상 표시와 같은 사람). 지운 댓글 작성자에겐 알리지 않는다.
     const replyTo = target ?? root;

@@ -2,6 +2,7 @@ import { NextApiRequest, NextApiResponse } from "next";
 import withHandler from "@libs/server/withHandler";
 import { withAuth } from "@libs/server/auth";
 import client from "@libs/server/client";
+import { visibleNotificationWhere } from "@libs/server/notificationGate";
 
 interface UnreadNotificationCountResponse {
   success: boolean;
@@ -25,15 +26,12 @@ async function handler(
       });
     }
 
+    // 내가 차단한 사람이 보낸 알림은 세지 않는다(목록 GET /api/notifications 와 같은 조건).
+    const unreadWhere = { ...(await visibleNotificationWhere(userId)), isRead: false };
     const [unreadCount, latest] = await Promise.all([
-      client.notification.count({
-        where: {
-          userId,
-          isRead: false,
-        },
-      }),
+      client.notification.count({ where: unreadWhere }),
       client.notification.findFirst({
-        where: { userId, isRead: false },
+        where: unreadWhere,
         orderBy: { createdAt: "desc" },
         select: { createdAt: true },
       }),

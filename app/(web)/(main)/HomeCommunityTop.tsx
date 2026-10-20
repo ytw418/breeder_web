@@ -18,6 +18,9 @@ import RealtimeHotRail, {
   type RealtimeHotItem,
 } from "@components/features/post/RealtimeHotRail";
 import AwaitingAnswerCard from "@components/features/post/AwaitingAnswerCard";
+import { noticeBandTitle, pickBandNotice } from "@libs/shared/noticeBand";
+import { markNoticeBandSeen, useNoticeBandSeen } from "@libs/client/noticeBandSeen";
+import { useSeenMarks } from "@libs/client/unreadMarks";
 import type { HotRealtimeMeta, UnansweredSummary } from "@libs/shared/communityVibe";
 import type { HomeDebateResult } from "@libs/shared/liveTalk";
 import HomeDebateCard from "@components/features/debate/HomeDebateCard";
@@ -31,7 +34,6 @@ type UnansweredResponse = { success?: boolean; posts?: PostsListResponse["posts"
 /** HOT 토론은 상위 3개만 보여 준다(앱 d8f0211). */
 const HOT_DISCUSSION_COUNT = 3;
 const HOT_FETCH_COUNT = 8;
-const NOTICE_FALLBACK_TITLE = "게시글 작성 전 커뮤니티 운영 가이드를 확인해 주세요.";
 
 /**
  * 홈 위쪽 커뮤니티(docs/prd/home-ia.md S-1 2·3·4번, 2026-10-15 홈 구성 A안 — 앱 (tabs)/index.tsx·HomeRealtimeSection 과 같다).
@@ -42,7 +44,10 @@ export default function HomeCommunityTop() {
   const { blockedIds } = useBlocks();
   // 관심 카테고리 고정 범위(앱 category-pin). 실시간 토론도 같은 범위를 쓴다.
   const scope = useCategoryScope();
-  const { data: noticeData } = useSWR<NoticePostsResponse>("/api/posts/notices");
+  // 공지 띠: 14일 안 공지만(band=1). 띠에서 열었거나 상세를 연 공지는 숨긴다(libs/shared/noticeBand).
+  const { data: noticeData } = useSWR<NoticePostsResponse>("/api/posts/notices?band=1");
+  const bandSeen = useNoticeBandSeen();
+  const seenMarks = useSeenMarks();
   // 실시간 TOP 토론: 최근 24시간 활동 점수순(서버 hot=realtime). 구 서버면 home/feed 의 HOT 토론으로 대신한다.
   const {
     data: realtimeData,
@@ -67,10 +72,11 @@ export default function HomeCommunityTop() {
   );
   const homeDebate =
     homeDebateData?.post && !blockedIds.has(homeDebateData.post.userId) ? homeDebateData.post : null;
-  // 답 기다려요: 가장 오래 답 없는 질문 1개.
-  const { data: unansweredData } = useSWR<UnansweredResponse>("/api/posts?unanswered=1&limit=1", {
-    revalidateOnFocus: false,
-  });
+  // 답 기다려요: 가장 오래 답 없는 질문 1개 + 개수(관심 카테고리 범위). 없으면 '물어보기' 카드.
+  const { data: unansweredData } = useSWR<UnansweredResponse>(
+    withCategoryPath("/api/posts?unanswered=1&limit=1", scope.categoryPath),
+    { revalidateOnFocus: false }
+  );
 
   // 공개 캐시 응답(HOT 토론)은 서버가 차단을 거르지 않아 여기서 거른다.
   const hotItems = useMemo<RealtimeHotItem[] | undefined>(() => {
@@ -108,26 +114,50 @@ export default function HomeCommunityTop() {
     [unansweredData, blockedIds]
   );
 
-  const noticePost = noticeData?.posts?.[0] ?? null;
-  const noticeHref = noticePost ? toPostPath(noticePost.id, noticePost.title) : "/posts/notices";
-  const noticeTitle = noticePost?.title ?? NOTICE_FALLBACK_TITLE;
+  const unansweredCount = unansweredData?.unansweredCount;
+  // 답 없는 질문이 0개면 같은 자리에 '물어보기' 카드. 종 이름은 고정한 대분류가 하나일 때만(앱과 같다).
+  const showAskCard = !awaitingQuestion && unansweredCount === 0;
+  const askSpecies =
+    scope.pins.length === 1
+      ? scope.pins[0].label.split(" > ").pop() ?? null
+      : scope.topLevelNames?.size === 1
+        ? Array.from(scope.topLevelNames)[0]
+        : null;
+
+  // 복원 전(서버 렌더·첫 렌더)엔 띠를 그리지 않는다. 읽은 공지는 숨기고, 없으면 띠를 두지 않는다.
+  const noticePost = useMemo(() => {
+    if (!noticeData?.posts || !bandSeen.hydrated || !seenMarks.hydrated) return null;
+    return pickBandNotice(
+      noticeData.posts,
+      {
+        seenUpToId: bandSeen.seenUpToId,
+        isSeen: (id) => Object.prototype.hasOwnProperty.call(seenMarks.seen.post, String(id)),
+      },
+      seenMarks.now
+    );
+  }, [noticeData, bandSeen, seenMarks]);
 
   return (
     <>
-      {/* 공지 한 줄(높이 40) */}
-      <div className="px-4 pt-1">
-        <Link
-          href={noticeHref}
-          aria-label="공지 보기"
-          className="flex h-10 items-center gap-2 rounded-lg bg-app-gap px-3"
-        >
-          <span className="shrink-0 text-[12px] font-bold text-app-text">공지</span>
-          <span className="min-w-0 flex-1 truncate text-[13px] text-app-sub">{noticeTitle}</span>
-          <svg className="h-3.5 w-3.5 shrink-0 text-app-caption" fill="none" stroke="currentColor" strokeWidth={1.8} viewBox="0 0 24 24" aria-hidden="true">
-            <path d="m9 6 6 6-6 6" />
-          </svg>
-        </Link>
-      </div>
+      {/* 공지 한 줄(높이 40): 14일 안 안 읽은 공지가 있을 때만 */}
+      {noticePost ? (
+        <div className="px-4 pt-1">
+          <Link
+            href={toPostPath(noticePost.id, noticePost.title)}
+            onClick={() => markNoticeBandSeen(noticePost.id)}
+            aria-label="공지 보기"
+            className="flex h-10 items-center gap-2 rounded-lg bg-app-gap px-3"
+          >
+            <span className="shrink-0 text-[12px] font-bold text-app-text">공지</span>
+            <span className="min-w-0 flex-1 truncate text-[13px] text-app-sub">
+              {noticeBandTitle(noticePost.title, noticePost.createdAt)}
+            </span>
+            <svg className="h-3.5 w-3.5 shrink-0 text-app-caption" fill="none" stroke="currentColor" strokeWidth={1.8} viewBox="0 0 24 24" aria-hidden="true">
+              <path d="m9 6 6 6-6 6" />
+            </svg>
+          </Link>
+        </div>
+      ) : null}
 
       {/* 실시간 TOP 토론 + 답 기다려요 */}
       <section className="pb-2 pt-5" data-home-section="realtime_discussion">
@@ -190,7 +220,19 @@ export default function HomeCommunityTop() {
               </Link>
             </div>
           )}
-          {awaitingQuestion ? <AwaitingAnswerCard question={awaitingQuestion} className="mx-4 mt-4" /> : null}
+          {awaitingQuestion ? (
+            <>
+              <AwaitingAnswerCard question={awaitingQuestion} className="mx-4 mt-4" />
+              {/* 답 기다리는 질문 모아 보기(오른쪽 정렬 13 muted) */}
+              <div className="mt-2 flex justify-end px-4">
+                <Link href="/posts/unanswered" className="text-[13px] leading-[18px] text-app-muted tabular-nums">
+                  답 기다리는 질문 {unansweredCount ?? 1}개 ›
+                </Link>
+              </div>
+            </>
+          ) : showAskCard ? (
+            <AwaitingAnswerCard variant="empty" speciesName={askSpecies} className="mx-4 mt-4" />
+          ) : null}
         </div>
       </section>
     </>

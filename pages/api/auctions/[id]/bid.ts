@@ -15,6 +15,7 @@ import { settleExpiredAuctions } from "@libs/server/auctionSettlement";
 import { extractAuctionIdFromPath } from "@libs/auction-route";
 import { incrementUserMissionProgress } from "@libs/server/growth";
 import { AUCTION_RESTART_COPY } from "@libs/shared/auctionRestart";
+import { getBlockRelation } from "@libs/server/blocks";
 
 /** 입찰 응답 타입 */
 export interface BidResponse {
@@ -100,6 +101,16 @@ async function handler(
         success: false,
         error: "본인 경매에는 입찰할 수 없습니다.",
         errorCode: "BID_SELF_NOT_ALLOWED",
+      });
+    }
+
+    // 분양자와 어느 쪽이든 차단 관계면 입찰을 막는다(낙찰되면 연락처가 공개된다). 차단 사실은 드러내지 않는다.
+    const blockRelation = await getBlockRelation(auction.userId, user.id);
+    if (blockRelation.blockedByMe || blockRelation.blockedMe) {
+      return res.status(403).json({
+        success: false,
+        error: "이 경매에는 입찰할 수 없습니다.",
+        errorCode: "BID_NOT_ALLOWED",
       });
     }
 

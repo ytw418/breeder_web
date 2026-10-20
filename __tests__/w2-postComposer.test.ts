@@ -137,10 +137,20 @@ describe("사진·글 블록 본문(앱에서 쓴 글) 호환", () => {
     ).toEqual({});
   });
 
-  it("사진만 있는 본문은 '완료'를 켜지 않는다", () => {
+  it("사진만 있는 본문도 '완료'를 켜고 검사를 통과한다(사진 0장이면 글자가 있어야 한다)", () => {
+    expect(validatePostForm(values({ description: "[[photo:1]]" }), 1)).toEqual({});
     expect(
       canSubmitPost({
         values: values({ description: "[[photo:1]]" }),
+        photoCount: 1,
+        submitting: false,
+        isEdit: false,
+        changed: true,
+      })
+    ).toBe(true);
+    expect(
+      canSubmitPost({
+        values: values({ description: "" }),
         submitting: false,
         isEdit: false,
         changed: true,
