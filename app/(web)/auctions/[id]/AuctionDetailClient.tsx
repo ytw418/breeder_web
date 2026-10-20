@@ -27,6 +27,7 @@ import { HeaderIconButton } from "@components/app/HeaderIconButton";
 import HiddenContentNotice from "@components/app/moderation/HiddenContentNotice";
 import { cn, getTimeAgoString, makeImageUrl } from "@libs/client/utils";
 import { toast } from "@libs/client/toast";
+import { promptPushAfter } from "@libs/client/pushPrompt";
 import { absoluteUrl, copyText, shareOrCopy } from "@libs/client/share";
 import { getAuctionResultMessage } from "@libs/client/auctionErrorMessage";
 import { ANALYTICS_EVENTS, trackEvent } from "@libs/client/analytics";
@@ -392,6 +393,8 @@ const AuctionDetailClient = ({
           if (result.extended) {
             toast.info(`마감 임박 입찰로 경매 시간이 ${extensionMinutes}분 연장되었습니다.`);
           }
+          // 이 브라우저에서 알림을 못 받으면 '더 높은 입찰이 오면 알려 드릴까요?'(7일에 한 번).
+          if (user?.id) void promptPushAfter("bid", user.id);
           void mutate();
           return;
         }

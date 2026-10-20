@@ -132,15 +132,34 @@ self.addEventListener("push", (event) => {
     console.error("Push payload parse failed:", error);
   }
 
-  event.waitUntil(
-    self.registration.showNotification(payload.title, {
+  // 같은 경로를 보고 있는(포커스·보이는) 탭이 있으면 표시하지 않는다(그 화면이 스스로 새로 받는다).
+  // 그 밖에는 같은 tag 로 덮어써도 다시 울리게 renotify 를 켠다(앱 docs/prd/notifications.md §7).
+  const pathOf = (url) => {
+    try {
+      return new URL(url, self.location.origin).pathname;
+    } catch {
+      return "";
+    }
+  };
+  event.waitUntil((async () => {
+    const targetPath = pathOf(payload.url);
+    const windows = await self.clients.matchAll({ type: "window", includeUncontrolled: true });
+    // 대상이 없는 알림(url "/")은 홈을 보고 있어도 표시한다.
+    const viewing =
+      targetPath !== "/" &&
+      windows.some(
+        (client) => client.focused && client.visibilityState === "visible" && pathOf(client.url) === targetPath
+      );
+    if (viewing) return;
+    await self.registration.showNotification(payload.title, {
       body: payload.body,
       icon: "/images/pwa/icon-192.png",
       badge: "/images/pwa/icon-192.png",
       tag: payload.tag,
+      renotify: true,
       data: { url: payload.url },
-    })
-  );
+    });
+  })());
 });
 
 self.addEventListener("notificationclick", (event) => {
