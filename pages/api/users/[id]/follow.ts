@@ -73,7 +73,7 @@ async function handler(
         throw error;
       }
 
-      // 팔로우 알림 생성
+      // 팔로우 알림 생성. 팔로우를 껐다 켜도 알림·푸시는 처음 한 번만 보낸다(dedupe, 2026-10-21 감사 #15).
       const senderUser = await client.user.findUnique({
         where: { id: myId },
         select: { name: true },
@@ -87,6 +87,7 @@ async function handler(
           message: `${senderUser.name}님이 회원님을 팔로우했습니다.`,
           targetId: myId,
           targetType: "user",
+          dedupe: true,
         });
       }
 
