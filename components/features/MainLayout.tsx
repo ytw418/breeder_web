@@ -177,6 +177,16 @@ export function TabBarIcon({ name, active }: { name: TabIconName; active: boolea
   }
 }
 
+/**
+ * 지금 경로. ISR 로 미리 만든 홈('/')은 서버 렌더에서 usePathname() 이 '/index' 를 준다(RSC c:["","index"]).
+ * 클라이언트는 '/' 라 홈 로고 옆 '브리디' 글자·홈 탭 표시가 서버와 갈려 첫 방문마다 React #418 이 났다
+ * (2026-10-21 감사 #5, 운영 홈 260여 건). 둘을 같은 값으로 맞춘다.
+ */
+function useAppPathname(): string | null {
+  const pathname = usePathname();
+  return pathname === "/index" ? "/" : pathname;
+}
+
 const BOTTOM_NAV_ITEMS: {
   label: string;
   href: string;
@@ -347,7 +357,7 @@ function SideMenu({
   onInstall: () => void;
 }) {
   const router = useRouter();
-  const pathname = usePathname();
+  const pathname = useAppPathname();
   const { user } = useUser();
   const logout = useLogout();
   const [logoutConfirmOpen, setLogoutConfirmOpen] = useState(false);
@@ -631,7 +641,7 @@ export default function MainLayout({
   headerVariant = "default",
 }: LayoutProps) {
   const router = useRouter();
-  const pathname = usePathname();
+  const pathname = useAppPathname();
   const isToolPath = pathname?.startsWith("/tool");
   const [menuOpen, setMenuOpen] = useState(false);
   const [deferredInstallPrompt, setDeferredInstallPrompt] =
