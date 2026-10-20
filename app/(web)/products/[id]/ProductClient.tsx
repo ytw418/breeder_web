@@ -1,5 +1,6 @@
 "use client";
 
+import { publishedGuideHref } from "@/data/guides/manifest";
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
@@ -486,6 +487,8 @@ const ProductClient = ({
       <></>
     );
 
+  // 공개된 사육 가이드가 있는 종이면 가이드로 잇는다(앱 docs/prd/species-guide.md F-8).
+  const guideHref = publishedGuideHref(product.category);
   const metaText = [product.category || null, product.productType || null, formatMonthDay(product.createdAt) || null]
     .filter(Boolean)
     .join(" · ");
@@ -581,6 +584,11 @@ const ProductClient = ({
             <div className="px-4 pt-4">
               <h1 className="break-keep text-[18px] font-bold text-app-text">{product.name}</h1>
               {metaText ? <p className="mt-1.5 text-[13px] text-app-muted">{metaText}</p> : null}
+              {guideHref ? (
+                <Link href={guideHref} className="mt-1 inline-flex text-[13px] font-semibold text-app-text">
+                  {product.category} 사육 가이드 ›
+                </Link>
+              ) : null}
 
               <div className="mt-2.5 flex items-center gap-2">
                 <p className="text-[20px] font-bold text-app-text">{formatProductPrice(product.price)}</p>

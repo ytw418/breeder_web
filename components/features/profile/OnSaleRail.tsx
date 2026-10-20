@@ -30,7 +30,7 @@ function Pill({ tone, children }: { tone: "brand" | "dark"; children: string }) 
   );
 }
 
-function OnSaleCard({ item }: { item: OnSaleItem }) {
+export function OnSaleCard({ item }: { item: OnSaleItem }) {
   const isAuction = item.kind === "auction";
   const href = isAuction ? `/auctions/${item.id}` : `/products/${item.id}`;
   const title = isAuction ? item.title : item.name;

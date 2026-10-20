@@ -1,0 +1,672 @@
+{
+  "slug": "크레스티드-게코",
+  "species": "크레스티드 게코",
+  "group": "파충류",
+  "status": "published",
+  "title": "크레스티드 게코 키우기",
+  "nickname": "크레",
+  "intro": "뉴칼레도니아 숲에 사는 야행성 도마뱀붙이예요. 눈 위 돌기가 속눈썹 같아서 법정 이름은 '속눈썹도마뱀부치'입니다. 완전 사료(슈퍼푸드)로 키울 수 있고 순해서, 국내에서 가장 많이 거래되는 파충류예요.",
+  "highlight": {
+    "label": "국내 거래",
+    "value": "신고제 시행 뒤 국내 양도 신고의 74.6%",
+    "sub": "27,915건, 보도 기준",
+    "sources": [
+      "hankook"
+    ],
+    "hedge": true
+  },
+  "updatedAt": "2026-10-20",
+  "overview": [
+    {
+      "label": "수명",
+      "value": "15~20년",
+      "sources": [
+        "reptifiles",
+        "dubia"
+      ]
+    },
+    {
+      "label": "다 큰 크기",
+      "value": "꼬리까지 15~23cm",
+      "sub": "몸무게는 35~45g 안팎, 큰 개체는 50g을 넘기도 해요",
+      "sources": [
+        "reptifiles",
+        "dubia"
+      ]
+    },
+    {
+      "label": "활동",
+      "value": "밤·새벽",
+      "sub": "낮에는 잎 뒤에 붙어서 자요",
+      "sources": [
+        "reptifiles"
+      ]
+    },
+    {
+      "label": "성격",
+      "value": "순한 편, 갑자기 뛰어요",
+      "sub": "손에 올리는 건 짧게",
+      "sources": [
+        "reptifiles"
+      ]
+    },
+    {
+      "label": "온도",
+      "value": "21~26°C",
+      "sub": "28°C를 넘으면 지치기 시작해요",
+      "sources": [
+        "pangea",
+        "reptifiles"
+      ]
+    },
+    {
+      "label": "습도",
+      "value": "60~80%",
+      "sub": "분무 사이엔 한 번 마르게",
+      "sources": [
+        "reptifiles",
+        "dubia",
+        "pangea"
+      ]
+    },
+    {
+      "label": "먹이",
+      "value": "슈퍼푸드 + 곤충 가끔",
+      "sources": [
+        "reptifiles",
+        "dubia"
+      ]
+    },
+    {
+      "label": "난이도",
+      "value": "입문",
+      "sub": "여름 더위가 가장 큰 고비",
+      "sources": [
+        "pangea"
+      ]
+    },
+    {
+      "label": "신고",
+      "value": "키우면 보관 신고",
+      "sub": "분양·입양할 땐 양도·양수 신고",
+      "sources": [
+        "goyang",
+        "dailyt"
+      ]
+    }
+  ],
+  "fit": {
+    "good": [
+      "만지기보다 보는 걸 좋아하는 분",
+      "살아 있는 곤충을 매일 주기 부담스러운 분",
+      "방이 좁은 분(세로형 사육장 한 칸이면 돼요)"
+    ],
+    "rethink": [
+      "여름에 에어컨을 틀 수 없는 방",
+      "15년 넘게 돌보기 어려운 분",
+      "손에 올려 오래 놀고 싶은 분"
+    ]
+  },
+  "supplies": [
+    {
+      "name": "세로형 사육장",
+      "tip": "어릴 땐 30cm 정육면체, 12g 넘으면 45×45×60cm 이상"
+    },
+    {
+      "name": "디지털 온습도계",
+      "tip": "바늘·리본형은 오차가 커요. 탐침형으로"
+    },
+    {
+      "name": "분무기",
+      "tip": "자동 미스팅기는 선택"
+    },
+    {
+      "name": "가지·덩굴과 잎",
+      "tip": "가로·세로로 섞어서, 숨을 곳 여러 개"
+    },
+    {
+      "name": "바닥재",
+      "tip": "어릴 땐 키친타월, 크면 코코피트·흙"
+    },
+    {
+      "name": "벽에 붙이는 먹이 선반과 작은 컵 두 개",
+      "tip": "사료용, 물용"
+    },
+    {
+      "name": "완전 사료(슈퍼푸드)"
+    },
+    {
+      "name": "칼슘 파우더",
+      "tip": "UVB 등을 안 쓰면 D3가 들어간 것"
+    },
+    {
+      "name": "겨울 보온 기구와 온도조절기",
+      "tip": "보온등이나 필름 히터"
+    },
+    {
+      "name": "여름에 에어컨이 되는 방"
+    }
+  ],
+  "housing": {
+    "intro": "나무 위에서 사는 종이라 높이가 중요해요. 너무 좁으면 뛰어다니다 부딪히니 바닥 넓이도 어느 정도 필요해요.",
+    "sizeTable": {
+      "columns": [
+        "몸무게",
+        "크기(가로×세로×높이)"
+      ],
+      "rows": [
+        {
+          "cells": [
+            "12g 미만",
+            "30×30×30cm"
+          ],
+          "sub": "좁아야 먹이를 잘 찾는다는 사람이 많아요",
+          "sources": [
+            "reptifiles"
+          ],
+          "hedge": true
+        },
+        {
+          "cells": [
+            "12g 이상",
+            "최소 45×45×60cm"
+          ],
+          "sub": "여유 있으면 45×45×90cm 이상",
+          "sources": [
+            "yvc",
+            "dubia",
+            "reptifiles"
+          ]
+        }
+      ]
+    },
+    "cohab": [
+      "수컷끼리는 싸워서 크게 다쳐요. 같이 두지 마세요",
+      "암수는 번식할 때만 같이 둬요. 두면 알을 낳아요",
+      "암컷끼리도 꼬리를 물거나 한쪽이 못 먹을 수 있어서 한 마리씩이 기본이에요"
+    ],
+    "substrate": "어릴 땐 키친타월이 똥 확인도 쉽고 깔끔해요. 다 크면 코코피트나 흙을 깔고 식물을 심기도 해요. 모래는 먹이와 같이 삼킬 수 있어서 피하는 사람이 많아요."
+  },
+  "climate": {
+    "rows": [
+      {
+        "label": "낮 아래쪽",
+        "value": "21~24°C",
+        "sources": [
+          "reptifiles",
+          "dubia"
+        ]
+      },
+      {
+        "label": "낮 위쪽",
+        "value": "27~29°C",
+        "sub": "보온등 아래 한 곳만. 나머지는 서늘하게",
+        "sources": [
+          "reptifiles",
+          "dubia"
+        ]
+      },
+      {
+        "label": "밤",
+        "value": "18~22°C",
+        "sources": [
+          "reptifiles",
+          "dubia",
+          "pangea"
+        ]
+      },
+      {
+        "label": "위험",
+        "value": "사육장 전체가 28°C를 넘을 때",
+        "sub": "22°C 아래가 계속돼도 잘 안 먹고 처져요",
+        "sources": [
+          "pangea",
+          "reptifiles"
+        ]
+      },
+      {
+        "label": "습도",
+        "value": "60~80%",
+        "sub": "저녁에 흠뻑 분무, 다음 분무 전엔 50% 안팎까지 마르게",
+        "sources": [
+          "reptifiles",
+          "pangea"
+        ]
+      }
+    ],
+    "note": "계속 젖어 있으면 곰팡이가 피기 쉬워요. 젖었다 마르기를 하루에 한 번 반복하는 게 좋아요.",
+    "seasons": [
+      {
+        "season": "여름",
+        "text": "방이 28°C를 넘으면 에어컨이 꼭 필요해요. 보온등은 끄고, 장마철엔 곰팡이가 잘 피니 환기를 자주 해요."
+      },
+      {
+        "season": "겨울",
+        "text": "밤에 18°C 아래로 내려가면 필름 히터나 보온등을 온도조절기에 물려요. 난방으로 건조해지니 분무를 늘려요."
+      },
+      {
+        "season": "봄·가을",
+        "text": "낮밤 차이가 커요. 밤 최저 온도를 꼭 확인해요."
+      }
+    ]
+  },
+  "feeding": {
+    "schedule": {
+      "columns": [
+        "나이",
+        "슈퍼푸드",
+        "곤충"
+      ],
+      "rows": [
+        {
+          "cells": [
+            "12개월 미만",
+            "매일",
+            "주 1~2회"
+          ],
+          "sources": [
+            "reptifiles",
+            "dubia"
+          ]
+        },
+        {
+          "cells": [
+            "12개월 이상",
+            "2~3일에 한 번",
+            "주 0~1회"
+          ],
+          "sources": [
+            "reptifiles",
+            "dubia"
+          ]
+        }
+      ]
+    },
+    "rules": [
+      "슈퍼푸드는 물에 케첩 정도로 개서 벽 선반 컵에 줘요. 하루가 지나면 치우고 새로 줘요",
+      "곤충은 두 눈 사이 폭보다 작은 걸로. 귀뚜라미·듀비아·실크웜을 많이 써요",
+      "밀웜·슈퍼웜은 소화가 어려워 피해요",
+      "곤충엔 칼슘을 묻혀요. UVB 등을 안 쓰면 D3가 든 칼슘으로",
+      "곤충은 주기 하루 전부터 채소·사료를 먹여 두면(거트로딩) 영양이 좋아져요",
+      "물은 작은 그릇에 따로 두고, 분무한 물방울도 핥아 먹어요"
+    ]
+  },
+  "routine": [
+    {
+      "period": "매일",
+      "items": [
+        {
+          "text": "저녁 분무"
+        },
+        {
+          "text": "온습도계 확인"
+        },
+        {
+          "text": "물 갈기, 어린 개체는 슈퍼푸드 갈기"
+        }
+      ]
+    },
+    {
+      "period": "2~3일마다",
+      "items": [
+        {
+          "text": "다 큰 개체 슈퍼푸드 주기"
+        }
+      ]
+    },
+    {
+      "period": "매주",
+      "items": [
+        {
+          "text": "똥·남은 먹이 치우기"
+        },
+        {
+          "text": "유리 닦기"
+        }
+      ]
+    },
+    {
+      "period": "매달",
+      "items": [
+        {
+          "text": "몸무게 재고 기록하기",
+          "sub": "브리디 혈통 카드에 남기면 성장 기록이 쌓여요"
+        }
+      ]
+    },
+    {
+      "period": "계절이 바뀔 때",
+      "items": [
+        {
+          "text": "히터·온도조절기·에어컨 점검"
+        }
+      ]
+    }
+  ],
+  "symptoms": [
+    {
+      "symptom": "축 늘어지고 입을 벌린 채 숨 쉬어요",
+      "causes": "더위(열 스트레스)",
+      "homeCare": "바로 서늘한 곳으로 옮기고, 금방 나아지지 않으면 병원으로 가요.",
+      "vet": true
+    },
+    {
+      "symptom": "턱이 물렁하거나 꼬리·척추가 휘어요. 잘 못 올라가고 떨어요",
+      "causes": "칼슘·D3 부족(대사성 골질환)",
+      "homeCare": "칼슘 급여와 UVB를 점검하고 병원에 가요. 심하면 병원에서 칼슘을 주사하거나 먹여요.",
+      "vet": true
+    },
+    {
+      "symptom": "입천장 양쪽 흰 칼슘 주머니가 작거나 안 보여요",
+      "causes": "칼슘 부족, 알을 낳은 암컷",
+      "homeCare": "칼슘을 늘리고 산란 중이면 수컷과 떼어 쉬게 해요.",
+      "vet": false
+    },
+    {
+      "symptom": "거꾸로 매달려 자다가 꼬리가 등 쪽으로 꺾였어요",
+      "causes": "플로피 테일",
+      "homeCare": "가로 가지와 잎을 늘려 바로 누워 쉴 자리를 만들어요. 칼슘 부족도 같이 확인해요.",
+      "vet": false
+    },
+    {
+      "symptom": "발가락·꼬리 끝에 허물이 남았어요",
+      "causes": "습도 부족",
+      "homeCare": "습도를 올리고, 미지근한 물을 적신 키친타월 통에 잠깐 넣어 불려요. 발가락을 조이고 있으면 병원으로.",
+      "vet": false
+    },
+    {
+      "symptom": "1~2주 넘게 안 먹고 살이 빠져요",
+      "causes": "온도, 스트레스, 산란",
+      "homeCare": "온도부터 확인하고 몸무게를 재요. 계속 줄면 병원으로.",
+      "vet": true
+    },
+    {
+      "symptom": "꼬리가 떨어졌어요",
+      "causes": "놀라거나 잡혔을 때",
+      "homeCare": "다시 자라지 않아요. 아물 때까지 바닥을 키친타월로 바꾸고, 붓거나 고름이 나면 병원으로.",
+      "vet": false
+    }
+  ],
+  "breeding": {
+    "rows": [
+      {
+        "label": "암수 구분",
+        "value": "수컷은 꼬리 밑이 볼록해져요",
+        "sub": "어릴 땐 틀리기 쉬워 '미구분'으로 분양하는 경우가 많아요",
+        "sources": [
+          "reptmag"
+        ]
+      },
+      {
+        "label": "번식 나이",
+        "value": "암컷 1년 반, 35~40g 이상",
+        "sub": "여유 있게 40~45g 넘어서 하는 사람이 많아요",
+        "sources": [
+          "reptmag",
+          "mmforum"
+        ]
+      },
+      {
+        "label": "산란",
+        "value": "한 번에 알 2개, 30~45일 간격",
+        "sources": [
+          "reptmag",
+          "neherp"
+        ]
+      },
+      {
+        "label": "부화",
+        "value": "22~26°C 실온에서 60~70일",
+        "sub": "서늘하면 90~120일까지 걸려요",
+        "sources": [
+          "reptmag",
+          "kingsnake"
+        ]
+      },
+      {
+        "label": "쉬는 기간",
+        "value": "겨울에 몇 달 수컷과 떼어 둬요",
+        "sub": "암컷은 정자를 저장해서 떼어 놔도 한동안 알을 낳아요",
+        "sources": [
+          "mmforum",
+          "neherp"
+        ]
+      }
+    ],
+    "note": "알을 낳는 동안 암컷은 칼슘을 많이 써요. 입천장 칼슘 주머니를 자주 봐 주세요."
+  },
+  "morphs": {
+    "intro": "색과 무늬가 달라도 모두 같은 종이에요. 신고할 때도 전부 '속눈썹도마뱀부치'로 해요.",
+    "patterns": [
+      "노멀",
+      "플레임",
+      "할리퀸",
+      "익스트림 할리퀸",
+      "핀스트라이프",
+      "달마시안"
+    ],
+    "traits": [
+      {
+        "name": "릴리화이트",
+        "inheritance": "불완전 우성",
+        "note": "한쪽 부모만 릴리여도 새끼 절반이 릴리예요. 릴리끼리는 짝짓지 않아요(슈퍼는 거의 살지 못한다는 보고가 많아요)."
+      },
+      {
+        "name": "아잔틱",
+        "inheritance": "열성",
+        "note": "부모 둘 다에게 받아야 보여요. 하나만 받으면 '헷'이에요."
+      },
+      {
+        "name": "카푸치노",
+        "inheritance": "불완전 우성",
+        "note": "카푸치노끼리는 짝짓지 않는 게 보통이에요."
+      }
+    ]
+  },
+  "legal": {
+    "status": "백색목록",
+    "legalName": "속눈썹도마뱀부치",
+    "intro": "2025년 12월 14일부터 크레스티드 게코는 '지정관리 야생동물' 중 백색목록 종이에요. 한 마리만 키워도 신고 대상이에요.",
+    "rows": [
+      {
+        "label": "키울 때",
+        "value": "보관 신고",
+        "sub": "법 시행 전부터 키우던 분의 기한은 2026년 6월 13일이었다고 안내됐어요",
+        "sources": [
+          "goyang",
+          "dailyt"
+        ],
+        "hedge": true
+      },
+      {
+        "label": "분양할 때",
+        "value": "양도 신고",
+        "sub": "한 달 치를 다음 달 10일까지",
+        "sources": [
+          "goyang",
+          "dailyt"
+        ]
+      },
+      {
+        "label": "입양할 때",
+        "value": "양수 신고",
+        "sub": "한 달 치를 다음 달 10일까지",
+        "sources": [
+          "goyang",
+          "dailyt"
+        ]
+      },
+      {
+        "label": "죽었을 때",
+        "value": "폐사 신고",
+        "sub": "30일 안에",
+        "sources": [
+          "goyang",
+          "dailyt"
+        ]
+      },
+      {
+        "label": "새끼",
+        "value": "따로 신고 안 해도 돼요",
+        "sub": "보관 신고한 개체가 낳은 경우",
+        "sources": [
+          "goyang"
+        ]
+      },
+      {
+        "label": "안 하면",
+        "value": "과태료 1차 30만 원, 최대 100만 원",
+        "sub": "2026년 12월 계도기간이 끝나면 부과 예정",
+        "sources": [
+          "goyang",
+          "hankook"
+        ]
+      }
+    ],
+    "notes": [
+      "많이 분양하면 판매업 허가가 필요할 수 있어요. 파충류만 다루는 경우 50마리 이상 키우면서 1년에 100마리 이상 또는 한 달 평균 20마리 이상 판매하면 허가 대상이라는 보도가 있어요. 시·군·구청에 확인해 주세요.",
+      "2026년 1~8월 유기·구조된 백색목록 동물 132마리 중 78마리(59%)가 크레였어요. 데려오기 전에 15년을 함께할 수 있는지 먼저 생각해 주세요."
+    ],
+    "site": {
+      "label": "야생동물종합관리시스템에서 신고하기",
+      "url": "https://wims.mcee.go.kr"
+    },
+    "checkedAt": "2026-10-20"
+  },
+  "faq": [
+    {
+      "q": "슈퍼푸드만 먹여도 되나요?",
+      "a": "완전 사료라서 슈퍼푸드만으로도 키울 수 있어요. 어릴 땐 곤충을 주 1~2회 주면 잘 크고, 사냥하면서 운동도 돼요."
+    },
+    {
+      "q": "여름에 에어컨 없이 키울 수 있나요?",
+      "a": "방이 28°C를 넘는 날이 이어지면 어려워요. 크레는 더위에 약해서 한여름엔 에어컨이 되는 방에 두는 게 안전해요."
+    },
+    {
+      "q": "꼬리가 다시 나나요?",
+      "a": "아니요. 한 번 떨어지면 다시 자라지 않아요. 꼬리를 잡지 말고, 같이 키울 땐 서로 꼬리를 물지 않는지 봐 주세요."
+    },
+    {
+      "q": "암수는 언제 알 수 있어요?",
+      "a": "자라면서 수컷 꼬리 밑이 볼록해지면 알 수 있어요. 어릴 땐 틀리기 쉬워서 '미구분'으로 분양하는 경우가 많아요."
+    },
+    {
+      "q": "분양받으면 저도 신고해야 하나요?",
+      "a": "네. 입양한 사람은 양수 신고, 보낸 사람은 양도 신고를 해요. 한 달 치를 다음 달 10일까지 야생동물종합관리시스템에서 하면 돼요."
+    }
+  ],
+  "sources": [
+    {
+      "id": "reptifiles",
+      "name": "ReptiFiles 크레스티드 게코 사육 가이드",
+      "usedFor": "온도·습도, 사육장 크기·합사, 먹이, 크기·수명",
+      "url": "https://reptifiles.com/crested-gecko-care/",
+      "checkedAt": "2026-10-20"
+    },
+    {
+      "id": "dubia",
+      "name": "DubiaRoaches 크레스티드 게코 케어시트",
+      "usedFor": "온도·습도, 사육장 크기, 먹이 횟수, 수명",
+      "url": "https://dubiaroaches.com/blogs/gecko-care/crested-gecko-care-sheet",
+      "checkedAt": "2026-10-20"
+    },
+    {
+      "id": "pangea",
+      "name": "Pangea Reptile 크레스티드 게코 안내",
+      "usedFor": "온도, 더위 스트레스, 습도·건조",
+      "url": "https://www.pangeareptile.com/blogs/blog/crested-gecko-care",
+      "checkedAt": "2026-10-20"
+    },
+    {
+      "id": "yvc",
+      "name": "Yarmouth Veterinary Center 크레스티드 게코 안내",
+      "usedFor": "다 큰 1마리 최소 사육장",
+      "url": "https://yarmouthvetcenter.com/wp-content/uploads/2025/09/Reptile-Crested-Gecko.docx",
+      "checkedAt": "2026-10-20"
+    },
+    {
+      "id": "reptmag",
+      "name": "Reptiles Magazine, How To Breed Crested Geckos",
+      "usedFor": "번식 나이·몸무게, 산란 간격, 부화 기간",
+      "url": "https://reptilesmagazine.com/how-to-breed-crested-geckos/",
+      "checkedAt": "2026-10-20"
+    },
+    {
+      "id": "mmforum",
+      "name": "MorphMarket 커뮤니티",
+      "usedFor": "번식 몸무게, 정자 저장",
+      "url": "https://community.morphmarket.com/t/crested-gecko-breeding/18872",
+      "checkedAt": "2026-10-20"
+    },
+    {
+      "id": "neherp",
+      "name": "New England Herpetoculture 번식 안내",
+      "usedFor": "산란 간격, 쉬는 기간",
+      "url": "https://www.neherpetoculture.com/gargscrestiesbreedingcaresheet",
+      "checkedAt": "2026-10-20"
+    },
+    {
+      "id": "kingsnake",
+      "name": "KingSnake 포럼 부화 경험",
+      "usedFor": "실온 부화 기간",
+      "url": "https://forums.kingsnake.com/view.php?id=1756466",
+      "checkedAt": "2026-10-20"
+    },
+    {
+      "id": "morphpedia",
+      "name": "MorphMarket Morphpedia 릴리화이트",
+      "usedFor": "릴리화이트 유전",
+      "url": "https://morphmarket.com/morphpedia/crested-geckos/lilly-white",
+      "checkedAt": "2026-10-20"
+    },
+    {
+      "id": "morereptiles",
+      "name": "MoreReptiles 크레스티드 게코 모프",
+      "usedFor": "아잔틱·카푸치노 유전",
+      "url": "https://www.morereptiles.com/crested-gecko-morphs/",
+      "checkedAt": "2026-10-20"
+    },
+    {
+      "id": "reptifiles-mbd",
+      "name": "ReptiFiles 대사성 골질환",
+      "usedFor": "대사성 골질환 증상·치료",
+      "url": "https://www.reptifiles.com/crested-gecko-care/sick-crested-gecko/crested-gecko-metabolic-bone-disease/",
+      "checkedAt": "2026-10-20"
+    },
+    {
+      "id": "goyang",
+      "name": "고양특례시 보도자료(2026.1)",
+      "usedFor": "신고 종류·기한·과태료, 새끼 신고",
+      "url": "https://www.goyang.go.kr/news/user/bbs/BD_selectBbs.do?q_bbsCode=1090&q_bbscttSn=20260107150135310&q_clCode=-1&q_estnColumn1=All",
+      "checkedAt": "2026-10-20"
+    },
+    {
+      "id": "dailyt",
+      "name": "데일리환경(2025.11.17)",
+      "usedFor": "신고제 시행, 신고 종류",
+      "url": "https://www.dailyt.co.kr/newsView/dlt202511170019",
+      "checkedAt": "2026-10-20"
+    },
+    {
+      "id": "hankook",
+      "name": "한국일보(2026.10.8)",
+      "usedFor": "거래 신고·유기 통계, 계도기간",
+      "url": "https://www.hankookilbo.com/news/article/A2026100815230005074",
+      "checkedAt": "2026-10-20"
+    },
+    {
+      "id": "vegannews",
+      "name": "비건뉴스",
+      "usedFor": "판매업 허가 기준(보도)",
+      "url": "https://www.vegannews.co.kr/news/article.html?no=391057",
+      "checkedAt": "2026-10-20"
+    },
+    {
+      "id": "nibr",
+      "name": "국립생물자원관",
+      "usedFor": "법정 이름 '속눈썹도마뱀부치'",
+      "url": "https://x.com/nibr_bio/status/1995391579415290126",
+      "checkedAt": "2026-10-20"
+    }
+  ]
+}
