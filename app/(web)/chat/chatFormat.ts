@@ -212,22 +212,25 @@ export function buildChatItems<T extends ChatMessageLike>(
   return items;
 }
 
-/** 상대가 읽은 내 마지막 메시지 id(상대 lastReadAt 이전에 보낸 것 중 가장 최신). */
-export function findReadReceiptMessageId(
+/**
+ * 상대가 아직 안 읽은 내 메시지 id(카톡 '1'). 상대 lastReadAt 보다 뒤에 보낸 내 메시지이고,
+ * 상대가 한 번도 안 읽었으면(lastReadAt null) 내 메시지 전부다. 상대가 없으면(탈퇴) 표시하지 않는다.
+ */
+export function findUnreadByPartnerIds(
   messages: ChatMessageLike[],
-  partnerLastReadAt?: string | null,
+  partner: { lastReadAt?: string | null } | null | undefined,
   myId?: number | null
-): number | null {
-  if (!partnerLastReadAt || myId == null) return null;
-  const readAt = new Date(partnerLastReadAt).getTime();
-  if (Number.isNaN(readAt)) return null;
-  for (let index = messages.length - 1; index >= 0; index -= 1) {
-    const message = messages[index];
+): Set<number> {
+  const unread = new Set<number>();
+  if (!partner || myId == null) return unread;
+  const readAt = partner.lastReadAt ? new Date(partner.lastReadAt).getTime() : -Infinity;
+  if (Number.isNaN(readAt)) return unread;
+  for (const message of messages) {
     if (message.user.id !== myId) continue;
     const sentAt = new Date(message.createdAt).getTime();
-    if (!Number.isNaN(sentAt) && sentAt <= readAt) return message.id;
+    if (!Number.isNaN(sentAt) && sentAt > readAt) unread.add(message.id);
   }
-  return null;
+  return unread;
 }
 
 /** 탈퇴 상대: 응답 정규화 후의 "탈퇴한 사용자" 와 원본 "탈퇴한 사용자#<id>" 모두. */
