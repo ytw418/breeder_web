@@ -52,7 +52,7 @@ const organizationJsonLd = {
 export const viewport: Viewport = {
   width: "device-width",
   initialScale: 1,
-  maximumScale: 1,
+  // maximumScale 을 두지 않는다: 글자·사진을 두 손가락으로 키워 볼 수 있어야 한다(접근성, 2026-10-21 감사 #10).
   themeColor: [
     { media: "(prefers-color-scheme: light)", color: "#ffffff" },
     { media: "(prefers-color-scheme: dark)", color: "#020617" },
