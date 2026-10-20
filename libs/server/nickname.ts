@@ -1,5 +1,6 @@
 import client from "@libs/server/client";
 import { isAdminEmail } from "@libs/shared/adminEmail";
+import { isReservedUserName } from "@libs/shared/deletedUser";
 import {
   NICKNAME_TAKEN_MESSAGE,
   validateNickname,
@@ -47,8 +48,9 @@ export async function checkNickname(
 ): Promise<NicknameCheckResult> {
   const validation = validateNickname(raw, { allowReserved: isAdminEmail(viewerEmail) });
   if (!validation.ok) {
-    if (validation.code === "RESERVED") {
-      const name = String(raw).trim();
+    // 탈퇴 표시용 이름("탈퇴한 사용자…")은 누구의 지금 이름도 될 수 없어 DB 를 보지 않고 거절한다.
+    const name = String(raw).trim();
+    if (validation.code === "RESERVED" && !isReservedUserName(name)) {
       if ((await findNameOwnerId(name)) === selfId) return { available: true, name, isCurrent: true };
     }
     return { available: false, code: validation.code, reason: validation.reason };

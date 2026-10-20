@@ -2,7 +2,10 @@ import type { NextApiRequest, NextApiResponse } from "next";
 
 const mockClient = {
   // findMany: 운영자 이메일 계정(신고 접수 푸시 받는 사람)
-  user: { findUnique: jest.fn(), findMany: jest.fn(async () => []) },
+  user: {
+    findUnique: jest.fn(),
+    findMany: jest.fn(async (): Promise<Array<{ id: number; email: string | null }>> => []),
+  },
   post: { findUnique: jest.fn() },
   comment: { findUnique: jest.fn() },
   product: { findUnique: jest.fn() },
