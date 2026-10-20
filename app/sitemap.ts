@@ -3,6 +3,8 @@ import client from "@libs/server/client";
 import { getProductPath } from "@libs/product-route";
 import { toAuctionPath } from "@libs/auction-route";
 import { toPostPath } from "@libs/post-route";
+import { listPublishedGuides } from "@libs/server/guides";
+import { GUIDE_INDEX_HREF, guideHref } from "@libs/shared/guides";
 
 /** 빌드 때 한 번 만들고 끝나지 않도록 1시간마다 다시 만든다(그 전엔 배포 뒤 올라온 글이 빠졌다). */
 export const revalidate = 3600;
@@ -81,6 +83,17 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       priority: 0.55,
     },
   ];
+
+  // 종별 사육 가이드는 저장소 파일이라 DB 없이도 넣는다(앱 docs/prd/species-guide.md AC-6).
+  staticPages.push(
+    { url: `https://bredy.app${GUIDE_INDEX_HREF}`, lastModified: new Date(), changeFrequency: "weekly", priority: 0.7 },
+    ...listPublishedGuides().map((guide) => ({
+      url: `https://bredy.app${guideHref(guide.slug)}`,
+      lastModified: new Date(guide.updatedAt),
+      changeFrequency: "weekly" as const,
+      priority: 0.8,
+    }))
+  );
 
   if (!process.env.DATABASE_URL) {
     return staticPages;

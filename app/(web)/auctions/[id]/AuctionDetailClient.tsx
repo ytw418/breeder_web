@@ -1,5 +1,6 @@
 "use client";
 
+import { publishedGuideHref } from "@/data/guides/manifest";
 import { useEffect, useMemo, useState, type ReactNode } from "react";
 import useSWR from "swr";
 import { useMarkSeenOnView } from "@libs/client/unreadMarks";
@@ -677,7 +678,16 @@ const AuctionDetailClient = ({
           {auction.category || roundLabel ? (
             <div className="flex gap-1.5">
               {auction.category ? (
-                <span className="rounded-xl bg-app-surface px-2 py-1 text-[12px] text-app-muted">{auction.category}</span>
+                publishedGuideHref(auction.category) ? (
+                  <Link
+                    href={publishedGuideHref(auction.category) as string}
+                    className="rounded-xl bg-app-surface px-2 py-1 text-[12px] text-app-text"
+                  >
+                    {auction.category} 사육 가이드 ›
+                  </Link>
+                ) : (
+                  <span className="rounded-xl bg-app-surface px-2 py-1 text-[12px] text-app-muted">{auction.category}</span>
+                )
               ) : null}
               {roundLabel ? (
                 <span className="rounded-xl bg-app-surface px-2 py-1 text-[12px] text-app-muted">{roundLabel}</span>

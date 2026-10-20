@@ -58,7 +58,7 @@ const TOPIC_OPTIONS = POST_CATEGORIES.map((option) =>
 );
 
 type PostComposerProps =
-  | { mode: "create"; defaultCategory?: string }
+  | { mode: "create"; defaultCategory?: string; defaultSpecies?: string }
   | { mode: "edit"; initial: PostComposerInitial };
 
 interface FileUploadUrlResponse {
@@ -234,12 +234,14 @@ export function PostComposer(props: PostComposerProps) {
         ? defaultCategory
         : "")
   );
-  const [species, setSpecies] = useState(initial?.species ?? "");
+  // 사육 가이드의 '물어보기'(?species=크레스티드 게코)는 종을 미리 고른 채로 연다(앱 docs/prd/species-guide.md F-4).
+  const defaultSpecies = props.mode === "create" ? props.defaultSpecies?.trim() || undefined : undefined;
+  const [species, setSpecies] = useState(initial?.species ?? defaultSpecies ?? "");
   // 새 글은 관심 카테고리를 하나만 고정했으면 그 값을 미리 채운다(바꾸거나 비울 수 있다).
   // 계정·카테고리 목록이 늦게 오므로 받은 뒤 한 번만 채우고, 그 전에 직접 고르면 채우지 않는다.
   const pinnedCategoryIds = user?.pinnedCategoryIds;
   const { data: categoriesData } = useSWR<CategoriesResponse>(isEdit ? null : "/api/categories");
-  const speciesTouchedRef = useRef(isEdit);
+  const speciesTouchedRef = useRef(isEdit || Boolean(defaultSpecies));
   useEffect(() => {
     if (speciesTouchedRef.current || !user || !categoriesData) return;
     speciesTouchedRef.current = true;
