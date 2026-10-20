@@ -2,6 +2,8 @@ import type { NextApiRequest, NextApiResponse } from "next";
 
 const mockClient = {
   user: { findUnique: jest.fn() },
+  // 입찰 전 분양자와의 차단 관계 확인(getBlockRelation). 기본은 차단 없음.
+  userBlock: { findMany: jest.fn().mockResolvedValue([]) },
   auction: {
     count: jest.fn(),
     findMany: jest.fn(),

@@ -54,6 +54,21 @@ export async function getBlockRelation(
   };
 }
 
+/** otherIds 중 userId 와 어느 쪽이든 차단 관계인 사람의 id(한 번의 쿼리). */
+export async function getBlockRelatedIds(userId: number, otherIds: number[]): Promise<Set<number>> {
+  if (otherIds.length === 0) return new Set();
+  const rows = await client.userBlock.findMany({
+    where: {
+      OR: [
+        { blockerId: userId, blockedId: { in: otherIds } },
+        { blockedId: userId, blockerId: { in: otherIds } },
+      ],
+    },
+    select: { blockerId: true, blockedId: true },
+  });
+  return new Set(rows.map((row) => (row.blockerId === userId ? row.blockedId : row.blockerId)));
+}
+
 export type CanChatResult =
   | { ok: true }
   | {

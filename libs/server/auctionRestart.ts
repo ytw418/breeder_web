@@ -1,5 +1,6 @@
 import client from "@libs/server/client";
 import { createNotification } from "@libs/server/notification";
+import { getBlockRelatedIds } from "@libs/server/blocks";
 import { settleExpiredAuctions } from "@libs/server/auctionSettlement";
 import { AUCTION_MAX_ACTIVE_PER_USER, isAuctionDurationValid } from "@libs/auctionRules";
 import {
@@ -212,9 +213,16 @@ export async function restartAuction(input: {
       })
     );
   }
-  const bidderIds = Array.from(new Set(roundBids.map((bid) => bid.userId))).filter(
+  const roundBidderIds = Array.from(new Set(roundBids.map((bid) => bid.userId))).filter(
     (bidderId) => bidderId !== blockedWinnerId && bidderId !== auction.userId
   );
+  // AUCTION_RESTARTED 는 낙찰 취소 안내 때문에 차단과 관계없이 보내는 알림(notificationGate BLOCK_EXEMPT_NOTIFICATION_TYPES)이다.
+  // 분양자와 어느 쪽이든 차단 관계인 입찰자는 다시 입찰할 수 없으니(bid.ts BID_NOT_ALLOWED) 초대를 보내지 않는다.
+  const blockRelatedIds = await getBlockRelatedIds(auction.userId, roundBidderIds).catch((error) => {
+    console.error("[auctionRestart] block lookup failed:", error);
+    return new Set<number>();
+  });
+  const bidderIds = roundBidderIds.filter((bidderId) => !blockRelatedIds.has(bidderId));
   for (const bidderId of bidderIds) {
     notifyTasks.push(
       createNotification({

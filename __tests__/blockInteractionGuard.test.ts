@@ -3,7 +3,7 @@ import type { NextApiRequest, NextApiResponse } from "next";
 /**
  * #18 서버 차단 — 차단 이후의 상호작용.
  * - 차단하면 양방향 팔로우를 지우므로, 어느 쪽이 차단했든 새 팔로우도 막는다(문구는 방향과 무관).
- * - 게시글 작성자가 차단한 사람의 댓글은 작성자에게 알림·푸시를 보내지 않는다.
+ * - 게시글 작성자가 차단한 사람은 그 글에 댓글을 달 수 없다(403, 차단 사실은 드러내지 않는 문구).
  */
 
 const mockClient = {
@@ -162,15 +162,18 @@ describe("POST /api/posts/:id/answers 댓글 알림", () => {
   const comment = () =>
     call(answersHandler, { user: me, query: { id: String(POST_ID) }, body: { comment: "댓글" } });
 
-  it("게시글 작성자가 댓글 작성자를 차단했으면 댓글은 저장하되 알림은 보내지 않는다", async () => {
+  it("게시글 작성자가 댓글 작성자를 차단했으면 403 COMMENT_NOT_ALLOWED, 댓글·알림을 만들지 않는다", async () => {
     blocks = [{ blockerId: OTHER, blockedId: ME }];
     const res = await comment();
 
-    expect(res.statusCode).toBe(200);
-    expect(res.body.success).toBe(true);
-    expect(mockClient.comment.create).toHaveBeenCalledTimes(1);
+    expect(res.statusCode).toBe(403);
+    expect(res.body).toMatchObject({
+      success: false,
+      errorCode: "COMMENT_NOT_ALLOWED",
+      error: "이 게시글에는 댓글을 남길 수 없습니다.",
+    });
+    expect(mockClient.comment.create).not.toHaveBeenCalled();
     expect(mockCreateNotification).not.toHaveBeenCalled();
-    expect(mockIncrementMission).toHaveBeenCalledWith(ME, "comment_write");
   });
 
   it("댓글 작성자가 게시글 작성자를 차단한 경우(단방향)는 기존처럼 알림을 보낸다", async () => {

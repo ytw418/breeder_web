@@ -2,6 +2,7 @@ import client from "@libs/server/client";
 import { NotificationType } from "@prisma/client";
 import { sendAllPushToUsers } from "@libs/server/pushGateway";
 import { getProductPath } from "@libs/product-route";
+import { isBlockExemptType, isSenderBlockedByReceiver, shouldPushTo } from "@libs/server/notificationGate";
 
 interface CreateNotificationParams {
   type: NotificationType;
@@ -15,6 +16,8 @@ interface CreateNotificationParams {
   allowSelf?: boolean;
   dedupe?: boolean;
   sendPush?: boolean;
+  /** 푸시 제목. 없으면 종류별 기본 제목(getPushTitle). 예) 좋아요 알림은 글 제목. */
+  pushTitle?: string;
 }
 
 export const getNotificationUrl = (targetType?: string, targetId?: number, commentId?: number) => {
@@ -68,6 +71,8 @@ const getPushTitle = (type: NotificationType) => {
 /**
  * 알림을 생성하는 유틸 함수
  * - 자기 자신에게는 알림을 보내지 않음
+ * - 받는 사람이 보낸 사람을 차단했으면 알림 행·푸시 모두 만들지 않는다(운영 알림·경매 거래 알림·자기 알림 제외, notificationGate BLOCK_EXEMPT_NOTIFICATION_TYPES).
+ * - 알림 행은 항상 저장하고, 푸시는 받는 사람의 알림 종류·방해 금지 설정을 따른다(libs/server/notificationGate).
  */
 export const createNotification = async ({
   type,
@@ -80,11 +85,14 @@ export const createNotification = async ({
   allowSelf = false,
   dedupe = false,
   sendPush = true,
+  pushTitle,
 }: CreateNotificationParams) => {
   // 자기 자신에게는 알림을 보내지 않음
   if (!allowSelf && userId === senderId) return;
 
   try {
+    if (!isBlockExemptType(type) && (await isSenderBlockedByReceiver(userId, senderId))) return;
+
     if (dedupe) {
       const existed = await client.notification.findFirst({
         where: {
@@ -112,9 +120,9 @@ export const createNotification = async ({
       },
     });
 
-    if (sendPush) {
+    if (sendPush && (await shouldPushTo(userId, type))) {
       await sendAllPushToUsers([userId], {
-        title: getPushTitle(type),
+        title: pushTitle || getPushTitle(type),
         body: message,
         url: getNotificationUrl(targetType, targetId, commentId),
         // 같은 글의 댓글 알림끼리 알림 트레이에서 서로 덮지 않게 댓글 id 를 붙인다.

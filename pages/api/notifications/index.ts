@@ -3,6 +3,7 @@ import withHandler from "@libs/server/withHandler";
 import client from "@libs/server/client";
 import { withAuth } from "@libs/server/auth";
 import { NotificationType } from "@prisma/client";
+import { visibleNotificationWhere } from "@libs/server/notificationGate";
 
 /** 운영 알림(MODERATION)의 보낸 사람 자리. 실제 운영자 계정 대신 이 값을 준다. */
 const MODERATION_SENDER = { id: 0, name: "브리디 운영팀", avatar: null };
@@ -112,9 +113,11 @@ async function handler(
     }
 
     if (req.method === "GET") {
+      // 내가 차단한 사람이 보낸 알림은 목록·안 읽은 수에서 뺀다(차단 전에 쌓인 것 포함).
+      const visibleWhere = await visibleNotificationWhere(userId);
       const [notifications, unreadCount] = await Promise.all([
         client.notification.findMany({
-          where: { userId },
+          where: visibleWhere,
           select: {
             id: true,
             type: true,
@@ -132,7 +135,7 @@ async function handler(
           take: 50,
         }),
         client.notification.count({
-          where: { userId, isRead: false },
+          where: { ...visibleWhere, isRead: false },
         }),
       ]);
 
@@ -173,7 +176,7 @@ async function handler(
           data: { isRead: true },
         });
         const unreadCount = await client.notification.count({
-          where: { userId, isRead: false },
+          where: { ...(await visibleNotificationWhere(userId)), isRead: false },
         });
         return res.json({ success: true, notifications: [], unreadCount });
       }

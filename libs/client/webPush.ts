@@ -162,7 +162,10 @@ export async function enableWebPush(
   return token;
 }
 
-/** 이 브라우저 토큰을 지우고 계정 구독을 해제한다(토큰을 못 구하면 계정 구독만 해제). */
+/**
+ * 이 브라우저 토큰을 지우고 이 브라우저 구독만 해제한다.
+ * 토큰을 못 구하면 서버를 부르지 않는다(토큰 없는 해제는 계정의 다른 기기 구독까지 지운다, 2026-10-21).
+ */
 export async function disableWebPush(
   status: Pick<PushSubscriptionStatusResponse, "configured" | "vapidPublicKey"> | undefined,
   knownToken?: string
@@ -177,8 +180,6 @@ export async function disableWebPush(
   if (token) {
     await deleteToken(messaging).catch(() => undefined);
     await requestPushApi({ action: "unsubscribe", token });
-  } else {
-    await requestPushApi({ action: "unsubscribe" });
   }
   writeLocalToken(null);
 }
