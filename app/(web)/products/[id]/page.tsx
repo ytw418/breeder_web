@@ -7,6 +7,7 @@ import {
   normalizeDeletedUserNames,
 } from "@libs/shared/deletedUser";
 import ProductClient from "./ProductClient";
+import AppOpenBanner from "@components/features/AppOpenBanner";
 import JsonLd from "@components/atoms/JsonLd";
 import { SITE_OG_IMAGE } from "@libs/shared/ogImage";
 import {
@@ -219,6 +220,7 @@ export default async function ProductPage({ params }: Props) {
 
   return (
     <>
+      <AppOpenBanner />
       <JsonLd id="product-jsonld" data={jsonLd} />
       <JsonLd id="breadcrumb-jsonld" data={breadcrumbJsonLd} />
       <ProductClient
