@@ -58,13 +58,20 @@ async function handler(
         });
       }
 
-      // 팔로우
-      await client.follow.create({
-        data: {
-          followerId: myId,
-          followingId: targetUserId,
-        },
-      });
+      // 팔로우 — 같은 쌍은 @@unique 라 동시에 두 번 눌러도 한 행만 생긴다. 늦게 온 요청은 이미 팔로우 중으로 끝낸다(알림 없음).
+      try {
+        await client.follow.create({
+          data: {
+            followerId: myId,
+            followingId: targetUserId,
+          },
+        });
+      } catch (error) {
+        if ((error as { code?: string })?.code === "P2002") {
+          return res.json({ success: true, isFollowing: true });
+        }
+        throw error;
+      }
 
       // 팔로우 알림 생성
       const senderUser = await client.user.findUnique({

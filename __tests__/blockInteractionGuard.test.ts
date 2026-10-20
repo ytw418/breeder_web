@@ -147,6 +147,15 @@ describe("POST /api/users/:id/follow", () => {
     expect(mockCreateNotification).not.toHaveBeenCalled();
   });
 
+  it("같은 쌍을 동시에 팔로우해 unique 충돌(P2002)이 나면 팔로우 중으로 답하고 알림은 보내지 않는다", async () => {
+    mockClient.follow.create.mockRejectedValueOnce(Object.assign(new Error("Unique constraint failed"), { code: "P2002" }));
+    const res = await follow();
+
+    expect(res.statusCode).toBe(200);
+    expect(res.body).toEqual({ success: true, isFollowing: true });
+    expect(mockCreateNotification).not.toHaveBeenCalled();
+  });
+
   it("이미 팔로우 중이면 차단 여부와 관계없이 언팔로우는 된다", async () => {
     blocks = [{ blockerId: OTHER, blockedId: ME }];
     mockClient.follow.findFirst.mockResolvedValue({ id: 5 });
