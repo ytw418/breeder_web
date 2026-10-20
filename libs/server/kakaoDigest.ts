@@ -1,7 +1,7 @@
 import client from "@libs/server/client";
 import { speciesCategoryIds } from "@libs/server/categories";
 import { sendPushToUsers } from "@libs/server/push";
-import { ADMIN_EMAIL_ID_PREFIX, isAdminEmail } from "@libs/shared/adminEmail";
+import { findAdminUserIds } from "@libs/server/adminAccess";
 import {
   formatKakaoDigest,
   KAKAO_DIGEST_ROOMS,

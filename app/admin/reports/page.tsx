@@ -2,7 +2,7 @@
 
 import { authFetch } from "@libs/client/authFetch";
 import { useState } from "react";
-import useSWR from "swr";
+import useSWR, { mutate as mutateGlobal } from "swr";
 import Link from "next/link";
 import { toast } from "@libs/client/toast";
 import { Button } from "@components/ui/button";
@@ -10,6 +10,7 @@ import useConfirmDialog from "hooks/useConfirmDialog";
 import type { AdminReportItem, AdminReportsResponse } from "pages/api/admin/reports";
 import type { ReportContentAction } from "@libs/server/reports";
 import {
+  ADMIN_REPORT_SUMMARY_API,
   REPORT_ACTION_LABEL,
   REPORT_STATUS_LABEL,
   REPORT_STATUSES,
@@ -250,6 +251,7 @@ export default function AdminReportsPage() {
         toast.error("사용자 조치는 적용했지만 콘텐츠 조치는 실패했어요. 게시물·분양 관리에서 다시 숨겨 주세요.");
         setExpandedId(null);
         mutateReports();
+        void mutateGlobal(ADMIN_REPORT_SUMMARY_API);
         return;
       }
       toast.success(
@@ -261,6 +263,7 @@ export default function AdminReportsPage() {
       );
       setExpandedId(null);
       mutateReports();
+      void mutateGlobal(ADMIN_REPORT_SUMMARY_API);
     } catch {
       toast.error("처리하지 못했어요. 다시 시도해 주세요.");
     } finally {

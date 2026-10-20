@@ -65,6 +65,8 @@ export interface AdminReportsResponse extends ResponseType {
   contentFailed?: boolean;
   sanctionId?: number | null;
   errorCode?: string;
+  /** GET 만: 처리 대기(OPEN) 신고 수. 관리자 메뉴 '신고 관리 (N)'에 쓴다(?summary=1 이면 이것과 counts 만 준다). */
+  openCount?: number;
   /** GET 만: 현재 페이지(1부터)와 다음 페이지 존재 여부 */
   page?: number;
   hasMore?: boolean;
@@ -120,6 +122,12 @@ async function handler(req: NextApiRequest, res: NextApiResponse<AdminReportsRes
     res.status(status).json({ success: false, error, reports: [], counts: EMPTY_COUNTS });
 
   if (req.method === "GET") {
+    // 관리자 메뉴 숫자용: 목록·대상 스냅샷 없이 건수만 준다.
+    if (req.query.summary === "1") {
+      const counts = await getReportCounts();
+      return res.json({ success: true, reports: [], counts, openCount: counts.OPEN });
+    }
+
     const statusFilter = String(req.query.status || "ALL");
     const targetTypeFilter = String(req.query.targetType || "ALL");
     const where: Prisma.ReportWhereInput = {};
@@ -146,6 +154,7 @@ async function handler(req: NextApiRequest, res: NextApiResponse<AdminReportsRes
       success: true,
       reports: await withTargets(rows.slice(0, ADMIN_REPORT_PAGE_SIZE)),
       counts,
+      openCount: counts.OPEN,
       page,
       hasMore,
     });
