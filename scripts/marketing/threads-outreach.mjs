@@ -59,6 +59,17 @@ async function open() {
   lock();
   const browser = await chromium.connectOverCDP("http://127.0.0.1:9222");
   const page = await browser.contexts()[0].newPage();
+  // 같은 크롬의 스레드에 다른 계정(예: 개인 lcaros_rn)이 로그인돼 있을 수 있다(10-20) → 내 계정이 아니면 아무것도 하지 않는다
+  await page.goto("https://www.threads.com/");
+  await sleep(5000);
+  const who = await page.evaluate(() =>
+    [...document.querySelectorAll('a[href^="/@"]')].find((a) => a.querySelector('svg[aria-label="프로필"]'))?.getAttribute("href")?.slice(2) || "",
+  );
+  if (who !== ME) {
+    await page.close().catch(() => {});
+    unlock();
+    throw new Error(`스레드 로그인 계정이 ${who || "없음"} — ${ME} 가 아니라서 멈춤`);
+  }
   const done = async () => {
     await page.close().catch(() => {});
     unlock();
