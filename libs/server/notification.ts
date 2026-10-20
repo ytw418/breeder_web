@@ -2,7 +2,7 @@ import client from "@libs/server/client";
 import { NotificationType } from "@prisma/client";
 import { sendAllPushToUsers } from "@libs/server/pushGateway";
 import { getProductPath } from "@libs/product-route";
-import { isSenderBlockedByReceiver, shouldPushTo } from "@libs/server/notificationGate";
+import { isBlockExemptType, isSenderBlockedByReceiver, shouldPushTo } from "@libs/server/notificationGate";
 
 interface CreateNotificationParams {
   type: NotificationType;
@@ -71,7 +71,7 @@ const getPushTitle = (type: NotificationType) => {
 /**
  * 알림을 생성하는 유틸 함수
  * - 자기 자신에게는 알림을 보내지 않음
- * - 받는 사람이 보낸 사람을 차단했으면 알림 행·푸시 모두 만들지 않는다(운영 알림·자기 알림 제외).
+ * - 받는 사람이 보낸 사람을 차단했으면 알림 행·푸시 모두 만들지 않는다(운영 알림·경매 거래 알림·자기 알림 제외, notificationGate BLOCK_EXEMPT_NOTIFICATION_TYPES).
  * - 알림 행은 항상 저장하고, 푸시는 받는 사람의 알림 종류·방해 금지 설정을 따른다(libs/server/notificationGate).
  */
 export const createNotification = async ({
@@ -91,7 +91,7 @@ export const createNotification = async ({
   if (!allowSelf && userId === senderId) return;
 
   try {
-    if (type !== "MODERATION" && (await isSenderBlockedByReceiver(userId, senderId))) return;
+    if (!isBlockExemptType(type) && (await isSenderBlockedByReceiver(userId, senderId))) return;
 
     if (dedupe) {
       const existed = await client.notification.findFirst({
