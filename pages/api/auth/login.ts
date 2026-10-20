@@ -6,6 +6,7 @@ import { createUserWithAutomaticBreederPrograms } from "@libs/server/breeder-pro
 import { withAuth } from "@libs/server/auth";
 import { issueTokens, toAuthUser, AuthUser } from "@libs/server/jwt";
 import { UniqueName } from "@libs/server/UniqueName";
+import { isUniqueNameError } from "@libs/server/nickname";
 import { findPendingDeletion } from "@libs/server/accountDeletion";
 import {
   formatKstDate,
@@ -51,7 +52,12 @@ export interface LoginResponseType {
   refreshToken: string;
   /** access 토큰 만료까지 남은 초 */
   expiresIn: number;
+  /** 이번 요청으로 계정을 새로 만들었으면 true. 앱·웹은 이 값으로 '시작하기' 화면을 연다. */
+  isNewUser: boolean;
 }
+
+/** 무작위 닉네임이 그 사이 먼저 저장돼 P2002(name) 가 나면 이름을 새로 만들어 다시 가입한다. */
+const SIGNUP_NAME_RETRIES = 3;
 
 /**
  * 정지 해제가 경합으로 실패한 뒤 다시 읽은 계정의 차단 응답. ACTIVE 면 null.
@@ -148,14 +154,21 @@ async function handler(
       }
 
       // 해당 이메일의 사용자가 존재하지 않는 경우 새로운 사용자 생성
-      const uniqueName = await UniqueName();
-      user = await createUserWithAutomaticBreederPrograms({
-        snsId,
-        email: (await isEmailUsedByOther(normalizedEmail)) ? null : normalizedEmail,
-        name: uniqueName,
-        provider,
-        avatar: null,
-      });
+      const email = (await isEmailUsedByOther(normalizedEmail)) ? null : normalizedEmail;
+      for (let attempt = 1; ; attempt += 1) {
+        try {
+          user = await createUserWithAutomaticBreederPrograms({
+            snsId,
+            email,
+            name: await UniqueName(),
+            provider,
+            avatar: null,
+          });
+          break;
+        } catch (error) {
+          if (!isUniqueNameError(error) || attempt >= SIGNUP_NAME_RETRIES) throw error;
+        }
+      }
     } else {
       // 정지·차단·탈퇴 계정은 토큰을 발급하지 않는다. 기간 정지가 끝났으면 여기서 해제한다.
       const loginBlock = getLoginBlock(user);
@@ -238,6 +251,7 @@ async function handler(
       accessToken,
       refreshToken,
       expiresIn,
+      isNewUser,
     });
   } catch (error) {
     console.error("로그인 중 오류 발생:", error);
