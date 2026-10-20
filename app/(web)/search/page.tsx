@@ -1,4 +1,5 @@
-import SearchClient from "./SearchClient";
+import { Suspense } from "react";
+import SearchClient, { SearchClientFromUrl } from "./SearchClient";
 import type { Metadata } from "next";
 
 export const metadata: Metadata = {
@@ -14,8 +15,13 @@ export const metadata: Metadata = {
   },
 };
 
+/** `?q=&type=` 를 화면에서 읽는다(검색 결과 주소 공유·뒤로 오기). 정적 HTML 은 빈 검색 화면이다. */
 const SearchPage = () => {
-  return <SearchClient />;
+  return (
+    <Suspense fallback={<SearchClient />}>
+      <SearchClientFromUrl />
+    </Suspense>
+  );
 };
 
 export default SearchPage;

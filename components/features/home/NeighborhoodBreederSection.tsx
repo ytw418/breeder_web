@@ -35,8 +35,8 @@ const NEARBY_KEY = `/api/users/nearby?limit=${HOME_NEARBY_LIMIT}`;
 const VISITORS_KEY = "/api/neighborhood/visitors";
 const REGION_SETTINGS = "/settings/region";
 export const NEIGHBORHOOD_ALL_HREF = "/neighborhood/breeders";
-/** 홈 전체 게시글을 '동네' 칩으로 연다(홈이 칩을 고르고 목록으로 스크롤한다, docs/prd/home-ia.md). */
-export const LOUNGE_HREF = `/?category=${encodeURIComponent(REGION_POST_CATEGORY)}`;
+/** 홈 전체 게시글을 '동네' 칩으로 연다. at=list 가 있어야 목록으로 스크롤한다(docs/prd/home-ia.md, libs/client/feedUrlState.ts). */
+export const LOUNGE_HREF = `/?category=${encodeURIComponent(REGION_POST_CATEGORY)}&at=list`;
 export const GREET_HREF = `/posts/upload?category=${encodeURIComponent(REGION_POST_CATEGORY)}`;
 
 /** 서버 응답(계약 필드 + 옛 필드). 어느 쪽이 와도 그리도록 전부 선택값으로 받는다. */
