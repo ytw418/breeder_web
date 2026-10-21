@@ -5,7 +5,7 @@ import Link from "next/link";
 import useSWRInfinite from "swr/infinite";
 
 import Layout from "@components/features/MainLayout";
-import FloatingButton from "@components/atoms/floating-button";
+import FloatingButton, { FAB_LIST_BOTTOM_PADDING_CLASS } from "@components/atoms/floating-button";
 import { FilterChip, FilterChipRail } from "@components/app/FilterChip";
 import { RetryFooter } from "@components/app/RetryFooter";
 import { cn } from "@libs/client/utils";
@@ -161,7 +161,8 @@ export default function AuctionsClient() {
 
   return (
     <Layout icon hasTabBar title="경매" seoTitle="경매" showSearch>
-      <div className="flex min-h-full flex-col bg-app-bg pb-28">
+      {/* 하단 여백 = FAB 높이 + 24(2026-10-21 디자인 리뷰, 앱 FAB_LIST_BOTTOM_PADDING). */}
+      <div className={`flex min-h-full flex-col bg-app-bg ${FAB_LIST_BOTTOM_PADDING_CLASS}`}>
         {/* 검색 pill */}
         <form
           role="search"
@@ -287,7 +288,8 @@ export default function AuctionsClient() {
           )}
         </div>
 
-        <FloatingButton href="/auctions/create" label="경매 등록">
+        {/* 아래로 내리면 숨겨 카드 버튼·메타를 가리지 않는다(2026-10-21 디자인 리뷰). */}
+        <FloatingButton href="/auctions/create" label="경매 등록" hideOnScroll>
           <svg className="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden>
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
           </svg>

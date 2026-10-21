@@ -1,10 +1,12 @@
 "use client";
 
 import { useEffect, useMemo, useRef } from "react";
+import Link from "next/link";
 import useSWRInfinite from "swr/infinite";
 
 import Layout from "@components/features/MainLayout";
 import { PostCard } from "@components/app/PostCard";
+import { ASK_QUESTION_HREF } from "@components/features/post/AwaitingAnswerCard";
 import { QueryErrorState } from "@components/app/QueryErrorState";
 import { RetryFooter } from "@components/app/RetryFooter";
 import useBlocks from "hooks/useBlocks";
@@ -27,6 +29,7 @@ function SkeletonItem() {
 /**
  * 답 기다리는 질문 모아 보기(홈 '답 기다려요' 카드 아래 '답 기다리는 질문 N개 ›', 2026-10-21 감사 #1).
  * 7일 안 질문 중 질문자가 아닌 사람의 댓글이 없는 것, 오래 기다린 순. 관심 카테고리 고정 범위를 따른다.
+ * 빈 상태(2026-10-21 디자인 리뷰): '모든 질문에 답이 달렸어요' 18/700 + 안내 + '질문하기' 48 주황, 점수 2배 줄은 숨긴다.
  * 앱: src/app/posts/unanswered.tsx
  */
 export default function UnansweredClient() {
@@ -80,7 +83,10 @@ export default function UnansweredClient() {
   return (
     <Layout canGoBack title="답 기다리는 질문" seoTitle="답 기다리는 질문">
       <div className="min-h-full bg-app-bg pb-4">
-        <p className="truncate px-4 py-3 text-[13px] text-app-muted">첫 답변은 소통왕 점수 2배예요</p>
+        {/* 빈 상태에선 점수 2배 줄을 숨긴다(답할 질문이 없는데 보상만 보이지 않게). */}
+        {data?.length && posts.length === 0 ? null : (
+          <p className="truncate px-4 py-3 text-[13px] text-app-muted">첫 답변은 소통왕 점수 2배예요</p>
+        )}
         {!data && !error ? (
           [...Array(5)].map((_, index) => <SkeletonItem key={index} />)
         ) : error && !data?.length ? (
@@ -90,9 +96,16 @@ export default function UnansweredClient() {
             className="py-14"
           />
         ) : posts.length === 0 ? (
-          <p className="px-4 py-14 text-center text-[14px] text-app-muted">
-            지금은 답을 기다리는 질문이 없어요
-          </p>
+          <div className="flex flex-col items-center px-4 pb-14 pt-[72px] text-center">
+            <p className="app-t-section">모든 질문에 답이 달렸어요</p>
+            <p className="app-t-body mt-1.5 break-keep text-app-muted">궁금한 게 있으면 먼저 물어보세요</p>
+            <Link
+              href={ASK_QUESTION_HREF}
+              className="mt-5 flex h-12 items-center rounded-lg bg-app-brand px-7 text-[15px] font-semibold text-white"
+            >
+              질문하기
+            </Link>
+          </div>
         ) : (
           posts.map((post) => <PostCard key={post.id} post={post} />)
         )}

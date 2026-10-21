@@ -184,7 +184,10 @@ textarea {
     --app-inverse: #191919;
     --app-inverse-text: #ffffff;
     --app-brand: #f97316;
+    /* brand-soft 는 높이 24 이하 요소(배지·pill·칩)에만. 카드·사진 칸 같은 넓은 면은 brand-surface
+       (다크에서 반투명 주황이 넓게 깔리면 갈색으로 탁해진다 — 2026-10-21 디자인 리뷰, 앱 palette brandSurface). */
     --app-brand-soft: #fff4ec;
+    --app-brand-surface: #fff4ec;
     /* 주황 소프트 배경 위 글자(칭호 pill·답 기다려요 보조 문구). */
     --app-brand-text: #c2410c;
     --app-brand-text-soft: #9a3412;
@@ -259,6 +262,7 @@ textarea {
     --app-inverse-text: #17171a;
     --app-brand: #f97316;
     --app-brand-soft: rgba(249, 115, 22, 0.16);
+    --app-brand-surface: #2b2c30;
     --app-brand-text: #fdba74;
     --app-brand-text-soft: #fed7aa;
     --app-brand-track: rgba(249, 115, 22, 0.28);

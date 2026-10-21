@@ -13,16 +13,23 @@ export type AwaitingQuestion = {
   user?: { id?: number; name: string; avatar?: string | null } | null;
 };
 
-/** '2시간째 답이 없어요'. 1시간 안이면 분, 하루 넘으면 일. */
+/**
+ * '2시간째 답을 기다리고 있어요'(앱 PostsHighlights unansweredLine 과 같다). 1시간 안이면 '방금 올라온 질문이에요'.
+ * '답'은 질문자가 아닌 사람의 보이는 댓글이다(GET /api/posts?unanswered=1). 질문자 본인 댓글만 있는 질문도 남으므로
+ * '답이 없어요'(댓글이 없다는 뜻으로 읽힘) 대신 '답을 기다리고 있어요'로 쓴다(2026-10-21 디자인 리뷰).
+ */
 export function waitingDurationLabel(createdAt: string | Date, now: number = Date.now()): string {
   const t = (createdAt instanceof Date ? createdAt : new Date(createdAt)).getTime();
   if (Number.isNaN(t)) return "답을 기다리고 있어요";
-  const minutes = Math.max(1, Math.floor((now - t) / 60_000));
-  if (minutes < 60) return `${minutes}분째 답이 없어요`;
+  const minutes = Math.max(0, Math.floor((now - t) / 60_000));
+  if (minutes < 60) return "방금 올라온 질문이에요";
   const hours = Math.floor(minutes / 60);
-  if (hours < 24) return `${hours}시간째 답이 없어요`;
-  return `${Math.floor(hours / 24)}일째 답이 없어요`;
+  if (hours < 24) return `${hours}시간째 답을 기다리고 있어요`;
+  return `${Math.floor(hours / 24)}일째 답을 기다리고 있어요`;
 }
+
+/** '답 기다려요' 카드 보조 둘째 줄(첫 답변 소통왕 점수 2배, 앱 UNANSWERED_BONUS_LINE 과 같다). */
+export const WAITING_BONUS_LINE = "먼저 답하면 점수 2배";
 
 /** 질문하기 주소: 글쓰기를 '질문' 주제로 연다. */
 export const ASK_QUESTION_HREF = `/posts/upload?category=${encodeURIComponent("질문")}`;
@@ -39,7 +46,8 @@ type AwaitingAnswerCardProps =
 
 /**
  * 반려생활 '답 기다려요' 카드(시안 community-vibe .wait, PRD §3.5).
- * app-brand-soft r12, 아바타 40 · "질문 제목" 15/600 · 보조 12 brand-text-soft · '답하기' 36 주황 → 상세 #comment.
+ * app-brand-surface r12(다크 회색 면, 2026-10-21), 아바타 40 · "질문 제목" 15/600 · 보조 12 brand-text-soft 두 줄
+ * ('N일째 답을 기다리고 있어요' / '먼저 답하면 점수 2배') · '답하기' 36 주황 → 상세 #comment.
  * variant="empty": 물음표 원 40(brand-track) · 질문 권유 15/600 · '질문을 올리면 관심 분야 브리더에게 알림이 가요' · '질문하기' 36 주황.
  */
 export default function AwaitingAnswerCard(props: AwaitingAnswerCardProps) {
@@ -49,7 +57,7 @@ export default function AwaitingAnswerCard(props: AwaitingAnswerCardProps) {
   if (props.variant === "empty") {
     return (
       <div
-        className={`flex items-center gap-3 rounded-xl bg-app-brand-soft px-3.5 py-3 ${className ?? ""}`}
+        className={`flex items-center gap-3 rounded-xl bg-app-brand-surface px-3.5 py-3 ${className ?? ""}`}
         data-testid="awaiting-answer-empty"
       >
         <span className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-app-brand-track text-app-brand" aria-hidden="true">
@@ -79,7 +87,7 @@ export default function AwaitingAnswerCard(props: AwaitingAnswerCardProps) {
   const href = `${toPostPath(question.id, question.title)}#comment`;
   return (
     <div
-      className={`flex items-center gap-3 rounded-xl bg-app-brand-soft px-3.5 py-3 ${className ?? ""}`}
+      className={`flex items-center gap-3 rounded-xl bg-app-brand-surface px-3.5 py-3 ${className ?? ""}`}
       data-testid="awaiting-answer-card"
     >
       <InitialAvatar name={question.user?.name} avatar={question.user?.avatar} size={40} />
@@ -87,9 +95,10 @@ export default function AwaitingAnswerCard(props: AwaitingAnswerCardProps) {
         <p className="line-clamp-2 break-keep text-[15px] font-semibold leading-5 text-app-text">
           &ldquo;{question.title}&rdquo;
         </p>
-        <p className="mt-0.5 text-[12px] leading-4 text-app-brand-text-soft">
-          {waitingDurationLabel(question.createdAt)} · 첫 답변은 소통왕 점수 2배
+        <p className="mt-0.5 break-keep text-[12px] leading-4 text-app-brand-text-soft">
+          {waitingDurationLabel(question.createdAt)}
         </p>
+        <p className="text-[12px] leading-4 text-app-brand-text-soft">{WAITING_BONUS_LINE}</p>
       </Link>
       <Link
         href={href}

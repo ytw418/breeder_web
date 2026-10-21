@@ -36,6 +36,8 @@ module.exports = {
           "inverse-text": "var(--app-inverse-text)",
           "brand": "var(--app-brand)",
           "brand-soft": "var(--app-brand-soft)",
+          // 넓은 면(카드·사진 칸)의 주황 바탕: 라이트는 brand-soft 와 같고 다크는 회색 면(앱 palette brandSurface).
+          "brand-surface": "var(--app-brand-surface)",
           "brand-text": "var(--app-brand-text)",
           "brand-text-soft": "var(--app-brand-text-soft)",
           "brand-track": "var(--app-brand-track)",
