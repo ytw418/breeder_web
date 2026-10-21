@@ -4,6 +4,7 @@
  * 원본 시안: bredy_app design/mockups/chat/A-karrot.html, PRD docs/prd/chat.md
  */
 import { DELETED_USER_LABEL, isDeletedUserName } from "@libs/shared/deletedUser";
+import { isProductCard, PRODUCT_CARD_PREVIEW } from "@libs/shared/tradeChat";
 
 /** 목록·방 폴링 주기(기존 동작 유지). */
 export const CHAT_LIST_POLL_MS = 5000;
@@ -83,11 +84,14 @@ export interface ChatListLastMessage {
   type: string;
   message: string;
   userId: number;
+  /** 분양글 카드 행이면 분양글 id(미리보기를 '분양글을 보냈어요'로 바꾼다). */
+  productId?: number | null;
 }
 
 /** 목록 미리보기. 줄바꿈·연속 공백은 한 칸으로 합친다. */
-export function chatPreview(message?: Pick<ChatListLastMessage, "type" | "message"> | null): string {
+export function chatPreview(message?: Pick<ChatListLastMessage, "type" | "message" | "productId"> | null): string {
   if (!message) return "아직 대화가 없습니다.";
+  if (isProductCard(message)) return PRODUCT_CARD_PREVIEW;
   if (message.type === "IMAGE") return "사진을 보냈습니다";
   const text = (message.message ?? "").replace(/\s+/g, " ").trim();
   return text || "메시지";
@@ -217,7 +221,7 @@ export function buildChatItems<T extends ChatMessageLike>(
  * 상대가 한 번도 안 읽었으면(lastReadAt null) 내 메시지 전부다. 상대가 없으면(탈퇴) 표시하지 않는다.
  */
 export function findUnreadByPartnerIds(
-  messages: ChatMessageLike[],
+  messages: (ChatMessageLike & { productId?: number | null })[],
   partner: { lastReadAt?: string | null } | null | undefined,
   myId?: number | null
 ): Set<number> {
@@ -226,7 +230,8 @@ export function findUnreadByPartnerIds(
   const readAt = partner.lastReadAt ? new Date(partner.lastReadAt).getTime() : -Infinity;
   if (Number.isNaN(readAt)) return unread;
   for (const message of messages) {
-    if (message.user.id !== myId) continue;
+    // 분양글 카드 행은 '1' 을 붙이지 않는다(서버 안 읽은 수에서도 빠진다).
+    if (message.user.id !== myId || isProductCard(message)) continue;
     const sentAt = new Date(message.createdAt).getTime();
     if (!Number.isNaN(sentAt) && sentAt > readAt) unread.add(message.id);
   }

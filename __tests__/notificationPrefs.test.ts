@@ -18,5 +18,7 @@ describe("shouldPush", () => {
     expect(shouldPush({ ...prefs, quiet: { ...prefs.quiet, exemptChatTrade: false } }, "BID", NIGHT)).toBe(false);
     expect(shouldPush({ news: false, quiet: { enabled: true } }, "MODERATION", NIGHT)).toBe(true);
     expect(shouldPush(null, "LIKE", NIGHT)).toBe(true); // 저장된 적 없으면 모두 켜짐
+    // 입양자 지정·거래 후기 알림은 '거래·경매' 종류를 따른다
+    expect(shouldPush({ trade: false }, "ADOPTION_CONFIRMED", noon)).toBe(false);
   });
 });

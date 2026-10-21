@@ -6,12 +6,14 @@ import type { NextApiRequest, NextApiResponse } from "next";
 /**
  * GET /api/users/:id — 프로필 v5(앱 docs/prd/profile.md).
  * - _count.completedSales: 남이 보는 판매내역과 같은 기준의 거래 완료 수(신뢰 줄)
+ * - _count.tradeReviews: 받은 거래 후기 수(신뢰 줄 '후기 N', 앱 docs/prd/trade-review.md §3.5)
  * - 동네 비공개(regionVisible=false)면 본인 말고는 동네를 내려주지 않는다
  */
 
 const mockClient = {
   user: { findUnique: jest.fn() },
   sale: { count: jest.fn() },
+  review: { count: jest.fn() },
   follow: { findFirst: jest.fn() },
   userBlock: { findFirst: jest.fn() },
   userBadge: { findMany: jest.fn() },
@@ -93,13 +95,14 @@ beforeEach(() => {
   jest.clearAllMocks();
   mockClient.user.findUnique.mockResolvedValue(baseUser());
   mockClient.sale.count.mockResolvedValue(12);
+  mockClient.review.count.mockResolvedValue(2);
   mockClient.follow.findFirst.mockResolvedValue(null);
   mockClient.userBlock.findFirst.mockResolvedValue(null);
   mockClient.userBadge.findMany.mockResolvedValue([]);
 });
 
-describe("GET /api/users/:id 거래 완료 수", () => {
-  it("판매자가 완료한 거래 중 지우거나 숨기지 않은 상품만 센다", async () => {
+describe("GET /api/users/:id 거래 완료 수·받은 거래 후기 수", () => {
+  it("판매자가 완료한 거래 중 지우거나 숨기지 않은 상품만 세고, 후기는 숨긴 후기·숨긴 분양글의 후기를 뺀다", async () => {
     const res = await getUser(OWNER);
     expect(mockClient.sale.count).toHaveBeenCalledWith({
       where: {
@@ -109,6 +112,10 @@ describe("GET /api/users/:id 거래 완료 수", () => {
       },
     });
     expect(res.body.user._count.completedSales).toBe(12);
+    expect(mockClient.review.count).toHaveBeenCalledWith({
+      where: { createdForId: OWNER, isHidden: false, productId: { not: null }, product: { isHidden: false } },
+    });
+    expect(res.body.user._count.tradeReviews).toBe(2);
     expect(res.body.user.createdAt).toEqual(baseUser().createdAt);
   });
 });

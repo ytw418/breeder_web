@@ -3,12 +3,22 @@ import type { NextApiRequest, NextApiResponse } from "next";
 const mockClient = {
   // 카테고리 고정 범위 헬퍼(libs/server/categories)가 읽는 트리. 비우면 범위 조건을 붙이지 않는다.
   category: { findMany: jest.fn(async () => []) },
-  product: { findUnique: jest.fn(), create: jest.fn(), update: jest.fn(), delete: jest.fn() },
-  user: { findUnique: jest.fn() },
-  purchase: { findFirst: jest.fn(), create: jest.fn(), findMany: jest.fn() },
+  product: { findUnique: jest.fn(), create: jest.fn(), update: jest.fn(), updateMany: jest.fn(), delete: jest.fn() },
+  user: { findUnique: jest.fn(), findMany: jest.fn(async () => []) },
+  purchase: { findFirst: jest.fn(), create: jest.fn(), findMany: jest.fn(), updateMany: jest.fn() },
   fav: { findMany: jest.fn(), findFirst: jest.fn(), create: jest.fn(), delete: jest.fn() },
-  sale: { findMany: jest.fn() },
+  sale: { findMany: jest.fn(), findFirst: jest.fn(), create: jest.fn(), updateMany: jest.fn() },
+  // 입양자 지정·입양 확정(libs/server/trade·tradeCandidates)
+  review: { findFirst: jest.fn() },
+  notification: { findFirst: jest.fn(), findMany: jest.fn() },
+  message: { findFirst: jest.fn(), findMany: jest.fn() },
+  chatRoom: { findFirst: jest.fn(), findMany: jest.fn() },
+  userBlock: { findMany: jest.fn(async () => []) },
+  $executeRaw: jest.fn(),
+  $transaction: jest.fn(),
 };
+// 거래 lock 트랜잭션은 같은 모킹 클라이언트로 바로 돈다.
+mockClient.$transaction.mockImplementation((fn: (tx: typeof mockClient) => unknown) => fn(mockClient));
 jest.mock("@libs/server/client", () => ({
   __esModule: true,
   default: mockClient,
@@ -31,6 +41,7 @@ import favsHandler from "../pages/api/users/[id]/favs";
 import salesHandler from "../pages/api/users/[id]/sales";
 import purchasesHandler from "../pages/api/users/[id]/purchases";
 import favToggleHandler from "../pages/api/products/[id]/fav";
+import buyerRequestHandler from "../pages/api/products/[id]/buyer-request";
 
 function createRes() {
   const res = {
@@ -358,7 +369,7 @@ describe.each([
   it("본인에게는 삭제·숨김 상품도 기록으로 남긴다(상품 상태로 거르지 않는다)", async () => {
     const res = await call(handler, { method: "GET", user: me, query: { id: "7" } });
     expect(res.statusCode).toBe(200);
-    expect(findMany.mock.calls[0][0].where).toEqual({ userId: 7 });
+    expect(findMany.mock.calls[0][0].where).toEqual({ userId: 7, status: { not: "cancelled" } });
   });
 
   it.each([
@@ -369,6 +380,7 @@ describe.each([
     expect(res.statusCode).toBe(200);
     expect(findMany.mock.calls[0][0].where).toEqual({
       userId: 7,
+      status: { not: "cancelled" },
       product: { isDeleted: false, isHidden: false },
     });
   });
@@ -416,5 +428,179 @@ describe("POST /api/products/:id/fav (찜 토글)", () => {
     expect(mockCreateNotification).toHaveBeenCalledWith(
       expect.objectContaining({ type: "FAV", userId: 7, senderId: 8, targetId: 3 })
     );
+  });
+});
+
+describe("입양자 지정·입양 확정(앱 docs/prd/trade-review.md)", () => {
+  const SELLER = 7;
+  const BUYER = 8;
+  const buyer = { id: BUYER, name: "입양자" } as NextApiRequest["user"];
+  const other = { id: 9, name: "남" } as NextApiRequest["user"];
+  const admin = { id: 1, name: "운영자", email: "ytw418@gmail.com" } as NextApiRequest["user"];
+  const soldProduct = {
+    id: 3,
+    userId: SELLER,
+    name: "크레스티드 게코",
+    status: "판매완료",
+    isDeleted: false,
+    isHidden: false,
+    user: { id: SELLER, name: "브리더", avatar: null },
+  };
+  const sale = (patch: Record<string, unknown> = {}) => ({ id: 11, buyerId: BUYER, buyerSource: "bredy", ...patch });
+  const post = (user: NextApiRequest["user"], body: Record<string, unknown>) =>
+    call(detailHandler, { method: "POST", user, query: { id: "3" }, body });
+
+  beforeEach(() => {
+    mockClient.product.updateMany.mockResolvedValue({ count: 1 });
+    mockClient.sale.findFirst.mockResolvedValue(null);
+    mockClient.sale.create.mockResolvedValue({ id: 11 });
+    mockClient.sale.updateMany.mockResolvedValue({ count: 1 });
+    mockClient.purchase.findFirst.mockResolvedValue(null);
+    mockClient.purchase.findMany.mockResolvedValue([]);
+    mockClient.purchase.updateMany.mockResolvedValue({ count: 0 });
+    mockClient.review.findFirst.mockResolvedValue(null);
+    mockClient.notification.findFirst.mockResolvedValue(null);
+    mockClient.message.findFirst.mockResolvedValue(null);
+    mockClient.chatRoom.findFirst.mockResolvedValue(null);
+    mockClient.user.findUnique.mockResolvedValue({ id: BUYER, name: "입양자", avatar: null, status: "ACTIVE" });
+  });
+
+  describe("sold", () => {
+    it("data 없이 분양완료하면 미지정 Sale 을 분양자 것으로 만든다(운영자가 처리해도)", async () => {
+      const res = await post(admin, { action: "sold" });
+      expect(res.statusCode).toBe(200);
+      expect(mockClient.$executeRaw).toHaveBeenCalled();
+      expect(mockClient.sale.create.mock.calls[0][0].data).toMatchObject({
+        userId: SELLER,
+        productId: 3,
+        status: "completed",
+        buyerId: null,
+        buyerSource: null,
+      });
+      expect(mockCreateNotification).not.toHaveBeenCalled();
+    });
+
+    it("대화한 회원을 지정하고, 그 회원의 옛 입양 확정이 있으면 확정 완료로 본다", async () => {
+      mockClient.message.findFirst.mockResolvedValue({ id: 1 }); // 이 분양글 카드가 있는 방(primary)
+      mockClient.purchase.findFirst.mockResolvedValue({ id: 5 }); // 옛 공개 '입양 확정' 버튼으로 남은 행
+      // lock 안 기존 Sale 확인 → 없음, 응답 trade 조립 → 방금 만든 Sale
+      mockClient.sale.findFirst.mockResolvedValueOnce(null).mockResolvedValue(sale());
+      mockClient.purchase.findMany.mockResolvedValue([{ userId: BUYER }]);
+
+      const res = await post(me, { action: "sold", data: { buyerId: BUYER } });
+      expect(res.statusCode).toBe(200);
+      expect(mockClient.sale.create.mock.calls[0][0].data).toMatchObject({
+        userId: SELLER,
+        buyerId: BUYER,
+        buyerSource: "bredy",
+      });
+      expect(mockCreateNotification).toHaveBeenCalledWith(
+        expect.objectContaining({
+          type: "ADOPTER_ASSIGNED",
+          userId: BUYER,
+          senderId: SELLER,
+          dedupe: false,
+          message: expect.stringContaining("거래 후기를 남겨 주세요"),
+        })
+      );
+      expect(res.body.trade).toMatchObject({ buyerAssigned: true, purchaseConfirmed: true, buyer: { id: BUYER } });
+    });
+
+    it("브리디 밖에서 분양하면 external 로 남기고 아무에게도 알리지 않는다", async () => {
+      const res = await post(me, { action: "sold", data: { buyerExternal: true } });
+      expect(res.statusCode).toBe(200);
+      expect(mockClient.sale.create.mock.calls[0][0].data).toMatchObject({ buyerId: null, buyerSource: "external" });
+      expect(mockCreateNotification).not.toHaveBeenCalled();
+    });
+
+    it("대화한 적 없는 회원은 400 INVALID_BUYER 로 막고 아무것도 쓰지 않는다", async () => {
+      const res = await post(me, { action: "sold", data: { buyerId: 99 } });
+      expect(res.statusCode).toBe(400);
+      expect(res.body.errorCode).toBe("INVALID_BUYER");
+      expect(mockClient.product.updateMany).not.toHaveBeenCalled();
+      expect(mockClient.sale.create).not.toHaveBeenCalled();
+    });
+
+    it("동시에 두 번 분양완료하면 하나만 성공하고 나머지는 409 TRADE_CONFLICT", async () => {
+      // 상태 조건부 updateMany: 먼저 바꾼 요청만 1행, 늦은 요청은 0행
+      mockClient.product.updateMany.mockResolvedValueOnce({ count: 1 }).mockResolvedValueOnce({ count: 0 });
+      const [a, b] = await Promise.all([post(me, { action: "sold" }), post(me, { action: "sold" })]);
+      expect([a.statusCode, b.statusCode].sort()).toEqual([200, 409]);
+      expect([a.body, b.body].find((body) => !body.success).errorCode).toBe("TRADE_CONFLICT");
+      expect(mockClient.sale.create).toHaveBeenCalledTimes(1);
+    });
+  });
+
+  describe("purchase", () => {
+    beforeEach(() => {
+      mockClient.product.findUnique.mockResolvedValue(soldProduct);
+    });
+
+    it("지정된 입양자는 입양 확정하고 분양자에게 알린다", async () => {
+      mockClient.sale.findFirst.mockResolvedValue(sale());
+      const res = await post(buyer, { action: "purchase" });
+      expect(res.statusCode).toBe(200);
+      expect(mockClient.purchase.create).toHaveBeenCalledWith({
+        data: { userId: BUYER, productId: 3, status: "completed" },
+      });
+      expect(mockCreateNotification).toHaveBeenCalledWith(
+        expect.objectContaining({ type: "ADOPTION_CONFIRMED", userId: SELLER, senderId: BUYER })
+      );
+    });
+
+    it.each([
+      ["미지정 글", sale({ buyerId: null, buyerSource: null }), buyer, "TRADE_NOT_ASSIGNED"],
+      ["다른 회원이 지정된 글", sale(), other, "TRADE_NOT_BUYER"],
+      ["브리디 밖에서 분양한 글", sale({ buyerId: null, buyerSource: "external" }), buyer, "TRADE_EXTERNAL_BUYER"],
+    ])("%s 은 403 으로 막는다", async (_label, saleRow, user, code) => {
+      mockClient.sale.findFirst.mockResolvedValue(saleRow);
+      const res = await post(user, { action: "purchase" });
+      expect(res.statusCode).toBe(403);
+      expect(res.body.errorCode).toBe(code);
+      expect(mockClient.purchase.create).not.toHaveBeenCalled();
+    });
+  });
+
+  describe("status_change(분양완료 되돌리기)", () => {
+    beforeEach(() => {
+      mockClient.product.findUnique.mockResolvedValue(soldProduct);
+      mockClient.sale.findFirst.mockResolvedValue(sale());
+    });
+
+    it("지금 입양자가 입양 확정했으면 400 TRADE_LOCKED 로 막는다", async () => {
+      mockClient.purchase.findMany.mockResolvedValue([{ userId: BUYER }]);
+      const res = await post(me, { action: "status_change", data: { status: "판매중" } });
+      expect(res.statusCode).toBe(400);
+      expect(res.body.errorCode).toBe("TRADE_LOCKED");
+      expect(mockClient.product.updateMany).not.toHaveBeenCalled();
+      expect(mockClient.sale.updateMany).not.toHaveBeenCalled();
+    });
+
+    it("잠금이 없으면 되돌리고 Sale·이 글의 입양 확정을 지우지 않고 cancelled 로 바꾼다", async () => {
+      mockClient.purchase.findMany.mockResolvedValue([{ userId: 9 }]); // 지정되지 않은 회원의 옛 확정은 막지 않는다
+      const res = await post(me, { action: "status_change", data: { status: "판매중" } });
+      expect(res.statusCode).toBe(200);
+      expect(mockClient.product.updateMany).toHaveBeenCalledWith({
+        where: { id: 3, status: "판매완료" },
+        data: { status: "판매중" },
+      });
+      expect(mockClient.sale.updateMany).toHaveBeenCalledWith({
+        where: { productId: 3, status: "completed" },
+        data: { status: "cancelled", buyerId: null, buyerSource: null, buyerAssignedAt: null },
+      });
+      expect(mockClient.purchase.updateMany).toHaveBeenCalledWith({
+        where: { productId: 3 },
+        data: { status: "cancelled" },
+      });
+    });
+  });
+
+  it("buyer-request: 분양자가 보낸 메시지가 없으면 403 REQUEST_NOT_ALLOWED, 알림 없음", async () => {
+    mockClient.product.findUnique.mockResolvedValue(soldProduct);
+    mockClient.sale.findFirst.mockResolvedValue(sale({ buyerId: null, buyerSource: null }));
+    const res = await call(buyerRequestHandler, { method: "POST", user: buyer, query: { id: "3" } });
+    expect(res.statusCode).toBe(403);
+    expect(res.body.errorCode).toBe("REQUEST_NOT_ALLOWED");
+    expect(mockCreateNotification).not.toHaveBeenCalled();
   });
 });

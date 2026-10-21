@@ -219,9 +219,13 @@ model Message {
   userId     Int
   createdAt  DateTime    @default(now())
   updatedAt  DateTime    @updatedAt
+  /// 분양글 카드 행이면 분양글 id(FK·관계 없음, 읽을 때 일괄 조회). type 은 TEXT 그대로(MessageType 을 늘리지 않는다).
+  /// message 에는 옛 앱·푸시·미리보기용 스냅샷 "[분양글] 제목 · 가격"(libs/shared/tradeChat.ts). 카드 행은 서버만 만든다. 앱 docs/prd/trade-review.md
+  productId  Int?
 
   @@index([chatRoomId])
   @@index([userId])
+  @@index([chatRoomId, productId])
 }
 
 
@@ -271,6 +275,8 @@ model Product {
   sales       Sale[]
   purchases   Purchase[]
   records     Record[]
+  /// 이 분양글에 달린 거래 후기(Review.productId). 앱 docs/prd/trade-review.md
+  tradeReviews Review[]
   // 2025.04.26일 추가 필드(아직 미사용)
   category String? // 예를 들면 곤충/강아지/고양이/파충류/물고기/기타/전체 등등 
   tags     String[]  // 태그는 문자열 배열로 저장
@@ -444,24 +450,45 @@ model Review {
   createdById  Int
   createdFor   User     @relation(name: "receivedReviews", fields: [createdForId], references: [id], onDelete: Cascade)
   createdForId Int
+  /// 쓰지 않는 칸(거래 후기는 점수가 없다). 지우지 않고 1 로 둔다.
   score        Int      @default(1)
+  /// 거래 후기가 달린 분양글(입양자 createdBy → 분양자 createdFor). 옛 행은 null. 1차는 글당 1개(코드 규칙),
+  /// 스키마는 입양자별 1개(@@unique) — 한 글 여러 마리 분양으로 넓힐 때 마이그레이션이 필요 없게. 앱 docs/prd/trade-review.md
+  product      Product? @relation(fields: [productId], references: [id], onDelete: SetNull)
+  productId    Int?
+  /// libs/shared/tradeReview.ts TRADE_REVIEW_KEYWORDS 의 key 1~5개(정해진 순서). 자유 글은 없다(review 는 "").
+  keywords     String[] @default([])
+  /// 분양자 답글(한 번, 300자)
+  reply        String?  @db.VarChar(300)
+  repliedAt    DateTime?
+  /// 운영자 숨김(PATCH /api/admin/reviews/:id). 숨긴 후기는 '후기 N'·집계에서 빠진다.
+  isHidden     Boolean  @default(false)
 
+  @@unique([productId, createdById])
   @@index([createdById])
   @@index([createdForId])
+  @@index([createdForId, isHidden])
 
 }
 
 model Sale {
   id        Int      @id @default(autoincrement())
+  /// 분양자(product.userId). 운영자가 남의 글을 분양완료해도 분양자로 남긴다.
   user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   userId    Int
   product   Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
   productId Int
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
-  status    String   @default("pending") // pending, completed
+  status    String   @default("pending") // pending, completed, cancelled(분양완료 되돌리기)
+  /// 분양자가 지정한 입양자(회원, FK·관계 없음). null = 미지정(옛 앱·'나중에 정할게요') 또는 브리디 밖. 앱 docs/prd/trade-review.md
+  buyerId         Int?
+  /// 'bredy'(회원 지정) | 'external'(브리디 밖에서 분양) | null(미지정)
+  buyerSource     String?
+  buyerAssignedAt DateTime?
   @@index([userId])
   @@index([productId])
+  @@index([buyerId])
 }
 
 model Purchase {
@@ -472,7 +499,7 @@ model Purchase {
   productId Int
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
-  status    String   @default("pending") // pending, completed
+  status    String   @default("pending") // pending, completed(입양 확정), cancelled(분양완료 되돌리기)
   @@index([userId])
   @@index([productId])
 }
@@ -535,6 +562,12 @@ enum NotificationType {
   WEEKLY_DIGEST        // 며칠 안 온 회원에게 주 1회 '이번 주 인기글·내 글 반응' 요약(본인이 보낸 사람). 커뮤니티 감사 #22
   ADMIN_BROADCAST      // 운영자 푸시 발송(/admin/push·공지 '푸시도 보내기'). 화면에는 '브리디 운영팀', 하루 1회
   ANSWER_ACCEPTED      // 질문자가 내 답변을 채택(답한 사람에게). targetType post · commentId
+  // 입양자 지정·거래 후기(앱 docs/prd/trade-review.md). 모두 설정 종류 trade, targetType product.
+  ADOPTER_REQUESTED     // 회원이 미지정 분양글의 입양자 지정을 요청(분양자에게, 글·사람당 1번)
+  ADOPTER_ASSIGNED      // 분양자가 입양자로 지정(입양자에게, 바꿨다 되돌려도 다시 보낸다)
+  ADOPTION_CONFIRMED    // 입양자가 입양 확정(분양자에게)
+  TRADE_REVIEW_RECEIVED // 입양자가 거래 후기를 남김(분양자에게)
+  TRADE_REVIEW_REPLIED  // 분양자가 후기에 답글(입양자에게)
 }
 
 enum SeasonKind {

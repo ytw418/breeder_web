@@ -25,18 +25,25 @@ import { toast } from "@libs/client/toast";
 import { setPendingAction, usePendingAction } from "@libs/client/pendingAction";
 import { authFetch } from "@libs/client/authFetch";
 import { shareOrCopy, copyText, absoluteUrl } from "@libs/client/share";
-import { makeImageUrl } from "@libs/client/utils";
+import { formatMonthDay, makeImageUrl } from "@libs/client/utils";
 import { ANALYTICS_EVENTS, trackEvent } from "@libs/client/analytics";
 import { extractProductId, getProductPath } from "@libs/product-route";
 import { formatProductPrice } from "@libs/productRules";
 import { dealTypeLabel, productStatusLabel } from "@libs/shared/productTerms";
 import useAdminModeration from "hooks/useAdminModeration";
 import FollowButton from "@components/features/profile/FollowButton";
+import { AdopterPickerSheet, type AdopterPickerMode } from "@components/features/trade/AdopterPickerSheet";
+import { AdoptionConfirmSheet } from "@components/features/trade/AdoptionConfirmSheet";
+import { TradeActionBlock } from "@components/features/trade/TradeActionBlock";
+import { TradeReviewSection } from "@components/features/trade/TradeReviewCard";
+import { useTradeReviewRefresh } from "@components/features/trade/useTradeReviewRefresh";
+import { TradeReviewReplySheet } from "@components/features/trade/TradeReviewReplySheet";
+import { postProductReview, TradeReviewSheet } from "@components/features/trade/TradeReviewSheet";
+import { isHiddenTradeReview, type ProductTradeInfo } from "@libs/shared/tradeReview";
 
+// 분양완료(sold)·입양 확정(purchase)은 입양자 시트·입양 확정 시트가 보낸다(앱 docs/prd/trade-review.md).
 type ProductActionPayload =
-  | { action: "purchase" }
   | { action: "delete" }
-  | { action: "sold" }
   | { action: "status_change"; data: { status: "판매중" | "예약중" } };
 
 type DetailProduct = NonNullable<ItemDetailResponse["product"]> & {
@@ -44,21 +51,8 @@ type DetailProduct = NonNullable<ItemDetailResponse["product"]> & {
   wishCount?: number;
 };
 
-
-/** 상세 메타의 날짜(앱 formatMonthDay): "10월 6일" */
-export function formatMonthDay(value: string | Date | null | undefined): string {
-  if (!value) return "";
-  const date = value instanceof Date ? value : new Date(value);
-  if (Number.isNaN(date.getTime())) return "";
-  return `${date.getMonth() + 1}월 ${date.getDate()}일`;
-}
-
 const successMessage = (payload: ProductActionPayload) => {
   switch (payload.action) {
-    case "purchase":
-      return "입양이 확정되었습니다.";
-    case "sold":
-      return "분양완료 처리되었습니다.";
     case "status_change":
       return `상태가 "${productStatusLabel(payload.data.status)}"(으)로 변경되었습니다.`;
     case "delete":
@@ -92,10 +86,14 @@ function ImagePlaceholderIcon({ className }: { className: string }) {
  * 헤더 ⋮ 시트(공유·링크 복사 / 소유자 수정·삭제 / 그 외 신고·판매자 차단), 사진 캐러셀 + 라이트박스,
  * 판매자 행, 혈통 행(붙인 혈통이 있을 때), "조회 N · 찜 N", 소유자 관리 블록, 하단 고정 바(찜·가격·채팅하기), 연관 상품.
  * SSR 은 비로그인 조회라 삭제·숨김 상품은 product 없이 오고, 소유자 토큰으로 다시 받아 안내만 보인다.
+ * 분양완료 글은 입양자 지정·입양 확정 영역(TradeActionBlock)을 두고, 지정된 입양자에게는 하단 바 주 버튼이
+ * '입양 확정'('채팅하기'는 보조)이 된다(앱 docs/prd/trade-review.md S-3, 시안 #detail-*). 확정 뒤 주 버튼은 '거래 후기 쓰기'이고,
+ * 후기는 본문 '거래 후기' 블록(누구에게나 공개, 분양자는 '답글 남기기')으로 보인다.
  */
 const ProductClient = ({
   product: initialProduct,
   relatedProducts: initialRelated,
+  review: initialReview,
   footer,
 }: ItemDetailResponse & {
   /** '비슷한 분양' 아래 '더 둘러보기'(서버가 그린 인기 글·광고·바로가기). */
@@ -105,7 +103,7 @@ const ProductClient = ({
   const params = useParams();
   const productId = extractProductId(params?.id as string);
   const detailKey = productId ? `/api/products/${productId}` : null;
-  const { user, isLoading: isUserLoading, canEditAnyContent } = useUser();
+  const { user, isLoading: isUserLoading, canEditAnyContent, isAdmin } = useUser();
   const { mutate: globalMutate } = useSWRConfig();
   const { isBlocked, unblock, isPending: blockPending } = useBlocks();
   const { confirm, confirmDialog } = useConfirmDialog();
@@ -117,6 +115,17 @@ const ProductClient = ({
   const [imageIndex, setImageIndex] = useState(0);
   const [viewerOpen, setViewerOpen] = useState(false);
   const [showStatusMenu, setShowStatusMenu] = useState(false);
+  // 입양자 지정 시트(분양완료로 바꿀 때 'sold', 분양완료 뒤 지정·바꾸기 'assign')와 입양 확정 시트.
+  const [pickerMode, setPickerMode] = useState<AdopterPickerMode | null>(null);
+  const [confirmOpen, setConfirmOpen] = useState(false);
+  // 거래 후기 시트(입양 확정한 입양자)·답글 시트(분양자)와 후기 시트 '신고'로 여는 분양자 신고 시트.
+  const [reviewOpen, setReviewOpen] = useState(false);
+  const [replyOpen, setReplyOpen] = useState(false);
+  const [sellerReportOpen, setSellerReportOpen] = useState(false);
+  const refreshTradeReviews = useTradeReviewRefresh();
+  // 이 화면에서 '입양자 지정 요청'을 보냈다(버튼 대신 안내를 둔다).
+  const [buyerRequested, setBuyerRequested] = useState(false);
+  const [requestPending, setRequestPending] = useState(false);
   const [sheetOpen, setSheetOpen] = useState(false);
   const [reportOpen, setReportOpen] = useState(false);
   const [blockTarget, setBlockTarget] = useState<{ id: number; name: string } | null>(null);
@@ -129,7 +138,11 @@ const ProductClient = ({
   useMarkSeenOnView("product", product);
   const relatedProducts = data?.relatedProducts ?? initialRelated ?? [];
   const isLiked = Boolean(data?.isLiked);
-  const hasPurchased = Boolean(data?.hasPurchased);
+  // 입양자 지정·입양 확정 상태(보는 사람 기준). 로그인 토큰으로 받은 응답에만 믿고 쓴다(SSR 은 비로그인 값).
+  // 조회 실패·옛 응답이면 없다 → 거래 버튼을 그리지 않는다.
+  const trade = data?.trade;
+  // 이 분양글의 거래 후기(공개 — 비로그인 SSR 에도 실린다. 숨긴 후기는 당사자·운영자에게만 자리표시). 없으면 영역을 그리지 않는다.
+  const review = (data ? data.review : initialReview) ?? null;
   const currentStatus = product?.status || "판매중";
   const isOwner = Boolean(user?.id && product?.user?.id === user.id);
   // 관리자 ⋯ 조치(숨기기·숨김 해제·삭제). 관리자가 아니면 항목이 없다.
@@ -225,13 +238,7 @@ const ProductClient = ({
         return;
       }
       trackEvent(
-        payload.action === "delete"
-          ? ANALYTICS_EVENTS.productDeleted
-          : payload.action === "sold"
-            ? ANALYTICS_EVENTS.productMarkedSold
-            : payload.action === "purchase"
-              ? ANALYTICS_EVENTS.productPurchaseConfirmed
-              : ANALYTICS_EVENTS.productStatusChanged,
+        payload.action === "delete" ? ANALYTICS_EVENTS.productDeleted : ANALYTICS_EVENTS.productStatusChanged,
         { product_id: product?.id || null, user_id: user?.id || null }
       );
       toast.success(successMessage(payload));
@@ -269,24 +276,58 @@ const ProductClient = ({
     if (ok) void runAction({ action: "status_change", data: { status: nextStatus } });
   };
 
-  const handleSold = async () => {
+  // 분양완료로 바꿀 때 '누구에게 분양했나요?' 시트로 입양자를 함께 고른다(확인 창을 대신한다).
+  const handleSold = () => {
     setShowStatusMenu(false);
-    const ok = await confirm({
-      title: "분양완료로 변경할까요?",
-      description: "분양내역에 기록됩니다.",
-      confirmText: "분양완료",
-    });
-    if (ok) void runAction({ action: "sold" });
+    if (actionPending) return;
+    setPickerMode("sold");
   };
 
-  const handlePurchase = async () => {
-    if (requireLogin() || actionPending) return;
-    const ok = await confirm({
-      title: "입양 확정 할까요?",
-      description: "입양내역에 기록됩니다.",
-      confirmText: "입양 확정",
-    });
-    if (ok) void runAction({ action: "purchase" });
+  /**
+   * 입양자 지정·입양 확정 뒤(또는 거래 상태가 바뀐 오류 뒤) 상세·목록을 다시 받는다.
+   * 받은 trade 는 바로 화면에 반영하고(분양완료로 바꿨으면 상태도), 다시 받은 값으로 맞춘다.
+   */
+  const handleTradeChanged = (result: { trade?: ProductTradeInfo }, soldNow = false) => {
+    const nextTrade = result.trade;
+    if (nextTrade) {
+      void mutate(
+        (prev) =>
+          prev?.product
+            ? {
+                ...prev,
+                trade: nextTrade,
+                product: soldNow ? { ...prev.product, status: "판매완료" } : prev.product,
+              }
+            : prev,
+        { revalidate: false }
+      );
+    }
+    void mutate();
+    void refreshLists();
+  };
+
+  // 미지정 분양글 '제가 입양했어요 — 입양자 지정 요청'(분양자에게 알림 한 번).
+  const handleRequestBuyer = async () => {
+    if (requireLogin() || requestPending || !product) return;
+    setRequestPending(true);
+    try {
+      const res = await authFetch(`/api/products/${product.id}/buyer-request`, { method: "POST" });
+      const result = (await res.json().catch(() => null)) as {
+        success?: boolean;
+        error?: string;
+        message?: string;
+      } | null;
+      if (!res.ok || !result?.success) {
+        toast.error(result?.error || result?.message || "요청하지 못했어요.");
+        void mutate();
+        return;
+      }
+      setBuyerRequested(true);
+    } catch {
+      toast.error("요청하지 못했어요. 다시 시도해 주세요.");
+    } finally {
+      setRequestPending(false);
+    }
   };
 
   const handleFavorite = async () => {
@@ -371,7 +412,8 @@ const ProductClient = ({
           chat_room_id: result.ChatRoomId,
           user_id: user?.id || null,
         });
-        router.push(`/chat/${result.ChatRoomId}`);
+        // 어느 분양글에서 연 방인지 넘긴다(채팅방 문맥 바·분양글 카드, 앱 docs/prd/trade-review.md §1.1).
+        router.push(`/chat/${result.ChatRoomId}?productId=${product.id}`);
         return;
       }
       trackEvent(ANALYTICS_EVENTS.productChatRoomCreateFailed, {
@@ -511,6 +553,24 @@ const ProductClient = ({
     .filter(Boolean)
     .join(" · ");
   const photoUrls = photos.map((photo) => makeImageUrl(photo, "public"));
+  // 하단 바 주 버튼(지정된 입양자 '입양 확정' → 확정 뒤 '거래 후기 쓰기'). 없으면 원래 바(찜 · 가격 · '채팅하기').
+  const tradePrimary = isOwner
+    ? null
+    : trade?.canConfirm
+      ? { label: "입양 확정", onClick: () => setConfirmOpen(true) }
+      : trade?.canReview
+        ? { label: "거래 후기 쓰기", onClick: () => setReviewOpen(true) }
+        : null;
+  // 입양 확정·거래 후기 시트의 분양글 요약.
+  const tradeSheetProduct = {
+    id: product.id,
+    name: product.name,
+    price: product.price,
+    photo: photos[0] ?? null,
+    sellerName: product.user?.name ?? "분양자",
+    productType: product.productType ?? null,
+  };
+  const publicReview = review && !isHiddenTradeReview(review) ? review : null;
 
   return (
     <Layout canGoBack homeAction title={product.name || "상세 정보"} seoTitle={product.name} headerRight={headerRight}>
@@ -728,25 +788,29 @@ const ProductClient = ({
                     </button>
                   </div>
                 </div>
-              ) : !isOwner && currentStatus === "판매완료" ? (
-                <div className="mt-5">
-                  {hasPurchased ? (
-                    <div className="flex h-12 items-center justify-center rounded-md bg-app-surface text-[15px] font-semibold text-app-muted">
-                      입양 확정 완료
-                    </div>
-                  ) : (
-                    <button
-                      type="button"
-                      disabled={actionPending}
-                      onClick={() => void handlePurchase()}
-                      className="h-12 w-full rounded-md bg-app-surface text-[15px] font-semibold text-app-text disabled:opacity-60"
-                    >
-                      {actionPending ? "처리 중..." : "입양 확정"}
-                    </button>
-                  )}
-                </div>
               ) : null}
             </div>
+
+            {/* 입양자 지정·입양 확정(분양완료 글, 앱 docs/prd/trade-review.md S-3). 행은 화면 폭 전체라 본문 패딩 밖에 둔다. */}
+            {trade ? (
+              <TradeActionBlock
+                trade={trade}
+                manage={canManage}
+                onOpenPicker={() => setPickerMode("assign")}
+                onRequestBuyer={() => void handleRequestBuyer()}
+                requestPending={requestPending}
+                requested={buyerRequested}
+              />
+            ) : null}
+            {/* 거래 후기(누구에게나 공개, 앱 docs/prd/trade-review.md S-3). 분양자는 답글 전이면 '답글 남기기', 운영자는 ⋯ 숨김. */}
+            {review ? (
+              <TradeReviewSection
+                review={review}
+                canReply={Boolean(trade?.canReply)}
+                onReply={() => setReplyOpen(true)}
+                moderator={isAdmin}
+              />
+            ) : null}
 
             {relatedProducts.length > 0 ? (
               <section className="mt-6 border-t-8 border-app-gap pt-6">
@@ -811,20 +875,44 @@ const ProductClient = ({
                   />
                 </svg>
               </button>
-              <span className="h-6 w-px shrink-0 bg-app-border" aria-hidden="true" />
-              <p className="min-w-0 flex-1 truncate text-[16px] font-bold text-app-text">
-                {formatProductPrice(product.price)}
-              </p>
-              {!isOwner ? (
-                <button
-                  type="button"
-                  disabled={chatPending}
-                  onClick={() => void handleChat()}
-                  className="h-[52px] shrink-0 rounded-md bg-app-brand px-6 text-[16px] font-semibold text-white disabled:opacity-60"
-                >
-                  {chatPending ? "여는 중..." : "채팅하기"}
-                </button>
-              ) : null}
+              {tradePrimary ? (
+                // 지정된 입양자: '채팅하기'는 보조, 주 버튼이 '입양 확정'·'거래 후기 쓰기'. 두 버튼이 남은 폭을 나누고
+                // 가격은 본문에만 둔다(시안 #detail-buyer-assigned #detail-buyer-confirmed).
+                <>
+                  <button
+                    type="button"
+                    disabled={chatPending}
+                    onClick={() => void handleChat()}
+                    className="h-[52px] min-w-0 flex-1 rounded-md bg-app-surface text-[16px] font-semibold text-app-text disabled:opacity-60"
+                  >
+                    {chatPending ? "여는 중..." : "채팅하기"}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={tradePrimary.onClick}
+                    className="h-[52px] min-w-0 flex-1 rounded-md bg-app-brand text-[16px] font-semibold text-white"
+                  >
+                    {tradePrimary.label}
+                  </button>
+                </>
+              ) : (
+                <>
+                  <span className="h-6 w-px shrink-0 bg-app-border" aria-hidden="true" />
+                  <p className="min-w-0 flex-1 truncate text-[16px] font-bold text-app-text">
+                    {formatProductPrice(product.price)}
+                  </p>
+                  {!isOwner ? (
+                    <button
+                      type="button"
+                      disabled={chatPending}
+                      onClick={() => void handleChat()}
+                      className="h-[52px] shrink-0 rounded-md bg-app-brand px-6 text-[16px] font-semibold text-white disabled:opacity-60"
+                    >
+                      {chatPending ? "여는 중..." : "채팅하기"}
+                    </button>
+                  ) : null}
+                </>
+              )}
             </div>
           </div>
 
@@ -851,6 +939,46 @@ const ProductClient = ({
         target={blockTarget}
         onClose={() => setBlockTarget(null)}
         onBlocked={goBackToList}
+      />
+      <AdopterPickerSheet
+        open={pickerMode != null}
+        productId={product.id}
+        mode={pickerMode ?? "assign"}
+        onClose={() => setPickerMode(null)}
+        onChanged={(result) => handleTradeChanged(result, pickerMode === "sold")}
+      />
+      <AdoptionConfirmSheet
+        open={confirmOpen}
+        product={tradeSheetProduct}
+        onClose={() => setConfirmOpen(false)}
+        onChanged={(result) => handleTradeChanged(result)}
+        // 확정과 함께 고른 키워드로 거래 후기를 보낸다(실패하면 시트가 E-13 토스트 뒤 '거래 후기 쓰기'로 남긴다).
+        onSubmitReview={async (keywords) => {
+          await postProductReview(product.id, keywords);
+        }}
+      />
+      <TradeReviewSheet
+        open={reviewOpen}
+        product={tradeSheetProduct}
+        onClose={() => setReviewOpen(false)}
+        onChanged={() => void refreshTradeReviews()}
+        onReportSeller={() => {
+          if (requireLogin()) return;
+          setSellerReportOpen(true);
+        }}
+      />
+      <TradeReviewReplySheet
+        open={replyOpen}
+        productId={product.id}
+        review={publicReview}
+        onClose={() => setReplyOpen(false)}
+        onChanged={() => void refreshTradeReviews()}
+      />
+      <ReportSheet
+        open={sellerReportOpen}
+        targetType="USER"
+        targetId={product.user?.id ?? null}
+        onClose={() => setSellerReportOpen(false)}
       />
       {confirmDialog}
     </Layout>
