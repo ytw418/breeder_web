@@ -31,6 +31,7 @@ import { extractProductId, getProductPath } from "@libs/product-route";
 import { formatProductPrice } from "@libs/productRules";
 import { dealTypeLabel, productStatusLabel } from "@libs/shared/productTerms";
 import useAdminModeration from "hooks/useAdminModeration";
+import FollowButton from "@components/features/profile/FollowButton";
 
 type ProductActionPayload =
   | { action: "purchase" }
@@ -588,9 +589,19 @@ const ProductClient = ({
               <span className="min-w-0 flex-1 truncate text-[16px] font-semibold text-app-text">
                 {product.user?.name}
               </span>
-              <span className="text-app-caption">
-                <ChevronRight />
-              </span>
+              {/* 분양자 팔로우(로그인·남의 분양글). 서버 HTML 에는 내 팔로우 여부가 없어 응답을 받은 뒤 그린다. */}
+              {data?.product && user && !isOwner && product.user?.id ? (
+                <FollowButton
+                  size="sm"
+                  userId={product.user.id}
+                  isFollowing={Boolean(product.user.isFollowing)}
+                  returnPath={productPath}
+                />
+              ) : (
+                <span className="text-app-caption">
+                  <ChevronRight />
+                </span>
+              )}
             </Link>
 
             {/* 혈통(판매자 행 바로 아래, PRD S-6). 연결이 없거나 회수·숨김된 혈통이면 행도 자리도 없다. */}

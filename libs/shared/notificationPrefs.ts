@@ -77,6 +77,7 @@ const KIND_BY_TYPE: Record<string, NotificationPrefKind> = {
   FAV: "trade",
   LIKE: "reaction",
   COMMENT: "reaction",
+  ANSWER_ACCEPTED: "reaction",
   FOLLOW: "follow",
   NEW_POST: "follow",
   NEW_PRODUCT: "follow",

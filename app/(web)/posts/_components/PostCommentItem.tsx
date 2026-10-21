@@ -3,6 +3,8 @@ import Link from "next/link";
 import { cn, getTimeAgoString } from "@libs/client/utils";
 import { DELETED_COMMENT_TEXT } from "@libs/shared/comment";
 import type { BreederProgramSummary } from "@libs/shared/breeder-program";
+import { leadingMention } from "@libs/shared/comment-mention";
+import { splitLinks } from "@libs/shared/post-body";
 import { PostAvatar } from "./PostAvatar";
 
 export interface PostCommentItemData {
@@ -14,6 +16,8 @@ export interface PostCommentItemData {
   isHidden?: boolean;
   likeCount?: number;
   isLiked?: boolean;
+  /** 답글의 답글이면 그 답글 작성자(본문 맨 앞 '@닉네임'을 주황으로, 누르면 프로필). */
+  replyToUser?: { id: number; name: string } | null;
   user: {
     id: number;
     name: string;
@@ -36,6 +40,50 @@ function NeutralPill({ children }: { children: string }) {
   );
 }
 
+/** 질문자가 채택한 답변 표시(앱 PostCommentItem 과 같은 띠, 시안 post-upload A2 상세 ②). */
+function AcceptedBand() {
+  return (
+    <span className="mt-1 inline-flex h-[22px] items-center gap-1 rounded-[6px] bg-app-brand-soft px-2 text-[12px] font-semibold text-app-brand-text">
+      <svg className="h-3 w-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" aria-hidden="true">
+        <path d="M5 12.5l4.5 4.5L19 7" strokeWidth={2.4} strokeLinecap="round" strokeLinejoin="round" />
+      </svg>
+      질문자 채택
+    </span>
+  );
+}
+
+/** 댓글 본문: 맨 앞 '@닉네임'(답글의 답글)은 주황 링크, http(s) 주소는 새 창 링크로 그린다. */
+function CommentText({ text, replyToUser }: { text: string; replyToUser?: { id: number; name: string } | null }) {
+  const mention = replyToUser ? leadingMention(text, replyToUser.name) : null;
+  const body = mention ? mention.rest : text;
+  return (
+    <>
+      {mention && replyToUser ? (
+        <>
+          <Link href={`/profiles/${replyToUser.id}`} className="font-semibold text-app-brand-text">
+            @{mention.name}
+          </Link>{" "}
+        </>
+      ) : null}
+      {splitLinks(body).map((part, index) =>
+        part.type === "link" ? (
+          <a
+            key={index}
+            href={part.value}
+            target="_blank"
+            rel="noopener noreferrer nofollow ugc"
+            className="break-all text-app-info"
+          >
+            {part.value}
+          </a>
+        ) : (
+          <span key={index}>{part.value}</span>
+        )
+      )}
+    </>
+  );
+}
+
 /** 게시글 댓글 DOM id. 알림·프로필에서 ?commentId= 로 열면 이 위치로 스크롤한다. */
 export const commentAnchorId = (commentId: number) => `comment-${commentId}`;
 
@@ -45,12 +93,14 @@ export const commentAnchorId = (commentId: number) => `comment-${commentId}`;
  * 이름 옆 '작성자'(글쓴이 댓글)·'비공개'(운영자 숨김), 시간 옆 '수정됨',
  * 본문 아래 좋아요·답글쓰기. 지운 루트는 '삭제된 댓글입니다.' 한 줄만 남는다.
  * highlighted 면 잠깐 회색 배경으로 눈에 띄게 한다(그 댓글로 이동했을 때).
+ * accepted 면 본문 위에 '질문자 채택' 띠를 둔다(순서는 그대로).
  */
 export function PostCommentItem({
   item,
   isReply = false,
   isPostAuthor = false,
   highlighted = false,
+  accepted = false,
   onMore,
   onReply,
   onLike,
@@ -59,6 +109,7 @@ export function PostCommentItem({
   isReply?: boolean;
   isPostAuthor?: boolean;
   highlighted?: boolean;
+  accepted?: boolean;
   onMore: () => void;
   onReply: () => void;
   onLike: () => void;
@@ -116,13 +167,14 @@ export function PostCommentItem({
               </svg>
             </button>
           </div>
+          {accepted ? <AcceptedBand /> : null}
           <p
             className={cn(
               "mt-1 whitespace-pre-line break-words text-app-text",
               isReply ? "text-[14px] leading-[20px]" : "text-[15px] leading-[22px]"
             )}
           >
-            {item.comment}
+            <CommentText text={item.comment} replyToUser={item.replyToUser} />
           </p>
           <div className="mt-0.5 flex items-center gap-3">
             <button

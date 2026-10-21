@@ -36,6 +36,8 @@ export interface BreederRankingItem {
   badges: SeasonBadgeItem[];
   /** `highlights=N` 으로 요청했을 때 상위 N명에게만 온다(반려생활 TOP 브리더 사진 줄·키워드). */
   highlight?: BreederHighlight;
+  /** `follow=1` 로 로그인해 요청했을 때만 온다: viewer 가 이 사람을 팔로우하는지(랭킹 행 팔로우 버튼). */
+  isFollowing?: boolean;
 }
 
 /** TOP 브리더 사진 줄에 보여 줄 최근 사진 수. */

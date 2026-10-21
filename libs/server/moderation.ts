@@ -12,7 +12,7 @@ import {
   contentUnhiddenMessage,
 } from "@libs/shared/sanction";
 import { toPostPlainText } from "@libs/shared/post-body";
-import { deleteCommentWithReplies } from "@libs/server/comments";
+import { deleteCommentWithReplies, releaseAcceptedAnswerIfGone } from "@libs/server/comments";
 
 /**
  * 운영자 조치(숨김·숨김 해제·삭제)를 적용하고 ModerationLog 에 남긴다.
@@ -224,7 +224,11 @@ async function setBloodlineVisible(id: number, isHidden: boolean) {
 async function setHidden(type: ModerationTargetType, id: number, isHidden: boolean) {
   const data = { isHidden };
   if (type === "POST") await client.post.update({ where: { id }, data });
-  else if (type === "COMMENT") await client.comment.update({ where: { id }, data });
+  else if (type === "COMMENT") {
+    const comment = await client.comment.update({ where: { id }, data, select: { postId: true } });
+    // 숨긴 댓글이 채택 답변이면 채택을 푼다(질문자에게 안 보여 다른 답을 채택할 수 없게 되므로).
+    if (isHidden && comment?.postId != null) await releaseAcceptedAnswerIfGone(comment.postId);
+  }
   else if (type === "PRODUCT") await client.product.update({ where: { id }, data });
   else if (type === "BLOODLINE_CARD") await setBloodlineVisible(id, isHidden);
   else await client.auction.update({ where: { id }, data });

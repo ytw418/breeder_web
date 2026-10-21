@@ -58,7 +58,7 @@ async function handler(req: NextApiRequest, res: NextApiResponse<ResponseType>) 
   }
 
   if (req.method === "DELETE") {
-    const mode = await deleteOwnComment({ id: commentId, parentId: target.parentId });
+    const mode = await deleteOwnComment({ id: commentId, parentId: target.parentId, postId });
     const body: CommentDeleteResponse = { success: true, mode };
     return res.json(body);
   }

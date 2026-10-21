@@ -55,6 +55,29 @@ async function removeEmptyDeletedParent(parentId: number) {
   }
 }
 
+/**
+ * 이 글의 채택 답변이 지워졌거나 숨겨졌으면 채택을 푼다(acceptedCommentId·resolvedAt 을 비운다).
+ * 그대로 두면 목록 질문 pill 이 '해결'로 남고, 질문자는 사라진 답 대신 다른 답을 채택할 수 없다.
+ * 숨김을 풀어도 채택은 되살리지 않는다(질문자가 다시 채택한다).
+ */
+export async function releaseAcceptedAnswerIfGone(postId: number) {
+  const post = await client.post.findUnique({
+    where: { id: postId },
+    select: { acceptedCommentId: true },
+  });
+  const acceptedId = post?.acceptedCommentId;
+  if (acceptedId == null) return;
+  const accepted = await client.comment.findUnique({
+    where: { id: acceptedId },
+    select: { deletedAt: true, isHidden: true },
+  });
+  if (accepted && !accepted.deletedAt && !accepted.isHidden) return;
+  await client.post.updateMany({
+    where: { id: postId, acceptedCommentId: acceptedId },
+    data: { acceptedCommentId: null, resolvedAt: null },
+  });
+}
+
 export type CommentDeleteMode = "hard" | "placeholder";
 
 /**
@@ -62,11 +85,14 @@ export type CommentDeleteMode = "hard" | "placeholder";
  * - 답글이 남은 루트는 본문을 비우고 deletedAt 만 남긴다('삭제된 댓글입니다' 자리).
  * - 그 밖에는 행을 지운다. 답글을 지워 부모 자리가 비면 부모도 지운다.
  * 행을 지우는 쪽이 기본이라 곳곳의 댓글 수(_count)·랭킹은 따로 고치지 않는다.
+ * 지운 댓글이 채택 답변이면 채택을 푼다.
  */
 export async function deleteOwnComment(target: {
   id: number;
   parentId: number | null;
+  postId: number;
 }): Promise<CommentDeleteMode> {
+  let mode: CommentDeleteMode = "hard";
   if (target.parentId == null) {
     const replyCount = await client.comment.count({ where: { parentId: target.id } });
     if (replyCount > 0) {
@@ -74,27 +100,30 @@ export async function deleteOwnComment(target: {
         where: { id: target.id },
         data: { deletedAt: new Date(), comment: "" },
       });
-      return "placeholder";
+      mode = "placeholder";
+    } else {
+      await client.comment.delete({ where: { id: target.id } });
     }
+  } else {
     await client.comment.delete({ where: { id: target.id } });
-    return "hard";
+    await removeEmptyDeletedParent(target.parentId);
   }
-  await client.comment.delete({ where: { id: target.id } });
-  await removeEmptyDeletedParent(target.parentId);
-  return "hard";
+  await releaseAcceptedAnswerIfGone(target.postId);
+  return mode;
 }
 
 /**
  * 운영자 삭제. 루트면 답글까지 지운다(relationMode = "prisma" 라 자기 참조 Cascade 가 없다).
- * 답글이면 위와 같이 빈 '삭제된 댓글' 부모를 정리한다.
+ * 답글이면 위와 같이 빈 '삭제된 댓글' 부모를 정리한다. 지운 것 중에 채택 답변이 있으면 채택을 푼다.
  */
 export async function deleteCommentWithReplies(id: number) {
   const target = await client.comment.findUnique({
     where: { id },
-    select: { parentId: true },
+    select: { parentId: true, postId: true },
   });
   if (!target) return;
   await client.comment.deleteMany({ where: { parentId: id } });
   await client.comment.delete({ where: { id } });
   if (target.parentId != null) await removeEmptyDeletedParent(target.parentId);
+  if (target.postId != null) await releaseAcceptedAnswerIfGone(target.postId);
 }

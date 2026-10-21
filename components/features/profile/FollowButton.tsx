@@ -5,6 +5,7 @@
  * - lg: 프로필 블록(높이 36 · r8, 남은 폭을 나눠 가진다)
  * - sm: 팔로워·팔로잉 행(74×32)
  * - card: 홈 '우리 동네 브리더' 카드(높이 32 · r8, 카드 폭을 채운다)
+ * sm 은 게시글·분양글·경매 상세 작성자 줄과 랭킹 행에도 쓴다(2026-10-21).
  * '팔로잉'을 누르면 '팔로우 취소' 하나만 있는 시트를 거친다(PRD F-11). 팔로우는 바로 된다.
  * 누르는 즉시 캐시(프로필 숫자·목록 행)를 바꾸고, 실패하면 그 사람 몫만 되돌린다. 바꿀 상태를 보내고, 응답이 최종 상태다.
  */
@@ -17,10 +18,15 @@ import { toLoginHref } from "@components/features/MainLayout";
 import { authFetch } from "@libs/client/authFetch";
 import { setPendingAction, usePendingAction } from "@libs/client/pendingAction";
 import {
+  isAuctionDetailKey,
   isFollowListKey,
   isFollowingFeedKey,
   isNearbyKey,
+  isPostDetailKey,
+  isProductDetailKey,
   isProfileKey,
+  isRankingKey,
+  withDetailAuthorFollow,
   withFollowListRow,
   withNearbyFollowRow,
   withMyFollowingDelta,
@@ -60,9 +66,9 @@ function useFollowMutation(targetUserId: number, returnPath: string) {
     updateInfiniteWhere<FollowListPageLike>({ cache, mutate }, isFollowListKey, (pages) =>
       withFollowListRow(pages, targetUserId, isFollowing)
     );
-    // 홈 동네 카드. 순서가 바뀌어 카드가 튀지 않게 다시 받지는 않는다.
+    // 홈 동네 카드·브리더 랭킹 행. 순서가 바뀌어 카드가 튀지 않게 다시 받지는 않는다.
     void mutate(
-      isNearbyKey,
+      (key) => isNearbyKey(key) || isRankingKey(key),
       (data?: NearbyLike) => withNearbyFollowRow(data, targetUserId, isFollowing),
       { revalidate: false }
     );
@@ -75,6 +81,16 @@ function useFollowMutation(targetUserId: number, returnPath: string) {
           : data,
       { revalidate: false }
     );
+    // 게시글·분양글·경매 상세의 작성자 줄(그 사람이 쓴 글만 바뀐다).
+    for (const [isKey, field] of [
+      [isPostDetailKey, "post"],
+      [isProductDetailKey, "product"],
+      [isAuctionDetailKey, "auction"],
+    ] as const) {
+      void mutate(isKey, (data?: unknown) => withDetailAuthorFollow(data, field, targetUserId, isFollowing), {
+        revalidate: false,
+      });
+    }
   };
 
   /** 지금 상태(isFollowing)를 받아 반대로 바꾼다. 처리 중이면 무시한다. */
@@ -173,21 +189,24 @@ export default function FollowButton({
         {isFollowing ? "팔로잉" : "팔로우"}
       </button>
       {confirming ? (
-        <ActionSheet
-          open
-          onClose={() => setConfirming(false)}
-          actions={[
-            {
-              key: "unfollow",
-              label: "팔로우 취소",
-              destructive: true,
-              onSelect: () => {
-                setConfirming(false);
-                void toggle(true);
+        // 시트는 포털이지만 React 이벤트는 부모로 올라간다. 행 링크(랭킹·분양자 줄) 안에서 눌러도 이동하지 않게 막는다.
+        <span className="contents" onClick={(event) => event.stopPropagation()}>
+          <ActionSheet
+            open
+            onClose={() => setConfirming(false)}
+            actions={[
+              {
+                key: "unfollow",
+                label: "팔로우 취소",
+                destructive: true,
+                onSelect: () => {
+                  setConfirming(false);
+                  void toggle(true);
+                },
               },
-            },
-          ]}
-        />
+            ]}
+          />
+        </span>
       ) : null}
     </>
   );
