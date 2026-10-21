@@ -21,7 +21,7 @@ export const NOTIFICATION_PREF_KINDS: readonly NotificationPrefKind[] = [
 /** 설정 화면 행 이름과 설명(한 줄). 2026-10-21 이름 통일: '찜' → '관심', '브리디 소식(순위·토론)' → '브리디 소식'(설명이 같은 말을 한다). */
 export const NOTIFICATION_PREF_COPY: Record<NotificationPrefKind, { label: string; description: string }> = {
   chat: { label: "채팅", description: "분양 문의·채팅 메시지" },
-  trade: { label: "거래·경매", description: "입찰·더 높은 입찰·낙찰·관심" },
+  trade: { label: "거래·경매", description: "입찰·낙찰·관심·입양자 지정·거래 후기" },
   reaction: { label: "내 글 반응", description: "좋아요·댓글·답글" },
   follow: { label: "팔로우·새 글", description: "새 팔로워·팔로우한 브리더의 새 글·관심 분야 질문" },
   news: { label: "브리디 소식", description: "순위·토론 결과·기록·사랑방·주간 요약·공지" },
@@ -75,6 +75,12 @@ const KIND_BY_TYPE: Record<string, NotificationPrefKind> = {
   AUCTION_WON: "trade",
   AUCTION_RESTARTED: "trade",
   FAV: "trade",
+  // 입양자 지정·거래 후기(2026-10-21, 앱 docs/prd/trade-review.md §3.7)
+  ADOPTER_REQUESTED: "trade",
+  ADOPTER_ASSIGNED: "trade",
+  ADOPTION_CONFIRMED: "trade",
+  TRADE_REVIEW_RECEIVED: "trade",
+  TRADE_REVIEW_REPLIED: "trade",
   LIKE: "reaction",
   COMMENT: "reaction",
   ANSWER_ACCEPTED: "reaction",
