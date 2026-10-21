@@ -26,6 +26,24 @@ import {
   type PedigreeNote,
 } from "@libs/shared/pedigree-note";
 import type { BloodlineLinkSummary } from "@libs/shared/bloodline-card";
+import { SOLD_PRODUCT_STATUS, type ProductTradeInfo } from "@libs/shared/tradeReview";
+import { createNotification } from "@libs/server/notification";
+import {
+  CANCELLED_TRADE_STATUS,
+  COMPLETED_TRADE_STATUS,
+  TradeError,
+  adopterAssignedMessage,
+  assertCanConfirmAdoption,
+  buildProductTrade,
+  isTradeLocked,
+  readTradeSnapshot,
+  sendTradeError,
+  tradeErrors,
+  tradeStateOf,
+  tradeUserName,
+  withTradeLock,
+} from "@libs/server/trade";
+import { parseBuyerChoice, validateBuyerCandidate } from "@libs/server/tradeCandidates";
 
 export interface ProductWithUser extends Omit<Product, "pedigreeNote" | "bloodlineRootId"> {
   /** isFollowing: 상세 GET 에서만, viewer 가 분양자를 팔로우하는지(비로그인·본인 false). */
@@ -47,7 +65,9 @@ export interface ItemDetailResponse {
   product?: ProductWithUser;
   relatedProducts?: Product[];
   isLiked?: boolean;
-  hasPurchased?: boolean; // 현재 유저가 이 상품을 구매확정 했는지
+  hasPurchased?: boolean; // 현재 유저가 이 상품을 구매확정 했는지(되돌려 취소된 확정 제외)
+  /** 입양자 지정·입양 확정(보는 사람 기준). 앱 docs/prd/trade-review.md */
+  trade?: ProductTradeInfo;
 }
 
 async function handler(
@@ -158,7 +178,7 @@ async function handler(
         : null,
       user?.id
         ? client.purchase.findFirst({
-            where: { productId: product.id, userId: user.id },
+            where: { productId: product.id, userId: user.id, status: { not: CANCELLED_TRADE_STATUS } },
             select: { id: true },
           })
         : null,
@@ -174,6 +194,12 @@ async function handler(
 
     const isLiked = Boolean(isLikedResult);
     const hasPurchased = Boolean(hasPurchasedResult);
+    // 입양자 지정·입양 확정 상태(보는 사람 기준). 분양완료 글만 거래 기록을 읽는다.
+    // 곁가지 정보라 조회가 실패해도 상세는 그대로 준다(trade 가 없으면 화면은 거래 버튼을 그리지 않는다).
+    const trade = await buildProductTrade(product, user).catch((error) => {
+      console.error("[api/products/:id][trade]", error);
+      return undefined;
+    });
     // 분양자 줄 팔로우 버튼(비로그인·본인 false).
     const isFollowingSeller = await viewerFollows(user?.id, product.userId);
 
@@ -210,13 +236,15 @@ async function handler(
       },
       isLiked,
       hasPurchased,
+      trade,
       relatedProducts,
     });
   }
 
   if (req.method === "POST") {
     switch (action) {
-      // 구매확정 (구매자 전용 - 판매완료 상태인 상품만)
+      // 입양 확정: 분양자가 지정한 입양자만(앱 docs/prd/trade-review.md §3.3). 옛 앱은 모든 방문자에게 버튼이
+      // 보이므로 미지정·남·브리디 밖이면 403 문구를 토스트로 보여 준다.
       case "purchase": {
         if (!user?.id) {
           return res.status(401).json({ success: false, message: "로그인이 필요합니다." });
@@ -224,24 +252,37 @@ async function handler(
         if (product.user.id === user.id) {
           return res.status(400).json({ success: false, message: "자신의 분양글은 입양 확정할 수 없습니다." });
         }
-        if (product.status !== "판매완료") {
-          return res.status(400).json({ success: false, message: "분양완료된 분양글만 입양 확정할 수 있습니다." });
+        if (product.status !== SOLD_PRODUCT_STATUS) {
+          return sendTradeError(res, tradeErrors.notSoldForConfirm());
         }
-        // 이미 구매확정 했는지 확인
-        const existingPurchase = await client.purchase.findFirst({
-          where: { productId: product.id, userId: user.id },
-        });
-        if (existingPurchase) {
-          return res.status(400).json({ success: false, message: "이미 입양 확정한 분양글입니다." });
+        try {
+          await withTradeLock(product.id, async (tx) => {
+            const fresh = await tx.product.findUnique({ where: { id: product.id }, select: { status: true } });
+            if (fresh?.status !== SOLD_PRODUCT_STATUS) throw tradeErrors.notSoldForConfirm();
+            const snapshot = await readTradeSnapshot(tx, product.id);
+            assertCanConfirmAdoption(tradeStateOf(product, snapshot, user.id), snapshot, user.id);
+            await tx.purchase.create({
+              data: { userId: user.id, productId: product.id, status: COMPLETED_TRADE_STATUS },
+            });
+          });
+        } catch (error) {
+          if (error instanceof TradeError) return sendTradeError(res, error);
+          throw error;
         }
-        await client.purchase.create({
-          data: {
-            userId: user.id,
-            productId: product.id,
-            status: "completed",
-          },
+        await createNotification({
+          type: "ADOPTION_CONFIRMED",
+          userId: product.userId,
+          senderId: user.id,
+          message: `${await tradeUserName(user.id, user.name)}님이 입양을 확정했어요.`,
+          targetId: product.id,
+          targetType: "product",
+          dedupe: true,
         });
-        return res.json({ success: true });
+        await captureServerEvent(user.id, "adoption_confirmed", {
+          product_id: product.id,
+          legacy_purchase: false,
+        });
+        return res.json({ success: true, trade: await buildProductTrade(product, user) });
       }
 
       // 아래 액션들은 판매자만 가능
@@ -355,42 +396,120 @@ async function handler(
         return res.json({ success: true, product: updatedProduct });
       }
 
-      // 상태 변경 (판매중/예약중)
+      // 상태 변경 (판매중/예약중). 분양완료에서 되돌리면 지금 입양자의 입양 확정·후기가 없을 때만 되고,
+      // 그때 Sale·이 글의 입양 확정을 지우지 않고 cancelled 로 바꾼다(되돌리기 UI 는 아직 없다 — 서버 가드만).
       case "status_change": {
         const newStatus = data?.status;
         if (!["판매중", "예약중"].includes(newStatus)) {
           return res.status(400).json({ success: false, message: "유효하지 않은 상태입니다." });
         }
-        await client.product.update({
-          where: { id: Number(productId) },
-          data: { status: newStatus },
-        });
+        try {
+          await withTradeLock(product.id, async (tx) => {
+            const fresh = await tx.product.findUnique({ where: { id: product.id }, select: { status: true } });
+            // 읽은 뒤 다른 요청(분양완료 처리 등)이 상태를 바꿨으면 의도와 다른 되돌리기가 되지 않게 멈춘다.
+            if (!fresh || fresh.status !== product.status) throw tradeErrors.conflict();
+            if (fresh.status !== SOLD_PRODUCT_STATUS) {
+              await tx.product.update({ where: { id: product.id }, data: { status: newStatus } });
+              return;
+            }
+            const snapshot = await readTradeSnapshot(tx, product.id);
+            if (isTradeLocked(tradeStateOf(product, snapshot, null))) throw tradeErrors.statusLocked();
+            const reverted = await tx.product.updateMany({
+              where: { id: product.id, status: SOLD_PRODUCT_STATUS },
+              data: { status: newStatus },
+            });
+            if (reverted.count === 0) throw tradeErrors.conflict();
+            await tx.sale.updateMany({
+              where: { productId: product.id, status: COMPLETED_TRADE_STATUS },
+              data: { status: CANCELLED_TRADE_STATUS, buyerId: null, buyerSource: null, buyerAssignedAt: null },
+            });
+            await tx.purchase.updateMany({
+              where: { productId: product.id },
+              data: { status: CANCELLED_TRADE_STATUS },
+            });
+          });
+        } catch (error) {
+          if (error instanceof TradeError) return sendTradeError(res, error);
+          throw error;
+        }
         return res.json({ success: true });
       }
 
-      // 판매완료 처리 (Sale 레코드 생성 + 상태 변경)
+      // 분양완료 처리(Sale 생성 + 상태 변경). data 없음 = 입양자 미지정(옛 앱·'나중에 정할게요'),
+      // data.buyerId = 대화한 회원 지정, data.buyerExternal = 브리디 밖에서 분양. 앱 docs/prd/trade-review.md §4 A.
       case "sold": {
-        // 이미 판매완료 레코드가 있는지 확인
-        const existingSale = await client.sale.findFirst({
-          where: { productId: product.id, userId: user!.id },
-        });
-        if (existingSale) {
-          return res.status(400).json({ success: false, message: "이미 분양완료 처리된 분양글입니다." });
+        const choice = parseBuyerChoice(data);
+        if (!choice) return sendTradeError(res, tradeErrors.invalidBuyer());
+        if (product.status === SOLD_PRODUCT_STATUS) return sendTradeError(res, tradeErrors.alreadySold());
+        const buyerId = choice.kind === "bredy" ? choice.buyerId : null;
+        const buyerSource = choice.kind === "bredy" ? "bredy" : choice.kind === "external" ? "external" : null;
+        let legacyPurchase = false;
+        try {
+          const rank = buyerId != null ? await validateBuyerCandidate(product.id, product.userId, buyerId) : null;
+          legacyPurchase = await withTradeLock(product.id, async (tx) => {
+            const [fresh, existingSale] = await Promise.all([
+              tx.product.findUnique({ where: { id: product.id }, select: { status: true } }),
+              tx.sale.findFirst({
+                where: { productId: product.id, status: COMPLETED_TRADE_STATUS },
+                select: { id: true },
+              }),
+            ]);
+            if (!fresh || fresh.status === SOLD_PRODUCT_STATUS || existingSale) throw tradeErrors.alreadySold();
+            const updated = await tx.product.updateMany({
+              where: { id: product.id, status: { not: SOLD_PRODUCT_STATUS } },
+              data: { status: SOLD_PRODUCT_STATUS },
+            });
+            if (updated.count === 0) throw tradeErrors.conflict();
+            await tx.sale.create({
+              data: {
+                // 운영자가 남의 글을 분양완료해도 Sale 은 분양자의 것이다(분양 수·신뢰 줄 집계).
+                userId: product.userId,
+                productId: product.id,
+                status: COMPLETED_TRADE_STATUS,
+                buyerId,
+                buyerSource,
+                buyerAssignedAt: buyerSource ? new Date() : null,
+              },
+            });
+            if (buyerId == null) return false;
+            const legacy = await tx.purchase.findFirst({
+              where: { productId: product.id, userId: buyerId, status: { not: CANCELLED_TRADE_STATUS } },
+              select: { id: true },
+            });
+            return Boolean(legacy);
+          });
+          await captureServerEvent(user.id, "adopter_assigned", {
+            product_id: product.id,
+            source: buyerSource ?? "none",
+            from: "sold",
+            candidate_rank: rank,
+          });
+        } catch (error) {
+          if (error instanceof TradeError) return sendTradeError(res, error);
+          throw error;
         }
-        await client.$transaction([
-          client.product.update({
-            where: { id: Number(productId) },
-            data: { status: "판매완료" },
-          }),
-          client.sale.create({
-            data: {
-              userId: user!.id,
-              productId: product.id,
-              status: "completed",
-            },
-          }),
-        ]);
-        return res.json({ success: true });
+        if (buyerId != null) {
+          await createNotification({
+            type: "ADOPTER_ASSIGNED",
+            userId: buyerId,
+            senderId: product.userId,
+            message: adopterAssignedMessage(await tradeUserName(product.userId, product.user.name), legacyPurchase),
+            targetId: product.id,
+            targetType: "product",
+            // 입양자를 바꿨다 되돌려도(A→B→A) 다시 알린다.
+            dedupe: false,
+          });
+          if (legacyPurchase) {
+            await captureServerEvent(buyerId, "adoption_confirmed", {
+              product_id: product.id,
+              legacy_purchase: true,
+            });
+          }
+        }
+        return res.json({
+          success: true,
+          trade: await buildProductTrade({ ...product, status: SOLD_PRODUCT_STATUS }, user),
+        });
       }
 
       default:

@@ -93,6 +93,63 @@ export interface TradeState {
   isDeleted: boolean;
 }
 
+/** 상세 trade.buyer(분양자·운영자에게만). 탈퇴한 입양자는 name 이 '탈퇴한 사용자#id'(화면에서 정규화). */
+export interface TradeBuyerSummary {
+  id: number;
+  name: string;
+  avatar: string | null;
+  status: string;
+}
+
+/**
+ * GET /api/products/:id 의 trade(보는 사람 기준). 비로그인이면 can*·buyerIsMe·wasBuyer 가 모두 false.
+ * 앱 docs/prd/trade-review.md §4 A.
+ */
+export interface ProductTradeInfo {
+  status: string;
+  sellerId: number;
+  /** 회원 입양자가 지정됐는지(브리디 밖·미지정 false) */
+  buyerAssigned: boolean;
+  buyerSource: TradeBuyerSource | null;
+  buyerIsMe: boolean;
+  /** 지정된 입양자가 입양 확정했는지(옛 '입양 확정' 버튼으로 남은 확정도 그 사람이 지정되면 인정) */
+  purchaseConfirmed: boolean;
+  /** 하단 바 '입양 확정' */
+  canConfirm: boolean;
+  /** '거래 후기 쓰기' */
+  canReview: boolean;
+  /** 후기 '답글 남기기'(분양자) */
+  canReply: boolean;
+  /** 입양자 '지정하기·바꾸기'(분양자·운영자 이메일 계정) */
+  canChangeBuyer: boolean;
+  /** '제가 입양했어요 — 입양자 지정 요청'(미지정 글, 분양자가 나에게 메시지를 보낸 적 있는 회원) */
+  canRequestBuyer: boolean;
+  /** 예전에 나를 입양자로 지정했다가 바꿨는지("분양자가 입양자를 바꿨어요") */
+  wasBuyer: boolean;
+  /** 분양자·운영자에게만 내려온다(그 외·비로그인 SSR 은 필드 없음). 입양자가 없으면 null */
+  buyer?: TradeBuyerSummary | null;
+}
+
+/** 입양자 후보가 어느 묶음에서 왔는지(시트 소제목·분석 candidate_rank). */
+export type TradeCandidateRank = "requested" | "primary" | "others";
+
+export interface TradeCandidateUser {
+  id: number;
+  name: string;
+  avatar: string | null;
+}
+
+/** GET /api/products/:id/buyer-candidates. 한 사람은 앞 묶음에만 한 번 나온다(requested → primary → others). */
+export interface BuyerCandidatesResponse {
+  success: boolean;
+  /** '입양자 지정을 요청한 사람'(최근 순, 맨 위를 미리 선택) */
+  requested: { user: TradeCandidateUser; requestedAt: string }[];
+  /** '이 분양글로 채팅한 상대'(분양글 카드가 있는 방, 최근 카드 순) */
+  primary: { user: TradeCandidateUser; chatRoomId: number; lastMessageAt: string; cardAt: string }[];
+  /** '다른 대화 상대'(서로 메시지를 주고받은 방, 최근 대화 순, 최대 30) */
+  others: { user: TradeCandidateUser; chatRoomId: number; lastMessageAt: string }[];
+}
+
 export type TradeViewerRole = "seller" | "buyer" | "other" | "guest";
 
 export function tradeViewerRole(state: TradeState): TradeViewerRole {
