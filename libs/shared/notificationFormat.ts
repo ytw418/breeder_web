@@ -99,6 +99,12 @@ const KINDS: Record<string, NotificationKind> = {
   ADMIN_BROADCAST: { label: "브리디 소식", icon: "bell", fromPerson: false },
   // 질문자가 내 답변을 채택(2026-10-21): 질문자 아바타 + 체크 뱃지. 누르면 그 댓글로 간다.
   ANSWER_ACCEPTED: { label: "채택", icon: "check", fromPerson: true },
+  // 입양자 지정·거래 후기(2026-10-21, 앱 docs/prd/trade-review.md §3.7): 상대 아바타 + 기존 아이콘 뱃지. 누르면 분양글 상세.
+  ADOPTER_REQUESTED: { label: "입양자 요청", icon: "tag", fromPerson: true },
+  ADOPTER_ASSIGNED: { label: "입양자 지정", icon: "tag", fromPerson: true },
+  ADOPTION_CONFIRMED: { label: "입양 확정", icon: "check", fromPerson: true },
+  TRADE_REVIEW_RECEIVED: { label: "거래 후기", icon: "bubble", fromPerson: true },
+  TRADE_REVIEW_REPLIED: { label: "후기 답글", icon: "bubble", fromPerson: true },
 };
 
 const FALLBACK_KIND: NotificationKind = { label: "알림", icon: "bell", fromPerson: false };

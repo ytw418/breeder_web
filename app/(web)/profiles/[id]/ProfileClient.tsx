@@ -269,7 +269,7 @@ const ProfileClient = ({
           {currentTab === "posts" ? <ProfilePostRows list={postsList} /> : null}
           {currentTab === "products" && id ? (
             <>
-              <TransactionMenu userId={id} isMine={isMyProfile} />
+              <TransactionMenu userId={id} isMine={isMyProfile} tradeReviews={user?._count?.tradeReviews} />
               <SectionGap />
               <ProfileProductRows list={productsList} />
             </>

@@ -38,7 +38,14 @@ export type ServerAnalyticsEvent =
   | "debate_voted"
   | "debate_commented"
   | "town_message_sent"
-  | "town_welcome_sent";
+  | "town_welcome_sent"
+  // 입양자 지정·채팅 분양글 카드·거래 후기(앱 docs/prd/trade-review.md §3.8)
+  | "product_card_sent"
+  | "adopter_requested"
+  | "adopter_assigned"
+  | "adoption_confirmed"
+  | "trade_review_created"
+  | "trade_review_replied";
 
 export type ClientPlatform = "app" | "web";
 

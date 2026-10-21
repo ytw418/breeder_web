@@ -35,18 +35,26 @@ export function uniqueById<T extends { id: number }>(items: T[]): T[] {
   });
 }
 
+/** 응답의 페이지 수. pages 가 없고 전체 수(total)만 주는 API(받은 거래 후기)는 크기로 나눠 센다. */
+function pageCountOf(page: { pages?: number; total?: number } | null | undefined): number | null {
+  if (typeof page?.pages === "number") return page.pages;
+  if (typeof page?.total === "number") return Math.ceil(page.total / PROFILE_LIST_PAGE_SIZE);
+  return null;
+}
+
 /**
- * `?page=N&size=20` 오프셋 페이지 API(응답에 pages 총수)를 이어 붙인다. 앱 use-profile-activity-list 와 같은 규칙.
- * baseUrl 이 null 이면 요청하지 않는다.
+ * `?page=N&size=20` 오프셋 페이지 API(응답에 pages 총수, 없으면 total 전체 수)를 이어 붙인다.
+ * 앱 use-profile-activity-list 와 같은 규칙. baseUrl 이 null 이면 요청하지 않는다.
  */
-export function usePagedList<TPage extends { pages?: number }, TItem extends { id: number }>(
+export function usePagedList<TPage extends { pages?: number; total?: number }, TItem extends { id: number }>(
   baseUrl: string | null,
   pickItems: (page: TPage) => TItem[] | undefined
 ): PagedListState<TItem, TPage> {
   const getKey = useCallback(
     (index: number, previous: TPage | null) => {
       if (!baseUrl) return null;
-      if (previous && typeof previous.pages === "number" && index >= previous.pages) return null;
+      const previousPages = pageCountOf(previous);
+      if (previous && previousPages !== null && index >= previousPages) return null;
       const joiner = baseUrl.includes("?") ? "&" : "?";
       return `${baseUrl}${joiner}page=${index + 1}&size=${PROFILE_LIST_PAGE_SIZE}`;
     },
@@ -64,7 +72,7 @@ export function usePagedList<TPage extends { pages?: number }, TItem extends { i
   );
 
   const lastPage = data?.[data.length - 1];
-  const totalPages = typeof lastPage?.pages === "number" ? lastPage.pages : 0;
+  const totalPages = pageCountOf(lastPage) ?? 0;
   const loadedPages = data?.length ?? 0;
   const hasNextPage = Boolean(data) && loadedPages < totalPages;
   const isFetchingNextPage = Boolean(data) && size > loadedPages && isValidating && !error;

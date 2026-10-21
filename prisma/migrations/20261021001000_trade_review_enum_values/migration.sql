@@ -1,0 +1,6 @@
+-- 입양자 지정·거래 후기(앱 docs/prd/trade-review.md): 알림 종류 추가 (새 값은 다음 마이그레이션부터 쓴다)
+ALTER TYPE "NotificationType" ADD VALUE IF NOT EXISTS 'ADOPTER_REQUESTED';
+ALTER TYPE "NotificationType" ADD VALUE IF NOT EXISTS 'ADOPTER_ASSIGNED';
+ALTER TYPE "NotificationType" ADD VALUE IF NOT EXISTS 'ADOPTION_CONFIRMED';
+ALTER TYPE "NotificationType" ADD VALUE IF NOT EXISTS 'TRADE_REVIEW_RECEIVED';
+ALTER TYPE "NotificationType" ADD VALUE IF NOT EXISTS 'TRADE_REVIEW_REPLIED';

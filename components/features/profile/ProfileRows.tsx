@@ -43,6 +43,8 @@ export const PROFILE_ICON_PATHS = {
   ],
   share: ["M12 16V3m-4 4l4-4 4 4M5 12v9h14v-9"],
   plus: ["M12 4v16m8-8H4"],
+  // 받은 거래 후기(앱 Icon star, 시안 design/mockups/trade-review/A-karrot.html i-star path 그대로).
+  star: ["M12 4l2.4 4.9 5.4.8-3.9 3.8.9 5.4L12 16.3 7.2 18.9l.9-5.4-3.9-3.8 5.4-.8z"],
 } as const;
 
 export type ProfileIconName = keyof typeof PROFILE_ICON_PATHS;
@@ -144,19 +146,22 @@ export const SMALL_BUTTON_CLASS =
 /* 메뉴 행                                                              */
 /* ------------------------------------------------------------------ */
 
-/** 48 플랫 메뉴 행(아이콘 22 · 15/500 · chevron). href 면 링크, 아니면 버튼. */
+/** 48 플랫 메뉴 행(아이콘 22 · 15/500 · (숫자 15/600) · chevron). href 면 링크, 아니면 버튼. */
 export function MenuRow({
   label,
   icon,
   href,
   onClick,
   chevron = true,
+  count,
 }: {
   label: string;
   icon: ProfileIconName;
   href?: string;
   onClick?: () => void;
   chevron?: boolean;
+  /** 라벨 오른쪽 숫자(받은 거래 후기 N). */
+  count?: number;
 }) {
   const className =
     "flex min-h-[48px] w-full items-center gap-3 px-4 text-left transition-colors hover:bg-app-surface";
@@ -164,29 +169,48 @@ export function MenuRow({
     <>
       <LineIcon name={icon} size={22} className="text-app-text" />
       <span className="flex-1 text-[15px] font-medium text-app-text">{label}</span>
+      {count !== undefined ? <span className="text-[15px] font-semibold text-app-text">{count}</span> : null}
       {chevron ? <LineIcon name="chevron-right" size={18} className="text-app-caption" /> : null}
     </>
   );
+  const ariaLabel = count === undefined ? undefined : `${label} ${count}개`;
   if (href) {
     return (
-      <Link href={href} className={className}>
+      <Link href={href} aria-label={ariaLabel} className={className}>
         {inner}
       </Link>
     );
   }
   return (
-    <button type="button" onClick={onClick} className={className}>
+    <button type="button" aria-label={ariaLabel} onClick={onClick} className={className}>
       {inner}
     </button>
   );
 }
 
-/** 분양내역 · 입양내역 · (본인만) 관심목록. 다른 사람 프로필에는 관심목록을 두지 않는다(서버도 403). */
-export function TransactionMenu({ userId, isMine }: { userId: number | string; isMine: boolean }) {
+/**
+ * 분양내역 · 입양내역 · 받은 거래 후기 N · (본인만) 관심목록. 다른 사람 프로필에는 관심목록을 두지 않는다(서버도 403).
+ * '받은 거래 후기 N ›'(앱 TradeHistoryRows, 앱 docs/prd/trade-review.md S-9, 시안 #profile-trade-rows)는 남의 프로필에서
+ * 0건이면 숨기고 본인은 0 으로 보인다. 옛 응답이라 수가 없으면(undefined) 숨긴다.
+ */
+export function TransactionMenu({
+  userId,
+  isMine,
+  tradeReviews,
+}: {
+  userId: number | string;
+  isMine: boolean;
+  /** 받은 거래 후기 수(프로필 `_count.tradeReviews`). */
+  tradeReviews?: number;
+}) {
+  const showReviews = tradeReviews !== undefined && (isMine || tradeReviews > 0);
   return (
     <div className="py-1">
       <MenuRow label="분양내역" icon="shopping-cart" href={`/profiles/${userId}/sales`} />
       <MenuRow label="입양내역" icon="bag" href={`/profiles/${userId}/purchases`} />
+      {showReviews ? (
+        <MenuRow label="받은 거래 후기" icon="star" href={`/profiles/${userId}/reviews`} count={tradeReviews} />
+      ) : null}
       {isMine ? (
         <MenuRow label="관심목록" icon="heart-outline" href={`/profiles/${userId}/favs`} />
       ) : null}

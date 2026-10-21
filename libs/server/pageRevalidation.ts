@@ -12,6 +12,8 @@ import { toAuctionPath } from "@libs/auction-route";
 export type DetailTarget =
   | { type: "PRODUCT" | "POST" | "AUCTION" | "PROFILE"; id: number }
   | { type: "COMMENT"; id: number }
+  /** 받은 거래 후기 목록(/profiles/:id/reviews). 후기 작성·답글·숨김 때 다시 만든다(앱 docs/prd/trade-review.md). */
+  | { type: "PROFILE_REVIEWS"; id: number }
   /** 홈(ISR). 새 글·분양글·경매가 '답 기다려요'·실시간 토론 같은 홈 섹션에 바로 보이게 한다. */
   | { type: "HOME" };
 
@@ -49,6 +51,8 @@ export async function detailPaths(target: DetailTarget): Promise<string[]> {
     }
     case "PROFILE":
       return [`/profiles/${target.id}`];
+    case "PROFILE_REVIEWS":
+      return [`/profiles/${target.id}/reviews`];
     case "COMMENT": {
       // 댓글은 화면에서 받지만 게시글 구조화 데이터(JSON-LD)에 들어가 있어 숨기면 글도 다시 만든다.
       const row = await client.comment.findUnique({

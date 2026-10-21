@@ -14,3 +14,18 @@ export function countCompletedSales(userId: number): Promise<number> {
     },
   });
 }
+
+/**
+ * 신뢰 줄 "후기 N"(앱 docs/prd/trade-review.md §3.5): 받은 거래 후기 수. 분양글에 달린 후기만 세고(옛 Review 행 제외),
+ * 운영자가 숨긴 후기와 숨긴 분양글의 후기는 뺀다. 분양자가 지운 분양글의 후기는 남겨 센다(지워서 후기를 없애지 못하게).
+ */
+export async function countTradeReviews(userId: number): Promise<number> {
+  return client.review.count({
+    where: {
+      createdForId: userId,
+      isHidden: false,
+      productId: { not: null },
+      product: { isHidden: false },
+    },
+  });
+}

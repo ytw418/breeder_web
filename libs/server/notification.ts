@@ -64,6 +64,16 @@ const getPushTitle = (type: NotificationType) => {
   ) {
     return "브리디 경매 알림";
   }
+  if (
+    type === "ADOPTER_REQUESTED" ||
+    type === "ADOPTER_ASSIGNED" ||
+    type === "ADOPTION_CONFIRMED" ||
+    type === "TRADE_REVIEW_RECEIVED" ||
+    type === "TRADE_REVIEW_REPLIED"
+  ) {
+    // 입양자 지정·거래 후기(앱 docs/prd/trade-review.md §3.7)
+    return "브리디 분양 알림";
+  }
   if (type === "MODERATION") return "브리디 운영팀";
   return "브리디 알림";
 };

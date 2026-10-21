@@ -47,7 +47,7 @@ async function handler(
       },
     });
 
-    // 각 채팅방별 안 읽은 메시지 수를 DB 레벨에서 카운트
+    // 각 채팅방별 안 읽은 메시지 수를 DB 레벨에서 카운트(분양글 카드 행은 채팅 목록과 같이 빼고 센다)
     let totalUnreadCount = 0;
 
     for (const membership of memberships) {
@@ -56,6 +56,7 @@ async function handler(
         where: {
           chatRoomId: membership.chatRoomId,
           userId: { not: userId },
+          productId: null,
           ...(since ? { createdAt: { gt: since } } : {}),
         },
       });

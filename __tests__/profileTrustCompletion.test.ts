@@ -35,11 +35,13 @@ describe("bredyTenureLabel", () => {
 
 describe("profileTrustLine", () => {
   const now = at(2026, 10, 9);
-  it("거래 완료가 있으면 앞에, 없으면 기간만", () => {
-    expect(profileTrustLine({ completedSales: 12, createdAt: iso(2026, 2, 3) }, now)).toBe(
-      "거래 완료 12 · 브리디 8개월차"
+  it("거래 완료·후기가 있으면 앞에, 없으면 기간만", () => {
+    expect(profileTrustLine({ completedSales: 12, tradeReviews: 3, createdAt: iso(2026, 2, 3) }, now)).toBe(
+      "거래 완료 12 · 후기 3 · 브리디 8개월차"
     );
-    expect(profileTrustLine({ completedSales: 0, createdAt: iso(2026, 2, 3) }, now)).toBe("브리디 8개월차");
+    expect(profileTrustLine({ completedSales: 0, tradeReviews: 0, createdAt: iso(2026, 2, 3) }, now)).toBe(
+      "브리디 8개월차"
+    );
   });
 
   it("가입일이 없으면 거래만, 둘 다 없으면 null", () => {

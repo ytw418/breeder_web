@@ -1,3 +1,4 @@
+import type { Prisma } from "@prisma/client";
 import client from "@libs/server/client";
 import { CREW_USER_ID_MAX, CREW_USER_ID_MIN } from "@libs/server/crew";
 import { isAdminEmail } from "@libs/shared/adminEmail";
@@ -8,6 +9,8 @@ import { isAdminEmail } from "@libs/shared/adminEmail";
  * - 모든 계정: 같은 본문(분양글 설명·경매 설명·텍스트 메시지)은 10분에 3번까지.
  *   메시지는 10자 이상만 센다('네'·'감사합니다' 같은 짧은 답을 여러 방에 보내는 것은 막지 않는다).
  * - 운영자 이메일·운영 크루(id 범위)는 제외한다. 크루 이름 꼬리('·크루')는 누구나 붙일 수 있어 보지 않는다.
+ * - 분양글 카드(Message.productId, 서버가 넣는 행)는 같은 본문으로 세지 않는다. 그 카드가 이번 요청에서 새로 들어가는
+ *   입양 희망자의 첫 메시지(추천 칩 '아직 분양 중인가요?' 등, 방·글당 1번)도 한도에서 뺀다(앱 docs/prd/trade-review.md §3.6).
  * 넘으면 429 + 문구를 돌려준다. 앱(구버전 포함)·웹은 서버 error 문구를 토스트로 그대로 보여 준다.
  */
 
@@ -55,8 +58,15 @@ function isExempt(user: { id: number; email: string | null }): boolean {
   return user.id >= CREW_USER_ID_MIN && user.id <= CREW_USER_ID_MAX;
 }
 
+type Db = Prisma.TransactionClient | typeof client;
+
 /** 같은 본문(앞뒤 공백만 다른 것 포함)을 최근 10분 안에 몇 번 보냈는지. */
-async function countRecentSameText(userId: number, kind: WriteKind, text: string): Promise<number> {
+async function countRecentSameText(
+  userId: number,
+  kind: WriteKind,
+  text: string,
+  db: Db = client
+): Promise<number> {
   const values = Array.from(new Set([text, text.trim()]));
   const createdAt = { gte: new Date(Date.now() - DUPLICATE_WINDOW_MS) };
   if (kind === "product") {
@@ -66,7 +76,10 @@ async function countRecentSameText(userId: number, kind: WriteKind, text: string
     return client.auction.count({ where: { userId, createdAt, description: { in: values } } });
   }
   if (kind === "message") {
-    return client.message.count({ where: { userId, type: "TEXT", createdAt, message: { in: values } } });
+    // 분양글 카드 행(productId 있음)은 서버가 만든 스냅샷이라 세지 않는다.
+    return db.message.count({
+      where: { userId, type: "TEXT", productId: null, createdAt, message: { in: values } },
+    });
   }
   return 0;
 }
@@ -90,23 +103,31 @@ async function countToday(userId: number, kind: WriteKind): Promise<number> {
 /**
  * 쓰기 전에 부른다. 막아야 하면 { status: 429, error, errorCode }, 아니면 null.
  * text 는 저장할 본문 그대로 넘긴다(분양글·경매 설명, 텍스트 메시지). 새 채팅방은 text 없이 부른다.
+ * withNewProductCard 는 이 메시지와 함께 분양글 카드가 방금 새로 들어갈 때만 true 로 넘긴다(lock 안에서 카드가 없음을
+ * 다시 확인한 뒤, 분양자 본인이 아닐 때). 클라이언트가 productId 를 붙이기만 해서는 한도를 피하지 못한다.
+ * db 는 트랜잭션 안에서 부를 때 tx 를 넘긴다(메시지 검사만 쓴다).
  */
 export async function assertWriteAllowed({
   userId,
   kind,
   text,
+  withNewProductCard = false,
+  db = client,
 }: {
   userId: number;
   kind: WriteKind;
   text?: string | null;
+  withNewProductCard?: boolean;
+  db?: Db;
 }): Promise<WriteLimitBlock | null> {
   const body = typeof text === "string" && text.trim() ? text : null;
 
   // 메시지는 보낼 때마다 불리므로 같은 본문을 먼저 세고, 넘을 때만 사용자(예외 여부)를 읽는다.
   if (kind === "message") {
+    if (withNewProductCard) return null;
     if (!body || body.trim().length < DUPLICATE_MESSAGE_MIN_LENGTH) return null;
-    if ((await countRecentSameText(userId, kind, body)) < DUPLICATE_MAX) return null;
-    const user = await client.user.findUnique({ where: { id: userId }, select: { id: true, email: true } });
+    if ((await countRecentSameText(userId, kind, body, db)) < DUPLICATE_MAX) return null;
+    const user = await db.user.findUnique({ where: { id: userId }, select: { id: true, email: true } });
     return user && isExempt(user) ? null : DUPLICATE_BLOCK;
   }
 

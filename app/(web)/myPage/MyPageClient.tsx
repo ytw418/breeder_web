@@ -362,7 +362,9 @@ const MyPageClient = () => {
   } else if (activeTab === "products") {
     activityContent = (
       <>
-        {userId ? <TransactionMenu userId={userId} isMine /> : null}
+        {userId ? (
+          <TransactionMenu userId={userId} isMine tradeReviews={profileUser?._count?.tradeReviews} />
+        ) : null}
         <SectionGap />
         <ProfileProductRows list={productsList} showMeta={false} />
       </>

@@ -4,11 +4,13 @@
  * 채팅방 — 앱 bredy_app src/app/chat/[chatRoomId].tsx (시안 A-karrot.html 우측 화면) 1:1.
  * 헤더 64(뒤로 + 상대 이름 16/700·신뢰 줄 12 muted, 누르면 프로필 + 알림 꺼짐 종 + ⋮ 알림·신고·차단·나가기)
  * / 사기 주의 카드(방별로 닫힘) / 날짜 구분 / 말풍선 묶음 / "읽음" / 입력바(+ · pill · 전송).
- * 최신 메시지가 아래, 이전 대화는 맨 위 "이전 대화 보기". 상품 맥락 바는 서버가 상품을 주지 않아 그리지 않는다.
+ * 최신 메시지가 아래, 이전 대화는 맨 위 "이전 대화 보기".
+ * 분양글 맥락(앱 docs/prd/trade-review.md S-1, 시안 trade-review #chat-*): URL ?productId 로 열면 card=1&productId 로 방을 받아
+ * 문맥 바(viewerAction 버튼: 분양완료·입양 확정·거래 후기 쓰기)·추천 칩을 그리고, 첫 전송에 productId 를 실어 서버가 카드 행을 넣게 한다.
  */
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
-import { useParams, useRouter } from "next/navigation";
+import { useParams, useRouter, useSearchParams } from "next/navigation";
 import useSWR, { useSWRConfig } from "swr";
 
 import SkeletonChatRoom from "@components/atoms/SkeletonChatRoom";
@@ -52,6 +54,12 @@ import {
 } from "../chatFormat";
 import { BackIcon, BellOffIcon, ChatCenterNotice, MoreIcon, PlusIcon, SendIcon } from "../chatUi";
 import { LeaveChatDialog } from "../LeaveChatDialog";
+import { ChatStarterChips } from "./ChatStarterChips";
+import { ProductContextBar, type ChatTradeAction } from "./ProductContextBar";
+import { AdopterPickerSheet } from "@components/features/trade/AdopterPickerSheet";
+import { AdoptionConfirmSheet, type AdoptionConfirmProduct } from "@components/features/trade/AdoptionConfirmSheet";
+import { TradeReviewSheet, postProductReview } from "@components/features/trade/TradeReviewSheet";
+import { isProductCard, productStarterChips } from "@libs/shared/tradeChat";
 import { useChatRoomSettings } from "../useChatRoomSettings";
 import { chatRoomActions } from "@libs/shared/chatRoomSettings";
 
@@ -76,6 +84,14 @@ async function uploadChatImage(file: File): Promise<string> {
   if (!uploaded.ok || !imageId) throw new Error("이미지 업로드에 실패했습니다.");
   return imageId;
 }
+
+/** 라우트 ?productId → 양의 정수 id, 아니면 null. */
+function parseRouteProductId(value: string | null): number | null {
+  const id = Number(value);
+  return value && Number.isInteger(id) && id > 0 ? id : null;
+}
+
+type MessageBody = { type: "TEXT"; message: string } | { type: "IMAGE"; image: string };
 
 /** 헤더 이름 아래 한 줄: 브리더 프로그램 회색 pill + "거래 완료 3 · 브리디 2개월차"(프로필 신뢰 줄과 같은 글자). */
 function RoomHeaderSubtitle({
@@ -190,6 +206,9 @@ const ChatRoomClient = () => {
   const router = useRouter();
   const params = useParams();
   const roomId = params?.chatRoomId as string | undefined;
+  const searchParams = useSearchParams();
+  // 분양글 '채팅하기'로 연 방이면 그 글 id(문맥 바·첫 메시지 카드). 숫자가 아니면 없는 것으로 본다.
+  const routeProductId = parseRouteProductId(searchParams?.get("productId") ?? null);
 
   const [localMessages, setLocalMessages] = useState<ChatMessage[]>([]);
   const [olderPagination, setOlderPagination] = useState<{ nextCursor: number | null; hasMore: boolean } | null>(
@@ -203,6 +222,11 @@ const ChatRoomClient = () => {
   const [reportOpen, setReportOpen] = useState(false);
   const [blockTarget, setBlockTarget] = useState<{ id: number; name: string } | null>(null);
   const [leaveOpen, setLeaveOpen] = useState(false);
+  // 문맥 바 버튼으로 연 거래 시트(분양완료 → 입양자 지정 / 입양 확정 / 거래 후기)
+  const [tradeSheet, setTradeSheet] = useState<ChatTradeAction | null>(null);
+  const [sellerReportOpen, setSellerReportOpen] = useState(false);
+  // 이 화면에서 productId 를 실어 보내 카드가 들어간(또는 이미 있던) 분양글 id. 그 뒤로는 productId 를 싣지 않는다.
+  const [cardSentFor, setCardSentFor] = useState<number | null>(null);
 
   const scrollRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
@@ -218,7 +242,8 @@ const ChatRoomClient = () => {
   const roomSettings = useChatRoomSettings();
 
   const { data, error, isLoading, mutate } = useSWR<ChatRoomResponse>(
-    roomId ? `/api/chat/${roomId}?limit=${CHAT_PAGE_SIZE}` : null,
+    // card=1: 문맥 분양글(chatRoom.product)을 같이 받는다(첫 페이지만).
+    roomId ? `/api/chat/${roomId}?limit=${CHAT_PAGE_SIZE}&card=1${routeProductId ? `&productId=${routeProductId}` : ""}` : null,
     { refreshInterval: CHAT_ROOM_POLL_MS }
   );
 
@@ -247,6 +272,8 @@ const ChatRoomClient = () => {
   const composerLocked = partnerDeleted || partnerBlocked;
   const canModerate = Boolean(partner && !partnerDeleted);
   const muted = Boolean(data?.me?.muted);
+  // 문맥 분양글(card=1 첫 페이지). 없거나 null(지웠거나 숨긴 글)이면 문맥 바·칩·거래 시트를 그리지 않는다.
+  const roomProduct = room?.product ?? null;
   // 헤더 신뢰 줄은 프로필 신뢰 줄과 같은 글자(동네는 넣지 않는다). 탈퇴 상대는 줄도 링크도 없다.
   const trustLine = partner && !partnerDeleted ? profileTrustLine(partner) : null;
   const profileHref = partner && !partnerDeleted && !partnerBlocked ? `/profiles/${partner.id}` : undefined;
@@ -266,7 +293,7 @@ const ChatRoomClient = () => {
   const cautionIds = useMemo(() => {
     const ids = new Set<number>();
     for (const message of messages) {
-      if (message.user.id !== user?.id && message.type === "TEXT" && hasRiskyContact(message.message)) ids.add(message.id);
+      if (message.user.id !== user?.id && message.type === "TEXT" && !isProductCard(message) && hasRiskyContact(message.message)) ids.add(message.id);
     }
     return ids;
   }, [messages, user?.id]);
@@ -349,29 +376,65 @@ const ChatRoomClient = () => {
     resizeComposer();
   }, [text, composerLocked, resizeComposer]);
 
+  // 이 방에 문맥 분양글 카드가 이미 있는지(받은 메시지 안 + 이 화면에서 실어 보낸 것). 더 옛 페이지의 카드는 서버가 중복을 막는다.
+  const roomProductHasCard = Boolean(
+    roomProduct && (cardSentFor === roomProduct.id || messages.some((message) => message.productId === roomProduct.id))
+  );
+  // 분양글 '채팅하기'로 연 그 글이고 카드가 아직 없으면 다음 전송에 productId 를 싣는다(서버가 카드 → 본문).
+  const cardProductId =
+    roomProduct && roomProduct.id === routeProductId && !roomProductHasCard ? roomProduct.id : undefined;
+  // 추천 칩: 서버 조건(분양자 아님 · 분양중·예약중 · 카드 없음) + 화면에서 막 보낸 카드·입력 잠금·전송 중이면 숨긴다.
+  const starterChips =
+    roomProduct?.showStarterChips && !roomProductHasCard && !composerLocked && !sending
+      ? productStarterChips(roomProduct)
+      : [];
+
+  /**
+   * 메시지 전송. productId 를 실으면 이 방에 그 글 카드가 없을 때 서버가 카드 행을 먼저 넣는다(응답 cardMessage).
+   * 그사이 글이 지워지거나 숨겨져 400 INVALID_PRODUCT 면 카드 없이 한 번 더 보내 대화가 막히지 않게 한다.
+   */
+  const sendWithProductCard = async (body: MessageBody, productId?: number): Promise<MessageResult> => {
+    if (!productId) return sendMessage({ data: body });
+    const result = await sendMessage({ data: { ...body, productId } });
+    if (!result?.success && result?.errorCode === "INVALID_PRODUCT") return sendMessage({ data: body });
+    return result;
+  };
+
   const canSend = Boolean(text.trim()) && !composerLocked && !sending && !imageUploading;
 
-  const submitText = async () => {
-    const value = text.trim();
-    if (!value || composerLocked || sending || imageUploading) return;
+  const sendText = async (value: string, productId?: number) => {
     // 누르는 즉시 입력창을 비운다. 실패하면 되돌린다(그사이 새로 입력했으면 유지).
     setText("");
     try {
-      const result = await sendMessage({ data: { type: "TEXT", message: value } });
+      const result = await sendWithProductCard({ type: "TEXT", message: value }, productId);
       if (!result?.success || !result.message) {
         setText((prev) => prev || value);
         // 차단·탈퇴 상대(403)는 서버 문구를 그대로 보여준다.
         toast.error(result?.error || "메시지 전송에 실패했습니다.");
         return;
       }
+      if (productId) setCardSentFor(productId);
       forceBottomRef.current = true;
-      setLocalMessages((prev) => mergeMessages(prev, [result.message!]));
+      const sent = result.message;
+      setLocalMessages((prev) => mergeMessages(prev, result.cardMessage ? [result.cardMessage, sent] : [sent]));
       void mutate();
       void globalMutate("/api/chat/chatList");
     } catch {
       setText((prev) => prev || value);
       toast.error("메시지 전송에 실패했습니다.");
     }
+  };
+
+  const submitText = async () => {
+    const value = text.trim();
+    if (!value || composerLocked || sending || imageUploading) return;
+    await sendText(value, cardProductId);
+  };
+
+  // 추천 칩은 입력창을 거치지 않고 그 문구를 분양글과 함께 바로 보낸다(PRD S-1.빈).
+  const sendStarterChip = (chip: string) => {
+    if (!roomProduct || composerLocked || sending || imageUploading) return;
+    void sendText(chip, roomProduct.id);
   };
 
   const handleFiles = async (fileList: FileList | null) => {
@@ -381,13 +444,15 @@ const ChatRoomClient = () => {
 
     const { toSend, summary } = planImageUploads(files);
     setImageUploading(true);
+    // 분양글에서 연 방의 첫 메시지가 사진이어도 카드를 넣는다(카드 → 사진). 첫 성공 뒤로는 싣지 않는다.
+    let productId = cardProductId;
     try {
       // 장마다 IMAGE 메시지 1개씩 순차 전송. 한 장이 실패해도 나머지는 계속 보낸다.
       for (let index = 0; index < toSend.length; index += 1) {
         const file = toSend[index];
         try {
           const imageId = await uploadChatImage(file);
-          const sent = await sendMessage({ data: { type: "IMAGE", image: imageId } });
+          const sent = await sendWithProductCard({ type: "IMAGE", image: imageId }, productId);
           if (!sent?.success || !sent.message) {
             summary.failed += 1;
             if (sent?.error) summary.serverError = sent.error;
@@ -399,8 +464,13 @@ const ChatRoomClient = () => {
             continue;
           }
           summary.sent += 1;
+          if (productId) {
+            setCardSentFor(productId);
+            productId = undefined;
+          }
           forceBottomRef.current = true;
-          setLocalMessages((prev) => mergeMessages(prev, [sent.message!]));
+          const message = sent.message;
+          setLocalMessages((prev) => mergeMessages(prev, sent.cardMessage ? [sent.cardMessage, message] : [message]));
         } catch {
           summary.failed += 1;
         }
@@ -420,6 +490,23 @@ const ChatRoomClient = () => {
       });
     }
   };
+
+  // 문맥 바 버튼 → 거래 시트. 시트가 끝나면 방(viewerAction)·분양 상세·목록·내역을 다시 받는다.
+  const refreshTrade = () => {
+    void mutate();
+    void globalMutate((key) => typeof key === "string" && /^(\$inf\$)?\/api\/(products|users)\//.test(key));
+  };
+  // 입양 확정·거래 후기 시트의 분양글 요약. 분양자 이름은 이 방 상대가 분양자일 때만 안다.
+  const tradeSheetProduct: AdoptionConfirmProduct | null = roomProduct
+    ? {
+        id: roomProduct.id,
+        name: roomProduct.name,
+        price: roomProduct.price,
+        photo: roomProduct.image,
+        sellerName: partner && !partnerDeleted && partner.id === roomProduct.sellerId ? partner.name : "분양자",
+        productType: roomProduct.productType,
+      }
+    : null;
 
   const goBack = () => {
     if (typeof window !== "undefined" && window.history.length > 1) router.back();
@@ -477,6 +564,8 @@ const ChatRoomClient = () => {
               onBack={goBack}
               onMore={room ? () => setSheetOpen(true) : undefined}
             />
+
+            {roomProduct ? <ProductContextBar product={roomProduct} onAction={setTradeSheet} /> : null}
 
             <div ref={scrollRef} onScroll={handleScroll} className="min-h-0 flex-1 overflow-y-auto overscroll-contain">
               {isRoomLoading ? (
@@ -537,6 +626,9 @@ const ChatRoomClient = () => {
                 </div>
               )}
             </div>
+
+            {/* 추천 칩: 입력바 바로 위(시안 #chat-buyer-empty .starter) */}
+            <ChatStarterChips chips={starterChips} disabled={imageUploading} onSend={sendStarterChip} />
 
             {/* 입력바: + 36 원형 · pill h40 r20 · 전송 28 원형 주황. 여러 줄이면 위로 늘어난다. */}
             <form
@@ -622,6 +714,41 @@ const ChatRoomClient = () => {
         onClose={() => setReportOpen(false)}
       />
       <BlockConfirmDialog target={blockTarget} onClose={() => setBlockTarget(null)} />
+      {/* 문맥 바 버튼의 거래 시트: 분양완료(입양자 지정, 이 방 상대 미리 선택) · 입양 확정(+키워드 후기) · 거래 후기 */}
+      {roomProduct && tradeSheetProduct ? (
+        <>
+          <AdopterPickerSheet
+            open={tradeSheet === "sold"}
+            productId={roomProduct.id}
+            mode="sold"
+            preselectUserId={partner && !partnerDeleted ? partner.id : null}
+            onClose={() => setTradeSheet(null)}
+            onChanged={refreshTrade}
+          />
+          <AdoptionConfirmSheet
+            open={tradeSheet === "confirm"}
+            product={tradeSheetProduct}
+            onClose={() => setTradeSheet(null)}
+            onChanged={refreshTrade}
+            onSubmitReview={async (keywords) => {
+              await postProductReview(roomProduct.id, keywords);
+            }}
+          />
+          <TradeReviewSheet
+            open={tradeSheet === "review"}
+            product={tradeSheetProduct}
+            onClose={() => setTradeSheet(null)}
+            onChanged={refreshTrade}
+            onReportSeller={() => setSellerReportOpen(true)}
+          />
+          <ReportSheet
+            open={sellerReportOpen}
+            targetType="USER"
+            targetId={roomProduct.sellerId}
+            onClose={() => setSellerReportOpen(false)}
+          />
+        </>
+      ) : null}
       <LeaveChatDialog
         open={leaveOpen}
         partnerName={canModerate && partner ? partner.name : null}

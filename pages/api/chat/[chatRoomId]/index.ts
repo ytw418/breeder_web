@@ -7,8 +7,14 @@ import {
   breederProgramSummarySelect,
   getSortedActiveBreederProgramSummaries,
 } from "@libs/server/breeder-programs";
-import { countCompletedSales } from "@libs/server/profileTrust";
+import { countCompletedSales, countTradeReviews } from "@libs/server/profileTrust";
+import {
+  loadChatMessageProducts,
+  parseChatProductId,
+  resolveChatRoomProduct,
+} from "@libs/server/chatProduct";
 import type { BreederProgramSummary } from "@libs/shared/breeder-program";
+import type { ChatMessageProduct, ChatRoomProduct } from "@libs/shared/tradeChat";
 
 // 채팅방 멤버 인터페이스
 export interface ChatRoomMember {
@@ -25,6 +31,8 @@ export interface ChatRoomMember {
     breederPrograms?: BreederProgramSummary[];
     /** 헤더 신뢰 줄 "거래 완료 N". 상대 멤버에만 넣는다(이전 대화 페이지에서는 빠진다). */
     completedSales?: number;
+    /** 헤더 신뢰 줄 "후기 N"(받은 거래 후기, 2026-10-21~). completedSales 와 같은 조건으로 넣는다. */
+    tradeReviews?: number;
   };
   lastReadAt: string | null;
 }
@@ -36,6 +44,10 @@ export interface Message {
   message: string;
   image: string | null;
   createdAt: string;
+  /** 분양글 카드 행이면 분양글 id(2026-10-21~). 새 앱·웹은 카드 말풍선으로 그린다. */
+  productId: number | null;
+  /** 카드 분양글 요약. 지웠거나 숨긴 글·본문 행은 null */
+  product: ChatMessageProduct | null;
   user: {
     id: number;
     name: string;
@@ -48,6 +60,11 @@ export interface ChatRoom {
   id: number;
   chatRoomMembers: ChatRoomMember[];
   messages: Message[];
+  /**
+   * 문맥 바·추천 칩의 분양글. `?card=1` 로 요청한 첫 페이지에만 넣는다(옛 앱은 card 를 보내지 않아 필드가 없다).
+   * ?productId 글(방 멤버의 보이는 글) → 없으면 방의 최근 카드 글, 둘 다 없으면 null.
+   */
+  product?: ChatRoomProduct | null;
 }
 
 export interface ChatPagination {
@@ -72,7 +89,7 @@ async function handler(
 ) {
   try {
     const {
-      query: { chatRoomId, limit = "20", beforeId },
+      query: { chatRoomId, limit = "20", beforeId, card, productId: productIdParam },
       user,
     } = req;
 
@@ -162,6 +179,7 @@ async function handler(
         message: true,
         image: true,
         createdAt: true,
+        productId: true,
         user: {
           select: {
             id: true,
@@ -192,16 +210,41 @@ async function handler(
     const hasMore = Boolean(olderMessage);
     const nextCursor = hasMore ? oldestMessageId ?? null : null;
 
-    // 헤더 신뢰 줄 "거래 완료 N"은 상대만 센다. 이전 대화 페이지는 헤더를 다시 그리지 않으니 세지 않는다.
-    const completedSalesByUser = new Map<number, number>(
+    // 헤더 신뢰 줄 "거래 완료 N · 후기 N"은 상대만 센다. 이전 대화 페이지는 헤더를 다시 그리지 않으니 세지 않는다.
+    const partnerIds = chatRoom.chatRoomMembers
+      .map((member) => member.userId)
+      .filter((memberId) => memberId !== user.id);
+    const requestedProductId = parseChatProductId(
+      Array.isArray(productIdParam) ? productIdParam[0] : productIdParam
+    );
+    const [trustCounts, messageProducts, roomProduct] = await Promise.all([
       hasBeforeCursor
         ? []
-        : await Promise.all(
-            chatRoom.chatRoomMembers
-              .filter((member) => member.userId !== user.id)
-              .map(async (member) => [member.userId, await countCompletedSales(member.userId)] as const)
-          )
-    );
+        : Promise.all(
+            partnerIds.map(async (partnerId) => {
+              const [completedSales, tradeReviews] = await Promise.all([
+                countCompletedSales(partnerId),
+                countTradeReviews(partnerId),
+              ]);
+              return [partnerId, { completedSales, tradeReviews }] as const;
+            })
+          ),
+      loadChatMessageProducts(orderedMessages.map((message) => message.productId)),
+      // 문맥 바는 card=1 로 요청한 첫 페이지에만(옛 앱 화면에 '예약하기' 바가 새로 생기지 않게).
+      card === "1" && !hasBeforeCursor
+        ? resolveChatRoomProduct({
+            chatRoomId: roomId,
+            viewerId: user.id,
+            memberIds: chatRoom.chatRoomMembers.map((member) => member.userId),
+            requestedProductId: requestedProductId === "invalid" ? null : requestedProductId,
+          }).catch((error) => {
+            // 문맥 바는 부가 정보다. 읽지 못하면 필드만 빼고 대화는 그대로 보여 준다.
+            console.error("Failed to resolve chat room product:", error);
+            return undefined;
+          })
+        : undefined,
+    ]);
+    const trustByUser = new Map(trustCounts);
 
     return res.json({
       success: true,
@@ -210,9 +253,11 @@ async function handler(
         messages: orderedMessages.map((message) => ({
           ...message,
           createdAt: message.createdAt.toISOString(),
+          productId: message.productId ?? null,
+          product: message.productId != null ? messageProducts.get(message.productId) ?? null : null,
         })),
         chatRoomMembers: chatRoom.chatRoomMembers.map(({ user: memberUser, ...member }) => {
-          const completedSales = completedSalesByUser.get(member.userId);
+          const trust = trustByUser.get(member.userId);
           return {
             ...member,
             lastReadAt: member.lastReadAt?.toISOString() || null,
@@ -222,10 +267,11 @@ async function handler(
               avatar: memberUser.avatar,
               createdAt: memberUser.createdAt.toISOString(),
               breederPrograms: getSortedActiveBreederProgramSummaries(memberUser.breederPrograms),
-              ...(completedSales === undefined ? {} : { completedSales }),
+              ...(trust ?? {}),
             },
           };
         }),
+        ...(roomProduct === undefined ? {} : { product: roomProduct }),
       },
       me: { muted: Boolean(myMembership?.mutedAt) },
       pagination: {

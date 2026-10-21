@@ -226,6 +226,8 @@ export default async function ProductPage({ params }: Props) {
       <ProductClient
         product={normalizeDeletedUserNames(data.product)}
         relatedProducts={normalizeDeletedUserNames(data.relatedProducts)}
+        // 공개 거래 후기(비로그인 응답이라 숨긴 후기는 없다). 로그인하면 화면이 다시 받은 값으로 바꾼다.
+        review={data.review ?? null}
         success={data.success}
         footer={
           <ExploreMore

@@ -20,7 +20,7 @@ export type AuthorLinkUser = {
 };
 
 /** Tailwind 는 동적 클래스를 못 읽어 크기별 클래스를 미리 적는다. */
-const AVATAR_CLASS = { 16: "h-4 w-4", 20: "h-5 w-5" } as const;
+const AVATAR_CLASS = { 16: "h-4 w-4", 20: "h-5 w-5", 24: "h-6 w-6" } as const;
 
 /**
  * 목록 카드의 작성자(아바타 + 닉네임, 앱 AuthorLink). 누르면 그 사람 프로필로 가고, 카드의 나머지는 상세로 간다
