@@ -259,6 +259,13 @@ describe("ProductForm 등록 요청", () => {
     fireEvent.click(screen.getByRole("checkbox", { name: /분양할 수 없는 종이 아니에요/ }));
   };
 
+  it("빈 칸으로 누르면 요청 없이 스크린 리더에 첫 오류 문구를 읽어 준다", async () => {
+    renderForm();
+    fireEvent.click(screen.getByRole("button", { name: "분양 등록하기" }));
+    await waitFor(() => expect(screen.getByRole("alert")).toHaveTextContent("제목을 입력해 주세요"));
+    expect(mockAuthFetch).not.toHaveBeenCalled();
+  });
+
   it("생물에 혈통을 붙여 등록하면 id 와 부모 정보가 실린다", async () => {
     renderForm();
     fillRequired("생물");

@@ -264,6 +264,22 @@ export function ProductForm({
   const [agreementError, setAgreementError] = useState("");
   const needsAgreement = !isEdit && !agreedTradeRules;
   const formRef = useRef<HTMLFormElement>(null);
+  // 검증에 걸리면 스크린 리더에 첫 오류 문구를 읽어 준다(앱 AccessibilityInfo.announceForAccessibility).
+  // 같은 문구로 다시 눌러도 읽히게 비웠다가 다음 틱에 넣는다.
+  const [errorAnnouncement, setErrorAnnouncement] = useState("");
+  const announceTimerRef = useRef<number | null>(null);
+  useEffect(
+    () => () => {
+      if (announceTimerRef.current != null) window.clearTimeout(announceTimerRef.current);
+    },
+    []
+  );
+  const announceError = (message: string) => {
+    if (announceTimerRef.current != null) window.clearTimeout(announceTimerRef.current);
+    setErrorAnnouncement("");
+    if (!message) return;
+    announceTimerRef.current = window.setTimeout(() => setErrorAnnouncement(message), 100);
+  };
   const [submitStep, setSubmitStep] = useState<SubmitStep>("idle");
   const busy = submitStep !== "idle";
 
@@ -402,6 +418,9 @@ export function ProductForm({
     const firstField = ERROR_FIELD_ORDER.find((field: ErrorField) =>
       field === "agreement" ? Boolean(nextAgreementError) : Boolean(nextErrors[field])
     );
+    const firstMessage =
+      firstField === "agreement" ? nextAgreementError : firstField ? nextErrors[firstField] : "";
+    announceError(firstMessage ?? "");
     if (firstField) {
       formRef.current
         ?.querySelector(`[data-field="${firstField}"]`)
@@ -712,6 +731,11 @@ export function ProductForm({
             <ErrorText>{agreementError}</ErrorText>
           </div>
         )}
+
+        {/* 스크린 리더 전용 오류 안내(화면에는 칸 아래 문구만 보인다) */}
+        <p className="sr-only" role="alert" aria-atomic="true">
+          {errorAnnouncement}
+        </p>
 
         {/* 하단 고정 CTA */}
         <div className="fixed inset-x-0 bottom-0 mx-auto max-w-xl z-30 border-t border-app-line bg-app-bg pb-[env(safe-area-inset-bottom)]">
