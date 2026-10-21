@@ -21,7 +21,7 @@ const CATEGORY_TABS = [{ id: "전체", name: "전체" }, ...TOP_LEVEL_CATEGORIES
 
 const TEXT_LINKS = [
   { label: "도구 소개", href: "/auction-tool" },
-  { label: "운영 룰", href: "/auctions/rules" },
+  { label: "경매 규칙", href: "/auctions/rules" },
 ];
 
 function SearchIcon() {

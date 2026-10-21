@@ -205,7 +205,7 @@ export default function AuctionToolLandingPage() {
               무료로 시작하기
             </Link>
             <Link href="/auctions/rules" className={SECONDARY_CTA}>
-              운영 정책 보기
+              경매 규칙 보기
             </Link>
           </div>
         </div>
