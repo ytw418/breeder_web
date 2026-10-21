@@ -30,6 +30,7 @@ const getProfileForSeo = async (rawId: string) => {
         avatar: true,
         bio: true,
         profileLink: true,
+        profileBanner: true,
         status: true,
         createdAt: true,
         _count: {
@@ -118,7 +119,10 @@ const page = async ({ params }: Props) => {
     <>
       <AppOpenBanner />
       {isPublicProfile(user) ? <JsonLd id="profile-jsonld" data={generateProfileJsonLd(user)} /> : null}
-      <ProfileClient initialName={isPublicProfile(user) ? user.name : undefined} />
+      <ProfileClient
+        initialName={isPublicProfile(user) ? user.name : undefined}
+        initialHasBanner={isPublicProfile(user) ? Boolean(user.profileBanner) : undefined}
+      />
     </>
   );
 };

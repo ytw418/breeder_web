@@ -79,6 +79,7 @@ export default function AlbumRow({
   albums,
   userAlbums,
   isOwner = false,
+  loading = false,
 }: {
   userId: number | string;
   /** 종별 자동 앨범 */
@@ -86,7 +87,21 @@ export default function AlbumRow({
   /** 사용자가 만든 앨범 */
   userAlbums?: AlbumSummary[];
   isOwner?: boolean;
+  /** 받는 중이고 앨범이 생길 만한 사람(게시글 있음)이면 줄 자리를 미리 잡는다. */
+  loading?: boolean;
 }) {
+  if (loading && albums === undefined) {
+    return (
+      <div aria-hidden="true" className="flex gap-3 overflow-hidden px-4 pb-[18px]">
+        {[0, 1, 2, 3].map((i) => (
+          <span key={i} className="flex w-[70px] shrink-0 flex-col items-center">
+            <span className="block h-[62px] w-[70px] animate-pulse rounded-xl bg-app-placeholder" />
+            <span className="mt-1.5 block h-4 w-[48px] animate-pulse rounded bg-app-placeholder" />
+          </span>
+        ))}
+      </div>
+    );
+  }
   const custom = userAlbums ?? [];
   const species = albums ?? [];
   if (!custom.length && !species.length && !isOwner) return null;
