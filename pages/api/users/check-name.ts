@@ -26,7 +26,7 @@ async function handler(req: NextApiRequest, res: NextApiResponse<CheckNameRespon
   const raw = Array.isArray(req.query.name) ? req.query.name[0] : req.query.name;
   let result: NicknameCheckResult;
   try {
-    result = await checkNickname(raw, req.user!.id);
+    result = await checkNickname(raw, req.user!.id, { viewerEmail: req.user?.email });
   } catch (error) {
     // DB 오류 원문(접속 정보 등)을 응답에 싣지 않는다. 앱은 실패를 '확인 안 됨'으로 보고 저장 때 다시 판정한다.
     console.error("[check-name] 닉네임 확인 실패", error);

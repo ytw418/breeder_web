@@ -5,6 +5,7 @@ import withHandler, { ResponseType } from "@libs/server/withHandler";
 import { withAuth } from "@libs/server/auth";
 import client from "@libs/server/client";
 import { resolveReportTarget } from "@libs/server/reports";
+import { notifyAdminsOfReport } from "@libs/server/reportAlert";
 import { captureServerEvent, resolveClientPlatform } from "@libs/server/analytics";
 import { parsePositiveIntId } from "@libs/shared/normalize";
 import {
@@ -144,6 +145,8 @@ async function handler(req: NextApiRequest, res: NextApiResponse<ReportResponse>
 
   // 자동 가림(앱 docs/prd/live-talk.md §4.4): 토론 글 2건, 사랑방 메시지 3건이면 운영자 확인 전까지 가린다.
   await autoHideReported(targetType, targetId);
+  // 운영자 즉시 알림(같은 대상 1·3건째, 사기·불법 개체·학대 사유는 매번). 실패해도 접수는 그대로 성공이다.
+  await notifyAdminsOfReport({ targetType, targetId, reason, reporterId: userId });
 
   await captureServerEvent(userId, "report_submitted", {
     target_type: targetType,

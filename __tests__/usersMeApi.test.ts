@@ -86,8 +86,27 @@ describe("POST /api/users/me 닉네임", () => {
     });
     expect(mockClient.user.update).toHaveBeenCalledWith({
       where: { id: 7 },
-      data: { name: "새이름" },
+      data: { name: "새이름", nameChangedAt: expect.any(Date) },
     });
+  });
+
+  it("닉네임을 바꾼 지 30일이 안 됐으면 다음 변경 가능일로 거절한다(커뮤니티 감사 #13)", async () => {
+    // 이름 주인 조회 → 아무도 안 씀, 내 마지막 변경 → 2026-10-10 00:00 KST
+    mockClient.user.findUnique
+      .mockResolvedValueOnce(null)
+      .mockResolvedValueOnce({ nameChangedAt: new Date("2026-10-09T15:00:00Z") });
+    jest.useFakeTimers({ now: new Date("2026-10-21T00:00:00Z"), doNotFake: ["nextTick", "setImmediate"] });
+    try {
+      const res = await save({ name: "새이름" });
+      expect(res.body).toEqual({
+        success: false,
+        errorCode: "NICKNAME_COOLDOWN",
+        error: "닉네임은 2026.11.09부터 바꿀 수 있어요.",
+      });
+      expect(mockClient.user.update).not.toHaveBeenCalled();
+    } finally {
+      jest.useRealTimers();
+    }
   });
 
   it("10글자를 넘으면 저장하지 않는다", async () => {

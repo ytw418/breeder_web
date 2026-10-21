@@ -1,7 +1,7 @@
 import client from "@libs/server/client";
 import { speciesCategoryIds } from "@libs/server/categories";
 import { sendPushToUsers } from "@libs/server/push";
-import { ADMIN_EMAIL_ID_PREFIX, isAdminEmail } from "@libs/shared/adminEmail";
+import { findAdminUserIds } from "@libs/server/adminAccess";
 import {
   formatKakaoDigest,
   KAKAO_DIGEST_ROOMS,
@@ -106,15 +106,6 @@ export async function buildKakaoDigest(
 
 export const buildAllKakaoDigests = (now: Date = new Date()) =>
   Promise.all(KAKAO_DIGEST_ROOMS.map((room) => buildKakaoDigest(room, now)));
-
-/** 운영자(ytw418* 이메일) 계정 id. 운영자에게만 가는 푸시(오픈채팅 소식·새 회원 첫 글 방치 등)가 같이 쓴다. */
-export async function findAdminUserIds(): Promise<number[]> {
-  const candidates = await client.user.findMany({
-    where: { email: { startsWith: ADMIN_EMAIL_ID_PREFIX, mode: "insensitive" } },
-    select: { id: true, email: true },
-  });
-  return candidates.filter((user) => isAdminEmail(user.email)).map((user) => user.id);
-}
 
 /**
  * 운영자(ytw418* 이메일) 계정 기기로 '오늘의 오픈채팅 소식' 푸시를 보낸다. 누르면 복사 화면이 열린다

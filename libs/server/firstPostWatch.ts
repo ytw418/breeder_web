@@ -1,5 +1,5 @@
 import client from "@libs/server/client";
-import { findAdminUserIds } from "@libs/server/kakaoDigest";
+import { findAdminUserIds } from "@libs/server/adminAccess";
 import { sendPushToUsers } from "@libs/server/push";
 import { newcomerSince } from "@libs/shared/newcomer";
 

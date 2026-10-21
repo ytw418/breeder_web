@@ -24,7 +24,7 @@ beforeEach(() => {
 
 describe("validateNickname", () => {
   it("앞뒤 공백을 지운 이름을 돌려준다", () => {
-    expect(validateNickname("  브리디  ")).toEqual({ ok: true, name: "브리디" });
+    expect(validateNickname("  크레맘  ")).toEqual({ ok: true, name: "크레맘" });
   });
 
   it.each([undefined, null, "", "   "])("빈 값(%p)은 EMPTY", (raw) => {
@@ -71,8 +71,22 @@ describe("validateNickname", () => {
     }
   );
 
-  it.each(["탈퇴 왕", "사용자1", "브리디 김"])("비슷하지만 다른 이름(%s)은 허용한다", (raw) => {
+  it.each(["탈퇴 왕", "사용자1", "브리더 김"])("비슷하지만 다른 이름(%s)은 허용한다", (raw) => {
     expect(validateNickname(raw)).toEqual({ ok: true, name: raw });
+  });
+
+  it("운영자 낱말은 띄어쓰기·기호·전각을 섞어도 RESERVED, 운영자 계정만 허용한다(커뮤니티 감사 #13)", () => {
+    for (const raw of ["브리디 운영팀", "bredy_kr", "Ｂｒｅｄｙ", "공.식"]) {
+      expect(validateNickname(raw)).toEqual({
+        ok: false,
+        code: "RESERVED",
+        reason: "사용할 수 없는 닉네임입니다.",
+      });
+    }
+    expect(validateNickname("브리디 운영팀", { allowReserved: true })).toEqual({
+      ok: true,
+      name: "브리디 운영팀",
+    });
   });
 
   it("문자열이 아니면 문자열로 바꿔 검사한다", () => {
@@ -127,14 +141,14 @@ describe("checkNickname", () => {
 
   it("다른 유저가 쓰면 TAKEN", async () => {
     mockClient.user.findUnique.mockResolvedValue({ id: 8 });
-    await expect(checkNickname(" 브리디 ", 7)).resolves.toEqual({
+    await expect(checkNickname(" 크레맘 ", 7)).resolves.toEqual({
       available: false,
       code: "TAKEN",
       reason: NICKNAME_TAKEN_MESSAGE,
     });
     expect(NICKNAME_TAKEN_MESSAGE).toBe("중복된 닉네임입니다.");
     expect(mockClient.user.findUnique).toHaveBeenCalledWith({
-      where: { name: "브리디" },
+      where: { name: "크레맘" },
       select: { id: true },
     });
   });

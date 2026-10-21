@@ -325,7 +325,8 @@ async function handler(req: NextApiRequest, res: NextApiResponse<ResponseType>) 
         return res.status(403).json({ success: false, error: SUPER_ADMIN_ONLY_ERROR });
       }
       const targetId = Number(userId);
-      const nickname = await checkNickname(req.body.name, targetId);
+      // 운영자가 바꾸는 이름이라 운영자 낱말도 허용한다(viewerEmail = 운영자). 30일 제한(nameChangedAt)은 본인 변경에만 건다.
+      const nickname = await checkNickname(req.body.name, targetId, { viewerEmail: user?.email });
       if (!nickname.available) {
         return res
           .status(nickname.code === "TAKEN" ? 409 : 400)
