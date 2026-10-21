@@ -8,6 +8,14 @@ import { authFetch } from "@libs/client/authFetch";
 import { readStoredCategoryScope } from "@libs/client/categoryScope";
 
 export const ONBOARDING_PATH = "/onboarding";
+/** 가입 직후 '시작하기'(이름·사진·동네·팔로우 추천·첫 인사 글, 2026-10-21 감사 19번). 다 보면 next 로 간다. */
+export const WELCOME_PATH = "/welcome";
+
+/** 새 계정이면 시작하기를 거쳐 next 로 가는 주소. */
+export const toWelcomePath = (next: string) => {
+  const target = getSafeNextPath(next);
+  return target === "/" ? WELCOME_PATH : `${WELCOME_PATH}?next=${encodeURIComponent(target)}`;
+};
 
 /** 같은 사이트 경로만 허용한다(외부 주소·`//host` 는 홈으로). */
 export const getSafeNextPath = (rawPath: string | null | undefined) => {
@@ -58,8 +66,15 @@ const wait = (ms: number) =>
     setTimeout(() => resolve(), ms);
   });
 
-/** 세션(/api/users/me)이 잡힐 때까지 잠깐 기다린 뒤 이동한다. */
-export async function navigateAfterSessionReady(nextPath: string) {
+/**
+ * 세션(/api/users/me)이 잡힐 때까지 잠깐 기다린 뒤 이동한다.
+ * 새 계정(로그인 응답 isNewUser)이면 시작하기를 거친다. 관심 카테고리 온보딩이 필요하면 그게 먼저다.
+ */
+export async function navigateAfterSessionReady(
+  rawNextPath: string,
+  options: { isNewUser?: boolean } = {}
+) {
+  const nextPath = options.isNewUser ? toWelcomePath(rawNextPath) : rawNextPath;
   const local = readStoredCategoryScope();
   for (let attempt = 0; attempt < 4; attempt += 1) {
     try {

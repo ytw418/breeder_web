@@ -96,7 +96,7 @@ describe("withAuth DB 게이트", () => {
     expect(mockVerifyAccessToken).toHaveBeenCalledWith("good");
     expect(mockClient.user.findUnique).toHaveBeenCalledWith({
       where: { id: 7 },
-      select: { status: true, tokenVersion: true, role: true, email: true },
+      select: { status: true, tokenVersion: true, role: true, email: true, lastActiveAt: true },
     });
   });
 

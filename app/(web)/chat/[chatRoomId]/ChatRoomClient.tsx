@@ -2,10 +2,12 @@
 
 /**
  * 채팅방 — 앱 bredy_app src/app/chat/[chatRoomId].tsx (시안 A-karrot.html 우측 화면) 1:1.
- * 헤더(뒤로 + 상대 이름 18/700 + ⋮ 신고·차단) / 날짜 구분 / 말풍선 묶음 / "읽음" / 입력바(+ · pill · 전송).
+ * 헤더 64(뒤로 + 상대 이름 16/700·신뢰 줄 12 muted, 누르면 프로필 + 알림 꺼짐 종 + ⋮ 알림·신고·차단·나가기)
+ * / 사기 주의 카드(방별로 닫힘) / 날짜 구분 / 말풍선 묶음 / "읽음" / 입력바(+ · pill · 전송).
  * 최신 메시지가 아래, 이전 대화는 맨 위 "이전 대화 보기". 상품 맥락 바는 서버가 상품을 주지 않아 그리지 않는다.
  */
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
+import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import useSWR, { useSWRConfig } from "swr";
 
@@ -15,12 +17,21 @@ import ImageLightbox from "@components/features/image/ImageLightbox";
 import { ActionSheet, type ActionSheetAction } from "@components/app/ActionSheet";
 import { ReportSheet } from "@components/app/moderation/ReportSheet";
 import { BlockConfirmDialog } from "@components/app/moderation/BlockConfirmDialog";
+import { BreederProgramBadge } from "@components/features/breeder/BreederProgramDecorators";
 import useMutation from "hooks/useMutation";
 import useUser from "hooks/useUser";
 import { useBlocks } from "hooks/useBlocks";
 import { authFetch } from "@libs/client/authFetch";
 import { toast } from "@libs/client/toast";
 import { cn, makeImageUrl } from "@libs/client/utils";
+import { dismissChatScamNotice, isChatScamNoticeDismissed } from "@libs/client/chatScamNotice";
+import { profileTrustLine } from "@libs/shared/profileTrust";
+import {
+  CHAT_SCAM_NOTICE_SUB,
+  CHAT_SCAM_NOTICE_TITLE,
+  hasRiskyContact,
+} from "@libs/shared/contactInText";
+import type { BreederProgramSummary } from "@libs/shared/breeder-program";
 
 import type { ChatRoomResponse } from "pages/api/chat/[chatRoomId]";
 import type { MessageResponse } from "pages/api/chat/[chatRoomId]/message";
@@ -39,7 +50,10 @@ import {
   olderMessagesCursor,
   planImageUploads,
 } from "../chatFormat";
-import { BackIcon, ChatCenterNotice, MoreIcon, PlusIcon, SendIcon } from "../chatUi";
+import { BackIcon, BellOffIcon, ChatCenterNotice, MoreIcon, PlusIcon, SendIcon } from "../chatUi";
+import { LeaveChatDialog } from "../LeaveChatDialog";
+import { useChatRoomSettings } from "../useChatRoomSettings";
+import { chatRoomActions } from "@libs/shared/chatRoomSettings";
 
 type ChatMessage = NonNullable<ChatRoomResponse["chatRoom"]>["messages"][number];
 
@@ -63,14 +77,66 @@ async function uploadChatImage(file: File): Promise<string> {
   return imageId;
 }
 
-function RoomHeader({ title, onBack, onMore }: { title: string; onBack: () => void; onMore?: () => void }) {
+/** 헤더 이름 아래 한 줄: 브리더 프로그램 회색 pill + "거래 완료 3 · 브리디 2개월차"(프로필 신뢰 줄과 같은 글자). */
+function RoomHeaderSubtitle({
+  programs,
+  trustLine,
+}: {
+  programs?: BreederProgramSummary[] | null;
+  trustLine: string | null;
+}) {
   return (
-    <header className="flex h-14 shrink-0 items-center gap-3 border-b border-app-line bg-app-bg px-4 text-app-text">
+    <div className="mt-0.5 flex min-w-0 items-center gap-1.5 overflow-hidden">
+      <BreederProgramBadge programs={programs} className="shrink-0 flex-nowrap" />
+      {trustLine ? <span className="min-w-0 truncate text-[12px] leading-4 text-app-muted">{trustLine}</span> : null}
+    </div>
+  );
+}
+
+function RoomHeader({
+  title,
+  muted = false,
+  profileHref,
+  programs,
+  trustLine = null,
+  onBack,
+  onMore,
+}: {
+  title: string;
+  muted?: boolean;
+  /** 상대 프로필 주소. 탈퇴·차단 상대는 넘기지 않는다(이름을 눌러도 이동하지 않는다). */
+  profileHref?: string;
+  programs?: BreederProgramSummary[] | null;
+  trustLine?: string | null;
+  onBack: () => void;
+  onMore?: () => void;
+}) {
+  const hasSubtitle = Boolean(trustLine) || Boolean(programs?.length);
+  const nameBlock = (
+    <>
+      <span className="flex min-w-0 items-center gap-2">
+        <h1 className="min-w-0 truncate text-[16px] font-bold tracking-[-0.3px] text-app-text">{title}</h1>
+        {muted ? (
+          <span className="shrink-0 text-app-muted" aria-label="알림 꺼짐" role="img">
+            <BellOffIcon size={16} />
+          </span>
+        ) : null}
+      </span>
+      {hasSubtitle ? <RoomHeaderSubtitle programs={programs} trustLine={trustLine} /> : null}
+    </>
+  );
+  return (
+    <header className="flex h-16 shrink-0 items-center gap-3 border-b border-app-line bg-app-bg px-4 text-app-text">
       <button type="button" onClick={onBack} aria-label="뒤로 가기" className="-m-2.5 grid shrink-0 place-items-center p-2.5">
         <BackIcon />
       </button>
-      <h1 className="min-w-0 truncate text-[18px] font-bold tracking-[-0.3px] text-app-text">{title}</h1>
-      <div className="flex-1" />
+      {profileHref ? (
+        <Link href={profileHref} className="flex min-w-0 flex-1 flex-col justify-center">
+          {nameBlock}
+        </Link>
+      ) : (
+        <div className="flex min-w-0 flex-1 flex-col justify-center">{nameBlock}</div>
+      )}
       {onMore ? (
         <button
           type="button"
@@ -87,6 +153,34 @@ function RoomHeader({ title, onBack, onMore }: { title: string; onBack: () => vo
         </span>
       )}
     </header>
+  );
+}
+
+/**
+ * 사기 주의 카드(시안 A-karrot.html 채팅방 ②): gap 배경 r12 패딩 14, 13 text + 12 muted,
+ * 오른쪽 위 X 16 muted(이 방에서만 닫힘), 오른쪽 아래 '신고하기' 13/600 brand-text(채팅방 신고).
+ */
+function ScamNoticeCard({ onClose, onReport }: { onClose: () => void; onReport: () => void }) {
+  return (
+    <section aria-label="사기 주의 안내" className="relative rounded-xl bg-app-gap p-3.5">
+      <button
+        type="button"
+        onClick={onClose}
+        aria-label="사기 주의 안내 닫기"
+        className="absolute right-1.5 top-1.5 grid h-8 w-8 place-items-center text-app-muted"
+      >
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" aria-hidden="true">
+          <path d="M6 6l12 12M18 6L6 18" />
+        </svg>
+      </button>
+      <p className="pr-6 text-[13px] leading-[19px] text-app-text">{CHAT_SCAM_NOTICE_TITLE}</p>
+      <p className="mt-1 text-[12px] leading-4 text-app-muted">{CHAT_SCAM_NOTICE_SUB}</p>
+      <div className="mt-1.5 flex justify-end">
+        <button type="button" onClick={onReport} className="-m-1 p-1 text-[13px] font-semibold text-app-brand-text">
+          신고하기
+        </button>
+      </div>
+    </section>
   );
 }
 
@@ -108,6 +202,7 @@ const ChatRoomClient = () => {
   const [sheetOpen, setSheetOpen] = useState(false);
   const [reportOpen, setReportOpen] = useState(false);
   const [blockTarget, setBlockTarget] = useState<{ id: number; name: string } | null>(null);
+  const [leaveOpen, setLeaveOpen] = useState(false);
 
   const scrollRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
@@ -120,6 +215,7 @@ const ChatRoomClient = () => {
   const latestReadKeyRef = useRef<string | null>(null);
 
   const { isBlocked, unblock } = useBlocks();
+  const roomSettings = useChatRoomSettings();
 
   const { data, error, isLoading, mutate } = useSWR<ChatRoomResponse>(
     roomId ? `/api/chat/${roomId}?limit=${CHAT_PAGE_SIZE}` : null,
@@ -150,6 +246,30 @@ const ChatRoomClient = () => {
   const partnerDeleted = Boolean(room) && (!partner || isDeletedPartnerName(partner.name));
   const composerLocked = partnerDeleted || partnerBlocked;
   const canModerate = Boolean(partner && !partnerDeleted);
+  const muted = Boolean(data?.me?.muted);
+  // 헤더 신뢰 줄은 프로필 신뢰 줄과 같은 글자(동네는 넣지 않는다). 탈퇴 상대는 줄도 링크도 없다.
+  const trustLine = partner && !partnerDeleted ? profileTrustLine(partner) : null;
+  const profileHref = partner && !partnerDeleted && !partnerBlocked ? `/profiles/${partner.id}` : undefined;
+
+  // 사기 주의 카드: 방마다 닫기 전까지 맨 위에. 방 데이터는 브라우저에서만 받으니(서버 렌더엔 없음) 기록을 렌더 중에 읽는다.
+  // 메시지와 같은 커밋에 그려야 처음 맨 아래로 내린 스크롤이 카드 높이만큼 밀리지 않는다.
+  const [closedScamRoomIds, setClosedScamRoomIds] = useState<number[]>([]);
+  const showScamNotice =
+    Boolean(room) && !closedScamRoomIds.includes(room!.id) && !isChatScamNoticeDismissed(room!.id);
+  const closeScamNotice = () => {
+    if (!room) return;
+    dismissChatScamNotice(room.id);
+    setClosedScamRoomIds((prev) => [...prev, room.id]);
+  };
+
+  // 받은 메시지에 계좌·오픈채팅·카톡 아이디가 있으면 받는 쪽에만 주의 줄(보낸 쪽엔 없다).
+  const cautionIds = useMemo(() => {
+    const ids = new Set<number>();
+    for (const message of messages) {
+      if (message.user.id !== user?.id && message.type === "TEXT" && hasRiskyContact(message.message)) ids.add(message.id);
+    }
+    return ids;
+  }, [messages, user?.id]);
 
   // 카톡 '1': 상대가 안 읽은 내 메시지. 탈퇴한 상대는 읽을 수 없으니 표시하지 않는다.
   const unreadIds = useMemo(
@@ -306,19 +426,30 @@ const ChatRoomClient = () => {
     else router.push("/chat");
   };
 
-  const sheetActions: ActionSheetAction[] = partner
-    ? [
-        { key: "report", label: "신고하기", onSelect: () => setReportOpen(true) },
-        partnerBlocked
-          ? { key: "unblock", label: "차단 해제", onSelect: () => void unblock(partner.id) }
-          : {
-              key: "block",
-              label: "차단하기",
-              destructive: true,
-              onSelect: () => setBlockTarget({ id: partner.id, name: partner.name }),
-            },
-      ]
+  const runAction: Record<string, () => void> = {
+    mute: () => room && void roomSettings.setMuted(room.id, true),
+    unmute: () => room && void roomSettings.setMuted(room.id, false),
+    report: () => setReportOpen(true),
+    block: () => partner && setBlockTarget({ id: partner.id, name: partner.name }),
+    unblock: () => partner && void unblock(partner.id),
+    leave: () => setLeaveOpen(true),
+  };
+  const sheetActions: ActionSheetAction[] = room
+    ? chatRoomActions({ muted, partnerBlocked, canModerate }).map((action) => ({
+        key: action.id,
+        label: action.label,
+        destructive: action.destructive,
+        onSelect: runAction[action.id],
+      }))
     : [];
+
+  const confirmLeave = async (withBlock: boolean) => {
+    if (!room) return;
+    const ok = await roomSettings.leave(room.id, withBlock && partner ? partner.id : null);
+    if (!ok) return;
+    setLeaveOpen(false);
+    router.replace("/chat");
+  };
 
   const isError = (Boolean(error) && !data) || (data ? !data.success : false);
   const isRoomLoading = isLoading && !data;
@@ -337,17 +468,37 @@ const ChatRoomClient = () => {
           </>
         ) : (
           <>
-            <RoomHeader title={title} onBack={goBack} onMore={canModerate ? () => setSheetOpen(true) : undefined} />
+            <RoomHeader
+              title={title}
+              muted={muted}
+              profileHref={profileHref}
+              programs={partnerDeleted ? null : partner?.breederPrograms}
+              trustLine={trustLine}
+              onBack={goBack}
+              onMore={room ? () => setSheetOpen(true) : undefined}
+            />
 
             <div ref={scrollRef} onScroll={handleScroll} className="min-h-0 flex-1 overflow-y-auto overscroll-contain">
               {isRoomLoading ? (
                 <SkeletonChatRoom />
               ) : messages.length === 0 ? (
-                <div className="flex h-full items-center justify-center">
-                  <p className="text-[14px] text-app-muted">아직 대화가 없습니다.</p>
+                <div className="flex h-full flex-col">
+                  {showScamNotice ? (
+                    <div className="px-4 pt-4">
+                      <ScamNoticeCard onClose={closeScamNotice} onReport={() => setReportOpen(true)} />
+                    </div>
+                  ) : null}
+                  <div className="flex flex-1 items-center justify-center">
+                    <p className="text-[14px] text-app-muted">아직 대화가 없습니다.</p>
+                  </div>
                 </div>
               ) : (
                 <div className="px-4 pb-2 pt-4">
+                  {showScamNotice ? (
+                    <div className="mb-4">
+                      <ScamNoticeCard onClose={closeScamNotice} onReport={() => setReportOpen(true)} />
+                    </div>
+                  ) : null}
                   {hasMoreOlder || loadingOlder ? (
                     <div className="mb-3 flex justify-center">
                       <button
@@ -378,6 +529,7 @@ const ChatRoomClient = () => {
                         userId={item.userId}
                         timeLabel={formatChatTime(last?.createdAt)}
                         unreadIds={item.mine ? unreadIds : undefined}
+                        cautionIds={item.mine ? undefined : cautionIds}
                         onOpenImage={setViewerImageId}
                       />
                     );
@@ -470,6 +622,18 @@ const ChatRoomClient = () => {
         onClose={() => setReportOpen(false)}
       />
       <BlockConfirmDialog target={blockTarget} onClose={() => setBlockTarget(null)} />
+      <LeaveChatDialog
+        open={leaveOpen}
+        partnerName={canModerate && partner ? partner.name : null}
+        canBlock={canModerate && !partnerBlocked}
+        loading={roomSettings.pending}
+        onCancel={() => setLeaveOpen(false)}
+        onConfirm={(withBlock) => void confirmLeave(withBlock)}
+        onReport={() => {
+          setLeaveOpen(false);
+          setReportOpen(true);
+        }}
+      />
     </div>
   );
 };

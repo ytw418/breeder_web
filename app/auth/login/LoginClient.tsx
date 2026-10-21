@@ -30,6 +30,9 @@ import { setTokens } from "@libs/client/authToken";
 import { authFetch } from "@libs/client/authFetch";
 import { ANALYTICS_EVENTS, trackEvent } from "@libs/client/analytics";
 import { getSafeNextPath, navigateAfterSessionReady } from "@libs/client/postLogin";
+import { clearPendingAction } from "@libs/client/pendingAction";
+import { loginReasonTitle } from "@libs/shared/loginReason";
+import { HeaderIconButton } from "@components/app/HeaderIconButton";
 import {
   APPLE_WEB_NONCE_STORAGE_KEY,
   appleLoginErrorMessage,
@@ -121,9 +124,30 @@ const isReactNativeWebViewWindow = () => {
   return typeof reactNativeWebView?.postMessage === "function";
 };
 
+/** 로그인 실패 기록(앱 login_failed 와 같은 이름). reason 은 짧은 사유 코드나 서버·SDK 문구 앞 120자. */
+const trackLoginFailed = (method: "kakao" | "google" | "apple", reason: unknown) => {
+  const text =
+    reason instanceof Error
+      ? reason.message
+      : typeof reason === "string"
+        ? reason
+        : (reason as { code?: unknown } | null)?.code != null
+          ? String((reason as { code?: unknown }).code)
+          : "unknown";
+  trackEvent(ANALYTICS_EVENTS.loginFailed, { method, reason: text.slice(0, 120) });
+};
+
 const LoginClient = ({ shouldShowTestLogin }: LoginClientProps) => {
   const searchParams = useSearchParams();
   const router = useRouter();
+  // 로그인 벽의 이유(찜·채팅·팔로우 등). 있으면 소개 문구 자리에 그 이유를 보인다.
+  const reasonTitle = loginReasonTitle(searchParams?.get("reason"));
+  /** 닫기(X)·서비스 둘러보기: 보던 화면으로 돌아간다. 누르려던 동작은 잊는다. */
+  const leaveLogin = () => {
+    clearPendingAction();
+    if (window.history.length > 1) router.back();
+    else router.push("/");
+  };
   // 정지·영구 정지 안내(S-6). refresh·카카오 로그인이 /auth/login?restricted=1 로 보내면 저장된 안내를 연다.
   const [restriction, setRestriction] = useState<AccountRestriction | null>(null);
   const restrictedParam = searchParams?.get("restricted") === "1";
@@ -166,6 +190,7 @@ const LoginClient = ({ shouldShowTestLogin }: LoginClientProps) => {
     const message = appleLoginErrorMessage(appleError);
     if (!message || shownAppleErrorRef.current === appleError) return;
     shownAppleErrorRef.current = appleError;
+    trackLoginFailed("apple", appleError);
     alert(message);
     router.replace("/auth/login");
   }, [appleError, router]);
@@ -179,6 +204,7 @@ const LoginClient = ({ shouldShowTestLogin }: LoginClientProps) => {
     if (!window.Kakao?.Auth) {
       loadScript(KAKAO_SDK_URL, "kakao");
       if (!(await waitForKakaoSdk())) {
+        trackLoginFailed("kakao", "sdk_unavailable");
         alert("카카오 로그인을 불러오지 못했어요. 네트워크를 확인하고 다시 시도해주세요.");
         return;
       }
@@ -330,10 +356,11 @@ const LoginClient = ({ shouldShowTestLogin }: LoginClientProps) => {
               });
             }
             markPostLoginGuide();
-            void navigateAfterSessionReady(nextPath);
+            void navigateAfterSessionReady(nextPath, { isNewUser: result.isNewUser === true });
             return;
           }
           const blocked = toAccountRestriction(result);
+          trackLoginFailed("google", blocked ? `restricted:${(result as { errorCode?: string }).errorCode ?? ""}` : result.error);
           if (blocked) {
             saveAccountRestriction(blocked);
             setRestriction(blocked);
@@ -342,11 +369,13 @@ const LoginClient = ({ shouldShowTestLogin }: LoginClientProps) => {
           alert(`로그인에 실패했습니다:${result.error}`);
         },
         onError(error) {
+          trackLoginFailed("google", error);
           alert(error);
         },
       });
     } catch (error) {
       console.error(error);
+      trackLoginFailed("google", error);
       alert("구글 로그인에 실패했습니다. 잠시 후 다시 시도해주세요.");
     }
   };
@@ -373,6 +402,7 @@ const LoginClient = ({ shouldShowTestLogin }: LoginClientProps) => {
       window.location.assign(data.authorizeUrl);
     } catch (error) {
       console.error(error);
+      trackLoginFailed("apple", error);
       alert("Apple 로그인을 시작하지 못했습니다. 잠시 후 다시 시도해주세요.");
       setIsStartingAppleLogin(false);
     }
@@ -425,7 +455,15 @@ const LoginClient = ({ shouldShowTestLogin }: LoginClientProps) => {
   }
 
   return (
-    <div className="flex min-h-screen w-full flex-col overflow-y-auto bg-app-bg px-5 py-8">
+    <div className="flex min-h-screen w-full flex-col overflow-y-auto bg-app-bg px-5 pb-8 pt-1">
+      {/* 닫기: 보던 화면으로(둘러보기와 같다) */}
+      <div className="-mr-2.5 flex h-12 shrink-0 items-center justify-end">
+        <HeaderIconButton label="닫기" onClick={leaveLogin}>
+          <svg width={24} height={24} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.5} aria-hidden>
+            <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+          </svg>
+        </HeaderIconButton>
+      </div>
       <div className="mx-auto my-auto flex w-full max-w-sm flex-col">
         {/* 브랜드 */}
         <div className="mb-10 flex flex-col items-center">
@@ -438,9 +476,15 @@ const LoginClient = ({ shouldShowTestLogin }: LoginClientProps) => {
             className="h-14 w-14 object-contain"
           />
           <h1 className="mt-4 text-[24px] font-bold text-app-text">브리디</h1>
-          <p className="mt-2 text-center text-[15px] leading-[22px] text-app-muted">
-            생물인들과 소통하고 안전하게 거래하세요
-          </p>
+          {reasonTitle ? (
+            <p className="mt-2 text-center text-[16px] font-semibold leading-[22px] text-app-text">
+              {reasonTitle}
+            </p>
+          ) : (
+            <p className="mt-2 text-center text-[15px] leading-[22px] text-app-muted">
+              생물인들과 소통하고 안전하게 거래하세요
+            </p>
+          )}
         </div>
 
         {/* 소셜 로그인 */}
@@ -484,13 +528,14 @@ const LoginClient = ({ shouldShowTestLogin }: LoginClientProps) => {
             </button>
           ) : null}
 
-          {/* 서비스 둘러보기 */}
-          <Link
-            href={"/"}
+          {/* 서비스 둘러보기: 보던 화면으로 */}
+          <button
+            type="button"
+            onClick={leaveLogin}
             className="flex items-center justify-center py-2.5 text-[13px] text-app-muted"
           >
             서비스 둘러보기
-          </Link>
+          </button>
         </div>
 
         {/* 테스트 로그인 (개발/테스트 환경 전용) */}

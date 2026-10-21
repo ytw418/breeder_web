@@ -129,12 +129,13 @@ describe("홈 전체 게시글(옛 반려생활 목록)", () => {
     expect(screen.queryByText(/노출됩니다/)).toBeNull();
   });
 
-  it("?category=동네(옛 /posts 링크·홈 '동네 사랑방')로 들어오면 동네 칩을 고르고 주소에서 지운다", async () => {
-    mockSearch = "category=%EB%8F%99%EB%84%A4";
+  it("?category=동네&at=list(옛 /posts 링크·홈 '동네 글')로 들어오면 동네 칩을 고르고 at 만 지운다(칩은 주소에 남긴다)", async () => {
+    mockSearch = "category=%EB%8F%99%EB%84%A4&at=list";
     const replaceState = jest.spyOn(window.history, "replaceState");
     render(withSWR(<HomePostsFeed />));
     expect(await screen.findByRole("heading", { name: "동네 게시글" })).toBeTruthy();
-    expect(replaceState).toHaveBeenCalledWith(null, "", "/");
+    expect(replaceState).toHaveBeenCalledWith(null, "", "/?category=%EB%8F%99%EB%84%A4");
     replaceState.mockRestore();
+    mockSearch = "";
   });
 });

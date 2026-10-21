@@ -7,6 +7,7 @@ import { withAuth } from "@libs/server/auth";
 import { canEditAnyContent } from "@libs/server/adminAccess";
 import { deleteOwnComment, sendCommentError } from "@libs/server/comments";
 import { validateCommentBody } from "@libs/shared/comment";
+import { BLOCKED_WORD_MESSAGE, hasBlockedWord } from "@libs/shared/contentFilter";
 import { parsePositiveIntId } from "@libs/shared/normalize";
 
 /** PATCH /api/posts/:id/comments/:commentId 성공 응답 */
@@ -58,7 +59,7 @@ async function handler(req: NextApiRequest, res: NextApiResponse<ResponseType>) 
   }
 
   if (req.method === "DELETE") {
-    const mode = await deleteOwnComment({ id: commentId, parentId: target.parentId });
+    const mode = await deleteOwnComment({ id: commentId, parentId: target.parentId, postId });
     const body: CommentDeleteResponse = { success: true, mode };
     return res.json(body);
   }
@@ -66,6 +67,10 @@ async function handler(req: NextApiRequest, res: NextApiResponse<ResponseType>) 
   const validation = validateCommentBody(req.body?.comment);
   if (!validation.ok) {
     return sendCommentError(res, 400, validation.errorCode, validation.message);
+  }
+  // 등록 때(answers.ts)와 같은 금칙어 검사. 정상 댓글을 단 뒤 욕설로 고쳐 남기는 것을 막는다.
+  if (hasBlockedWord(validation.comment)) {
+    return sendCommentError(res, 400, "BLOCKED_WORD", BLOCKED_WORD_MESSAGE);
   }
   const updated = await client.comment.update({
     where: { id: commentId },

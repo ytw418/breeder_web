@@ -1,7 +1,11 @@
 import type { NextApiRequest, NextApiResponse } from "next";
 
 const mockClient = {
-  user: { findUnique: jest.fn() },
+  // findMany: 운영자 이메일 계정(신고 접수 푸시 받는 사람)
+  user: {
+    findUnique: jest.fn(),
+    findMany: jest.fn(async (): Promise<Array<{ id: number; email: string | null }>> => []),
+  },
   post: { findUnique: jest.fn() },
   comment: { findUnique: jest.fn() },
   product: { findUnique: jest.fn() },
@@ -15,6 +19,10 @@ jest.mock("@libs/server/client", () => ({
 }));
 jest.mock("@libs/server/auth", () => ({
   withAuth: (handler: unknown) => handler,
+}));
+const mockSendPushToUsers = jest.fn();
+jest.mock("@libs/server/push", () => ({
+  sendPushToUsers: (...args: unknown[]) => mockSendPushToUsers(...args),
 }));
 
 import reportHandler from "../pages/api/reports/index";
@@ -105,12 +113,15 @@ describe("신고 사유 상수(libs/shared/report)", () => {
       "음란·선정적 내용",
       "개인정보 노출",
       "허위 정보",
+      "동물 학대·부적절 사육",
+      "불법 개체·거래 금지 종",
       "기타",
     ]);
     expect(REPORT_REASONS.COMMENT).toEqual(REPORT_REASONS.POST);
     expect(REPORT_REASONS.PRODUCT).toEqual([
       "허위 분양글·사기 의심",
-      "거래 금지 품목(불법 개체)",
+      "불법 개체·거래 금지 종",
+      "동물 학대·부적절 사육",
       "중복·도배 게시",
       "욕설·부적절 내용",
       "기타",
@@ -120,6 +131,7 @@ describe("신고 사유 상수(libs/shared/report)", () => {
       "사기 의심",
       "스팸·광고",
       "음란 메시지",
+      "불법 개체·거래 금지 종",
       "기타",
     ]);
     expect(REPORT_REASONS.USER).toEqual([
@@ -127,6 +139,8 @@ describe("신고 사유 상수(libs/shared/report)", () => {
       "사기 이력 의심",
       "반복적 욕설·괴롭힘",
       "스팸 계정",
+      "동물 학대·부적절 사육",
+      "불법 개체·거래 금지 종",
       "기타",
     ]);
     expect(REPORT_REASONS.BLOODLINE_CARD).toEqual([
@@ -151,6 +165,7 @@ describe("신고 사유 상수(libs/shared/report)", () => {
   it("옛 '허위 매물·사기 의심' 문구는 상품 신고에서만 계속 받는다(배포된 앱 호환)", () => {
     expect(isValidReportReason("PRODUCT", "허위 분양글·사기 의심")).toBe(true);
     expect(isValidReportReason("PRODUCT", "허위 매물·사기 의심")).toBe(true);
+    expect(isValidReportReason("PRODUCT", "거래 금지 품목(불법 개체)")).toBe(true);
     expect(REPORT_REASONS.PRODUCT).not.toContain("허위 매물·사기 의심");
     expect(isValidReportReason("POST", "허위 매물·사기 의심")).toBe(false);
   });
@@ -377,5 +392,23 @@ describe("POST /api/reports 접수", () => {
     const res = await report({ targetType: "USER", targetId: 999, reason: "스팸 계정" });
     expect(res.statusCode).toBe(404);
     expect(res.body.errorCode).toBe("REPORT_TARGET_NOT_FOUND");
+  });
+
+  it("동물 학대 사유 신고가 접수되면 운영자 계정 기기로 신고 접수 푸시를 보낸다(커뮤니티 감사 #12)", async () => {
+    mockClient.report.count.mockResolvedValueOnce(1);
+    mockClient.user.findMany.mockResolvedValueOnce([
+      { id: 1, email: "ytw418@gmail.com" },
+      { id: 2, email: "ytw4180@test.com" },
+    ]);
+    const res = await report({ targetType: "POST", targetId: 30, reason: "동물 학대·부적절 사육" });
+    expect(res.statusCode).toBe(200);
+    expect(mockSendPushToUsers).toHaveBeenCalledTimes(1);
+    expect(mockSendPushToUsers).toHaveBeenCalledWith(
+      [1, 2],
+      expect.objectContaining({
+        title: "신고 접수: 게시글 · 동물 학대·부적절 사육",
+        url: "/admin/reports",
+      })
+    );
   });
 });

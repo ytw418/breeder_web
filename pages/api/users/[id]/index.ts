@@ -13,6 +13,7 @@ import { parsePositiveIntId } from "@libs/shared/normalize";
 import { countProfileBloodlineCards } from "@libs/server/bloodline-visibility";
 import { User } from "@prisma/client";
 import { getLockedTitles } from "@libs/server/lockedTitles";
+import { countCompletedSales } from "@libs/server/profileTrust";
 import type { LockedTitle } from "@libs/shared/communityVibe";
 
 type UserWithCounts = Omit<User, "tokenVersion" | "suspendedUntil" | "snsId" | "phone"> & {
@@ -127,14 +128,8 @@ async function handler(
     // 프로필 "보유 혈통" 목록과 같은 기준(지금 보유한 ACTIVE 카드, 비공개 출처 카드는 본인에게만,
     // 뿌리가 숨김·회수된 출처 카드 제외). 뿌리 상태는 Prisma 관계 필터로 걸 수 없어 따로 센다.
     countProfileBloodlineCards(userId, myId),
-    // 신뢰 줄 "거래 완료 N": 남이 보는 판매내역 기준(지우거나 숨긴 상품 제외) + 지금도 판매완료인 상품만.
-    client.sale.count({
-      where: {
-        userId,
-        status: "completed",
-        product: { isDeleted: false, isHidden: false, status: "판매완료" },
-      },
-    }),
+    // 신뢰 줄 "거래 완료 N"(채팅방 헤더와 같은 집계).
+    countCompletedSales(userId),
   ]);
 
   if (!user) {

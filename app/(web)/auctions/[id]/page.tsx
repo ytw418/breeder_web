@@ -2,6 +2,7 @@ import React from "react";
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import AuctionDetailClient from "./AuctionDetailClient";
+import AppOpenBanner from "@components/features/AppOpenBanner";
 import client from "@libs/server/client";
 import { displayUserName } from "@libs/shared/deletedUser";
 import JsonLd from "@components/atoms/JsonLd";
@@ -264,6 +265,7 @@ const page = async ({ params }: Props) => {
 
   return (
     <>
+      <AppOpenBanner />
       <JsonLd id="auction-jsonld" data={auctionJsonLd} />
       <JsonLd id="auction-breadcrumb-jsonld" data={breadcrumbJsonLd} />
       <AuctionDetailClient

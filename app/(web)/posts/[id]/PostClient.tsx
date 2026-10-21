@@ -35,15 +35,21 @@ import HiddenContentNotice from "@components/app/moderation/HiddenContentNotice"
 import useAdminModeration from "hooks/useAdminModeration";
 import { commentAnchorId, PostCommentItem } from "../_components/PostCommentItem";
 import { COMMENT_MAX_LENGTH, groupCommentThreads } from "@libs/shared/comment";
+import { mentionPrefill } from "@libs/shared/comment-mention";
+import FollowButton from "@components/features/profile/FollowButton";
 import { DEBATE_CATEGORY } from "@libs/shared/debateFormat";
 import DebateDetail from "@components/features/debate/DebateDetail";
 
 type PostComment = NonNullable<PostDetailResponse["post"]>["comments"][number];
 type ReportTarget = { type: "POST" | "COMMENT"; id: number };
 type BlockTarget = { id: number; name: string };
-/** 입력바 모드: 답글(루트 id·대상 이름) 또는 내 댓글 수정 */
+/**
+ * 입력바 모드: 답글 또는 내 댓글 수정.
+ * 답글의 rootId 는 입력바 표시·삭제 처리용 묶음 루트, targetId 는 누른 댓글이다. 서버에는 targetId 를 보낸다
+ * (서버가 루트에 붙이고, 답글에 단 답글이면 그 작성자를 replyToUser·답글 알림 대상으로 남긴다).
+ */
 type ComposerMode =
-  | { kind: "reply"; rootId: number; name: string }
+  | { kind: "reply"; rootId: number; targetId: number; name: string }
   | { kind: "edit"; comment: PostComment };
 
 type CommentMutationResult = {
@@ -53,6 +59,8 @@ type CommentMutationResult = {
   answer?: { id?: number };
 } | null;
 type CommentLikeResult = { success?: boolean; liked?: boolean; likeCount?: number; error?: string } | null;
+/** 답변 채택은 질문 글에만 있다(서버 pages/api/posts/[id]/accept.ts 와 같은 기준). */
+const QUESTION_CATEGORY = "질문";
 /** 그 댓글로 이동했을 때 회색 배경을 보여 주는 시간 */
 const COMMENT_HIGHLIGHT_MS = 1600;
 
@@ -351,7 +359,7 @@ const PostClient = ({
               headers: { "Content-Type": "application/json" },
               body: JSON.stringify({
                 comment: nextComment,
-                ...(mode?.kind === "reply" ? { parentId: mode.rootId } : {}),
+                ...(mode?.kind === "reply" ? { parentId: mode.targetId } : {}),
               }),
             });
       const result = (await response.json().catch(() => null)) as CommentMutationResult;
@@ -436,7 +444,10 @@ const PostClient = ({
           setComment("");
           setComposerMode(null);
         }
-        if (composerMode?.kind === "reply" && composerMode.rootId === commentDelete.id) {
+        if (
+          composerMode?.kind === "reply" &&
+          (composerMode.rootId === commentDelete.id || composerMode.targetId === commentDelete.id)
+        ) {
           setComposerMode(null);
         }
         setCommentDelete(null);
@@ -479,6 +490,59 @@ const PostClient = ({
       toast.error("게시글 삭제에 실패했습니다.");
     } finally {
       setDeleting(false);
+    }
+  };
+
+  // 이 글 새 댓글 알림(댓글을 달면 자동 구독). 글쓴이는 구독 행이 없어도 받고 있으니 끄기를 보여 준다.
+  const subscriptionMuted = data?.mySubscription?.muted;
+  const receivingNewComments = isOwnPost ? subscriptionMuted !== true : subscriptionMuted === false;
+  const setNewCommentAlerts = async (receive: boolean) => {
+    if (!post) return;
+    if (!user) return goLogin();
+    const previous = data;
+    void mutate((current) => (current ? { ...current, mySubscription: { muted: !receive } } : current), {
+      revalidate: false,
+    });
+    try {
+      const response = await authFetch(`/api/posts/${post.id}/subscription`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ muted: !receive }),
+      });
+      if (!response.ok) throw new Error("subscription failed");
+      toast.success(receive ? "이 글에 새 댓글이 달리면 알려 드릴게요" : "이 글 알림을 껐어요");
+    } catch {
+      void mutate(previous, { revalidate: false });
+      toast.error("알림 설정을 바꾸지 못했어요. 잠시 후 다시 시도해주세요.");
+    }
+  };
+
+  // 질문 답변 채택(질문자만). 채택하면 댓글에 '질문자 채택' 띠, 목록 질문 pill 이 '해결'로 바뀐다.
+  // 채택한 댓글이 지워졌거나 숨겨졌거나 차단해 목록에서 빠졌으면 채택이 없는 것으로 본다
+  // (그래야 다른 답을 채택할 수 있다. 앱 src/app/posts/[id].tsx 와 같은 규칙).
+  const acceptedCommentId = useMemo(() => {
+    const id = post?.acceptedCommentId ?? null;
+    if (id == null) return null;
+    return post?.comments?.some((item) => item.id === id && !item.deletedAt && !item.isHidden) ? id : null;
+  }, [post?.acceptedCommentId, post?.comments]);
+  const setAcceptedAnswer = async (commentId: number | null) => {
+    if (!post) return;
+    try {
+      const response = await authFetch(`/api/posts/${post.id}/accept`, {
+        method: commentId ? "POST" : "DELETE",
+        headers: { "Content-Type": "application/json" },
+        ...(commentId ? { body: JSON.stringify({ commentId }) } : {}),
+      });
+      const result = (await response.json().catch(() => null)) as CommentMutationResult;
+      if (!response.ok || !result?.success) {
+        toast.error(result?.error || result?.message || "채택하지 못했어요. 잠시 후 다시 시도해주세요.");
+        return;
+      }
+      await mutate();
+      revalidateByPrefix({ cache: swrCache, mutate: globalMutate }, POST_KEY_PREFIXES);
+      toast.success(commentId ? "답변을 채택했어요" : "채택을 취소했어요");
+    } catch {
+      toast.error("채택하지 못했어요. 잠시 후 다시 시도해주세요.");
     }
   };
 
@@ -540,8 +604,18 @@ const PostClient = ({
           // 운영자 이메일 계정은 아래 본인 메뉴(수정·삭제)로 이미 고칠 수 있어 겹치지 않게 뺀다.
           ...(moderation.isAdmin && !canManagePost ? [{ ...byKey.edit, label: "수정하기 (관리자)" }] : []),
         ];
+    // 로그인했으면 공지가 아닌 글에서 이 글 새 댓글 알림을 끄고 켠다(응답을 받은 뒤).
+    const alertActions: ActionSheetAction[] =
+      user && data && !isNotice
+        ? [
+            receivingNewComments
+              ? { key: "alerts-off", label: "이 글 알림 끄기", onSelect: () => void setNewCommentAlerts(false) }
+              : { key: "alerts-on", label: "이 글 알림 받기", onSelect: () => void setNewCommentAlerts(true) },
+          ]
+        : [];
     return [
       ...adminActions,
+      ...alertActions,
       ...getPostMenuActionKeys({
         isOwn: canManagePost,
         isNotice,
@@ -551,7 +625,7 @@ const PostClient = ({
         canProfilePin: isOwnPost && photos.length > 0,
       }).map((key) => byKey[key]),
     ];
-  }, [post, isOwnPost, canManagePost, isNotice, authorBlocked, user, photos.length, setProfilePin, moderation, mutate, router]);
+  }, [post, isOwnPost, canManagePost, isNotice, authorBlocked, user, photos.length, setProfilePin, moderation, mutate, router, data, receivingNewComments]);
 
   // 댓글 ⋮ 시트: 내 댓글은 수정·삭제, 남의 댓글은 (관리자 조치) 신고·작성자 차단.
   const commentSheetIsMine = Boolean(user?.id && commentSheet?.user?.id === user.id);
@@ -572,6 +646,19 @@ const PostClient = ({
                 revalidateMyPostActivity();
               },
             })),
+        // 내 질문에 달린 남의 답변: 채택이 없으면 '이 답변 채택', 채택한 답변이면 '채택 취소'.
+        ...(isOwnPost &&
+        post?.category === QUESTION_CATEGORY &&
+        !commentSheetIsMine &&
+        !commentSheet.deletedAt &&
+        !commentSheet.isHidden &&
+        (acceptedCommentId == null || acceptedCommentId === commentSheet.id)
+          ? [
+              acceptedCommentId === commentSheet.id
+                ? { key: "unaccept", label: "채택 취소", onSelect: () => void setAcceptedAnswer(null) }
+                : { key: "accept", label: "이 답변 채택", onSelect: () => void setAcceptedAnswer(commentSheet.id) },
+            ]
+          : []),
         ...(commentSheetCanManage
           ? [
               {
@@ -701,6 +788,15 @@ const PostClient = ({
                 {timeAgo(post.createdAt)}
               </p>
             </div>
+            {/* 작성자 줄 팔로우(로그인·남의 글·공지 아님). 서버 HTML 에는 내 팔로우 여부가 없어 응답을 받은 뒤 그린다. */}
+            {live && user && !isOwnPost && !isNotice && post.user?.id ? (
+              <FollowButton
+                size="sm"
+                userId={post.user.id}
+                isFollowing={Boolean(post.user.isFollowing)}
+                returnPath={detailPath}
+              />
+            ) : null}
           </div>
 
           {post.isHidden ? <HiddenContentNotice targetType="POST" className="mx-4 mb-3" /> : null}
@@ -809,12 +905,17 @@ const PostClient = ({
                       isReply={item !== root}
                       isPostAuthor={Boolean(authorId && item.user?.id === authorId)}
                       highlighted={highlightedCommentId === item.id}
+                      accepted={acceptedCommentId === item.id}
                       onMore={() => setCommentSheet(item)}
                       onLike={() => void handleCommentLike(item)}
                       // 답글의 답글도 루트에 달고, 입력바에는 누른 댓글의 작성자를 보여 준다.
-                      onReply={() =>
-                        startComposer({ kind: "reply", rootId: root.id, name: item.user?.name ?? "" })
-                      }
+                      // 답글에 단 답글이면 입력칸을 '@이름 ' 으로 채운다(쓰던 글이 있으면 그대로 둔다).
+                      onReply={() => {
+                        startComposer({ kind: "reply", rootId: root.id, targetId: item.id, name: item.user?.name ?? "" });
+                        if (user && item !== root && item.user?.name && (!comment.trim() || /^@\S+\s*$/.test(comment))) {
+                          setComment(mentionPrefill(item.user.name));
+                        }
+                      }}
                     />
                   ))}
                 </div>

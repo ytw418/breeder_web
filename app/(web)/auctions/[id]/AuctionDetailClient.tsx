@@ -32,6 +32,7 @@ import { absoluteUrl, copyText, shareOrCopy } from "@libs/client/share";
 import { getAuctionResultMessage } from "@libs/client/auctionErrorMessage";
 import { ANALYTICS_EVENTS, trackEvent } from "@libs/client/analytics";
 import { extractAuctionIdFromPath, toAuctionPath } from "@libs/auction-route";
+import FollowButton from "@components/features/profile/FollowButton";
 import { DELETED_USER_LABEL, isDeletedUserName } from "@libs/shared/deletedUser";
 import {
   AUCTION_EXTENSION_MS,
@@ -657,7 +658,17 @@ const AuctionDetailClient = ({
         ) : (
           <Link href={`/profiles/${sellerId}`} className="flex items-center gap-3 p-4">
             {sellerInner}
-            <Icon name="chevronRight" size={20} className="shrink-0 text-app-caption" />
+            {/* 분양자 팔로우(로그인·남의 경매). 서버 HTML 에는 내 팔로우 여부가 없어 응답을 받은 뒤 그린다. */}
+            {data?.auction && user && !isOwner && sellerId ? (
+              <FollowButton
+                size="sm"
+                userId={sellerId}
+                isFollowing={Boolean(auction.user?.isFollowing)}
+                returnPath={auctionPath}
+              />
+            ) : (
+              <Icon name="chevronRight" size={20} className="shrink-0 text-app-caption" />
+            )}
           </Link>
         )}
 

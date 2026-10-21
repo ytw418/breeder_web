@@ -52,6 +52,8 @@ const organizationJsonLd = {
 export const viewport: Viewport = {
   width: "device-width",
   initialScale: 1,
+  // maximumScale 1 은 iOS 에서 16px 미만 입력칸(댓글·채팅 15px)을 누를 때 화면이 확대된 채 남는 것을 막는다.
+  // iOS 는 이 값이 있어도 두 손가락 확대를 허용하고, 사진 확대는 ImageLightbox 가 직접 한다(2026-10-21 감사 #10).
   maximumScale: 1,
   themeColor: [
     { media: "(prefers-color-scheme: light)", color: "#ffffff" },

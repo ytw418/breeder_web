@@ -151,7 +151,8 @@ async function handler(
               : null,
           // 운영 알림의 senderId 는 조치한 운영자다. 대상자·신고자에게 운영자 계정을 드러내지 않는다
           // (앱 docs/prd/admin-moderation.md AC-15). 화면은 '브리디 운영팀'으로 그린다.
-          sender: n.type === "MODERATION" ? MODERATION_SENDER : n.sender,
+          // 운영자 푸시(ADMIN_BROADCAST)도 같다.
+          sender: n.type === "MODERATION" || n.type === "ADMIN_BROADCAST" ? MODERATION_SENDER : n.sender,
           createdAt: n.createdAt.toISOString(),
         })),
         unreadCount,

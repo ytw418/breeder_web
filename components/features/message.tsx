@@ -6,11 +6,13 @@
  * 묶음 마지막 말풍선은 그 아래 시간. 말풍선 max 232, padding 9/13, r20, 15/21.
  * 내 것은 brand + 흰 글자, 상대는 surface + text. 이미지는 168x126 r16.
  * 링크(http·https)는 밑줄 + 새 탭으로 연다. 상대 말풍선은 파란 글자(app-info), 내 주황 말풍선은 파랑이 안 읽혀 흰 글자.
+ * 받은 말풍선에 계좌·외부 메신저 안내가 있으면 그 아래 11 muted 주의 줄(감사 24번, 보낸 쪽에는 없다).
  */
 import Link from "next/link";
 import Image from "@components/atoms/Image";
 import { cn, makeImageUrl } from "@libs/client/utils";
 import { splitLinks } from "@libs/shared/post-body";
+import { CHAT_CONTACT_CAUTION } from "@libs/shared/contactInText";
 
 export interface ChatBubbleMessage {
   id: number;
@@ -30,6 +32,8 @@ export interface ChatMessageGroupProps {
   timeLabel: string;
   /** 상대가 아직 안 읽은 내 메시지 id → 말풍선 옆 '1' */
   unreadIds?: ReadonlySet<number>;
+  /** 받은 메시지 중 계좌·외부 메신저 안내가 있는 id → 말풍선 아래 주의 줄 */
+  cautionIds?: ReadonlySet<number>;
   onOpenImage: (imageId: string) => void;
 }
 
@@ -40,6 +44,7 @@ export default function ChatMessageGroup({
   userId,
   timeLabel,
   unreadIds,
+  cautionIds,
   onOpenImage,
 }: ChatMessageGroupProps) {
   const renderBubble = (message: ChatBubbleMessage) =>
@@ -116,7 +121,18 @@ export default function ChatMessageGroup({
       })}
     </div>
   ) : (
-    <div className="flex min-w-0 shrink flex-col items-start gap-[3px]">{messages.map(renderBubble)}</div>
+    <div className="flex min-w-0 shrink flex-col items-start gap-[3px]">
+      {messages.map((message) =>
+        cautionIds?.has(message.id) ? (
+          <div key={message.id} className="flex min-w-0 flex-col items-start gap-1">
+            {renderBubble(message)}
+            <p className="max-w-[232px] px-1 text-[11px] leading-[15px] text-app-muted">{CHAT_CONTACT_CAUTION}</p>
+          </div>
+        ) : (
+          renderBubble(message)
+        )
+      )}
+    </div>
   );
 
   return (

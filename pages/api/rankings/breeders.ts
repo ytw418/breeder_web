@@ -4,6 +4,7 @@ import { withAuth } from "@libs/server/auth";
 import { BREEDER_HIGHLIGHT_MAX, BreederRankingItem, RankingPeriod } from "@libs/shared/ranking";
 import { attachBreederHighlights, computeRankingMe, getBreederRanking } from "@libs/server/ranking";
 import type { RankingMe } from "@libs/shared/communityVibe";
+import { viewerFollowingSet } from "@libs/server/viewerFollow";
 
 /** me=1 로 내 순위 목표를 계산할 때 읽는 인원(getMyRankingSummary 와 같다). */
 const ME_RANKING_SCAN = 100;
@@ -46,14 +47,22 @@ async function handler(
     const scan = wantsMe && viewerId ? Math.max(limit, ME_RANKING_SCAN) : limit;
     const ranking = await getBreederRanking({ limit: scan, period, categoryPath, species });
     const top = ranking.slice(0, limit);
-    const items = highlights > 0 ? await attachBreederHighlights(top, highlights) : top;
+    const withHighlights = highlights > 0 ? await attachBreederHighlights(top, highlights) : top;
+    // follow=1(랭킹 화면 행 팔로우 버튼): viewer 가 팔로우하는 사람을 한 번에 표시한다. 사람마다 달라 공유 캐시에 두지 않는다.
+    const wantsFollow = req.query.follow === "1" && Boolean(viewerId);
+    const followingIds = wantsFollow
+      ? await viewerFollowingSet(viewerId, withHighlights.map((item) => item.user.id))
+      : null;
+    const items = followingIds
+      ? withHighlights.map((item) => ({ ...item, isFollowing: followingIds.has(item.user.id) }))
+      : withHighlights;
 
-    if (wantsMe) {
+    if (wantsMe || wantsFollow) {
       res.setHeader("Cache-Control", "private, no-store");
       return res.json({
         success: true,
         items,
-        me: viewerId ? computeRankingMe(ranking, viewerId) : null,
+        ...(wantsMe ? { me: viewerId ? computeRankingMe(ranking, viewerId) : null } : {}),
       });
     }
     res.setHeader("Cache-Control", "public, s-maxage=60, stale-while-revalidate=120");

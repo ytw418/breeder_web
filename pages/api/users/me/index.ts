@@ -6,7 +6,8 @@ import client from "@libs/server/client";
 import { withAuth } from "@libs/server/auth";
 import { canEditAnyContent as canEditAnyContentByUser, hasAdminAccess } from "@libs/server/adminAccess";
 import { checkNickname, isUniqueNameError } from "@libs/server/nickname";
-import { NICKNAME_TAKEN_MESSAGE } from "@libs/shared/nickname";
+import { NICKNAME_TAKEN_MESSAGE, nextNicknameChangeAt } from "@libs/shared/nickname";
+import { formatKstDate } from "@libs/shared/sanction";
 import {
   INVALID_REGION_MESSAGE,
   REGION_REQUIRED_MESSAGE,
@@ -20,6 +21,7 @@ import {
   normalizeProfileLink,
 } from "@libs/shared/profile";
 import { captureServerEvent, resolveClientPlatform } from "@libs/server/analytics";
+import { isCrewUser } from "@libs/server/crew";
 
 async function handler(
   req: NextApiRequest,
@@ -55,6 +57,8 @@ async function handler(
         profile,
         isAdmin,
         canEditAnyContent,
+        // 운영 크루 계정이면 true. 분석 identify(is_crew)에만 쓴다.
+        isCrew: isCrewUser(profile),
       });
     }
     if (req.method === "POST") {
@@ -196,13 +200,27 @@ async function handler(
       }
 
       if (name != null) {
-        // 형식(공백·길이·예약어)과 중복을 한 번에 검사한다. 본인의 현재 닉네임은 사용 가능.
-        const nickname = await checkNickname(name, user!.id);
+        // 형식(공백·길이·예약어·금칙어)과 중복을 한 번에 검사한다. 본인의 현재 닉네임은 사용 가능.
+        // 운영자 이메일 계정은 운영자 낱말(브리디·운영 등)을 쓸 수 있다.
+        const nickname = await checkNickname(name, user!.id, { viewerEmail: user?.email });
         if (!nickname.available) {
           return res.json({ success: false, error: nickname.reason });
         }
 
         if (!nickname.isCurrent) {
+          // 닉네임은 30일에 한 번(처음 무작위 이름에서 바꾸는 한 번은 바로). 응답은 다른 닉네임 오류처럼 200 + success:false.
+          const current = await client.user.findUnique({
+            where: { id: user!.id },
+            select: { nameChangedAt: true },
+          });
+          const nextChangeAt = nextNicknameChangeAt(current?.nameChangedAt);
+          if (nextChangeAt && nextChangeAt.getTime() > Date.now()) {
+            return res.json({
+              success: false,
+              errorCode: "NICKNAME_COOLDOWN",
+              error: `닉네임은 ${formatKstDate(nextChangeAt)}부터 바꿀 수 있어요.`,
+            });
+          }
           try {
             await client.user.update({
               where: {
@@ -210,6 +228,7 @@ async function handler(
               },
               data: {
                 name: nickname.name,
+                nameChangedAt: new Date(),
               },
             });
           } catch (error) {

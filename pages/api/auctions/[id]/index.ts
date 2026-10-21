@@ -2,6 +2,7 @@ import { NextApiRequest, NextApiResponse } from "next";
 import { withDetailRevalidation } from "@libs/server/pageRevalidation";
 import withHandler, { ResponseType } from "@libs/server/withHandler";
 import client from "@libs/server/client";
+import { viewerFollows } from "@libs/server/viewerFollow";
 import { withAuth } from "@libs/server/auth";
 import { canEditAnyContent, isModeratorUser } from "@libs/server/adminAccess";
 import { Auction, Bid, User } from "@prisma/client";
@@ -65,6 +66,8 @@ export interface AuctionDetailResponse {
   auction?: Omit<Auction, "pedigreeNote"> & {
     user: Pick<User, "id" | "name" | "avatar"> & {
       breederPrograms: BreederProgramSummary[];
+      /** viewer 가 분양자를 팔로우하는지(비로그인·본인 false). 분양자 줄 팔로우 버튼. */
+      isFollowing?: boolean;
     };
     bids: (Bid & { user: Pick<User, "id" | "name" | "avatar"> })[];
     _count: { bids: number };
@@ -212,6 +215,8 @@ async function handler(
         breederPrograms: getSortedActiveBreederProgramSummaries(
           auction.user.breederPrograms
         ),
+        // 분양자 줄 팔로우 버튼(비로그인·본인 false).
+        isFollowing: await viewerFollows(user?.id, auction.userId),
       },
       pedigreeNote: readStoredPedigreeNote(auction.pedigreeNote),
       bloodline,

@@ -44,7 +44,7 @@ describe("Apple 로그인 완료(/auth/apple/complete)", () => {
 
     render(<AppleLogin />);
 
-    await waitFor(() => expect(mockNavigate).toHaveBeenCalledWith("/posts/3"));
+    await waitFor(() => expect(mockNavigate).toHaveBeenCalledWith("/posts/3", { isNewUser: false }));
     expect(mockLogin).toHaveBeenCalledTimes(1);
     expect(mockLogin.mock.calls[0][0].data).toEqual({
       token: "a.b.c",

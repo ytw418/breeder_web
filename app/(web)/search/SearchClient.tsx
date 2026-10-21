@@ -3,6 +3,7 @@
 import { HorizontalRail } from "@components/ui/HorizontalRail";
 import { useRef, useState, type ReactNode } from "react";
 import Link from "next/link";
+import { useSearchParams } from "next/navigation";
 import useSWR from "swr";
 
 import Layout from "@components/features/MainLayout";
@@ -26,6 +27,19 @@ const SEARCH_TABS: { id: SearchTab; name: string }[] = [
   { id: "posts", name: "게시글" },
   { id: "users", name: "유저" },
 ];
+
+/** 검색 결과 주소(`/search?q=&type=`, 2026-10-21 감사 11번). 검색어가 없으면 '/search', 탭 '전체'는 생략한다. */
+function searchHref(q: string, tab: SearchTab): string {
+  if (!q) return "/search";
+  const query = new URLSearchParams({ q });
+  if (tab !== "all") query.set("type", tab);
+  return `/search?${query.toString()}`;
+}
+
+/** 검색 결과를 연 뒤 주소만 바꾼다(기록·스크롤 없음). 뒤로 오거나 주소를 붙여 넣으면 같은 결과가 열린다. */
+function replaceSearchUrl(q: string, tab: SearchTab) {
+  window.history.replaceState(null, "", searchHref(q, tab));
+}
 
 /** 인기 검색어 목록(앱과 같다) */
 const POPULAR_KEYWORDS = [
@@ -161,11 +175,29 @@ function RecommendSkeleton() {
   );
 }
 
-const SearchClient = () => {
+/**
+ * 주소의 `?q=&type=` 로 첫 검색어·탭을 정한다. useSearchParams 를 쓰므로 page 가 Suspense 로 감싸고,
+ * 정적 HTML 에는 빈 검색 화면(SearchClient)을 폴백으로 둔다.
+ */
+export function SearchClientFromUrl() {
+  const searchParams = useSearchParams();
+  const q = searchParams?.get("q")?.trim() ?? "";
+  const type = searchParams?.get("type");
+  const tab = SEARCH_TABS.find((t) => t.id === type)?.id ?? "all";
+  return <SearchClient initialQuery={q} initialTab={tab} />;
+}
+
+const SearchClient = ({
+  initialQuery = "",
+  initialTab = "all",
+}: {
+  initialQuery?: string;
+  initialTab?: SearchTab;
+}) => {
   const inputRef = useRef<HTMLInputElement>(null);
-  const [keyword, setKeyword] = useState("");
-  const [searchQuery, setSearchQuery] = useState("");
-  const [activeTab, setActiveTab] = useState<SearchTab>("all");
+  const [keyword, setKeyword] = useState(initialQuery);
+  const [searchQuery, setSearchQuery] = useState(initialQuery);
+  const [activeTab, setActiveTab] = useState<SearchTab>(initialQuery ? initialTab : "all");
 
   // 검색 결과
   const { data, isLoading, error, mutate } = useSWR<SearchResponse>(
@@ -183,6 +215,7 @@ const SearchClient = () => {
   const runSearch = (q: string) => {
     setKeyword(q);
     setSearchQuery(q);
+    replaceSearchUrl(q, activeTab);
   };
 
   const handleSubmit = (event: React.FormEvent) => {
@@ -190,16 +223,19 @@ const SearchClient = () => {
     const q = keyword.trim();
     if (!q) {
       setSearchQuery("");
+      replaceSearchUrl("", activeTab);
       return;
     }
     trackEvent(ANALYTICS_EVENTS.searchSubmitted, { query: q, activeTab });
     setSearchQuery(q);
+    replaceSearchUrl(q, activeTab);
     inputRef.current?.blur();
   };
 
   const handleClear = () => {
     setKeyword("");
     setSearchQuery("");
+    replaceSearchUrl("", activeTab);
     inputRef.current?.focus();
   };
 
@@ -207,6 +243,7 @@ const SearchClient = () => {
     if (activeTab === nextTab) return;
     trackEvent(ANALYTICS_EVENTS.searchTabChanged, { from: activeTab, to: nextTab, query: searchQuery });
     setActiveTab(nextTab);
+    replaceSearchUrl(searchQuery, nextTab);
   };
 
   const hasResults =

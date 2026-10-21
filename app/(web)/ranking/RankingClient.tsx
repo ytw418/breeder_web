@@ -35,6 +35,7 @@ import useBlocks from "hooks/useBlocks";
 import useUser from "hooks/useUser";
 import useCategoryScope from "hooks/useCategoryScope";
 import { InitialAvatar } from "@components/ui/InitialAvatar";
+import FollowButton from "@components/features/profile/FollowButton";
 import { normalizeRankingMe, rankingMeKey } from "@components/features/home/TopBreederRankCard";
 
 type RankingItem = BreederRankingItem | BloodlineRankingItem | AuctionActivityRankingItem | ListingsRankingItem;
@@ -65,10 +66,18 @@ const RANKING_CTA: Record<RankingTypeId, { href: string; label: string }> = {
  * 랭킹 API 주소. 종 필터(species)는 대·소분류 이름 하나(하위 포함, 상위 제외 — 서버 speciesCategoryIds).
  * categoryPath 는 종합 브리더 '관심 분야 기준'(관심 카테고리 고정 범위, 홈 TOP 브리더와 같은 랭킹)일 때만 보낸다.
  */
-const getApiUrl = (type: RankingTypeId, period: RankingPeriodId, species?: string, categoryPath?: string) => {
+const getApiUrl = (
+  type: RankingTypeId,
+  period: RankingPeriodId,
+  species?: string,
+  categoryPath?: string,
+  withFollow = false
+) => {
   const params = new URLSearchParams({ limit: "50", period });
   if (species) params.set("species", species);
   else if (categoryPath) params.set("categoryPath", categoryPath);
+  // 로그인했으면 브리더 행마다 내 팔로우 여부를 받는다(행 팔로우 버튼, 사람마다 달라 공유 캐시 밖).
+  if (withFollow && type === "breeders") params.set("follow", "1");
   const path =
     type === "breeders"
       ? "breeders"
@@ -115,6 +124,7 @@ function RankRow({
   right,
   href,
   isMe = false,
+  follow,
 }: {
   rank: number;
   imageId?: string | null;
@@ -126,6 +136,8 @@ function RankRow({
   href: string;
   /** 내 행: brand-soft 로 강조하고 ?focus=me 일 때 이 행으로 스크롤한다. */
   isMe?: boolean;
+  /** 브리더 랭킹(로그인·내 행 아님): 오른쪽 팔로우 버튼 sm. */
+  follow?: { userId: number; isFollowing: boolean } | null;
 }) {
   return (
     <Link
@@ -158,6 +170,11 @@ function RankRow({
         <p className="mt-0.5 truncate text-[13px] text-app-muted">{meta}</p>
       </div>
       {right ? <span className="ml-2 shrink-0 text-[12px] text-app-muted">{right}</span> : null}
+      {follow ? (
+        <span className="ml-2 shrink-0">
+          <FollowButton size="sm" userId={follow.userId} isFollowing={follow.isFollowing} returnPath="/ranking" />
+        </span>
+      ) : null}
     </Link>
   );
 }
@@ -231,6 +248,7 @@ const RankingClient = () => {
   // 홈 '내 순위 ›'(/ranking?focus=me): 브리더 랭킹에서 내 행으로 스크롤해 강조한다(community-vibe F-13).
   const focusMe = searchParams?.get("focus") === "me";
   const { user } = useUser();
+  const loggedIn = Boolean(user);
 
   const speciesValue = categoryQueryValue(species || "전체", sub);
   const subOptions = species ? subcategoryChipOptions(species, getSubcategories(species), []) : [];
@@ -245,8 +263,8 @@ const RankingClient = () => {
     : rankingNote(type, period, speciesValue ?? null);
   const cta = RANKING_CTA[type];
   const apiUrl = useMemo(
-    () => getApiUrl(type, period, speciesValue, rankingCategoryPath),
-    [type, period, speciesValue, rankingCategoryPath]
+    () => getApiUrl(type, period, speciesValue, rankingCategoryPath, loggedIn),
+    [type, period, speciesValue, rankingCategoryPath, loggedIn]
   );
   // 관심 카테고리 복원 전엔 받지 않는다(전체 랭킹이 잠깐 보였다 바뀌지 않게).
   const { data, error, isLoading: fetching, mutate } = useSWR<RankingResponse>(scope.hydrated ? apiUrl : null);
@@ -328,6 +346,10 @@ const RankingClient = () => {
       meta,
       href: `/profiles/${person.user.id}`,
       isMe: person.user.id === user?.id,
+      follow:
+        type === "breeders" && user && person.user.id !== user.id
+          ? { userId: person.user.id, isFollowing: Boolean((person as BreederRankingItem).isFollowing) }
+          : null,
     };
   };
 
@@ -414,6 +436,7 @@ const RankingClient = () => {
                 right={period !== "all" ? formatRankDelta(item.rankDelta) : undefined}
                 href={row.href}
                 isMe={row.isMe}
+                follow={row.follow}
               />
             );
           })}

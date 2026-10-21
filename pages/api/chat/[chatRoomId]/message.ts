@@ -7,6 +7,7 @@ import { sendAllPushToUsers } from "@libs/server/pushGateway";
 import { filterPushRecipients } from "@libs/server/notificationGate";
 import { captureServerEvent, resolveClientPlatform } from "@libs/server/analytics";
 import { assertCanChat, CHAT_PARTNER_DELETED_MESSAGE } from "@libs/server/blocks";
+import { assertWriteAllowed } from "@libs/server/writeLimits";
 
 interface MessageRequest {
   type?: MessageType;
@@ -84,7 +85,7 @@ async function handler(
         chatRoomId: +chatRoomId!,
         userId: { not: user.id },
       },
-      select: { userId: true },
+      select: { userId: true, mutedAt: true },
     });
 
     // 차단(양방향)·탈퇴한 상대에게는 보내지 않는다. 저장·푸시 전에 막는다.
@@ -101,6 +102,16 @@ async function handler(
       return res
         .status(canChat.status)
         .json({ success: false, error: canChat.error, errorCode: canChat.errorCode });
+    }
+
+    // 같은 글을 10분에 3번 넘게 보내면 막는다(감사 24번, 여러 방에 같은 글 뿌리기). 사진은 세지 않는다.
+    if (type === "TEXT") {
+      const writeLimit = await assertWriteAllowed({ userId: user.id, kind: "message", text: message });
+      if (writeLimit) {
+        return res
+          .status(writeLimit.status)
+          .json({ success: false, error: writeLimit.error, errorCode: writeLimit.errorCode });
+      }
     }
 
     // 메시지 생성 + 채팅방 updatedAt 갱신을 트랜잭션으로 처리
@@ -130,15 +141,18 @@ async function handler(
       }),
     ]);
 
-    // 발신자를 채팅방 멤버에게만 알림을 보낸다. 채팅 알림을 껐거나 방해 금지 시간인 사람은 뺀다.
-    const pushRecipientIds = await filterPushRecipients(otherMembers.map((member) => member.userId), "CHAT");
+    // 발신자를 뺀 채팅방 멤버 중 이 방 알림을 끄지 않은 사람만 남기고, 채팅 알림을 껐거나 방해 금지 시간인 사람은 뺀다.
+    const pushRecipientIds = await filterPushRecipients(
+      otherMembers.filter((member) => !member.mutedAt).map((member) => member.userId),
+      "CHAT"
+    );
     const pushBody =
       newMessage.type === "IMAGE"
         ? `${newMessage.user.name}님이 사진을 보냈습니다.`
         : `${newMessage.user.name}: ${newMessage.message}`;
 
     // 푸시 전송은 부가 기능이므로 응답 지연을 막기 위해 비동기로 분리한다.
-    sendAllPushToUsers(pushRecipientIds, {
+    if (pushRecipientIds.length > 0) sendAllPushToUsers(pushRecipientIds, {
       title: "새 채팅 메시지",
       body: pushBody,
       url: `/chat/${chatRoomId}`,

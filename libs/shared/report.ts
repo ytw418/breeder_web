@@ -34,6 +34,9 @@ export const REPORT_ACTIONS = [
 export const OTHER_REASON = "기타";
 export const REPORT_DETAIL_MAX = 500;
 export const REPORT_DETAIL_MIN_FOR_OTHER = 5;
+/** 반려생물 커뮤니티라 따로 두는 사유(2026-10-21 커뮤니티 감사 #12). 제재 코드 ANIMAL_WELFARE·ILLEGAL_ITEM 로 이어진다. */
+export const ANIMAL_WELFARE_REASON = "동물 학대·부적절 사육";
+export const ILLEGAL_SPECIES_REASON = "불법 개체·거래 금지 종";
 
 const CONTENT_REASONS = [
   "스팸·광고",
@@ -41,6 +44,8 @@ const CONTENT_REASONS = [
   "음란·선정적 내용",
   "개인정보 노출",
   "허위 정보",
+  ANIMAL_WELFARE_REASON,
+  ILLEGAL_SPECIES_REASON,
   OTHER_REASON,
 ] as const;
 
@@ -49,13 +54,29 @@ export const REPORT_REASONS: Record<ReportTargetType, readonly string[]> = {
   COMMENT: CONTENT_REASONS,
   PRODUCT: [
     "허위 분양글·사기 의심",
-    "거래 금지 품목(불법 개체)",
+    ILLEGAL_SPECIES_REASON,
+    ANIMAL_WELFARE_REASON,
     "중복·도배 게시",
     "욕설·부적절 내용",
     OTHER_REASON,
   ],
-  CHAT_ROOM: ["욕설·협박", "사기 의심", "스팸·광고", "음란 메시지", OTHER_REASON],
-  USER: ["사칭", "사기 이력 의심", "반복적 욕설·괴롭힘", "스팸 계정", OTHER_REASON],
+  CHAT_ROOM: [
+    "욕설·협박",
+    "사기 의심",
+    "스팸·광고",
+    "음란 메시지",
+    ILLEGAL_SPECIES_REASON,
+    OTHER_REASON,
+  ],
+  USER: [
+    "사칭",
+    "사기 이력 의심",
+    "반복적 욕설·괴롭힘",
+    "스팸 계정",
+    ANIMAL_WELFARE_REASON,
+    ILLEGAL_SPECIES_REASON,
+    OTHER_REASON,
+  ],
   BLOODLINE_CARD: [
     "남의 혈통 이름 도용",
     "허위 정보",
@@ -74,6 +95,9 @@ export const REPORT_REASONS: Record<ReportTargetType, readonly string[]> = {
   ],
 };
 
+/** 관리자 메뉴 '신고 관리 (N)'의 N(처리 대기 신고 수)만 묻는 주소. 신고를 처리한 화면이 이 키를 다시 불러 숫자를 맞춘다. */
+export const ADMIN_REPORT_SUMMARY_API = "/api/admin/reports?summary=1";
+
 export const isReportTargetType = (value: unknown): value is ReportTargetType =>
   typeof value === "string" &&
   (REPORT_TARGET_TYPES as readonly string[]).includes(value);
@@ -85,11 +109,11 @@ export const isReportAction = (value: unknown): value is ReportAction =>
   typeof value === "string" && (REPORT_ACTIONS as readonly string[]).includes(value);
 
 /**
- * 옛 사유 문구(2026-10-10 '매물' → '분양글' 용어 변경 전). 이미 배포된 앱이 보내고 저장된 신고에도 남아 있어
- * 접수는 계속 받지만, 화면에 보이는 목록(REPORT_REASONS)에는 넣지 않는다.
+ * 옛 사유 문구(2026-10-10 '매물' → '분양글' 용어 변경 전, 2026-10-21 '거래 금지 품목' → '불법 개체·거래 금지 종').
+ * 이미 배포된 앱이 보내고 저장된 신고에도 남아 있어 접수는 계속 받지만, 화면에 보이는 목록(REPORT_REASONS)에는 넣지 않는다.
  */
 export const LEGACY_REPORT_REASONS: Partial<Record<ReportTargetType, readonly string[]>> = {
-  PRODUCT: ["허위 매물·사기 의심"],
+  PRODUCT: ["허위 매물·사기 의심", "거래 금지 품목(불법 개체)"],
 };
 
 export const isValidReportReason = (type: ReportTargetType, reason: string) =>

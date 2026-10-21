@@ -9,8 +9,10 @@ export interface BottomSheetProps {
   onClose: () => void;
   title?: ReactNode;
   children?: ReactNode;
-  /** 시트 아래 고정 영역(주 CTA 등). */
+  /** 시트 아래 고정 영역(주 CTA 등). 본문만 스크롤하고 이 영역은 늘 보인다. */
   footer?: ReactNode;
+  /** footer 감싸개 여백 조정(기본 px-4 pb-4 pt-3). */
+  footerClassName?: string;
   ariaLabel?: string;
   /** 배경(overlay)을 누르면 닫을지. 기본 true. */
   dismissOnBackdrop?: boolean;
@@ -28,6 +30,7 @@ export function BottomSheet({
   title,
   children,
   footer,
+  footerClassName,
   ariaLabel,
   dismissOnBackdrop = true,
   className,
@@ -83,7 +86,9 @@ export function BottomSheet({
           </h2>
         ) : null}
         <div className="min-h-0 flex-1 overflow-y-auto">{children}</div>
-        {footer ? <div className="shrink-0 px-4 pb-4 pt-3">{footer}</div> : null}
+        {footer ? (
+          <div className={cn("shrink-0 px-4 pb-4 pt-3", footerClassName)}>{footer}</div>
+        ) : null}
       </div>
     </div>,
     document.body

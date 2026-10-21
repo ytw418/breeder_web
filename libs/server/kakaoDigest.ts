@@ -1,7 +1,7 @@
 import client from "@libs/server/client";
 import { speciesCategoryIds } from "@libs/server/categories";
 import { sendPushToUsers } from "@libs/server/push";
-import { ADMIN_EMAIL_ID_PREFIX, isAdminEmail } from "@libs/shared/adminEmail";
+import { findAdminUserIds } from "@libs/server/adminAccess";
 import {
   formatKakaoDigest,
   KAKAO_DIGEST_ROOMS,
@@ -113,11 +113,7 @@ export const buildAllKakaoDigests = (now: Date = new Date()) =>
  * 돌려주는 값은 받는 운영자 계정 수(기기 구독이 없는 계정도 센다).
  */
 export async function notifyKakaoDigestReady(digests: KakaoDigestResult[]): Promise<number> {
-  const candidates = await client.user.findMany({
-    where: { email: { startsWith: ADMIN_EMAIL_ID_PREFIX, mode: "insensitive" } },
-    select: { id: true, email: true },
-  });
-  const adminIds = candidates.filter((user) => isAdminEmail(user.email)).map((user) => user.id);
+  const adminIds = await findAdminUserIds();
   if (!adminIds.length) return 0;
 
   const summary = digests

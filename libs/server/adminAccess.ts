@@ -1,6 +1,6 @@
 import type { role } from "@prisma/client";
 import client from "@libs/server/client";
-import { isAdminEmail } from "@libs/shared/adminEmail";
+import { ADMIN_EMAIL_ID_PREFIX, isAdminEmail } from "@libs/shared/adminEmail";
 
 /** 운영자 이메일: 아이디(@ 앞)가 `ytw418` 로 시작하면 운영자다(2026-10-12 사용자 결정). 규칙은 libs/shared/adminEmail.ts. */
 export function isWhitelistedAdminEmail(email?: string | null) {
@@ -40,4 +40,13 @@ export async function hasAdminAccess(userId?: number) {
   if (!userId) return false;
   const dbUser = await client.user.findUnique({ where: { id: userId } });
   return isModeratorUser(dbUser);
+}
+
+/** 운영자 이메일 계정 id 목록. 운영자 기기로 보내는 푸시(오픈채팅 소식·신고 접수)의 받는 사람이다. */
+export async function findAdminUserIds(): Promise<number[]> {
+  const candidates = await client.user.findMany({
+    where: { email: { startsWith: ADMIN_EMAIL_ID_PREFIX, mode: "insensitive" } },
+    select: { id: true, email: true },
+  });
+  return candidates.filter((user) => isAdminEmail(user.email)).map((user) => user.id);
 }

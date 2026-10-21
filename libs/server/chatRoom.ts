@@ -10,16 +10,8 @@ export async function findOrCreateDirectRoom(
   otherId: number,
   platform: ClientPlatform
 ): Promise<{ id: number; created: boolean }> {
-  const existing = await client.chatRoom.findFirst({
-    where: {
-      AND: [
-        { chatRoomMembers: { some: { userId } } },
-        { chatRoomMembers: { some: { userId: otherId } } },
-      ],
-    },
-    select: { id: true },
-  });
-  if (existing) return { id: existing.id, created: false };
+  const existingId = await findDirectRoomId(userId, otherId);
+  if (existingId) return { id: existingId, created: false };
 
   const room = await client.chatRoom.create({
     data: {
@@ -35,4 +27,42 @@ export async function findOrCreateDirectRoom(
     platform,
   });
   return { id: room.id, created: true };
+}
+
+/** 두 사람의 1:1 채팅방 id. 없으면 null. 새 방 하루 한도(writeLimits)는 방이 없을 때만 센다. */
+export async function findDirectRoomId(userId: number, otherId: number): Promise<number | null> {
+  const existing = await client.chatRoom.findFirst({
+    where: {
+      AND: [
+        { chatRoomMembers: { some: { userId } } },
+        { chatRoomMembers: { some: { userId: otherId } } },
+      ],
+    },
+    select: { id: true },
+  });
+  return existing?.id ?? null;
+}
+
+/**
+ * 채팅방 알림을 끄지 않은 사람만 남긴다(채팅방 알림 끄기, 앱 docs/prd/chat-room-settings.md).
+ * 새 메시지·인사 푸시를 보내기 직전에 거른다.
+ */
+export async function withoutMutedMembers(chatRoomId: number, userIds: number[]): Promise<number[]> {
+  if (userIds.length === 0) return [];
+  const muted = await client.chatRoomMember.findMany({
+    where: { chatRoomId, userId: { in: userIds }, mutedAt: { not: null } },
+    select: { userId: true },
+  });
+  const mutedIds = new Set(muted.map((member) => member.userId));
+  return userIds.filter((id) => !mutedIds.has(id));
+}
+
+/**
+ * 이 시각 뒤 메시지만 '안 읽음'으로 센다. 나간 방은 나간 시각 전 메시지를 세지 않는다.
+ * 둘 다 없으면 null(처음부터 센다).
+ */
+export function unreadSince(member: { lastReadAt: Date | null; leftAt: Date | null }): Date | null {
+  const { lastReadAt, leftAt } = member;
+  if (lastReadAt && leftAt) return lastReadAt > leftAt ? lastReadAt : leftAt;
+  return lastReadAt ?? leftAt;
 }

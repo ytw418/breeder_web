@@ -4,6 +4,7 @@ import type { NextApiRequest, NextApiResponse } from "next";
  * 댓글 수정·삭제(PATCH·DELETE /api/posts/:id/comments/:commentId).
  * - 작성자 본인만 고치고 지운다.
  * - 답글이 남은 루트는 '삭제된 댓글' 자리로 남기고, 그 밖에는 행을 지운다.
+ * - 지운 댓글이 채택 답변이면 채택을 푼다.
  */
 
 const mockClient = {
@@ -13,6 +14,10 @@ const mockClient = {
     delete: jest.fn(),
     deleteMany: jest.fn(),
     count: jest.fn(),
+  },
+  post: {
+    findUnique: jest.fn(),
+    updateMany: jest.fn(),
   },
 };
 jest.mock("@libs/server/client", () => ({
@@ -82,6 +87,7 @@ beforeEach(() => {
   jest.clearAllMocks();
   givenComment();
   mockClient.comment.count.mockResolvedValue(0);
+  mockClient.post.findUnique.mockResolvedValue({ acceptedCommentId: null });
   mockClient.comment.update.mockImplementation(({ data }: { data: Record<string, unknown> }) =>
     Promise.resolve({ id: COMMENT_ID, ...data })
   );
@@ -109,6 +115,14 @@ describe("PATCH 댓글 수정", () => {
 
     expect(res.statusCode).toBe(403);
     expect(res.body.errorCode).toBe("COMMENT_FORBIDDEN");
+    expect(mockClient.comment.update).not.toHaveBeenCalled();
+  });
+
+  it("욕설로 고치면 등록 때처럼 400 BLOCKED_WORD 로 막는다(커뮤니티 감사 #13)", async () => {
+    const res = await call({ method: "PATCH", user: me, body: { comment: "씨 발 진짜" } });
+
+    expect(res.statusCode).toBe(400);
+    expect(res.body.errorCode).toBe("BLOCKED_WORD");
     expect(mockClient.comment.update).not.toHaveBeenCalled();
   });
 
@@ -208,6 +222,20 @@ describe("DELETE 댓글 삭제", () => {
     expect(mockClient.comment.delete).toHaveBeenCalledWith({ where: { id: COMMENT_ID } });
     expect(mockClient.comment.deleteMany).toHaveBeenCalledWith({
       where: { id: 50, deletedAt: { not: null } },
+    });
+  });
+
+  it("채택 답변을 지우면 채택을 푼다", async () => {
+    mockClient.post.findUnique.mockResolvedValue({ acceptedCommentId: COMMENT_ID });
+    // 지운 뒤 다시 찾으면 없다.
+    mockClient.comment.findUnique
+      .mockResolvedValueOnce({ userId: ME, postId: POST_ID, parentId: null, deletedAt: null })
+      .mockResolvedValueOnce(null);
+    await call({ method: "DELETE", user: me });
+
+    expect(mockClient.post.updateMany).toHaveBeenCalledWith({
+      where: { id: POST_ID, acceptedCommentId: COMMENT_ID },
+      data: { acceptedCommentId: null, resolvedAt: null },
     });
   });
 

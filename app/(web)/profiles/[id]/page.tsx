@@ -1,6 +1,7 @@
 import React from "react";
 import type { Metadata } from "next";
 import ProfileClient from "./ProfileClient";
+import AppOpenBanner from "@components/features/AppOpenBanner";
 import client from "@libs/server/client";
 import JsonLd from "@components/atoms/JsonLd";
 import { SITE_OG_IMAGE } from "@libs/shared/ogImage";
@@ -115,6 +116,7 @@ const page = async ({ params }: Props) => {
   const user = await getProfileForSeo(id);
   return (
     <>
+      <AppOpenBanner />
       {isPublicProfile(user) ? <JsonLd id="profile-jsonld" data={generateProfileJsonLd(user)} /> : null}
       <ProfileClient initialName={isPublicProfile(user) ? user.name : undefined} />
     </>

@@ -45,6 +45,7 @@ export const SANCTION_REASON_CODES = [
   "HARASSMENT",
   "IMPERSONATION",
   "TRADE_ABUSE",
+  "ANIMAL_WELFARE",
   "OTHER",
 ] as const;
 export type SanctionReasonCode = (typeof SANCTION_REASON_CODES)[number];
@@ -59,11 +60,12 @@ export const SANCTION_REASON_LABEL: Record<SanctionReasonCode, string> = {
   PRIVACY: "개인정보 노출",
   FALSE_INFO: "허위 정보",
   FRAUD: "사기·허위 분양글",
-  ILLEGAL_ITEM: "거래 금지 품목(불법 개체)",
+  ILLEGAL_ITEM: "불법 개체·거래 금지 종",
   DUPLICATE: "중복·도배",
   HARASSMENT: "괴롭힘·협박",
   IMPERSONATION: "사칭",
   TRADE_ABUSE: "거래 방해·비정상 거래",
+  ANIMAL_WELFARE: "동물 학대·부적절 사육",
   OTHER: "기타",
 };
 
@@ -83,7 +85,9 @@ export const REPORT_REASON_TO_SANCTION_REASON: Record<string, SanctionReasonCode
   "허위 정보": "FALSE_INFO",
   "허위 분양글·사기 의심": "FRAUD",
   "허위 매물·사기 의심": "FRAUD", // 옛 문구(저장된 신고·구 앱)
-  "거래 금지 품목(불법 개체)": "ILLEGAL_ITEM",
+  "불법 개체·거래 금지 종": "ILLEGAL_ITEM",
+  "거래 금지 품목(불법 개체)": "ILLEGAL_ITEM", // 옛 문구(저장된 신고·구 앱)
+  "동물 학대·부적절 사육": "ANIMAL_WELFARE",
   "중복·도배 게시": "DUPLICATE",
   "욕설·부적절 내용": "ABUSE",
   "욕설·협박": "HARASSMENT",
@@ -108,6 +112,12 @@ export const REPORT_REASON_TO_SANCTION_REASON: Record<string, SanctionReasonCode
 
 export const defaultSanctionReason = (reportReason: string | null | undefined): SanctionReasonCode =>
   (reportReason && REPORT_REASON_TO_SANCTION_REASON[reportReason]) || "OTHER";
+
+/** 접수되면 건수와 상관없이 운영자에게 바로 알리는 사유 계열(사기·불법 개체·동물 학대, 커뮤니티 감사 #12). */
+const URGENT_SANCTION_REASONS: readonly SanctionReasonCode[] = ["FRAUD", "ILLEGAL_ITEM", "ANIMAL_WELFARE"];
+
+export const isUrgentReportReason = (reportReason: string | null | undefined) =>
+  URGENT_SANCTION_REASONS.includes(defaultSanctionReason(reportReason));
 
 /** 관리자 화면 계정 상태 문구. 기간 정지(새 SUSPENDED·옛 7일·30일)는 모두 '기간 정지'. */
 export const USER_STATUS_LABEL: Record<UserStatus, string> = {

@@ -9,6 +9,7 @@ import { USER_INFO } from "@libs/constants";
 import { Spinner } from "@components/atoms/Spinner";
 import { setTokens } from "@libs/client/authToken";
 import { getSafeNextPath, navigateAfterSessionReady } from "@libs/client/postLogin";
+import { ANALYTICS_EVENTS, trackEvent } from "@libs/client/analytics";
 import {
   ACCOUNT_RESTRICTED_LOGIN_PATH,
   saveAccountRestriction,
@@ -78,12 +79,17 @@ export const AppleLogin = () => {
             });
           }
           markPostLoginGuide();
-          void navigateAfterSessionReady(getSafeNextPath(searchParams?.get("next") ?? null));
+          void navigateAfterSessionReady(getSafeNextPath(searchParams?.get("next") ?? null), {
+            isNewUser: result.isNewUser === true,
+          });
           return;
         }
+        // 로그인 실패 기록(앱 login_failed 와 같은 이름). ?error=apple_* 로 돌려보내는 경우는 로그인 화면이 남긴다.
+        const failedReason = String((result as { errorCode?: string }).errorCode || result.error || "").slice(0, 120);
         // 정지·영구 정지 계정은 알림창 대신 로그인 화면의 이용 제한 안내로 보낸다.
         const restriction = toAccountRestriction(result);
         if (restriction) {
+          trackEvent(ANALYTICS_EVENTS.loginFailed, { method: "apple", reason: failedReason });
           saveAccountRestriction(restriction);
           router.replace(ACCOUNT_RESTRICTED_LOGIN_PATH);
           return;
@@ -91,6 +97,7 @@ export const AppleLogin = () => {
         // 탈퇴 보관 중 등 서버 문구가 있으면 그대로 알린다.
         const message = result.error || (result as { message?: string }).message;
         if (message) {
+          trackEvent(ANALYTICS_EVENTS.loginFailed, { method: "apple", reason: failedReason });
           alert(`로그인에 실패했습니다:${message}`);
           router.replace("/auth/login");
           return;

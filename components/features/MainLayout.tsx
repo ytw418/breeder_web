@@ -16,6 +16,7 @@ import useUser from "hooks/useUser";
 import SanctionNoticeModal from "@components/features/moderation/SanctionNoticeModal";
 import useLogout from "hooks/useLogout";
 import { identifyPosthogUser } from "@libs/client/posthog";
+import type { LoginReason } from "@libs/shared/loginReason";
 import { version as APP_VERSION } from "../../package.json";
 
 export type HeaderVariant = "default" | "chat-list" | "profile" | "none";
@@ -239,7 +240,9 @@ function useScrolled(threshold = 2) {
 /** 스크롤 때만 헤더 아래 1px 선(그림자로 그려 레이아웃 높이는 그대로). */
 const HEADER_SCROLLED_CLASS = "shadow-[0_1px_0_var(--app-line)]";
 
-export const toLoginHref = (next: string) => `/auth/login?next=${encodeURIComponent(next)}`;
+/** 로그인 화면 주소. reason 을 주면 로그인 화면 제목이 그 이유로 바뀐다(libs/shared/loginReason.ts). */
+export const toLoginHref = (next: string, reason?: LoginReason) =>
+  `/auth/login?next=${encodeURIComponent(next)}${reason ? `&reason=${reason}` : ""}`;
 
 /* ------------------------------------------------------------------ */
 /* 사이드 메뉴 (앱 SideMenu.tsx)                                         */
@@ -652,7 +655,7 @@ export default function MainLayout({
   const [deferredInstallPrompt, setDeferredInstallPrompt] =
     useState<BeforeInstallPromptEvent | null>(null);
   const [installLoading, setInstallLoading] = useState(false);
-  const { user, isAdmin, isLoading: userLoading } = useUser();
+  const { user, isAdmin, isCrew, isLoading: userLoading } = useUser();
   // 포유류만 고정했으면 하단 경매 탭을 뺀다(앱 mainTabs useMainTabs, 앱 docs/prd/category-pin.md §15).
   const { showAuctions } = useScopeTerms();
   const bottomNavItems = showAuctions
@@ -687,8 +690,8 @@ export default function MainLayout({
 
   // PostHog 에 로그인 사용자를 묶는다(로그인 사용자 수·재방문·운영팀 제외용). 개인정보는 넘기지 않는다.
   useEffect(() => {
-    if (user?.id) identifyPosthogUser(user.id, { is_admin: isAdmin });
-  }, [user?.id, isAdmin]);
+    if (user?.id) identifyPosthogUser(user.id, { is_admin: isAdmin, is_crew: isCrew });
+  }, [user?.id, isAdmin, isCrew]);
 
   useEffect(() => {
     const onBeforeInstallPrompt = (event: Event) => {

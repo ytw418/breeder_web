@@ -11,6 +11,7 @@ import { Textarea } from "@components/ui/textarea";
 import useContentActionDialog from "@components/features/moderation/useContentActionDialog";
 import { toPostPath } from "@libs/post-route";
 import { toPostPlainText } from "@libs/shared/post-body";
+import { isNewcomer } from "@libs/shared/newcomer";
 
 export default function AdminPostsPage() {
   const [page, setPage] = useState(1);
@@ -19,14 +20,18 @@ export default function AdminPostsPage() {
   const [hiddenOnly, setHiddenOnly] = useState(false);
   // 운영진 첫 댓글용: 최근 7일, 댓글이 하나도 없는 글
   const [unansweredOnly, setUnansweredOnly] = useState(false);
+  // 새 회원(가입 7일 안) 글만. '답 없는 글'과 같이 걸면 방치된 첫 글을 찾는다(커뮤니티 감사 #20).
+  const [newcomerOnly, setNewcomerOnly] = useState(false);
   const [busyId, setBusyId] = useState<number | null>(null);
   const { ask, dialog: contentActionDialog } = useContentActionDialog();
   const [noticeTitle, setNoticeTitle] = useState("");
   const [noticeDescription, setNoticeDescription] = useState("");
   const [creatingNotice, setCreatingNotice] = useState(false);
+  // 공지와 함께 전체에게 운영자 푸시(하루 1회 상한, /admin/push 와 같은 발송기).
+  const [noticePush, setNoticePush] = useState(false);
 
   const { data, mutate } = useSWR(
-    `/api/admin/posts?page=${page}&keyword=${searchQuery}${hiddenOnly ? "&hidden=1" : ""}${unansweredOnly ? "&unanswered=1" : ""}`
+    `/api/admin/posts?page=${page}&keyword=${searchQuery}${hiddenOnly ? "&hidden=1" : ""}${unansweredOnly ? "&unanswered=1" : ""}${newcomerOnly ? "&newcomer=1" : ""}`
   );
 
   const handleCreateNotice = async (event: React.FormEvent) => {
@@ -46,13 +51,19 @@ export default function AdminPostsPage() {
           action: "create_notice",
           title: noticeTitle.trim(),
           description: noticeDescription.trim(),
+          sendPush: noticePush,
         }),
       });
       const result = await res.json();
       if (result.success) {
-        toast.success("공지사항이 등록되었습니다.");
+        toast.success(
+          result.push
+            ? `공지를 등록하고 ${result.push.recipients}명에게 알렸어요(푸시 ${result.push.pushed}명).`
+            : "공지사항이 등록되었습니다."
+        );
         setNoticeTitle("");
         setNoticeDescription("");
+        setNoticePush(false);
         mutate();
       } else {
         toast.error(result.error || "공지 등록 실패");
@@ -163,9 +174,19 @@ export default function AdminPostsPage() {
             onChange={(event) => setNoticeDescription(event.target.value)}
             rows={5}
           />
-          <Button type="submit" disabled={creatingNotice}>
-            {creatingNotice ? "등록 중..." : "공지 등록"}
-          </Button>
+          <div className="flex flex-wrap items-center gap-3">
+            <Button type="submit" disabled={creatingNotice}>
+              {creatingNotice ? "등록 중..." : "공지 등록"}
+            </Button>
+            <label className="inline-flex items-center gap-1.5 text-sm text-gray-700">
+              <input
+                type="checkbox"
+                checked={noticePush}
+                onChange={(event) => setNoticePush(event.target.checked)}
+              />
+              푸시도 보내기(전체, 하루 1회)
+            </label>
+          </div>
         </form>
 
         <form onSubmit={handleSearch} className="flex max-w-md flex-col gap-2 sm:flex-row">
@@ -196,6 +217,17 @@ export default function AdminPostsPage() {
               }}
             />
             답 없는 글(7일)
+          </label>
+          <label className="inline-flex items-center gap-1.5 whitespace-nowrap text-sm text-gray-700">
+            <input
+              type="checkbox"
+              checked={newcomerOnly}
+              onChange={(event) => {
+                setNewcomerOnly(event.target.checked);
+                setPage(1);
+              }}
+            />
+            새 회원 글(가입 7일)
           </label>
         </form>
 
@@ -250,6 +282,11 @@ export default function AdminPostsPage() {
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                     {post.user?.name}
+                    {isNewcomer(post.user?.createdAt) ? (
+                      <span className="ml-1.5 inline-flex px-2 py-0.5 rounded-full text-[11px] font-semibold bg-orange-50 text-orange-700">
+                        새 회원
+                      </span>
+                    ) : null}
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                     ❤️ {post._count?.Likes || 0} / 💬 {post._count?.comments || 0}

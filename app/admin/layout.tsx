@@ -2,9 +2,22 @@
 
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
+import useSWR from "swr";
 import useUser from "hooks/useUser";
 import { useEffect } from "react";
 import { cn } from "@libs/client/utils";
+import type { AdminReportsResponse } from "pages/api/admin/reports";
+import { ADMIN_REPORT_SUMMARY_API } from "@libs/shared/report";
+
+const REPORTS_MENU_HREF = "/admin/reports";
+/** 처리 대기 신고 수를 다시 묻는 간격. 신고가 오면 운영자 푸시도 가므로 길게 둔다. */
+const REPORT_COUNT_REFRESH_MS = 60_000;
+
+/** 메뉴 이름. 신고 관리는 처리 대기 신고가 있으면 '신고 관리 (N)'. */
+const adminMenuLabel = (menu: { name: string; href: string }, openReportCount: number) =>
+  menu.href === REPORTS_MENU_HREF && openReportCount > 0
+    ? `${menu.name} (${openReportCount})`
+    : menu.name;
 
 const ADMIN_MENUS = [
   { name: "대시보드", href: "/admin" },
@@ -18,6 +31,7 @@ const ADMIN_MENUS = [
   { name: "고객의 소리", href: "/admin/voice" },
   { name: "오픈채팅 소식", href: "/admin/kakao-digest" },
   { name: "게시물 관리", href: "/admin/posts" },
+  { name: "푸시 보내기", href: "/admin/push" },
   { name: "분양 관리", href: "/admin/products" },
 ];
 
@@ -42,6 +56,11 @@ export default function AdminLayout({
   const pathname = usePathname();
   const isAdminLoginPage = pathname === "/admin/login";
   const hasAccess = Boolean(user && isAdmin);
+  const { data: reportSummary } = useSWR<AdminReportsResponse>(
+    hasAccess && !isAdminLoginPage ? ADMIN_REPORT_SUMMARY_API : null,
+    { refreshInterval: REPORT_COUNT_REFRESH_MS }
+  );
+  const openReportCount = reportSummary?.openCount ?? 0;
 
   useEffect(() => {
     if (isAdminLoginPage) {
@@ -99,7 +118,7 @@ export default function AdminLayout({
                     : "bg-gray-100 text-gray-600 hover:bg-gray-200"
                 )}
               >
-                {menu.name}
+                {adminMenuLabel(menu, openReportCount)}
               </Link>
             ))}
           </div>
@@ -134,7 +153,7 @@ export default function AdminLayout({
                     : "text-gray-600 hover:bg-gray-50"
                 )}
               >
-                {menu.name}
+                {adminMenuLabel(menu, openReportCount)}
               </Link>
             ))}
             <Link
