@@ -935,14 +935,18 @@ const PostClient = ({
         <div className="fixed inset-x-0 bottom-0 mx-auto max-w-xl z-30 border-t border-app-line bg-app-bg">
           <div className="mx-auto max-w-xl">
             {loggedOut ? (
-              <button
-                type="button"
-                onClick={goLogin}
-                aria-label="로그인하고 댓글 쓰기"
-                className="flex w-full items-center justify-center px-4 pb-[max(calc(env(safe-area-inset-bottom)+14px),22px)] pt-3.5 text-[15px] text-app-muted"
-              >
-                로그인하고 댓글을 남겨보세요
-              </button>
+              // 비로그인: 로그인한 입력바와 같은 자리·모양의 입력칸(2026-10-21 디자인 리뷰 #8 — 가운데 회색 문장은
+              // 꺼진 칸처럼 보여 누를 곳으로 읽히지 않았다). 누르면 '로그인하고 댓글 남기기' 로그인 화면, 로그인 뒤 이 글로 돌아온다.
+              <div className="px-3 pb-[max(calc(env(safe-area-inset-bottom)+8px),16px)] pt-2">
+                <button
+                  type="button"
+                  onClick={() => router.push(toLoginHref(detailPath, "comment"))}
+                  aria-label="로그인하고 댓글 쓰기"
+                  className="flex h-11 w-full items-center rounded-[22px] bg-app-surface px-4 text-left text-[15px] text-app-caption"
+                >
+                  댓글을 남겨 보세요
+                </button>
+              </div>
             ) : (
               <>
               {/* 답글·수정 모드: 입력바 위 한 줄. × 로 모드를 푼다. */}
