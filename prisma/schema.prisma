@@ -247,6 +247,8 @@ model Follow {
   following   User     @relation(name: "following", fields: [followingId], references: [id], onDelete: Cascade)
   followingId Int
 
+  // 같은 사람을 두 번 팔로우한 행이 생기지 않게 한다(2026-10-21 커뮤니티 감사 #15 — 운영·dev 중복 0건 확인 뒤 추가).
+  @@unique([followerId, followingId])
   @@index([followerId])
   @@index([followingId])
 
