@@ -21,7 +21,10 @@ jest.mock("@libs/server/blocks", () => ({ assertCanChat: (...a: unknown[]) => mo
 const mockScope = jest.fn();
 jest.mock("@libs/server/nearby", () => ({ getViewerRegionScope: (...a: unknown[]) => mockScope(...a) }));
 const mockRoom = jest.fn();
-jest.mock("@libs/server/chatRoom", () => ({ findOrCreateDirectRoom: (...a: unknown[]) => mockRoom(...a) }));
+jest.mock("@libs/server/chatRoom", () => ({
+  findOrCreateDirectRoom: (...a: unknown[]) => mockRoom(...a),
+  withoutMutedMembers: (_roomId: number, ids: number[]) => Promise.resolve(ids),
+}));
 const mockPush = jest.fn();
 jest.mock("@libs/server/pushGateway", () => ({ sendAllPushToUsers: (...a: unknown[]) => mockPush(...a) }));
 const mockCapture = jest.fn();

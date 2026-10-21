@@ -156,12 +156,12 @@ describe("채팅방", () => {
     expect(summary.oversized).toBe(1);
     expect(summary.invalidType).toBe(1);
     expect(summary.overflow).toBe(1);
-    expect(imageUploadNotices({ ...summary, failed: 2, serverError: "이 사용자에게는 메시지를 보낼 수 없습니다." })).toEqual([
+    expect(imageUploadNotices({ ...summary, failed: 2, serverError: "지금은 이 사용자와 대화할 수 없어요." })).toEqual([
       "사진은 한 번에 10장까지 보낼 수 있어요. 1장은 제외했어요.",
       "이미지 파일이 아닌 1개는 제외했습니다.",
       "10MB를 넘는 이미지 1장은 제외했습니다.",
       "이미지 2장을 보내지 못했습니다.",
-      "이 사용자에게는 메시지를 보낼 수 없습니다.",
+      "지금은 이 사용자와 대화할 수 없어요.",
     ]);
   });
 });

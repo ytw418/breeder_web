@@ -191,6 +191,10 @@ model ChatRoomMember {
   createdAt  DateTime @default(now())
   updatedAt  DateTime @updatedAt @default(now())
   lastReadAt DateTime?
+  /// 채팅방 나가기 시각(앱 docs/prd/chat-room-settings.md). 이 시각 이전 메시지는 이 멤버에게만 보이지 않는다.
+  leftAt     DateTime?
+  /// 채팅방 알림을 끈 시각. 있으면 이 방 새 메시지 푸시를 이 멤버에게 보내지 않는다.
+  mutedAt    DateTime?
 
   @@unique([userId, chatRoomId])
   @@index([chatRoomId])

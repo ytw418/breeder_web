@@ -18,6 +18,7 @@ import { canAttachBloodline, pedigreeNoteDbValue } from "@libs/server/bloodline-
 import { captureServerEvent, resolveClientPlatform } from "@libs/server/analytics";
 import { buildCelebrate } from "@libs/server/celebrate";
 import { getProductRail, PRODUCT_RAIL_LIMIT_DEFAULT, PRODUCT_RAIL_LIMIT_MAX } from "@libs/server/productRail";
+import { assertWriteAllowed } from "@libs/server/writeLimits";
 
 const handler = async (
   req: NextApiRequest,
@@ -86,6 +87,21 @@ const handler = async (
         });
       }
       attachRelation = decision.relation;
+    }
+
+    // 가입 7일 미만 하루 3개(경매 합계)·같은 설명 10분 3번(감사 24번). 운영자·크루는 제외.
+    const writeLimit = await assertWriteAllowed({
+      userId: user.id,
+      kind: "product",
+      text: validation.value.description,
+    });
+    if (writeLimit) {
+      return res.status(writeLimit.status).json({
+        success: false,
+        error: writeLimit.error,
+        message: writeLimit.error,
+        errorCode: writeLimit.errorCode,
+      });
     }
 
     const product = await client.product.create({

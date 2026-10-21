@@ -3,6 +3,12 @@ import withHandler from "@libs/server/withHandler";
 import { withAuth } from "@libs/server/auth";
 import { NextApiRequest, NextApiResponse } from "next";
 import { MessageType } from "@prisma/client";
+import {
+  breederProgramSummarySelect,
+  getSortedActiveBreederProgramSummaries,
+} from "@libs/server/breeder-programs";
+import { countCompletedSales } from "@libs/server/profileTrust";
+import type { BreederProgramSummary } from "@libs/shared/breeder-program";
 
 // 채팅방 멤버 인터페이스
 export interface ChatRoomMember {
@@ -13,6 +19,12 @@ export interface ChatRoomMember {
     id: number;
     name: string;
     avatar: string | null;
+    /** 헤더 신뢰 줄 "브리디 N개월차"(2026-10-21~, 옛 서버는 없음). */
+    createdAt?: string;
+    /** 헤더 뱃지(활성 프로그램만, 우선순위 순). */
+    breederPrograms?: BreederProgramSummary[];
+    /** 헤더 신뢰 줄 "거래 완료 N". 상대 멤버에만 넣는다(이전 대화 페이지에서는 빠진다). */
+    completedSales?: number;
   };
   lastReadAt: string | null;
 }
@@ -49,6 +61,8 @@ export interface ChatRoomResponse {
   success: boolean;
   error?: string;
   chatRoom?: ChatRoom;
+  /** 내 방 설정. 상대의 알림·나가기 상태는 내려주지 않는다. */
+  me?: { muted: boolean };
   pagination?: ChatPagination;
 }
 
@@ -104,6 +118,11 @@ async function handler(
                 id: true,
                 name: true,
                 avatar: true,
+                createdAt: true,
+                breederPrograms: {
+                  where: { status: "ACTIVE" },
+                  select: breederProgramSummarySelect,
+                },
               },
             },
           },
@@ -117,10 +136,19 @@ async function handler(
         .json({ success: false, error: "채팅방을 찾을 수 없습니다." });
     }
 
+    // 내가 나간 방이면 나간 뒤 메시지만 보여 준다(상대 화면은 그대로다).
+    const myMembership = await client.chatRoomMember.findUnique({
+      where: { userId_chatRoomId: { userId: user.id, chatRoomId: roomId } },
+      select: { leftAt: true, mutedAt: true },
+    });
+    const leftAt = myMembership?.leftAt ?? null;
+
     const messageWhere: {
       chatRoomId: number;
       id?: { lt: number };
+      createdAt?: { gt: Date };
     } = { chatRoomId: roomId };
+    if (leftAt) messageWhere.createdAt = { gt: leftAt };
     if (hasBeforeCursor && parsedBeforeId !== null) {
       messageWhere.id = { lt: parsedBeforeId };
     }
@@ -154,6 +182,7 @@ async function handler(
           where: {
             chatRoomId: roomId,
             id: { lt: oldestMessageId },
+            ...(leftAt ? { createdAt: { gt: leftAt } } : {}),
           },
           select: { id: true },
           orderBy: { id: "desc" },
@@ -163,6 +192,17 @@ async function handler(
     const hasMore = Boolean(olderMessage);
     const nextCursor = hasMore ? oldestMessageId ?? null : null;
 
+    // 헤더 신뢰 줄 "거래 완료 N"은 상대만 센다. 이전 대화 페이지는 헤더를 다시 그리지 않으니 세지 않는다.
+    const completedSalesByUser = new Map<number, number>(
+      hasBeforeCursor
+        ? []
+        : await Promise.all(
+            chatRoom.chatRoomMembers
+              .filter((member) => member.userId !== user.id)
+              .map(async (member) => [member.userId, await countCompletedSales(member.userId)] as const)
+          )
+    );
+
     return res.json({
       success: true,
       chatRoom: {
@@ -171,11 +211,23 @@ async function handler(
           ...message,
           createdAt: message.createdAt.toISOString(),
         })),
-        chatRoomMembers: chatRoom.chatRoomMembers.map((member) => ({
-          ...member,
-          lastReadAt: member.lastReadAt?.toISOString() || null,
-        })),
+        chatRoomMembers: chatRoom.chatRoomMembers.map(({ user: memberUser, ...member }) => {
+          const completedSales = completedSalesByUser.get(member.userId);
+          return {
+            ...member,
+            lastReadAt: member.lastReadAt?.toISOString() || null,
+            user: {
+              id: memberUser.id,
+              name: memberUser.name,
+              avatar: memberUser.avatar,
+              createdAt: memberUser.createdAt.toISOString(),
+              breederPrograms: getSortedActiveBreederProgramSummaries(memberUser.breederPrograms),
+              ...(completedSales === undefined ? {} : { completedSales }),
+            },
+          };
+        }),
       },
+      me: { muted: Boolean(myMembership?.mutedAt) },
       pagination: {
         limit: pageSize,
         hasMore,

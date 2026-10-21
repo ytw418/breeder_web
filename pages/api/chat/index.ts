@@ -3,7 +3,8 @@ import { NextApiRequest, NextApiResponse } from "next";
 import { withAuth } from "@libs/server/auth";
 import { assertCanChat } from "@libs/server/blocks";
 import { resolveClientPlatform } from "@libs/server/analytics";
-import { findOrCreateDirectRoom } from "@libs/server/chatRoom";
+import { findDirectRoomId, findOrCreateDirectRoom } from "@libs/server/chatRoom";
+import { assertWriteAllowed } from "@libs/server/writeLimits";
 
 export interface ChatRequestType {
   otherId: number;
@@ -51,6 +52,16 @@ async function handler(
       return res
         .status(canChat.status)
         .json({ success: false, error: canChat.error, errorCode: canChat.errorCode });
+    }
+
+    // 이미 있는 방은 그대로 연다. 새 방만 가입 7일 미만 하루 5개로 센다(감사 24번).
+    const existingId = await findDirectRoomId(user.id, +otherId);
+    if (existingId) return res.json({ success: true, ChatRoomId: existingId });
+    const writeLimit = await assertWriteAllowed({ userId: user.id, kind: "chatRoom" });
+    if (writeLimit) {
+      return res
+        .status(writeLimit.status)
+        .json({ success: false, error: writeLimit.error, errorCode: writeLimit.errorCode });
     }
 
     const room = await findOrCreateDirectRoom(user.id, +otherId, resolveClientPlatform(req));
