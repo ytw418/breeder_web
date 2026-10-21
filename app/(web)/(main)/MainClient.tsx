@@ -344,9 +344,23 @@ const MainClient = ({
                 />
               </div>
             ) : feedLoading ? (
-              <div className="space-y-2 rounded-2xl bg-app-gap p-4">
-                <Skeleton className="h-3.5 w-1/2" />
-                <Skeleton className="h-3 w-[35%]" />
+              // 1위 행(아바타 44) · 2·3위 행(48) · 내 순위 줄과 같은 높이로 그려 랭킹이 들어올 때 아래가 밀리지 않게 한다(앱과 같다).
+              <div className="rounded-2xl bg-app-gap p-4" aria-label="랭킹 불러오는 중">
+                {[44, 36, 36].map((avatar, index) => (
+                  <div
+                    key={index}
+                    className={cn("flex items-center gap-3", index === 0 ? "h-11" : "mt-3 h-12")}
+                  >
+                    <Skeleton className={cn("shrink-0 rounded-full", avatar === 44 ? "h-11 w-11" : "h-9 w-9")} />
+                    <div className="flex-1 space-y-1.5">
+                      <Skeleton className="h-3.5 w-[45%]" />
+                      <Skeleton className="h-3 w-[65%]" />
+                    </div>
+                  </div>
+                ))}
+                <div className="mt-3 border-t border-app-line pt-3">
+                  <Skeleton className="h-10 w-full rounded-lg" />
+                </div>
               </div>
             ) : hero ? (
               <TopBreederRankCard

@@ -23,7 +23,7 @@ import { markNoticeBandSeen, useNoticeBandSeen } from "@libs/client/noticeBandSe
 import { useSeenMarks } from "@libs/client/unreadMarks";
 import type { HotRealtimeMeta, UnansweredSummary } from "@libs/shared/communityVibe";
 import type { HomeDebateResult } from "@libs/shared/liveTalk";
-import HomeDebateCard from "@components/features/debate/HomeDebateCard";
+import HomeDebateCard, { HomeDebateCardSkeleton } from "@components/features/debate/HomeDebateCard";
 import { DEBATE_CATEGORY } from "@libs/shared/debateFormat";
 
 type RealtimePostsResponse = {
@@ -45,7 +45,7 @@ export default function HomeCommunityTop() {
   // 관심 카테고리 고정 범위(앱 category-pin). 실시간 토론도 같은 범위를 쓴다.
   const scope = useCategoryScope();
   // 공지 띠: 14일 안 공지만(band=1). 띠에서 열었거나 상세를 연 공지는 숨긴다(libs/shared/noticeBand).
-  const { data: noticeData } = useSWR<NoticePostsResponse>("/api/posts/notices?band=1");
+  const { data: noticeData, error: noticeError } = useSWR<NoticePostsResponse>("/api/posts/notices?band=1");
   const bandSeen = useNoticeBandSeen();
   const seenMarks = useSeenMarks();
   // 실시간 TOP 토론: 최근 24시간 활동 점수순(서버 hot=realtime). 구 서버면 home/feed 의 HOT 토론으로 대신한다.
@@ -66,14 +66,18 @@ export default function HomeCommunityTop() {
     { revalidateOnFocus: false }
   );
   // 맨 위 토론 카드: 진행 중 토론 중 내가 안 고른 것의 활동 점수 1위(live-talk §3.2). 없으면 레일만.
-  const { data: homeDebateData, mutate: mutateHomeDebate } = useSWR<HomeDebateResult>(
+  const {
+    data: homeDebateData,
+    error: homeDebateError,
+    mutate: mutateHomeDebate,
+  } = useSWR<HomeDebateResult>(
     withCategoryPath("/api/debates/home", scope.categoryPath),
     { revalidateOnFocus: false, shouldRetryOnError: false }
   );
   const homeDebate =
     homeDebateData?.post && !blockedIds.has(homeDebateData.post.userId) ? homeDebateData.post : null;
   // 답 기다려요: 가장 오래 답 없는 질문 1개 + 개수(관심 카테고리 범위). 없으면 '물어보기' 카드.
-  const { data: unansweredData } = useSWR<UnansweredResponse>(
+  const { data: unansweredData, error: unansweredError } = useSWR<UnansweredResponse>(
     withCategoryPath("/api/posts?unanswered=1&limit=1", scope.categoryPath),
     { revalidateOnFocus: false }
   );
@@ -137,6 +141,11 @@ export default function HomeCommunityTop() {
     );
   }, [noticeData, bandSeen, seenMarks]);
 
+  // 아직 판단하지 못한 자리는 스켈레톤으로 잡아 데이터가 들어올 때 아래가 밀리지 않게 한다(앱 홈과 같다).
+  const noticePending = !noticeError && (!noticeData || !bandSeen.hydrated || !seenMarks.hydrated);
+  const homeDebatePending = !homeDebateData && !homeDebateError;
+  const unansweredPending = !unansweredData && !unansweredError;
+
   return (
     <>
       {/* 공지 한 줄(높이 40): 14일 안 안 읽은 공지가 있을 때만 */}
@@ -156,6 +165,10 @@ export default function HomeCommunityTop() {
               <path d="m9 6 6 6-6 6" />
             </svg>
           </Link>
+        </div>
+      ) : noticePending ? (
+        <div className="px-4 pt-1" aria-hidden="true">
+          <div className="h-10 animate-pulse rounded-lg bg-app-placeholder" />
         </div>
       ) : null}
 
@@ -182,6 +195,10 @@ export default function HomeCommunityTop() {
         {homeDebate ? (
           <div className="mt-3">
             <HomeDebateCard post={homeDebate} onClosed={() => void mutateHomeDebate()} />
+          </div>
+        ) : homeDebatePending ? (
+          <div className="mt-3">
+            <HomeDebateCardSkeleton />
           </div>
         ) : null}
         <div className={homeDebate ? "mt-4" : "mt-3"}>
@@ -232,6 +249,9 @@ export default function HomeCommunityTop() {
             </>
           ) : showAskCard ? (
             <AwaitingAnswerCard variant="empty" speciesName={askSpecies} className="mx-4 mt-4" />
+          ) : unansweredPending ? (
+            // 카드 한 줄 제목 기준 높이(앱과 같은 78)
+            <div aria-hidden="true" className="mx-4 mt-4 h-[78px] animate-pulse rounded-xl bg-app-placeholder" />
           ) : null}
         </div>
       </section>

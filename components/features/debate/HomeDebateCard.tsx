@@ -60,3 +60,18 @@ export default function HomeDebateCard({ post, onClosed }: { post: HomeDebatePos
     </div>
   );
 }
+
+/** 불러오는 동안 맨 위 토론 카드 자리(앱 HomeDebateCardSkeleton 과 같은 모양). 카드가 들어올 때 아래 레일이 밀리지 않게 한다. */
+export function HomeDebateCardSkeleton() {
+  return (
+    <div aria-hidden="true" className="mx-4 flex flex-col gap-2 rounded-2xl bg-app-gap p-4">
+      <div className="h-[18px] w-[90%] animate-pulse rounded bg-app-placeholder" />
+      <div className="h-[18px] w-[60%] animate-pulse rounded bg-app-placeholder" />
+      <div className="mt-1 flex gap-2">
+        <div className="h-12 flex-1 animate-pulse rounded-xl bg-app-placeholder" />
+        <div className="h-12 flex-1 animate-pulse rounded-xl bg-app-placeholder" />
+      </div>
+      <div className="h-[13px] w-1/2 animate-pulse rounded bg-app-placeholder" />
+    </div>
+  );
+}
