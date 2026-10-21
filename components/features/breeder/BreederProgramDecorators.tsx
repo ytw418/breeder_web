@@ -20,7 +20,7 @@ const BREEDER_PROGRAM_META: Record<
   {
     label: string;
     frameClassName: string;
-    /** 목록 카드의 16~24px 아바타용: 바깥 빛 없이 그라데이션 + 1px 테두리(2026-10-21 "사진은 작은데 둘레만 크다"). */
+    /** 목록 카드의 16~24px 아바타용: 여백·바깥 빛 없이 1.5px 바깥 테두리만(링은 box-shadow 라 레이아웃이 일반 아바타와 같다, 2026-10-21 "사진은 작은데 둘레만 크다"). */
     compactFrameClassName: string;
     /** 댓글 등 25~40px 아바타용: 2px 링 + 바깥 빛 3px. Tailwind 가 찾도록 클래스를 그대로 적는다. */
     mediumFrameClassName: string;
@@ -31,7 +31,7 @@ const BREEDER_PROGRAM_META: Record<
     frameClassName:
       "bg-gradient-to-br from-amber-200 via-white to-amber-100 ring-[3px] ring-amber-400/75 shadow-[0_0_0_6px_rgba(251,191,36,0.12)] dark:from-amber-400/45 dark:via-app-bg dark:to-amber-400/20 dark:ring-amber-300/50 dark:shadow-none",
     compactFrameClassName:
-      "bg-gradient-to-br from-amber-200 via-white to-amber-100 ring-1 ring-amber-400/60 dark:from-amber-400/45 dark:via-app-bg dark:to-amber-400/20 dark:ring-amber-300/40",
+      "bg-gradient-to-br from-amber-200 via-white to-amber-100 ring-[1.5px] ring-amber-400/70 dark:from-amber-400/45 dark:via-app-bg dark:to-amber-400/20 dark:ring-amber-300/40",
     mediumFrameClassName:
       "bg-gradient-to-br from-amber-200 via-white to-amber-100 ring-2 ring-amber-400/75 shadow-[0_0_0_3px_rgba(251,191,36,0.12)] dark:from-amber-400/45 dark:via-app-bg dark:to-amber-400/20 dark:ring-amber-300/50 dark:shadow-none",
   },
@@ -40,7 +40,7 @@ const BREEDER_PROGRAM_META: Record<
     frameClassName:
       "bg-gradient-to-br from-cyan-100 via-white to-slate-100 ring-[3px] ring-cyan-400/70 shadow-[0_0_0_6px_rgba(34,211,238,0.10)] dark:from-cyan-400/40 dark:via-app-bg dark:to-slate-400/20 dark:ring-cyan-300/50 dark:shadow-none",
     compactFrameClassName:
-      "bg-gradient-to-br from-cyan-100 via-white to-slate-100 ring-1 ring-cyan-400/60 dark:from-cyan-400/40 dark:via-app-bg dark:to-slate-400/20 dark:ring-cyan-300/40",
+      "bg-gradient-to-br from-cyan-100 via-white to-slate-100 ring-[1.5px] ring-cyan-400/70 dark:from-cyan-400/40 dark:via-app-bg dark:to-slate-400/20 dark:ring-cyan-300/40",
     mediumFrameClassName:
       "bg-gradient-to-br from-cyan-100 via-white to-slate-100 ring-2 ring-cyan-400/70 shadow-[0_0_0_3px_rgba(34,211,238,0.10)] dark:from-cyan-400/40 dark:via-app-bg dark:to-slate-400/20 dark:ring-cyan-300/50 dark:shadow-none",
   },
@@ -49,7 +49,7 @@ const BREEDER_PROGRAM_META: Record<
     frameClassName:
       "bg-gradient-to-br from-slate-100 via-white to-slate-50 ring-[3px] ring-slate-300 shadow-[0_0_0_6px_rgba(148,163,184,0.10)] dark:from-slate-400/35 dark:via-app-bg dark:to-slate-400/20 dark:ring-slate-400/50 dark:shadow-none",
     compactFrameClassName:
-      "bg-gradient-to-br from-slate-100 via-white to-slate-50 ring-1 ring-slate-300 dark:from-slate-400/35 dark:via-app-bg dark:to-slate-400/20 dark:ring-slate-400/40",
+      "bg-gradient-to-br from-slate-100 via-white to-slate-50 ring-[1.5px] ring-slate-300 dark:from-slate-400/35 dark:via-app-bg dark:to-slate-400/20 dark:ring-slate-400/40",
     mediumFrameClassName:
       "bg-gradient-to-br from-slate-100 via-white to-slate-50 ring-2 ring-slate-300 shadow-[0_0_0_3px_rgba(148,163,184,0.10)] dark:from-slate-400/35 dark:via-app-bg dark:to-slate-400/20 dark:ring-slate-400/50 dark:shadow-none",
   },

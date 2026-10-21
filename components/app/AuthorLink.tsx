@@ -50,7 +50,7 @@ export function AuthorLink({
       <span
         className={cn(
           "shrink-0",
-          framed && "rounded-full p-px",
+          framed && "rounded-full",
           framed && getBreederProgramFrameClassName(user.breederPrograms, { compact: true })
         )}
       >
