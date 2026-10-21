@@ -84,4 +84,6 @@ export interface ChatRoomProduct extends ChatMessageProduct {
   productType: string | null;
   categoryPath: string | null;
   viewerAction: ChatProductAction;
+  /** 입력창 위 추천 칩: 내가 분양자가 아니고 · 분양중·예약중이고 · 이 방에 그 글 카드가 아직 없을 때 true. */
+  showStarterChips: boolean;
 }

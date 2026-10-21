@@ -5,6 +5,7 @@ import client from "@libs/server/client";
 import { MessageType } from "@prisma/client";
 import { getBlockedUserIds } from "@libs/server/blocks";
 import { unreadSince } from "@libs/server/chatRoom";
+import { loadLatestRoomProducts } from "@libs/server/chatProduct";
 
 export interface ChatListResponse {
   success: boolean;
@@ -26,7 +27,12 @@ export interface ChatListResponse {
       image: string | null;
       createdAt: string;
       userId: number;
+      /** 분양글 카드 행이면 분양글 id(미리보기 '분양글을 보냈어요'). 2026-10-21~ */
+      productId: number | null;
     } | null;
+    /** 행 오른쪽 썸네일: 방의 가장 최근 분양글 카드 글. 카드가 없거나 지웠거나 숨긴 글이면 null. 2026-10-21~ */
+    product: { id: number; name: string; image: string | null } | null;
+    /** 안 읽은 메시지 수(분양글 카드 행은 세지 않는다) */
     unreadCount: number;
     /** 내가 이 방 알림을 껐는지. 상대의 설정은 내려주지 않는다. */
     muted: boolean;
@@ -72,7 +78,8 @@ async function handler(
           },
         },
         messages: {
-          orderBy: { createdAt: "desc" },
+          // 카드 행은 본문보다 1ms 앞이지만, 같은 시각 행도 순서가 흔들리지 않게 id 로 한 번 더 정렬한다.
+          orderBy: [{ createdAt: "desc" }, { id: "desc" }],
           take: 1, // 마지막 메시지 1개만 조회 (성능 개선)
           select: {
             id: true,
@@ -81,11 +88,15 @@ async function handler(
             image: true,
             createdAt: true,
             userId: true,
+            productId: true,
           },
         },
       },
       orderBy: { updatedAt: "desc" },
     });
+
+    // 행 썸네일(방마다 최근 분양글 카드 글)을 한 번에 읽는다.
+    const roomProducts = await loadLatestRoomProducts(chatRooms.map((chatRoom) => chatRoom.id));
 
     // 각 채팅방의 읽지 않은 메시지 수를 DB 레벨에서 계산
     const formattedChatRooms = await Promise.all(
@@ -101,12 +112,13 @@ async function handler(
           return null;
         }
 
-        // DB 레벨에서 안 읽은 메시지 수 카운트(나간 방은 나간 뒤 메시지만)
+        // DB 레벨에서 안 읽은 메시지 수 카운트(나간 방은 나간 뒤 메시지만, 분양글 카드 행은 빼고)
         const since = member ? unreadSince(member) : null;
         const unreadCount = await client.message.count({
           where: {
             chatRoomId: chatRoom.id,
             userId: { not: userId },
+            productId: null,
             ...(since ? { createdAt: { gt: since } } : {}),
           },
         });
@@ -120,8 +132,10 @@ async function handler(
             ? {
                 ...lastMessage,
                 createdAt: lastMessage.createdAt.toISOString(),
+                productId: lastMessage.productId ?? null,
               }
             : null,
+          product: roomProducts.get(chatRoom.id) ?? null,
           unreadCount,
           muted: Boolean(member?.mutedAt),
         };
