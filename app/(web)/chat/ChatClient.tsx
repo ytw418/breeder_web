@@ -4,7 +4,7 @@
  * 채팅 목록 — 앱 bredy_app src/app/(tabs)/chat.tsx (시안 A-karrot.html 좌측 화면) 1:1.
  * 헤더 "채팅" 좌측 + 검색 토글 + 알림 벨 / 전체·안 읽음 칩 / 행(44 아바타·이름·시간·미리보기·주황 unread 뱃지).
  * 알림 끈 방은 이름 옆 종 끔 + 회색 뱃지. 행을 길게 누르거나 우클릭하면 알림·신고·차단·나가기 시트(docs/prd/chat-room-settings.md).
- * 상품 썸네일은 서버가 방에 상품을 주지 않아 앱처럼 그리지 않는다.
+ * 분양글 카드가 있는 방만 오른쪽에 그 글 썸네일 56 r8, 카드가 마지막이면 미리보기 '분양글을 보냈어요'(시안 trade-review #list-row).
  */
 import { useMemo, useState } from "react";
 import Link from "next/link";
@@ -95,6 +95,24 @@ function ChatRow({ room, myId, onLongPress }: { room: ChatRoomItem; myId?: numbe
         >
           {room.unreadCount}
         </span>
+      ) : null}
+
+      {room.product ? (
+        <div
+          aria-label={`분양글 ${room.product.name}`}
+          role="img"
+          className="relative h-14 w-14 shrink-0 overflow-hidden rounded-lg bg-app-placeholder"
+        >
+          {room.product.image ? (
+            <Image
+              src={makeImageUrl(room.product.image, "product")}
+              alt=""
+              fill
+              sizes="56px"
+              className="object-cover"
+            />
+          ) : null}
+        </div>
       ) : null}
     </Link>
   );

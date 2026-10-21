@@ -13,6 +13,8 @@ import Image from "@components/atoms/Image";
 import { cn, makeImageUrl } from "@libs/client/utils";
 import { splitLinks } from "@libs/shared/post-body";
 import { CHAT_CONTACT_CAUTION } from "@libs/shared/contactInText";
+import { isProductCard, type ChatMessageProduct } from "@libs/shared/tradeChat";
+import ProductMessageCard from "./chat/ProductMessageCard";
 
 export interface ChatBubbleMessage {
   id: number;
@@ -20,6 +22,9 @@ export interface ChatBubbleMessage {
   message: string;
   image: string | null;
   createdAt: string;
+  /** 분양글 카드 행이면 분양글 id. 카드는 '1'·주의 줄 없이 카드 말풍선으로 그린다. */
+  productId?: number | null;
+  product?: ChatMessageProduct | null;
 }
 
 export interface ChatMessageGroupProps {
@@ -48,7 +53,9 @@ export default function ChatMessageGroup({
   onOpenImage,
 }: ChatMessageGroupProps) {
   const renderBubble = (message: ChatBubbleMessage) =>
-    message.type === "IMAGE" && message.image ? (
+    isProductCard(message) ? (
+      <ProductMessageCard key={message.id} product={message.product ?? null} />
+    ) : message.type === "IMAGE" && message.image ? (
       <button
         key={message.id}
         type="button"
@@ -98,7 +105,7 @@ export default function ChatMessageGroup({
   const bubbles = mine ? (
     <div className="flex min-w-0 shrink flex-col items-end gap-[3px]">
       {messages.map((message, index) => {
-        const unread = unreadIds?.has(message.id) ?? false;
+        const unread = !isProductCard(message) && (unreadIds?.has(message.id) ?? false);
         const meta = index === messages.length - 1 ? time : null;
         return (
           <div key={message.id} className="flex min-w-0 items-end justify-end gap-2">
@@ -123,7 +130,7 @@ export default function ChatMessageGroup({
   ) : (
     <div className="flex min-w-0 shrink flex-col items-start gap-[3px]">
       {messages.map((message) =>
-        cautionIds?.has(message.id) ? (
+        cautionIds?.has(message.id) && !isProductCard(message) ? (
           <div key={message.id} className="flex min-w-0 flex-col items-start gap-1">
             {renderBubble(message)}
             <p className="max-w-[232px] px-1 text-[11px] leading-[15px] text-app-muted">{CHAT_CONTACT_CAUTION}</p>
