@@ -19,6 +19,7 @@ import { canEditAnyContent, isModeratorUser } from "@libs/server/adminAccess";
 import { Prisma, type Post } from "@prisma/client";
 import { resolveCategoryIdByName } from "@libs/server/categories";
 import { DELETED_COMMENT_TEXT } from "@libs/shared/comment";
+import { withTitleLabel } from "@libs/server/breederTitles";
 import { getDebateSummaries, notifyDebateResult } from "@libs/server/debate";
 import {
   DEBATE_CATEGORY,
@@ -36,6 +37,8 @@ interface PostDetail {
     breederPrograms: BreederProgramSummary[];
     /** viewer 가 글쓴이를 팔로우하는지(비로그인·내 글 false). 작성자 줄 팔로우 버튼. */
     isFollowing: boolean;
+    /** 작성자 대표 칭호("소통왕"). 없으면 null(community-vibe F-7). */
+    titleLabel?: string | null;
   };
   comments: {
     id: number;
@@ -356,6 +359,7 @@ async function getPostDetail(
           id: true,
           name: true,
           avatar: true,
+          titleKey: true,
           breederPrograms: {
             where: { status: "ACTIVE" as const },
             select: breederProgramSummarySelect,
@@ -513,7 +517,7 @@ async function getPostDetail(
   const serializedPost: PostDetail = {
     ...withPostImages(post),
     user: {
-      ...post.user,
+      ...withTitleLabel(post.user),
       breederPrograms: getSortedActiveBreederProgramSummaries(
         post.user.breederPrograms
       ),

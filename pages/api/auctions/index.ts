@@ -26,6 +26,7 @@ import {
 } from "@libs/server/breeder-programs";
 import type { BreederProgramSummary } from "@libs/shared/breeder-program";
 import { excludedAuthorIds, setViewerCacheHeader } from "@libs/server/blocks";
+import { withTitleLabel } from "@libs/server/breederTitles";
 import { canAttachBloodline, pedigreeNoteDbValue } from "@libs/server/bloodline-link";
 import { captureServerEvent, resolveClientPlatform } from "@libs/server/analytics";
 import { buildCelebrate } from "@libs/server/celebrate";
@@ -40,6 +41,8 @@ import {
 export interface AuctionWithUser extends Auction {
   user: Pick<User, "id" | "name" | "avatar"> & {
     breederPrograms: BreederProgramSummary[];
+    /** 판매자 대표 칭호("경매왕"). 없으면 null(community-vibe F-7). */
+    titleLabel?: string | null;
   };
   _count: { bids: number };
 }
@@ -121,6 +124,7 @@ async function handler(
               id: true,
               name: true,
               avatar: true,
+              titleKey: true,
               breederPrograms: {
                 where: { status: "ACTIVE" as const },
                 select: breederProgramSummarySelect,
@@ -148,7 +152,7 @@ async function handler(
       return {
         ...(rest as typeof auction),
         user: {
-          ...auction.user,
+          ...withTitleLabel(auction.user),
           breederPrograms: getSortedActiveBreederProgramSummaries(
             auction.user.breederPrograms
           ),

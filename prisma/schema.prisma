@@ -96,6 +96,9 @@ model User {
   profileBanner   String?
   /// 프로필 대표 링크(http/https, 최대 300자, libs/shared/profile.ts normalizeProfileLink). 비우면 null.
   profileLink     String?
+  /// 대표 칭호 key(libs/shared/breederKeywords.ts BreederTitleKey — talk·post 등). 단 칭호 중 랭킹 대상끼리 비교해 가장 두드러진 것.
+  /// 랭킹 크론(ranking-alerts)이 하루 한 번 libs/server/breederTitles.ts refreshTitleKeys 로 갱신한다. 없으면 null(앱 docs/prd/community-vibe.md §3.3).
+  titleKey        String?
   /// 고정(Pin)한 관심 카테고리 id 목록. 비어 있으면 전체 보기. (docs/prd: 카테고리 고정)
   pinnedCategoryIds Int[]     @default([])
   /// 관심 카테고리 온보딩을 마친(건너뛴 것 포함) 시각. 앱·웹 어디서든 한 번 마치면 다시 묻지 않는다(앱 docs/parity 대응표 O-1).

@@ -24,6 +24,7 @@ import CategoryOnboardingPrompt from "@components/features/category/CategoryOnbo
 import NeighborhoodBreederSection from "@components/features/home/NeighborhoodBreederSection";
 import ProductPhotoRail, { type RailProduct } from "@components/features/home/ProductPhotoRail";
 import TopBreederRankCard from "@components/features/home/TopBreederRankCard";
+import MissionCard from "@components/features/home/MissionCard";
 import type { ProductRailFlags } from "@libs/shared/communityVibe";
 import { BreederRankingItem, HomeFeedResponse } from "@libs/shared/ranking";
 import { pickBreederKeywords } from "@libs/shared/breederKeywords";
@@ -362,6 +363,9 @@ const MainClient = ({
           </div>
         </section>
       ) : null}
+
+      {/* 5-1. 이번 주 미션(로그인, 진행이 1 이상일 때만) */}
+      <MissionCard enabled={Boolean(user)} />
 
       {/* 6. 배너 슬라이더(관리자 배너 API) */}
       {banners.length > 0 ? (

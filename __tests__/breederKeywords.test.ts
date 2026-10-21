@@ -201,6 +201,9 @@ import {
   TITLE_THRESHOLDS,
   lockedTitleLabel,
   pickLockedTitles,
+  pickRepresentativeTitleKeys,
+  titleConditionText,
+  titleLabelOf,
   unlockedTitleKeys,
   type LockedTitleStats,
 } from "@libs/shared/breederKeywords";
@@ -246,6 +249,18 @@ describe("칭호 잠금(AC-4)", () => {
     expect(unlockedTitleKeys(stats)).toEqual(["auction", "post"]);
     expect(pickLockedTitles(stats, 10).map((t) => t.key)).not.toEqual(expect.arrayContaining(["auction"]));
     expect(pickLockedTitles(stats, 10)).toHaveLength(6);
+  });
+
+  it("대표 칭호는 단 칭호 중 전체 최댓값 대비 비율이 큰 것, 이름·조건 문구(감사 #29)", () => {
+    const keys = pickRepresentativeTitleKeys([
+      { ...zero, commentsCount: 6, postsCount: 9 }, // 댓글 6/6 = 1 > 글 9/18 → 소통왕
+      { ...zero, commentsCount: 5, postsCount: 18 }, // 글 18/18 = 1 > 댓글 5/6 → 기록왕
+      { ...zero, commentsCount: 2 }, // 단 칭호 없음
+    ]);
+    expect(keys).toEqual(["talk", "post", null]);
+    expect(titleLabelOf("talk")).toBe("소통왕");
+    expect(titleLabelOf("gone")).toBeNull();
+    expect(titleConditionText("talk")).toBe("댓글 5개 이상이면 달려요");
   });
 
   it("다 달았으면 빈 목록", () => {
