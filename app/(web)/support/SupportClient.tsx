@@ -110,7 +110,7 @@ export function SupportForm({ initial = EMPTY_SUPPORT_PREFILL }: { initial?: Sup
   };
 
   return (
-    <Layout canGoBack title="고객의 소리" seoTitle="고객의 소리">
+    <Layout canGoBack title="고객센터" seoTitle="고객센터">
       <form onSubmit={handleSubmit} className="bg-app-bg">
         <div className="px-5 pb-[calc(77px+32px+env(safe-area-inset-bottom))] pt-5">
           {/* 문의 유형 */}

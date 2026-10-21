@@ -52,7 +52,7 @@ export function realtimeHotMeta(item: RealtimeHotItem, now?: number) {
 /**
  * 반려생활 '실시간 TOP 토론' 가로 레일(2026-10-12 사용자 "섹션이 너무 작다, 이미지를 크게, 내용은 밑에" — 앱과 같다).
  * 카드 200, 위에 사진 200×150(r12, 순위 뱃지 겹침), 아래 제목 2줄 15/600 + 메타 한 줄 12.
- * 사진이 없는 글은 같은 자리에 brand-soft 채움 + 제목 17/700 4줄(글 카드), 아래엔 메타만.
+ * 사진이 없는 글은 같은 자리에 brand-surface 채움(다크 회색 면, 2026-10-21) + 제목 17/700 4줄(글 카드), 아래엔 메타만.
  */
 export default function RealtimeHotRail({
   items,
@@ -77,7 +77,7 @@ export default function RealtimeHotRail({
           >
             <span
               className={`relative block h-[150px] w-[200px] overflow-hidden rounded-xl ${
-                item.image ? "bg-app-surface" : "bg-app-brand-soft"
+                item.image ? "bg-app-surface" : "bg-app-brand-surface"
               }`}
             >
               {item.image ? (

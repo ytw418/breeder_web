@@ -34,6 +34,7 @@ import { ANALYTICS_EVENTS, trackEvent } from "@libs/client/analytics";
 import { extractAuctionIdFromPath, toAuctionPath } from "@libs/auction-route";
 import FollowButton from "@components/features/profile/FollowButton";
 import { DELETED_USER_LABEL, isDeletedUserName } from "@libs/shared/deletedUser";
+import { formatAuctionDeadline } from "@libs/shared/auctionDeadline";
 import {
   AUCTION_EXTENSION_MS,
   AUCTION_EXTENSION_WINDOW_MS,
@@ -80,10 +81,11 @@ const getCountdown = (endAt: string | Date | undefined, now: number | null) => {
   const hours = Math.floor((diff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
   const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
   const seconds = Math.floor((diff % (1000 * 60)) / 1000);
-  if (days > 0) return { text: `${days}일 ${hours}시간 ${minutes}분 ${seconds}초`, isEnded: false, diff };
-  if (hours > 0) return { text: `${hours}시간 ${minutes}분 ${seconds}초`, isEnded: false, diff };
-  if (minutes > 0) return { text: `${minutes}분 ${seconds}초`, isEnded: false, diff };
-  return { text: `${seconds}초`, isEnded: false, diff };
+  // '남음'까지 붙여 숫자만 덩그러니 남지 않게 한다(2026-10-21 디자인 리뷰). 마감 시각은 formatAuctionDeadline 이 옆에 붙인다.
+  if (days > 0) return { text: `${days}일 ${hours}시간 ${minutes}분 ${seconds}초 남음`, isEnded: false, diff };
+  if (hours > 0) return { text: `${hours}시간 ${minutes}분 ${seconds}초 남음`, isEnded: false, diff };
+  if (minutes > 0) return { text: `${minutes}분 ${seconds}초 남음`, isEnded: false, diff };
+  return { text: `${seconds}초 남음`, isEnded: false, diff };
 };
 
 const KST_OFFSET_MS = 9 * 60 * 60 * 1000;
@@ -295,6 +297,8 @@ const AuctionDetailClient = ({
   const safeImageIndex = photos.length ? Math.min(imageIndex, photos.length - 1) : 0;
   const countdown = getCountdown(auction?.endAt, now);
   const isUrgent = auction?.status === "진행중" && !countdown.isEnded && countdown.diff <= URGENT_MS;
+  const deadline =
+    auction?.status === "진행중" && !countdown.isEnded && now !== null ? formatAuctionDeadline(auction.endAt, now) : "";
   // 입찰 단위는 판매자가 등록 때 정한 값(경매 내내 고정).
   const bidIncrement = auction ? resolveBidIncrement(auction) : 0;
   const minimumBid = auction ? auction.currentPrice + bidIncrement : 0;
@@ -590,7 +594,7 @@ const AuctionDetailClient = ({
       </div>
       <div className="flex min-w-0 flex-1 flex-col gap-0.5">
         <p className="truncate text-[16px] font-semibold text-app-text">{sellerName}</p>
-        <p className="text-[13px] text-app-muted">경매 등록자</p>
+        <p className="text-[13px] text-app-muted">분양자</p>
         <BreederProgramBadge programs={programs} className="mt-1" />
       </div>
     </>
@@ -748,24 +752,26 @@ const AuctionDetailClient = ({
         {/* 가격 블록 */}
         <div className="flex flex-col gap-1.5 p-4">
           <p className="text-[13px] text-app-muted">시작가 {formatPrice(auction.startPrice)}</p>
-          <div className="flex items-end justify-between gap-3">
-            <div className="flex flex-col gap-0.5">
-              <p className="text-[13px] text-app-muted">현재 최고가</p>
-              {live ? (
-                <p className="text-[22px] font-bold text-app-text">{formatPrice(auction.currentPrice)}</p>
-              ) : (
-                // 22px 글자 한 줄(줄 높이 28)과 같은 높이로 자리를 잡는다.
-                <span aria-hidden className="my-0.5 h-6 w-32 animate-pulse rounded bg-app-placeholder" />
-              )}
-            </div>
+          <div className="flex flex-col gap-0.5">
+            <p className="text-[13px] text-app-muted">현재 최고가</p>
             {live ? (
-              <p className={cn("text-[14px] font-semibold", isUrgent ? "text-app-brand" : "text-app-text")}>
-                {auction.status === "진행중" ? countdown.text : "경매 종료"}
-              </p>
+              <p className="text-[22px] font-bold text-app-text">{formatPrice(auction.currentPrice)}</p>
             ) : (
-              <span aria-hidden className="h-5 w-20 animate-pulse rounded bg-app-placeholder" />
+              // 22px 글자 한 줄(줄 높이 28)과 같은 높이로 자리를 잡는다.
+              <span aria-hidden className="my-0.5 h-6 w-32 animate-pulse rounded bg-app-placeholder" />
             )}
           </div>
+          {/* 남은 시간 · 마감 시각: 가격 아래 한 줄(2026-10-21 디자인 리뷰 — 가격 오른쪽에 두면 마감 시각이 들어갈 자리가 없다). */}
+          {live ? (
+            <p className="text-[14px] leading-5">
+              <span className={cn("font-semibold", isUrgent ? "text-app-brand" : "text-app-text")}>
+                {auction.status === "진행중" ? countdown.text : "경매 종료"}
+              </span>
+              {deadline ? <span className="text-app-muted"> · {deadline}</span> : null}
+            </p>
+          ) : (
+            <span aria-hidden className="h-5 w-48 animate-pulse rounded bg-app-placeholder" />
+          )}
         </div>
 
         <Divider />

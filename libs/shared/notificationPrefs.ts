@@ -18,13 +18,13 @@ export const NOTIFICATION_PREF_KINDS: readonly NotificationPrefKind[] = [
   "news",
 ];
 
-/** 설정 화면 행 이름과 설명(한 줄). */
+/** 설정 화면 행 이름과 설명(한 줄). 2026-10-21 이름 통일: '찜' → '관심', '브리디 소식(순위·토론)' → '브리디 소식'(설명이 같은 말을 한다). */
 export const NOTIFICATION_PREF_COPY: Record<NotificationPrefKind, { label: string; description: string }> = {
   chat: { label: "채팅", description: "분양 문의·채팅 메시지" },
-  trade: { label: "거래·경매", description: "입찰·더 높은 입찰·낙찰·찜" },
+  trade: { label: "거래·경매", description: "입찰·더 높은 입찰·낙찰·관심" },
   reaction: { label: "내 글 반응", description: "좋아요·댓글·답글" },
   follow: { label: "팔로우·새 글", description: "새 팔로워·팔로우한 브리더의 새 글·관심 분야 질문" },
-  news: { label: "브리디 소식(순위·토론)", description: "순위·토론 결과·기록·사랑방·주간 요약·공지" },
+  news: { label: "브리디 소식", description: "순위·토론 결과·기록·사랑방·주간 요약·공지" },
 };
 
 export interface QuietHours {

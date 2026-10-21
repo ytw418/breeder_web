@@ -31,8 +31,8 @@ export type ParsedPostBodyBlock =
 
 export const POST_BODY_TEXT_MIN = 10;
 export const POST_BODY_TEXT_MAX = 2000;
-/** 글쓰기 툴바에 'n/2,000' 글자 수를 보이기 시작하는 글자 수. */
-export const POST_BODY_COUNTER_FROM = 1500;
+/** 글쓰기 툴바에 'n/2,000자' 글자 수를 보이기 시작하는 글자 수(상한의 90%, 2026-10-21 토스 디자인 리뷰 — 옛 1,500). */
+export const POST_BODY_COUNTER_FROM = 1800;
 /** 표시 기호까지 포함한 저장 문자열 상한(사진 10장·줄 표시 여유분). */
 export const POST_BODY_RAW_MAX = 4000;
 

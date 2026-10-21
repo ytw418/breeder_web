@@ -48,10 +48,11 @@ type RankingResponse = {
 
 const TOP_LEVEL_NAMES = TOP_LEVEL_CATEGORIES.map((category) => category.id);
 
+/** 순위 변동: 오르내린 것만 ▲▼ 로 쓰고 그대로면 비운다(2026-10-21 디자인 리뷰 — '유지' 글자는 읽을 거리만 늘렸다). */
 const formatRankDelta = (rankDelta: number) => {
   if (rankDelta > 0) return `▲ ${rankDelta}`;
   if (rankDelta < 0) return `▼ ${Math.abs(rankDelta)}`;
-  return "유지";
+  return undefined;
 };
 
 /** 탭별 CTA(빈 상태·기준 줄 오른쪽). */
@@ -179,7 +180,7 @@ function RankRow({
   );
 }
 
-/** 1등 카드: 큰 사진·이름·'1등' 뱃지·기준 숫자(시안 없는 화면이라 RankRow 톤을 키운 형태). */
+/** 1위 카드: 큰 사진·이름·'1위' 뱃지·기준 숫자(시안 없는 화면이라 RankRow 톤을 키운 형태). 뱃지는 탭 이름을 되풀이하지 않는다(2026-10-21). */
 function TopCard({
   typeLabel,
   imageId,
@@ -216,7 +217,7 @@ function TopCard({
       </div>
       <div className="min-w-0 flex-1">
         <span className="inline-flex h-6 items-center rounded-full bg-app-brand px-2.5 text-[12px] font-bold text-white">
-          {typeLabel} 1등
+          <span className="sr-only">{typeLabel} </span>1위
         </span>
         <p className="mt-1.5 truncate text-[18px] font-bold leading-6 text-app-text">{title}</p>
         <p className="mt-0.5 truncate text-[13px] text-app-sub">{meta}</p>
@@ -333,8 +334,8 @@ const RankingClient = () => {
         ? (() => {
             const breeder = person as BreederRankingItem;
             return breeder.productsCount !== undefined
-              ? `${rankingRowLabel(type, breeder, period)} · 게시 ${breeder.postsCount} · 분양글 ${breeder.productsCount}`
-              : `${rankingRowLabel(type, breeder, period)} · 게시 ${breeder.postsCount} · 댓글 ${breeder.commentsCount}`;
+              ? `${rankingRowLabel(type, breeder, period)} · 글 ${breeder.postsCount} · 분양글 ${breeder.productsCount}`
+              : `${rankingRowLabel(type, breeder, period)} · 글 ${breeder.postsCount} · 댓글 ${breeder.commentsCount}`;
           })()
         : rankingRowLabel(type, person, period);
     return {

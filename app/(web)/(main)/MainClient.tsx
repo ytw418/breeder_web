@@ -6,7 +6,7 @@ import Link from "next/link";
 import useSWR from "swr";
 import { useRouter } from "next/navigation";
 
-import FloatingButton from "@components/atoms/floating-button";
+import FloatingButton, { FAB_LIST_BOTTOM_PADDING_CLASS } from "@components/atoms/floating-button";
 import { ActionSheet } from "@components/app/ActionSheet";
 import { ASK_QUESTION_HREF } from "@components/features/post/AwaitingAnswerCard";
 import { QueryErrorState } from "@components/app/QueryErrorState";
@@ -311,7 +311,7 @@ const MainClient = ({
   const showTopBreeder = feedError || feedLoading || Boolean(hero);
 
   return (
-    <div ref={homeRootRef} className="flex h-full flex-col bg-app-bg pb-20">
+    <div ref={homeRootRef} className={`flex h-full flex-col bg-app-bg ${FAB_LIST_BOTTOM_PADDING_CLASS}`}>
       {/* 현재 관심 분야(고정 범위). 온보딩을 마치면 숨는다. 칩이 헤더 바로 아래 붙도록 이 줄은 고정하지 않는다. */}
       <CategoryScopeBar />
       {/* 관심 분야를 고른 기록이 계정·브라우저 어디에도 없으면 홈 위에 선택 시트를 띄운다(비로그인 포함). */}
@@ -436,7 +436,7 @@ const MainClient = ({
         <HomePostsFeed />
       </Suspense>
 
-      <FloatingButton onClick={() => setWriteSheetOpen(true)} label="글쓰기">
+      <FloatingButton onClick={() => setWriteSheetOpen(true)} label="글쓰기" hideOnScroll>
         <svg className="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
           <path
             strokeLinecap="round"

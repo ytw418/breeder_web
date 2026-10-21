@@ -43,13 +43,13 @@ function Strong({ children }: { children: ReactNode }) {
   return <span className="font-semibold text-app-brand">{children}</span>;
 }
 
-/** 경매 운영 룰(앱 auctions/rules.tsx): 평평한 제목 + 글머리표 섹션, 주황 링크. */
+/** 경매 규칙(앱 auctions/rules.tsx, 2026-10-21 '경매 운영 룰'에서 이름 통일): 평평한 제목 + 글머리표 섹션, 주황 링크. */
 export default function AuctionRulesClient() {
   return (
-    <Layout canGoBack bodyHasH1 title="경매 운영 룰" seoTitle="경매 운영 룰">
+    <Layout canGoBack bodyHasH1 title="경매 규칙" seoTitle="경매 규칙">
       <div className="bg-app-bg px-5 pt-5 pb-12">
         <h1 className="text-[18px] font-bold text-app-text">경매를 시작하기 전에 꼭 확인하세요</h1>
-        <p className="mt-2 text-[15px] leading-[22px] text-app-muted">입찰과 마감은 아래 룰대로 자동 처리돼요.</p>
+        <p className="mt-2 text-[15px] leading-[22px] text-app-muted">입찰과 마감은 아래 규칙대로 자동 처리돼요.</p>
 
         <SectionTitle>기본 경매 규칙</SectionTitle>
         <ul>

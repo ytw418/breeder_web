@@ -148,11 +148,11 @@ function SectionHeader({ title, onMore, moreHref }: { title: string; onMore?: ()
       <h2 className="text-[16px] font-bold text-app-text">{title}</h2>
       {moreHref ? (
         <Link href={moreHref} className={moreClass}>
-          더보기 ›
+          전체 보기 ›
         </Link>
       ) : onMore ? (
         <button type="button" onClick={onMore} className={moreClass}>
-          더보기 ›
+          전체 보기 ›
         </button>
       ) : null}
     </div>

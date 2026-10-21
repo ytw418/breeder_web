@@ -214,7 +214,7 @@ export default function NotificationSettingsClient() {
 
         <SectionTitle title="방해 금지" />
         <SwitchRow
-          label="방해 금지"
+          label="밤에는 조용히 받기"
           description="정한 시간에는 푸시 없이 알림 목록에만 쌓여요"
           checked={prefs.quiet.enabled}
           onChange={() => void save({ quiet: { enabled: !prefs.quiet.enabled } })}
@@ -247,7 +247,7 @@ export default function NotificationSettingsClient() {
   }
 
   return (
-    <Layout canGoBack title="알림 종류" seoTitle="알림 종류">
+    <Layout canGoBack title="알림 종류" seoTitle="알림 종류" hideHeaderActions>
       <div className="bg-app-bg">{content}</div>
       <QuietHoursSheet
         open={sheetOpen}

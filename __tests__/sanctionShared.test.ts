@@ -11,6 +11,7 @@ import {
   extendSuspensionUntil,
   formatKstDate,
   formatKstDateTime,
+  formatKstMonthDayTime,
   previewTitle,
   recommendSanction,
   reporterActionMessage,
@@ -116,6 +117,10 @@ describe("날짜 문구", () => {
   it("KST 로 적는다", () => {
     expect(formatKstDate(NOW)).toBe("2026.10.09");
     expect(formatKstDateTime(NOW)).toBe("2026.10.09 14:20");
+    // 경고 창 일시: 오전·오후 12시간제, 낮 12시는 '오후 12'
+    expect(formatKstMonthDayTime(NOW)).toBe("10월 9일 오후 2:20");
+    expect(formatKstMonthDayTime(new Date("2026-10-20T23:19:00.000Z"))).toBe("10월 21일 오전 8:19");
+    expect(formatKstMonthDayTime(new Date("2026-10-21T03:05:00.000Z"))).toBe("10월 21일 오후 12:05");
   });
 });
 

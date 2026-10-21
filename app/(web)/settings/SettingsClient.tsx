@@ -225,8 +225,9 @@ const SettingsClient = () => {
     if (pushStatusError) return "설정 확인 실패";
     if (!pushStatus) return "설정 확인 중";
     if (!pushStatus.configured) return "지금은 사용할 수 없음";
-    return receivingHere ? "켜짐" : "꺼짐";
-  }, [isPushStatusLoading, pushStatusError, pushStatus, receivingHere, user]);
+    // 켜짐·꺼짐은 토글이 보여 주므로 글자로 반복하지 않는다(접근성 라벨에만 넣는다, 2026-10-21 토스 디자인 리뷰).
+    return undefined;
+  }, [isPushStatusLoading, pushStatusError, pushStatus, user]);
 
   // 현재 단말 기준으로 알림 권한 복구 경로를 가볍게 안내한다(웹 전용).
   const permissionGuide = useMemo(() => {
@@ -302,10 +303,11 @@ const SettingsClient = () => {
 
   const pushErrorText =
     pushErrorMessage || (pushStatusError ? "푸시 설정 상태를 불러오지 못했습니다." : "");
-  const showPushTest = isAdmin || process.env.NODE_ENV === "development";
+  // 운영자 계정에서만(로컬 개발 서버에서도 일반 계정엔 숨긴다, 2026-10-21 토스 디자인 리뷰)
+  const showPushTest = isAdmin;
 
   return (
-    <Layout canGoBack title="설정" seoTitle="설정">
+    <Layout canGoBack title="설정" seoTitle="설정" hideHeaderActions>
       <div className="bg-app-bg pb-10">
         <SectionTitle title="계정" />
         <Row label="프로필 수정" icon="user" chevron href="/editProfile" />
@@ -374,7 +376,7 @@ const SettingsClient = () => {
           value={pushLoading ? "처리 중..." : pushStatusLabel}
           right={
             <Toggle
-              label="이 브라우저에서 알림 받기"
+              label={`이 브라우저에서 알림 받기, ${receivingHere ? "켜짐" : "꺼짐"}`}
               checked={receivingHere}
               disabled={pushLoading || (Boolean(user) && isPushStatusLoading)}
               onChange={() => void handleTogglePush()}
@@ -419,8 +421,9 @@ const SettingsClient = () => {
         <Row label="이용 규칙" icon="document" chevron href="/content/community-rules" />
         <Row label="이용약관" icon="document" chevron href={TERMS_OF_SERVICE_URL} />
         <Row label="개인정보 처리방침" icon="shield" chevron href={PRIVACY_POLICY_URL} />
-        <Row label="고객의 소리" icon="support" chevron href="/support" />
-        <Row label="서비스 버전" icon="info" value={APP_VERSION} />
+        <Row label="고객센터" icon="support" chevron href="/support" />
+        {/* 사이드 메뉴 '버전 1.2.0'과 같은 이름(2026-10-21 이름 통일) */}
+        <Row label="버전" icon="info" value={APP_VERSION} />
         {user ? <Row label="로그아웃" icon="logout" onClick={() => setLogoutOpen(true)} /> : null}
       </div>
 
