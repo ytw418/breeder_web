@@ -10,7 +10,7 @@ import type { MySanctionsResponse } from "pages/api/users/me/sanctions";
 import {
   MODERATION_TARGET_LABEL,
   formatKstDate,
-  formatKstDateTime,
+  formatKstMonthDayTime,
 } from "@libs/shared/sanction";
 
 /**
@@ -42,7 +42,7 @@ export default function SanctionNoticeModal({ enabled }: { enabled: boolean }) {
   // 열릴 때 대화상자에 포커스를 둔다(버튼에 두면 포커스 테두리가 그려진다). Tab 으로 버튼에 갈 수 있다.
   const dialogRef = useRef<HTMLDivElement>(null);
   const pathname = usePathname();
-  // '운영정책 보기'로 이용 규칙을 보는 동안은 창을 내린다. 다른 화면으로 가면 다시 뜬다(앱과 같다).
+  // '이용 규칙 보기'로 이용 규칙을 보는 동안은 창을 내린다. 다른 화면으로 가면 다시 뜬다(앱과 같다).
   const notice =
     data?.success && pathname !== COMMUNITY_RULES_PATH ? data.sanctions[0] : undefined;
 
@@ -80,7 +80,11 @@ export default function SanctionNoticeModal({ enabled }: { enabled: boolean }) {
   };
 
   const isWarning = notice.type === "WARNING";
-  const title = isWarning ? "운영정책 위반 안내" : "이용 정지가 끝났어요";
+  // 제목은 결과형 20/700, 바로 아래 15 text 로 다음에 일어날 일(2026-10-21 토스 디자인 리뷰, 앱과 같다)
+  const title = isWarning ? `경고 ${Math.max(1, data?.recentWarningCount ?? 1)}회를 받았어요` : "이용 정지가 끝났어요";
+  const subtitle = isWarning
+    ? "같은 일이 반복되면 이용이 정지될 수 있어요"
+    : "다시 위반하면 더 긴 기간 이용이 정지될 수 있어요";
   const period =
     notice.days && notice.endsAt
       ? `${notice.days}일 (${formatKstDate(new Date(notice.startsAt))} ~ ${formatKstDate(new Date(notice.endsAt))})`
@@ -97,9 +101,10 @@ export default function SanctionNoticeModal({ enabled }: { enabled: boolean }) {
         aria-labelledby="sanction-notice-title"
         className="relative w-full max-w-sm rounded-2xl border border-app-border bg-app-elevated px-5 pb-5 pt-6 outline-none"
       >
-        <h2 id="sanction-notice-title" className="mb-[18px] text-[18px] font-bold leading-[1.35] text-app-text">
+        <h2 id="sanction-notice-title" className="text-[20px] font-bold leading-[28px] text-app-text">
           {title}
         </h2>
+        <p className="mb-5 mt-1.5 break-keep text-[15px] leading-[22px] text-app-text">{subtitle}</p>
 
         <div className="space-y-2.5">
           <Row label="사유" value={notice.reasonLabel} />
@@ -113,6 +118,12 @@ export default function SanctionNoticeModal({ enabled }: { enabled: boolean }) {
               {notice.messageToUser}
             </p>
           </div>
+        ) : null}
+        {/* 일시는 메시지 박스 아래 13 muted '10월 21일 오전 8:19'(메시지가 없으면 사유 아래) */}
+        {isWarning ? (
+          <p className="mt-2 text-[13px] leading-[18px] text-app-muted">
+            {formatKstMonthDayTime(new Date(notice.createdAt))}
+          </p>
         ) : null}
 
         {isWarning && notice.target ? (
@@ -131,17 +142,6 @@ export default function SanctionNoticeModal({ enabled }: { enabled: boolean }) {
           </div>
         ) : null}
 
-        {isWarning ? (
-          <div className="mt-4">
-            <Row label="일시" value={formatKstDateTime(new Date(notice.createdAt))} />
-          </div>
-        ) : null}
-
-        <p className="mt-4 text-[13px] leading-[19px] text-app-muted">
-          {isWarning
-            ? `최근 180일 경고 ${data?.recentWarningCount ?? 1}회. 계속 위반하면 이용이 정지될 수 있어요.`
-            : "다시 위반하면 더 긴 기간 이용이 정지될 수 있어요."}
-        </p>
 
         <button
           type="button"
@@ -158,7 +158,7 @@ export default function SanctionNoticeModal({ enabled }: { enabled: boolean }) {
             href={COMMUNITY_RULES_PATH}
             className="mt-1 flex h-11 w-full items-center justify-center text-[14px] font-semibold text-app-muted"
           >
-            운영정책 보기
+            이용 규칙 보기
           </Link>
         ) : null}
       </div>

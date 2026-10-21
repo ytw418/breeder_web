@@ -628,17 +628,17 @@ const CreateAuctionClient = () => {
           ) : null}
         </div>
 
-        {/* 운영 룰 동의 */}
+        {/* 경매 규칙 동의 */}
         <div>
           <div className="mb-3 flex items-center justify-between">
-            <span className="text-[15px] font-semibold text-app-text">운영 룰 동의</span>
-            {/* 툴 전용 룰 화면이 없어 공용 룰 화면을 쓴다. 툴에서는 작성 중인 폼을 두고 새 탭으로 연다. */}
+            <span className="text-[15px] font-semibold text-app-text">경매 규칙 동의</span>
+            {/* 툴 전용 규칙 화면이 없어 공용 규칙 화면을 쓴다. 툴에서는 작성 중인 폼을 두고 새 탭으로 연다. */}
             <Link
               href="/auctions/rules"
               {...(isToolRoute ? { target: "_blank", rel: "noopener noreferrer" } : {})}
               className="text-[14px] font-semibold text-app-brand"
             >
-              룰 전체 보기
+              규칙 전체 보기
             </Link>
           </div>
           <div className="flex flex-col gap-3">
@@ -649,7 +649,7 @@ const CreateAuctionClient = () => {
                 setAgreedAuctionNotice(next);
                 if (next && agreedDisputePolicy) setErrors((prev) => ({ ...prev, agreement: undefined }));
               }}
-              label="경매 룰(입찰 단위, 자동 연장, 수정 가능 조건)을 확인했어요."
+              label="경매 규칙(입찰 단위, 자동 연장, 수정 가능 조건)을 확인했어요."
             />
             <AgreeRow
               checked={agreedDisputePolicy}

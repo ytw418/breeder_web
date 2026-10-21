@@ -217,7 +217,7 @@ function RegionSettings({ from }: { from?: string }) {
   const rememberDraft = () => writeDraft({ viaHome: true, visible: draftVisible ?? null });
 
   return (
-    <Layout canGoBack title="내 동네" seoTitle="내 동네">
+    <Layout canGoBack title="내 동네" seoTitle="내 동네" hideHeaderActions>
       <div className="bg-app-bg pb-[calc(148px+env(safe-area-inset-bottom))]">
         {/* 지금 고른(또는 저장된) 동네 */}
         <div className="flex min-h-14 flex-col justify-center border-b border-app-line px-4 py-2">
@@ -357,7 +357,7 @@ function SigunguPicker({ sido, selected }: { sido: string; selected?: string }) 
   };
 
   return (
-    <Layout canGoBack title={sido} seoTitle="내 동네">
+    <Layout canGoBack title={sido} seoTitle="내 동네" hideHeaderActions>
       <div className="bg-app-bg">
         {rows.map((name) => {
           const isSelected = current === name;

@@ -36,7 +36,7 @@ import { DEAL_TYPE_OPTIONS, PRODUCT_TYPES } from "@libs/constants";
 import { findCategoryBranch, getSubcategories, TOP_LEVEL_CATEGORIES } from "@libs/categoryTaxonomy";
 import { getProductPath } from "@libs/product-route";
 import {
-  firstProductFormError,
+  PRODUCT_DESCRIPTION_MAX_LENGTH,
   PRODUCT_PHOTOS_MAX,
   PRODUCT_PRICE_MAX,
   validateProductForm,
@@ -53,6 +53,10 @@ import {
 } from "./productPhotos";
 
 type SubmitStep = "idle" | "images" | "submit";
+
+/** 화면 위에서부터 오류 칸 순서. 검증에 걸리면 토스트 없이 첫 오류 칸으로 스크롤한다(앱 use-scroll-to-first-error). */
+const ERROR_FIELD_ORDER = ["name", "category", "productType", "price", "description", "agreement"] as const;
+type ErrorField = (typeof ERROR_FIELD_ORDER)[number];
 
 export type ProductFormInitial = {
   id: number;
@@ -193,7 +197,7 @@ function ChipRow({ children }: { children: ReactNode }) {
 /**
  * 상품 등록·수정 당근 단일 폼(앱 src/app/products/upload.tsx · [id]/edit.tsx).
  * 사진(대표·순서·10장·10MB) → 상품명 0/60 → 카테고리(대분류·하위분류 칩) → 상품 타입 세그먼트
- * → 혈통 행(생물만, 붙이기 시트) → 가격(₩, 무료 분양 칩) → 설명 0/3000. 하단 고정 CTA 52, 업로드 진행 오버레이, 이탈 확인.
+ * → 혈통 행(생물만, 붙이기 시트) → 가격(₩, 무료 분양 칩) → 설명 0/3,000. 하단 고정 CTA 52, 업로드 진행 오버레이, 이탈 확인.
  */
 export function ProductForm({
   product,
@@ -259,6 +263,23 @@ export function ProductForm({
   const [agreedTradeRules, setAgreedTradeRules] = useState(false);
   const [agreementError, setAgreementError] = useState("");
   const needsAgreement = !isEdit && !agreedTradeRules;
+  const formRef = useRef<HTMLFormElement>(null);
+  // 검증에 걸리면 스크린 리더에 첫 오류 문구를 읽어 준다(앱 AccessibilityInfo.announceForAccessibility).
+  // 같은 문구로 다시 눌러도 읽히게 비웠다가 다음 틱에 넣는다.
+  const [errorAnnouncement, setErrorAnnouncement] = useState("");
+  const announceTimerRef = useRef<number | null>(null);
+  useEffect(
+    () => () => {
+      if (announceTimerRef.current != null) window.clearTimeout(announceTimerRef.current);
+    },
+    []
+  );
+  const announceError = (message: string) => {
+    if (announceTimerRef.current != null) window.clearTimeout(announceTimerRef.current);
+    setErrorAnnouncement("");
+    if (!message) return;
+    announceTimerRef.current = window.setTimeout(() => setErrorAnnouncement(message), 100);
+  };
   const [submitStep, setSubmitStep] = useState<SubmitStep>("idle");
   const busy = submitStep !== "idle";
 
@@ -391,11 +412,19 @@ export function ProductForm({
     if (busy) return;
     const nextErrors = validateProductForm({ name, price, description, category, productType });
     setErrors(nextErrors);
-    const nextAgreementError = needsAgreement ? "동의가 필요합니다" : "";
+    const nextAgreementError = needsAgreement ? "동의해야 등록할 수 있어요" : "";
     setAgreementError(nextAgreementError);
-    const firstError = firstProductFormError(nextErrors) || nextAgreementError;
-    if (firstError) {
-      toast.error(firstError);
+    // 오류는 칸 아래 인라인 한 곳에만 둔다(2026-10-21 토스 디자인 리뷰 #5 — 토스트가 헤더를 덮던 문제도 함께 없앤다).
+    const firstField = ERROR_FIELD_ORDER.find((field: ErrorField) =>
+      field === "agreement" ? Boolean(nextAgreementError) : Boolean(nextErrors[field])
+    );
+    const firstMessage =
+      firstField === "agreement" ? nextAgreementError : firstField ? nextErrors[firstField] : "";
+    announceError(firstMessage ?? "");
+    if (firstField) {
+      formRef.current
+        ?.querySelector(`[data-field="${firstField}"]`)
+        ?.scrollIntoView({ behavior: "smooth", block: "center" });
       return;
     }
 
@@ -495,6 +524,7 @@ export function ProductForm({
   return (
     <>
       <form
+        ref={formRef}
         onSubmit={(event) => {
           event.preventDefault();
           void submit();
@@ -512,7 +542,7 @@ export function ProductForm({
         />
 
         {/* 상품명 */}
-        <div>
+        <div data-field="name">
           <FieldLabel label="제목" count={`${name.length}/60`} />
           <input
             value={name}
@@ -534,7 +564,7 @@ export function ProductForm({
         </div>
 
         {/* 카테고리 */}
-        <div>
+        <div data-field="category">
           <div className="mb-0.5 flex h-8 items-center">
             <span className="text-[15px] font-semibold text-app-text">카테고리</span>
             <span
@@ -581,17 +611,19 @@ export function ProductForm({
         </div>
 
         {/* 상품 타입 */}
-        <SegmentField
-          label="종류"
-          options={PRODUCT_TYPES}
-          value={productType}
-          disabled={busy}
-          error={errors.productType}
-          onChange={(value) => {
-            setProductType(value);
-            clearError("productType");
-          }}
-        />
+        <div data-field="productType">
+          <SegmentField
+            label="종류"
+            options={PRODUCT_TYPES}
+            value={productType}
+            disabled={busy}
+            error={errors.productType}
+            onChange={(value) => {
+              setProductType(value);
+              clearError("productType");
+            }}
+          />
+        </div>
 
         {/* 거래 유형(유료 분양/무료 분양) — 앱 ProductDealTypeSegment. 파양은 1단계 비노출. */}
         <SegmentField
@@ -625,7 +657,7 @@ export function ProductForm({
         ) : null}
 
         {/* 가격 */}
-        <div className="-mt-1.5">
+        <div className="-mt-1.5" data-field="price">
           <div className="mb-0.5 flex h-11 items-center justify-between">
             <span className="text-[15px] font-semibold text-app-text">가격</span>
             <FilterChip label="무료 분양" selected={isFree} onClick={toggleFree} />
@@ -651,8 +683,11 @@ export function ProductForm({
         </div>
 
         {/* 상품 설명 */}
-        <div>
-          <FieldLabel label="설명" count={`${description.length}/3000`} />
+        <div data-field="description">
+          <FieldLabel
+            label="설명"
+            count={`${description.length.toLocaleString("ko-KR")}/${PRODUCT_DESCRIPTION_MAX_LENGTH.toLocaleString("ko-KR")}`}
+          />
           <MarkdownEditor
             id="description"
             value={description}
@@ -669,7 +704,7 @@ export function ProductForm({
 
         {/* 거래 금지 종·신고 의무 동의(새 글만, 등록 버튼 바로 위). 경매 '운영 룰 동의' 체크와 같은 모양 */}
         {isEdit ? null : (
-          <div>
+          <div data-field="agreement">
             <div className="flex items-start gap-3">
               {/* 단어 중간에서 줄이 끊기지 않게(word-break 는 상속된다) */}
               <div className="min-w-0 flex-1 break-keep">
@@ -679,7 +714,7 @@ export function ProductForm({
                     setAgreedTradeRules((prev) => !prev);
                     setAgreementError("");
                   }}
-                  label="거래 금지 종이 아니며 필요한 신고를 하겠습니다"
+                  label="분양할 수 없는 종이 아니에요. 필요한 신고도 할게요"
                 />
               </div>
               {/* 웹은 화면을 쌓아 둘 수 없어 쓰던 폼을 두고 새 탭으로 연다(경매 툴 '룰 전체 보기'와 같다). */}
@@ -697,18 +732,23 @@ export function ProductForm({
           </div>
         )}
 
+        {/* 스크린 리더 전용 오류 안내(화면에는 칸 아래 문구만 보인다) */}
+        <p className="sr-only" role="alert" aria-atomic="true">
+          {errorAnnouncement}
+        </p>
+
         {/* 하단 고정 CTA */}
         <div className="fixed inset-x-0 bottom-0 mx-auto max-w-xl z-30 border-t border-app-line bg-app-bg pb-[env(safe-area-inset-bottom)]">
           <div className="mx-auto max-w-xl px-5 py-2">
             <button
               type="submit"
               aria-label={ctaLabel}
-              aria-disabled={busy || needsAgreement}
+              aria-disabled={busy}
               disabled={busy}
               className={cn(
                 "flex h-[52px] w-full items-center justify-center rounded-md text-[16px] font-semibold",
-                // 동의 전엔 꺼진 색(누르면 '동의가 필요합니다', 요청은 보내지 않는다)
-                busy || needsAgreement ? "bg-app-surface text-app-caption" : "bg-app-brand text-white"
+                // 동의 전·빈 칸이 있어도 꺼진 색으로 두지 않는다. 누르면 첫 오류 칸으로 데려간다(요청은 보내지 않는다).
+                busy ? "bg-app-surface text-app-caption" : "bg-app-brand text-white"
               )}
             >
               {busy ? (

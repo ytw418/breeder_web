@@ -6,7 +6,7 @@ import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import useSWRInfinite from "swr/infinite";
 
 import Layout from "@components/features/MainLayout";
-import FloatingButton from "@components/atoms/floating-button";
+import FloatingButton, { FAB_LIST_BOTTOM_PADDING_CLASS } from "@components/atoms/floating-button";
 import CategoryScopeBar from "@components/features/category/CategoryScopeBar";
 import FreeGiveawaySection from "@components/features/product/FreeGiveawaySection";
 import { FilterChip, FilterChipRail } from "@components/app/FilterChip";
@@ -301,7 +301,8 @@ export default function ProductsClient({ initialParams }: { initialParams: Produ
         </div>
       ) : null}
 
-      <div className="pb-24">
+      {/* 하단 여백 = FAB 높이 + 24(2026-10-21 디자인 리뷰, 앱 FAB_LIST_BOTTOM_PADDING). */}
+      <div className={FAB_LIST_BOTTOM_PADDING_CLASS}>
         {products.length > 0
           ? // 8개마다 쿠팡 배너 한 줄(앱 분양 탭은 같은 간격의 AdMob 네이티브, 웹은 생물 거래 화면이라 AdSense 대신 쿠팡).
             withAdRows(products, SALE_ADS_ENABLED).map((product) =>
@@ -344,7 +345,8 @@ export default function ProductsClient({ initialParams }: { initialParams: Produ
         <div ref={sentinelRef} aria-hidden="true" />
       </div>
 
-      <FloatingButton href="/products/upload" label="분양 등록">
+      {/* 아래로 내리면 숨겨 카드 메타·찜 수를 가리지 않는다(2026-10-21 디자인 리뷰). */}
+      <FloatingButton href="/products/upload" label="분양 등록" hideOnScroll>
         <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true">
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
         </svg>

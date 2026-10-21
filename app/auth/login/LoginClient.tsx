@@ -482,7 +482,7 @@ const LoginClient = ({ shouldShowTestLogin }: LoginClientProps) => {
             </p>
           ) : (
             <p className="mt-2 text-center text-[15px] leading-[22px] text-app-muted">
-              생물인들과 소통하고 안전하게 거래하세요
+              키우는 이야기 나누고, 믿을 수 있게 분양해요
             </p>
           )}
         </div>
@@ -602,7 +602,7 @@ const LoginClient = ({ shouldShowTestLogin }: LoginClientProps) => {
               </p>
             </div>
             <span className="shrink-0 text-[13px] font-semibold text-app-text">
-              보기
+              혜택 보기
             </span>
           </div>
           <div className="mt-3 flex flex-wrap gap-1.5">
@@ -617,23 +617,24 @@ const LoginClient = ({ shouldShowTestLogin }: LoginClientProps) => {
 
         {/* 약관 */}
         <p className="mt-6 text-[12px] leading-[18px] text-app-muted">
-          서비스 이용시 브리디의{" "}
+          {/* 법률 문체 대신 해요체(2026-10-21 토스 디자인 리뷰, 앱과 같다) */}
+          계속하면{" "}
           <Link
             target="_blank"
             className="font-semibold text-app-sub"
             href={TERMS_OF_SERVICE_URL}
           >
             이용약관
-          </Link>{" "}
-          및{" "}
+          </Link>
+          과{" "}
           <Link
             target="_blank"
             className="font-semibold text-app-sub"
             href={PRIVACY_POLICY_URL}
           >
-            개인정보처리동의서
-          </Link>{" "}
-          동의로 간주합니다.
+            개인정보 처리방침
+          </Link>
+          에 동의하게 돼요
         </p>
       </div>
     </div>

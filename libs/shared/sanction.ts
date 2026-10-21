@@ -192,6 +192,14 @@ export function formatKstDateTime(date: Date): string {
   return `${iso.slice(0, 10).replace(/-/g, ".")} ${iso.slice(11, 16)}`;
 }
 
+/** KST 기준 '10월 21일 오전 8:19'(경고 창 일시, 2026-10-21 토스 디자인 리뷰). 앱 src/lib/moderation/sanction.ts 와 같다. */
+export function formatKstMonthDayTime(date: Date): string {
+  const kst = new Date(date.getTime() + KST_OFFSET_MS);
+  const hour = kst.getUTCHours();
+  const minute = String(kst.getUTCMinutes()).padStart(2, "0");
+  return `${kst.getUTCMonth() + 1}월 ${kst.getUTCDate()}일 ${hour < 12 ? "오전" : "오후"} ${hour % 12 || 12}:${minute}`;
+}
+
 // ------------------------------------------------------------
 // 입력 검증 — 관리자 API 와 관리자 화면이 같은 규칙을 쓴다.
 // ------------------------------------------------------------

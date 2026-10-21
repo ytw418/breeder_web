@@ -1,8 +1,9 @@
 "use client";
 /**
  * 홈 '지금 올라온 분양' 사진 레일(community-vibe §3.6 F-6, 시안 .rail/.ph).
- * 120 정사각 r12, 24시간 안 글이면 왼쪽 위 NEW 주황 칩 20, 이름 14/500 1줄, 가격 13 tabular.
- * 맨 끝은 brand-soft '내 개체 올리기 / 첫 분양글이면 상단 고정' → /products/upload.
+ * 120 정사각 r12, 24시간 안 글이면 왼쪽 위 NEW 주황 칩 20, 이름 14/500 1줄, 가격 15/700 text tabular(제목보다 강하게).
+ * 맨 끝은 brand-surface(다크 회색 면) '내 개체 올리기 / 첫 분양글은 맨 위에 보여 드려요' → /products/upload.
+ * 2026-10-21 디자인 리뷰로 가격·끝 칸 문구·다크 바탕을 바꿨다(앱 ProductRail 과 같다).
  */
 import Link from "next/link";
 import Image from "@components/atoms/Image";
@@ -27,6 +28,9 @@ export function isRailNew(item: RailProduct, now: number = Date.now()): boolean 
   const t = new Date(item.createdAt).getTime();
   return !Number.isNaN(t) && now - t < PRODUCT_RAIL_NEW_HOURS * 3600_000;
 }
+
+/** 레일 끝 '내 개체 올리기' 칸 보조 문구(앱 ProductRail RAIL_UPLOAD_HINT 와 같다). */
+const RAIL_UPLOAD_HINT = "첫 분양글은 맨 앞에 보여 드려요";
 
 export default function ProductPhotoRail({ items, loading }: { items: RailProduct[]; loading?: boolean }) {
   return (
@@ -72,19 +76,24 @@ export default function ProductPhotoRail({ items, loading }: { items: RailProduc
                   ) : null}
                 </span>
                 <span className="mt-1.5 block truncate text-[14px] font-medium leading-5 text-app-text">{item.name}</span>
-                <span className="block text-[13px] leading-[18px] text-app-muted tabular-nums">
+                <span className="block truncate text-[15px] font-bold leading-[22px] text-app-text tabular-nums">
                   {formatProductPrice(item.price)}
                 </span>
               </Link>
             ))}
-        <Link href="/products/upload" className="w-[120px] shrink-0" data-testid="rail-upload-card">
-          <span className="flex h-[120px] w-[120px] items-center justify-center rounded-xl bg-app-brand-soft text-app-brand">
+        <Link
+          href="/products/upload"
+          aria-label={`내 개체 올리기, ${RAIL_UPLOAD_HINT}`}
+          className="w-[120px] shrink-0"
+          data-testid="rail-upload-card"
+        >
+          <span className="flex h-[120px] w-[120px] items-center justify-center rounded-xl bg-app-brand-surface text-app-brand">
             <svg width={28} height={28} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.5} strokeLinecap="round" aria-hidden="true">
               <path d="M12 5v14M5 12h14" />
             </svg>
           </span>
           <span className="mt-1.5 block truncate text-[14px] font-medium leading-5 text-app-brand">내 개체 올리기</span>
-          <span className="block truncate text-[13px] leading-[18px] text-app-muted">첫 분양글이면 상단 고정</span>
+          <span className="line-clamp-2 break-keep text-[13px] leading-[18px] text-app-muted">{RAIL_UPLOAD_HINT}</span>
         </Link>
       </HorizontalRail>
     </section>
