@@ -200,6 +200,17 @@ function ScamNoticeCard({ onClose, onReport }: { onClose: () => void; onReport: 
   );
 }
 
+/** 서버 응답 전에 먼저 그리는 내 글 메시지(낙관적 전송). */
+type PendingSend = {
+  key: string;
+  tempId: number;
+  message: string;
+  /** 분양글 카드를 같이 실어 보낼 글 id(다시 보낼 때도 그대로 싣는다) */
+  productId?: number;
+  createdAt: string;
+  state: "sending" | "failed";
+};
+
 const ChatRoomClient = () => {
   const { user } = useUser();
   const { mutate: globalMutate } = useSWRConfig();
@@ -227,6 +238,10 @@ const ChatRoomClient = () => {
   const [sellerReportOpen, setSellerReportOpen] = useState(false);
   // 이 화면에서 productId 를 실어 보내 카드가 들어간(또는 이미 있던) 분양글 id. 그 뒤로는 productId 를 싣지 않는다.
   const [cardSentFor, setCardSentFor] = useState<number | null>(null);
+  // 낙관적 전송: 누르는 즉시 말풍선을 그리고, 보낸 순서대로 하나씩 서버에 보낸다(임시 id 는 음수).
+  const [pendingSends, setPendingSends] = useState<PendingSend[]>([]);
+  const sendQueueRef = useRef<Promise<void>>(Promise.resolve());
+  const nextTempIdRef = useRef(-1);
 
   const scrollRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
@@ -247,7 +262,7 @@ const ChatRoomClient = () => {
     { refreshInterval: CHAT_ROOM_POLL_MS }
   );
 
-  const [sendMessage, { loading: sending }] = useMutation<MessageResult>(`/api/chat/${roomId}/message`);
+  const [sendMessage] = useMutation<MessageResult>(`/api/chat/${roomId}/message`);
   const [markAsRead] = useMutation<ReadResponse>(`/api/chat/${roomId}/read`);
 
   const serverMessages = useMemo(() => data?.chatRoom?.messages ?? [], [data?.chatRoom?.messages]);
@@ -303,7 +318,31 @@ const ChatRoomClient = () => {
     () => findUnreadByPartnerIds(messages, partnerDeleted ? null : otherMember, user?.id),
     [messages, partnerDeleted, otherMember, user?.id]
   );
-  const items = useMemo(() => buildChatItems(messages, user?.id), [messages, user?.id]);
+  // 화면에 그리는 목록 = 서버 메시지 + 아직 닿지 않은 내 메시지(맨 아래). 읽음·카드 판단은 서버 메시지만 본다.
+  const displayMessages = useMemo<ChatMessage[]>(
+    () =>
+      pendingSends.length === 0 || !user
+        ? messages
+        : [
+            ...messages,
+            ...pendingSends.map((item) => ({
+              id: item.tempId,
+              type: "TEXT" as const,
+              message: item.message,
+              image: null,
+              createdAt: item.createdAt,
+              productId: null,
+              product: null,
+              user: { id: user.id, name: user.name, avatar: user.avatar ?? null },
+            })),
+          ],
+    [messages, pendingSends, user]
+  );
+  const sendStates = useMemo(
+    () => new Map(pendingSends.map((item) => [item.tempId, item.state] as const)),
+    [pendingSends]
+  );
+  const items = useMemo(() => buildChatItems(displayMessages, user?.id), [displayMessages, user?.id]);
 
   // 읽음 처리: 최신 메시지가 바뀔 때마다 1회(목록·탭 뱃지 갱신)
   useEffect(() => {
@@ -325,8 +364,8 @@ const ChatRoomClient = () => {
   // 스크롤: 처음엔 맨 아래, 이전 대화를 붙이면 보던 위치 유지, 새 메시지는 바닥 근처일 때만 따라간다.
   useLayoutEffect(() => {
     const el = scrollRef.current;
-    if (!el || messages.length === 0) return;
-    const lastId = messages[messages.length - 1].id;
+    if (!el || displayMessages.length === 0) return;
+    const lastId = displayMessages[displayMessages.length - 1].id;
     if (restoreRef.current) {
       el.scrollTop = el.scrollHeight - restoreRef.current.height + restoreRef.current.top;
       restoreRef.current = null;
@@ -338,7 +377,7 @@ const ChatRoomClient = () => {
     }
     forceBottomRef.current = false;
     lastIdRef.current = lastId;
-  }, [messages]);
+  }, [displayMessages]);
 
   const handleScroll = () => {
     const el = scrollRef.current;
@@ -385,7 +424,7 @@ const ChatRoomClient = () => {
     roomProduct && roomProduct.id === routeProductId && !roomProductHasCard ? roomProduct.id : undefined;
   // 추천 칩: 서버 조건(분양자 아님 · 분양중·예약중 · 카드 없음) + 화면에서 막 보낸 카드·입력 잠금·전송 중이면 숨긴다.
   const starterChips =
-    roomProduct?.showStarterChips && !roomProductHasCard && !composerLocked && !sending
+    roomProduct?.showStarterChips && !roomProductHasCard && !composerLocked && pendingSends.length === 0
       ? productStarterChips(roomProduct)
       : [];
 
@@ -400,41 +439,69 @@ const ChatRoomClient = () => {
     return result;
   };
 
-  const canSend = Boolean(text.trim()) && !composerLocked && !sending && !imageUploading;
+  const canSend = Boolean(text.trim()) && !composerLocked && !imageUploading;
 
-  const sendText = async (value: string, productId?: number) => {
-    // 누르는 즉시 입력창을 비운다. 실패하면 되돌린다(그사이 새로 입력했으면 유지).
-    setText("");
-    try {
-      const result = await sendWithProductCard({ type: "TEXT", message: value }, productId);
-      if (!result?.success || !result.message) {
-        setText((prev) => prev || value);
+  /** 대기 메시지 하나를 서버에 보낸다. 앞 메시지가 끝난 뒤에 보내 순서를 지킨다. */
+  const deliver = (pending: PendingSend) => {
+    sendQueueRef.current = sendQueueRef.current.then(async () => {
+      try {
+        const result = await sendWithProductCard({ type: "TEXT", message: pending.message }, pending.productId);
         // 차단·탈퇴 상대(403)는 서버 문구를 그대로 보여준다.
-        toast.error(result?.error || "메시지 전송에 실패했습니다.");
-        return;
+        if (!result?.success || !result.message) throw new Error(result?.error || "메시지 전송에 실패했습니다.");
+        const sent = result.message;
+        setLocalMessages((prev) => mergeMessages(prev, result.cardMessage ? [result.cardMessage, sent] : [sent]));
+        setPendingSends((prev) => prev.filter((item) => item.key !== pending.key));
+        void mutate();
+        void globalMutate("/api/chat/chatList");
+      } catch (error) {
+        setPendingSends((prev) => prev.map((item) => (item.key === pending.key ? { ...item, state: "failed" } : item)));
+        toast.error(error instanceof Error && error.message ? error.message : "메시지 전송에 실패했습니다.");
       }
-      if (productId) setCardSentFor(productId);
-      forceBottomRef.current = true;
-      const sent = result.message;
-      setLocalMessages((prev) => mergeMessages(prev, result.cardMessage ? [result.cardMessage, sent] : [sent]));
-      void mutate();
-      void globalMutate("/api/chat/chatList");
-    } catch {
-      setText((prev) => prev || value);
-      toast.error("메시지 전송에 실패했습니다.");
-    }
+    });
   };
 
-  const submitText = async () => {
+  const sendText = (value: string, productId?: number) => {
+    const pending: PendingSend = {
+      key: `pending${nextTempIdRef.current}`,
+      tempId: nextTempIdRef.current--,
+      message: value,
+      productId,
+      createdAt: new Date().toISOString(),
+      state: "sending",
+    };
+    // 카톡처럼 누르는 즉시 입력창을 비우고 말풍선을 그린다. 카드는 첫 메시지에만 싣는다.
+    setText("");
+    if (productId) setCardSentFor(productId);
+    forceBottomRef.current = true;
+    setPendingSends((prev) => [...prev, pending]);
+    deliver(pending);
+  };
+
+  const retrySend = (tempId: number) => {
+    const target = pendingSends.find((item) => item.tempId === tempId);
+    if (!target) return;
+    forceBottomRef.current = true;
+    setPendingSends((prev) => prev.map((item) => (item.key === target.key ? { ...item, state: "sending" } : item)));
+    deliver(target);
+  };
+
+  const discardSend = (tempId: number) => {
+    const target = pendingSends.find((item) => item.tempId === tempId);
+    if (!target) return;
+    setPendingSends((prev) => prev.filter((item) => item.key !== target.key));
+    if (target.productId) setCardSentFor((prev) => (prev === target.productId ? null : prev));
+  };
+
+  const submitText = () => {
     const value = text.trim();
-    if (!value || composerLocked || sending || imageUploading) return;
-    await sendText(value, cardProductId);
+    if (!value || composerLocked || imageUploading) return;
+    sendText(value, cardProductId);
   };
 
   // 추천 칩은 입력창을 거치지 않고 그 문구를 분양글과 함께 바로 보낸다(PRD S-1.빈).
   const sendStarterChip = (chip: string) => {
-    if (!roomProduct || composerLocked || sending || imageUploading) return;
-    void sendText(chip, roomProduct.id);
+    if (!roomProduct || composerLocked || imageUploading) return;
+    sendText(chip, roomProduct.id);
   };
 
   const handleFiles = async (fileList: FileList | null) => {
@@ -619,6 +686,9 @@ const ChatRoomClient = () => {
                         timeLabel={formatChatTime(last?.createdAt)}
                         unreadIds={item.mine ? unreadIds : undefined}
                         cautionIds={item.mine ? undefined : cautionIds}
+                        sendStates={item.mine ? sendStates : undefined}
+                        onRetry={retrySend}
+                        onDiscard={discardSend}
                         onOpenImage={setViewerImageId}
                       />
                     );
@@ -634,7 +704,7 @@ const ChatRoomClient = () => {
             <form
               onSubmit={(event) => {
                 event.preventDefault();
-                void submitText();
+                submitText();
               }}
               className="flex shrink-0 items-end gap-2 border-t border-app-line bg-app-bg px-3 pb-[max(20px,calc(env(safe-area-inset-bottom)+8px))] pt-2"
             >
@@ -673,7 +743,7 @@ const ChatRoomClient = () => {
                   onKeyDown={(event) => {
                     if (event.key === "Enter" && !event.shiftKey && !event.nativeEvent.isComposing) {
                       event.preventDefault();
-                      void submitText();
+                      submitText();
                     }
                   }}
                   disabled={composerLocked}

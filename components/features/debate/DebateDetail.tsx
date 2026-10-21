@@ -225,15 +225,19 @@ export default function DebateDetail({
     if (!body || sending) return;
     if (!viewerId) return onLogin();
     setSending(true);
-    const res = await sendDebateComment(post.id, body, replyTo?.id ?? null);
+    // 누르는 즉시 입력칸을 비운다. 실패하면 쓰던 글·답글 대상을 돌려놓는다.
+    const target = replyTo;
+    setText("");
+    setReplyTo(null);
+    const res = await sendDebateComment(post.id, body, target?.id ?? null);
     setSending(false);
     if (!res.ok) {
+      setText((prev) => prev || body);
+      setReplyTo((prev) => prev ?? target);
       toast.error(SEND_ERROR[res.data.errorCode ?? ""] ?? res.data.error ?? "댓글을 보내지 못했어요");
       if (res.data.errorCode === "DEBATE_CLOSED") void feed.reset();
       return;
     }
-    setText("");
-    setReplyTo(null);
     mineSent.current = true;
     void feed.pollNow();
   };
