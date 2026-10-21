@@ -30,7 +30,7 @@ export function isRailNew(item: RailProduct, now: number = Date.now()): boolean 
 }
 
 /** 레일 끝 '내 개체 올리기' 칸 보조 문구(앱 ProductRail RAIL_UPLOAD_HINT 와 같다). */
-const RAIL_UPLOAD_HINT = "첫 분양글은 맨 위에 보여 드려요";
+const RAIL_UPLOAD_HINT = "첫 분양글은 맨 앞에 보여 드려요";
 
 export default function ProductPhotoRail({ items, loading }: { items: RailProduct[]; loading?: boolean }) {
   return (

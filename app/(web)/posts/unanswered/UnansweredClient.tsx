@@ -6,7 +6,7 @@ import useSWRInfinite from "swr/infinite";
 
 import Layout from "@components/features/MainLayout";
 import { PostCard } from "@components/app/PostCard";
-import { ASK_QUESTION_HREF } from "@components/features/post/AwaitingAnswerCard";
+import { ASK_QUESTION_HREF, WAITING_BONUS_LINE } from "@components/features/post/AwaitingAnswerCard";
 import { QueryErrorState } from "@components/app/QueryErrorState";
 import { RetryFooter } from "@components/app/RetryFooter";
 import useBlocks from "hooks/useBlocks";
@@ -85,7 +85,7 @@ export default function UnansweredClient() {
       <div className="min-h-full bg-app-bg pb-4">
         {/* 빈 상태에선 점수 2배 줄을 숨긴다(답할 질문이 없는데 보상만 보이지 않게). */}
         {data?.length && posts.length === 0 ? null : (
-          <p className="truncate px-4 py-3 text-[13px] text-app-muted">첫 답변은 소통왕 점수 2배예요</p>
+          <p className="truncate px-4 py-3 text-[13px] text-app-muted">{WAITING_BONUS_LINE}</p>
         )}
         {!data && !error ? (
           [...Array(5)].map((_, index) => <SkeletonItem key={index} />)
