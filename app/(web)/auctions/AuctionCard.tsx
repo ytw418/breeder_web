@@ -90,7 +90,8 @@ export function AuctionCard({
 
       {/* 정보 */}
       <div className="p-3">
-        <div className="mb-1 flex min-w-0 items-center gap-1.5">
+        {/* 종 칩과 남은 시간: 폭이 모자라면 시간이 다음 줄로 내려간다(잘리지 않게, 2026-10-21 제보). */}
+        <div className="mb-1 flex min-w-0 flex-wrap items-center gap-x-1.5 gap-y-0.5">
           {auction.category ? (
             <span className="inline-flex h-5 shrink-0 items-center rounded-md bg-app-surface px-1.5 text-[10px] font-semibold text-app-sub">
               {auction.category}
@@ -99,7 +100,7 @@ export function AuctionCard({
           {live ? (
             <span
               className={cn(
-                "truncate text-[10px] font-semibold",
+                "whitespace-nowrap text-[10px] font-semibold",
                 timeOver ? "text-app-muted" : urgent ? "text-app-danger" : "text-app-success-text"
               )}
             >
@@ -117,15 +118,15 @@ export function AuctionCard({
           ) : null}
           <h3 className="truncate text-sm font-semibold text-app-strong">{auction.title}</h3>
         </div>
-        <div className="mt-2 flex items-end justify-between gap-2">
-          {/* 가격 우선: 가격 열은 줄이지 않고 오른쪽 열이 줄어든다. */}
+        <div className="mt-2 flex flex-wrap items-end justify-between gap-x-2 gap-y-0.5">
+          {/* 가격 우선: 가격 열은 줄이지 않고, 오른쪽 문구는 폭이 모자라면 다음 줄로 내려간다(잘리지 않게). */}
           <div className="shrink-0">
             <p className="text-[10px] text-app-muted">{auctionPriceLabel(auction)}</p>
             <p className="whitespace-nowrap text-sm font-bold text-app-strong">
               {auction.currentPrice.toLocaleString()}원
             </p>
           </div>
-          <p className="min-w-0 truncate text-[10px] text-app-muted">
+          <p className="whitespace-nowrap text-[10px] text-app-muted">
             {live && bids === 0 ? "첫 입찰을 기다려요" : `입찰 ${bids}회`}
           </p>
         </div>

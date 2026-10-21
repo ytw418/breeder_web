@@ -38,7 +38,7 @@ export function PostAvatar({
     <span
       className={cn(
         "inline-block rounded-full p-0.5",
-        getBreederProgramFrameClassName(user?.breederPrograms)
+        getBreederProgramFrameClassName(user?.breederPrograms, { size })
       )}
     >
       <span className="block rounded-full bg-app-bg">{image}</span>
