@@ -2,22 +2,26 @@
 
 import { useEffect, useState } from "react";
 import Image from "next/image";
-import { useRouter } from "next/navigation";
+import Link from "next/link";
 
 /**
  * 모바일 브라우저 상세(글·분양글·경매·프로필) 맨 위 '브리디 앱에서 보기' 띠(2026-10-21 커뮤니티 감사 18번, 당근 관습).
  * 48 띠: 앱 아이콘 28 · '브리디 앱에서 보기' 14/600 · '열기'(32, 주황 채움) · 닫기 X.
  * - 모바일(Android·iPhone) 브라우저에서만 보인다. PC·앱 안(UA `BredyApp/`)·설치한 PWA 에서는 없다.
  * - X 를 누르면 7일 동안 숨긴다(localStorage).
- * - '열기': Android 는 intent:// 로 앱을 열고 없으면 /download, iOS 는 bredy:// 를 열어 보고 1.5초 안에 화면을
- *   떠나지 않으면 /download 로 간다. 앱이 받은 주소는 앱 src/app/+native-intent.ts 가 거른다.
+ * - '열기': Android 는 intent:// 로 앱을 열고 없으면 Chrome 이 /download 로 보낸다.
+ *   iOS 는 bredy:// 를 열기만 하고 /download 로 자동으로 넘기지 않는다. Safari·iOS Chrome 은 커스텀 스킴마다
+ *   '"브리디"에서 열겠습니까?' 확인 창을 띄우고, 창이 떠 있는 동안 화면은 visible 이라 시간으로는 앱이 없는지
+ *   알 수 없다(검토 반영 — 앱이 있는 사람도 창 뒤에서 /download 로 끌려갔다). 1.5초 뒤에도 화면을 떠나지
+ *   않았으면 띠 글자를 '앱이 없나요? 설치하기' 링크로 바꿔 고르게 한다.
+ *   앱이 받은 주소는 앱 src/app/+native-intent.ts 가 거른다.
  * 서버 HTML·첫 렌더에는 그리지 않는다(기기 판별은 브라우저에서만 된다).
  * Parity: web-only(앱 설치 유도). 앱 쪽 짝은 앱 링크 설정(bredy_app app.config.js withAppLinks).
  */
 
 const DISMISS_KEY = "bredy:appOpenBanner:dismissedAt";
 const DISMISS_MS = 7 * 24 * 60 * 60 * 1000;
-const OPEN_FALLBACK_MS = 1500;
+export const IOS_INSTALL_HINT_MS = 1500;
 const APP_SCHEME = "bredy";
 const ANDROID_PACKAGE = "app.bredy.mobile";
 const DOWNLOAD_PATH = "/download";
@@ -49,8 +53,8 @@ function readDismissedAt(): number {
 }
 
 export default function AppOpenBanner() {
-  const router = useRouter();
   const [platform, setPlatform] = useState<MobilePlatform | null>(null);
+  const [installHint, setInstallHint] = useState(false);
 
   useEffect(() => {
     const detected = appOpenBannerPlatform(window.navigator.userAgent);
@@ -82,6 +86,7 @@ export default function AppOpenBanner() {
       window.location.href = url;
       return;
     }
+    // iOS: 확인 창 때문에 '앱 없음'을 시간으로 판단하지 않는다. 자동 이동 없이 설치 링크만 보여 준다.
     let left = false;
     const markLeft = () => {
       if (document.visibilityState === "hidden") left = true;
@@ -91,8 +96,8 @@ export default function AppOpenBanner() {
     window.setTimeout(() => {
       document.removeEventListener("visibilitychange", markLeft);
       window.removeEventListener("pagehide", markLeft);
-      if (!left && document.visibilityState === "visible") router.push(DOWNLOAD_PATH);
-    }, OPEN_FALLBACK_MS);
+      if (!left) setInstallHint(true);
+    }, IOS_INSTALL_HINT_MS);
     window.location.href = url;
   };
 
@@ -106,9 +111,18 @@ export default function AppOpenBanner() {
           height={28}
           className="h-7 w-7 shrink-0 rounded-md"
         />
-        <p className="min-w-0 flex-1 truncate text-[14px] font-semibold leading-5 text-app-text">
-          브리디 앱에서 보기
-        </p>
+        {installHint ? (
+          <p className="min-w-0 flex-1 truncate text-[14px] leading-5 text-app-muted">
+            앱이 없나요?{" "}
+            <Link href={DOWNLOAD_PATH} className="font-semibold text-app-brand-text underline underline-offset-2">
+              설치하기
+            </Link>
+          </p>
+        ) : (
+          <p className="min-w-0 flex-1 truncate text-[14px] font-semibold leading-5 text-app-text">
+            브리디 앱에서 보기
+          </p>
+        )}
         <button
           type="button"
           onClick={open}
