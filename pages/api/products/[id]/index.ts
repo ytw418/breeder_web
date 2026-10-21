@@ -26,7 +26,12 @@ import {
   type PedigreeNote,
 } from "@libs/shared/pedigree-note";
 import type { BloodlineLinkSummary } from "@libs/shared/bloodline-card";
-import { SOLD_PRODUCT_STATUS, type ProductTradeInfo } from "@libs/shared/tradeReview";
+import {
+  SOLD_PRODUCT_STATUS,
+  type ProductTradeInfo,
+  type ProductTradeReview,
+} from "@libs/shared/tradeReview";
+import { readProductReview } from "@libs/server/tradeReview";
 import { createNotification } from "@libs/server/notification";
 import {
   CANCELLED_TRADE_STATUS,
@@ -68,6 +73,11 @@ export interface ItemDetailResponse {
   hasPurchased?: boolean; // 현재 유저가 이 상품을 구매확정 했는지(되돌려 취소된 확정 제외)
   /** 입양자 지정·입양 확정(보는 사람 기준). 앱 docs/prd/trade-review.md */
   trade?: ProductTradeInfo;
+  /**
+   * 이 분양글의 거래 후기(공개). 없으면 null. 운영자가 숨긴 후기는 작성자·분양자·운영자에게만 {id, hidden:true},
+   * 그 외에는 null. 조회가 실패하면 필드가 빠진다(화면은 후기 블록을 그리지 않는다).
+   */
+  review?: ProductTradeReview | null;
 }
 
 async function handler(
@@ -196,10 +206,17 @@ async function handler(
     const hasPurchased = Boolean(hasPurchasedResult);
     // 입양자 지정·입양 확정 상태(보는 사람 기준). 분양완료 글만 거래 기록을 읽는다.
     // 곁가지 정보라 조회가 실패해도 상세는 그대로 준다(trade 가 없으면 화면은 거래 버튼을 그리지 않는다).
-    const trade = await buildProductTrade(product, user).catch((error) => {
-      console.error("[api/products/:id][trade]", error);
-      return undefined;
-    });
+    // 거래 후기도 곁가지 정보라 실패하면 review 만 빠진다. 공개 후기는 비로그인 SSR 에도 실린다.
+    const [trade, review] = await Promise.all([
+      buildProductTrade(product, user).catch((error) => {
+        console.error("[api/products/:id][trade]", error);
+        return undefined;
+      }),
+      readProductReview(product.id, user).catch((error) => {
+        console.error("[api/products/:id][review]", error);
+        return undefined;
+      }),
+    ]);
     // 분양자 줄 팔로우 버튼(비로그인·본인 false).
     const isFollowingSeller = await viewerFollows(user?.id, product.userId);
 
@@ -237,6 +254,7 @@ async function handler(
       isLiked,
       hasPurchased,
       trade,
+      review,
       relatedProducts,
     });
   }

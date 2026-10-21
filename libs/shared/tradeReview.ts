@@ -201,3 +201,62 @@ export function tradeStatusLine(state: TradeState, buyerName?: string | null): s
   const who = name ? `입양자 ${name}` : "입양자";
   return `${who} · ${state.purchaseConfirmed ? "입양 확정 완료" : "입양 확정 대기"}`;
 }
+
+/** 후기 작성자(입양자). 탈퇴한 회원은 서버가 이름을 '탈퇴한 사용자'로 바꿔 준다. */
+export interface TradeReviewAuthor {
+  id: number;
+  name: string;
+  avatar: string | null;
+}
+
+/** 공개 거래 후기(상세 review · GET /api/products/:id/review · 받은 후기 목록 행). 시각은 ISO 문자열. */
+export interface TradeReviewPublic {
+  id: number;
+  /** TRADE_REVIEW_KEYWORDS 의 key(정해진 순서). 화면은 keywordLabel 로 이름을 붙이고 모르는 키는 뺀다. */
+  keywords: string[];
+  createdAt: string;
+  author: TradeReviewAuthor;
+  /** 분양자 답글(한 번). 없으면 null */
+  reply: string | null;
+  repliedAt: string | null;
+}
+
+/** 운영자가 숨긴 후기. 작성자·분양자·운영자에게만 이 자리표시가 내려오고, 그 외에는 review 가 null 이다. */
+export interface TradeReviewHidden {
+  id: number;
+  hidden: true;
+}
+
+/** GET /api/products/:id 의 review · GET /api/products/:id/review. 후기가 없거나 볼 수 없으면 null. */
+export type ProductTradeReview = TradeReviewPublic | TradeReviewHidden;
+
+export function isHiddenTradeReview(review: ProductTradeReview | null | undefined): review is TradeReviewHidden {
+  return Boolean(review && "hidden" in review && review.hidden);
+}
+
+/** 본인 분양내역·입양내역 행의 tradeReview(이 분양글에 후기가 있는지). 없으면 null. */
+export interface TradeReviewRef {
+  id: number;
+  hasReply: boolean;
+  /** 운영자가 숨긴 후기(화면은 '숨겨진 후기'로 보이고 답글 입구를 두지 않는다) */
+  hidden: boolean;
+}
+
+/** 받은 후기 목록 행의 분양글. 분양자가 지운 글은 이름·사진 없이 removed 만. */
+export type TradeReviewProduct =
+  | { id: number; name: string; image: string | null }
+  | { id: number; removed: true };
+
+export interface UserTradeReviewItem extends TradeReviewPublic {
+  product: TradeReviewProduct;
+}
+
+/** GET /api/users/:id/reviews?page=1&size=20 — 받은 거래 후기(숨긴 후기·숨긴 분양글의 후기 제외, 최근 순). */
+export interface UserTradeReviewsResponse {
+  success: boolean;
+  /** 이 목록 조건의 전체 수(헤더 '받은 거래 후기 N') */
+  total: number;
+  items: UserTradeReviewItem[];
+  /** 키워드별 수(많은 순, 같으면 TRADE_REVIEW_KEYWORDS 순). 전체 후기 기준(이 페이지만이 아님) */
+  keywordCounts: { key: string; count: number }[];
+}

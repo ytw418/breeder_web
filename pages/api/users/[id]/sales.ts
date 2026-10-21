@@ -4,7 +4,8 @@ import withHandler from "@libs/server/withHandler";
 import client from "@libs/server/client";
 import { withAuth } from "@libs/server/auth";
 import { CANCELLED_TRADE_STATUS } from "@libs/server/trade";
-import type { TradeBuyerSource } from "@libs/shared/tradeReview";
+import { tradeReviewRefsByProduct } from "@libs/server/tradeReview";
+import type { TradeBuyerSource, TradeReviewRef } from "@libs/shared/tradeReview";
 
 interface Sale {
   id: number;
@@ -18,6 +19,11 @@ interface Sale {
   buyer?: { id: number; name: string; avatar: string | null } | null;
   buyerSource?: TradeBuyerSource | null;
   purchaseConfirmed?: boolean;
+  /**
+   * 본인이 볼 때만: 이 분양글의 거래 후기(분양내역 = 받은 후기, 입양내역 = 내가 쓴 후기). 없으면 null.
+   * 화면은 '답글 남기기'·'거래 후기 쓰기' 입구를 이 값으로 정한다.
+   */
+  tradeReview?: TradeReviewRef | null;
   product: {
     id: number;
     name: string;
@@ -49,11 +55,23 @@ export interface MySellHistoryResponseType {
   mySellHistoryData: Sale[];
 }
 
-type SaleRow = Omit<Sale, "buyer" | "buyerSource" | "purchaseConfirmed"> & {
+type SaleRow = Omit<Sale, "buyer" | "buyerSource" | "purchaseConfirmed" | "tradeReview"> & {
   buyerId?: number | null;
   buyerSource?: string | null;
   buyerAssignedAt?: Date | null;
 };
+
+/** 본인 내역 행에 거래 후기 요약을 붙인다(한 번에 일괄 조회). */
+export async function withTradeReviewRefs<T extends { productId: number }>(
+  rows: T[],
+  by: { createdForId: number } | { createdById: number }
+): Promise<(T & { tradeReview: TradeReviewRef | null })[]> {
+  const refs = await tradeReviewRefsByProduct(
+    rows.map((row) => row.productId),
+    by
+  );
+  return rows.map((row) => ({ ...row, tradeReview: refs.get(row.productId) ?? null }));
+}
 
 /** 본인 분양내역 행에 입양자·입양 확정을 붙인다(입양자·확정은 한 번씩 일괄 조회). */
 async function withBuyerRows(rows: SaleRow[]): Promise<Sale[]> {
@@ -119,7 +137,9 @@ async function handler(
   const isOwner = req.user?.id === profileId;
   res.json({
     success: true,
-    mySellHistoryData: isOwner ? await withBuyerRows(rows) : rows.map(withoutBuyer),
+    mySellHistoryData: isOwner
+      ? await withTradeReviewRefs(await withBuyerRows(rows), { createdForId: profileId })
+      : rows.map(withoutBuyer),
   });
 }
 

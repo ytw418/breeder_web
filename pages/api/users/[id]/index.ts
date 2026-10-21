@@ -13,7 +13,7 @@ import { parsePositiveIntId } from "@libs/shared/normalize";
 import { countProfileBloodlineCards } from "@libs/server/bloodline-visibility";
 import { User } from "@prisma/client";
 import { getProfileTitles } from "@libs/server/lockedTitles";
-import { countCompletedSales } from "@libs/server/profileTrust";
+import { countCompletedSales, countTradeReviews } from "@libs/server/profileTrust";
 import type { LockedTitle } from "@libs/shared/communityVibe";
 import type { BreederTitleKey } from "@libs/shared/breederKeywords";
 
@@ -35,6 +35,11 @@ type UserWithCounts = Omit<User, "tokenVersion" | "suspendedUntil" | "snsId" | "
     auctions: number;
     /** 거래 완료 수(프로필 신뢰 줄). 판매자가 판매완료로 바꾼 거래 중 지우거나 숨기지 않은 상품. */
     completedSales: number;
+    /**
+     * 받은 거래 후기 수(신뢰 줄 '후기 N'·분양 탭 '받은 거래 후기 N ›', 앱 docs/prd/trade-review.md §3.5).
+     * 숨긴 후기·숨긴 분양글의 후기는 빼고, 지운 분양글의 후기는 센다.
+     */
+    tradeReviews: number;
   };
   maskedEmail?: string | null;
   /** 게시글 종·상품 카테고리에서 자동 계산한 주력 종(최대 2개, 많이 쓴 순). */
@@ -106,7 +111,7 @@ async function handler(
   }
   const myId = req.user?.id;
 
-  const [user, ownedBloodlineCards, completedSales] = await Promise.all([
+  const [user, ownedBloodlineCards, completedSales, tradeReviews] = await Promise.all([
     client.user.findUnique({
       where: { id: userId },
       // 토큰 무효화·정지 만료 같은 서버 내부 필드는 내려주지 않는다.
@@ -134,6 +139,11 @@ async function handler(
     countProfileBloodlineCards(userId, myId),
     // 신뢰 줄 "거래 완료 N"(채팅방 헤더와 같은 집계).
     countCompletedSales(userId),
+    // 신뢰 줄 "후기 N". 곁가지 정보라 실패하면 0(신뢰 줄·받은 후기 행은 1 이상일 때만 보인다).
+    countTradeReviews(userId).catch((error) => {
+      console.error("[api/users/:id][trade-reviews]", error);
+      return 0;
+    }),
   ]);
 
   if (!user) {
@@ -174,6 +184,7 @@ async function handler(
       following: user._count.followers,
       ownedBloodlineCards,
       completedSales,
+      tradeReviews,
     },
   };
 
