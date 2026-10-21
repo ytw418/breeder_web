@@ -348,7 +348,7 @@ export default function CategoryScopePicker({ mode }: { mode: "onboarding" | "se
 
   if (mode === "settings") {
     return (
-      <Layout canGoBack title="관심 카테고리" seoTitle="관심 카테고리">
+      <Layout canGoBack title="관심 카테고리" seoTitle="관심 카테고리" hideHeaderActions>
         <CategoryScopeForm mode="settings" onFinish={onFinish} />
       </Layout>
     );

@@ -411,7 +411,9 @@ export function PostComposer(props: PostComposerProps) {
     // 돌아오면 '쓰던 글이 있어요' 시트로 이어 쓴다.
     const goLoginKeepingDraft = () => {
       if (!initial) draftAutosave.save();
-      toast.error(initial ? "로그인이 필요합니다." : "로그인이 필요합니다. 쓰던 글은 저장해 두었어요.");
+      // 새 글은 저장해 뒀다는 안내라 오류(빨간 !)가 아니라 정보 토스트로 알린다(2026-10-21 토스 디자인 리뷰).
+      if (initial) toast.error("로그인이 필요합니다.");
+      else toast.info("쓰던 글은 저장해 뒀어요. 로그인하면 이어서 쓸 수 있어요");
       leaving = true;
       leave(() => router.push(toLoginHref(initial ? `/posts/${initial.postId}/edit` : "/posts/upload")));
     };
@@ -505,7 +507,12 @@ export function PostComposer(props: PostComposerProps) {
   };
 
   const submitLabel = isEdit ? "수정하기" : "완료";
-  const screenTitle = isEdit ? "게시글 수정" : "글쓰기";
+  // 주제가 '질문'이면 제목·자리표시를 질문에 맞춘다(2026-10-21 토스 디자인 리뷰, 앱 PostComposer 와 같다).
+  const isQuestion = category === "질문";
+  const screenTitle = isEdit ? "게시글 수정" : isQuestion ? "질문하기" : "글쓰기";
+  const bodyPlaceholder = isQuestion
+    ? "어떤 게 궁금한가요? 키우는 종과 환경을 같이 적으면 답이 빨리 와요"
+    : "내용을 자유롭게 작성해보세요";
 
   return (
     <Layout headerVariant="none" seoTitle={screenTitle}>
@@ -546,7 +553,7 @@ export function PostComposer(props: PostComposerProps) {
       <div className="pb-[calc(52px+16px+env(safe-area-inset-bottom))]">
         {/* 주제 / 생물군 선택 */}
         <SelectRow
-          label="게시글의 주제를 선택해주세요"
+          label="주제"
           value={
             category === REGION_POST_CATEGORY && myRegion
               ? `${REGION_POST_CATEGORY} · ${myRegion.sigungu}`
@@ -563,7 +570,7 @@ export function PostComposer(props: PostComposerProps) {
         ) : null}
         <div className="mx-4 h-px bg-app-line" />
         <SelectRow
-          label="관심 생물군"
+          label="생물"
           value={species}
           placeholder="선택"
           disabled={isSubmitting}
@@ -582,7 +589,7 @@ export function PostComposer(props: PostComposerProps) {
               setTitle(event.target.value);
               clearFieldError("title");
             }}
-            placeholder="제목을 입력하세요"
+            placeholder="제목"
             aria-label="제목"
             className="w-full border-0 bg-transparent p-0 text-[18px] font-semibold tracking-[-0.2px] text-app-text outline-none placeholder:font-semibold placeholder:text-app-caption focus:ring-0"
           />
@@ -596,7 +603,7 @@ export function PostComposer(props: PostComposerProps) {
           <PostBodyEditor
             editor={editor}
             disabled={isSubmitting}
-            placeholder="내용을 자유롭게 작성해보세요"
+            placeholder={bodyPlaceholder}
           />
           <ErrorText>{errors.description}</ErrorText>
         </div>
@@ -611,18 +618,19 @@ export function PostComposer(props: PostComposerProps) {
         />
       </div>
 
-      {/* 하단 툴바: 카메라 · 크기 · 굵게 + n/10 */}
+      {/* 하단 툴바: 카메라 · 크기 · 굵게 + 사진 n/10 */}
       <div className="fixed inset-x-0 bottom-0 mx-auto max-w-xl z-30 border-t border-app-line bg-app-bg pb-[env(safe-area-inset-bottom)]">
         <div className="mx-auto flex h-[52px] max-w-xl items-center px-2">
           <PostBodyToolbarButtons editor={editor} disabled={isSubmitting} onPickPhotos={openFilePicker} />
           <PostBodyTextCounter count={editor.textCount} />
           <span
+            aria-label={`사진 ${editor.photoCount}장, 최대 ${POST_COMPOSER_IMAGE_MAX}장`}
             className={cn(
               "pr-2 text-[14px] text-app-muted",
               editor.textCount >= POST_BODY_COUNTER_FROM ? "" : "ml-auto"
             )}
           >
-            {editor.photoCount}/{POST_COMPOSER_IMAGE_MAX}
+            사진 {editor.photoCount}/{POST_COMPOSER_IMAGE_MAX}
           </span>
         </div>
         <input
@@ -664,7 +672,7 @@ export function PostComposer(props: PostComposerProps) {
       />
       <SpeciesPickerSheet
         open={picker === "species"}
-        title="관심 생물군"
+        title="어떤 생물 이야기인가요"
         value={species}
         suggestedIds={pinnedCategoryIds}
         onSelect={(name) => {

@@ -39,6 +39,8 @@ interface LayoutProps {
    * headerVariant="chat-list" 에서는 알림 벨 왼쪽(검색 자리)에 들어간다.
    */
   headerRight?: React.ReactNode;
+  /** canGoBack 헤더 오른쪽 알림 벨·메뉴를 그리지 않는다(설정 계열 화면, 2026-10-21 토스 디자인 리뷰 — 앱 ScreenHeader hideActions). */
+  hideHeaderActions?: boolean;
   /**
    * default: 기존 헤더(로고/뒤로가기 + 가운데 제목 + 오른쪽 아이콘)
    * chat-list: 왼쪽 브리디 로고(홈으로) + headerRight(검색 토글) + 알림 벨. 제목은 화면에 쓰지 않는다(sr-only)
@@ -646,6 +648,7 @@ export default function MainLayout({
   homeAction = false,
   bodyHasH1 = false,
   headerRight,
+  hideHeaderActions = false,
   headerVariant = "default",
 }: LayoutProps) {
   const router = useRouter();
@@ -795,7 +798,7 @@ export default function MainLayout({
                 {/* 상세: 뒤로 옆에 브리디 로고(홈). 오른쪽은 화면 액션 + 메뉴 두 개만(2026-10-16 사용자 "아이콘 3개 이상하다"). */}
                 {homeAction && !isToolPath ? <HeaderHomeButton /> : null}
               </div>
-              {!isToolPath ? (
+              {!isToolPath && !hideHeaderActions ? (
                 <div className="absolute right-2 flex items-center gap-0.5">
                   {headerRight ? (
                     <>

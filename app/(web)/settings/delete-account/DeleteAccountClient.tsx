@@ -154,7 +154,7 @@ export default function DeleteAccountClient() {
   }
 
   return (
-    <Layout canGoBack title="회원탈퇴" seoTitle="회원탈퇴">
+    <Layout canGoBack title="회원탈퇴" seoTitle="회원탈퇴" hideHeaderActions>
       <div className="bg-app-bg pb-[calc(52px+16px+32px+env(safe-area-inset-bottom))]">
         <h2 className="px-4 pt-5 text-[20px] font-bold leading-7 text-app-text">탈퇴하기 전에 확인해 주세요</h2>
 

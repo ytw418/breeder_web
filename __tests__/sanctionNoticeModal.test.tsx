@@ -74,22 +74,22 @@ beforeEach(() => {
 describe("SanctionNoticeModal(웹 S-5)", () => {
   it("미확인 경고를 사유·메시지·관련 콘텐츠·누적 경고와 함께 보여 준다", async () => {
     renderModal();
-    expect(await screen.findByRole("dialog", { name: "운영정책 위반 안내" })).toBeTruthy();
+    expect(await screen.findByRole("dialog", { name: "경고 1회를 받았어요" })).toBeTruthy();
     expect(screen.getByText("욕설·비하·혐오 표현")).toBeTruthy();
     expect(screen.getByText("댓글에서 다른 회원을 비하하는 표현이 확인되었어요.")).toBeTruthy();
     expect(screen.getByText("초보면 가만히나 있지")).toBeTruthy();
-    expect(screen.getByText("2026.10.09 14:20")).toBeTruthy();
-    expect(screen.getByText("최근 180일 경고 1회. 계속 위반하면 이용이 정지될 수 있어요.")).toBeTruthy();
+    expect(screen.getByText("10월 9일 오후 2:20")).toBeTruthy();
+    expect(screen.getByText("같은 일이 반복되면 이용이 정지될 수 있어요")).toBeTruthy();
     // 경고에만 근거 문서(이용 규칙) 링크를 둔다.
-    expect(screen.getByRole("link", { name: "운영정책 보기" }).getAttribute("href")).toBe("/content/community-rules");
+    expect(screen.getByRole("link", { name: "이용 규칙 보기" }).getAttribute("href")).toBe("/content/community-rules");
   });
 
   it("Esc 로 닫히지 않고, 확인하면 PATCH 후 다음(끝난 정지) 안내를 보여 준다(AC-21·AC-22·AC-23)", async () => {
     renderModal();
-    await screen.findByRole("dialog", { name: "운영정책 위반 안내" });
+    await screen.findByRole("dialog", { name: "경고 1회를 받았어요" });
 
     fireEvent.keyDown(window, { key: "Escape" });
-    expect(screen.getByRole("dialog", { name: "운영정책 위반 안내" })).toBeTruthy();
+    expect(screen.getByRole("dialog", { name: "경고 1회를 받았어요" })).toBeTruthy();
 
     await act(async () => {
       fireEvent.click(screen.getByRole("button", { name: "확인했어요" }));
@@ -97,7 +97,7 @@ describe("SanctionNoticeModal(웹 S-5)", () => {
     expect(mockAuthFetch).toHaveBeenCalledWith("/api/users/me/sanctions", expect.objectContaining({ method: "PATCH", body: JSON.stringify({ id: 3 }) }));
     expect(await screen.findByRole("dialog", { name: "이용 정지가 끝났어요" })).toBeTruthy();
     expect(screen.getByText("3일 (2026.10.06 ~ 2026.10.09)")).toBeTruthy();
-    expect(screen.queryByText("운영정책 보기")).toBeNull();
+    expect(screen.queryByText("이용 규칙 보기")).toBeNull();
 
     await act(async () => {
       fireEvent.click(screen.getByRole("button", { name: "확인했어요" }));
@@ -108,12 +108,12 @@ describe("SanctionNoticeModal(웹 S-5)", () => {
   it("확인 요청이 실패하면 토스트를 띄우고 모달을 유지한다(E-7)", async () => {
     mockAuthFetch.mockResolvedValueOnce({ ok: false, json: async () => ({ success: false }) });
     renderModal();
-    await screen.findByRole("dialog", { name: "운영정책 위반 안내" });
+    await screen.findByRole("dialog", { name: "경고 1회를 받았어요" });
     await act(async () => {
       fireEvent.click(screen.getByRole("button", { name: "확인했어요" }));
     });
     expect(mockToastError).toHaveBeenCalledWith("잠시 후 다시 시도해 주세요.");
-    expect(screen.getByRole("dialog", { name: "운영정책 위반 안내" })).toBeTruthy();
+    expect(screen.getByRole("dialog", { name: "경고 1회를 받았어요" })).toBeTruthy();
   });
 
   it("이용 규칙 화면에서는 창을 내리고, 다른 화면으로 가면 다시 띄운다", async () => {
@@ -131,7 +131,7 @@ describe("SanctionNoticeModal(웹 S-5)", () => {
         <SanctionNoticeModal enabled />
       </SWRConfig>
     );
-    expect(screen.getByRole("dialog", { name: "운영정책 위반 안내" })).toBeTruthy();
+    expect(screen.getByRole("dialog", { name: "경고 1회를 받았어요" })).toBeTruthy();
   });
 
   it("미확인 안내가 없거나 비로그인이면 그리지 않는다", async () => {

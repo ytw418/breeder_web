@@ -89,7 +89,7 @@ export default function BlockedUsersClient() {
   }
 
   return (
-    <Layout canGoBack title="차단 관리" seoTitle="차단 관리">
+    <Layout canGoBack title="차단 관리" seoTitle="차단 관리" hideHeaderActions>
       <div className="bg-app-bg pb-4">{content}</div>
     </Layout>
   );

@@ -442,8 +442,8 @@ export function normalizedPostBody(description: string, imageIds: readonly strin
 }
 
 /**
- * 툴바 글자 수 '1,520/2,000'. 본문이 1,500자를 넘으면 사진 수 왼쪽에 보이고 2,000 초과면 danger(앱 PostBodyToolbar 와 같다).
- * 시안: 앱 design/mockups/post-upload/A2-karrot.html ④(2026-10-21)
+ * 툴바 글자 수 '1,850/2,000자'. 본문이 1,800자(상한의 90%)를 넘으면 사진 수 왼쪽에 보이고 2,000 초과면 danger(앱 PostBodyToolbar 와 같다).
+ * 시안: 앱 design/mockups/post-upload/A2-karrot.html ④(2026-10-21, 같은 날 토스 디자인 리뷰로 단위를 붙이고 1,500 → 1,800)
  */
 export function PostBodyTextCounter({ count }: { count: number }) {
   if (count < POST_BODY_COUNTER_FROM) return null;
@@ -452,7 +452,7 @@ export function PostBodyTextCounter({ count }: { count: number }) {
       aria-label={`글자 수 ${count}자, 최대 ${POST_BODY_TEXT_MAX}자`}
       className={cn("ml-auto pr-3 text-[12px]", count > POST_BODY_TEXT_MAX ? "text-app-danger" : "text-app-muted")}
     >
-      {count.toLocaleString("ko-KR")}/{POST_BODY_TEXT_MAX.toLocaleString("ko-KR")}
+      {count.toLocaleString("ko-KR")}/{POST_BODY_TEXT_MAX.toLocaleString("ko-KR")}자
     </span>
   );
 }

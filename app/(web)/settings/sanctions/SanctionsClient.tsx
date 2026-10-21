@@ -101,7 +101,7 @@ export default function SanctionsClient() {
   }
 
   return (
-    <Layout canGoBack title="내 제재 내역" seoTitle="내 제재 내역">
+    <Layout canGoBack title="내 제재 내역" seoTitle="내 제재 내역" hideHeaderActions>
       <div className="bg-app-bg pb-4">{content}</div>
     </Layout>
   );
