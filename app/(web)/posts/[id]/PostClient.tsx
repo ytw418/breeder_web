@@ -43,9 +43,13 @@ import DebateDetail from "@components/features/debate/DebateDetail";
 type PostComment = NonNullable<PostDetailResponse["post"]>["comments"][number];
 type ReportTarget = { type: "POST" | "COMMENT"; id: number };
 type BlockTarget = { id: number; name: string };
-/** 입력바 모드: 답글(루트 id·대상 이름) 또는 내 댓글 수정 */
+/**
+ * 입력바 모드: 답글 또는 내 댓글 수정.
+ * 답글의 rootId 는 입력바 표시·삭제 처리용 묶음 루트, targetId 는 누른 댓글이다. 서버에는 targetId 를 보낸다
+ * (서버가 루트에 붙이고, 답글에 단 답글이면 그 작성자를 replyToUser·답글 알림 대상으로 남긴다).
+ */
 type ComposerMode =
-  | { kind: "reply"; rootId: number; name: string }
+  | { kind: "reply"; rootId: number; targetId: number; name: string }
   | { kind: "edit"; comment: PostComment };
 
 type CommentMutationResult = {
@@ -355,7 +359,7 @@ const PostClient = ({
               headers: { "Content-Type": "application/json" },
               body: JSON.stringify({
                 comment: nextComment,
-                ...(mode?.kind === "reply" ? { parentId: mode.rootId } : {}),
+                ...(mode?.kind === "reply" ? { parentId: mode.targetId } : {}),
               }),
             });
       const result = (await response.json().catch(() => null)) as CommentMutationResult;
@@ -440,7 +444,10 @@ const PostClient = ({
           setComment("");
           setComposerMode(null);
         }
-        if (composerMode?.kind === "reply" && composerMode.rootId === commentDelete.id) {
+        if (
+          composerMode?.kind === "reply" &&
+          (composerMode.rootId === commentDelete.id || composerMode.targetId === commentDelete.id)
+        ) {
           setComposerMode(null);
         }
         setCommentDelete(null);
@@ -511,7 +518,13 @@ const PostClient = ({
   };
 
   // 질문 답변 채택(질문자만). 채택하면 댓글에 '질문자 채택' 띠, 목록 질문 pill 이 '해결'로 바뀐다.
-  const acceptedCommentId = post?.acceptedCommentId ?? null;
+  // 채택한 댓글이 지워졌거나 숨겨졌거나 차단해 목록에서 빠졌으면 채택이 없는 것으로 본다
+  // (그래야 다른 답을 채택할 수 있다. 앱 src/app/posts/[id].tsx 와 같은 규칙).
+  const acceptedCommentId = useMemo(() => {
+    const id = post?.acceptedCommentId ?? null;
+    if (id == null) return null;
+    return post?.comments?.some((item) => item.id === id && !item.deletedAt && !item.isHidden) ? id : null;
+  }, [post?.acceptedCommentId, post?.comments]);
   const setAcceptedAnswer = async (commentId: number | null) => {
     if (!post) return;
     try {
@@ -898,7 +911,7 @@ const PostClient = ({
                       // 답글의 답글도 루트에 달고, 입력바에는 누른 댓글의 작성자를 보여 준다.
                       // 답글에 단 답글이면 입력칸을 '@이름 ' 으로 채운다(쓰던 글이 있으면 그대로 둔다).
                       onReply={() => {
-                        startComposer({ kind: "reply", rootId: root.id, name: item.user?.name ?? "" });
+                        startComposer({ kind: "reply", rootId: root.id, targetId: item.id, name: item.user?.name ?? "" });
                         if (user && item !== root && item.user?.name && (!comment.trim() || /^@\S+\s*$/.test(comment))) {
                           setComment(mentionPrefill(item.user.name));
                         }

@@ -242,6 +242,7 @@ describe("POST /api/admin/moderation 조치", () => {
     expect(mockClient.comment.update).toHaveBeenCalledWith({
       where: { id: 31 },
       data: { isHidden: true },
+      select: { postId: true },
     });
     // 댓글 알림은 댓글 내용으로 부르고 게시글로 연결한다.
     expect(mockCreateNotification).toHaveBeenCalledWith(
