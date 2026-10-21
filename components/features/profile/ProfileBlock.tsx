@@ -32,7 +32,14 @@ export interface ProfileBlockUser {
   breederPrograms?: BreederProgramSummary[];
   /** 가입 시각(신뢰 줄 '브리디 N개월차'). */
   createdAt?: string | Date;
-  _count?: { followers: number; following: number; posts: number; completedSales?: number };
+  _count?: {
+    followers: number;
+    following: number;
+    posts: number;
+    completedSales?: number;
+    /** 받은 거래 후기 수(신뢰 줄 '후기 N', 1 이상일 때만). */
+    tradeReviews?: number;
+  };
   /** 내 동네(신뢰 줄 끝 '· 서울', community-vibe §3.8). */
   regionSido?: string | null;
   regionSigungu?: string | null;
@@ -174,12 +181,14 @@ export function ProfileBlock({
   const hasProgramBadge = (user?.breederPrograms ?? []).some((program) => program.status === "ACTIVE");
   const hasPills = badges.length > 0 || earnedTitles.length > 0 || lockedTitles.length > 0 || hasProgramBadge;
   const regionLabel = user?.regionSido ? regionScopeLabel(user.regionSido, user.regionSigungu) : "";
-  // 신뢰 줄: "거래 완료 12 · 브리디 8개월차"(앱 docs/prd/profile.md v5 F-18). 탈퇴 사용자·로딩 중엔 그리지 않는다.
+  // 신뢰 줄: "거래 완료 12 · 후기 3 · 브리디 8개월차"(앱 docs/prd/profile.md v5 F-18, trade-review.md S-9 — 표시만).
+  // 탈퇴 사용자·로딩 중엔 그리지 않는다.
   const trustLine =
     !loading && user && name !== DELETED_USER_LABEL && !isDeletedUserName(name)
       ? [
           profileTrustLine({
             completedSales: user._count?.completedSales,
+            tradeReviews: user._count?.tradeReviews,
             createdAt: user.createdAt ? new Date(user.createdAt).toISOString() : null,
           }),
           regionLabel || null,

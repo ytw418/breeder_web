@@ -69,7 +69,6 @@ function ConfirmSheet({
   const [picked, setPicked] = useState<string[]>([]);
   const [pending, setPending] = useState(false);
   const withReview = Boolean(onSubmitReview);
-  const keywords = keywordsForProduct(product.productType);
 
   const submit = async (reviewKeywords: string[]) => {
     if (pending) return;
@@ -115,19 +114,6 @@ function ConfirmSheet({
     }
   };
 
-  const toggle = (key: string) => {
-    if (pending) return;
-    if (picked.includes(key)) {
-      setPicked(picked.filter((item) => item !== key));
-      return;
-    }
-    if (picked.length >= TRADE_REVIEW_MAX_KEYWORDS) {
-      toast.info(`${TRADE_REVIEW_MAX_KEYWORDS}개까지 고를 수 있어요`);
-      return;
-    }
-    setPicked([...picked, key]);
-  };
-
   return (
     <TradeSheet
       title="입양 확정"
@@ -156,44 +142,94 @@ function ConfirmSheet({
         </div>
       }
     >
-      <div className="mx-4 mt-2 flex h-14 items-center gap-3">
-        <span className="relative h-10 w-10 shrink-0 overflow-hidden rounded-lg bg-app-placeholder">
-          {product.photo ? (
-            <Image
-              src={makeImageUrl(product.photo, "product")}
-              alt=""
-              width={40}
-              height={40}
-              className="h-full w-full object-cover"
-            />
-          ) : null}
-        </span>
-        <span className="min-w-0 flex-1">
-          <span className="block truncate text-[14px] font-semibold text-app-text">{product.name}</span>
-          <span className="mt-0.5 block truncate text-[12px] text-app-muted">
-            {`${product.sellerName} · ${formatProductPrice(product.price)}`}
-          </span>
-        </span>
-      </div>
-
+      <TradeProductSummary product={product} />
       {withReview ? (
-        <>
-          <p className="px-4 pb-2.5 pt-4 text-[15px] font-semibold text-app-text">
-            어떤 점이 좋았나요? <span className="text-[13px] font-normal text-app-muted">(선택, 1~5개)</span>
-          </p>
-          <div className="flex flex-wrap gap-2 px-4" role="group" aria-label="좋았던 점">
-            {keywords.map((item) => (
-              <KeywordChip
-                key={item.key}
-                label={item.label}
-                checked={picked.includes(item.key)}
-                onClick={() => toggle(item.key)}
-              />
-            ))}
-          </div>
-        </>
+        <TradeKeywordPicker
+          productType={product.productType}
+          picked={picked}
+          onChange={setPicked}
+          disabled={pending}
+          optional
+        />
       ) : null}
     </TradeSheet>
+  );
+}
+
+/** 시트 맨 위 분양글 요약 56(사진 40 r8 · 제목 14/600 · '분양자 · 가격' 12 muted, 시안 .sum). 거래 후기 시트도 쓴다. */
+export function TradeProductSummary({ product }: { product: AdoptionConfirmProduct }) {
+  return (
+    <div className="mx-4 mt-2 flex h-14 items-center gap-3">
+      <span className="relative h-10 w-10 shrink-0 overflow-hidden rounded-lg bg-app-placeholder">
+        {product.photo ? (
+          <Image
+            src={makeImageUrl(product.photo, "product")}
+            alt=""
+            width={40}
+            height={40}
+            className="h-full w-full object-cover"
+          />
+        ) : null}
+      </span>
+      <span className="min-w-0 flex-1">
+        <span className="block truncate text-[14px] font-semibold text-app-text">{product.name}</span>
+        <span className="mt-0.5 block truncate text-[12px] text-app-muted">
+          {`${product.sellerName} · ${formatProductPrice(product.price)}`}
+        </span>
+      </span>
+    </div>
+  );
+}
+
+/**
+ * '어떤 점이 좋았나요?' 키워드 칩 묶음(시안 .kw). 이 분양글 종류에 맞는 키워드만(용품이면 공통 5개),
+ * 6번째를 누르면 '5개까지 고를 수 있어요'. optional 이면 제목 뒤 '(선택, 1~5개)', 아니면 '(1~5개)'.
+ */
+export function TradeKeywordPicker({
+  productType,
+  picked,
+  onChange,
+  disabled,
+  optional = false,
+}: {
+  productType: string | null;
+  picked: string[];
+  onChange: (next: string[]) => void;
+  disabled?: boolean;
+  optional?: boolean;
+}) {
+  const keywords = keywordsForProduct(productType);
+  const toggle = (key: string) => {
+    if (disabled) return;
+    if (picked.includes(key)) {
+      onChange(picked.filter((item) => item !== key));
+      return;
+    }
+    if (picked.length >= TRADE_REVIEW_MAX_KEYWORDS) {
+      toast.info(`${TRADE_REVIEW_MAX_KEYWORDS}개까지 고를 수 있어요`);
+      return;
+    }
+    onChange([...picked, key]);
+  };
+  return (
+    <>
+      <p className="px-4 pb-2.5 pt-4 text-[15px] font-semibold text-app-text">
+        어떤 점이 좋았나요?{" "}
+        <span className="text-[13px] font-normal text-app-muted">
+          {optional ? `(선택, 1~${TRADE_REVIEW_MAX_KEYWORDS}개)` : `(1~${TRADE_REVIEW_MAX_KEYWORDS}개)`}
+        </span>
+      </p>
+      <div className="flex flex-wrap gap-2 px-4" role="group" aria-label="좋았던 점">
+        {keywords.map((item) => (
+          <KeywordChip
+            key={item.key}
+            label={item.label}
+            checked={picked.includes(item.key)}
+            onClick={() => toggle(item.key)}
+          />
+        ))}
+      </div>
+    </>
   );
 }
 

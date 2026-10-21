@@ -59,6 +59,14 @@ export function makeImageUrl(
   return `https://imagedelivery.net/OvWZrAz6J6K7n9LKUH5pKw/${normalized}/${variant}`;
 }
 
+/** 상세 메타·거래 후기 날짜(앱 formatMonthDay): "10월 6일". 값이 없거나 잘못되면 빈 문자열. */
+export function formatMonthDay(value: string | Date | null | undefined): string {
+  if (!value) return "";
+  const date = value instanceof Date ? value : new Date(value);
+  if (Number.isNaN(date.getTime())) return "";
+  return `${date.getMonth() + 1}월 ${date.getDate()}일`;
+}
+
 /**
  * 시간 차이를 계산하는 함수
  * @param targetDate 비교할 날짜

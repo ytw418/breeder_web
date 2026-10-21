@@ -34,6 +34,10 @@ interface Sale {
     /** 판매자가 삭제했거나 관리자가 숨긴 상품. 기록 당사자(본인)에게만 내려간다. */
     isDeleted: boolean;
     isHidden: boolean;
+    userId?: number;
+    productType?: string | null;
+    /** 입양내역에만: 분양자(입양내역 카드 아래 '○○님에게 입양'). 탈퇴한 분양자는 '탈퇴한 사용자'. */
+    user?: { id: number; name: string } | null;
     _count: {
       favs: number;
     };

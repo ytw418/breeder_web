@@ -25,7 +25,7 @@ import { toast } from "@libs/client/toast";
 import { setPendingAction, usePendingAction } from "@libs/client/pendingAction";
 import { authFetch } from "@libs/client/authFetch";
 import { shareOrCopy, copyText, absoluteUrl } from "@libs/client/share";
-import { makeImageUrl } from "@libs/client/utils";
+import { formatMonthDay, makeImageUrl } from "@libs/client/utils";
 import { ANALYTICS_EVENTS, trackEvent } from "@libs/client/analytics";
 import { extractProductId, getProductPath } from "@libs/product-route";
 import { formatProductPrice } from "@libs/productRules";
@@ -35,7 +35,11 @@ import FollowButton from "@components/features/profile/FollowButton";
 import { AdopterPickerSheet, type AdopterPickerMode } from "@components/features/trade/AdopterPickerSheet";
 import { AdoptionConfirmSheet } from "@components/features/trade/AdoptionConfirmSheet";
 import { TradeActionBlock } from "@components/features/trade/TradeActionBlock";
-import type { ProductTradeInfo } from "@libs/shared/tradeReview";
+import { TradeReviewSection } from "@components/features/trade/TradeReviewCard";
+import { useTradeReviewRefresh } from "@components/features/trade/useTradeReviewRefresh";
+import { TradeReviewReplySheet } from "@components/features/trade/TradeReviewReplySheet";
+import { postProductReview, TradeReviewSheet } from "@components/features/trade/TradeReviewSheet";
+import { isHiddenTradeReview, type ProductTradeInfo } from "@libs/shared/tradeReview";
 
 // 분양완료(sold)·입양 확정(purchase)은 입양자 시트·입양 확정 시트가 보낸다(앱 docs/prd/trade-review.md).
 type ProductActionPayload =
@@ -46,15 +50,6 @@ type DetailProduct = NonNullable<ItemDetailResponse["product"]> & {
   _count?: { favs?: number };
   wishCount?: number;
 };
-
-
-/** 상세 메타의 날짜(앱 formatMonthDay): "10월 6일" */
-export function formatMonthDay(value: string | Date | null | undefined): string {
-  if (!value) return "";
-  const date = value instanceof Date ? value : new Date(value);
-  if (Number.isNaN(date.getTime())) return "";
-  return `${date.getMonth() + 1}월 ${date.getDate()}일`;
-}
 
 const successMessage = (payload: ProductActionPayload) => {
   switch (payload.action) {
@@ -92,11 +87,13 @@ function ImagePlaceholderIcon({ className }: { className: string }) {
  * 판매자 행, 혈통 행(붙인 혈통이 있을 때), "조회 N · 찜 N", 소유자 관리 블록, 하단 고정 바(찜·가격·채팅하기), 연관 상품.
  * SSR 은 비로그인 조회라 삭제·숨김 상품은 product 없이 오고, 소유자 토큰으로 다시 받아 안내만 보인다.
  * 분양완료 글은 입양자 지정·입양 확정 영역(TradeActionBlock)을 두고, 지정된 입양자에게는 하단 바 주 버튼이
- * '입양 확정'('채팅하기'는 보조)이 된다(앱 docs/prd/trade-review.md S-3, 시안 #detail-*).
+ * '입양 확정'('채팅하기'는 보조)이 된다(앱 docs/prd/trade-review.md S-3, 시안 #detail-*). 확정 뒤 주 버튼은 '거래 후기 쓰기'이고,
+ * 후기는 본문 '거래 후기' 블록(누구에게나 공개, 분양자는 '답글 남기기')으로 보인다.
  */
 const ProductClient = ({
   product: initialProduct,
   relatedProducts: initialRelated,
+  review: initialReview,
   footer,
 }: ItemDetailResponse & {
   /** '비슷한 분양' 아래 '더 둘러보기'(서버가 그린 인기 글·광고·바로가기). */
@@ -106,7 +103,7 @@ const ProductClient = ({
   const params = useParams();
   const productId = extractProductId(params?.id as string);
   const detailKey = productId ? `/api/products/${productId}` : null;
-  const { user, isLoading: isUserLoading, canEditAnyContent } = useUser();
+  const { user, isLoading: isUserLoading, canEditAnyContent, isAdmin } = useUser();
   const { mutate: globalMutate } = useSWRConfig();
   const { isBlocked, unblock, isPending: blockPending } = useBlocks();
   const { confirm, confirmDialog } = useConfirmDialog();
@@ -121,6 +118,11 @@ const ProductClient = ({
   // 입양자 지정 시트(분양완료로 바꿀 때 'sold', 분양완료 뒤 지정·바꾸기 'assign')와 입양 확정 시트.
   const [pickerMode, setPickerMode] = useState<AdopterPickerMode | null>(null);
   const [confirmOpen, setConfirmOpen] = useState(false);
+  // 거래 후기 시트(입양 확정한 입양자)·답글 시트(분양자)와 후기 시트 '신고'로 여는 분양자 신고 시트.
+  const [reviewOpen, setReviewOpen] = useState(false);
+  const [replyOpen, setReplyOpen] = useState(false);
+  const [sellerReportOpen, setSellerReportOpen] = useState(false);
+  const refreshTradeReviews = useTradeReviewRefresh();
   // 이 화면에서 '입양자 지정 요청'을 보냈다(버튼 대신 안내를 둔다).
   const [buyerRequested, setBuyerRequested] = useState(false);
   const [requestPending, setRequestPending] = useState(false);
@@ -139,6 +141,8 @@ const ProductClient = ({
   // 입양자 지정·입양 확정 상태(보는 사람 기준). 로그인 토큰으로 받은 응답에만 믿고 쓴다(SSR 은 비로그인 값).
   // 조회 실패·옛 응답이면 없다 → 거래 버튼을 그리지 않는다.
   const trade = data?.trade;
+  // 이 분양글의 거래 후기(공개 — 비로그인 SSR 에도 실린다. 숨긴 후기는 당사자·운영자에게만 자리표시). 없으면 영역을 그리지 않는다.
+  const review = (data ? data.review : initialReview) ?? null;
   const currentStatus = product?.status || "판매중";
   const isOwner = Boolean(user?.id && product?.user?.id === user.id);
   // 관리자 ⋯ 조치(숨기기·숨김 해제·삭제). 관리자가 아니면 항목이 없다.
@@ -549,9 +553,24 @@ const ProductClient = ({
     .filter(Boolean)
     .join(" · ");
   const photoUrls = photos.map((photo) => makeImageUrl(photo, "public"));
-  // 하단 바 주 버튼(지정된 입양자 '입양 확정'). 없으면 원래 바(찜 · 가격 · '채팅하기').
-  const tradePrimary =
-    !isOwner && trade?.canConfirm ? { label: "입양 확정", onClick: () => setConfirmOpen(true) } : null;
+  // 하단 바 주 버튼(지정된 입양자 '입양 확정' → 확정 뒤 '거래 후기 쓰기'). 없으면 원래 바(찜 · 가격 · '채팅하기').
+  const tradePrimary = isOwner
+    ? null
+    : trade?.canConfirm
+      ? { label: "입양 확정", onClick: () => setConfirmOpen(true) }
+      : trade?.canReview
+        ? { label: "거래 후기 쓰기", onClick: () => setReviewOpen(true) }
+        : null;
+  // 입양 확정·거래 후기 시트의 분양글 요약.
+  const tradeSheetProduct = {
+    id: product.id,
+    name: product.name,
+    price: product.price,
+    photo: photos[0] ?? null,
+    sellerName: product.user?.name ?? "분양자",
+    productType: product.productType ?? null,
+  };
+  const publicReview = review && !isHiddenTradeReview(review) ? review : null;
 
   return (
     <Layout canGoBack homeAction title={product.name || "상세 정보"} seoTitle={product.name} headerRight={headerRight}>
@@ -783,6 +802,15 @@ const ProductClient = ({
                 requested={buyerRequested}
               />
             ) : null}
+            {/* 거래 후기(누구에게나 공개, 앱 docs/prd/trade-review.md S-3). 분양자는 답글 전이면 '답글 남기기', 운영자는 ⋯ 숨김. */}
+            {review ? (
+              <TradeReviewSection
+                review={review}
+                canReply={Boolean(trade?.canReply)}
+                onReply={() => setReplyOpen(true)}
+                moderator={isAdmin}
+              />
+            ) : null}
 
             {relatedProducts.length > 0 ? (
               <section className="mt-6 border-t-8 border-app-gap pt-6">
@@ -848,7 +876,8 @@ const ProductClient = ({
                 </svg>
               </button>
               {tradePrimary ? (
-                // 지정된 입양자: '채팅하기'는 보조, 주 버튼이 '입양 확정'. 두 버튼이 남은 폭을 나누고 가격은 본문에만 둔다(시안 #detail-buyer-assigned).
+                // 지정된 입양자: '채팅하기'는 보조, 주 버튼이 '입양 확정'·'거래 후기 쓰기'. 두 버튼이 남은 폭을 나누고
+                // 가격은 본문에만 둔다(시안 #detail-buyer-assigned #detail-buyer-confirmed).
                 <>
                   <button
                     type="button"
@@ -920,16 +949,36 @@ const ProductClient = ({
       />
       <AdoptionConfirmSheet
         open={confirmOpen}
-        product={{
-          id: product.id,
-          name: product.name,
-          price: product.price,
-          photo: photos[0] ?? null,
-          sellerName: product.user?.name ?? "분양자",
-          productType: product.productType ?? null,
-        }}
+        product={tradeSheetProduct}
         onClose={() => setConfirmOpen(false)}
         onChanged={(result) => handleTradeChanged(result)}
+        // 확정과 함께 고른 키워드로 거래 후기를 보낸다(실패하면 시트가 E-13 토스트 뒤 '거래 후기 쓰기'로 남긴다).
+        onSubmitReview={async (keywords) => {
+          await postProductReview(product.id, keywords);
+        }}
+      />
+      <TradeReviewSheet
+        open={reviewOpen}
+        product={tradeSheetProduct}
+        onClose={() => setReviewOpen(false)}
+        onChanged={() => void refreshTradeReviews()}
+        onReportSeller={() => {
+          if (requireLogin()) return;
+          setSellerReportOpen(true);
+        }}
+      />
+      <TradeReviewReplySheet
+        open={replyOpen}
+        productId={product.id}
+        review={publicReview}
+        onClose={() => setReplyOpen(false)}
+        onChanged={() => void refreshTradeReviews()}
+      />
+      <ReportSheet
+        open={sellerReportOpen}
+        targetType="USER"
+        targetId={product.user?.id ?? null}
+        onClose={() => setSellerReportOpen(false)}
       />
       {confirmDialog}
     </Layout>

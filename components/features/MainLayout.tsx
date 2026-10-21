@@ -271,6 +271,8 @@ const MENU_ICONS = {
     "M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z",
   ],
   bag: ["M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z"],
+  // 받은 거래 후기(앱 SideMenu shared star, 시안 trade-review i-star)
+  star: ["M12 4l2.4 4.9 5.4.8-3.9 3.8.9 5.4L12 16.3 7.2 18.9l.9-5.4-3.9-3.8 5.4-.8z"],
   heart: [
     "M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z",
   ],
@@ -324,6 +326,8 @@ function buildMenuSections(userId: number | null): { title: string; rows: MenuRo
         { label: "분양내역", icon: "cart", href: `/profiles/${owner}/sales`, requiresAuth: true },
         { label: "입양내역", icon: "bag", href: `/profiles/${owner}/purchases`, requiresAuth: true },
         { label: "관심목록", icon: "heart", href: `/profiles/${owner}/favs`, requiresAuth: true },
+        // 내가 받은 거래 후기(앱 docs/prd/trade-review.md S-9). 프로필 분양 탭 '받은 거래 후기 N ›'와 같은 화면.
+        { label: "받은 거래 후기", icon: "star", href: `/profiles/${owner}/reviews`, requiresAuth: true },
       ],
     },
     {
