@@ -3,6 +3,8 @@ import { capturePosthogEvent } from "@libs/client/posthog";
 export const ANALYTICS_EVENTS = {
   // 로그인 퍼널 시작(가입·로그인 완료는 서버 signup_completed·login_completed). 앱도 같은 이름을 쓴다.
   loginStarted: "login_started",
+  // 로그인 실패(제공자 method·사유 reason). 앱도 같은 이름을 쓴다(2026-10-21 감사 16번 — 웹은 실패를 기록하지 않았다).
+  loginFailed: "login_failed",
   homeBannerClicked: "home_banner_clicked",
   homeCategorySelected: "home_category_selected",
   homeSectionView: "home_section_view",

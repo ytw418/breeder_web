@@ -50,7 +50,7 @@ describe("UniqueName 함수", () => {
     expect(client.user.findUnique).toHaveBeenCalledTimes(1);
   });
 
-  it("랜덤하게 생성된 닉네임이 중복되는 경우 재시도 하는지 확인", async () => {
+  it("잘린 최종 이름으로 중복을 검사하고, 겹치면 다시 만든다", async () => {
     (
       client.user.findUnique as jest.MockedFunction<
         typeof client.user.findUnique
@@ -63,8 +63,11 @@ describe("UniqueName 함수", () => {
 
     const uniqueName = await UniqueName(); // UniqueName 함수 실행
 
-    expect(uniqueName).toBeDefined();
     expect(uniqueName.length).toBeLessThanOrEqual(8);
     expect(client.user.findUnique).toHaveBeenCalledTimes(2);
+    // 돌려준 이름 그대로 검사했어야 한다(10자로 검사하고 8자로 잘라 돌려주면 P2002 로 가입이 실패했다).
+    expect(client.user.findUnique).toHaveBeenLastCalledWith(
+      expect.objectContaining({ where: { name: uniqueName } })
+    );
   });
 });

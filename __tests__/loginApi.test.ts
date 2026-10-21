@@ -262,12 +262,27 @@ describe("/api/auth/login 가입·로그인 계측", () => {
     });
   });
 
+  it("무작위 닉네임이 겹쳐 P2002(name) 가 나면 다시 만들어 가입하고 isNewUser 를 내려준다", async () => {
+    mockVerifySocialLogin.mockResolvedValue({ snsId: "kakao-99", email: null, avatar: null });
+    mockClient.user.findUnique.mockResolvedValue(null);
+    mockCreateUser
+      .mockRejectedValueOnce({ code: "P2002", meta: { target: ["name"] } })
+      .mockResolvedValueOnce({ ...existingUser, id: 4, snsId: "kakao-99" });
+
+    const res = await login({ token: "valid", name: "x", provider: "kakao" });
+
+    expect(res.statusCode).toBe(200);
+    expect(mockCreateUser).toHaveBeenCalledTimes(2);
+    expect(res.body.isNewUser).toBe(true);
+  });
+
   it("기존 계정이면 login_completed 만 보낸다", async () => {
     mockVerifySocialLogin.mockResolvedValue({ snsId: "victim-uid", email: null, avatar: null });
     mockClient.user.findUnique.mockResolvedValue(existingUser);
 
-    await login({ token: "valid", name: "x", provider: "google" });
+    const res = await login({ token: "valid", name: "x", provider: "google" });
 
+    expect(res.body.isNewUser).toBe(false);
     expect(mockCapture).toHaveBeenCalledTimes(1);
     expect(mockCapture).toHaveBeenCalledWith(1, "login_completed", { method: "google", platform: "web" });
   });

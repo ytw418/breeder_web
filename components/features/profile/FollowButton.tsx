@@ -15,6 +15,7 @@ import { revalidateWhere, updateInfiniteWhere } from "@libs/client/swrRevalidate
 import { ActionSheet } from "@components/app/ActionSheet";
 import { toLoginHref } from "@components/features/MainLayout";
 import { authFetch } from "@libs/client/authFetch";
+import { setPendingAction, usePendingAction } from "@libs/client/pendingAction";
 import {
   isFollowListKey,
   isFollowingFeedKey,
@@ -31,6 +32,10 @@ import {
 import { toast } from "@libs/client/toast";
 import { cn } from "@libs/client/utils";
 import useUser from "hooks/useUser";
+import type { SuggestedUsersResponse } from "pages/api/users/suggested";
+
+/** 팔로우 추천(시작하기·팔로잉 빈 상태) SWR 키. */
+const isSuggestedKey = (key: unknown) => typeof key === "string" && key.startsWith("/api/users/suggested");
 
 function useFollowMutation(targetUserId: number, returnPath: string) {
   const router = useRouter();
@@ -61,12 +66,23 @@ function useFollowMutation(targetUserId: number, returnPath: string) {
       (data?: NearbyLike) => withNearbyFollowRow(data, targetUserId, isFollowing),
       { revalidate: false }
     );
+    // 팔로우 추천 행. 서버는 팔로우 중인 사람을 빼고 주므로 다시 받지 않고 버튼만 바꾼다.
+    void mutate(
+      isSuggestedKey,
+      (data?: SuggestedUsersResponse) =>
+        data
+          ? { ...data, users: data.users.map((row) => (row.id === targetUserId ? { ...row, isFollowing } : row)) }
+          : data,
+      { revalidate: false }
+    );
   };
 
   /** 지금 상태(isFollowing)를 받아 반대로 바꾼다. 처리 중이면 무시한다. */
   const toggle = async (isFollowing: boolean) => {
     if (!me) {
-      router.push(toLoginHref(returnPath));
+      // 로그인 뒤 이 화면으로 돌아와 팔로우를 이어 한다('로그인하고 팔로우하기').
+      if (!isFollowing) setPendingAction({ kind: "follow", targetId: targetUserId, returnPath });
+      router.push(toLoginHref(returnPath, "follow"));
       return;
     }
     if (pending) return;
@@ -98,6 +114,11 @@ function useFollowMutation(targetUserId: number, returnPath: string) {
       revalidateWhere({ cache, mutate }, isFollowingFeedKey);
     }
   };
+
+  // 로그인 벽에서 누른 팔로우를 로그인 뒤 이어 한다. 팔로우할 상태(true)를 보내므로 이미 팔로우 중이어도 그대로다.
+  usePendingAction("follow", targetUserId, () => {
+    if (!pending) void toggle(false);
+  });
 
   return { toggle, pending };
 }

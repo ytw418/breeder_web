@@ -7,7 +7,7 @@ import { useParams, useRouter } from "next/navigation";
 import useSWR, { useSWRConfig } from "swr";
 import { useMarkSeenOnView } from "@libs/client/unreadMarks";
 
-import Layout from "@components/features/MainLayout";
+import Layout, { toLoginHref } from "@components/features/MainLayout";
 import Image from "@components/atoms/Image";
 import MarkdownPreview from "@components/features/product/MarkdownPreview";
 import ImageLightbox from "@components/features/image/ImageLightbox";
@@ -22,6 +22,7 @@ import useUser from "hooks/useUser";
 import useBlocks from "hooks/useBlocks";
 import useConfirmDialog from "hooks/useConfirmDialog";
 import { toast } from "@libs/client/toast";
+import { setPendingAction, usePendingAction } from "@libs/client/pendingAction";
 import { authFetch } from "@libs/client/authFetch";
 import { shareOrCopy, copyText, absoluteUrl } from "@libs/client/share";
 import { makeImageUrl } from "@libs/client/utils";
@@ -42,7 +43,6 @@ type DetailProduct = NonNullable<ItemDetailResponse["product"]> & {
   wishCount?: number;
 };
 
-const toLoginHref = (next: string) => `/auth/login?next=${encodeURIComponent(next)}`;
 
 /** 상세 메타의 날짜(앱 formatMonthDay): "10월 6일" */
 export function formatMonthDay(value: string | Date | null | undefined): string {
@@ -109,7 +109,7 @@ const ProductClient = ({
   const { isBlocked, unblock, isPending: blockPending } = useBlocks();
   const { confirm, confirmDialog } = useConfirmDialog();
 
-  const { data, error, isLoading, mutate } = useSWR<ItemDetailResponse>(detailKey, {
+  const { data, error, isLoading, isValidating, mutate } = useSWR<ItemDetailResponse>(detailKey, {
     revalidateOnFocus: false,
   });
 
@@ -181,9 +181,13 @@ const ProductClient = ({
       .catch(() => undefined);
   }, [product?.id, product?.user?.id, user?.id, isUserLoading, isInactive, mutate]);
 
-  const requireLogin = () => {
+  const requireLogin = (reason?: "fav" | "chat") => {
     if (user) return false;
-    router.push(toLoginHref(productPath));
+    // 찜·채팅은 로그인 뒤 이 분양글로 돌아와 이어 한다(usePendingAction).
+    if (reason && Number(productId)) {
+      setPendingAction({ kind: reason, targetId: Number(productId), returnPath: productPath });
+    }
+    router.push(toLoginHref(productPath, reason));
     return true;
   };
 
@@ -292,7 +296,7 @@ const ProductClient = ({
       action: isLiked ? "unfavorite" : "favorite",
       requires_login: !user,
     });
-    if (requireLogin() || favPending || !product) return;
+    if (requireLogin("fav") || favPending || !product) return;
     setFavPending(true);
     const nextLiked = !isLiked;
     const nextCount = Math.max(0, wishCount + (nextLiked ? 1 : -1));
@@ -342,7 +346,7 @@ const ProductClient = ({
       user_id: user?.id || null,
       requires_login: !user,
     });
-    if (requireLogin() || chatPending || !product) return;
+    if (requireLogin("chat") || chatPending || !product) return;
     if (user?.id === product.user?.id) {
       toast.error("자기 자신과는 채팅할 수 없습니다.");
       return;
@@ -382,6 +386,19 @@ const ProductClient = ({
       setChatPending(false);
     }
   };
+
+  // 로그인 벽에서 누른 찜·채팅하기를 로그인 뒤 이어 한다. 찜은 토글이라 로그인한 계정 기준 상세를 받은 뒤
+  // 아직 찜하지 않았을 때만 누른다.
+  const detailReady = Boolean(user && data?.product && !isValidating);
+  usePendingAction(
+    "fav",
+    Number(productId) || null,
+    () => {
+      if (!isLiked) void handleFavorite();
+    },
+    detailReady
+  );
+  usePendingAction("chat", Number(productId) || null, () => void handleChat(), detailReady);
 
   // ── 로딩·오류 ─────────────────────────────────────────────────────────
   if (!product) {

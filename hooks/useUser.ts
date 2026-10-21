@@ -8,6 +8,8 @@ interface ProfileResponse {
   isAdmin?: boolean;
   /** 운영자 이메일 계정: 남의 글·댓글·분양글·경매도 수정·삭제 */
   canEditAnyContent?: boolean;
+  /** 운영 크루 계정(분석 identify 의 is_crew) */
+  isCrew?: boolean;
 }
 
 export default function useUser() {
@@ -28,6 +30,7 @@ export default function useUser() {
     user: data?.profile,
     isAdmin: Boolean(data?.isAdmin),
     canEditAnyContent: Boolean(data?.canEditAnyContent),
+    isCrew: Boolean(data?.isCrew),
     isLoading: shouldFetchUser && !data && !error,
     mutate,
   };
