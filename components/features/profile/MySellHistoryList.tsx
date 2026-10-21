@@ -1,14 +1,19 @@
 "use client";
 
-import { useEffect, type ReactNode } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import useSWR from "swr";
+import useSWR, { useSWRConfig } from "swr";
 import MainLayout from "@components/features/MainLayout";
 import { ProductCard } from "@components/app/ProductCard";
+import { AdopterPickerSheet } from "@components/features/trade/AdopterPickerSheet";
+import { InitialAvatar } from "@components/ui/InitialAvatar";
 import useUser from "hooks/useUser";
 import type { MySellHistoryResponseType } from "pages/api/users/[id]/sales";
+import { SOLD_PRODUCT_STATUS, tradeStatusLine } from "@libs/shared/tradeReview";
 import { LoadingBlock } from "./ProfileRows";
+
+type HistoryRecord = MySellHistoryResponseType["mySellHistoryData"][number];
 
 type HistoryKind = "favs" | "sales" | "purchases";
 
@@ -59,14 +64,67 @@ function CenterMessage({
   );
 }
 
+/** 본인 분양내역(분양완료)이면 카드 아래 입양자 줄을 붙인다. 남이 보면 서버가 입양자 칸을 주지 않는다(buyerSource 없음). */
+const hasBuyerLine = (kind: HistoryKind, record: HistoryRecord) =>
+  kind === "sales" &&
+  record.buyerSource !== undefined &&
+  (record.product as { status?: string | null }).status === SOLD_PRODUCT_STATUS;
+
+/**
+ * 본인 분양내역 카드 아래 입양자 줄(앱 profiles/[id]/sales BuyerLine, 시안 #history-cards — 글 열 116 에 맞춘 13 muted):
+ * "아바타 16 · 입양자 ○○ · 입양 확정 대기/완료" / "입양자를 아직 정하지 않았어요 · 지정하기 ›"(brand-text) / "브리디 밖에서 분양".
+ */
+function BuyerLine({ record, onAssign }: { record: HistoryRecord; onAssign: (productId: number) => void }) {
+  const product = record.product as typeof record.product & { status?: string | null };
+  const text = tradeStatusLine(
+    {
+      viewerId: null,
+      sellerId: record.userId,
+      status: product.status ?? "",
+      buyerId: record.buyer?.id ?? null,
+      buyerSource: record.buyerSource ?? null,
+      purchaseConfirmed: Boolean(record.purchaseConfirmed),
+      hasReview: false,
+      hasReply: false,
+      isDeleted: Boolean(product.isDeleted),
+    },
+    record.buyer?.name
+  );
+  if (!text) return null;
+  const canAssign = record.buyerSource == null && !product.isDeleted && !product.isHidden;
+  return (
+    // 카드(relative)의 아래 여백 위로 8 올려 붙인다 — relative 라야 카드 바탕에 가려지지 않는다.
+    <div className="relative -mt-2 flex items-center gap-1.5 border-b border-app-line bg-app-bg pb-3 pl-[116px] pr-4">
+      {record.buyerSource === "bredy" && record.buyer ? (
+        <InitialAvatar name={record.buyer.name} avatar={record.buyer.avatar} size={16} />
+      ) : null}
+      <p className="min-w-0 flex-1 truncate text-[13px] text-app-muted">{text}</p>
+      {canAssign ? (
+        <button
+          type="button"
+          aria-label={`${product.name} 입양자 지정하기`}
+          onClick={() => onAssign(product.id)}
+          className="shrink-0 text-[13px] font-semibold text-app-brand-text"
+        >
+          지정하기 ›
+        </button>
+      ) : null}
+    </div>
+  );
+}
+
 /**
  * 분양·입양·관심 목록(앱 profiles/[id]/sales·purchases·favs). ProductCard 플랫 행 / 빈 상태 14 muted 가운데.
  * 입양내역은 다른 사용자도 볼 수 있다(관심목록만 본인 전용 — 서버가 401·403 으로 막고 여기서는 안내만 한다).
+ * 본인 분양내역은 분양완료 카드 아래 입양자 줄을 붙이고, '지정하기 ›'는 그 자리에서 입양자 시트를 연다(앱 docs/prd/trade-review.md S-10).
  * `/profiles/0/...`(비로그인 사이드 메뉴 링크)처럼 id 가 양의 정수가 아니면 로그인한 내 id 경로로 바꾼다.
  */
 export default function MySellHistoryList({ kind, id }: ProductListProps) {
   const router = useRouter();
   const { user, isLoading: userLoading } = useUser();
+  const { mutate: globalMutate } = useSWRConfig();
+  // '지정하기 ›'로 연 입양자 시트의 분양글 id(상세로 보내지 않고 그 자리에서 고른다).
+  const [pickerProductId, setPickerProductId] = useState<number | null>(null);
   // 양의 정수가 아닌 id(/profiles/0·abc·-1 …)는 내 id 경로로 바꾼다(앱 useOwnProfileRedirect). /api/users/NaN 요청 금지.
   const resolvingOwner = !(Number.isInteger(id) && id > 0);
 
@@ -130,22 +188,26 @@ export default function MySellHistoryList({ kind, id }: ProductListProps) {
             category?: string | null;
             status?: string | null;
           };
+          const withBuyerLine = hasBuyerLine(kind, record);
           return (
-            <ProductCard
-              key={record.id}
-              product={{
-                id: product.id,
-                name: product.name,
-                price: product.price,
-                image: product.photos?.[0] ?? null,
-                createdAt: product.createdAt,
-                category: product.category ?? null,
-                status: product.status ?? null,
-                isDeleted: product.isDeleted,
-                isHidden: product.isHidden,
-                wishCount: product._count?.favs ?? 0,
-              }}
-            />
+            <div key={record.id}>
+              <ProductCard
+                className={withBuyerLine ? "border-b-0" : undefined}
+                product={{
+                  id: product.id,
+                  name: product.name,
+                  price: product.price,
+                  image: product.photos?.[0] ?? null,
+                  createdAt: product.createdAt,
+                  category: product.category ?? null,
+                  status: product.status ?? null,
+                  isDeleted: product.isDeleted,
+                  isHidden: product.isHidden,
+                  wishCount: product._count?.favs ?? 0,
+                }}
+              />
+              {withBuyerLine ? <BuyerLine record={record} onAssign={setPickerProductId} /> : null}
+            </div>
           );
         })}
       </div>
@@ -155,6 +217,18 @@ export default function MySellHistoryList({ kind, id }: ProductListProps) {
   return (
     <MainLayout canGoBack title={TITLE[kind]} seoTitle={TITLE[kind]}>
       {content}
+      {pickerProductId != null ? (
+        <AdopterPickerSheet
+          open
+          productId={pickerProductId}
+          mode="assign"
+          onClose={() => setPickerProductId(null)}
+          onChanged={() => {
+            void mutate();
+            void globalMutate(`/api/products/${pickerProductId}`);
+          }}
+        />
+      ) : null}
     </MainLayout>
   );
 }

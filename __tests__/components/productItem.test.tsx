@@ -4,6 +4,7 @@ const mockUseSWR = jest.fn();
 jest.mock("swr", () => ({
   __esModule: true,
   default: (...args: unknown[]) => mockUseSWR(...args),
+  useSWRConfig: () => ({ mutate: jest.fn() }),
 }));
 const mockReplace = jest.fn();
 jest.mock("next/navigation", () => ({
