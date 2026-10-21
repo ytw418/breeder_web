@@ -12,9 +12,10 @@ import { getTopSpecies } from "@libs/server/profileSpecies";
 import { parsePositiveIntId } from "@libs/shared/normalize";
 import { countProfileBloodlineCards } from "@libs/server/bloodline-visibility";
 import { User } from "@prisma/client";
-import { getLockedTitles } from "@libs/server/lockedTitles";
+import { getProfileTitles } from "@libs/server/lockedTitles";
 import { countCompletedSales } from "@libs/server/profileTrust";
 import type { LockedTitle } from "@libs/shared/communityVibe";
+import type { BreederTitleKey } from "@libs/shared/breederKeywords";
 
 type UserWithCounts = Omit<User, "tokenVersion" | "suspendedUntil" | "snsId" | "phone"> & {
   /** 본인 조회일 때만 내려준다(로그인 식별자·연락처). */
@@ -48,6 +49,8 @@ type UserWithCounts = Omit<User, "tokenVersion" | "suspendedUntil" | "snsId" | "
   breederPrograms?: BreederProgramSummary[];
   /** 본인 조회일 때만: 아직 못 단 칭호(남은 양 적은 순 최대 3, 앱 community-vibe §3.3). */
   lockedTitles?: LockedTitle[];
+  /** 단 칭호 key(누구 프로필이든, 대표 칭호가 맨 앞). 프로필 블록 주황 pill(2026-10-21 감사 #29). */
+  earnedTitles?: BreederTitleKey[];
 };
 
 export interface UserResponse {
@@ -115,7 +118,8 @@ async function handler(
             following: true,
             // 삭제한 상품은 세지 않는다(상품 삭제는 isDeleted 소프트 삭제).
             products: { where: { isDeleted: false } },
-            posts: true,
+            // 운영자가 숨긴 글은 남이 볼 때 세지 않는다(본인에겐 그대로, 2026-10-21 감사 #15).
+            posts: myId === userId ? true : { where: { isHidden: false } },
             Comments: true,
             insectRecords: true,
             receivedReviews: true,
@@ -186,7 +190,7 @@ async function handler(
     safeUser.regionUpdatedAt = null;
   }
 
-  const [badges, breederPrograms, topSpecies, lockedTitles] = await Promise.all([
+  const [badges, breederPrograms, topSpecies, titles] = await Promise.all([
     client.userBadge.findMany({
       where: { userId },
       select: {
@@ -201,8 +205,8 @@ async function handler(
     }),
     getActiveBreederProgramsByUserId(userId),
     getTopSpecies(userId),
-    // 잠금 칭호는 본인에게만 보인다(타인 프로필엔 없음).
-    myId === userId ? getLockedTitles(userId) : Promise.resolve(null),
+    // 단 칭호는 누구에게나, 잠금 칭호는 본인에게만 보인다(타인 프로필엔 없음).
+    getProfileTitles(userId, { includeLocked: myId === userId, representative: user.titleKey }),
   ]);
 
   return res.json({
@@ -215,7 +219,8 @@ async function handler(
       })),
       breederPrograms: getSortedActiveBreederProgramSummaries(breederPrograms),
       topSpecies,
-      ...(lockedTitles ? { lockedTitles } : {}),
+      earnedTitles: titles.earned,
+      ...(titles.locked ? { lockedTitles: titles.locked } : {}),
     },
     isFollowing,
     isBlocked,

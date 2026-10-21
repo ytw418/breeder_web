@@ -1,5 +1,10 @@
 import client from "@libs/server/client";
-import { pickLockedTitles, type LockedTitleStats } from "@libs/shared/breederKeywords";
+import {
+  pickLockedTitles,
+  unlockedTitleKeys,
+  type BreederTitleKey,
+  type LockedTitleStats,
+} from "@libs/shared/breederKeywords";
 import type { LockedTitle } from "@libs/shared/communityVibe";
 
 /**
@@ -40,12 +45,24 @@ export async function getLockedTitleStats(userId: number): Promise<LockedTitleSt
   };
 }
 
-/** 잠금 칭호 최대 3개. 실패하면 빈 목록(프로필 응답은 막지 않는다). */
-export async function getLockedTitles(userId: number, limit = 3): Promise<LockedTitle[]> {
+/**
+ * 프로필 칭호. earned = 단 칭호(누구 프로필이든, 대표 칭호 representative 가 있으면 맨 앞), locked = 아직 못 단 칭호
+ * 최대 3개(본인만, includeLocked). 같은 집계를 한 번만 한다. 실패하면 빈 목록(프로필 응답은 막지 않는다).
+ */
+export async function getProfileTitles(
+  userId: number,
+  { includeLocked, representative }: { includeLocked: boolean; representative?: string | null },
+): Promise<{ earned: BreederTitleKey[]; locked: LockedTitle[] | null }> {
   try {
-    return pickLockedTitles(await getLockedTitleStats(userId), limit);
+    const stats = await getLockedTitleStats(userId);
+    const earned = unlockedTitleKeys(stats);
+    const first = earned.find((key) => key === representative);
+    return {
+      earned: first ? [first, ...earned.filter((key) => key !== first)] : earned,
+      locked: includeLocked ? pickLockedTitles(stats, 3) : null,
+    };
   } catch (error) {
     console.error("[lockedTitles]", error);
-    return [];
+    return { earned: [], locked: includeLocked ? [] : null };
   }
 }

@@ -47,6 +47,7 @@ const e2eProduct: NonNullable<ItemDetailResponse["product"]> = {
     bio: null,
     profileBanner: null,
     profileLink: null,
+    titleKey: null,
     deletedAt: null,
     tokenVersion: 0,
     suspendedUntil: null,

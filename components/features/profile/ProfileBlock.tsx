@@ -9,6 +9,7 @@ import Link from "next/link";
 import useScopeTerms from "@/hooks/useScopeTerms";
 import { useState, type ReactNode } from "react";
 import { BreederProgramProfileBadges } from "@components/features/breeder/BreederProgramDecorators";
+import { BottomSheet } from "@components/app/BottomSheet";
 import ImageLightbox from "@components/features/image/ImageLightbox";
 import { ProfileAvatar } from "@components/features/profile/ProfileRows";
 import { cn, makeImageUrl } from "@libs/client/utils";
@@ -18,6 +19,7 @@ import { profileLinkLabel } from "@libs/shared/profile";
 import { profileTrustLine } from "@libs/shared/profileTrust";
 import type { LockedTitle, LockedTitleRemainingKind } from "@libs/shared/communityVibe";
 import { regionScopeLabel } from "@libs/shared/regionScope";
+import { titleConditionText, titleLabelOf, type BreederTitleKey } from "@libs/shared/breederKeywords";
 
 export interface ProfileBlockUser {
   name: string;
@@ -36,6 +38,8 @@ export interface ProfileBlockUser {
   regionSigungu?: string | null;
   /** 아직 못 단 칭호(본인 조회 때만 서버가 싣는다, 최대 3). */
   lockedTitles?: LockedTitle[] | null;
+  /** 단 칭호 key(누구 프로필이든, 대표 칭호가 맨 앞). 옛 서버엔 없다. */
+  earnedTitles?: BreederTitleKey[] | null;
 }
 
 /** 잠금 칭호 남은 양 문구: "댓글 2" · "글 1" · "3장". */
@@ -68,6 +72,12 @@ const LockIcon = () => (
   <svg width={11} height={11} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" aria-hidden="true" className="opacity-70">
     <rect x="5" y="11" width="14" height="10" rx="2" />
     <path d="M8 11V7a4 4 0 0 1 8 0v4" />
+  </svg>
+);
+
+const CheckIcon = () => (
+  <svg width={12} height={12} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" aria-hidden="true">
+    <path d="m5 12 5 5L20 7" />
   </svg>
 );
 
@@ -155,10 +165,14 @@ export function ProfileBlock({
         .filter((title) => showAuctions || title.remaining.kind !== "auction")
         .slice(0, 3)
     : [];
-  const hasPills =
-    badges.length > 0 ||
-    lockedTitles.length > 0 ||
-    (user?.breederPrograms ?? []).some((program) => program.status === "ACTIVE");
+  // 단 칭호(주황 소프트 pill, 잠금 앞). 누르면 조건 시트(2026-10-21 감사 #29).
+  const earnedTitles = (user?.earnedTitles ?? []).flatMap((key) => {
+    const label = titleLabelOf(key);
+    return label ? [{ key, label }] : [];
+  });
+  const [titleSheet, setTitleSheet] = useState<{ key: BreederTitleKey; label: string } | null>(null);
+  const hasProgramBadge = (user?.breederPrograms ?? []).some((program) => program.status === "ACTIVE");
+  const hasPills = badges.length > 0 || earnedTitles.length > 0 || lockedTitles.length > 0 || hasProgramBadge;
   const regionLabel = user?.regionSido ? regionScopeLabel(user.regionSido, user.regionSigungu) : "";
   // 신뢰 줄: "거래 완료 12 · 브리디 8개월차"(앱 docs/prd/profile.md v5 F-18). 탈퇴 사용자·로딩 중엔 그리지 않는다.
   const trustLine =
@@ -244,7 +258,16 @@ export function ProfileBlock({
           <Skeleton className="mt-1.5 h-[22px] w-[120px] rounded-full" />
         ) : hasPills ? (
           <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
-            <BreederProgramProfileBadges programs={user?.breederPrograms} />
+            {hasProgramBadge ? (
+              // 창립·파트너 뱃지를 누르면 브리더 프로그램 안내.
+              <Link
+                href="/content/breeder-program"
+                aria-label="브리더 프로그램 안내"
+                className="inline-flex flex-wrap items-center gap-1.5"
+              >
+                <BreederProgramProfileBadges programs={user?.breederPrograms} />
+              </Link>
+            ) : null}
             {badges.map((badge) => (
               <span
                 key={badge.id}
@@ -252,6 +275,19 @@ export function ProfileBlock({
               >
                 {badge.label}
               </span>
+            ))}
+            {earnedTitles.map((title) => (
+              <button
+                key={title.key}
+                type="button"
+                onClick={() => setTitleSheet(title)}
+                aria-label={`칭호 ${title.label}, 조건 보기`}
+                className="app-title-pill"
+                data-testid="earned-title-pill"
+              >
+                <CheckIcon />
+                {title.label}
+              </button>
             ))}
             {lockedTitles.map((title) => {
               const href = REMAINING_HREF[title.remaining.kind];
@@ -331,6 +367,24 @@ export function ProfileBlock({
             altPrefix={`${name} 커버 사진`}
           />
         ) : null}
+        <BottomSheet
+          open={titleSheet !== null}
+          onClose={() => setTitleSheet(null)}
+          title={titleSheet?.label}
+          footer={
+            <button
+              type="button"
+              onClick={() => setTitleSheet(null)}
+              className="h-[52px] w-full rounded-md bg-app-surface text-[16px] font-semibold text-app-text"
+            >
+              확인
+            </button>
+          }
+        >
+          {titleSheet ? (
+            <p className="break-keep px-4 text-[14px] leading-5 text-app-muted">{titleConditionText(titleSheet.key)}</p>
+          ) : null}
+        </BottomSheet>
       </div>
     </div>
   );

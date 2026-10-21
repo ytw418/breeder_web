@@ -10,6 +10,7 @@ import { notifyInterestedUsers, notifyQuestionToInterestedUsers } from "@libs/se
 import { isNewcomer } from "@libs/shared/newcomer";
 import { Post, Prisma, User } from "@prisma/client";
 import { incrementUserMissionProgress } from "@libs/server/growth";
+import { withTitleLabel } from "@libs/server/breederTitles";
 import {
   breederProgramSummarySelect,
   getSortedActiveBreederProgramSummaries,
@@ -45,6 +46,8 @@ import { BLOCKED_WORD_MESSAGE, hasBlockedWord } from "@libs/shared/contentFilter
 export interface PostWithUser extends Post {
   user: Pick<User, "id" | "name" | "avatar"> & {
     breederPrograms: BreederProgramSummary[];
+    /** 작성자 대표 칭호("소통왕"). 없으면 null(community-vibe F-7). */
+    titleLabel?: string | null;
   };
   _count: {
     comments: number;
@@ -94,6 +97,7 @@ const postListInclude = (excluded: number[]) =>
         avatar: true,
         // 가입 7일 안이면 카드 작성자 줄에 '새로 왔어요'(libs/shared/newcomer, 커뮤니티 감사 #20).
         createdAt: true,
+        titleKey: true,
         breederPrograms: {
           where: { status: "ACTIVE" as const },
           select: breederProgramSummarySelect,
@@ -127,7 +131,7 @@ const toListPost = ({ comments, ...post }: PostListRow) => ({
   resolvedAt: post.resolvedAt ?? null,
   latestComment: comments?.[0] ?? null,
   user: {
-    ...post.user,
+    ...withTitleLabel(post.user),
     breederPrograms: getSortedActiveBreederProgramSummaries(post.user.breederPrograms),
   },
 });

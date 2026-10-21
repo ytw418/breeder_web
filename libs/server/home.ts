@@ -7,6 +7,7 @@ import {
   getSortedActiveBreederProgramSummaries,
 } from "@libs/server/breeder-programs";
 import { excludedAuthorIds } from "@libs/server/blocks";
+import { withTitleLabel } from "@libs/server/breederTitles";
 import { getCategoryFilterValues } from "@libs/categoryTaxonomy";
 import { categoryScopeWhere } from "@libs/server/categories";
 import { HomeBanner, ProductsResponse } from "@libs/shared/home";
@@ -348,12 +349,13 @@ const buildProductsResponse = async ({
     client.product.findMany({
       where,
       include: {
-        // 목록 카드의 판매자 표시(아바타·닉네임·브리더 프로그램 프레임).
+        // 목록 카드의 판매자 표시(아바타·닉네임·브리더 프로그램 프레임·대표 칭호).
         user: {
           select: {
             id: true,
             name: true,
             avatar: true,
+            titleKey: true,
             breederPrograms: {
               where: { status: "ACTIVE" as const },
               select: breederProgramSummarySelect,
@@ -378,7 +380,7 @@ const buildProductsResponse = async ({
     products: products.map((product) => ({
       ...product,
       user: {
-        ...product.user,
+        ...withTitleLabel(product.user),
         breederPrograms: getSortedActiveBreederProgramSummaries(product.user.breederPrograms),
       },
     })),

@@ -82,6 +82,8 @@ async function handler(
             message: `${senderUser.name}님이 회원님의 분양글을 찜했습니다.`,
             targetId: productId,
             targetType: "product",
+            // 찜을 껐다 켜도 알림·푸시는 처음 한 번만(2026-10-21 감사 #15).
+            dedupe: true,
           });
         }
       }

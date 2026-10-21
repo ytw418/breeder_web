@@ -271,3 +271,61 @@ const REMAINING_LABEL: Record<LockedTitleRemainingKind, string> = {
 export function lockedTitleLabel(title: Pick<LockedTitle, "label" | "remaining">): string {
   return `${title.label}까지 ${REMAINING_LABEL[title.remaining.kind]} ${title.remaining.count}`;
 }
+
+const TITLE_LABEL = new Map<string, string>(TITLES.map((title) => [title.key, title.label]));
+
+/** DB 문자열(User.titleKey)이 지금 있는 칭호 key 인지. */
+export function isBreederTitleKey(value: unknown): value is BreederTitleKey {
+  return typeof value === "string" && TITLE_LABEL.has(value);
+}
+
+/** 칭호 key → 이름("talk" → "소통왕"). 모르는 값·null 이면 null(없어진 key 가 DB 에 남아도 pill 을 그리지 않는다). */
+export function titleLabelOf(key: string | null | undefined): string | null {
+  return key ? TITLE_LABEL.get(key) ?? null : null;
+}
+
+/** 칭호 조건 시트 문구의 활동 부분(TITLE_THRESHOLDS 값을 넣는다). */
+const CONDITION_LABEL: Record<LockedTitleRemainingKind, (n: number) => string> = {
+  post: (n) => `게시글 ${n}개`,
+  comment: (n) => `댓글 ${n}개`,
+  photo: (n) => `게시글 사진 ${n}장`,
+  listing: (n) => `분양글 ${n}개`,
+  auction: (n) => `입찰과 연 경매를 합쳐 ${n}번`,
+  bloodline: (n) => `내가 만든 혈통 ${n}개`,
+  follower: (n) => `팔로워 ${n}명`,
+  like: (n) => `받은 좋아요 ${n}개`,
+};
+
+/** 딴 칭호 pill 을 누르면 뜨는 조건 시트 문구. "댓글 5개 이상이면 달려요" */
+export function titleConditionText(key: BreederTitleKey): string {
+  const threshold = TITLE_THRESHOLDS[key];
+  return `${CONDITION_LABEL[threshold.kind](threshold.count)} 이상이면 달려요`;
+}
+
+/**
+ * 대표 칭호(User.titleKey, 작성자 줄 pill). 각 사람이 단 칭호(unlockedTitleKeys) 중에서
+ * pickBreederKeywords 의 1순위 규칙대로 고른다 — 칭호 값을 목록 전체 최댓값으로 나눈 비율이 가장 큰 것, 같으면 TITLES 순서.
+ * statsList 는 랭킹 대상 전체(서버 libs/server/breederTitles.ts). 단 칭호가 없으면 null.
+ */
+export function pickRepresentativeTitleKeys(statsList: readonly LockedTitleStats[]): (BreederTitleKey | null)[] {
+  const max = new Map<BreederTitleKey, number>(
+    TITLES.map((title) => [
+      title.key,
+      statsList.reduce((top, stats) => Math.max(top, LOCKED_VALUE[title.key](stats)), 0),
+    ]),
+  );
+  return statsList.map((stats) => {
+    let best: BreederTitleKey | null = null;
+    let bestRatio = 0;
+    for (const key of unlockedTitleKeys(stats)) {
+      const top = max.get(key) ?? 0;
+      if (top <= 0) continue;
+      const ratio = LOCKED_VALUE[key](stats) / top;
+      if (ratio > bestRatio) {
+        best = key;
+        bestRatio = ratio;
+      }
+    }
+    return best;
+  });
+}
