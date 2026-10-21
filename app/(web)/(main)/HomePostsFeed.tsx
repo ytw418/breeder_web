@@ -36,6 +36,16 @@ import RegionGateCard from "@components/features/region/RegionGateCard";
 import FollowingFeedCard from "@components/features/post/FollowingFeedCard";
 import { LOUNGE_HREF } from "@components/features/home/NeighborhoodBreederSection";
 import { PostFilterDropdown } from "../posts/_components/PostFilterDropdown";
+import {
+  FEED_LIST_PARAM,
+  FEED_LIST_VALUE,
+  FEED_RESTORE_PREFIX,
+  type FeedRestore,
+  feedQuery,
+  parseFeedParams,
+  readFeedRestore,
+  withFeedQuery,
+} from "@libs/client/feedUrlState";
 
 const FEED_ADS_ENABLED = Boolean(getAdSenseSlot("feed"));
 
@@ -98,14 +108,20 @@ function SkeletonPostRow() {
 /**
  * 홈 아래 '전체 게시글'(docs/prd/home-ia.md S-1 9번, 2026-10-15 홈 구성 A안 — 옛 반려생활 탭의 글 목록).
  * 목록 제목 → 칩 + 종·정렬(스크롤하면 헤더 바로 아래 붙음) → 글 목록(무한 스크롤).
- * ?category=동네 로 들어오면(홈 '동네 사랑방', 옛 /posts 링크의 리다이렉트) 그 칩을 고르고 목록 제목으로 스크롤한 뒤 주소에서 지운다.
+ * 칩·정렬·종·소분류는 주소 쿼리(`?category=&sort=&species=&sub=`, libs/client/feedUrlState.ts)에 두고 지우지 않는다.
+ * 글을 보고 뒤로 오면 같은 필터로 열리고, 불러온 페이지 수·스크롤은 sessionStorage 로 되살린다(10분, 2026-10-21 감사 11번).
+ * 밖에서 `&at=list` 를 붙여 들어오면(홈 '동네 글', 옛 /posts 링크의 리다이렉트) 목록 제목으로 스크롤하고 at 만 지운다.
  * useSearchParams 를 쓰므로 부모가 Suspense 로 감싼다.
  */
 export default function HomePostsFeed() {
   const { breeder } = useScopeTerms();
-  const [selectedCategory, setSelectedCategory] = useState("전체");
-  const [selectedSort, setSelectedSort] = useState<SortType>("latest");
-  const [selectedSpecies, setSelectedSpecies] = useState("전체");
+  const searchParams = useSearchParams();
+  const searchKey = searchParams?.toString() ?? "";
+  // 첫 값은 주소에서 읽는다(글을 보고 뒤로 오면 같은 칩·정렬·종으로 연다).
+  const [initialFeed] = useState(() => parseFeedParams(searchParams));
+  const [selectedCategory, setSelectedCategory] = useState(initialFeed.category);
+  const [selectedSort, setSelectedSort] = useState<SortType>(initialFeed.sort);
+  const [selectedSpecies, setSelectedSpecies] = useState(initialFeed.species);
   const { blockedIds } = useBlocks();
   // 관심 카테고리 고정 범위(앱 category-pin). 목록이 같은 범위를 쓴다.
   const scope = useCategoryScope();
@@ -122,7 +138,7 @@ export default function HomePostsFeed() {
     ? selectedSpecies
     : "전체";
   // 종을 고르면 정렬 줄 아래에 소분류 칩(선택, 앱과 같다). 서버 species 는 소분류 이름도 받는다.
-  const [selectedSubSpecies, setSelectedSubSpecies] = useState("");
+  const [selectedSubSpecies, setSelectedSubSpecies] = useState(initialFeed.sub);
   const subSpeciesOptions = useMemo(
     () =>
       activeSpecies === "전체"
@@ -213,15 +229,57 @@ export default function HomePostsFeed() {
     scrollToList();
   };
 
-  // ?category=동네 로 들어오면 그 칩을 고르고 목록으로 스크롤한 뒤 주소에서 지운다(앱 홈 category 파라미터와 같다).
-  const searchParams = useSearchParams();
-  const categoryParam = searchParams?.get("category") ?? null;
+  // 지금 필터의 주소 쿼리. 범위 밖으로 나간 종·소분류는 화면과 같이 '전체'로 쓴다.
+  const feedQs = feedQuery({
+    category: selectedCategory,
+    sort: selectedSort,
+    species: activeSpecies,
+    sub: activeSubSpecies,
+  });
+  // 글을 보고 돌아왔을 때 되살릴 페이지 수·스크롤(첫 마운트에만 읽는다). 되살리는 동안엔 새로 저장하지 않는다.
+  const pendingRestore = useRef<FeedRestore | null>(null);
+  const restoreChecked = useRef(false);
+
+  // 주소 → 화면. 첫 마운트와, 홈에 있는 채로 '동네 글'(?category=동네&at=list) 같은 링크를 눌렀을 때 맞춘다.
+  // 내가 쓴 주소면 값이 같아 아무것도 바뀌지 않는다.
   useEffect(() => {
-    if (!categoryParam) return;
-    if (HOME_POST_TABS.some((tab) => tab.id === categoryParam)) setSelectedCategory(categoryParam);
-    window.history.replaceState(null, "", "/");
-    scrollToList();
-  }, [categoryParam, scrollToList]);
+    const params = new URLSearchParams(searchKey);
+    const fromUrl = parseFeedParams(params);
+    setSelectedCategory(fromUrl.category);
+    setSelectedSort(fromUrl.sort);
+    setSelectedSpecies(fromUrl.species);
+    setSelectedSubSpecies(fromUrl.sub);
+    const toList = params.get(FEED_LIST_PARAM) === FEED_LIST_VALUE;
+    if (!restoreChecked.current) {
+      restoreChecked.current = true;
+      if (!toList) {
+        try {
+          pendingRestore.current = readFeedRestore(
+            window.sessionStorage.getItem(FEED_RESTORE_PREFIX + feedQuery(fromUrl)),
+            Date.now()
+          );
+        } catch {
+          pendingRestore.current = null;
+        }
+        // setSize 는 같은 크기로 불러도 1페이지를 다시 받으므로 더 많이 받아야 할 때만 부른다.
+        if (pendingRestore.current && pendingRestore.current.size > size) void setSize(pendingRestore.current.size);
+      }
+    }
+    if (toList) {
+      // at=list 는 한 번만 쓰는 표시라 읽은 뒤 지운다(필터 값은 남긴다).
+      window.history.replaceState(null, "", withFeedQuery(searchKey, feedQuery(fromUrl)));
+      if (size !== 1) void setSize(1);
+      scrollToList();
+    }
+    // searchKey 가 바뀔 때만 맞춘다(setSize·scrollToList 는 바뀌지 않는다).
+  }, [searchKey]);
+
+  // 화면 → 주소. 필터를 바꾸면 주소 쿼리만 바꾼다(스크롤·기록 쌓기 없음). 다른 쿼리(utm 등)는 남긴다.
+  useEffect(() => {
+    if (feedQuery(parseFeedParams(new URLSearchParams(searchKey))) === feedQs) return;
+    window.history.replaceState(null, "", withFeedQuery(searchKey, feedQs));
+    // searchKey 는 비교용이다. 필터가 바뀔 때만 쓴다.
+  }, [feedQs]);
 
   const handleCategoryChange = (categoryId: string) => {
     if (categoryId === selectedCategory) return;
@@ -289,6 +347,53 @@ export default function HomePostsFeed() {
     observer.observe(target);
     return () => observer.disconnect();
   }, [hasMore, listError, isValidating, loadedPages, setSize]);
+
+  // 글을 보고 돌아왔으면 저장한 페이지 수만큼 받은 뒤 그 스크롤로 내려간다.
+  useEffect(() => {
+    const saved = pendingRestore.current;
+    if (!saved) return;
+    if (!data) {
+      // 첫 페이지부터 못 받았으면 되살리지 않고 저장을 다시 시작한다.
+      if (listError) pendingRestore.current = null;
+      return;
+    }
+    if (data.length < saved.size && hasMore && !listError) return;
+    pendingRestore.current = null;
+    window.requestAnimationFrame(() => window.scrollTo(0, saved.scrollY));
+  }, [data, hasMore, listError]);
+
+  // 스크롤·페이지 수가 바뀌면 300ms 뒤 지금 필터 주소를 키로 저장한다. 화면을 떠날 때 남은 저장은 바로 쓴다.
+  useEffect(() => {
+    const key = FEED_RESTORE_PREFIX + feedQs;
+    let timer: number | undefined;
+    let lastY = 0;
+    const write = () => {
+      timer = undefined;
+      if (pendingRestore.current) return;
+      try {
+        const value: FeedRestore = { size: Math.max(loadedPages, 1), scrollY: Math.round(lastY), at: Date.now() };
+        window.sessionStorage.setItem(key, JSON.stringify(value));
+      } catch {
+        // 저장 공간이 없거나 막혀 있으면 되살리기만 못 한다.
+      }
+    };
+    const schedule = () => {
+      // 글로 넘어가며 새 화면이 맨 위로 올리는 스크롤은 홈 스크롤이 아니다(주소가 이미 바뀌어 있다).
+      if (window.location.pathname !== "/") return;
+      lastY = window.scrollY;
+      window.clearTimeout(timer);
+      timer = window.setTimeout(write, 300);
+    };
+    schedule();
+    window.addEventListener("scroll", schedule, { passive: true });
+    return () => {
+      window.removeEventListener("scroll", schedule);
+      if (timer !== undefined) {
+        window.clearTimeout(timer);
+        write();
+      }
+    };
+  }, [feedQs, loadedPages]);
 
   return (
     <>

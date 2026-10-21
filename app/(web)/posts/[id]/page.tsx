@@ -1,5 +1,6 @@
 import React from "react";
 import PostClient from "./PostClient";
+import AppOpenBanner from "@components/features/AppOpenBanner";
 import { getPost, throwIfTransientFailure } from "@libs/server/apis";
 import { extractPostIdFromPath, toPostPath } from "@libs/post-route";
 import { notFound } from "next/navigation";
@@ -217,6 +218,7 @@ const page = async ({ params }: { params: Promise<{ id: string }> }) => {
 
   return (
     <div>
+      <AppOpenBanner />
       <JsonLd id="post-jsonld" data={generatePostJsonLd(data.post)} />
       {/* 댓글은 캐시된 HTML 에 넣지 않는다. 화면이 열리면 PostClient 가 최신 댓글을 받아 그린다. */}
       <PostClient
