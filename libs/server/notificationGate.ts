@@ -49,13 +49,14 @@ export async function filterPushRecipients(
 
 /**
  * 차단과 관계없이 만들고 목록에도 남기는 알림 type.
- * - 운영 알림(MODERATION): 보낸 사람이 운영자다.
+ * - 운영 알림(MODERATION)·운영자 푸시(ADMIN_BROADCAST): 보낸 사람이 운영자다.
  * - 경매 거래 흐름: 차단은 반응(좋아요·댓글·팔로우·찜·새 글 등)을 막으려는 것이고, 이미 걸린 입찰·낙찰은 알아야 한다.
  *   예) A 가 B 를 차단해도 제3자 경매에서 B 에게 밀린 OUTBID, 낙찰 뒤 서로 차단해도 AUCTION_WON·AUCTION_END 는 받는다.
  * createNotification 과 visibleNotificationWhere 가 이 목록 하나를 같이 쓴다.
  */
 export const BLOCK_EXEMPT_NOTIFICATION_TYPES = [
   "MODERATION",
+  "ADMIN_BROADCAST",
   "BID",
   "OUTBID",
   "AUCTION_WON",

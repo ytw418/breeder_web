@@ -3,6 +3,8 @@
  * 방에 가입하지 않고, 보낸 사람의 시/군/구가 읽는 사람의 반경 50km 범위(libs/shared/regionScope) 안이면 보인다.
  */
 
+import { NEWCOMER_DAYS } from "./newcomer";
+
 export const TOWN_MESSAGE_MAX = 300;
 /** 이 기간 메시지만 보인다(지우지는 않는다). */
 export const TOWN_VISIBLE_DAYS = 7;
@@ -16,8 +18,8 @@ export const TOWN_DAILY_LIMIT = 200;
 export const TOWN_GROUP_GAP_MS = 60_000;
 /** 신고 이 건수면 자동 가림. */
 export const TOWN_REPORT_HIDE_COUNT = 3;
-/** 가입 이 기간 안이면 '새로 온 이웃' 줄을 붙인다. */
-export const TOWN_NEWCOMER_DAYS = 7;
+/** 가입 이 기간 안이면 '새로 온 이웃' 줄을 붙인다(게시글 '새로 왔어요'와 같은 기준, newcomer.ts). */
+export const TOWN_NEWCOMER_DAYS = NEWCOMER_DAYS;
 export const TOWN_PREVIEW_COUNT = 3;
 export const TOWN_RULE_BANNER_MAX_VIEWS = 3;
 

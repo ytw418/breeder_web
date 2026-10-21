@@ -90,6 +90,10 @@ const KINDS: Record<string, NotificationKind> = {
   DEBATE_MILESTONE: { label: "토론", icon: "debate", fromPerson: false },
   // 동네 사랑방 답장·반겨 주기: 보낸 이웃 아바타 + 말풍선 뱃지. targetType "town" → /town?focus=<메시지 id>.
   TOWN_REPLY: { label: "사랑방", icon: "bubble", fromPerson: true },
+  // 주간 요약(커뮤니티 감사 #22): 며칠 안 온 회원에게 주 1회 '이번 주 인기글·내 글 반응'.
+  WEEKLY_DIGEST: { label: "주간 소식", icon: "chart", fromPerson: false },
+  // 운영자 푸시(/admin/push·공지 '푸시도 보내기'): 보낸 사람 자리는 '브리디 운영팀'.
+  ADMIN_BROADCAST: { label: "브리디 소식", icon: "bell", fromPerson: false },
 };
 
 const FALLBACK_KIND: NotificationKind = { label: "알림", icon: "bell", fromPerson: false };
@@ -97,9 +101,19 @@ const FALLBACK_KIND: NotificationKind = { label: "알림", icon: "bell", fromPer
 /** 서버 questionAlert.ts QUESTION_ALERT_MESSAGE_PREFIX. 질문 알림은 NEW_POST 로 오지만 '질문'으로 보인다. */
 const QUESTION_ALERT_PREFIX = "답변을 기다리는 질문이 올라왔어요";
 
+/**
+ * 서버 questionAlert.ts NEWCOMER_ALERT_MESSAGE_PREFIX('새 회원 ○○님의 첫 글이에요: 제목')와
+ * firstPostWatch.ts FIRST_POST_WATCH_MESSAGE_PREFIX(운영자에게 가는 '아직 댓글이 없는 새 회원 첫 글이에요: 제목').
+ * 둘 다 NEW_POST 로 오지만 '새 회원'으로 보인다(커뮤니티 감사 #20).
+ */
+const NEWCOMER_ALERT_PREFIXES = ["새 회원 ", "아직 댓글이 없는 새 회원 첫 글이에요"];
+
 export function getNotificationKind(type: string, message = ""): NotificationKind {
   if (type === "NEW_POST" && message.startsWith(QUESTION_ALERT_PREFIX)) {
     return { label: "질문", icon: "bubble", fromPerson: true };
+  }
+  if (type === "NEW_POST" && NEWCOMER_ALERT_PREFIXES.some((prefix) => message.startsWith(prefix))) {
+    return { label: "새 회원", icon: "pencil", fromPerson: true };
   }
   return KINDS[type] ?? FALLBACK_KIND;
 }
@@ -109,7 +123,7 @@ export const MODERATION_SENDER_NAME = "브리디 운영팀";
 
 /**
  * 메시지 앞의 보낸 사람 이름만 굵게 보이게 나눈다("젠크레" + "님이 … 입찰했습니다.").
- * 운영 알림은 '브리디 운영팀'을 앞에 붙인다. 이름으로 시작하지 않으면 lead 없이 그대로.
+ * 운영 알림·운영자 푸시는 '브리디 운영팀'을 앞에 붙인다. 이름으로 시작하지 않으면 lead 없이 그대로.
  */
 export function splitNotificationMessage(notification: {
   type: string;
@@ -117,7 +131,10 @@ export function splitNotificationMessage(notification: {
   sender?: { name?: string | null } | null;
 }): { lead: string | null; rest: string } {
   const { type, message } = notification;
-  if (type === "MODERATION") return { lead: MODERATION_SENDER_NAME, rest: ` ${message}` };
+  // 운영 알림·운영자 푸시는 보낸 사람(운영자 계정) 대신 '브리디 운영팀'을 앞에 붙인다.
+  if (type === "MODERATION" || type === "ADMIN_BROADCAST") {
+    return { lead: MODERATION_SENDER_NAME, rest: ` ${message}` };
+  }
   const name = notification.sender?.name?.trim();
   if (name && message.startsWith(name) && message.length > name.length) {
     return { lead: name, rest: message.slice(name.length) };

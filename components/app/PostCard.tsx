@@ -8,6 +8,7 @@ import { toPostPath } from "@libs/post-route";
 import { postCategoryLabel } from "@libs/shared/postCategory";
 import type { BreederProgramSummary } from "@libs/shared/breeder-program";
 import { toPostPlainText } from "@libs/shared/post-body";
+import { isNewcomer } from "@libs/shared/newcomer";
 import { useIsUnread } from "@libs/client/unreadMarks";
 import { DEBATE_CATEGORY, type DebateSummary } from "@libs/shared/debateFormat";
 import DebateCardBody from "@components/features/debate/DebateCardBody";
@@ -33,6 +34,8 @@ export type PostCardData = {
     breederPrograms?: BreederProgramSummary[] | null;
     /** 작성자 칭호(있을 때만 서버가 싣는다). 작성자 줄에 pill 18(community-vibe F-7). */
     titleLabel?: string | null;
+    /** 가입 시각. 게시글 목록만 준다 — 7일 안이면 '새로 왔어요'(libs/shared/newcomer, 커뮤니티 감사 #20). */
+    createdAt?: string | Date | null;
   } | null;
   _count?: { Likes?: number; comments?: number } | null;
   /** 목록 API 의 최신 댓글 한 줄. 없으면(구 서버 포함) 줄을 그리지 않는다. */
@@ -74,7 +77,7 @@ const toExcerpt = (value?: string | null) =>
 
 /**
  * 반려생활 게시글 행(앱 PostCard, 시안 design/mockups/feed-engagement/A-karrot.html ① + author-row/A-karrot.html A-①).
- * 맨 위 작성자 줄: 아바타 20 + 닉네임 13/600(누르면 프로필) [브리더 pill] "· 3분 전"
+ * 맨 위 작성자 줄: 아바타 20 + 닉네임 13/600(누르면 프로필) [브리더 pill] [새로 왔어요 — 가입 7일 안] "· 3분 전"
  * · [안 본 글 빨간 점][질문 pill] 제목 16/500(2줄) + 댓글 수 [N](brand) · 본문 14 app-sub 2줄
  * · 최신 댓글 한 줄(말풍선 + 닉네임 600 + 내용) 또는 질문에 답이 없으면 '아직 답변이 없어요 · 첫 답변을 남겨 주세요'
  * · 메타 13 app-muted "카테고리 · 좋아요 3"(질문 글은 카테고리를 pill 로 옮겨 뺀다, 비면 줄을 그리지 않는다)
@@ -128,6 +131,12 @@ export function PostCard({ post, className }: { post: PostCardData; className?: 
             </span>
           )}
           <BreederProgramBadge programs={author.breederPrograms} />
+          {/* 가입 7일 안 회원(앱 author-row R-1, 커뮤니티 감사 #20). 칭호 pill small 과 같은 모양 */}
+          {isNewcomer(author.createdAt) ? (
+            <span className="app-title-pill-sm" data-testid="newcomer-pill">
+              새로 왔어요
+            </span>
+          ) : null}
           {timeAgo ? (
             <span className="shrink-0 text-[13px] text-app-muted">· {timeAgo}</span>
           ) : null}
