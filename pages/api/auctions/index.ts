@@ -26,6 +26,7 @@ import {
 } from "@libs/server/breeder-programs";
 import type { BreederProgramSummary } from "@libs/shared/breeder-program";
 import { excludedAuthorIds, setViewerCacheHeader } from "@libs/server/blocks";
+import { AUCTION_POPULAR_COUNT, AUCTION_POPULAR_MIN_VIEWS } from "@libs/shared/auctionBadge";
 import { withTitleLabel } from "@libs/server/breederTitles";
 import { canAttachBloodline, pedigreeNoteDbValue } from "@libs/server/bloodline-link";
 import { captureServerEvent, resolveClientPlatform } from "@libs/server/analytics";
@@ -45,6 +46,8 @@ export interface AuctionWithUser extends Auction {
     titleLabel?: string | null;
   };
   _count: { bids: number };
+  /** 서버가 '지금 많이 보는 경매'로 고른 경매(libs/shared/auctionBadge.ts). 고르지 않았으면 없다. */
+  popular?: boolean;
 }
 
 export interface AuctionsListResponse {
@@ -115,7 +118,7 @@ async function handler(
     }
     setViewerCacheHeader(res, viewerId);
 
-    const [auctions, auctionCount] = await Promise.all([
+    const [auctions, auctionCount, popularAuctions] = await Promise.all([
       client.auction.findMany({
         where,
         include: {
@@ -142,7 +145,20 @@ async function handler(
         skip: page ? (+page - 1) * 10 : 0,
       }),
       client.auction.count({ where }),
+      // '지금 많이 보는 중'(libs/shared/auctionBadge.ts): 진행 중 경매 전체에서 조회 수 상위 몇 개. 이 페이지에 있으면 표시한다.
+      client.auction.findMany({
+        where: {
+          status: "진행중",
+          isHidden: false,
+          endAt: { gt: new Date() },
+          viewCount: { gte: AUCTION_POPULAR_MIN_VIEWS },
+        },
+        orderBy: [{ viewCount: "desc" }, { id: "desc" }],
+        take: AUCTION_POPULAR_COUNT,
+        select: { id: true },
+      }),
     ]);
+    const popularIds = new Set((popularAuctions ?? []).map((auction) => auction.id));
 
     const serializedAuctions = auctions.map((auction) => {
       // omit 을 따르지 않는 경로(테스트 목 등)에서도 연락처가 새지 않게 한 번 더 뺀다.
@@ -151,6 +167,7 @@ async function handler(
       delete rest.sellerEmail;
       return {
         ...(rest as typeof auction),
+        ...(auction.status === "진행중" && popularIds.has(auction.id) ? { popular: true } : {}),
         user: {
           ...withTitleLabel(auction.user),
           breederPrograms: getSortedActiveBreederProgramSummaries(

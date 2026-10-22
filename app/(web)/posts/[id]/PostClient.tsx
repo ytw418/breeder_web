@@ -252,15 +252,8 @@ const PostClient = ({
     [post]
   );
 
-  // 반려생활 '답 기다려요' 카드의 '답하기'(#comment)로 들어오면 댓글 입력칸에 커서를 둔다(community-vibe §5b).
-  const hasPost = Boolean(post);
-  useEffect(() => {
-    if (!hasPost || typeof window === "undefined" || window.location.hash !== "#comment") return;
-    const el = commentInputRef.current;
-    if (!el) return;
-    el.scrollIntoView({ block: "center" });
-    el.focus();
-  }, [hasPost]);
+  // 피드 말풍선·'첫 답 남기기'·'답하기'로 열어도 본문부터 보인다. 입력칸으로 내리거나 커서를 두지 않는다
+  // (2026-10-22 사용자 "댓글쓰기 누르면 맨 바닥이 보여, 게시글 본문이 먼저 보여야지"). 입력바는 화면 아래 고정이라 바로 보인다.
 
   // 댓글 입력칸 높이를 글 줄 수에 맞춘다(등록 후 비우면 한 줄로 돌아온다).
   useLayoutEffect(() => {

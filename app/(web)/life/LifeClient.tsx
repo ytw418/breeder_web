@@ -82,7 +82,7 @@ function Skeleton({ className }: { className?: string }) {
 
 /**
  * 반려생활 탭(앱 src/app/(tabs)/life.tsx, 앱 docs/prd/home-v2.md S-3, 시안 home-photo-question/B-tabs.html ④).
- * 공지 · 실시간 TOP 토론 · 답 기다려요 → 바로가기 4칸 → 우리 동네 브리더 → 이번 주 TOP 브리더 → 미션 → 배너, 글쓰기 FAB.
+ * 배너(맨 위, 2026-10-22) → 공지 · 실시간 TOP 토론 · 답 기다려요 → 바로가기 4칸 → 우리 동네 브리더 → 이번 주 TOP 브리더 → 미션, 글쓰기 FAB.
  * 2026-10-15 홈 구성 A안에서 홈으로 옮겼던 블록을 홈 v2(2026-10-22)에서 다시 이 탭으로 모았다.
  */
 const LifeClient = ({
@@ -98,7 +98,7 @@ const LifeClient = ({
   // 관심 카테고리 고정 범위(앱 category-pin). 실시간 토론·분양 레일·TOP 브리더·게시글이 같은 범위를 쓴다.
   const scope = useCategoryScope();
   // 포유류만 고정했으면 '브리더' 대신 '집사'로 부른다(앱 docs/prd/category-pin.md §15).
-  const { breeder, showAuctions } = useScopeTerms();
+  const { showAuctions } = useScopeTerms();
   const [activeBannerIndex, setActiveBannerIndex] = useState(0);
   // 글쓰기 FAB 시트: 글쓰기 · 질문하기 · 토론 열기(2026-10-21 감사 #1 — 질문을 올리는 입구).
   const [writeSheetOpen, setWriteSheetOpen] = useState(false);
@@ -219,59 +219,9 @@ const LifeClient = ({
       {/* 관심 분야를 고른 기록이 계정·브라우저 어디에도 없으면 홈 위에 선택 시트를 띄운다(비로그인 포함). */}
       <CategoryOnboardingPrompt />
 
-      {/* 1~2. 공지 · 실시간 TOP 토론 · 답 기다려요(옛 반려생활 위쪽) */}
-      <HomeCommunityTop />
-
-      {/* 3. 바로가기 4칸(혈통카드 · 브리더 랭킹 · 동네 사랑방 · 토론 열기) */}
-      <LifeShortcuts />
-
-      {/* 4. 우리 동네 브리더(강조, 시 단위 + 50km) */}
-      <NeighborhoodBreederSection />
-
-      {/* 5. 이번 주 TOP 브리더 + 내 순위 — 집계가 비면 섹션을 숨긴다 */}
-      {showTopBreeder ? (
-        <section className="pt-6" data-home-section="hero_breeder">
-          <SectionHeader
-            title={heroBreederPeriod === "weekly" ? `이번 주 TOP ${breeder}` : `TOP ${breeder}`}
-            href={toRankingHref("breeders", heroBreederPeriod)}
-            actionLabel="전체 랭킹 보기"
-          />
-          <div className="mt-3 px-4">
-            {feedError ? (
-              <div className="rounded-2xl bg-app-gap">
-                <QueryErrorState
-                  title="랭킹을 불러오지 못했어요"
-                  onRetry={() => void reloadFeed()}
-                  className="py-6"
-                />
-              </div>
-            ) : feedLoading ? (
-              <div className="space-y-2 rounded-2xl bg-app-gap p-4">
-                <Skeleton className="h-3.5 w-1/2" />
-                <Skeleton className="h-3 w-[35%]" />
-              </div>
-            ) : hero ? (
-              <TopBreederRankCard
-                hero={hero}
-                keyword={heroKeyword}
-                peers={heroPeers}
-                period={heroBreederPeriod}
-                scoped={Boolean(scope.categoryPath)}
-                categoryPath={scope.categoryPath}
-                viewer={user ? { id: user.id, name: user.name, avatar: user.avatar ?? null } : null}
-                viewerLoading={isUserLoading}
-              />
-            ) : null}
-          </div>
-        </section>
-      ) : null}
-
-      {/* 5-1. 이번 주 미션(로그인, 진행이 1 이상일 때만) */}
-      <MissionCard enabled={Boolean(user)} />
-
-      {/* 6. 배너 슬라이더(관리자 배너 API) */}
+      {/* 0. 배너 슬라이더(관리자 배너 API) — 맨 위(2026-10-22 사용자 "바닥 슬라이드는 맨 위로") */}
       {banners.length > 0 ? (
-        <section className="relative bg-app-bg pt-6">
+        <section className="relative bg-app-bg pt-3">
           <div
             ref={bannerRef}
             onScroll={handleBannerScroll}
@@ -332,6 +282,57 @@ const LifeClient = ({
           ) : null}
         </section>
       ) : null}
+
+      {/* 1~2. 공지 · 실시간 TOP 토론 · 답 기다려요(옛 반려생활 위쪽) */}
+      <HomeCommunityTop />
+
+      {/* 3. 바로가기 4칸(혈통카드 · 브리더 랭킹 · 동네 사랑방 · 토론 열기) */}
+      <LifeShortcuts />
+
+      {/* 4. 우리 동네 브리더(강조, 시 단위 + 50km) */}
+      <NeighborhoodBreederSection />
+
+      {/* 5. 이번 주 TOP 브리더 + 내 순위 — 집계가 비면 섹션을 숨긴다 */}
+      {showTopBreeder ? (
+        <section className="pt-6" data-home-section="hero_breeder">
+          <SectionHeader
+            // 관심 분야와 상관없이 '집사님'(2026-10-22 사용자 결정 — 옛 '이번 주 TOP 브리더').
+            title={heroBreederPeriod === "weekly" ? "이번 주 인기 집사님" : "인기 집사님"}
+            href={toRankingHref("breeders", heroBreederPeriod)}
+            actionLabel="전체 랭킹 보기"
+          />
+          <div className="mt-3 px-4">
+            {feedError ? (
+              <div className="rounded-2xl bg-app-gap">
+                <QueryErrorState
+                  title="랭킹을 불러오지 못했어요"
+                  onRetry={() => void reloadFeed()}
+                  className="py-6"
+                />
+              </div>
+            ) : feedLoading ? (
+              <div className="space-y-2 rounded-2xl bg-app-gap p-4">
+                <Skeleton className="h-3.5 w-1/2" />
+                <Skeleton className="h-3 w-[35%]" />
+              </div>
+            ) : hero ? (
+              <TopBreederRankCard
+                hero={hero}
+                keyword={heroKeyword}
+                peers={heroPeers}
+                period={heroBreederPeriod}
+                scoped={Boolean(scope.categoryPath)}
+                categoryPath={scope.categoryPath}
+                viewer={user ? { id: user.id, name: user.name, avatar: user.avatar ?? null } : null}
+                viewerLoading={isUserLoading}
+              />
+            ) : null}
+          </div>
+        </section>
+      ) : null}
+
+      {/* 5-1. 이번 주 미션(로그인, 진행이 1 이상일 때만) */}
+      <MissionCard enabled={Boolean(user)} />
 
       <FloatingButton onClick={() => setWriteSheetOpen(true)} label="글쓰기" hideOnScroll>
         <svg className="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">

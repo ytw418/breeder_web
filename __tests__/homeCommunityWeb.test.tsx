@@ -112,11 +112,11 @@ describe("홈 위쪽 커뮤니티(docs/prd/home-ia.md S-1, 옛 반려생활 상�
     expect(rail.textContent).toContain("방금 댓글 · 젠크레 · 댓글 4");
   });
 
-  it("답 기다려요 카드는 질문 제목과 '답하기'(#comment)를 보인다", async () => {
+  it("답 기다려요 카드는 질문 제목과 '답하기'(본문부터 여는 상세 링크)를 보인다", async () => {
     render(withSWR(<HomeCommunityTop />));
     const card = await screen.findByTestId("awaiting-answer-card");
     expect(card.textContent).toContain("볼파이썬 탈피 주기가 너무 짧은데 정상인가요?");
-    expect(within(card).getByRole("link", { name: "답하기" }).getAttribute("href")).toMatch(/#comment$/);
+    expect(within(card).getByRole("link", { name: "답하기" }).getAttribute("href")).toMatch(/^\/posts\/[^#]+$/);
   });
 });
 

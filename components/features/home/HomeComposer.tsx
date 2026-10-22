@@ -22,7 +22,7 @@ const toLoginHref = (next: string) => `/auth/login?next=${encodeURIComponent(nex
 /**
  * 홈 맨 위 새 소식 입력줄(쓰레드식, 앱 docs/prd/home-v2.md S-1 1-1, 시안 C-threads.html ①).
  * 내 아바타 36 + 이름 14/600 + '우리 아이 새 소식을 남겨 보세요' 15 caption + 사진 버튼(36 r8 surface),
- * 아래 글 앞줄에 맞춰 '사진 자랑 · 질문하기 · 토론 열기' 작은 버튼(32 r8 surface 13/600).
+ * 아래 왼쪽 여백(16)부터 '사진 자랑 · 질문하기 · 토론 열기' 작은 버튼(32 r8 surface 13/600).
  * 비로그인은 사람 아이콘 + '로그인하고 소식 남기기'이고 어디를 눌러도 로그인 뒤 그 화면으로 간다.
  * onVisibleChange: 이 줄이 화면에 보이는지(홈 글쓰기 FAB 는 보이는 동안 숨긴다).
  * 앱 src/components/features/home/HomeComposer.tsx 와 같다.
@@ -92,7 +92,8 @@ export default function HomeComposer({ onVisibleChange }: { onVisibleChange?: (v
           </svg>
         </Link>
       </div>
-      <div className="mt-2.5 flex gap-1.5 pl-12">
+      {/* 피드 글이 왼쪽 여백부터 시작하므로(2026-10-22) 버튼도 들여 쓰지 않는다 */}
+      <div className="mt-2.5 flex gap-1.5">
         {QUICK_ACTIONS.map((action) => (
           <Link
             key={action.key}
