@@ -3,13 +3,15 @@
  * 앱 소개·다운로드 랜딩(/download). 공유용 한 장짜리 페이지 — 앱스토어·플레이스토어 배지, 웹으로 바로 가기, 화면 소개.
  * 배지는 애플·구글 공식 이미지(public/landing)를 쓴다(두 회사 모두 다운로드 버튼에 공식 배지를 쓰라고 정해 두었다).
  * 안드로이드 브라우저면 플레이 배지를, 그 밖에는 앱스토어 배지를 앞에 둔다.
+ * 플레이 배지 주소에는 들어온 캠페인(utm)을 설치 리퍼러로 붙여 앱 PostHog 에서 설치 출처를 본다(libs/client/campaign.ts).
  */
 import Image from "next/image";
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { HorizontalRail } from "@components/ui/HorizontalRail";
+import { currentCampaign } from "@libs/client/campaign";
 import { shareOrCopy } from "@libs/client/share";
-import { APP_STORE_URL, DOWNLOAD_PAGE_PATH, PLAY_STORE_URL } from "@libs/shared/appLinks";
+import { APP_STORE_URL, DOWNLOAD_PAGE_PATH, PLAY_STORE_URL, playStoreUrlWithReferrer } from "@libs/shared/appLinks";
 import { GUIDE_INDEX_HREF } from "@libs/shared/guides";
 
 /** 스토어 스크린샷과 같은 디자인 세트(bredy_app store-assets/screenshots/ios, 2026-10-20). 문구가 이미지 안에 있어 alt 로 같은 문구를 둔다. */
@@ -59,14 +61,14 @@ function Icon({ d, size = 22 }: { d: string; size?: number }) {
   );
 }
 
-function StoreBadges({ playFirst }: { playFirst: boolean }) {
+function StoreBadges({ playFirst, playHref }: { playFirst: boolean; playHref: string }) {
   const apple = (
     <a key="apple" href={APP_STORE_URL} target="_blank" rel="noopener noreferrer" aria-label="App Store에서 브리디 다운로드" className="shrink-0">
       <Image src="/landing/app-store-badge.svg" alt="App Store에서 다운로드" width={144} height={48} className="h-12 w-auto" unoptimized />
     </a>
   );
   const play = (
-    <a key="play" href={PLAY_STORE_URL} target="_blank" rel="noopener noreferrer" aria-label="Google Play에서 브리디 다운로드" className="shrink-0">
+    <a key="play" href={playHref} target="_blank" rel="noopener noreferrer" aria-label="Google Play에서 브리디 다운로드" className="shrink-0">
       <Image src="/landing/google-play-badge.png" alt="Google Play에서 받기" width={161} height={48} className="h-12 w-auto" />
     </a>
   );
@@ -75,8 +77,11 @@ function StoreBadges({ playFirst }: { playFirst: boolean }) {
 
 export default function DownloadLanding() {
   const [playFirst, setPlayFirst] = useState(false);
+  // 서버 HTML 은 리퍼러 없는 주소, 브라우저에서 캠페인을 읽어 바꾼다.
+  const [playHref, setPlayHref] = useState(PLAY_STORE_URL);
   useEffect(() => {
     setPlayFirst(/android/i.test(navigator.userAgent));
+    setPlayHref(playStoreUrlWithReferrer(currentCampaign(window.location.search)));
   }, []);
 
   const share = () =>
@@ -113,7 +118,7 @@ export default function DownloadLanding() {
           사진으로 기록하고, 궁금한 건 같은 종 키우는 사람에게 묻고, 분양·경매까지 한 앱에서 해요.
         </p>
         <div className="mt-6">
-          <StoreBadges playFirst={playFirst} />
+          <StoreBadges playFirst={playFirst} playHref={playHref} />
         </div>
         <Link
           href="/"
@@ -169,7 +174,7 @@ export default function DownloadLanding() {
         <h2 className="text-[20px] font-bold leading-7">지금 받아 보세요</h2>
         <p className="mt-1.5 text-[14px] text-app-muted">아이폰·안드로이드 모두 있어요</p>
         <div className="mt-5 flex justify-center">
-          <StoreBadges playFirst={playFirst} />
+          <StoreBadges playFirst={playFirst} playHref={playHref} />
         </div>
         <button
           type="button"

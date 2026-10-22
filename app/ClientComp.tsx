@@ -2,6 +2,7 @@
 
 import { useEffect } from "react";
 import "../firebase.js";
+import { rememberCampaign } from "@libs/client/campaign";
 declare global {
   interface Window {
     Kakao: any;
@@ -11,6 +12,11 @@ declare global {
 }
 
 export default function ClientComp() {
+  // 들어온 utm 을 남겨 /download 플레이스토어 링크의 설치 리퍼러로 넘긴다.
+  useEffect(() => {
+    rememberCampaign(window.location.search);
+  }, []);
+
   useEffect(() => {
     const touchableButton = () => {
       const touchableButtons = document.querySelectorAll(".button");
