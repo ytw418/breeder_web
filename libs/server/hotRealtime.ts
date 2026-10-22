@@ -24,11 +24,15 @@ export type HotActivityEvent = { postId: number; at: Date; kind: "comment" | "li
 export type HotRanked = HotRealtimeMeta & { postId: number };
 
 /** 활동 이벤트 → 글별 점수·마지막 활동. 점수 내림차순 → 마지막 활동 최근 순 → id 큰 순. */
-export function rankHotActivity(events: HotActivityEvent[], now: Date): HotRanked[] {
+export function rankHotActivity(
+  events: HotActivityEvent[],
+  now: Date,
+  halfLifeHours: number = HOT_HALF_LIFE_HOURS
+): HotRanked[] {
   const byPost = new Map<number, { score: number; lastAt: Date; lastKind: HotActivityKind }>();
   for (const event of events) {
     const ageHours = Math.max(0, (now.getTime() - event.at.getTime()) / HOUR_MS);
-    const points = HOT_ACTIVITY_WEIGHTS[event.kind] * Math.pow(0.5, ageHours / HOT_HALF_LIFE_HOURS);
+    const points = HOT_ACTIVITY_WEIGHTS[event.kind] * Math.pow(0.5, ageHours / halfLifeHours);
     const current = byPost.get(event.postId);
     if (!current) {
       byPost.set(event.postId, { score: points, lastAt: event.at, lastKind: event.kind });
@@ -59,15 +63,23 @@ export async function getRealtimeHotRanking({
   categoryPath,
   excludedIds = [],
   now = new Date(),
+  windowsHours = WINDOWS_HOURS,
+  halfLifeHours = HOT_HALF_LIFE_HOURS,
+  categories = HOT_CATEGORIES,
 }: {
   limit?: number;
   categoryPath?: string;
   excludedIds?: number[];
   now?: Date;
+  /** 활동을 보는 기간(짧은 것부터). 결과가 모자라면 다음 기간으로 넓힌다. */
+  windowsHours?: readonly number[];
+  halfLifeHours?: number;
+  /** null 이면 공지만 빼고 모든 카테고리. */
+  categories?: string[] | null;
 }): Promise<HotRanked[]> {
   const scope = await categoryScopeWhere(categoryPath);
   const postWhere = {
-    category: { in: HOT_CATEGORIES },
+    category: categories ? { in: categories } : { not: "공지" },
     isHidden: false,
     user: RANKABLE_USER_WHERE,
     ...(Object.keys(scope).length ? { AND: [scope] } : {}),
@@ -75,7 +87,7 @@ export async function getRealtimeHotRanking({
   };
 
   let ranked: HotRanked[] = [];
-  for (const hours of WINDOWS_HOURS) {
+  for (const hours of windowsHours) {
     const since = new Date(now.getTime() - hours * HOUR_MS);
     const [comments, likes, votes] = await Promise.all([
       client.comment.findMany({
@@ -104,7 +116,8 @@ export async function getRealtimeHotRanking({
         ...likes.map((l) => ({ postId: l.postId, at: l.createdAt, kind: "like" as const })),
         ...votes.map((v) => ({ postId: v.postId, at: v.updatedAt, kind: "vote" as const })),
       ],
-      now
+      now,
+      halfLifeHours
     );
     if (ranked.length >= Math.min(limit, MIN_RESULTS)) break;
   }
@@ -115,7 +128,7 @@ export async function getRealtimeHotRanking({
     const fresh = await client.post.findMany({
       where: {
         ...postWhere,
-        createdAt: { gte: new Date(now.getTime() - WINDOWS_HOURS[1] * HOUR_MS) },
+        createdAt: { gte: new Date(now.getTime() - windowsHours[windowsHours.length - 1] * HOUR_MS) },
         ...(ranked.length ? { id: { notIn: ranked.map((r) => r.postId) } } : {}),
       },
       select: { id: true, createdAt: true },
@@ -132,6 +145,29 @@ export async function getRealtimeHotRanking({
     );
   }
   return ranked;
+}
+
+/**
+ * 홈 '인기글 TOP 10'(2026-10-22 사용자 결정, 앱 docs/prd/home-v2.md S-1): 이번 주(7일) 댓글·좋아요·투표 점수순.
+ * 공지만 빼고 모든 카테고리, 반감기 3일. 모자라면 7일 안 새 글로 채운다. 조회수는 쓰지 않는다(화면에도 숫자 없음).
+ */
+export const WEEKLY_HOT_WINDOWS_HOURS = [24 * 7] as const;
+export const WEEKLY_HOT_HALF_LIFE_HOURS = 72;
+export const WEEKLY_HOT_LIMIT = 10;
+
+export function getWeeklyHotRanking(options: {
+  limit?: number;
+  categoryPath?: string;
+  excludedIds?: number[];
+  now?: Date;
+}): Promise<HotRanked[]> {
+  return getRealtimeHotRanking({
+    limit: WEEKLY_HOT_LIMIT,
+    ...options,
+    windowsHours: WEEKLY_HOT_WINDOWS_HOURS,
+    halfLifeHours: WEEKLY_HOT_HALF_LIFE_HOURS,
+    categories: null,
+  });
 }
 
 /**

@@ -8,10 +8,12 @@ import { useSearchParams } from "next/navigation";
 import useSWRInfinite from "swr/infinite";
 
 import { FilterChip, FilterChipRail } from "@components/app/FilterChip";
-import { PostCard } from "@components/app/PostCard";
-import AdSenseUnit from "@components/app/ads/AdSenseUnit";
-import { getAdSenseSlot } from "@libs/client/adsConfig";
+import { ThreadPostCard, ThreadProductCard } from "@components/app/ThreadFeedCard";
+import CoupangBanner from "@components/app/ads/CoupangBanner";
+import { getCoupangWebConfig } from "@libs/client/adsConfig";
 import { withAdRows } from "@libs/shared/ads/adRows";
+import { HOME_SALE_FILTER, mixHomeFeed, productsNeeded } from "@libs/shared/homeFeedMix";
+import type { ProductsResponse } from "@libs/shared/home";
 import { QueryErrorState } from "@components/app/QueryErrorState";
 import { RetryFooter } from "@components/app/RetryFooter";
 import useBlocks from "hooks/useBlocks";
@@ -47,13 +49,21 @@ import {
   withFeedQuery,
 } from "@libs/client/feedUrlState";
 
-const FEED_ADS_ENABLED = Boolean(getAdSenseSlot("feed"));
+// 피드에 분양글이 섞이므로 AdSense 대신 쿠팡 행(생물 거래 화면에 AdSense 를 두지 않는다, 앱 docs/prd/ads.md §10).
+const FEED_ADS_ENABLED = Boolean(getCoupangWebConfig());
+/** 분양글 한 번에 받는 수. '전체'는 게시글 3개마다 1개라 한 페이지(게시글 10)에 3~4개면 된다. */
+const PRODUCT_PAGE_SIZE = 12;
 
-/** 카테고리 칩 목록. '팔로잉'은 카테고리가 아니라 내가 팔로우한 사람의 글 필터다(앱 (tabs)/index.tsx). */
+/**
+ * 카테고리 칩 목록. '팔로잉'은 내가 팔로우한 사람의 글, '분양'은 분양글만 보는 피드 필터다(카테고리 아님).
+ * '분양'은 동네 다음(앱 docs/prd/home-v2.md S-1 4번).
+ */
 export const HOME_POST_TABS = [
   { id: "전체", name: "전체" },
   { id: FOLLOWING_POST_FILTER, name: FOLLOWING_POST_FILTER },
-  ...POST_CATEGORIES,
+  ...POST_CATEGORIES.flatMap((category) =>
+    category.id === REGION_POST_CATEGORY ? [category, { id: HOME_SALE_FILTER, name: HOME_SALE_FILTER }] : [category]
+  ),
 ];
 const SORT_TABS = [
   { id: "latest", name: "최신순" },
@@ -90,17 +100,17 @@ function SkeletonBlock({ className }: { className?: string }) {
   return <div className={cn("animate-pulse rounded bg-app-placeholder", className)} />;
 }
 
-/** 앱 SkeletonPostRow */
+/** 쓰레드 피드 한 줄 스켈레톤(앱 ThreadFeedSkeleton). */
 function SkeletonPostRow() {
   return (
-    <div className="flex gap-3 px-4 py-3">
+    <div className="flex gap-3 p-4">
+      <SkeletonBlock className="h-9 w-9 shrink-0 rounded-full" />
       <div className="flex-1">
-        <SkeletonBlock className="h-3 w-16" />
+        <SkeletonBlock className="h-3.5 w-24" />
         <SkeletonBlock className="mt-2 h-4 w-3/4" />
-        <SkeletonBlock className="mt-2 h-3 w-full" />
-        <SkeletonBlock className="mt-2 h-3 w-1/2" />
+        <SkeletonBlock className="mt-2 h-3.5 w-full" />
+        <SkeletonBlock className="mt-3 aspect-[4/3] w-full rounded-lg" />
       </div>
-      <SkeletonBlock className="h-[72px] w-[72px] rounded-lg" />
     </div>
   );
 }
@@ -159,6 +169,9 @@ export default function HomePostsFeed() {
   const isRegionCategory = selectedCategory === REGION_POST_CATEGORY;
   // '팔로잉' 칩은 로그인해야 받는다(서버도 비로그인 401). 비로그인은 FollowingFeedCard 로 로그인을 안내한다.
   const isFollowingFilter = selectedCategory === FOLLOWING_POST_FILTER;
+  // '분양' 칩은 분양글만, '전체'는 게시글 3개마다 분양글 하나를 섞는다(libs/shared/homeFeedMix).
+  const isSaleFilter = selectedCategory === HOME_SALE_FILTER;
+  const mixProducts = selectedCategory === "전체";
   const showFollowingGate = isFollowingFilter && !user && !userLoading;
   // 계정을 받는 중에는 안내 카드 대신 스켈레톤을 둔다(안내 카드가 잠깐 비치지 않게).
   const showRegionGate = !myRegion && !userLoading;
@@ -190,7 +203,7 @@ export default function HomePostsFeed() {
 
   // 동네 글은 먼저 시/군/구로 받고, 1페이지가 0건이면 시/도 전체로 넓혀 다시 받는다(앱 AC-14).
   const sigunguList = useSWRInfinite<PostsListResponse>(
-    (isRegionCategory && !myRegion) || (isFollowingFilter && !user)
+    (isRegionCategory && !myRegion) || (isFollowingFilter && !user) || isSaleFilter
       ? () => null
       : makeGetKey(isRegionCategory ? myRegion : null),
     { revalidateFirstPage: false }
@@ -202,14 +215,40 @@ export default function HomePostsFeed() {
     widenToSido && myRegion ? makeGetKey({ sido: myRegion.sido }) : () => null,
     { revalidateFirstPage: false }
   );
-  const {
-    data,
-    error: listError,
-    size,
-    setSize,
-    isValidating,
-    mutate: mutateList,
-  } = widenToSido ? sidoList : sigunguList;
+  const postList = widenToSido ? sidoList : sigunguList;
+  const data = postList.data;
+
+  // 분양글: '분양' 칩이면 목록 자체, '전체'면 섞을 분양글(최신순). 종 필터는 같이 건다.
+  const productList = useSWRInfinite<ProductsResponse>(
+    (pageIndex: number, previous: ProductsResponse | null) => {
+      if (!isSaleFilter && !mixProducts) return null;
+      if (previous && pageIndex >= (previous.pages ?? 0)) return null;
+      const speciesParam = speciesQuery ? `&category=${encodeURIComponent(speciesQuery)}` : "";
+      const sortParam = isSaleFilter && selectedSort === "popular" ? "&sort=popular" : "";
+      return withCategoryPath(
+        `/api/products?page=${pageIndex + 1}&size=${PRODUCT_PAGE_SIZE}${speciesParam}${sortParam}`,
+        scope.categoryPath
+      );
+    },
+    { revalidateFirstPage: false, revalidateOnFocus: false }
+  );
+  const products = useMemo(() => {
+    const seen = new Set<number>();
+    const all = (productList.data ?? []).flatMap((page) => page?.products ?? []).filter((product) => {
+      if (seen.has(product.id)) return false;
+      seen.add(product.id);
+      return true;
+    });
+    return withoutBlocked(all, blockedIds, (product) => product.userId);
+  }, [productList.data, blockedIds]);
+  const productPages = productList.data?.length ?? 0;
+  const productTotalPages = productList.data?.[productPages - 1]?.pages ?? 0;
+  const productHasMore = productPages > 0 && productPages < productTotalPages;
+
+  // 지금 목록(분양 칩이면 분양글, 아니면 게시글)의 페이지·오류·다시 받기.
+  const primary = isSaleFilter ? productList : postList;
+  const { error: listError, size, setSize, isValidating, mutate: mutateList } = primary;
+  const primaryPages = primary.data?.length ?? 0;
   // 동네 목록 제목 아래 범위 표시: 시/군/구, 넓혔으면 "서울특별시 전체".
   const regionScopeLabel =
     isRegionCategory && myRegion ? (widenToSido ? `${myRegion.sido} 전체` : myRegion.sigungu) : null;
@@ -321,14 +360,31 @@ export default function HomePostsFeed() {
     return withoutBlocked(all, blockedIds, (post) => post.user?.id);
   }, [data, blockedIds]);
 
-  const listTitle = selectedCategory === "전체" ? "전체 게시글" : `${selectedCategory} 게시글`;
+  const listTitle =
+    selectedCategory === "전체" ? "전체 게시글" : isSaleFilter ? "분양글" : `${selectedCategory} 게시글`;
 
   const lastPage = data?.[data.length - 1];
   const totalPages = data?.[0]?.pages ?? 0;
-  const hasMore = Boolean(data && lastPage?.posts.length && data.length < totalPages);
-  const isInitialLoading = !data && !listError;
-  const isLoadingMore = Boolean(data && size > data.length && isValidating && !listError);
-  const loadedPages = data?.length ?? 0;
+  const postsHasMore = Boolean(data && lastPage?.posts.length && data.length < totalPages);
+  const hasMore = isSaleFilter ? productHasMore : postsHasMore;
+  const isInitialLoading = !primary.data && !listError;
+  const isLoadingMore = Boolean(primaryPages && size > primaryPages && isValidating && !listError);
+  const loadedPages = primaryPages;
+
+  // 피드 행: '분양'이면 분양글만, '전체'면 게시글 3개마다 분양글 하나, 그 밖의 칩은 게시글만.
+  const rows = useMemo(
+    () =>
+      isSaleFilter
+        ? products.map((product) => ({ kind: "product" as const, product }))
+        : mixHomeFeed(posts, mixProducts ? products : [], { postsDone: !postsHasMore }),
+    [isSaleFilter, mixProducts, products, posts, postsHasMore]
+  );
+  // '전체': 게시글이 늘어 섞을 분양글이 모자라면 분양글 다음 페이지를 받는다.
+  const needMoreProducts =
+    mixProducts && productHasMore && !productList.isValidating && products.length < productsNeeded(posts.length);
+  useEffect(() => {
+    if (needMoreProducts) void productList.setSize(productPages + 1);
+  }, [needMoreProducts, productPages]);
 
   // 바닥 감시 칸이 보이면 다음 페이지 하나만 받는다. 더 없거나 받는 중이면 부르지 않는다
   // (스크롤마다 페이지 수를 올리면 바닥에서 1페이지를 계속 다시 받아 목록이 깜박였다).
@@ -352,15 +408,15 @@ export default function HomePostsFeed() {
   useEffect(() => {
     const saved = pendingRestore.current;
     if (!saved) return;
-    if (!data) {
+    if (!primaryPages) {
       // 첫 페이지부터 못 받았으면 되살리지 않고 저장을 다시 시작한다.
       if (listError) pendingRestore.current = null;
       return;
     }
-    if (data.length < saved.size && hasMore && !listError) return;
+    if (primaryPages < saved.size && hasMore && !listError) return;
     pendingRestore.current = null;
     window.requestAnimationFrame(() => window.scrollTo(0, saved.scrollY));
-  }, [data, hasMore, listError]);
+  }, [primaryPages, hasMore, listError]);
 
   // 스크롤·페이지 수가 바뀌면 300ms 뒤 지금 필터 주소를 키로 저장한다. 화면을 떠날 때 남은 저장은 바로 쓴다.
   useEffect(() => {
@@ -397,15 +453,9 @@ export default function HomePostsFeed() {
 
   return (
     <>
-      {/* 목록 제목(개수·'…으로 노출됩니다' 없음). 헤더(56) 아래로 스크롤해 오도록 scroll-margin. */}
-      <section
-        id="all-posts"
-        ref={titleRef}
-        data-home-section="posts_feed"
-        className="scroll-mt-14 px-4 pb-1 pt-6"
-      >
-        <h2 className="app-t-section truncate">{listTitle}</h2>
-        {regionScopeLabel ? <p className="app-t-cap mt-0.5">{regionScopeLabel}</p> : null}
+      {/* 목록 자리(제목 글자는 화면 읽기용만, 시안 C — 8dp 갭 바로 아래 칩). 헤더(56) 아래로 스크롤해 오도록 scroll-margin. */}
+      <section id="all-posts" ref={titleRef} data-home-section="posts_feed" className="scroll-mt-14">
+        <h2 className="sr-only">{listTitle}</h2>
       </section>
 
       {/* 카테고리 칩 + 종·정렬: 스크롤하면 헤더 바로 아래에 붙는다(틈 없음). */}
@@ -443,6 +493,7 @@ export default function HomePostsFeed() {
           onChange={setSelectedSubSpecies}
           className="-mt-1.5 mb-0.5"
         />
+        {regionScopeLabel ? <p className="app-t-cap px-4 pb-2">{regionScopeLabel} 동네 글</p> : null}
       </div>
 
       {/* 게시글 목록 */}
@@ -456,13 +507,23 @@ export default function HomePostsFeed() {
             <SkeletonPostRow key={i} />
           ))}
         </div>
-      ) : listError && !data?.length ? (
+      ) : listError && !primaryPages ? (
         <QueryErrorState
           title="게시글을 불러오지 못했어요"
           onRetry={() => void mutateList()}
           className="py-[60px]"
         />
-      ) : posts.length === 0 && !hasMore && isRegionCategory && myRegion ? (
+      ) : isSaleFilter && products.length === 0 && !hasMore ? (
+        <div className="flex flex-col items-center px-4 py-7 text-center">
+          <p className="break-keep text-[14px] text-app-muted">아직 올라온 분양글이 없어요</p>
+          <Link
+            href="/products/upload"
+            className="mt-3.5 flex h-10 items-center justify-center rounded-lg bg-app-surface px-4 text-[14px] font-semibold text-app-strong"
+          >
+            분양글 올리기
+          </Link>
+        </div>
+      ) : rows.length === 0 && !hasMore && isRegionCategory && myRegion ? (
         // 시/도까지 넓혀도 0건(앱 S-2.빈): 첫 인사를 유도한다.
         <div className="flex flex-col items-center px-4 py-7 text-center">
           <p className="break-keep text-[14px] text-app-muted">아직 {myRegion.sido} 동네 글이 없어요. 첫 인사를 남겨 보세요</p>
@@ -473,13 +534,13 @@ export default function HomePostsFeed() {
             인사 남기기
           </Link>
         </div>
-      ) : posts.length === 0 && !hasMore && isFollowingFilter ? (
+      ) : rows.length === 0 && !hasMore && isFollowingFilter ? (
         // 아무도 팔로우하지 않았으면 '브리더 찾기', 팔로우했는데 글이 없으면 다른 문구(구 서버는 followingCount 가 없다).
         <FollowingFeedCard
           variant={data?.[0]?.followingCount === 0 ? "noFollowing" : "noPosts"}
           className="mt-2"
         />
-      ) : posts.length === 0 && !hasMore ? (
+      ) : rows.length === 0 && !hasMore ? (
         <div className="bg-app-bg pt-5">
           <p className="px-4 text-[14px] text-app-muted">
             아직 올라온 글이 없어요. 질문과 정보 글을 먼저 올리면 대화가 더 빨리 시작돼요.
@@ -500,23 +561,20 @@ export default function HomePostsFeed() {
         </div>
       ) : (
         <div>
-          {/* 8개마다 AdSense 한 줄(앱 홈 전체 게시글 네이티브 광고와 같은 간격). 슬롯 번호가 위치로 정해져 다음 페이지가 붙어도 그대로다. */}
-          {withAdRows(posts, FEED_ADS_ENABLED).map((row) =>
-            "kind" in row ? (
-              <AdSenseUnit
-                key={`ad-${row.slot}`}
-                placement="feed"
-                format="horizontal"
-                className="border-b border-app-line px-4 py-3.5"
-              />
+          {/* 8행마다 쿠팡 한 줄(앱 홈 네이티브 광고와 같은 간격). 슬롯 번호가 위치로 정해져 다음 페이지가 붙어도 그대로다. */}
+          {withAdRows(rows, FEED_ADS_ENABLED).map((row) =>
+            row.kind === "ad" ? (
+              <CoupangBanner key={`ad-${row.slot}`} variant="row" />
+            ) : row.kind === "product" ? (
+              <ThreadProductCard key={`product-${row.product.id}`} product={row.product} />
             ) : (
-              <PostCard key={row.id} post={row} />
+              <ThreadPostCard key={row.post.id} post={row.post} />
             ),
           )}
         </div>
       )}
 
-      {data?.length ? (
+      {primaryPages ? (
         <RetryFooter
           loading={isLoadingMore}
           error={Boolean(listError)}
