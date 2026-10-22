@@ -1,6 +1,7 @@
 import { TOP_LEVEL_CATEGORIES } from "@libs/categoryTaxonomy";
 import { POST_CATEGORIES } from "@libs/constants";
 import { FOLLOWING_POST_FILTER } from "@libs/shared/postCategory";
+import { HOME_SALE_FILTER } from "@libs/shared/homeFeedMix";
 
 /**
  * 웹 홈 '전체 게시글' 필터를 주소 쿼리에 두는 규칙(2026-10-21 커뮤니티 감사 11번).
@@ -26,7 +27,12 @@ export const DEFAULT_FEED_STATE: FeedState = { category: "전체", sort: "latest
 export const FEED_LIST_PARAM = "at";
 export const FEED_LIST_VALUE = "list";
 
-const CATEGORY_IDS = new Set<string>(["전체", FOLLOWING_POST_FILTER, ...POST_CATEGORIES.map((c) => c.id)]);
+const CATEGORY_IDS = new Set<string>([
+  "전체",
+  FOLLOWING_POST_FILTER,
+  HOME_SALE_FILTER,
+  ...POST_CATEGORIES.map((c) => c.id),
+]);
 const SPECIES_IDS = new Set<string>(["전체", ...TOP_LEVEL_CATEGORIES.map((s) => s.id)]);
 
 type ParamsLike = { get(name: string): string | null } | null | undefined;

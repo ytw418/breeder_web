@@ -4,6 +4,7 @@ import { Fragment, useCallback, useEffect, useMemo, useRef, useState } from "rea
 import Link from "next/link";
 import useSWRInfinite from "swr/infinite";
 
+import SaleTabSwitch from "@components/features/product/SaleTabSwitch";
 import Layout from "@components/features/MainLayout";
 import FloatingButton, { FAB_LIST_BOTTOM_PADDING_CLASS } from "@components/atoms/floating-button";
 import { FilterChip, FilterChipRail } from "@components/app/FilterChip";
@@ -163,10 +164,12 @@ export default function AuctionsClient() {
     <Layout icon hasTabBar title="경매" seoTitle="경매" showSearch>
       {/* 하단 여백 = FAB 높이 + 24(2026-10-21 디자인 리뷰, 앱 FAB_LIST_BOTTOM_PADDING). */}
       <div className={`flex min-h-full flex-col bg-app-bg ${FAB_LIST_BOTTOM_PADDING_CLASS}`}>
+        {/* 분양 탭 '분양 | 경매' 전환(앱 docs/prd/home-v2.md S-2). 하단 탭은 '분양'이 선택된다. */}
+        <SaleTabSwitch active="auctions" />
         {/* 검색 pill */}
         <form
           role="search"
-          className="px-4"
+          className="px-4 pt-3"
           onSubmit={(event) => {
             event.preventDefault();
             setQ(searchInput.trim());
