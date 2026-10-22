@@ -1,7 +1,7 @@
 /**
  * 홈 쓰레드식 피드에 분양글을 섞는 규칙(앱 docs/prd/home-v2.md S-1, 2026-10-22 사용자 결정).
  * 웹 breeder_web libs/shared/homeFeedMix.ts = 앱 src/lib/homeFeedMix.ts 사본이라 함께 고치고
- * 앱 `npm run test:home-feed-mix`·웹 jest 로 확인한다.
+ * 앱 `node --test scripts/test-home-feed-mix.mjs`·웹 jest 로 확인한다.
  */
 
 /** 홈 칩 '분양': 게시글 대신 분양글만 같은 모양으로 보인다(게시글 카테고리가 아니라 피드 필터). */

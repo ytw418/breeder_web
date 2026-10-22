@@ -31,8 +31,11 @@ import useUser from "hooks/useUser";
 
 /**
  * 홈 쓰레드식 피드 한 줄(앱 docs/prd/home-v2.md S-1 v2, 시안 design/mockups/home-photo-question/C-threads.html).
- * 왼쪽 아바타 36 · 오른쪽 이름 14/600 + 칭호 + 시간 → 제목 15/600 한 줄 + 본문 15/22 3줄 → 사진(1장 4:3, 2장 이상 정사각 2칸)
- * → 동작 줄(하트·댓글·공유 18) → 최신 댓글 한 줄. 테두리 버튼 없이 surface 채움(36·40 r8), 간격 4·8·12·16.
+ * 작성자 줄(아바타 36 + 이름 15/600 + 칭호 + 시간) 아래로 카드 폭 전체: 제목 16/600 한 줄 + 본문 16/24 3줄
+ * → 사진(1장 4:3, 2장 이상 정사각 2칸) → 동작 줄(하트·댓글·공유 18) → 최신 댓글 한 줄 15.
+ * 아바타가 왼쪽 열을 차지하지 않는다(2026-10-22 사용자 "왼쪽이 비어 보인다, 아바타·닉네임을 한 묶음으로").
+ * 글자는 같은 날 사용자 "글씨가 너무 작다"로 1px 키웠다(제목·본문 15 → 16, 이름·최신 댓글 14 → 15).
+ * 테두리 버튼 없이 surface 채움(36·40 r8), 간격 4·8·12·16.
  * 카드 전체는 투명 상세 링크가 덮고 아바타·이름·하트·공유·토론 버튼만 그 위로 올라온다(z-[2]).
  * 앱 src/components/features/home/ThreadFeedCard.tsx 와 같다.
  */
@@ -116,7 +119,7 @@ function ThreadAvatar({ user }: { user: ThreadUser }) {
     <Link
       href={`/profiles/${user.id}`}
       aria-label={`${user.name} 프로필`}
-      className="relative z-[2] block shrink-0 self-start"
+      className="relative z-[2] block shrink-0"
     >
       {framedFace}
     </Link>
@@ -126,7 +129,7 @@ function ThreadAvatar({ user }: { user: ThreadUser }) {
 function WhoRow({ user, createdAt }: { user: ThreadUser | null | undefined; createdAt: string | Date }) {
   const ago = timeAgo(createdAt);
   return (
-    <div className="flex min-h-5 min-w-0 items-center gap-1 text-[14px] leading-5">
+    <div className="flex min-h-[22px] min-w-0 items-center gap-1 text-[15px] leading-[22px]">
       {user ? (
         user.id != null ? (
           <Link
@@ -151,6 +154,18 @@ function WhoRow({ user, createdAt }: { user: ThreadUser | null | undefined; crea
         </span>
       ) : null}
       {ago ? <span className="shrink-0 text-[13px] text-app-muted">· {ago}</span> : null}
+    </div>
+  );
+}
+
+/** 작성자 줄: 아바타와 이름·칭호·시간을 한 묶음으로 두고, 글은 그 아래 카드 폭 전체를 쓴다. */
+function AuthorRow({ user, createdAt }: { user: ThreadUser | null | undefined; createdAt: string | Date }) {
+  return (
+    <div className="flex min-w-0 items-center gap-2">
+      {user ? <ThreadAvatar user={user} /> : <span className="h-9 w-9 shrink-0" />}
+      <div className="min-w-0 flex-1">
+        <WhoRow user={user} createdAt={createdAt} />
+      </div>
     </div>
   );
 }
@@ -290,60 +305,57 @@ export function ThreadPostCard({ post, className }: { post: ThreadPostData; clas
   const awaitingAnswer = isQuestion && comments === 0 && !post.resolvedAt;
 
   return (
-    <article className={cn("relative flex gap-3 border-b border-app-line bg-app-bg p-4", className)} data-testid="thread-post">
+    <article className={cn("relative border-b border-app-line bg-app-bg p-4", className)} data-testid="thread-post">
       <CardOverlayLink href={href} label={post.title} />
-      {post.user ? <ThreadAvatar user={post.user} /> : <span className="h-9 w-9 shrink-0" />}
-      <div className="min-w-0 flex-1">
-        <WhoRow user={post.user} createdAt={post.createdAt} />
-        <div className="mt-1 flex min-w-0 items-center gap-1">
-          {unread ? <span aria-label="안 본 글" className="h-1.5 w-1.5 shrink-0 rounded-full bg-app-danger" /> : null}
-          {isQuestion ? (
-            <span
-              className={cn(
-                "h-5 shrink-0 rounded-lg px-1.5 text-[12px] font-semibold leading-5",
-                "bg-app-brand-soft text-app-brand-text"
-              )}
-            >
-              {post.resolvedAt ? "해결" : "질문"}
-            </span>
-          ) : debate ? (
-            <DebatePill />
-          ) : null}
-          <p className="min-w-0 truncate text-[15px] font-semibold leading-[22px] text-app-text">{post.title}</p>
-        </div>
-        {excerpt ? (
-          <p className="line-clamp-3 break-keep text-[15px] leading-[22px] text-app-sub">{excerpt}</p>
-        ) : null}
-        {debate ? <DebateCardBody postId={post.id} debate={debate} size="feed" /> : <PhotoGrid images={images} alt={post.title} />}
-        {awaitingAnswer ? (
-          <Link
-            href={`${href}#comment`}
-            className="relative z-[2] mt-3 flex h-9 items-center gap-1.5 rounded-lg bg-app-surface px-3 text-[14px] text-app-muted active:opacity-80"
+      <AuthorRow user={post.user} createdAt={post.createdAt} />
+      <div className="mt-2 flex min-w-0 items-center gap-1">
+        {unread ? <span aria-label="안 본 글" className="h-1.5 w-1.5 shrink-0 rounded-full bg-app-danger" /> : null}
+        {isQuestion ? (
+          <span
+            className={cn(
+              "h-5 shrink-0 rounded-lg px-1.5 text-[12px] font-semibold leading-5",
+              "bg-app-brand-soft text-app-brand-text"
+            )}
           >
-            아직 답이 없어요
-            <span className="ml-auto text-[13px] font-semibold text-app-brand-text">첫 답 남기기</span>
-          </Link>
+            {post.resolvedAt ? "해결" : "질문"}
+          </span>
+        ) : debate ? (
+          <DebatePill />
         ) : null}
-        <div className="mt-3 flex items-center gap-4 text-[13px] leading-[18px] text-app-muted">
-          <LikeButton postId={post.id} initialLiked={Boolean(post.liked)} initialCount={likes} />
-          {/* 말풍선은 글을 열면서 댓글 입력칸에 커서를 둔다(#comment, 상세 PostClient). */}
-          <Link
-            href={`${href}#comment`}
-            aria-label={`댓글 ${comments}개, 댓글 쓰기`}
-            className="relative z-[2] -m-2 flex items-center gap-1 p-2"
-          >
-            <CommentIcon />
-            <span className="tabular-nums">{comments}</span>
-          </Link>
-          <ShareButton title={post.title} url={href} />
-        </div>
-        {latest && !debate ? (
-          <p className="mt-2 truncate text-[14px] leading-5 text-app-sub">
-            {latest.user?.name ? <b className="mr-1 font-semibold text-app-text">{latest.user.name}</b> : null}
-            {latest.comment}
-          </p>
-        ) : null}
+        <p className="min-w-0 truncate text-[16px] font-semibold leading-6 text-app-text">{post.title}</p>
       </div>
+      {excerpt ? (
+        <p className="line-clamp-3 break-keep text-[16px] leading-6 text-app-sub">{excerpt}</p>
+      ) : null}
+      {debate ? <DebateCardBody postId={post.id} debate={debate} size="feed" /> : <PhotoGrid images={images} alt={post.title} />}
+      {awaitingAnswer ? (
+        <Link
+          href={href}
+          className="relative z-[2] mt-3 flex h-9 items-center gap-1.5 rounded-lg bg-app-surface px-3 text-[15px] text-app-muted active:opacity-80"
+        >
+          아직 답이 없어요
+          <span className="ml-auto text-[13px] font-semibold text-app-brand-text">첫 답 남기기</span>
+        </Link>
+      ) : null}
+      <div className="mt-3 flex items-center gap-4 text-[13px] leading-[18px] text-app-muted">
+        <LikeButton postId={post.id} initialLiked={Boolean(post.liked)} initialCount={likes} />
+        {/* 말풍선·'첫 답 남기기'는 글을 본문부터 연다(입력바는 상세 아래 고정, 2026-10-22 사용자 피드백). */}
+        <Link
+          href={href}
+          aria-label={`댓글 ${comments}개, 댓글 쓰기`}
+          className="relative z-[2] -m-2 flex items-center gap-1 p-2"
+        >
+          <CommentIcon />
+          <span className="tabular-nums">{comments}</span>
+        </Link>
+        <ShareButton title={post.title} url={href} />
+      </div>
+      {latest && !debate ? (
+        <p className="mt-2 truncate text-[15px] leading-[22px] text-app-sub">
+          {latest.user?.name ? <b className="mr-1 font-semibold text-app-text">{latest.user.name}</b> : null}
+          {latest.comment}
+        </p>
+      ) : null}
     </article>
   );
 }
@@ -357,37 +369,37 @@ export function ThreadProductCard({ product, className }: { product: ThreadProdu
   const onSale = !product.status || product.status === "판매중";
 
   return (
-    <article className={cn("relative flex gap-3 border-b border-app-line bg-app-bg p-4", className)} data-testid="thread-product">
+    <article className={cn("relative border-b border-app-line bg-app-bg p-4", className)} data-testid="thread-product">
       <CardOverlayLink href={href} label={product.name} />
-      {product.user ? <ThreadAvatar user={{ ...product.user, id: product.user.id ?? product.userId ?? undefined }} /> : <span className="h-9 w-9 shrink-0" />}
-      <div className="min-w-0 flex-1">
-        <WhoRow user={product.user} createdAt={product.createdAt} />
-        <div className="mt-1 flex min-w-0 items-center gap-1">
-          {unread ? <span aria-label="안 본 글" className="h-1.5 w-1.5 shrink-0 rounded-full bg-app-danger" /> : null}
-          <p className="min-w-0 truncate text-[15px] font-semibold leading-[22px] text-app-text">{product.name}</p>
-        </div>
-        {excerpt ? <p className="line-clamp-2 break-keep text-[15px] leading-[22px] text-app-sub">{excerpt}</p> : null}
-        <PhotoGrid images={images} alt={product.name} />
-        <div className="mt-2 flex h-10 min-w-0 items-center gap-1.5 rounded-lg bg-app-gap px-3 text-[13px] text-app-muted">
-          <span className={cn("shrink-0 text-[12px] font-semibold", onSale ? "text-app-brand-text" : "text-app-muted")}>
-            {productStatusLabel(product.status ?? "판매중")}
-          </span>
-          <span className="shrink-0 text-[15px] font-bold text-app-text">{formatProductPrice(product.price)}</span>
-          {product.location ? <span className="min-w-0 truncate">· {product.location}</span> : null}
-          <span className="ml-auto flex shrink-0 items-center gap-0.5 font-semibold text-app-sub">
-            채팅하기
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" aria-hidden>
-              <path d="m9 6 6 6-6 6" />
-            </svg>
-          </span>
-        </div>
-        <div className="mt-3 flex items-center gap-4 text-[13px] leading-[18px] text-app-muted">
-          <span className="flex items-center gap-1" aria-label={`관심 ${favs}`}>
-            <HeartIcon />
-            <span className="tabular-nums">{favs}</span>
-          </span>
-          <ShareButton title={product.name} url={href} />
-        </div>
+      <AuthorRow
+        user={product.user ? { ...product.user, id: product.user.id ?? product.userId ?? undefined } : null}
+        createdAt={product.createdAt}
+      />
+      <div className="mt-2 flex min-w-0 items-center gap-1">
+        {unread ? <span aria-label="안 본 글" className="h-1.5 w-1.5 shrink-0 rounded-full bg-app-danger" /> : null}
+        <p className="min-w-0 truncate text-[16px] font-semibold leading-6 text-app-text">{product.name}</p>
+      </div>
+      {excerpt ? <p className="line-clamp-2 break-keep text-[16px] leading-6 text-app-sub">{excerpt}</p> : null}
+      <PhotoGrid images={images} alt={product.name} />
+      <div className="mt-2 flex h-10 min-w-0 items-center gap-1.5 rounded-lg bg-app-gap px-3 text-[13px] text-app-muted">
+        <span className={cn("shrink-0 text-[12px] font-semibold", onSale ? "text-app-brand-text" : "text-app-muted")}>
+          {productStatusLabel(product.status ?? "판매중")}
+        </span>
+        <span className="shrink-0 text-[16px] font-bold text-app-text">{formatProductPrice(product.price)}</span>
+        {product.location ? <span className="min-w-0 truncate">· {product.location}</span> : null}
+        <span className="ml-auto flex shrink-0 items-center gap-0.5 font-semibold text-app-sub">
+          채팅하기
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" aria-hidden>
+            <path d="m9 6 6 6-6 6" />
+          </svg>
+        </span>
+      </div>
+      <div className="mt-3 flex items-center gap-4 text-[13px] leading-[18px] text-app-muted">
+        <span className="flex items-center gap-1" aria-label={`관심 ${favs}`}>
+          <HeartIcon />
+          <span className="tabular-nums">{favs}</span>
+        </span>
+        <ShareButton title={product.name} url={href} />
       </div>
     </article>
   );

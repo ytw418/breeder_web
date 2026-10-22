@@ -800,6 +800,8 @@ model Auction {
   round           Int       @default(1)
   /// 경매 목록 정렬 시각. 등록·다시 시작 때 now. 이 열을 만들기 전 경매는 모두 마이그레이션 시각이라 목록은 id 로 한 번 더 정렬한다.
   listedAt        DateTime  @default(now())
+  /// 상세 조회 수(분양자 본인 제외, POST /api/auctions/:id/view). 목록 '지금 많이 보는 중' 딱지 기준(libs/shared/auctionBadge.ts).
+  viewCount       Int       @default(0)
   restarts        AuctionRestart[]
 
   createdAt       DateTime  @default(now())

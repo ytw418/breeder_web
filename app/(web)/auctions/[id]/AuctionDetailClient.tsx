@@ -1,7 +1,7 @@
 "use client";
 
 import { publishedGuideHref } from "@/data/guides/manifest";
-import { useEffect, useMemo, useState, type ReactNode } from "react";
+import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import useSWR from "swr";
 import { useMarkSeenOnView } from "@libs/client/unreadMarks";
 import Link from "next/link";
@@ -27,6 +27,7 @@ import { HeaderIconButton } from "@components/app/HeaderIconButton";
 import HiddenContentNotice from "@components/app/moderation/HiddenContentNotice";
 import { cn, getTimeAgoString, makeImageUrl } from "@libs/client/utils";
 import { toast } from "@libs/client/toast";
+import { authFetch } from "@libs/client/authFetch";
 import { promptPushAfter } from "@libs/client/pushPrompt";
 import { absoluteUrl, copyText, shareOrCopy } from "@libs/client/share";
 import { getAuctionResultMessage } from "@libs/client/auctionErrorMessage";
@@ -231,7 +232,7 @@ const AuctionDetailClient = ({
   const params = useParams();
   const router = useRouter();
   const pathname = usePathname();
-  const { user, canEditAnyContent } = useUser();
+  const { user, canEditAnyContent, isLoading: isUserLoading } = useUser();
   const auctionId = params?.id ? extractAuctionIdFromPath(params.id) : Number.NaN;
   const canLoadAuction = Number.isFinite(auctionId);
   const isToolRoute = Boolean(pathname?.startsWith("/tool"));
@@ -292,6 +293,16 @@ const AuctionDetailClient = ({
     // 경매가 바뀔 때 한 번만 남긴다(폴링으로 현재가가 바뀌어도 다시 남기지 않는다).
      
   }, [auction?.id, user?.id]);
+
+  // 분양자가 아닌 사람이 상세를 열면 조회 수를 한 번 올린다(목록 '지금 많이 보는 중' 기준, libs/shared/auctionBadge.ts).
+  // 5초 폴링으로 다시 받아도 다시 올리지 않는다. 로그인 확인이 끝난 뒤 판단하고, 실패해도 화면에는 알리지 않는다.
+  const viewedAuctionIdRef = useRef<number | null>(null);
+  useEffect(() => {
+    if (!auction?.id || isUserLoading || viewedAuctionIdRef.current === auction.id) return;
+    viewedAuctionIdRef.current = auction.id;
+    if (user?.id && user.id === auction.userId) return;
+    authFetch(`/api/auctions/${auction.id}/view`, { method: "POST" }).catch(() => undefined);
+  }, [auction?.id, auction?.userId, user?.id, isUserLoading]);
 
   const photos = useMemo(() => auction?.photos ?? [], [auction?.photos]);
   const safeImageIndex = photos.length ? Math.min(imageIndex, photos.length - 1) : 0;

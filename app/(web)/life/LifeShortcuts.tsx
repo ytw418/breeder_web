@@ -9,7 +9,7 @@ const SHORTCUTS = [
   {
     key: "bloodline",
     label: () => "혈통카드",
-    href: "/bloodline-cards",
+    href: "/bloodline-management",
     icon: (
       <>
         <rect x="4" y="3" width="16" height="18" rx="2" />
