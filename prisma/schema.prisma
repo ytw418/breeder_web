@@ -272,7 +272,7 @@ model Product {
   description String
   photos      String[]
   /// 나라(ISO 3166-1 alpha-2). 해외 진출 대비, 지금은 모두 KR.
-  country         String      @default("KR")
+  country     String      @default("KR")
   createdAt   DateTime    @default(now())
   updatedAt   DateTime    @updatedAt
   user        User        @relation(fields: [userId], references: [id])
@@ -321,9 +321,9 @@ model Product {
 model Post {
   id        Int         @id @default(autoincrement())
   /// 나라(ISO 3166-1 alpha-2). 해외 진출 대비, 지금은 모두 KR.
-  country         String      @default("KR")
+  country   String      @default("KR")
   /// 화면·글 언어(BCP 47, 예 ko·ja·zh-TW). 지금은 모두 ko.
-  locale          String      @default("ko")
+  locale    String      @default("ko")
   createdAt DateTime    @default(now())
   updatedAt DateTime    @updatedAt
   user      User        @relation(fields: [userId], references: [id], onDelete: Cascade)
@@ -813,7 +813,7 @@ model Auction {
   restarts        AuctionRestart[]
 
   /// 나라(ISO 3166-1 alpha-2). 해외 진출 대비, 지금은 모두 KR.
-  country         String      @default("KR")
+  country         String    @default("KR")
   createdAt       DateTime  @default(now())
   updatedAt       DateTime  @updatedAt
 
