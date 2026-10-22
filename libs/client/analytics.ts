@@ -8,6 +8,8 @@ export const ANALYTICS_EVENTS = {
   homeBannerClicked: "home_banner_clicked",
   homeCategorySelected: "home_category_selected",
   homeSectionView: "home_section_view",
+  // 홈 '인기글 TOP 10' 카드를 누름(post_id·position). 앱도 같은 이름(docs/prd/home-v2.md).
+  homeHotTop10Clicked: "home_hot_top10_clicked",
   homePopularProductClicked: "home_popular_product_clicked",
   homeOngoingAuctionClicked: "home_ongoing_auction_clicked",
   homePostLoginInstallClicked: "home_post_login_install_clicked",

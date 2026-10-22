@@ -6,6 +6,7 @@ import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import useSWRInfinite from "swr/infinite";
 
 import Layout from "@components/features/MainLayout";
+import SaleTabSwitch from "@components/features/product/SaleTabSwitch";
 import FloatingButton, { FAB_LIST_BOTTOM_PADDING_CLASS } from "@components/atoms/floating-button";
 import CategoryScopeBar from "@components/features/category/CategoryScopeBar";
 import FreeGiveawaySection from "@components/features/product/FreeGiveawaySection";
@@ -200,6 +201,8 @@ export default function ProductsClient({ initialParams }: { initialParams: Produ
     <Layout icon hasTabBar title="분양" seoTitle="분양" showSearch>
       {/* 현재 관심 분야(고정 범위). 온보딩을 마치면 숨는다(홈과 같다). */}
       <CategoryScopeBar />
+      {/* '분양 | 경매' 전환(앱 docs/prd/home-v2.md S-2). 포유류만 고정이면 그리지 않는다. */}
+      <SaleTabSwitch active="products" />
       {/* 필터 블록(헤더 아래 고정) */}
       <div className="sticky top-14 z-10 border-b border-app-line bg-app-bg">
         <div ref={categoryRailRef} className="flex h-11 items-center gap-2 overflow-x-auto px-4 scrollbar-hide">

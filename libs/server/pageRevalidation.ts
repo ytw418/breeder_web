@@ -25,7 +25,8 @@ const isValidId = (id: number) =>
 
 /** 대상의 상세 주소들. 제목 slug 주소와 id 만 쓴 주소는 캐시가 따로라 둘 다 넣는다. */
 export async function detailPaths(target: DetailTarget): Promise<string[]> {
-  if (target.type === "HOME") return ["/"];
+  // 홈 v2(앱 docs/prd/home-v2.md): 옛 홈 묶음(토론·동네·랭킹·배너)은 반려생활 탭이 미리 읽는다.
+  if (target.type === "HOME") return ["/", "/life"];
   if (!isValidId(target.id)) return [];
   switch (target.type) {
     case "PRODUCT": {
