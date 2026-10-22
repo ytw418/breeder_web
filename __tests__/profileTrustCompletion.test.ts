@@ -55,30 +55,27 @@ describe("computeProfileCompletion", () => {
     hasAvatar: false,
     hasBio: false,
     hasBanner: false,
-    hasLink: false,
     hasPinnedPhoto: false,
     hasAlbum: false,
     hasListing: false,
   };
 
-  it("순서대로 다음 할 일을 고른다(v6: 소개 다음 커버·대표 링크)", () => {
-    expect(computeProfileCompletion(none)).toMatchObject({ done: 0, total: 7, next: "avatar" });
+  it("순서대로 다음 할 일을 고른다(v6: 소개 다음 커버, 대표 링크는 선택)", () => {
+    expect(computeProfileCompletion(none)).toMatchObject({ done: 0, total: 6, next: "avatar" });
     expect(computeProfileCompletion({ ...none, hasAvatar: true, hasBio: true })).toMatchObject({
       done: 2,
       next: "banner",
     });
+    // 대표 링크는 선택이라 완성 단계에 없다 — 커버 다음은 대표 사진 고정
     expect(computeProfileCompletion({ ...none, hasAvatar: true, hasBio: true, hasBanner: true })).toMatchObject({
       done: 3,
-      next: "link",
+      next: "pin",
     });
-    expect(
-      computeProfileCompletion({ ...none, hasAvatar: true, hasBio: true, hasBanner: true, hasLink: true })
-    ).toMatchObject({ done: 4, next: "pin" });
   });
 
   it("다 채우면 next 가 없다", () => {
     const all = Object.fromEntries(Object.keys(none).map((key) => [key, true])) as typeof none;
-    expect(computeProfileCompletion(all)).toMatchObject({ done: 7, total: 7, next: null });
+    expect(computeProfileCompletion(all)).toMatchObject({ done: 6, total: 6, next: null });
   });
 
   it("항목 이름", () => {
@@ -86,7 +83,6 @@ describe("computeProfileCompletion", () => {
       "프로필 사진",
       "소개",
       "커버 사진",
-      "대표 링크",
       "대표 사진 고정",
       "앨범 만들기",
       "첫 분양 글",
@@ -99,7 +95,6 @@ describe("완성 카드 보상 문구·목적지(AC-14, 앱 community-vibe §3.8
     hasAvatar: false,
     hasBio: false,
     hasBanner: false,
-    hasLink: false,
     hasPinnedPhoto: false,
     hasAlbum: false,
     hasListing: false,
@@ -111,7 +106,6 @@ describe("완성 카드 보상 문구·목적지(AC-14, 앱 community-vibe §3.8
       ["avatar", "올리면 홈 '우리 동네 브리더'에 보여요", "/editProfile"],
       ["bio", "분양글 작성자 줄에 한 줄 소개가 붙어요", "/editProfile"],
       ["banner", "프로필이 '새로 온 브리더' 레일에 올라가요", "/editProfile"],
-      ["link", "프로필 공유 링크가 깔끔해져요", "/editProfile"],
       ["pin", "프로필 사진 탭 맨 위에 고정돼요", "/editProfile"],
       ["album", "프로필 사진 탭이 채워져요", "/albums/edit"],
       ["listing", "홈 '지금 올라온 분양'에 24시간 보여요", "/products/upload"],
