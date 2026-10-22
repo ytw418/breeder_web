@@ -15,20 +15,25 @@ import { useIsUnread } from "@libs/client/unreadMarks";
 
 /** 남은 시간이 이보다 짧으면 '마감 임박'(빨간 글자). */
 const AUCTION_URGENT_MS = 60 * 60 * 1000;
+/** 진행중 경매가 등록된 지 이 안이면 상태 뱃지 자리에 'NEW'. 앱 AuctionCard 와 같다. */
+const AUCTION_NEW_MS = 24 * 60 * 60 * 1000;
 
 /** 가격 라벨: 낙찰된 종료 경매는 낙찰가, 입찰 없이 끝난 유찰은 시작가, 그 밖은 현재가. */
-function auctionPriceLabel(auction: Pick<AuctionWithUser, "status" | "winnerId">) {
+function auctionPriceLabel(
+  auction: Pick<AuctionWithUser, "status" | "winnerId">,
+) {
   if (auction.status === "종료" && auction.winnerId) return "낙찰가";
   if (auction.status === "유찰") return "시작가";
   return "현재가";
 }
 
-/** 이미지 위 상태 뱃지(앱 AuctionCard): 진행중 초록 / 종료 중립 / 그 외(유찰 등) 노랑. 다크는 불투명 면 + 1px 테두리. */
+/** 이미지 위 상태 뱃지(앱 AuctionCard): NEW 주황 / 진행중 초록 / 종료 중립 / 그 외(취소 등) 노랑, 유찰은 숨김. 다크는 불투명 면 + 1px 테두리. */
 const STATUS_BADGE_CLASS: Record<string, string> = {
   진행중:
     "border-emerald-200 bg-app-success-soft text-app-success-text dark:border-app-border dark:bg-app-elevated",
   종료: "border-app-border bg-app-surface text-app-sub dark:bg-app-elevated",
 };
+const NEW_BADGE_CLASS = "border-app-brand bg-app-brand text-white";
 const OTHER_BADGE_CLASS =
   "border-amber-200 bg-app-warning-soft text-app-warning-text dark:border-app-border dark:bg-app-elevated";
 
@@ -53,12 +58,26 @@ export function AuctionCard({
   const framed = hasBreederProgramFrame(programs);
   const bids = auction._count?.bids ?? 0;
   const urgent =
-    live && !timeOver && new Date(auction.endAt).getTime() - nowMs <= AUCTION_URGENT_MS;
+    live &&
+    !timeOver &&
+    new Date(auction.endAt).getTime() - nowMs <= AUCTION_URGENT_MS;
   const unread = useIsUnread("auction", {
     id: auction.id,
     createdAt: auction.createdAt,
     authorId: auction.userId,
   });
+
+  // 유찰은 뱃지를 숨기고(2026-10-22 사용자 결정), 등록 24시간 안 진행중은 주황 'NEW'.
+  const isNew =
+    live &&
+    !timeOver &&
+    !!auction.createdAt &&
+    nowMs - new Date(auction.createdAt).getTime() <= AUCTION_NEW_MS;
+  const badgeLabel = isNew
+    ? "NEW"
+    : auction.status === "유찰"
+    ? null
+    : auction.status;
 
   useEffect(() => {
     if (timeOver) onTimeOver?.(auction.id);
@@ -66,7 +85,10 @@ export function AuctionCard({
 
   return (
     <article className="relative min-w-0 overflow-hidden rounded-lg border border-app-border bg-app-elevated">
-      <CardOverlayLink href={toAuctionPath(auction.id, auction.title)} label={auction.title} />
+      <CardOverlayLink
+        href={toAuctionPath(auction.id, auction.title)}
+        label={auction.title}
+      />
       {/* 이미지 */}
       <div className="relative aspect-[4/3] w-full bg-app-surface">
         {auction.photos?.[0] ? (
@@ -78,14 +100,18 @@ export function AuctionCard({
             sizes="(max-width: 640px) 50vw, 280px"
           />
         ) : null}
-        <span
-          className={cn(
-            "absolute left-2 top-2 inline-flex h-5 items-center whitespace-nowrap rounded-md border px-2 text-[10px] font-semibold leading-none",
-            STATUS_BADGE_CLASS[auction.status] ?? OTHER_BADGE_CLASS
-          )}
-        >
-          {auction.status}
-        </span>
+        {badgeLabel ? (
+          <span
+            className={cn(
+              "absolute left-2 top-2 inline-flex h-5 items-center whitespace-nowrap rounded-md border px-2 text-[10px] font-semibold leading-none",
+              isNew
+                ? NEW_BADGE_CLASS
+                : STATUS_BADGE_CLASS[auction.status] ?? OTHER_BADGE_CLASS,
+            )}
+          >
+            {badgeLabel}
+          </span>
+        ) : null}
       </div>
 
       {/* 정보 */}
@@ -101,27 +127,38 @@ export function AuctionCard({
             <span
               className={cn(
                 "whitespace-nowrap text-[10px] font-semibold",
-                timeOver ? "text-app-muted" : urgent ? "text-app-danger" : "text-app-success-text"
+                timeOver
+                  ? "text-app-muted"
+                  : urgent
+                  ? "text-app-danger"
+                  : "text-app-success-text",
               )}
             >
               {timeOver
                 ? "마감"
                 : urgent
-                  ? `마감 임박 · ${formatAuctionTimeLeft(auction.endAt, nowMs)}`
-                  : formatAuctionTimeLeft(auction.endAt, nowMs)}
+                ? `마감 임박 · ${formatAuctionTimeLeft(auction.endAt, nowMs)}`
+                : formatAuctionTimeLeft(auction.endAt, nowMs)}
             </span>
           ) : null}
         </div>
         <div className="flex min-w-0 items-center gap-1.5">
           {unread ? (
-            <span aria-label="안 본 경매" className="h-1.5 w-1.5 shrink-0 rounded-full bg-app-danger" />
+            <span
+              aria-label="안 본 경매"
+              className="h-1.5 w-1.5 shrink-0 rounded-full bg-app-danger"
+            />
           ) : null}
-          <h3 className="truncate text-sm font-semibold text-app-strong">{auction.title}</h3>
+          <h3 className="truncate text-sm font-semibold text-app-strong">
+            {auction.title}
+          </h3>
         </div>
         <div className="mt-2 flex flex-wrap items-end justify-between gap-x-2 gap-y-0.5">
           {/* 가격 우선: 가격 열은 줄이지 않고, 오른쪽 문구는 폭이 모자라면 다음 줄로 내려간다(잘리지 않게). */}
           <div className="shrink-0">
-            <p className="text-[10px] text-app-muted">{auctionPriceLabel(auction)}</p>
+            <p className="text-[10px] text-app-muted">
+              {auctionPriceLabel(auction)}
+            </p>
             <p className="whitespace-nowrap text-sm font-bold text-app-strong">
               {auction.currentPrice.toLocaleString()}원
             </p>
@@ -153,7 +190,11 @@ export function AuctionCard({
 
 export function AuctionSkeletonGrid({ className }: { className?: string }) {
   return (
-    <div className={cn("grid grid-cols-2 gap-3 py-4", className)} aria-label="불러오는 중" role="status">
+    <div
+      className={cn("grid grid-cols-2 gap-3 py-4", className)}
+      aria-label="불러오는 중"
+      role="status"
+    >
       {[0, 1, 2, 3].map((i) => (
         <div
           key={i}
