@@ -170,7 +170,7 @@ function MyRankRow({
       ? "/auctions"
       : kind === "comment"
         ? question
-          ? `${toPostPath(question.id, question.title)}#comment`
+          ? toPostPath(question.id, question.title)
           : "/"
         : "/posts/upload";
   const headline = myRankHeadline(me);

@@ -57,8 +57,12 @@ describe("홈 우리 동네 브리더(강조, community-vibe §3.6)", () => {
     );
     expect(screen.getByTestId("neighborhood-subtitle")).toHaveTextContent("서울 근처 브리더 12명 · 이번 주 인사 글 3개");
     expect(screen.getByText("같은 동네")).toBeInTheDocument();
-    expect(screen.getByText("광명시 · 6km")).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "팔로잉, 누르면 팔로우 취소" })).toBeInTheDocument();
+    // 이미 팔로우한 사람은 레일에서 빠진다(2026-10-22 사용자 "팔로우하면 목록에서 안 보이게").
+    expect(screen.queryByText("광명시 · 6km")).toBeNull();
+    expect(screen.queryByRole("button", { name: "팔로잉, 누르면 팔로우 취소" })).toBeNull();
+    expect(screen.getByRole("button", { name: "팔로우" })).toBeInTheDocument();
+    // 팔로우 옆 '인사'는 같은 너비 두 칸이다.
+    expect(screen.getByRole("button", { name: /인사하기/ })).toHaveTextContent("인사");
     expect(screen.getByRole("link", { name: "동네 글" })).toHaveAttribute("href", `/?category=${encodeURIComponent("동네")}&at=list`);
     expect(screen.getByRole("link", { name: "인사 남기기" })).toHaveAttribute("href", `/posts/upload?category=${encodeURIComponent("동네")}`);
     expect(screen.queryByTestId("neighborhood-me-card")).toBeNull();

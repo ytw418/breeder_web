@@ -10,6 +10,7 @@ import {
 import { cn, makeImageUrl } from "@libs/client/utils";
 import { toAuctionPath } from "@libs/auction-route";
 import { formatAuctionTimeLeft, isAuctionTimeOver } from "@libs/auctionRules";
+import { auctionCardBadge, type AuctionBadgeTone } from "@libs/shared/auctionBadge";
 import type { AuctionWithUser } from "pages/api/auctions";
 import { useIsUnread } from "@libs/client/unreadMarks";
 
@@ -23,14 +24,15 @@ function auctionPriceLabel(auction: Pick<AuctionWithUser, "status" | "winnerId">
   return "현재가";
 }
 
-/** 이미지 위 상태 뱃지(앱 AuctionCard): 진행중 초록 / 종료 중립 / 그 외(유찰 등) 노랑. 다크는 불투명 면 + 1px 테두리. */
-const STATUS_BADGE_CLASS: Record<string, string> = {
-  진행중:
-    "border-emerald-200 bg-app-success-soft text-app-success-text dark:border-app-border dark:bg-app-elevated",
-  종료: "border-app-border bg-app-surface text-app-sub dark:bg-app-elevated",
+/**
+ * 이미지 위 딱지(libs/shared/auctionBadge.ts, 앱 AuctionCard 와 같다): 유찰·진행중은 없고, 진행 중이면
+ * '지금 많이 보는 중'·'입찰 경쟁 중'(빨강 채움)·'NEW'(주황 채움) 중 하나, 종료는 회색(2026-10-22 사용자 결정).
+ */
+const BADGE_CLASS: Record<AuctionBadgeTone, string> = {
+  hot: "border-app-danger bg-app-danger text-white",
+  new: "border-app-brand bg-app-brand text-white",
+  ended: "border-app-border bg-app-surface text-app-sub dark:bg-app-elevated",
 };
-const OTHER_BADGE_CLASS =
-  "border-amber-200 bg-app-warning-soft text-app-warning-text dark:border-app-border dark:bg-app-elevated";
 
 /**
  * 경매 2열 그리드 카드(앱 AuctionCard 와 같은 구성). 부모 그리드 셀이 폭을 정한다.
@@ -64,6 +66,16 @@ export function AuctionCard({
     if (timeOver) onTimeOver?.(auction.id);
   }, [timeOver, onTimeOver, auction.id]);
 
+  const badge = auctionCardBadge({
+    status: auction.status,
+    endAt: auction.endAt,
+    listedAt: auction.listedAt,
+    createdAt: auction.createdAt,
+    bids,
+    nowMs,
+    popular: auction.popular,
+  });
+
   return (
     <article className="relative min-w-0 overflow-hidden rounded-lg border border-app-border bg-app-elevated">
       <CardOverlayLink href={toAuctionPath(auction.id, auction.title)} label={auction.title} />
@@ -78,14 +90,16 @@ export function AuctionCard({
             sizes="(max-width: 640px) 50vw, 280px"
           />
         ) : null}
-        <span
-          className={cn(
-            "absolute left-2 top-2 inline-flex h-5 items-center whitespace-nowrap rounded-md border px-2 text-[10px] font-semibold leading-none",
-            STATUS_BADGE_CLASS[auction.status] ?? OTHER_BADGE_CLASS
-          )}
-        >
-          {auction.status}
-        </span>
+        {badge ? (
+          <span
+            className={cn(
+              "absolute left-2 top-2 inline-flex h-5 items-center whitespace-nowrap rounded-md border px-2 text-[10px] font-semibold leading-none",
+              BADGE_CLASS[badge.tone]
+            )}
+          >
+            {badge.label}
+          </span>
+        ) : null}
       </div>
 
       {/* 정보 */}
