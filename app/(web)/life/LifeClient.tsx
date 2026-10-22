@@ -85,8 +85,8 @@ function Skeleton({ className }: { className?: string }) {
 
 /**
  * 반려생활 탭(앱 src/app/(tabs)/life.tsx, 앱 docs/prd/home-v2.md S-3, 시안 home-photo-question/B-tabs.html ④).
- * v3(앱 docs/prd/evergreen-debate.md S-1, 2026-10-22): 배너(맨 위) → 공지 → 상시 토론 → 인기 질문 → 이번 주 인기 집사님 →
- * 동네 친구 → 바로가기 4칸 → 미션, 글쓰기 FAB. 실시간 TOP 토론·답 기다려요는 홈 피드·모아보기에 남기고 이 탭에선 뺐다.
+ * v3(앱 docs/prd/evergreen-debate.md S-1, 2026-10-22): 배너(맨 위) → 공지 → 상시 토론 → 인기 질문 → 동네 친구 →
+ * 바로가기 4칸 → 이번 주 인기 집사님 → 미션(10-23 동네 친구·바로가기를 올림), 글쓰기 FAB. 실시간 TOP 토론·답 기다려요는 홈 피드·모아보기에 남기고 이 탭에선 뺐다.
  * 2026-10-15 홈 구성 A안에서 홈으로 옮겼던 블록을 홈 v2(2026-10-22)에서 다시 이 탭으로 모았다.
  */
 const LifeClient = ({
@@ -297,7 +297,14 @@ const LifeClient = ({
       {/* 3. 인기 질문(이번 주 답 많은 질문 3개) */}
       <PopularQuestionsSection />
 
-      {/* 4. 이번 주 인기 집사님 + 내 순위 — 집계가 비면 섹션을 숨긴다 */}
+      {/* 4. 동네 친구(시 단위 + 50km) — 2026-10-23 사용자 "동네 친구랑 혈통카드를 인기 질문 바로 아래로" */}
+      <div className="mt-4 h-2 bg-app-gap" />
+      <NeighborhoodBreederSection />
+
+      {/* 5. 바로가기 4칸(혈통카드 · 랭킹 · 동네 사랑방 · 토론 열기) */}
+      <LifeShortcuts />
+
+      {/* 6. 이번 주 인기 집사님 + 내 순위 — 집계가 비면 섹션을 숨긴다 */}
       {showTopBreeder ? (
         <section className="mt-4 border-t-8 border-app-gap pt-4" data-home-section="hero_breeder">
           <SectionHeader
@@ -335,13 +342,6 @@ const LifeClient = ({
           </div>
         </section>
       ) : null}
-
-      {/* 5. 동네 친구(시 단위 + 50km) */}
-      <div className="mt-4 h-2 bg-app-gap" />
-      <NeighborhoodBreederSection />
-
-      {/* 6. 바로가기 4칸(혈통카드 · 랭킹 · 동네 사랑방 · 토론 열기) */}
-      <LifeShortcuts />
 
       {/* 7. 이번 주 미션(로그인, 진행이 1 이상일 때만) */}
       <MissionCard enabled={Boolean(user)} />
