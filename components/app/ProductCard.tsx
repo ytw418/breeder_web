@@ -61,8 +61,8 @@ export function getProductStatusLabel(
 }
 
 /**
- * 당근 톤 상품 플랫 행(앱 ProductCard). 높이 108, 88px 썸네일(r8), 하단 1px app-line.
- * [안 본 점] 이름 16/500(2줄) · [상태 pill] 메타 13 app-muted · 가격 16/700 + 관심 수.
+ * 당근 톤 상품 플랫 행(앱 ProductCard). 높이 148, 120px 썸네일(r8, 시안 list-thumb/A-karrot.html A안), 하단 1px app-line.
+ * [안 본 점] 이름 16/500(2줄) · [상태 pill] 메타 13 app-muted · 가격 16/700, 관심 수는 오른쪽 아래.
  * markUnread: 홈·상품 목록처럼 둘러보는 목록에서만 켠다(7일 안·안 연 상품에 빨간 점, 프로필 내역은 끔).
  * 판매완료·삭제·숨김은 썸네일을 어둡게 덮는다.
  * seller 를 넘기면 메타 맨 앞에 판매자(누르면 프로필, 행 높이 그대로, 시안 author-row/A-karrot.html A-②).
@@ -99,18 +99,18 @@ export function ProductCard({
 
   const content = (
     <>
-      <div className="relative h-[88px] w-[88px] shrink-0 overflow-hidden rounded-lg bg-app-placeholder">
+      <div className="relative h-[120px] w-[120px] shrink-0 overflow-hidden rounded-lg bg-app-placeholder">
         {product.image ? (
           <Image
             src={makeImageUrl(product.image, "product")}
             alt={product.name}
-            width={88}
-            height={88}
+            width={120}
+            height={120}
             className="h-full w-full object-cover"
           />
         ) : (
           <div className="grid h-full w-full place-items-center text-app-caption" aria-hidden="true">
-            <svg className="h-7 w-7" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <svg className="h-8 w-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path
                 strokeLinecap="round"
                 strokeLinejoin="round"
@@ -130,7 +130,7 @@ export function ProductCard({
         ) : null}
       </div>
 
-      <div className="flex h-[88px] min-w-0 flex-1 flex-col justify-center">
+      <div className="flex h-[120px] min-w-0 flex-1 flex-col">
         <div className="flex items-start gap-1.5">
           {showDot ? (
             <span
@@ -164,24 +164,22 @@ export function ProductCard({
             ) : null}
           </div>
         ) : null}
-        <div className="mt-1 flex items-center justify-between gap-2">
-          <span className="truncate text-[16px] font-bold text-app-text">
-            {formatProductPrice(product.price)}
+        <span className="mt-1.5 truncate text-[16px] font-bold text-app-text">
+          {formatProductPrice(product.price)}
+        </span>
+        {hearts > 0 ? (
+          <span className="mt-auto inline-flex shrink-0 items-center gap-0.5 self-end text-[13px] text-app-muted">
+            <svg className="h-3.5 w-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth="2"
+                d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z"
+              />
+            </svg>
+            <span aria-label={`관심 ${hearts}`}>{hearts}</span>
           </span>
-          {hearts > 0 ? (
-            <span className="inline-flex shrink-0 items-center gap-0.5 text-[13px] text-app-muted">
-              <svg className="h-3.5 w-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth="2"
-                  d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z"
-                />
-              </svg>
-              <span aria-label={`관심 ${hearts}`}>{hearts}</span>
-            </span>
-          ) : null}
-        </div>
+        ) : null}
       </div>
     </>
   );
@@ -189,7 +187,7 @@ export function ProductCard({
   return (
     <div
       className={cn(
-        "relative flex h-[108px] items-center gap-3 border-b border-app-line bg-app-bg px-4",
+        "relative flex h-[148px] items-start gap-3 border-b border-app-line bg-app-bg px-4 py-3.5",
         className
       )}
     >
