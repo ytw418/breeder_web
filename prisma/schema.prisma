@@ -1396,7 +1396,12 @@ model Debate {
   postId           Int          @id
   optionA          String       @db.VarChar(12)
   optionB          String       @db.VarChar(12)
-  endsAt           DateTime
+  /// null = 상시 토론(운영자만 연다, 마감 없음). 회원 토론은 API 가 늘 채운다. 앱 docs/prd/evergreen-debate.md
+  endsAt           DateTime?
+  /// 상시 토론 분야 키(libs/shared/debateFormat EVERGREEN_FIELDS). 회원 토론은 null.
+  evergreenField   String?      @db.VarChar(20)
+  /// 같은 분야 안 순서(작을수록 위).
+  evergreenOrder   Int?
   /// 작성자 말고 처음 투표한 시각. 이 뒤엔 질문·선택지를 못 고친다.
   firstOtherVoteAt DateTime?
   /// 앱 안 결과 알림을 만든 시각(한 번만).
@@ -1405,6 +1410,7 @@ model Debate {
   votes            DebateVote[]
 
   @@index([endsAt])
+  @@index([evergreenField, evergreenOrder])
 }
 
 /// 토론 투표. 한 사람 한 표, 끝나기 전엔 쪽을 바꿀 수 있다(switchedAt = 마지막으로 바꾼 시각).

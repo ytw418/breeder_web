@@ -89,7 +89,7 @@ async function handler(
   let stance: "A" | "B" | null = null;
   if (post.category === DEBATE_CATEGORY && user?.id) {
     const debate = await client.debate.findUnique({ where: { postId }, select: { endsAt: true } });
-    if (debate && Date.now() >= debate.endsAt.getTime()) {
+    if (debate?.endsAt && Date.now() >= debate.endsAt.getTime()) {
       return sendCommentError(res, 409, "DEBATE_CLOSED", "끝난 토론은 읽기만 할 수 있어요");
     }
     const vote = await client.debateVote.findUnique({

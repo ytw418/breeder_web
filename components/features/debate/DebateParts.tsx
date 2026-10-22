@@ -200,14 +200,14 @@ const toLoginHref = (next: string) => `/auth/login?next=${encodeURIComponent(nex
 const PENDING_VOTE_KEY = "bredy:pending-vote";
 const PENDING_VOTE_TTL_MS = 10 * 60_000;
 
-/** 고르기 직후 화면(서버 응답 전): 내 선택만 바꾸고 참여 수를 올린다. 결과는 서버가 준다. */
+/** 고르기 직후 화면(서버 응답 전): 내 선택만 바꾸고 참여 수를 올린다. 결과는 서버가 준다(상시 토론은 지금 결과를 그대로 둔다). */
 function optimisticVote(summary: DebateSummary, side: DebateSide): DebateSummary {
   return {
     ...summary,
     mySide: side,
     participants: summary.mySide ? summary.participants : summary.participants + 1,
     switchCount: summary.mySide && summary.mySide !== side ? summary.switchCount + 1 : summary.switchCount,
-    result: summary.mySide ? summary.result : null,
+    result: summary.mySide || summary.evergreen ? summary.result : null,
   };
 }
 

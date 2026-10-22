@@ -31,6 +31,7 @@ const ADMIN_MENUS = [
   { name: "고객의 소리", href: "/admin/voice" },
   { name: "오픈채팅 소식", href: "/admin/kakao-digest" },
   { name: "게시물 관리", href: "/admin/posts" },
+  { name: "상시 토론", href: "/admin/evergreen-debates" },
   { name: "푸시 보내기", href: "/admin/push" },
   { name: "분양 관리", href: "/admin/products" },
 ];
