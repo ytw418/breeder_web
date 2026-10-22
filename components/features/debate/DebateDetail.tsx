@@ -21,12 +21,16 @@ import { BLOCKED_WORD_MESSAGE } from "@libs/shared/contentFilter";
 import {
   activityLabel,
   durationLabel,
+  evergreenFieldLabel,
+  evergreenMetaLabel,
   isLiveActive,
   liveDividerLabel,
   mySideResultLine,
   needsLiveDivider,
   participantsLabel,
+  pendingResultLabel,
   remainingLabel,
+  RESULT_CARD_MIN_VOTES,
   resultHeadline,
   sideLabel,
   switchConfirmMessage,
@@ -37,6 +41,7 @@ import {
 import type { LiveComment, LiveCommentsResult, LiveSwitch } from "@libs/shared/liveTalk";
 import type { ProductsResponse } from "@libs/shared/home";
 import { AuthorChip, DebateGauge, DebateResult, DebateVoteButtons, StanceChip, useDebateVote } from "./DebateParts";
+import ResultCardSheet from "./ResultCardSheet";
 
 export type DebateDetailPost = {
   id: number;
@@ -130,6 +135,9 @@ export default function DebateDetail({
   });
   const summary = voteSummary ?? initialDebate;
   const open = summary.state === "open";
+  // 상시 토론(앱 docs/prd/evergreen-debate.md S-4): 마감·남은 시간이 없고 결과가 늘 보인다.
+  const evergreen = summary.evergreen;
+  const [cardOpen, setCardOpen] = useState(false);
   const [switches, setSwitches] = useState<LiveSwitch[]>([]);
   const [best, setBest] = useState<LiveCommentsResult["best"]>(null);
   const firstMaxId = useRef(0);
@@ -306,12 +314,16 @@ export default function DebateDetail({
         {/* 위 블록 */}
         <section className="px-4 pb-5 pt-4">
           <div className="flex items-center gap-1.5">
-            {post.type ? (
+            {evergreen ? (
+              <span className="inline-flex h-[22px] items-center rounded-lg bg-app-inverse px-2 text-[12px] font-semibold leading-[22px] text-app-inverse-text">
+                상시 토론 · {evergreenFieldLabel(evergreen.field)}
+              </span>
+            ) : post.type ? (
               <span className="inline-flex h-[22px] items-center rounded-full bg-app-surface px-2 text-[12px] font-medium leading-[22px] text-app-sub">
                 {post.type}
               </span>
             ) : null}
-            <span className="ml-auto text-[13px] text-app-muted">{remainingLabel(summary.endsAt)}</span>
+            {evergreen ? null : <span className="ml-auto text-[13px] text-app-muted">{remainingLabel(summary.endsAt)}</span>}
           </div>
           <h1 className="mt-2.5 break-keep text-[20px] font-bold leading-7 tracking-[-0.4px] text-app-text">{post.title}</h1>
           <div className="mt-1.5 flex min-h-6 items-center gap-1.5 text-[13px] text-app-muted">
@@ -319,7 +331,9 @@ export default function DebateDetail({
               <AuthorLink user={post.user} avatarSize={20} className="gap-1.5" nameClassName="text-[13px] font-semibold text-app-text" />
             ) : null}
             <span className="shrink-0">· {getTimeAgoString(new Date(post.createdAt))}</span>
-            {!open ? <span className="shrink-0">· {durationLabel(debateHours(post.createdAt, summary.endsAt))} 토론</span> : null}
+            {!open && summary.endsAt ? (
+              <span className="shrink-0">· {durationLabel(debateHours(post.createdAt, summary.endsAt))} 토론</span>
+            ) : null}
           </div>
           {post.description?.trim() ? (
             <p className="mt-3 whitespace-pre-line break-keep text-[15px] leading-[22px] text-app-text">{post.description}</p>
@@ -333,6 +347,40 @@ export default function DebateDetail({
                 <span className="h-14 flex-1 animate-pulse rounded-xl bg-app-placeholder" />
               </div>
               <div className="mt-2 h-4" />
+            </div>
+          ) : open && evergreen ? (
+            <div className="mt-4">
+              {summary.result ? (
+                <OpenResult summary={summary} />
+              ) : (
+                <p className="text-[13px] leading-[18px] text-app-muted">
+                  {summary.participants > 0 ? pendingResultLabel(summary.participants) : "첫 투표를 기다려요"}
+                </p>
+              )}
+              {summary.mySide ? null : (
+                <DebateVoteButtons summary={summary} size="feed" className="mt-3" pendingSide={pendingSide} onVote={vote} />
+              )}
+              <div className="mt-2.5 flex items-center justify-between gap-3 text-[13px] leading-[18px] text-app-muted">
+                <span className="tabular-nums">{evergreenMetaLabel(summary)}</span>
+                {summary.mySide ? (
+                  <button
+                    type="button"
+                    onClick={() => setSwitchOpen(true)}
+                    className="shrink-0 font-semibold text-app-text underline underline-offset-[3px]"
+                  >
+                    선택 바꾸기
+                  </button>
+                ) : null}
+              </div>
+              {summary.participants >= RESULT_CARD_MIN_VOTES ? (
+                <button
+                  type="button"
+                  onClick={() => setCardOpen(true)}
+                  className="mt-3 h-10 w-full rounded-lg bg-app-surface text-[14px] font-semibold text-app-text"
+                >
+                  결과 카드 만들기
+                </button>
+              ) : null}
             </div>
           ) : open ? (
             summary.mySide ? (
@@ -541,6 +589,9 @@ export default function DebateDetail({
         </div>
       ) : null}
 
+      {evergreen ? (
+        <ResultCardSheet open={cardOpen} onClose={() => setCardOpen(false)} postId={post.id} title={post.title} />
+      ) : null}
       <ActionSheet open={menuFor != null} onClose={() => setMenuFor(null)} actions={menuActions} />
       <ConfirmDialog
         open={deleteFor != null}

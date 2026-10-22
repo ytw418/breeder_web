@@ -33,6 +33,7 @@ export async function getDebateSummaries(
       where: { postId: { in: ids } },
       _count: { _all: true },
       _max: { updatedAt: true },
+      _min: { createdAt: true },
     }),
     client.debateVote.groupBy({
       by: ["postId"],
@@ -62,6 +63,9 @@ export async function getDebateSummaries(
     const lastVote = rows
       .map((row) => row._max.updatedAt?.getTime() ?? 0)
       .reduce((a, b) => Math.max(a, b), 0);
+    const firstVote = rows
+      .map((row) => row._min.createdAt?.getTime() ?? Infinity)
+      .reduce((a, b) => Math.min(a, b), Infinity);
     const lastCommentAt = lastComment.get(debate.postId)?.getTime() ?? 0;
     // 사람이 움직인 시각만(만든 시각은 빼서 새 토론이 "방금 댓글"로 보이지 않게 한다).
     const last = Math.max(lastVote, lastCommentAt);
@@ -72,6 +76,8 @@ export async function getDebateSummaries(
           optionA: debate.optionA,
           optionB: debate.optionB,
           endsAt: debate.endsAt,
+          evergreenField: debate.evergreenField,
+          firstVoteAt: Number.isFinite(firstVote) ? new Date(firstVote) : null,
           countA,
           countB,
           mySide: mySide.get(debate.postId) ?? null,
@@ -129,7 +135,7 @@ export async function castDebateVote({
     include: { post: { select: { id: true, userId: true, isHidden: true, category: true, title: true } } },
   });
   if (!debate || debate.post.isHidden) throw new DebateError(404, "DEBATE_NOT_FOUND", "토론을 찾을 수 없어요");
-  if (now.getTime() >= debate.endsAt.getTime()) {
+  if (debate.endsAt && now.getTime() >= debate.endsAt.getTime()) {
     throw new DebateError(409, "DEBATE_CLOSED", "방금 끝난 토론이에요");
   }
   const isAuthor = debate.post.userId === userId;
@@ -274,7 +280,8 @@ export async function pickHomeDebate({
       category: DEBATE_CATEGORY,
       isHidden: false,
       user: { status: "ACTIVE" },
-      debate: { endsAt: { gt: now } },
+      // 상시 토론(endsAt null)도 최근 24시간 활동이 있으면 후보다.
+      debate: { OR: [{ endsAt: { gt: now } }, { endsAt: null }] },
       ...(Object.keys(scope).length ? { AND: [scope] } : {}),
       ...(excludedIds.length ? { userId: { notIn: excludedIds } } : {}),
       OR: [

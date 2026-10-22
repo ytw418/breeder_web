@@ -202,7 +202,8 @@ function SectionTitle({ showAll }: { showAll: boolean }) {
   const { breeder } = useScopeTerms();
   return (
     <div className="flex items-end justify-between gap-3 px-4">
-      <h2 className="app-t-section">우리 동네 {breeder}</h2>
+      {/* 반려생활 탭 v3(2026-10-22 사용자 "동네 친구 찾기") — 옛 이름 '우리 동네 브리더' */}
+      <h2 className="text-[16px] font-bold leading-[22px] tracking-[-0.3px] text-app-text">동네 친구</h2>
       {showAll ? (
         <Link
           href={NEIGHBORHOOD_ALL_HREF}
@@ -283,7 +284,7 @@ export function NeighborhoodBreederSectionView({ state }: { state: HomeNeighborh
   const railCards = state.kind === "near" ? state.items.filter((card) => card.isFollowing !== true) : [];
 
   return (
-    <section className="px-0 pt-6" aria-label={`우리 동네 ${breeder}`} data-home-section="neighborhood_breeders">
+    <section className="px-0 pt-4" aria-label="동네 친구" data-home-section="neighborhood_breeders">
       <SectionTitle showAll={Boolean(label)} />
       {state.kind === "none" ? <SubtitleRow label={state.label} /> : null}
 
