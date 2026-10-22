@@ -29,6 +29,8 @@ import { pickBreederKeywords } from "@libs/shared/breederKeywords";
 import { filterHomeFeedForBlocked, HomeBanner } from "@libs/shared/home";
 import HomeCommunityTop from "../(main)/HomeCommunityTop";
 import LifeShortcuts from "./LifeShortcuts";
+import EvergreenDebateSection from "@components/features/debate/EvergreenDebateSection";
+import PopularQuestionsSection from "@components/features/post/PopularQuestionsSection";
 
 const HOME_FEED_KEY = "/api/home/feed?scope=public";
 
@@ -37,10 +39,11 @@ const HOME_FEED_KEY = "/api/home/feed?scope=public";
  * 홈과 같은 이벤트를 쓰고 tab: "life" 로 가른다(앱 docs/prd/home-v2.md S-4).
  */
 const HOME_SECTION_ORDER = [
-  "realtime_discussion",
-  "life_shortcuts",
-  "neighborhood_breeders",
+  "evergreen",
+  "popular_questions",
   "hero_breeder",
+  "neighborhood_breeders",
+  "life_shortcuts",
 ] as const;
 type HomeSectionId = (typeof HOME_SECTION_ORDER)[number];
 
@@ -50,7 +53,7 @@ type RankingPeriodId = "weekly" | "all";
 const toRankingHref = (tab: RankingTabId, period: RankingPeriodId) =>
   `/ranking?tab=${tab}&period=${period}`;
 
-/** 섹션 제목(community-vibe 시안 .sec-h: section 18/700 + 오른쪽 13 muted 링크 ›). */
+/** 섹션 제목(반려생활 탭 v3: 16/700 + 오른쪽 13 muted 링크 ›, 앱 docs/prd/evergreen-debate.md S-1). */
 const SectionHeader = ({
   title,
   href,
@@ -61,7 +64,7 @@ const SectionHeader = ({
   actionLabel?: string;
 }) => (
   <div className="flex items-end justify-between gap-3 px-4">
-    <h2 className="app-t-section">{title}</h2>
+    <h2 className="text-[16px] font-bold leading-[22px] tracking-[-0.3px] text-app-text">{title}</h2>
     {href ? (
       <Link
         href={href}
@@ -82,7 +85,8 @@ function Skeleton({ className }: { className?: string }) {
 
 /**
  * 반려생활 탭(앱 src/app/(tabs)/life.tsx, 앱 docs/prd/home-v2.md S-3, 시안 home-photo-question/B-tabs.html ④).
- * 배너(맨 위, 2026-10-22) → 공지 · 실시간 TOP 토론 · 답 기다려요 → 바로가기 4칸 → 우리 동네 브리더 → 이번 주 TOP 브리더 → 미션, 글쓰기 FAB.
+ * v3(앱 docs/prd/evergreen-debate.md S-1, 2026-10-22): 배너(맨 위) → 공지 → 상시 토론 → 인기 질문 → 이번 주 인기 집사님 →
+ * 동네 친구 → 바로가기 4칸 → 미션, 글쓰기 FAB. 실시간 TOP 토론·답 기다려요는 홈 피드·모아보기에 남기고 이 탭에선 뺐다.
  * 2026-10-15 홈 구성 A안에서 홈으로 옮겼던 블록을 홈 v2(2026-10-22)에서 다시 이 탭으로 모았다.
  */
 const LifeClient = ({
@@ -283,18 +287,19 @@ const LifeClient = ({
         </section>
       ) : null}
 
-      {/* 1~2. 공지 · 실시간 TOP 토론 · 답 기다려요(옛 반려생활 위쪽) */}
-      <HomeCommunityTop />
+      {/* 1. 공지 한 줄 */}
+      <HomeCommunityTop noticeOnly />
 
-      {/* 3. 바로가기 4칸(혈통카드 · 브리더 랭킹 · 동네 사랑방 · 토론 열기) */}
-      <LifeShortcuts />
+      {/* 2. 상시 토론(분야 칩 + 줄 3개) */}
+      <EvergreenDebateSection />
+      <div className="mt-4 h-2 bg-app-gap" />
 
-      {/* 4. 우리 동네 브리더(강조, 시 단위 + 50km) */}
-      <NeighborhoodBreederSection />
+      {/* 3. 인기 질문(이번 주 답 많은 질문 3개) */}
+      <PopularQuestionsSection />
 
-      {/* 5. 이번 주 TOP 브리더 + 내 순위 — 집계가 비면 섹션을 숨긴다 */}
+      {/* 4. 이번 주 인기 집사님 + 내 순위 — 집계가 비면 섹션을 숨긴다 */}
       {showTopBreeder ? (
-        <section className="pt-6" data-home-section="hero_breeder">
+        <section className="mt-4 border-t-8 border-app-gap pt-4" data-home-section="hero_breeder">
           <SectionHeader
             // 관심 분야와 상관없이 '집사님'(2026-10-22 사용자 결정 — 옛 '이번 주 TOP 브리더').
             title={heroBreederPeriod === "weekly" ? "이번 주 인기 집사님" : "인기 집사님"}
@@ -331,7 +336,14 @@ const LifeClient = ({
         </section>
       ) : null}
 
-      {/* 5-1. 이번 주 미션(로그인, 진행이 1 이상일 때만) */}
+      {/* 5. 동네 친구(시 단위 + 50km) */}
+      <div className="mt-4 h-2 bg-app-gap" />
+      <NeighborhoodBreederSection />
+
+      {/* 6. 바로가기 4칸(혈통카드 · 랭킹 · 동네 사랑방 · 토론 열기) */}
+      <LifeShortcuts />
+
+      {/* 7. 이번 주 미션(로그인, 진행이 1 이상일 때만) */}
       <MissionCard enabled={Boolean(user)} />
 
       <FloatingButton onClick={() => setWriteSheetOpen(true)} label="글쓰기" hideOnScroll>

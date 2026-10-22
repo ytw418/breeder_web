@@ -39,6 +39,8 @@ import {
   DEBATE_DAILY_LIMIT,
   DEBATE_MIN_ACCOUNT_AGE_HOURS,
   validateDebateInput,
+  EVERGREEN_ALL,
+  isEvergreenField,
 } from "@libs/shared/debateFormat";
 import { BLOCKED_WORD_MESSAGE, hasBlockedWord } from "@libs/shared/contentFilter";
 
@@ -270,6 +272,40 @@ const handler = async (
       });
     }
 
+    // 상시 토론(앱 docs/prd/evergreen-debate.md): debateStatus=evergreen&field= — 운영자 순서, 페이지 없음.
+    // 응답에 상시 토론이 있는 분야 키(fields)를 같이 준다(칩을 그릴지 정한다). 내 선택이 들어가 로그인이면 비공개.
+    if (req.query.debateStatus === "evergreen") {
+      const excluded = await excludedAuthorIds(viewerId);
+      res.setHeader("Cache-Control", "public, s-maxage=30, stale-while-revalidate=60");
+      setViewerCacheHeader(res, viewerId);
+      const field = typeof req.query.field === "string" && isEvergreenField(req.query.field) ? req.query.field : null;
+      const baseWhere: Prisma.PostWhereInput = {
+        category: DEBATE_CATEGORY,
+        isHidden: false,
+        debate: { endsAt: null },
+        ...(excluded.length ? { userId: { notIn: excluded } } : {}),
+      };
+      const [rows, fieldRows] = await Promise.all([
+        client.post.findMany({
+          where: field ? { ...baseWhere, debate: { endsAt: null, evergreenField: field } } : baseWhere,
+          include: postListInclude(excluded),
+          orderBy: [{ debate: { evergreenOrder: "asc" } }, { id: "asc" }],
+          take: 50,
+        }),
+        client.debate.groupBy({
+          by: ["evergreenField"],
+          where: { endsAt: null, post: { isHidden: false } },
+        }),
+      ]);
+      const posts = await attachLiked(await attachDebates(rows.map(toListPost), viewerId), viewerId);
+      return res.json({
+        success: true,
+        posts,
+        pages: 1,
+        fields: fieldRows.map((row) => row.evergreenField ?? EVERGREEN_ALL),
+      });
+    }
+
     // 동네 범위(50km, libs/shared/regionScope): 로그인 필요, 동네가 없으면 빈 목록.
     const neighborhoodScope = req.query.scope === "neighborhood";
     let neighborhoodOr: ReturnType<typeof regionScopeOr> | null = null;
@@ -323,6 +359,12 @@ const handler = async (
       if ("type" in speciesWhere) where.type = speciesWhere.type;
       else and.push(speciesWhere);
     }
+    // 반려생활 '인기 질문'(앱 docs/prd/evergreen-debate.md S-2): days=7&sort=comments — 최근 N일, 답(보이는 댓글)이 있는 글만.
+    const days = Number(req.query.days);
+    if (Number.isInteger(days) && days > 0 && days <= 30) {
+      and.push({ createdAt: { gte: new Date(Date.now() - days * 86_400_000) } });
+      if (selectedSort === "comments") and.push({ comments: { some: { isHidden: false, deletedAt: null } } });
+    }
     if (and.length) where.AND = and;
 
     // 지난 토론 모아보기(토론 칩): debateStatus=open 진행 중, ended 끝난 토론.
@@ -368,7 +410,10 @@ const handler = async (
     // 1e30 같은 값은 DB offset 범위를 넘으므로 안전한 정수만 페이지로 받는다.
     const normalizedPage =
       Number.isSafeInteger(pageNumber) && pageNumber > 0 ? pageNumber : 1;
-    const skip = (normalizedPage - 1) * PAGE_SIZE;
+    // limit 은 반려생활 섹션처럼 몇 개만 보일 때(최대 20). 없으면 기본 페이지 크기.
+    const limitParam = Number(req.query.limit);
+    const pageSize = Number.isInteger(limitParam) && limitParam > 0 ? Math.min(limitParam, 20) : PAGE_SIZE;
+    const skip = (normalizedPage - 1) * pageSize;
 
     // 정렬·페이지 나눔은 DB 에서 한다(전체 글을 메모리로 읽지 않는다).
     // 같은 순위끼리는 최신 → id 순으로 이어 붙여 페이지가 넘어가도 순서가 흔들리지 않게 한다.
@@ -386,7 +431,7 @@ const handler = async (
         include: postListInclude(excluded),
         orderBy,
         skip,
-        take: PAGE_SIZE,
+        take: pageSize,
       }),
       client.post.count({ where }),
     ]);
@@ -396,7 +441,7 @@ const handler = async (
     res.json({
       success: true,
       posts,
-      pages: Math.ceil(postCount / PAGE_SIZE),
+      pages: Math.ceil(postCount / pageSize),
       ...(followingCount === undefined ? {} : { followingCount }),
     });
   }
