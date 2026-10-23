@@ -55,9 +55,12 @@ export function isProductCard(message: { productId?: number | null }): boolean {
 /** 채팅방 문맥 바 버튼: 분양자 '분양완료' / 입양자 '입양 확정'·'거래 후기 쓰기' / 없음. */
 export type ChatProductAction = "sold" | "confirm" | "review" | null;
 
-/** 문맥 바 버튼을 고른다. 분양자는 분양완료 전 → sold, 지정된 입양자는 확정 전 → confirm, 확정 뒤 후기 전 → review. */
+/**
+ * 문맥 바 버튼을 고른다. 분양자는 분양완료 전 → sold, 지정된 입양자는 확정 전 → confirm, 확정 뒤 후기 전 → review.
+ * 임보 글(noTrade)은 입양자를 고르지 않으므로 버튼이 없다(글 닫기는 상세에서).
+ */
 export function chatProductAction(state: TradeState): ChatProductAction {
-  if (state.isDeleted) return null;
+  if (state.isDeleted || state.noTrade) return null;
   if (tradeViewerRole(state) === "seller") return state.status === SOLD_PRODUCT_STATUS ? null : "sold";
   if (canConfirmAdoption(state)) return "confirm";
   if (canWriteTradeReview(state)) return "review";

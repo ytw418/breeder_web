@@ -11,6 +11,7 @@ import {
   canConfirmAdoption,
   canReplyTradeReview,
   canWriteTradeReview,
+  isTradelessDeal,
   type ProductTradeInfo,
   type TradeBuyerSource,
   type TradeState,
@@ -21,6 +22,8 @@ import {
  * - 거래를 바꾸는 쓰기(sold·buyer·buyer-request·purchase·status_change 되돌리기·review)는 모두 withTradeLock 안에서
  *   Sale(completed)·이 글의 입양 확정·후기를 다시 읽고 판정한다. 같은 분양글의 요청은 하나씩 차례로 돈다.
  * - 판정에 걸리면 TradeError 를 던져 트랜잭션을 되돌리고, 핸들러는 sendTradeError 로 응답한다.
+ * - 임보 구해요 글(isTradelessDeal)은 거래 기록을 남기지 않는다. '임보처를 찾았어요'는 상태만 닫고(Sale 없음),
+ *   입양 확정·입양자 지정·지정 요청은 막고, 상세 trade 는 null 이다(앱 docs/prd/pet-space.md §16).
  */
 
 type Db = Prisma.TransactionClient | typeof client;
@@ -67,6 +70,8 @@ export const tradeErrors = {
   blockedBuyer: () => new TradeError(400, "BLOCKED", "지금은 이 회원을 입양자로 지정할 수 없어요."),
   requestNotAllowed: () =>
     new TradeError(403, "REQUEST_NOT_ALLOWED", "분양자와 대화한 회원만 요청할 수 있어요"),
+  noTrade: () =>
+    new TradeError(400, "TRADE_NOT_APPLICABLE", "임보 글은 입양자 지정·입양 확정이 없어요."),
 };
 
 /** 앱은 error || message 를, 웹은 message 를 토스트로 보여 준다. 둘 다 같은 문구로 보낸다. */
@@ -142,7 +147,7 @@ export function saleBuyer(sale: TradeSnapshot["sale"]): {
 }
 
 export function tradeStateOf(
-  product: { userId: number; status: string; isDeleted?: boolean | null },
+  product: { userId: number; status: string; isDeleted?: boolean | null; dealType?: string | null },
   snapshot: TradeSnapshot,
   viewerId: number | null
 ): TradeState {
@@ -157,16 +162,21 @@ export function tradeStateOf(
     hasReview: Boolean(snapshot.review),
     hasReply: Boolean(snapshot.review?.reply),
     isDeleted: Boolean(product.isDeleted),
+    noTrade: isTradelessDeal(product.dealType),
   };
 }
 
-/** 지금 입양자의 입양 확정 또는 이 글의 후기가 있으면 입양자 바꾸기·되돌리기를 막는다. 다른 사람의 옛 확정은 막지 않는다. */
+/**
+ * 지금 입양자의 입양 확정 또는 이 글의 후기가 있으면 입양자 바꾸기·되돌리기를 막는다. 다른 사람의 옛 확정은 막지 않는다.
+ * 임보 글은 지킬 거래가 없어 언제든 다시 연다(임보가 끝나면 다시 찾는다).
+ */
 export function isTradeLocked(state: TradeState): boolean {
-  return state.purchaseConfirmed || state.hasReview;
+  return !state.noTrade && (state.purchaseConfirmed || state.hasReview);
 }
 
 /** 입양 확정 권한(§3.3 ㄱ~ㄹ). 차단·탈퇴·글 삭제는 여기서 막지 않는다(자격은 지정 때 정해진다). */
 export function assertCanConfirmAdoption(state: TradeState, snapshot: TradeSnapshot, viewerId: number) {
+  if (state.noTrade) throw tradeErrors.noTrade();
   if (state.buyerSource === "external") throw tradeErrors.externalBuyer();
   if (state.buyerId == null) throw tradeErrors.notAssigned();
   if (state.buyerId !== viewerId) throw tradeErrors.notBuyer();
@@ -186,7 +196,7 @@ export async function canRequestBuyerFor(
   db: Db = client
 ): Promise<boolean> {
   if (!viewer?.id) return false;
-  if (state.status !== SOLD_PRODUCT_STATUS || state.isDeleted) return false;
+  if (state.noTrade || state.status !== SOLD_PRODUCT_STATUS || state.isDeleted) return false;
   if (state.buyerSource !== null || state.buyerId !== null) return false;
   if (viewer.id === state.sellerId) return false;
   if (snapshot.purchaserIds.includes(viewer.id)) return false;
@@ -219,13 +229,15 @@ async function wasBuyerFor(viewerId: number | null, productId: number, state: Tr
 
 /**
  * 상세 응답 trade(보는 사람 기준). 분양완료가 아닌 글은 거래 기록을 읽지 않는다(되돌리기 때 Sale·확정이 모두 취소되고,
- * 후기가 있으면 되돌릴 수 없어서 판매중·예약중 글의 trade 는 늘 빈 값이다).
+ * 후기가 있으면 되돌릴 수 없어서 판매중·예약중 글의 trade 는 늘 빈 값이다). 임보 글은 거래가 없어 null 이다
+ * (화면은 거래 영역·입양 확정 버튼을 그리지 않는다).
  */
 export async function buildProductTrade(
-  product: { id: number; userId: number; status: string; isDeleted?: boolean | null },
+  product: { id: number; userId: number; status: string; isDeleted?: boolean | null; dealType?: string | null },
   viewer?: TradeViewer | null,
   snapshot?: TradeSnapshot
-): Promise<ProductTradeInfo> {
+): Promise<ProductTradeInfo | null> {
+  if (isTradelessDeal(product.dealType)) return null;
   const snap =
     snapshot ??
     (product.status === SOLD_PRODUCT_STATUS

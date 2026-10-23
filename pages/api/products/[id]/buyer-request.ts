@@ -27,7 +27,8 @@ async function handler(req: NextApiRequest, res: NextApiResponse) {
   const product = Number.isSafeInteger(productId)
     ? await client.product.findUnique({
         where: { id: productId },
-        select: { id: true, userId: true, status: true, isDeleted: true, isHidden: true },
+        // dealType: 임보 글은 지정 요청이 없다(tradeStateOf → noTrade).
+        select: { id: true, userId: true, status: true, isDeleted: true, isHidden: true, dealType: true },
       })
     : null;
   if (!product || product.isDeleted || product.isHidden) {

@@ -47,6 +47,8 @@ import salesHandler from "../pages/api/users/[id]/sales";
 import purchasesHandler from "../pages/api/users/[id]/purchases";
 import favToggleHandler from "../pages/api/products/[id]/fav";
 import buyerRequestHandler from "../pages/api/products/[id]/buyer-request";
+import buyerHandler from "../pages/api/products/[id]/buyer";
+import { buildProductTrade } from "@libs/server/trade";
 
 function createRes() {
   const res = {
@@ -628,5 +630,71 @@ describe("입양자 지정·입양 확정(앱 docs/prd/trade-review.md)", () => 
     expect(res.statusCode).toBe(403);
     expect(res.body.errorCode).toBe("REQUEST_NOT_ALLOWED");
     expect(mockCreateNotification).not.toHaveBeenCalled();
+  });
+
+  // 임보는 입양이 아니다: '임보처를 찾았어요'는 글만 닫고 거래 기록(Sale·입양 확정·후기·거래 완료 수)을 남기지 않는다.
+  describe("임보 글(앱 docs/prd/pet-space.md §16)", () => {
+    const fosterProduct = { ...soldProduct, status: "판매중", category: "강아지", dealType: "foster" };
+    const closedFoster = { ...fosterProduct, status: "판매완료" };
+
+    it("sold 는 상태만 닫고 Sale·알림 없이 trade null 을 준다(옛 앱이 보낸 입양자는 무시)", async () => {
+      mockClient.product.findUnique.mockResolvedValue(fosterProduct);
+      const res = await post(me, { action: "sold", data: { buyerId: BUYER } });
+      expect(res.statusCode).toBe(200);
+      expect(res.body).toEqual({ success: true, trade: null });
+      expect(mockClient.product.updateMany).toHaveBeenCalledWith({
+        where: { id: 3, status: { not: "판매완료" } },
+        data: { status: "판매완료" },
+      });
+      expect(mockClient.sale.create).not.toHaveBeenCalled();
+      expect(mockCreateNotification).not.toHaveBeenCalled();
+    });
+
+    it("닫힌 임보 글의 입양 확정·입양자 지정은 400 TRADE_NOT_APPLICABLE, 상세 trade 는 null", async () => {
+      mockClient.product.findUnique.mockResolvedValue(closedFoster);
+      // 고치기 전 흐름으로 남은 Sale 이 있어도 막는다.
+      mockClient.sale.findFirst.mockResolvedValue(sale());
+      const confirm = await post(buyer, { action: "purchase" });
+      expect(confirm.statusCode).toBe(400);
+      expect(confirm.body.errorCode).toBe("TRADE_NOT_APPLICABLE");
+      expect(mockClient.purchase.create).not.toHaveBeenCalled();
+
+      const assign = await call(buyerHandler, { method: "POST", user: me, query: { id: "3" }, body: { buyerId: BUYER } });
+      expect(assign.statusCode).toBe(400);
+      expect(assign.body.errorCode).toBe("TRADE_NOT_APPLICABLE");
+      expect(mockClient.sale.updateMany).not.toHaveBeenCalled();
+
+      expect(await buildProductTrade(closedFoster, buyer)).toBeNull();
+    });
+
+    it("입양 확정까지 간 옛 임보 글도 잠기지 않고 다시 연다", async () => {
+      mockClient.product.findUnique.mockResolvedValue(closedFoster);
+      mockClient.sale.findFirst.mockResolvedValue(sale());
+      mockClient.purchase.findMany.mockResolvedValue([{ userId: BUYER }]);
+      const res = await post(me, { action: "status_change", data: { status: "판매중" } });
+      expect(res.statusCode).toBe(200);
+      expect(mockClient.product.updateMany).toHaveBeenCalledWith({
+        where: { id: 3, status: "판매완료" },
+        data: { status: "판매중" },
+      });
+    });
+
+    it("끝난 글은 임보 글로·임보 글에서 글 종류를 바꾸지 못하고, 열린 글은 바꾼다", async () => {
+      mockClient.product.findUnique.mockResolvedValue(closedFoster);
+      let res = await post(me, { action: "update", data: { dealType: "adoption" } });
+      expect(res.statusCode).toBe(400);
+      expect(res.body.errorCode).toBe("PRODUCT_DEAL_TYPE_LOCKED");
+
+      mockClient.product.findUnique.mockResolvedValue({ ...closedFoster, dealType: "adoption" });
+      res = await post(me, { action: "update", data: { dealType: "foster" } });
+      expect(res.statusCode).toBe(400);
+      expect(res.body.errorCode).toBe("PRODUCT_DEAL_TYPE_LOCKED");
+      expect(mockClient.product.update).not.toHaveBeenCalled();
+
+      mockClient.product.findUnique.mockResolvedValue(fosterProduct);
+      res = await post(me, { action: "update", data: { dealType: "adoption" } });
+      expect(res.statusCode).toBe(200);
+      expect(mockClient.product.update.mock.calls[0][0].data).toMatchObject({ dealType: "adoption" });
+    });
   });
 });
