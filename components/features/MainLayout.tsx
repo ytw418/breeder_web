@@ -562,7 +562,6 @@ function SideMenu({
         open={logoutConfirmOpen}
         title="로그아웃할까요?"
         confirmText="로그아웃"
-        cancelText="취소"
         tone="danger"
         onCancel={() => setLogoutConfirmOpen(false)}
         onConfirm={() => {

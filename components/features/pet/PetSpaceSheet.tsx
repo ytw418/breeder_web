@@ -1,6 +1,6 @@
 "use client";
 
-import { Fragment, useMemo, useState } from "react";
+import { Fragment, useMemo } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import useSWR from "swr";
 
@@ -82,8 +82,9 @@ export function PetSpaceCard({ onOpen }: { onOpen: () => void }) {
 /**
  * '어떤 공간을 볼까요?' 시트(시안 ⑥). 공간 = 관심 분야 고정 묶음이라 고르면 고정 값을 그 묶음으로 바꾼다
  * (설정 > 관심 카테고리와 같은 값). 행 64(캐릭터 40 r12 · 이름 16/600 · 보조 13 muted · 라디오 22, 이름이 접히면 늘어난다),
- * 맨 아래 '직접 고르기 ›'는 설정 트리 화면. 지금 화면은 그대로 두고 범위만 바뀐다(AC-6) — 단 입양 쪽에 있는데
- * 강아지·고양이가 빠지면 분양 쪽으로 옮긴다. 열 때마다 새로 그린다(부르는 쪽이 열릴 때만 렌더).
+ * 맨 아래 '직접 고르기 ›'는 설정 트리 화면. 줄을 누르면 바로 바뀌고 시트가 닫힌다 — 고른 뒤 '이 공간으로 보기'를 한 번 더
+ * 누르던 단계를 뺐다(2026-10-23 토스 디자인 리뷰, 앱 docs/prd/pet-space.md §5.10). 지금 화면은 그대로 두고 범위만
+ * 바뀐다(AC-6) — 단 입양 쪽에 있는데 강아지·고양이가 빠지면 분양 쪽으로 옮긴다. 열 때마다 새로 그린다(부르는 쪽이 열릴 때만 렌더).
  */
 export function PetSpaceSheet({ onClose }: { onClose: () => void }) {
   const router = useRouter();
@@ -92,19 +93,17 @@ export function PetSpaceSheet({ onClose }: { onClose: () => void }) {
   const { data } = useSWR<CategoriesResponse>(CATEGORIES_KEY, { revalidateOnFocus: false });
   const categories = useMemo(() => (data?.success ? data.categories : []), [data]);
   const current = petSpaceForPaths(pins.map((pin) => pin.path));
-  const [choice, setChoice] = useState<PetSpaceId | null>(null);
-  const selected = choice ?? current;
   // 카테고리 목록 없이 고정하면 path 를 못 찾아 '전부 보기'가 되어 버린다. 다 받기 전엔 누를 수 없다.
   const ready = categories.length > 0;
 
-  const apply = () => {
-    if (!selected || !ready) return;
-    if (selected !== current) {
-      const space = PET_SPACES.find((item) => item.id === selected);
+  const choose = (id: PetSpaceId) => {
+    if (!ready) return;
+    if (id !== current) {
+      const space = PET_SPACES.find((item) => item.id === id);
       const paths = pathsForPetPicks(space?.picks ?? []);
       setPinnedCategories(pinsForPaths(paths, categories));
       markCategoryOnboardingDone();
-      trackEvent(ANALYTICS_EVENTS.spaceSwitch, { space: selected, from: current ?? "custom" });
+      trackEvent(ANALYTICS_EVENTS.spaceSwitch, { space: id, from: current ?? "custom" });
       if (pathname?.startsWith("/adoption") && !hasDogCatPin(paths)) router.replace("/products");
     }
     onClose();
@@ -116,43 +115,24 @@ export function PetSpaceSheet({ onClose }: { onClose: () => void }) {
   };
 
   return (
-    <BottomSheet
-      open
-      onClose={onClose}
-      ariaLabel="어떤 공간을 볼까요?"
-      footer={
-        <button
-          type="button"
-          disabled={!selected || !ready}
-          onClick={apply}
-          className={cn(
-            "h-[52px] w-full rounded-lg text-[16px] font-semibold",
-            selected && ready ? "bg-app-brand text-white" : "bg-app-surface text-app-caption"
-          )}
-        >
-          이 공간으로 보기
-        </button>
-      }
-      footerClassName="px-4 pb-6 pt-4"
-    >
-      <div className="px-4">
+    <BottomSheet open onClose={onClose} ariaLabel="어떤 공간을 볼까요?">
+      <div className="px-4 pb-4">
         <h2 className="text-[20px] font-bold leading-7 tracking-[-0.5px] text-app-text">어떤 공간을 볼까요?</h2>
-        <p className="mt-1 break-keep text-[14px] leading-5 text-app-muted">
-          고른 공간의 글과 분양을 먼저 보여 드려요. 하단 탭은 그대로예요.
-        </p>
+        <p className="mt-1 break-keep text-[15px] leading-[22px] text-app-muted">고른 공간의 글과 분양을 먼저 보여 드려요</p>
         <div className="mt-3" role="radiogroup" aria-label="공간">
           {PET_SPACES.map((space) => {
-            const on = selected === space.id;
+            const on = current === space.id;
             return (
               <button
                 key={space.id}
                 type="button"
                 role="radio"
                 aria-checked={on}
+                disabled={!ready}
                 // 이름을 '·' 뒤에서 접는 <wbr> 때문에 읽는 이름에 빈칸이 끼지 않게 직접 준다(앱 accessibilityLabel 과 같다).
                 aria-label={`${space.label}, ${space.sub}`}
-                onClick={() => setChoice(space.id)}
-                className="flex min-h-[64px] w-full items-center gap-3 border-b border-app-surface py-2.5 text-left"
+                onClick={() => choose(space.id)}
+                className="flex min-h-[64px] w-full items-center gap-3 border-b border-app-surface py-2.5 text-left disabled:opacity-50"
               >
                 <span className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-app-surface">
                   <PetCharacter art={space.art} size={32} />

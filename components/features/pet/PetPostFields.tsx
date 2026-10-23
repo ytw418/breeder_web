@@ -56,7 +56,7 @@ function OptionChip({
       disabled={disabled}
       onClick={onClick}
       className={cn(
-        "h-9 shrink-0 whitespace-nowrap rounded-lg px-3 text-[14px] transition-colors disabled:opacity-50",
+        "h-9 shrink-0 whitespace-nowrap rounded-lg px-3 text-[15px] transition-colors disabled:opacity-50",
         TOUCH_44,
         selected ? "bg-app-text font-semibold text-app-bg" : "bg-app-gap font-medium text-app-text"
       )}
@@ -137,7 +137,7 @@ export function PetKindField({
               disabled={disabled}
               onClick={() => onKindChange(item.id)}
               className={cn(
-                "h-9 flex-1 rounded-md text-[14px] transition-colors",
+                "h-9 flex-1 rounded-md text-[15px] transition-colors",
                 TOUCH_44,
                 active
                   ? "bg-app-elevated font-semibold text-app-text shadow-card"

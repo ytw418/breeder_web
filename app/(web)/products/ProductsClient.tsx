@@ -215,13 +215,13 @@ export default function ProductsClient({ initialParams }: { initialParams: Produ
           <p className="text-[16px] font-semibold tracking-[-0.3px] text-app-text">
             조건에 맞는 분양글이 없어요
           </p>
-          <p className="mt-1.5 text-[14px] tracking-[-0.2px] text-app-muted">
+          <p className="mt-1.5 text-[15px] leading-[22px] tracking-[-0.2px] text-app-muted">
             필터를 바꾸거나 초기화해 보세요
           </p>
           <button
             type="button"
             onClick={resetFilters}
-            className="mt-4 h-11 rounded-md bg-app-surface px-[18px] text-[14px] font-semibold text-app-text"
+            className="mt-4 h-11 rounded-md bg-app-surface px-[18px] text-[15px] font-semibold text-app-text"
           >
             필터 초기화
           </button>

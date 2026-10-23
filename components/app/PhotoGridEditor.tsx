@@ -23,14 +23,14 @@ export function PhotoGridEditor({
   onChange,
   max = 10,
   onAdd,
-  label = "첫 번째 사진이 대표로 보여요. 사진을 누르면 대표로 바꿀 수 있어요",
+  label = "첫 사진이 대표예요. 눌러서 바꿀 수 있어요",
   disabled = false,
 }: {
   photos: PhotoItem[];
   onChange: (photos: PhotoItem[]) => void;
   max?: number;
   onAdd: (files: File[]) => void;
-  /** 아래 안내 문구. 빈 문자열이면 숨긴다. */
+  /** 아래 안내 문구. 빈 문자열이면 숨긴다. 사진이 2장 이상일 때만 보인다(바꿀 사진이 있을 때만 필요하다). */
   label?: string;
   disabled?: boolean;
 }) {
@@ -120,7 +120,7 @@ export function PhotoGridEditor({
           </div>
         ))}
       </div>
-      {label ? <p className="mt-2 text-[13px] text-app-muted">{label}</p> : null}
+      {label && photos.length > 1 ? <p className="mt-2 text-[13px] text-app-muted">{label}</p> : null}
     </div>
   );
 }

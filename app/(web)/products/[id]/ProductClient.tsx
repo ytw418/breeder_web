@@ -25,12 +25,19 @@ import { toast } from "@libs/client/toast";
 import { setPendingAction, usePendingAction } from "@libs/client/pendingAction";
 import { authFetch } from "@libs/client/authFetch";
 import { shareOrCopy, copyText, absoluteUrl } from "@libs/client/share";
-import { formatMonthDay, makeImageUrl } from "@libs/client/utils";
+import { cn, formatMonthDay, makeImageUrl } from "@libs/client/utils";
 import { ANALYTICS_EVENTS, trackEvent } from "@libs/client/analytics";
 import { extractProductId, getProductPath } from "@libs/product-route";
 import { productPriceText } from "@libs/shared/price";
 import { dealTypeLabel, productStatusLabel } from "@libs/shared/productTerms";
-import { isNoPriceCategory } from "@libs/shared/petSpace";
+import {
+  adoptionSideDoneAction,
+  adoptionSideStatusLabel,
+  isNoPriceCategory,
+  petBarSummary,
+  productWriteLabels,
+} from "@libs/shared/petSpace";
+import { PRODUCT_VIEW_COUNT_MIN } from "@components/app/ProductCard";
 import { PetInfoBlock } from "@components/features/pet/PetInfoBlock";
 import useAdminModeration from "hooks/useAdminModeration";
 import FollowButton from "@components/features/profile/FollowButton";
@@ -53,12 +60,13 @@ type DetailProduct = NonNullable<ItemDetailResponse["product"]> & {
   wishCount?: number;
 };
 
-const successMessage = (payload: ProductActionPayload) => {
+/** 처리 뒤 토스트(해요체, 2026-10-23 토스 디자인 리뷰). 상태 글자는 '분양중'·'예약중'·'임보처 찾는 중'처럼 모두 '중'으로 끝난다. */
+const successMessage = (payload: ProductActionPayload, statusText: (status: string) => string, noun: string) => {
   switch (payload.action) {
     case "status_change":
-      return `상태가 "${productStatusLabel(payload.data.status)}"(으)로 변경되었습니다.`;
+      return `${statusText(payload.data.status)}으로 바꿨어요`;
     case "delete":
-      return "분양글이 삭제되었습니다.";
+      return `${noun}을 삭제했어요`;
   }
 };
 
@@ -154,6 +162,10 @@ const ProductClient = ({
   // 강아지·고양이 글: 가격이 없고 정보 표·글 종류를 보인다(docs/prd/pet-space.md).
   const isPetPost = isNoPriceCategory(product?.category);
   const isFosterPost = isPetPost && product?.dealType === "foster";
+  // 임보·가족 찾기 글은 '분양글'·'분양중'이라 부르지 않는다(글 · 임보처 찾는 중, 2026-10-23 토스 디자인 리뷰).
+  const noun = productWriteLabels(isPetPost ? product?.dealType : null).noun;
+  const statusText = (status: string) =>
+    (product ? adoptionSideStatusLabel(product, status) : null) ?? productStatusLabel(status);
   // 운영자 이메일 계정은 남의 분양글도 수정·삭제·상태 변경한다(서버가 같은 기준으로 허용).
   const canManage = (isOwner || canEditAnyContent) && !isInactive;
   const sellerId = product?.user?.id;
@@ -220,6 +232,11 @@ const ProductClient = ({
       (key) => typeof key === "string" && /^(\$inf\$)?\/api\/(products|users\/)/.test(key)
     );
 
+  const actionFailedMessage = (payload: ProductActionPayload) =>
+    payload.action === "delete"
+      ? `${noun}을 삭제하지 못했어요. 다시 시도해 주세요`
+      : "처리하지 못했어요. 다시 시도해 주세요";
+
   const runAction = async (payload: ProductActionPayload) => {
     if (actionPending) return;
     setActionPending(true);
@@ -235,18 +252,14 @@ const ProductClient = ({
         message?: string;
       } | null;
       if (!res.ok || !result?.success) {
-        toast.error(
-          result?.error ||
-            result?.message ||
-            (payload.action === "delete" ? "분양글 삭제에 실패했습니다." : "분양글 처리에 실패했습니다.")
-        );
+        toast.error(result?.error || result?.message || actionFailedMessage(payload));
         return;
       }
       trackEvent(
         payload.action === "delete" ? ANALYTICS_EVENTS.productDeleted : ANALYTICS_EVENTS.productStatusChanged,
         { product_id: product?.id || null, user_id: user?.id || null }
       );
-      toast.success(successMessage(payload));
+      toast.success(successMessage(payload, statusText, noun));
       void refreshLists();
       if (payload.action === "delete") {
         goBackToList();
@@ -254,7 +267,7 @@ const ProductClient = ({
       }
       void mutate();
     } catch {
-      toast.error(payload.action === "delete" ? "분양글 삭제에 실패했습니다." : "분양글 처리에 실패했습니다.");
+      toast.error(actionFailedMessage(payload));
     } finally {
       setActionPending(false);
     }
@@ -263,8 +276,8 @@ const ProductClient = ({
   const handleDelete = async () => {
     if (actionPending) return;
     const ok = await confirm({
-      title: "이 분양글을 삭제할까요?",
-      description: "삭제 후에는 복구할 수 없습니다.",
+      title: `이 ${noun}을 삭제할까요?`,
+      description: "삭제하면 되돌릴 수 없어요",
       confirmText: "삭제",
       tone: "danger",
     });
@@ -274,9 +287,9 @@ const ProductClient = ({
   const handleStatusChange = async (nextStatus: "판매중" | "예약중") => {
     setShowStatusMenu(false);
     const ok = await confirm({
-      title: `상태를 "${productStatusLabel(nextStatus)}"(으)로 변경할까요?`,
-      description: "변경 후에도 다시 상태를 조정할 수 있습니다.",
-      confirmText: "변경",
+      title: `${statusText(nextStatus)}으로 바꿀까요?`,
+      description: "나중에 다시 바꿀 수 있어요",
+      confirmText: "바꾸기",
     });
     if (ok) void runAction({ action: "status_change", data: { status: nextStatus } });
   };
@@ -375,10 +388,10 @@ const ProductClient = ({
           user_id: user?.id || null,
           error: "favorite_toggle_failed",
         });
-        toast.error("관심목록 처리에 실패했습니다.");
+        toast.error("찜하지 못했어요. 다시 시도해 주세요");
       }
     } catch {
-      toast.error("오류가 발생했습니다. 다시 시도해주세요.");
+      toast.error("찜하지 못했어요. 다시 시도해 주세요");
     } finally {
       setFavPending(false);
       void mutate();
@@ -395,7 +408,7 @@ const ProductClient = ({
     });
     if (requireLogin("chat") || chatPending || !product) return;
     if (user?.id === product.user?.id) {
-      toast.error("자기 자신과는 채팅할 수 없습니다.");
+      toast.error("내 글에는 채팅할 수 없어요");
       return;
     }
     setChatPending(true);
@@ -427,9 +440,9 @@ const ProductClient = ({
         error: result?.error || "chat_room_create_failed",
       });
       // 차단·탈퇴 상대(403 CHAT_BLOCKED / CHAT_PARTNER_DELETED)는 서버 문구를 그대로 보인다.
-      toast.error(result?.error || result?.message || "채팅방 생성에 실패했습니다.");
+      toast.error(result?.error || result?.message || "채팅방을 열지 못했어요. 다시 눌러 주세요");
     } catch {
-      toast.error("오류가 발생했습니다.");
+      toast.error("채팅방을 열지 못했어요. 다시 눌러 주세요");
     } finally {
       setChatPending(false);
     }
@@ -452,7 +465,7 @@ const ProductClient = ({
   if (!product) {
     const status = (error as { status?: number } | undefined)?.status;
     const message =
-      status === 404 && error instanceof Error ? error.message : "분양글을 불러올 수 없습니다.";
+      status === 404 && error instanceof Error ? error.message : "분양글을 불러오지 못했어요";
     return (
       <Layout canGoBack homeAction title="분양글 상세" headerRight={<></>}>
         <div className="flex min-h-[60vh] items-center justify-center px-6">
@@ -463,7 +476,7 @@ const ProductClient = ({
               className="h-6 w-6 animate-spin rounded-full border-2 border-app-border border-t-app-brand"
             />
           ) : (
-            <p className="text-center text-[14px] text-app-muted">{message}</p>
+            <p className="text-center text-[15px] leading-[22px] text-app-muted">{message}</p>
           )}
         </div>
       </Layout>
@@ -554,9 +567,23 @@ const ProductClient = ({
 
   // 공개된 사육 가이드가 있는 종이면 가이드로 잇는다(앱 docs/prd/species-guide.md F-8).
   const guideHref = publishedGuideHref(product.category);
-  const metaText = [product.category || null, product.productType || null, formatMonthDay(product.createdAt) || null]
+  // 강아지·고양이 글은 '생물'(파충류 쪽에서 용품과 나누는 값)을 빼고 종 · 날짜만(2026-10-23 토스 디자인 리뷰).
+  const metaText = [
+    product.category || null,
+    isPetPost ? null : product.productType || null,
+    formatMonthDay(product.createdAt) || null,
+  ]
     .filter(Boolean)
     .join(" · ");
+  // 조회는 목록처럼 10 이상, 찜은 1 이상만(작은 숫자·0은 빈 티가 난다, 2026-10-23 토스 디자인 리뷰). 둘 다 없으면 비운다.
+  const views = product.viewCount ?? 0;
+  const countsText = [views >= PRODUCT_VIEW_COUNT_MIN ? `조회 ${views}` : null, wishCount > 0 ? `찜 ${wishCount}` : null]
+    .filter(Boolean)
+    .join(" · ");
+  // 아래 바 가운데: 다른 글은 가격, 강아지·고양이 글은 임보 조건 요약 두 줄이거나 비운다(종류를 또 쓰지 않는다).
+  const barText = isPetPost ? null : productPriceText(product);
+  const petBar = isPetPost ? petBarSummary(product) : null;
+  const hasBarText = Boolean(barText || petBar);
   const photoUrls = photos.map((photo) => makeImageUrl(photo, "public"));
   // 하단 바 주 버튼(지정된 입양자 '입양 확정' → 확정 뒤 '거래 후기 쓰기'). 없으면 원래 바(찜 · 가격 · '채팅하기').
   const tradePrimary = isOwner
@@ -584,9 +611,9 @@ const ProductClient = ({
       {sellerBlocked ? (
         // 게시글 상세의 차단 게이트와 같은 레이아웃
         <div className="flex min-h-[70vh] flex-col items-center justify-center px-6 text-center">
-          <p className="text-[16px] font-bold text-app-text">차단한 분양자의 분양글입니다.</p>
-          <p className="mt-2 text-[14px] leading-5 text-app-muted">
-            이 분양자의 분양글은 목록에서 숨겨집니다.
+          <p className="text-[16px] font-bold text-app-text">차단한 분양자의 분양글이에요</p>
+          <p className="mt-2 text-[15px] leading-[22px] text-app-muted">
+            이 분양자의 분양글은 목록에 보이지 않아요
           </p>
           <div className="mt-5 flex items-center gap-2">
             <button
@@ -611,7 +638,7 @@ const ProductClient = ({
           <div className="pb-[calc(96px+env(safe-area-inset-bottom))]">
             {isInactive ? (
               <div className="bg-app-surface px-4 py-3">
-                <p className="text-[14px] font-semibold text-app-text">
+                <p className="text-[15px] font-semibold text-app-text">
                   {product.isDeleted ? "삭제한 분양글이에요" : "숨김 처리된 분양글이에요"}
                 </p>
                 <p className="mt-0.5 text-[13px] text-app-muted">다른 사용자에게는 보이지 않아요.</p>
@@ -659,7 +686,7 @@ const ProductClient = ({
               {/* 분양자 팔로우(로그인·남의 분양글). 서버 HTML 에는 내 팔로우 여부가 없어 응답을 받은 뒤 그린다. */}
               {data?.product && user && !isOwner && product.user?.id ? (
                 <FollowButton
-                  size="sm"
+                  size="detail"
                   userId={product.user.id}
                   isFollowing={Boolean(product.user.isFollowing)}
                   returnPath={productPath}
@@ -686,10 +713,10 @@ const ProductClient = ({
               ) : null}
 
               <div className="mt-2.5 flex items-center gap-2">
-                {/* 강아지·고양이 글은 가격 대신 글 종류(분양해요·가족 찾아요·임보 구해요, docs/prd/pet-space.md §5.5). */}
-                <p className="text-[20px] font-bold text-app-text">{productPriceText(product)}</p>
+                {/* 강아지·고양이 글은 큰 가격 줄이 없다 — 글 종류는 제목·딱지가 말한다(앱 docs/prd/pet-space.md §5.10). */}
+                {isPetPost ? null : <p className="text-[20px] font-bold text-app-text">{productPriceText(product)}</p>}
                 <span className="rounded bg-app-surface px-2 py-[3px] text-[12px] font-semibold text-app-text">
-                  {productStatusLabel(currentStatus)}
+                  {statusText(currentStatus)}
                 </span>
                 {/* 거래 유형이 유료 분양이 아니면(무료 분양·파양) 상태 옆에 같은 pill 로 표시한다(앱과 같음). */}
                 {!isPetPost && product.dealType && product.dealType !== "sale" ? (
@@ -708,13 +735,11 @@ const ProductClient = ({
               ) : null}
 
               <div className="mt-5">
-                <MarkdownPreview content={product.description ?? ""} emptyText="설명이 없습니다." />
+                <MarkdownPreview content={product.description ?? ""} emptyText="설명이 없어요" />
               </div>
 
               <div className="mt-5 flex items-center justify-between">
-                <p className="text-[13px] text-app-muted">
-                  조회 {product.viewCount ?? 0} · 찜 {wishCount}
-                </p>
+                <p className="text-[13px] text-app-muted">{countsText}</p>
                 {!isInactive ? (
                   <button
                     type="button"
@@ -746,7 +771,7 @@ const ProductClient = ({
                           : "text-[15px] font-semibold text-app-text"
                       }
                     >
-                      {actionPending ? "처리 중..." : currentStatus === "판매완료" ? productStatusLabel("판매완료") : "상태 변경"}
+                      {actionPending ? "처리 중..." : currentStatus === "판매완료" ? statusText("판매완료") : "상태 변경"}
                     </span>
                     {currentStatus !== "판매완료" ? (
                       <svg className="h-4 w-4 text-app-text" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
@@ -763,7 +788,7 @@ const ProductClient = ({
                           onClick={() => void handleStatusChange("판매중")}
                           className="block w-full px-4 py-3.5 text-left text-[15px] text-app-text hover:bg-app-surface"
                         >
-                          분양중으로 변경
+                          {statusText("판매중")}으로 변경
                         </button>
                       ) : null}
                       {currentStatus !== "예약중" ? (
@@ -772,7 +797,7 @@ const ProductClient = ({
                           onClick={() => void handleStatusChange("예약중")}
                           className="block w-full border-t border-app-line px-4 py-3.5 text-left text-[15px] text-app-text hover:bg-app-surface"
                         >
-                          예약중으로 변경
+                          {statusText("예약중")}으로 변경
                         </button>
                       ) : null}
                       <button
@@ -780,7 +805,7 @@ const ProductClient = ({
                         onClick={() => void handleSold()}
                         className="block w-full border-t border-app-line px-4 py-3.5 text-left text-[15px] text-app-text hover:bg-app-surface"
                       >
-                        분양완료로 변경
+                        {adoptionSideDoneAction(product) ?? "분양완료로 변경"}
                       </button>
                     </div>
                   ) : null}
@@ -914,10 +939,17 @@ const ProductClient = ({
                 </>
               ) : (
                 <>
-                  <span className="h-6 w-px shrink-0 bg-app-border" aria-hidden="true" />
-                  <p className="min-w-0 flex-1 truncate text-[16px] font-bold text-app-text">
-                    {productPriceText(product)}
-                  </p>
+                  {hasBarText ? <span className="h-6 w-px shrink-0 bg-app-border" aria-hidden="true" /> : null}
+                  {barText ? (
+                    <p className="min-w-0 flex-1 truncate text-[16px] font-bold text-app-text">{barText}</p>
+                  ) : petBar ? (
+                    <div className="min-w-0 flex-1">
+                      <p className="truncate text-[15px] font-semibold leading-5 text-app-text">{petBar.title}</p>
+                      {petBar.sub ? (
+                        <p className="truncate text-[12px] leading-4 text-app-muted">{petBar.sub}</p>
+                      ) : null}
+                    </div>
+                  ) : null}
                   {!isOwner ? (
                     <button
                       type="button"
@@ -929,7 +961,11 @@ const ProductClient = ({
                         }
                         void handleChat();
                       }}
-                      className="h-[52px] shrink-0 rounded-md bg-app-brand px-6 text-[16px] font-semibold text-white disabled:opacity-60"
+                      // 가운데 글이 없으면(강아지·고양이 글) 버튼이 남은 폭을 채운다.
+                      className={cn(
+                        "h-[52px] rounded-md bg-app-brand px-6 text-[16px] font-semibold text-white disabled:opacity-60",
+                        hasBarText ? "shrink-0" : "flex-1"
+                      )}
                     >
                       {chatPending ? "여는 중..." : isFosterPost ? "임보 문의하기" : "채팅하기"}
                     </button>

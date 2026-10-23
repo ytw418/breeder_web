@@ -155,11 +155,11 @@ export default function AdoptionClient() {
     return (
       <div className="flex flex-col items-center px-6 py-16 text-center" data-testid="adoption-empty">
         <p className="break-keep text-[16px] font-semibold text-app-text">{empty.title}</p>
-        <p className="mt-1.5 break-keep text-[14px] leading-5 text-app-muted">{empty.body}</p>
+        <p className="mt-1.5 break-keep text-[15px] leading-[22px] text-app-muted">{empty.body}</p>
         <button
           type="button"
           onClick={() => router.push(writeHref)}
-          className="mt-4 h-10 rounded-lg bg-app-surface px-4 text-[14px] font-semibold text-app-text"
+          className="mt-4 h-10 rounded-lg bg-app-surface px-4 text-[15px] font-semibold text-app-text"
         >
           {empty.action}
         </button>

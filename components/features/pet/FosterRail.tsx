@@ -119,12 +119,12 @@ export default function FosterRail({
                         </span>
                       )}
                       {period ? (
-                        <span className="absolute left-1.5 top-1.5 h-5 max-w-[136px] truncate rounded bg-app-inverse px-1.5 text-[11px] font-semibold leading-5 text-app-inverse-text">
+                        <span className="absolute left-1.5 top-1.5 h-5 max-w-[136px] truncate rounded bg-app-inverse px-1.5 text-[12px] font-semibold leading-5 text-app-inverse-text">
                           {period}
                         </span>
                       ) : null}
                     </span>
-                    <span className="mt-1.5 block truncate text-[14px] font-semibold leading-5 text-app-text">
+                    <span className="mt-1.5 block truncate text-[15px] font-semibold leading-5 text-app-text">
                       {item.name}
                     </span>
                     <span className="mt-0.5 block truncate text-[12px] leading-4 text-app-muted">

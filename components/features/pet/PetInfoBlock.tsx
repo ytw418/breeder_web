@@ -21,8 +21,8 @@ export function PetInfoBlock({
   return (
     <dl className="mt-4 space-y-1 rounded-lg bg-app-gap px-4 py-3" data-testid="pet-info">
       {rows.map((row) => (
-        <div key={row.label} className="flex text-[14px] leading-[22px]">
-          <dt className="w-20 shrink-0 text-app-muted">{row.label}</dt>
+        <div key={row.label} className="flex text-[15px] leading-[22px]">
+          <dt className="w-[88px] shrink-0 text-app-muted">{row.label}</dt>
           <dd className="min-w-0 flex-1 break-keep text-app-text">{row.value}</dd>
         </div>
       ))}

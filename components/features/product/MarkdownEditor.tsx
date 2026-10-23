@@ -12,6 +12,8 @@ interface MarkdownEditorProps {
   rows?: number;
   /** 오류 상태면 테두리를 app-danger 로. */
   hasError?: boolean;
+  /** 강아지·고양이 글: 서식 버튼을 굵게·목록만 둔다(파충류 사육 템플릿·번호·제목·링크 없음, 2026-10-23 토스 디자인 리뷰). */
+  simple?: boolean;
 }
 
 const DESCRIPTION_TEMPLATE = `## 개체 정보
@@ -70,6 +72,7 @@ const MarkdownEditor = ({
   placeholder = "설명을 입력해주세요",
   rows = 8,
   hasError = false,
+  simple = false,
 }: MarkdownEditorProps) => {
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const [mode, setMode] = useState<"write" | "preview">("write");
@@ -150,20 +153,24 @@ const MarkdownEditor = ({
   const editorMinHeight = Math.max(rows * 22, 180);
 
   // 앱과 같은 구성: 32px 칩 툴바 한 줄(가로 스크롤, 마지막 칩이 작성/미리보기 토글) + 입력칸.
+  // '코드'는 개발자 말이라 뺐다(2026-10-23 토스 디자인 리뷰). 이미 쓴 `…`는 미리보기·상세에서 그대로 보인다.
   return (
     <div className="flex flex-col gap-2">
       <div className="flex gap-1.5 overflow-x-auto scrollbar-hide">
         <ToolbarChip label="굵게" disabled={isPreviewMode} onClick={() => wrapSelection("**")} />
-        <ToolbarChip label="코드" disabled={isPreviewMode} onClick={() => wrapSelection("`")} />
         <ToolbarChip label="목록" disabled={isPreviewMode} onClick={() => prefixLine("- ")} />
-        <ToolbarChip label="번호" disabled={isPreviewMode} onClick={() => prefixLine("1. ")} />
-        <ToolbarChip label="제목" disabled={isPreviewMode} onClick={() => prefixLine("## ")} />
-        <ToolbarChip
-          label="링크"
-          disabled={isPreviewMode}
-          onClick={() => wrapSelection("[", "](https://)", "링크텍스트")}
-        />
-        <ToolbarChip label="템플릿" accent disabled={isPreviewMode} onClick={insertTemplate} />
+        {simple ? null : (
+          <>
+            <ToolbarChip label="번호" disabled={isPreviewMode} onClick={() => prefixLine("1. ")} />
+            <ToolbarChip label="제목" disabled={isPreviewMode} onClick={() => prefixLine("## ")} />
+            <ToolbarChip
+              label="링크"
+              disabled={isPreviewMode}
+              onClick={() => wrapSelection("[", "](https://)", "링크텍스트")}
+            />
+            <ToolbarChip label="템플릿" accent disabled={isPreviewMode} onClick={insertTemplate} />
+          </>
+        )}
         <ToolbarChip
           label={isPreviewMode ? "작성" : "미리보기"}
           active={isPreviewMode}

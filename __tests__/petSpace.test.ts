@@ -1,5 +1,7 @@
 import {
   adoptionScopePaths,
+  adoptionSideDoneAction,
+  adoptionSideStatusLabel,
   adoptionWriteSpecies,
   dogCatSaleFilters,
   dogCatSortOptions,
@@ -11,9 +13,11 @@ import {
   isNoPriceCategory,
   otherPetsFeedSub,
   parsePetInfo,
+  PET_POST_KINDS,
   PET_PICK_GRID_CARDS,
   PET_PICK_NONE_CARD,
   pathsForPetPicks,
+  petBarSummary,
   petFacts,
   petDescriptionPlaceholder,
   petInfoRows,
@@ -24,6 +28,7 @@ import {
   petSpaceForPaths,
   petSpaceLabel,
   petThumbTag,
+  petTitlePlaceholder,
   petWriteDefaults,
   productWriteLabels,
   saleSpeciesChips,
@@ -423,7 +428,7 @@ describe("글쓰기 제목·버튼(§5.5)", () => {
 
   it("수정 화면은 글의 dealType 을 그대로 넘긴다 — 임보·가족 찾기 글만 '글 수정'", () => {
     expect(`${productWriteLabels("foster").noun} 수정`).toBe("글 수정");
-    expect(`${productWriteLabels("rehoming").noun}이 수정되었습니다.`).toBe("글이 수정되었습니다.");
+    expect(`${productWriteLabels("rehoming").noun}을 수정했어요`).toBe("글을 수정했어요");
     expect(`${productWriteLabels("sale").noun} 수정`).toBe("분양글 수정");
     expect(productWriteLabels(undefined).noun).toBe("분양글");
   });
@@ -529,5 +534,50 @@ describe("가족 찾아요·임보 구해요 글 동네(§5.9)", () => {
     expect(petInfoRows(info, "foster", null).map((row) => row.label)).toEqual(["성별", "나이", "임보 기간"]);
     // 정보 칸을 비워 둔 글도 동네는 보인다.
     expect(petInfoRows(null, "foster", mapo)).toEqual([{ label: "동네", value: "서울 마포구" }]);
+  });
+});
+
+describe("토스 디자인 리뷰 바로 고칠 것(2026-10-23, 앱 docs/prd/pet-space.md §5.10)", () => {
+  const foster = { category: "강아지", dealType: "foster" };
+  const rehoming = { category: "고양이", dealType: "rehoming" };
+
+  it("임보·가족 찾기 글 딱지는 '분양중' 대신 글 종류에 맞는 말", () => {
+    expect(adoptionSideStatusLabel(foster, "판매중")).toBe("임보처 찾는 중");
+    expect(adoptionSideStatusLabel(foster, "판매완료")).toBe("임보처 찾았어요");
+    expect(adoptionSideStatusLabel(rehoming, null)).toBe("가족 찾는 중");
+    expect(adoptionSideStatusLabel(rehoming, "판매완료")).toBe("가족 찾았어요");
+    expect(adoptionSideStatusLabel(rehoming, "예약중")).toBe("예약중");
+    // 분양해요 글·다른 종의 옛 가족 찾기 글은 분양중·분양완료 그대로(부르는 쪽이 productStatusLabel).
+    expect(adoptionSideStatusLabel({ category: "강아지", dealType: "adoption" }, "판매중")).toBeNull();
+    expect(adoptionSideStatusLabel({ category: "레오파드게코", dealType: "rehoming" }, "판매중")).toBeNull();
+    expect(adoptionSideDoneAction(foster)).toBe("임보처를 찾았어요");
+    expect(adoptionSideDoneAction(rehoming)).toBe("가족을 찾았어요");
+    expect(adoptionSideDoneAction({ category: "고양이", dealType: "adoption" })).toBeNull();
+  });
+
+  it("상세 아래 바는 글 종류를 또 쓰지 않고 임보 조건만 요약한다", () => {
+    expect(petBarSummary({ ...foster, petInfo: { fosterPeriod: "1m", fosterSupport: ["food", "vet"] } })).toEqual({
+      title: "한 달",
+      sub: "사료·병원비 지원",
+    });
+    expect(petBarSummary({ ...foster, petInfo: { fosterPeriod: "open" } })).toEqual({ title: "가족 찾을 때까지", sub: null });
+    expect(petBarSummary({ ...foster, petInfo: { fosterSupport: ["supplies"] } })).toEqual({ title: "용품 지원", sub: null });
+    expect(petBarSummary({ ...foster, petInfo: null })).toBeNull();
+    expect(petBarSummary({ ...rehoming, petInfo: { reason: "rescued" } })).toBeNull();
+    expect(petBarSummary({ category: "강아지", dealType: "adoption", petInfo: {} })).toBeNull();
+    expect(petBarSummary({ category: "크레스티드 게코", dealType: "sale" })).toBeNull();
+  });
+
+  it("제목 칸은 '제목' 대신 글 종류·종에 맞는 예시", () => {
+    expect(petTitlePlaceholder("foster", "강아지")).toBe("예: 2개월 믹스견 콩이 임보처 구해요");
+    expect(petTitlePlaceholder("foster", "고양이")).toContain("고양이");
+    expect(petTitlePlaceholder("rehoming")).toContain("새 가족 찾아요");
+    expect(petTitlePlaceholder("adoption", "고양이")).toContain("분양해요");
+  });
+
+  it("글 종류 안내는 뜻 한 문장(화면 구조 설명 '…쪽에 보여요'가 없다)", () => {
+    for (const kind of PET_POST_KINDS) {
+      expect(kind.hint).not.toMatch(/쪽|\./);
+    }
   });
 });

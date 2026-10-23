@@ -7,7 +7,14 @@ import { getProductPath } from "@libs/product-route";
 import { productPriceText } from "@libs/shared/price";
 import { useIsUnread } from "@libs/client/unreadMarks";
 import { productStatusLabel } from "@libs/shared/productTerms";
-import { isNoPriceCategory, parsePetInfo, petFacts, petPostPlace, petThumbTag } from "@libs/shared/petSpace";
+import {
+  adoptionSideStatusLabel,
+  isNoPriceCategory,
+  parsePetInfo,
+  petFacts,
+  petPostPlace,
+  petThumbTag,
+} from "@libs/shared/petSpace";
 import { PetFactChips } from "@components/features/pet/PetFactChips";
 
 /** 목록 메타에 조회 수를 보이는 최소값. 작은 숫자는 오히려 빈 티가 나서 숨긴다. */
@@ -65,13 +72,18 @@ export function getProductCardMeta(
     .join(" · ");
 }
 
-/** 메타 앞 중립 pill 라벨. 삭제·숨김 상품이 먼저, 그다음 예약중·판매완료. */
+/**
+ * 메타 앞 중립 pill 라벨. 삭제·숨김 상품이 먼저, 그다음 예약중·판매완료.
+ * 임보·가족 찾기 글의 판매완료는 '임보처 찾았어요'·'가족 찾았어요'(2026-10-23 토스 디자인 리뷰).
+ */
 export function getProductStatusLabel(
-  product: Pick<ProductCardData, "status" | "isDeleted" | "isHidden">
+  product: Pick<ProductCardData, "status" | "isDeleted" | "isHidden" | "category" | "dealType">
 ) {
   if (product.isDeleted) return "삭제된 분양글";
   if (product.isHidden) return "숨김 분양글";
-  if (product.status === "예약중" || product.status === "판매완료") return productStatusLabel(product.status);
+  if (product.status === "예약중" || product.status === "판매완료") {
+    return adoptionSideStatusLabel(product, product.status) ?? productStatusLabel(product.status);
+  }
   return null;
 }
 
@@ -79,6 +91,7 @@ export function getProductStatusLabel(
  * 당근 톤 상품 플랫 행(앱 ProductCard). 높이 148, 120px 썸네일(r8, 시안 list-thumb/A-karrot.html A안), 하단 1px app-line.
  * [안 본 점] 이름 16/500(2줄) · [상태 pill] 메타 13 app-muted · 가격 16/700, 관심 수는 오른쪽 아래.
  * 강아지·고양이 글은 가격 자리에 정보 칩이고, 칩이 줄을 바꾸면 행이 늘어난다(앱 docs/prd/pet-space.md §5.3).
+ * 정보가 없는 옛 글은 그 줄을 비운다 — 굵은 '분양해요'가 가격처럼 읽혔다(2026-10-23 토스 디자인 리뷰, §5.10).
  * markUnread: 홈·상품 목록처럼 둘러보는 목록에서만 켠다(7일 안·안 연 상품에 빨간 점, 프로필 내역은 끔).
  * 판매완료·삭제·숨김은 썸네일을 어둡게 덮는다.
  * seller 를 넘기면 메타 맨 앞에 판매자(누르면 프로필, 행 높이 그대로, 시안 author-row/A-karrot.html A-②).
@@ -112,7 +125,7 @@ export function ProductCard({
     href === null ? null : href ?? (isInactive ? null : getProductPath(product.id, product.name));
   const hearts = product.wishCount ?? 0;
   const seller = product.seller;
-  // 강아지·고양이 글은 가격이 없다: 가격 줄 대신 정보 칩(없으면 글 종류), 썸네일에 이유·임보 기간 딱지.
+  // 강아지·고양이 글은 가격이 없다: 가격 줄 대신 정보 칩(없으면 비운다), 썸네일에 이유·임보 기간 딱지.
   const isPet = isNoPriceCategory(product.category);
   const hasPetFacts = isPet && petFacts(parsePetInfo(product.petInfo)).length > 0;
   const thumbTag = petThumbTag(product);
@@ -144,7 +157,7 @@ export function ProductCard({
           <div className="pointer-events-none absolute inset-0 bg-app-overlay opacity-50" />
         ) : null}
         {thumbTag ? (
-          <span className="absolute left-1.5 top-1.5 h-5 max-w-[calc(100%-12px)] truncate rounded bg-app-elevated px-1.5 text-[11px] font-semibold leading-5 text-app-text">
+          <span className="absolute left-1.5 top-1.5 h-5 max-w-[calc(100%-12px)] truncate rounded bg-app-elevated px-1.5 text-[12px] font-semibold leading-5 text-app-text">
             {thumbTag}
           </span>
         ) : null}
@@ -191,7 +204,7 @@ export function ProductCard({
         ) : null}
         {hasPetFacts ? (
           <PetFactChips petInfo={product.petInfo} className="mt-1.5" />
-        ) : (
+        ) : isPet ? null : (
           <span className="mt-1.5 truncate text-[16px] font-bold text-app-text">
             {productPriceText(product)}
           </span>

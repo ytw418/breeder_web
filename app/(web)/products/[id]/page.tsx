@@ -57,8 +57,8 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 
   if (!data.success || !data.product) {
     return {
-      title: "분양글을 찾을 수 없습니다",
-      description: "요청한 분양글을 찾을 수 없습니다.",
+      title: "분양글을 찾을 수 없어요",
+      description: "요청한 분양글을 찾을 수 없어요",
       robots: {
         index: false,
         follow: false,

@@ -1,10 +1,12 @@
 import client from "@libs/server/client";
+import { categoryScopeWhere } from "@libs/server/categories";
 import { getRealtimeHotRanking } from "@libs/server/hotRealtime";
 import { getProductPath } from "@libs/product-route";
 import { toPostPath } from "@libs/post-route";
 import { toAuctionPath } from "@libs/auction-route";
 import { productPriceText } from "@libs/shared/price";
 import { productStatusLabel } from "@libs/shared/productTerms";
+import { CAT_PATH, DOG_PATH, isNoPriceCategory } from "@libs/shared/petSpace";
 import { pickExploreItems, type ExploreItem, type ExploreMoreData } from "@libs/shared/exploreMore";
 
 /**
@@ -14,6 +16,7 @@ import { pickExploreItems, type ExploreItem, type ExploreMoreData } from "@libs/
  * - ISR 캐시 HTML 에 들어가므로 좋아요·댓글 수·현재가·상대 시간 같은 실시간 값은 싣지 않는다(정적 메타만).
  * - 비로그인 HTML 이라 보는 사람의 차단 목록은 거르지 못한다(목록 API 와 다르다).
  * - 비슷한 글은 운영(크루) 계정 글도 넣는다(정상 콘텐츠). 인기 글은 랭킹 기준(getRealtimeHotRanking)이라 운영 계정을 뺀다.
+ * - 강아지·고양이 분양글은 인기 글·토론을 강아지·고양이 공간 안에서만 고른다(2026-10-23 토스 디자인 리뷰, 앱 docs/prd/pet-space.md §5.10).
  */
 export type ExploreTarget =
   | { kind: "post"; id: number; category: string | null }
@@ -22,6 +25,8 @@ export type ExploreTarget =
   | { kind: "bloodline"; speciesType: string | null };
 
 const SIMILAR_LIMIT = 6;
+/** 강아지·고양이 공간(categoryPath). 고정 범위처럼 상위 '포유류'로만 단 글도 들어온다. */
+const PET_SPACE_CATEGORY_PATH = [DOG_PATH, CAT_PATH].join(",");
 /** 인기 글은 현재 글·비슷한 글과 겹치는 것을 빼고 6개를 채우려고 넉넉히 받는다. */
 const POPULAR_FETCH_LIMIT = 10;
 
@@ -130,8 +135,8 @@ async function loadSimilar(target: ExploreTarget): Promise<ExploreItem[]> {
   }
 }
 
-async function loadPopular(): Promise<ExploreItem[]> {
-  const ranked = await getRealtimeHotRanking({ limit: POPULAR_FETCH_LIMIT });
+async function loadPopular(categoryPath?: string): Promise<ExploreItem[]> {
+  const ranked = await getRealtimeHotRanking({ limit: POPULAR_FETCH_LIMIT, categoryPath });
   if (!ranked.length) return [];
   const rows = await client.post.findMany({
     where: { id: { in: ranked.map((row) => row.postId) }, isHidden: false },
@@ -144,10 +149,14 @@ async function loadPopular(): Promise<ExploreItem[]> {
   });
 }
 
-/** 지금 표가 가장 많은 진행 중 토론. 없으면 null(CTA 는 토론 모아보기로). */
-async function loadHotDebate() {
+/** 지금 표가 가장 많은 진행 중 토론(범위가 있으면 그 안에서). 없으면 null(CTA 는 토론 모아보기로). */
+async function loadHotDebate(categoryPath?: string) {
+  const scope = categoryPath ? await categoryScopeWhere(categoryPath) : {};
   const debate = await client.debate.findFirst({
-    where: { endsAt: { gt: new Date() }, post: { isHidden: false } },
+    where: {
+      endsAt: { gt: new Date() },
+      post: { isHidden: false, ...(Object.keys(scope).length ? { AND: [scope] } : {}) },
+    },
     orderBy: { votes: { _count: "desc" } },
     select: { post: { select: { id: true, title: true } } },
   });
@@ -159,21 +168,24 @@ export async function getExploreMore(
   /** 화면이 이미 비슷한 목록을 그리면(분양글 상세 '비슷한 분양' 그리드) false. */
   { includeSimilar = true }: { includeSimilar?: boolean } = {}
 ): Promise<ExploreMoreData> {
+  const petSpace = target.kind === "product" && isNoPriceCategory(target.category);
+  const categoryPath = petSpace ? PET_SPACE_CATEGORY_PATH : undefined;
   try {
     const [similar, popular, hotDebate] = await Promise.all([
       includeSimilar ? loadSimilar(target) : Promise.resolve([]),
-      loadPopular(),
-      loadHotDebate(),
+      loadPopular(categoryPath),
+      loadHotDebate(categoryPath),
     ]);
     return pickExploreItems({
       similar,
       popular,
       currentPostId: target.kind === "post" ? target.id : null,
       hotDebate,
+      petSpace,
     });
   } catch (error) {
     // 둘러보기가 실패해도 상세는 그린다(CTA 만 남는다).
     console.warn("[exploreMore] failed", error instanceof Error ? error.message : error);
-    return pickExploreItems({ similar: [], popular: [], currentPostId: null, hotDebate: null });
+    return pickExploreItems({ similar: [], popular: [], currentPostId: null, hotDebate: null, petSpace });
   }
 }

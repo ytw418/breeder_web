@@ -51,6 +51,7 @@ import {
   parsePetInfo,
   petDescriptionPlaceholder,
   petRegionText,
+  petTitlePlaceholder,
   productWriteLabels,
   showsPetRegion,
   type PetInfo,
@@ -463,7 +464,7 @@ export function ProductForm({
   const addFiles = (files: File[]) => {
     const remaining = PRODUCT_PHOTOS_MAX - photos.length;
     if (files.length > remaining) {
-      toast.info(`이미지는 최대 ${PRODUCT_PHOTOS_MAX}장까지 등록할 수 있습니다.`);
+      toast.info(`사진은 ${PRODUCT_PHOTOS_MAX}장까지 올릴 수 있어요`);
     }
     const { photos: added, error } = toLocalProductPhotos(files.slice(0, remaining));
     if (error) {
@@ -577,7 +578,9 @@ export function ProductForm({
         throw new Error(
           result?.error ||
             result?.message ||
-            (isEdit ? `${writeLabels.noun} 수정에 실패했습니다.` : `${writeLabels.noun} 등록에 실패했습니다.`)
+            (isEdit
+              ? `${writeLabels.noun}을 수정하지 못했어요. 다시 시도해 주세요`
+              : `${writeLabels.noun}을 올리지 못했어요. 다시 시도해 주세요`)
         );
       }
 
@@ -587,7 +590,7 @@ export function ProductForm({
       );
       succeeded = true;
       if (isEdit) {
-        toast.success(`${writeLabels.noun}이 수정되었습니다.`);
+        toast.success(`${writeLabels.noun}을 수정했어요`);
         const path = getProductPath(product!.id, fields.name);
         leave(() => {
           router.replace(path);
@@ -599,7 +602,7 @@ export function ProductForm({
         // 등록했으면 임시저장을 지운다(기다리던 저장도 버린다).
         draftAutosave.stop();
         if (draftUserId != null) deleteComposeDraft("product", draftUserId);
-        if (!result.celebrate) toast.success(`${writeLabels.noun}이 등록되었습니다.`);
+        if (!result.celebrate) toast.success(`${writeLabels.noun}을 올렸어요`);
         celebrateSheet.show(result.celebrate, () =>
           leave(() => router.replace(id ? getProductPath(id, fields.name) : "/"))
         );
@@ -611,8 +614,8 @@ export function ProductForm({
         error instanceof Error
           ? error.message
           : isEdit
-            ? `${writeLabels.noun} 수정에 실패했습니다.`
-            : `${writeLabels.noun} 등록에 실패했습니다. 다시 시도해주세요.`
+            ? `${writeLabels.noun}을 수정하지 못했어요. 다시 시도해 주세요`
+            : `${writeLabels.noun}을 올리지 못했어요. 다시 시도해 주세요`
       );
     } finally {
       if (!succeeded) setSubmitStep("idle");
@@ -665,7 +668,8 @@ export function ProductForm({
               setName(event.target.value);
               clearError("name");
             }}
-            placeholder="제목"
+            // 강아지·고양이 글은 글 종류에 맞는 예시(라벨과 같은 '제목'은 안내가 안 된다, 2026-10-23 토스 디자인 리뷰).
+            placeholder={isPet || awaitingPetSpecies ? petTitlePlaceholder(petKind, subcategory) : "제목"}
             aria-label="제목"
             aria-invalid={Boolean(errors.name)}
             className={cn(
@@ -861,6 +865,7 @@ export function ProductForm({
             }
             rows={9}
             hasError={Boolean(errors.description)}
+            simple={isPet || awaitingPetSpecies}
           />
           <ErrorText>{errors.description}</ErrorText>
         </div>
@@ -886,7 +891,8 @@ export function ProductForm({
                 target="_blank"
                 rel="noopener noreferrer"
                 aria-label="이용 규칙 자세히 보기"
-                className="shrink-0 text-[14px] font-semibold leading-[22px] text-app-brand"
+                // 주황은 주 버튼·선택 상태만(REFERENCE.md) — 보조 링크는 회색 밑줄 글자(2026-10-23 토스 디자인 리뷰).
+                className="shrink-0 text-[13px] leading-[22px] text-app-muted underline underline-offset-[3px]"
               >
                 자세히
               </Link>
@@ -930,12 +936,12 @@ export function ProductForm({
           <span className="relative h-9 w-9 animate-spin rounded-full border-[3px] border-app-border border-t-app-brand" />
           <p className="relative mt-3 text-[15px] font-semibold text-app-text">
             {submitStep === "images"
-              ? `이미지를 업로드하고 있어요${photos.length ? ` (${uploadedCount}/${photos.length})` : ""}`
+              ? `사진을 올리고 있어요${photos.length ? ` (${uploadedCount}/${photos.length})` : ""}`
               : isEdit
                 ? `${writeLabels.noun}을 수정하고 있어요`
-                : `${writeLabels.noun}을 등록하고 있어요`}
+                : `${writeLabels.noun}을 올리고 있어요`}
           </p>
-          <p className="relative mt-1.5 text-[14px] text-app-muted">화면을 닫지 말고 잠시만 기다려주세요.</p>
+          <p className="relative mt-1.5 text-[13px] text-app-muted">화면을 닫지 말고 잠시만 기다려 주세요</p>
         </div>
       ) : null}
       <BloodlineAttachSheet

@@ -50,7 +50,7 @@ export default function EditClient({ productId }: { productId: string }) {
     if (!product || !isOwner || product.isDeleted) {
       return (
         <div className="flex min-h-[60vh] flex-col items-center justify-center px-5 text-center">
-          <p className="text-[18px] font-bold text-app-text">수정 권한이 없습니다</p>
+          <p className="text-[18px] font-bold text-app-text">수정할 수 없는 글이에요</p>
           <p className="mt-2 text-[15px] leading-[22px] text-app-muted">
             본인이 등록한 분양글만 수정할 수 있어요.
           </p>

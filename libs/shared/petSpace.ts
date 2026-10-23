@@ -395,17 +395,13 @@ export const isNoPriceCategory = (category: string | null | undefined): boolean 
   !!category && (NO_PRICE_CATEGORIES as readonly string[]).includes(category);
 
 /**
- * 강아지·고양이 글 종류 → Product.dealType. 안내는 뜻 → 보이는 곳 순서다
- * (2026-10-23 페르소나 리뷰: 어디에 보이는지만으론 무엇을 골라야 할지 모른다).
+ * 강아지·고양이 글 종류 → Product.dealType. 안내는 뜻 한 문장이다(2026-10-23 페르소나 리뷰: 어디에 보이는지만으론
+ * 무엇을 골라야 할지 모른다 → 토스 디자인 리뷰: 둘째 문장 '…쪽에 보여요'는 화면 구조 설명이라 뺐다).
  */
 export const PET_POST_KINDS = [
-  { id: "adoption", label: "분양해요", hint: "우리 집에서 태어난 아이를 보내요. '분양' 쪽에 보여요." },
-  { id: "rehoming", label: "가족 찾아요", hint: "구조했거나 키우던 아이의 새 가족을 찾아요. '입양' 쪽에 보여요." },
-  {
-    id: "foster",
-    label: "임보 구해요",
-    hint: "가족을 찾을 때까지 잠시 맡아 줄 분(임시보호)을 찾아요. '입양' 쪽 맨 위에 보여요.",
-  },
+  { id: "adoption", label: "분양해요", hint: "우리 집에서 태어난 아이를 보내요" },
+  { id: "rehoming", label: "가족 찾아요", hint: "구조했거나 키우던 아이의 새 가족을 찾아요" },
+  { id: "foster", label: "임보 구해요", hint: "가족을 찾을 때까지 잠시 맡아 줄 분(임시보호)을 찾아요" },
 ] as const;
 export type PetPostKind = (typeof PET_POST_KINDS)[number]["id"];
 
@@ -429,6 +425,67 @@ export function petPriceStandIn(product: {
   if (!isNoPriceCategory(product.category)) return null;
   return petPostKindLabel(product.dealType) ?? PET_POST_KINDS[0].label;
 }
+
+/** 임보·가족 찾기 글의 상태 글자(찾는 동안 · 찾았을 때). */
+const ADOPTION_SIDE_STATUS = {
+  rehoming: { open: "가족 찾는 중", done: "가족 찾았어요", markDone: "가족을 찾았어요" },
+  foster: { open: "임보처 찾는 중", done: "임보처 찾았어요", markDone: "임보처를 찾았어요" },
+} as const;
+
+const adoptionSideStatus = (product: { category?: string | null; dealType?: string | null }) =>
+  isNoPriceCategory(product.category) && (product.dealType === "rehoming" || product.dealType === "foster")
+    ? ADOPTION_SIDE_STATUS[product.dealType]
+    : null;
+
+/**
+ * 강아지·고양이 임보 구해요·가족 찾아요 글의 상태 딱지(상세·목록). '분양중'은 틀린 말이다(2026-10-23 토스 디자인 리뷰):
+ * 판매중 → '임보처 찾는 중'·'가족 찾는 중', 판매완료 → '임보처 찾았어요'·'가족 찾았어요', 예약중은 그대로.
+ * 분양해요 글·다른 종 글은 null — 부르는 쪽이 productStatusLabel(분양중·분양완료)을 그대로 쓴다. DB 값은 바꾸지 않는다.
+ */
+export function adoptionSideStatusLabel(
+  product: { category?: string | null; dealType?: string | null },
+  status: string | null | undefined
+): string | null {
+  const labels = adoptionSideStatus(product);
+  if (!labels) return null;
+  if (status === "판매완료") return labels.done;
+  if (status === "예약중") return "예약중";
+  return labels.open;
+}
+
+/** 글 주인 상태 변경 메뉴의 '분양완료로 변경' 자리: '임보처를 찾았어요'·'가족을 찾았어요'. 다른 글은 null. */
+export const adoptionSideDoneAction = (product: { category?: string | null; dealType?: string | null }) =>
+  adoptionSideStatus(product)?.markDone ?? null;
+
+/**
+ * 상세 아래 바 가운데(다른 글의 가격 자리). 강아지·고양이 글은 글 종류를 또 쓰지 않는다(2026-10-23 토스 디자인 리뷰 —
+ * 제목·종류 줄·아래 바에 '임보 구해요'가 세 번). 임보 구해요는 조건 요약 두 줄(위 기간 '한 달', 아래 지원 '사료·병원비 지원'
+ * — 한 줄이면 360 폭에서 '임보 문의하기' 버튼 옆에 잘린다, 가격 + '가격 제안 불가' 두 줄과 같은 모양), 기간이 없으면 지원
+ * 한 줄이다. 그 밖의 강아지·고양이 글과 조건이 없는 임보 글은 null(비운다). 다른 종 글엔 쓰지 않는다(가격을 그대로 보인다).
+ */
+export function petBarSummary(product: {
+  category?: string | null;
+  dealType?: string | null;
+  petInfo?: unknown;
+}): { title: string; sub: string | null } | null {
+  if (!isNoPriceCategory(product.category) || product.dealType !== "foster") return null;
+  const info = parsePetInfo(product.petInfo);
+  const period = fosterPeriodLabel(info);
+  const support = fosterSupportLabel(info);
+  if (period) return { title: period, sub: support };
+  return support ? { title: support, sub: null } : null;
+}
+
+/** 제목 칸 예시(글 종류 · 강아지/고양이). 라벨과 같은 '제목'은 다음 일을 알려 주지 않는다(2026-10-23 토스 디자인 리뷰). */
+const PET_TITLE_EXAMPLES: Record<PetPostKind, { dog: string; cat: string }> = {
+  adoption: { dog: "예: 2개월 말티즈 남아 분양해요", cat: "예: 3개월 코숏 여아 분양해요" },
+  rehoming: { dog: "예: 3살 믹스견 콩이 새 가족 찾아요", cat: "예: 1살 코숏 나비 새 가족 찾아요" },
+  foster: { dog: "예: 2개월 믹스견 콩이 임보처 구해요", cat: "예: 2개월 아기 고양이 임보처 구해요" },
+};
+
+/** 강아지·고양이 글 제목 칸 안내. 종을 아직 안 골랐으면 강아지 예시다. */
+export const petTitlePlaceholder = (kind: PetPostKind, category?: string | null): string =>
+  PET_TITLE_EXAMPLES[kind][category === "고양이" ? "cat" : "dog"];
 
 /**
  * 글쓰기 화면 제목·등록 버튼과 글 이름(noun). 임보·가족 찾기 글은 '분양'이라 부르지 않는다(2026-10-23 브라우저 테스트 —

@@ -105,13 +105,13 @@ export function PetPickForm({
         type="button"
         disabled={saving}
         onClick={() => finish([])}
-        className={cn("absolute right-2 h-11 px-2 text-[14px] text-app-muted", sheet ? "-top-2" : "top-3")}
+        className={cn("absolute right-2 h-11 px-2 text-[15px] text-app-muted", sheet ? "-top-2" : "top-3")}
       >
         건너뛰기
       </button>
       <h2
         className={cn(
-          "break-keep text-[24px] font-bold leading-8 tracking-[-0.6px] text-app-text",
+          "app-t-question break-keep",
           sheet ? "mt-6" : "mt-10"
         )}
       >
@@ -181,7 +181,7 @@ export function PetPickForm({
         type="button"
         onClick={onDetail}
         disabled={saving}
-        className="relative mx-auto mt-4 h-9 px-2 text-[14px] text-app-muted after:absolute after:inset-x-0 after:-inset-y-1"
+        className="relative mx-auto mt-4 h-9 px-2 text-[13px] text-app-muted after:absolute after:inset-x-0 after:-inset-y-1"
       >
         종까지 자세히 고르기 ›
       </button>
