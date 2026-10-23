@@ -342,6 +342,9 @@ export const isPetPostKind = (value: unknown): value is PetPostKind =>
 
 /** '입양' 쪽에 모이는 dealType. 서버 목록 dealGroup=adoption 이 이 값만 고른다. */
 export const ADOPTION_SIDE_DEAL_TYPES = ["rehoming", "foster"] as const;
+/** 입양 쪽 글(가족 찾아요·임보 구해요)인가. '분양'이라 부르지 않는 글이다. */
+export const isAdoptionSideDealType = (dealType: string | null | undefined): boolean =>
+  (ADOPTION_SIDE_DEAL_TYPES as readonly string[]).includes(dealType ?? "");
 
 export const petPostKindLabel = (dealType: string | null | undefined): string | null =>
   PET_POST_KINDS.find((kind) => kind.id === dealType)?.label ?? null;
@@ -356,12 +359,18 @@ export function petPriceStandIn(product: {
 }
 
 /**
- * 글쓰기 화면 제목·등록 버튼. 임보·가족 찾기 글은 '분양'이라 부르지 않는다(2026-10-23 브라우저 테스트 — 임보 글에 '분양 등록하기').
- * 강아지·고양이를 고르기 전(입양 쪽에서 들어와 종을 기다릴 때)도 들어온 글 종류를 따른다. 다른 글은 그대로다.
+ * 글쓰기 화면 제목·등록 버튼과 글 이름(noun). 임보·가족 찾기 글은 '분양'이라 부르지 않는다(2026-10-23 브라우저 테스트 —
+ * 임보 글에 '분양 등록하기'). noun 은 수정 화면 제목('글 수정')과 등록·수정 완료·실패 문구('글이 수정되었습니다')에 쓴다.
+ * 강아지·고양이를 고르기 전(입양 쪽에서 들어와 종을 기다릴 때)도 들어온 글 종류를 따른다. 수정 화면은 글의 dealType 을
+ * 그대로 넘긴다(임보·가족 찾기 dealType 은 강아지·고양이 글에만 있다). 다른 글은 그대로다.
  */
-export function productWriteLabels(petKind: PetPostKind | null): { title: string; submit: string } {
-  if (petKind === "foster" || petKind === "rehoming") return { title: "글쓰기", submit: "글 올리기" };
-  return { title: "분양 등록", submit: "분양 등록하기" };
+export function productWriteLabels(petKind: string | null | undefined): {
+  title: string;
+  submit: string;
+  noun: "글" | "분양글";
+} {
+  if (isAdoptionSideDealType(petKind)) return { title: "글쓰기", submit: "글 올리기", noun: "글" };
+  return { title: "분양 등록", submit: "분양 등록하기", noun: "분양글" };
 }
 
 /**

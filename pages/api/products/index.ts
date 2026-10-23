@@ -16,6 +16,7 @@ import { resolveCategoryIdByName } from "@libs/server/categories";
 import { DEFAULT_DEAL_TYPE } from "@libs/shared/categories";
 import { canAttachBloodline, pedigreeNoteDbValue } from "@libs/server/bloodline-link";
 import { petInfoDbValue, petRegionColumns } from "@libs/server/petInfo";
+import { isAdoptionSideDealType } from "@libs/shared/petSpace";
 import { captureServerEvent, resolveClientPlatform } from "@libs/server/analytics";
 import { buildCelebrate } from "@libs/server/celebrate";
 import { getProductRail, PRODUCT_RAIL_LIMIT_DEFAULT, PRODUCT_RAIL_LIMIT_MAX } from "@libs/server/productRail";
@@ -183,14 +184,17 @@ const handler = async (
     }
 
     // 등록 보상 시트(앱 community-vibe §3.4). 실패하면 null.
-    const celebrate = await buildCelebrate({
-      target: "product",
-      id: product.id,
-      userId: user.id,
-      createdAt: product.createdAt,
-      species: product.category ?? null,
-      categoryId: product.categoryId ?? null,
-    });
+    // 임보·가족 찾기 글은 '몇 번째 분양글' 시트 대신 화면의 '글이 등록되었습니다' 토스트만 둔다(앱 docs/prd/pet-space.md §5.5).
+    const celebrate = isAdoptionSideDealType(product.dealType)
+      ? null
+      : await buildCelebrate({
+          target: "product",
+          id: product.id,
+          userId: user.id,
+          createdAt: product.createdAt,
+          species: product.category ?? null,
+          categoryId: product.categoryId ?? null,
+        });
 
     return res.json({
       success: true,

@@ -5,6 +5,7 @@ import useSWR from "swr";
 import Layout from "@components/features/MainLayout";
 import { QueryErrorState } from "@components/app/QueryErrorState";
 import useUser from "hooks/useUser";
+import { productWriteLabels } from "@libs/shared/petSpace";
 import type { ItemDetailResponse } from "pages/api/products/[id]";
 import { ProductForm } from "../../_components/ProductForm";
 
@@ -90,7 +91,7 @@ export default function EditClient({ productId }: { productId: string }) {
   };
 
   return (
-    <Layout canGoBack title="분양글 수정" headerRight={<></>}>
+    <Layout canGoBack title={`${productWriteLabels(product?.dealType).noun} 수정`} headerRight={<></>}>
       {renderBody()}
     </Layout>
   );

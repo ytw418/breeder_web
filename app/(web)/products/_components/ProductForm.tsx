@@ -301,6 +301,8 @@ export function ProductForm({
   const isPet = isNoPriceCategory(subcategory);
   // 입양 쪽 글쓰기로 왔는데 아직 종을 안 골랐다(강아지·고양이 둘 다 고정). 고르기 전엔 종류·거래 유형·가격 칸을 숨긴다.
   const awaitingPetSpecies = initial.fromAdoption && category === "포유류" && !subcategory;
+  // 임보·가족 찾기 글이면 헤더 '글쓰기'·버튼 '글 올리기', 완료·실패 문구는 '분양글' 대신 '글'(productWriteLabels).
+  const writeLabels = productWriteLabels(isPet || awaitingPetSpecies ? petKind : null);
   const [price, setPrice] = useState<number | null>(initial.price);
   const [isFree, setIsFree] = useState(initial.price === 0);
   const [description, setDescription] = useState(initial.description);
@@ -563,7 +565,9 @@ export function ProductForm({
       } | null;
       if (!res.ok || !result?.success) {
         throw new Error(
-          result?.error || result?.message || (isEdit ? "분양글 수정에 실패했습니다." : "분양글 등록에 실패했습니다.")
+          result?.error ||
+            result?.message ||
+            (isEdit ? `${writeLabels.noun} 수정에 실패했습니다.` : `${writeLabels.noun} 등록에 실패했습니다.`)
         );
       }
 
@@ -573,7 +577,7 @@ export function ProductForm({
       );
       succeeded = true;
       if (isEdit) {
-        toast.success("분양글이 수정되었습니다.");
+        toast.success(`${writeLabels.noun}이 수정되었습니다.`);
         const path = getProductPath(product!.id, fields.name);
         leave(() => {
           router.replace(path);
@@ -585,7 +589,7 @@ export function ProductForm({
         // 등록했으면 임시저장을 지운다(기다리던 저장도 버린다).
         draftAutosave.stop();
         if (draftUserId != null) deleteComposeDraft("product", draftUserId);
-        if (!result.celebrate) toast.success("분양글이 등록되었습니다.");
+        if (!result.celebrate) toast.success(`${writeLabels.noun}이 등록되었습니다.`);
         celebrateSheet.show(result.celebrate, () =>
           leave(() => router.replace(id ? getProductPath(id, fields.name) : "/"))
         );
@@ -597,8 +601,8 @@ export function ProductForm({
         error instanceof Error
           ? error.message
           : isEdit
-            ? "분양글 수정에 실패했습니다."
-            : "분양글 등록에 실패했습니다. 다시 시도해주세요."
+            ? `${writeLabels.noun} 수정에 실패했습니다.`
+            : `${writeLabels.noun} 등록에 실패했습니다. 다시 시도해주세요.`
       );
     } finally {
       if (!succeeded) setSubmitStep("idle");
@@ -609,7 +613,6 @@ export function ProductForm({
   const selectedCategoryLabel =
     subcategory || TOP_LEVEL_CATEGORIES.find((cat) => cat.id === category)?.name || "";
   const uploadedCount = photos.filter((photo) => photo.remoteId).length;
-  const writeLabels = productWriteLabels(isPet || awaitingPetSpecies ? petKind : null);
   const ctaLabel = isEdit ? "수정하기" : writeLabels.submit;
   useEffect(() => {
     if (!isEdit) onTitleChange?.(writeLabels.title);
@@ -898,8 +901,8 @@ export function ProductForm({
             {submitStep === "images"
               ? `이미지를 업로드하고 있어요${photos.length ? ` (${uploadedCount}/${photos.length})` : ""}`
               : isEdit
-                ? "분양글을 수정하고 있어요"
-                : "분양글을 등록하고 있어요"}
+                ? `${writeLabels.noun}을 수정하고 있어요`
+                : `${writeLabels.noun}을 등록하고 있어요`}
           </p>
           <p className="relative mt-1.5 text-[14px] text-app-muted">화면을 닫지 말고 잠시만 기다려주세요.</p>
         </div>

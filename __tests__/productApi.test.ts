@@ -35,6 +35,11 @@ jest.mock("@libs/server/home", () => ({
   fetchProductsResponse: jest.fn(),
 }));
 
+const mockBuildCelebrate = jest.fn(async () => null as unknown);
+jest.mock("@libs/server/celebrate", () => ({
+  buildCelebrate: (...args: unknown[]) => mockBuildCelebrate(...(args as [])),
+}));
+
 import createHandler from "../pages/api/products/index";
 import detailHandler from "../pages/api/products/[id]/index";
 import favsHandler from "../pages/api/users/[id]/favs";
@@ -249,6 +254,27 @@ describe("POST /api/products (create)", () => {
       category: "기타곤충",
       productType: "용품",
     });
+  });
+
+  it("임보·가족 찾기 글은 등록 보상 시트('N번째 분양글')를 띄우지 않는다(앱 pet-space §5.5)", async () => {
+    mockBuildCelebrate.mockResolvedValue({ ordinal: 12, fact: null });
+    const sale = await create(validData);
+    expect(sale.body.celebrate).toEqual({ ordinal: 12, fact: null });
+
+    mockBuildCelebrate.mockClear();
+    const foster = await create({
+      name: "출장 2주 동안 맡아 주실 분",
+      price: null,
+      description: "사료와 병원비는 제가 드려요.",
+      photos: ["img-1"],
+      category: "강아지",
+      productType: "생물",
+      dealType: "foster",
+      petInfo: { fosterPeriod: "1m" },
+    });
+    expect(foster.statusCode).toBe(200);
+    expect(foster.body.celebrate).toBeNull();
+    expect(mockBuildCelebrate).not.toHaveBeenCalled();
   });
 });
 

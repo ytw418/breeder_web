@@ -4,6 +4,7 @@ import {
   fosterPeriodLabel,
   fosterSupportLabel,
   hasDogCatPin,
+  isAdoptionSideDealType,
   isDogCatOnly,
   isNoPriceCategory,
   otherPetsFeedSub,
@@ -350,13 +351,28 @@ describe("입양 쪽 글쓰기 종(§5.4)", () => {
 
 describe("글쓰기 제목·버튼(§5.5)", () => {
   it("임보·가족 찾기 글은 '분양'이라 부르지 않는다", () => {
-    expect(productWriteLabels("foster")).toEqual({ title: "글쓰기", submit: "글 올리기" });
-    expect(productWriteLabels("rehoming")).toEqual({ title: "글쓰기", submit: "글 올리기" });
+    expect(productWriteLabels("foster")).toEqual({ title: "글쓰기", submit: "글 올리기", noun: "글" });
+    expect(productWriteLabels("rehoming")).toEqual({ title: "글쓰기", submit: "글 올리기", noun: "글" });
   });
 
   it("분양해요·다른 종 글은 그대로", () => {
-    expect(productWriteLabels("adoption")).toEqual({ title: "분양 등록", submit: "분양 등록하기" });
-    expect(productWriteLabels(null)).toEqual({ title: "분양 등록", submit: "분양 등록하기" });
+    expect(productWriteLabels("adoption")).toEqual({ title: "분양 등록", submit: "분양 등록하기", noun: "분양글" });
+    expect(productWriteLabels(null)).toEqual({ title: "분양 등록", submit: "분양 등록하기", noun: "분양글" });
+  });
+
+  it("수정 화면은 글의 dealType 을 그대로 넘긴다 — 임보·가족 찾기 글만 '글 수정'", () => {
+    expect(`${productWriteLabels("foster").noun} 수정`).toBe("글 수정");
+    expect(`${productWriteLabels("rehoming").noun}이 수정되었습니다.`).toBe("글이 수정되었습니다.");
+    expect(`${productWriteLabels("sale").noun} 수정`).toBe("분양글 수정");
+    expect(productWriteLabels(undefined).noun).toBe("분양글");
+  });
+
+  it("입양 쪽 글(가족 찾아요·임보 구해요)만 '분양'이 아니다 — 등록 보상 시트도 뺀다", () => {
+    expect(isAdoptionSideDealType("foster")).toBe(true);
+    expect(isAdoptionSideDealType("rehoming")).toBe(true);
+    expect(isAdoptionSideDealType("adoption")).toBe(false);
+    expect(isAdoptionSideDealType("sale")).toBe(false);
+    expect(isAdoptionSideDealType(null)).toBe(false);
   });
 });
 
