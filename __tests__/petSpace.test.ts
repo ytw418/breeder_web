@@ -8,6 +8,8 @@ import {
   isNoPriceCategory,
   otherPetsFeedSub,
   parsePetInfo,
+  PET_PICK_GRID_CARDS,
+  PET_PICK_NONE_CARD,
   pathsForPetPicks,
   petFacts,
   petDescriptionPlaceholder,
@@ -23,6 +25,7 @@ import {
   saleTabModes,
   saleTabModesShowing,
   showsOtherPetsFeed,
+  spaceLabelParts,
   togglePetPick,
 } from "@libs/shared/petSpace";
 
@@ -43,15 +46,38 @@ describe("첫 질문 카드(앱 docs/prd/pet-space.md §4)", () => {
     expect(pathsForPetPicks(["dog", "cat", "small", "fish"])).toEqual(["/mammal/", "/fish/", "/plant/aquatic-plant/"]);
   });
 
-  it("물고기 카드는 수초도 같이 고정하고, 식물 전체를 같이 고르면 수초는 뺀다", () => {
+  it("물고기 카드는 수초도 같이 고정하고, 식물 카드를 같이 고르면 수초는 뺀다", () => {
     expect(pathsForPetPicks(["fish"])).toEqual(["/fish/", "/plant/aquatic-plant/"]);
-    expect(pathsForPetPicks(["fish", "etc"])).toEqual(["/fish/", "/amphibian/", "/plant/", "/etc/"]);
-    expect(petPicksForPaths(pathsForPetPicks(["fish", "etc"]))).toEqual(["fish", "etc"]);
-    expect(petPicksForPaths(["/plant/"])).toEqual(["etc"]);
+    expect(pathsForPetPicks(["fish", "plant"])).toEqual(["/fish/", "/plant/"]);
+    expect(petPicksForPaths(pathsForPetPicks(["fish", "plant"]))).toEqual(["fish", "plant"]);
+    expect(petPicksForPaths(["/plant/"])).toEqual(["plant"]);
+  });
+
+  it("식물은 따로 된 카드다(양서류·기타엔 식물이 없다)", () => {
+    expect(pathsForPetPicks(["plant"])).toEqual(["/plant/"]);
+    expect(pathsForPetPicks(["etc"])).toEqual(["/amphibian/", "/etc/"]);
+    // 식물 카드가 생기기 전 '양서류·기타'(식물 포함)를 고른 사람은 두 카드로 보인다.
+    expect(petPicksForPaths(["/amphibian/", "/plant/", "/etc/"])).toEqual(["plant", "etc"]);
+    expect(petSpaceLabel(["/amphibian/", "/plant/", "/etc/"])).toBe("식물·양서류·기타");
+  });
+
+  it("2열 카드는 8장(빈 칸 없이), '아직 없어요'는 맨 아래 넓은 줄", () => {
+    expect(PET_PICK_GRID_CARDS.map((card) => card.id)).toEqual([
+      "dog",
+      "cat",
+      "small",
+      "reptile",
+      "insect",
+      "fish",
+      "plant",
+      "etc",
+    ]);
+    expect(PET_PICK_NONE_CARD.id).toBe("none");
+    expect(PET_PICK_NONE_CARD.paths).toEqual([]);
   });
 
   it("거의 다 골라도 고정 상한(16)을 넘지 않는다", () => {
-    expect(pathsForPetPicks(["dog", "small", "reptile", "insect", "fish", "etc"]).length).toBeLessThanOrEqual(16);
+    expect(pathsForPetPicks(["dog", "small", "reptile", "insect", "fish", "plant", "etc"]).length).toBeLessThanOrEqual(16);
   });
 
   it("지금 고정 path 에서 카드를 되찾는다", () => {
@@ -65,10 +91,38 @@ describe("공간·분양 탭 전환(§5.1·5.2)", () => {
   it("고정 묶음이 공간과 같으면 그 공간, 섞었으면 null", () => {
     expect(petSpaceForPaths(["/mammal/cat/", "/mammal/dog/"])).toBe("dogcat");
     expect(petSpaceForPaths([])).toBe("all");
-    expect(petSpaceForPaths(pathsForPetPicks(["small", "reptile", "insect", "fish", "etc"]))).toBe("exotic");
+    expect(petSpaceForPaths(pathsForPetPicks(["small", "reptile", "insect", "fish", "plant", "etc"]))).toBe("exotic");
+    expect(petSpaceLabel(pathsForPetPicks(["small", "reptile", "insect", "fish", "plant", "etc"]))).toBe(
+      "소동물·파충류·곤충·물고기·식물"
+    );
     expect(petSpaceForPaths(["/mammal/dog/", "/reptile/"])).toBeNull();
     expect(petSpaceLabel(["/mammal/dog/", "/mammal/cat/"])).toBe("강아지·고양이");
     expect(petSpaceLabel([])).toBe("전부 보기");
+  });
+
+  it("사이드 메뉴 공간 이름은 '·' 뒤에서만 접힌다", () => {
+    expect(spaceLabelParts("소동물·파충류·곤충·물고기·식물")).toEqual(["소동물·", "파충류·", "곤충·", "물고기·", "식물"]);
+    expect(spaceLabelParts("강아지·파충류 외 1")).toEqual(["강아지·", "파충류 외 1"]);
+    expect(spaceLabelParts("전부 보기")).toEqual(["전부 보기"]);
+  });
+
+  it("식물 카드 전에 이 공간을 고른 사람의 고정 묶음도 그대로 소동물·파충류 공간이다", () => {
+    const before = [
+      "/mammal/hamster/",
+      "/mammal/guinea-pig/",
+      "/mammal/rabbit/",
+      "/mammal/hedgehog/",
+      "/mammal/ferret/",
+      "/mammal/chinchilla/",
+      "/reptile/",
+      "/insect/",
+      "/arthropod/",
+      "/fish/",
+      "/amphibian/",
+      "/plant/",
+      "/etc/",
+    ];
+    expect(petSpaceForPaths(before)).toBe("exotic");
   });
 
   it("공간 이름: 첫 질문 카드로 고른 묶음은 카드 이름, 종 단위로 골랐으면 '내가 고른 분야'", () => {

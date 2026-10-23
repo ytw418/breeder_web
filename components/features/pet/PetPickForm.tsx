@@ -15,7 +15,8 @@ import {
 import { cn } from "@libs/client/utils";
 import type { CategoriesResponse } from "@libs/shared/categories";
 import {
-  PET_PICK_CARDS,
+  PET_PICK_GRID_CARDS,
+  PET_PICK_NONE_CARD,
   pathsForPetPicks,
   petPicksForPaths,
   togglePetPick,
@@ -32,9 +33,26 @@ function CheckMark() {
   );
 }
 
+/** 오른쪽 체크 원 22. 카드는 오른쪽 위, '아직 없어요' 넓은 줄은 세로 가운데. */
+function PickCheck({ on, className }: { on: boolean; className: string }) {
+  return (
+    <span
+      aria-hidden="true"
+      className={cn(
+        "absolute grid h-[22px] w-[22px] place-items-center rounded-full",
+        on ? "bg-app-brand" : "border-[1.5px] border-app-caption bg-app-elevated",
+        className
+      )}
+    >
+      {on ? <CheckMark /> : null}
+    </span>
+  );
+}
+
 /**
  * 첫 질문 "어떤 아이를 키우시나요?"(앱 docs/prd/pet-space.md §4, 시안 pet-space/A-karrot.html ①).
  * 2×4 카드(최소 높이 104 r12, 캐릭터 60, 이름 16/600, 보조 12 muted, 오른쪽 위 체크 22), 여러 개 선택.
+ * '아직 없어요'는 카드 아래 넓은 줄(최소 높이 64, 캐릭터 44, 체크 세로 가운데) — 식물 카드가 따로 생겨 9장이 됐다(§12.2).
  * 이름은 캐릭터 바로 아래에 둔다(시안은 아래 정렬 — 보조 글이 두 줄로 접히는 칸과 한 줄인 칸의 이름 높이가 어긋났다,
  * 2026-10-23 브라우저 테스트). 시작 버튼은 스크롤해도 아래에 붙어 있다(시트에선 카드가 화면보다 길다).
  * '아직 없어요'는 다른 카드와 같이 고를 수 없다. 고르면 관심 분야 고정을 그 묶음으로 바꾸고(속은 지금 고정 그대로)
@@ -71,6 +89,7 @@ export function PetPickForm({
   };
 
   const count = selected.filter((id) => id !== "none").length;
+  const noneOn = selected.includes("none");
   const ctaLabel =
     selected.length === 0 ? "키우는 아이를 골라 주세요" : count === 0 ? "다 둘러볼게요" : `${count}개 고르고 시작하기`;
   const ctaOff = selected.length === 0 || saving || loading;
@@ -105,41 +124,55 @@ export function PetPickForm({
       {error && !data ? (
         <QueryErrorState onRetry={() => void mutate()} />
       ) : (
-        <div className="mt-6 grid grid-cols-2 gap-2" role="group" aria-label="키우는 아이">
-          {PET_PICK_CARDS.map((card) => {
-            const on = selected.includes(card.id);
-            return (
-              <button
-                key={card.id}
-                type="button"
-                role="checkbox"
-                aria-checked={on}
-                disabled={saving}
-                onClick={() => setPicked(togglePetPick(selected, card.id))}
-                className={cn(
-                  "relative flex min-h-[104px] flex-col justify-start rounded-xl p-3.5 text-left transition-colors",
-                  on ? "bg-app-brand-soft ring-[1.5px] ring-inset ring-app-brand" : "bg-app-gap"
-                )}
-              >
-                <PetCharacter art={card.art} size={60} className="-ml-1.5 -mt-1.5 shrink-0" />
-                <span className="block min-w-0">
-                  <span className="block text-[16px] font-semibold leading-[22px] text-app-text">{card.label}</span>
-                  {card.sub ? (
-                    <span className="mt-0.5 block break-keep text-[12px] leading-4 text-app-muted">{card.sub}</span>
-                  ) : null}
-                </span>
-                <span
-                  aria-hidden="true"
+        <div className="mt-6" role="group" aria-label="키우는 아이">
+          <div className="grid grid-cols-2 gap-2">
+            {PET_PICK_GRID_CARDS.map((card) => {
+              const on = selected.includes(card.id);
+              return (
+                <button
+                  key={card.id}
+                  type="button"
+                  role="checkbox"
+                  aria-checked={on}
+                  disabled={saving}
+                  onClick={() => setPicked(togglePetPick(selected, card.id))}
                   className={cn(
-                    "absolute right-3 top-3 grid h-[22px] w-[22px] place-items-center rounded-full",
-                    on ? "bg-app-brand" : "border-[1.5px] border-app-caption bg-app-elevated"
+                    "relative flex min-h-[104px] flex-col justify-start rounded-xl p-3.5 text-left transition-colors",
+                    on ? "bg-app-brand-soft ring-[1.5px] ring-inset ring-app-brand" : "bg-app-gap"
                   )}
                 >
-                  {on ? <CheckMark /> : null}
-                </span>
-              </button>
-            );
-          })}
+                  <PetCharacter art={card.art} size={60} className="-ml-1.5 -mt-1.5 shrink-0" />
+                  <span className="block min-w-0">
+                    <span className="block text-[16px] font-semibold leading-[22px] text-app-text">{card.label}</span>
+                    {card.sub ? (
+                      <span className="mt-0.5 block break-keep text-[12px] leading-4 text-app-muted">{card.sub}</span>
+                    ) : null}
+                  </span>
+                  <PickCheck on={on} className="right-3 top-3" />
+                </button>
+              );
+            })}
+          </div>
+          <button
+            type="button"
+            role="checkbox"
+            aria-checked={noneOn}
+            disabled={saving}
+            onClick={() => setPicked(togglePetPick(selected, PET_PICK_NONE_CARD.id))}
+            className={cn(
+              "relative mt-2 flex min-h-[64px] w-full items-center gap-2 rounded-xl py-2.5 pl-2.5 pr-12 text-left transition-colors",
+              noneOn ? "bg-app-brand-soft ring-[1.5px] ring-inset ring-app-brand" : "bg-app-gap"
+            )}
+          >
+            <PetCharacter art={PET_PICK_NONE_CARD.art} size={44} className="shrink-0" />
+            <span className="block min-w-0">
+              <span className="block text-[16px] font-semibold leading-[22px] text-app-text">
+                {PET_PICK_NONE_CARD.label}
+              </span>
+              <span className="mt-0.5 block text-[12px] leading-4 text-app-muted">{PET_PICK_NONE_CARD.sub}</span>
+            </span>
+            <PickCheck on={noneOn} className="right-3 top-1/2 -translate-y-1/2" />
+          </button>
         </div>
       )}
 

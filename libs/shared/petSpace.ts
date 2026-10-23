@@ -19,6 +19,7 @@ export type PetPickId =
   | "reptile"
   | "insect"
   | "fish"
+  | "plant"
   | "etc"
   | "none";
 
@@ -26,7 +27,7 @@ export type PetPickId =
  * 브리디 2D 캐릭터 이름(시안 design/mockups/pet-space/assets/chibi-<art>.svg).
  * 웹 public/images/pets/chibi-<art>.svg, 앱 src/components/features/pet/PetCharacter.tsx 가 같은 그림이다.
  */
-export type PetArt = "dog" | "cat" | "hamster" | "lizard" | "beetle" | "fish" | "frog" | "eyes";
+export type PetArt = "dog" | "cat" | "hamster" | "lizard" | "beetle" | "fish" | "plant" | "frog" | "eyes";
 
 export interface PetPickCard {
   id: PetPickId;
@@ -60,9 +61,15 @@ export const PET_PICK_CARDS: readonly PetPickCard[] = [
   { id: "insect", label: "곤충·절지류", sub: "사슴벌레·장수풍뎅이·타란튤라", paths: ["/insect/", "/arthropod/"], art: "beetle" },
   // 어항을 하는 사람은 수초도 같이 본다(수초는 분류상 식물 > 수초).
   { id: "fish", label: "물고기", sub: "구피·베타·수초", paths: ["/fish/", "/plant/aquatic-plant/"], art: "fish" },
-  { id: "etc", label: "양서류·기타", sub: "엑솔로틀·개구리·식물", paths: ["/amphibian/", "/plant/", "/etc/"], art: "frog" },
+  // 식물은 '양서류·기타' 안에 있다가 따로 나왔다(2026-10-23 페르소나 리뷰 — 식물 키우는 50대가 첫 화면에서 못 찾았다).
+  { id: "plant", label: "식물", sub: "관엽·다육·식충식물", paths: ["/plant/"], art: "plant" },
+  { id: "etc", label: "양서류·기타", sub: "엑솔로틀·개구리", paths: ["/amphibian/", "/etc/"], art: "frog" },
   { id: "none", label: "아직 없어요", sub: "다 둘러볼래요", paths: [], art: "eyes" },
 ];
+
+/** 2열 카드 8장. '아직 없어요'는 그 아래 넓은 줄 하나로 따로 그린다(식물 카드가 생겨 9장이 됐다). */
+export const PET_PICK_GRID_CARDS: readonly PetPickCard[] = PET_PICK_CARDS.filter((card) => card.id !== "none");
+export const PET_PICK_NONE_CARD: PetPickCard = PET_PICK_CARDS.find((card) => card.id === "none")!;
 
 /** 카드를 하나 눌렀을 때 다음 선택. '아직 없어요'는 다른 카드와 함께 고를 수 없다. */
 export function togglePetPick(selected: readonly PetPickId[], id: PetPickId): PetPickId[] {
@@ -73,7 +80,7 @@ export function togglePetPick(selected: readonly PetPickId[], id: PetPickId): Pe
 
 /**
  * 고른 카드 → 고정 path 목록(중복 없이). 강아지·고양이·소동물을 모두 고르면 '/mammal/' 하나로 줄인다.
- * 다른 path 아래에 드는 path 는 뺀다(물고기 '식물 > 수초' + 양서류·기타 '식물' → '식물'만).
+ * 다른 path 아래에 드는 path 는 뺀다(물고기 '식물 > 수초' + 식물 → '식물'만).
  * '아직 없어요'만 골랐거나 아무것도 안 골랐으면 [] (전체 보기).
  */
 export function pathsForPetPicks(selected: readonly PetPickId[]): string[] {
@@ -120,9 +127,10 @@ export const PET_SPACES: readonly PetSpace[] = [
   { id: "dogcat", label: "강아지·고양이", sub: "분양 · 입양 · 임보", picks: ["dog", "cat"], art: "dog" },
   {
     id: "exotic",
-    label: "소동물·파충류·곤충·물고기",
+    label: "소동물·파충류·곤충·물고기·식물",
     sub: "분양 · 경매 · 혈통",
-    picks: ["small", "reptile", "insect", "fish", "etc"],
+    // 고정 path 묶음은 식물 카드가 생기기 전과 같다(옛 '양서류·기타'에 식물이 들어 있었다) — 이미 이 공간인 사람은 그대로 이 공간이다.
+    picks: ["small", "reptile", "insect", "fish", "plant", "etc"],
     art: "lizard",
   },
   { id: "all", label: "전부 보기", sub: "모든 아이들", picks: [], art: "eyes" },
@@ -154,6 +162,13 @@ export function petSpaceForPaths(paths: readonly string[]): PetSpaceId | null {
 }
 
 export const CUSTOM_SPACE_LABEL = "내가 고른 분야";
+
+/**
+ * 공간 이름을 '·' 뒤에서만 접히게 나눈다('소동물·', '파충류·', …, '식물'). 사이드 메뉴 '지금 공간' 카드가 좁아
+ * '소동물·파충류·곤충·물고기·식물'이 한 줄에 다 안 들어간다 — 말을 자르지 않고 두 줄로 접는다.
+ */
+export const spaceLabelParts = (label: string): string[] =>
+  label.split("·").map((part, index, all) => (index < all.length - 1 ? `${part}·` : part));
 
 // ── 홈 '다른 아이들 소식' ────────────────────────────────────────
 

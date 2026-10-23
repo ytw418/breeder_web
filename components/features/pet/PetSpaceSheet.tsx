@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { Fragment, useMemo, useState } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import useSWR from "swr";
 
@@ -20,6 +20,7 @@ import {
   pathsForPetPicks,
   petSpaceForPaths,
   petSpaceLabel,
+  spaceLabelParts,
   type PetSpaceId,
 } from "@libs/shared/petSpace";
 import { CATEGORIES_KEY } from "@/hooks/useCategoryScope";
@@ -37,6 +38,7 @@ function SwapIcon() {
 /**
  * 사이드 메뉴 맨 위 '지금 공간 · 강아지·고양이 · 바꾸기'(앱 docs/prd/pet-space.md §5.2, 시안 pet-space/A-karrot.html ⑥).
  * 지금 고정이 공간 묶음과 같으면 그 이름, 직접 섞었으면 '내가 고른 분야'. 비로그인도 이 브라우저 고정이 있어 늘 보인다.
+ * 이름이 길면('소동물·파충류·곤충·물고기·식물') 자르지 않고 '·' 뒤에서 두 줄로 접는다.
  */
 export function PetSpaceCard({ onOpen }: { onOpen: () => void }) {
   const { pins } = useCategoryScopeState();
@@ -51,7 +53,14 @@ export function PetSpaceCard({ onOpen }: { onOpen: () => void }) {
     >
       <span className="block text-[12px] leading-4 text-app-muted">지금 공간</span>
       <span className="mt-0.5 flex items-center justify-between gap-2">
-        <span className="min-w-0 truncate text-[16px] font-bold leading-[22px] text-app-text">{label}</span>
+        <span className="min-w-0 break-keep text-[16px] font-bold leading-[22px] text-app-text">
+          {spaceLabelParts(label).map((part, index) => (
+            <Fragment key={index}>
+              {index ? <wbr /> : null}
+              {part}
+            </Fragment>
+          ))}
+        </span>
         <span className="shrink-0 text-[13px] font-semibold text-app-brand-text">바꾸기</span>
       </span>
     </button>
