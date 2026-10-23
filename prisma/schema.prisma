@@ -298,12 +298,14 @@ model Product {
   productType    String?    // 생물, 용품
   /// Category.id (가장 구체적인 분류 1개). category 문자열과 함께 저장한다(카테고리 고정 범위 조회용).
   categoryId     Int?
-  /// 거래 유형: sale(판매) / adoption(분양) / rehoming(파양)
+  /// 거래 유형: sale(유료 분양) / adoption(무료 분양·분양해요) / rehoming(가족 찾아요) / foster(임보 구해요)
   dealType       String     @default("sale")
   /// 연결한 혈통(BloodlineCard, cardType=BLOODLINE). FK 없음(relationMode=prisma). 회수되면 상세 요약만 사라진다.
   bloodlineRootId Int?
   /// { sireMm?: number; damMm?: number; generation?: "F1".."F9" | "unknown" } — libs/shared/pedigree-note.ts
   pedigreeNote    Json?
+  /// 강아지·고양이 성별·나이·건강·이유·임보 기간 — libs/shared/petSpace.ts PetInfo(앱 docs/prd/pet-space.md)
+  petInfo         Json?
 
   @@index([userId])
   @@index([category])

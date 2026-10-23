@@ -1,4 +1,5 @@
 import { formatProductPrice as formatProductPriceRule } from "@libs/productRules";
+import { petPriceStandIn } from "@libs/shared/petSpace";
 
 /**
  * 가격 입력·표시 공용 유틸(앱 bredy_app src/lib/format.ts 와 같은 규칙).
@@ -26,3 +27,13 @@ export function parseAmount(text: string | null | undefined): number | null {
 /** 상품 가격 표시: 0 → "무료 분양", null/undefined → "가격 미정", 그 외 "1,234원". */
 export const formatProductPrice = (price?: number | null): string =>
   formatProductPriceRule(price);
+
+/**
+ * 분양글 가격 자리(목록·상세·채팅 카드). 강아지·고양이는 가격을 받지 않아 글 종류('분양해요'·'가족 찾아요'·
+ * '임보 구해요')를, 그 외는 formatProductPrice 를 보인다(앱 docs/prd/pet-space.md §5.3).
+ */
+export const productPriceText = (product: {
+  price?: number | null;
+  category?: string | null;
+  dealType?: string | null;
+}): string => petPriceStandIn(product) ?? formatProductPrice(product.price);

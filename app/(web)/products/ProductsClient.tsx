@@ -38,6 +38,7 @@ import {
 } from "@libs/productFilters";
 import useBlocks from "hooks/useBlocks";
 import useCategoryScope, { withCategoryPath, withinScope } from "hooks/useCategoryScope";
+import { hasDogCatPin, isDogCatOnly } from "@libs/shared/petSpace";
 import { ProductFeedEmpty } from "./_components/ProductFeedEmpty";
 import { PriceRangeSheet } from "./_components/PriceRangeSheet";
 import { ProductRowSkeleton } from "./_components/ProductRowSkeleton";
@@ -89,6 +90,11 @@ export default function ProductsClient({ initialParams }: { initialParams: Produ
     () => withinScope(CATEGORY_TABS, scope.topLevelNames, (tab) => tab.id, (tab) => tab.id === "전체"),
     [scope.topLevelNames]
   );
+  // 강아지·고양이를 고정했으면 '입양' 쪽이 따로 있어 분양 쪽은 가족 찾아요·임보 구해요 글을 뺀다
+  // (docs/prd/pet-space.md §5.1). 강아지·고양이만이면 가격 없는 글뿐이라 가격 칩·무료 분양 섹션도 뺀다.
+  const pinPaths = scope.pins.map((pin) => pin.path);
+  const withAdoptionSide = hasDogCatPin(pinPaths);
+  const dogCatOnly = isDogCatOnly(pinPaths);
   // 범위 밖 대분류를 골라 두었으면(고정을 바꾼 뒤) 전체로 본다.
   const activeFilters: ProductFilters = categoryTabs.some((tab) => tab.id === filters.category)
     ? filters
@@ -96,10 +102,11 @@ export default function ProductsClient({ initialParams }: { initialParams: Produ
 
   const getKey = (pageIndex: number, previous: ProductsResponse | null) => {
     if (previous && pageIndex >= (previous.pages ?? 0)) return null;
-    return withCategoryPath(
+    const url = withCategoryPath(
       toProductsApiUrl(activeFilters, { page: pageIndex + 1, size: PAGE_SIZE }),
       scope.categoryPath
     );
+    return withAdoptionSide ? `${url}${url.includes("?") ? "&" : "?"}dealGroup=sale` : url;
   };
   const { data, error, size, setSize, isValidating, mutate } = useSWRInfinite<ProductsResponse>(
     getKey,
@@ -124,6 +131,7 @@ export default function ProductsClient({ initialParams }: { initialParams: Produ
   const showSummary = !isDefault;
   // 무료 분양 섹션은 분류(대·소분류)만 고른 상태에서 보인다. 가격·유형·정렬을 바꾸면 목록만 남긴다.
   const showFree =
+    !dogCatOnly &&
     activeFilters.productType === DEFAULT_PRODUCT_FILTERS.productType &&
     activeFilters.onSaleOnly === DEFAULT_PRODUCT_FILTERS.onSaleOnly &&
     activeFilters.sort === DEFAULT_PRODUCT_FILTERS.sort &&
@@ -271,11 +279,13 @@ export default function ProductsClient({ initialParams }: { initialParams: Produ
             selected={activeFilters.onSaleOnly}
             onClick={() => updateFilters({ ...activeFilters, onSaleOnly: !activeFilters.onSaleOnly })}
           />
-          <FilterChip
-            label={priceChipLabel(activeFilters)}
-            selected={hasPriceFilter(activeFilters)}
-            onClick={() => setPriceSheetOpen(true)}
-          />
+          {dogCatOnly ? null : (
+            <FilterChip
+              label={priceChipLabel(activeFilters)}
+              selected={hasPriceFilter(activeFilters)}
+              onClick={() => setPriceSheetOpen(true)}
+            />
+          )}
         </FilterChipRail>
       </div>
 
@@ -327,6 +337,8 @@ export default function ProductsClient({ initialParams }: { initialParams: Produ
                   photoCount: product.photos?.length ?? 0,
                   sellerId: product.userId,
                   seller: product.user ?? null,
+                  dealType: product.dealType,
+                  petInfo: product.petInfo,
                 }}
                 markUnread
               />

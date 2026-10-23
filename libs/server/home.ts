@@ -1,4 +1,5 @@
 import { unstable_cache } from "next/cache";
+import { ADOPTION_SIDE_DEAL_TYPES } from "@libs/shared/petSpace";
 
 import client from "@libs/server/client";
 import { getRealtimeHotDiscussions } from "@libs/server/hotRealtime";
@@ -106,6 +107,13 @@ type ProductQueryOptions = {
   sort?: string;
   /** 연결한 뿌리 혈통 id(혈통 상세 "이 혈통 분양글"). 양의 정수만 쓴다. */
   bloodlineRootId?: number;
+  /**
+   * 분양 탭 '분양 | 입양'(앱 docs/prd/pet-space.md). adoption 이면 가족 찾아요·임보 구해요만,
+   * sale 이면 그 둘을 뺀다. 없으면 거르지 않는다(파충류 쪽·옛 앱 그대로).
+   */
+  dealGroup?: "sale" | "adoption";
+  /** 입양 쪽 칩 '임보 구해요'·'가족 찾아요'. foster·rehoming 만 쓴다(dealGroup 보다 우선). */
+  dealType?: "foster" | "rehoming";
   /**
    * 로그인한 viewer. 있으면 viewer 가 차단한 판매자의 상품을 뺀다.
    * unstable_cache 경로(getCachedDefaultProducts)에는 넣지 않는다(공개 캐시).
@@ -304,6 +312,8 @@ const buildProductsResponse = async ({
   maxPrice,
   sort,
   bloodlineRootId,
+  dealGroup,
+  dealType,
   viewerId,
 }: ProductQueryOptions = {}): Promise<ProductsResponse> => {
   const pageNumber = Number(page);
@@ -333,6 +343,13 @@ const buildProductsResponse = async ({
   }
   if (typeof bloodlineRootId === "number" && Number.isInteger(bloodlineRootId) && bloodlineRootId > 0) {
     where.bloodlineRootId = bloodlineRootId;
+  }
+  if (dealType === "foster" || dealType === "rehoming") {
+    where.dealType = dealType;
+  } else if (dealGroup === "adoption") {
+    where.dealType = { in: [...ADOPTION_SIDE_DEAL_TYPES] };
+  } else if (dealGroup === "sale") {
+    where.dealType = { notIn: [...ADOPTION_SIDE_DEAL_TYPES] };
   }
   if (typeof price === "number") {
     where.price = clampPrice(price);
@@ -450,6 +467,8 @@ export async function getProductsResponse(options: ProductQueryOptions = {}) {
     options.maxPrice === undefined &&
     (!options.sort || options.sort === "latest") &&
     options.bloodlineRootId === undefined &&
+    !options.dealGroup &&
+    !options.dealType &&
     Number(options.page ?? 1) === 1 &&
     Number(options.size ?? 10) === 10;
 

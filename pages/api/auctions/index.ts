@@ -19,6 +19,7 @@ import {
 import { settleExpiredAuctions } from "@libs/server/auctionSettlement";
 import { normalizeOptionalText, normalizeOptionalUrl } from "@libs/shared/normalize";
 import { getCategoryFilterValues } from "@libs/categoryTaxonomy";
+import { isNoPriceCategory } from "@libs/shared/petSpace";
 import { resolveCategoryIdByName, resolveScopeCategoryIds } from "@libs/server/categories";
 import {
   breederProgramSummarySelect,
@@ -251,6 +252,15 @@ async function handler(
         success: false,
         error: "필수 항목을 모두 입력해주세요.",
         errorCode: "AUCTION_REQUIRED_FIELDS",
+      });
+    }
+
+    // 강아지·고양이는 경매로 열 수 없다(동물보호법상 반려동물 판매 — 앱 docs/prd/pet-space.md §5.6).
+    if (isNoPriceCategory(normalizedCategory)) {
+      return res.status(400).json({
+        success: false,
+        error: "강아지·고양이는 경매로 올릴 수 없어요. 분양 글로 가족을 찾아 주세요.",
+        errorCode: "AUCTION_PET_CATEGORY_NOT_ALLOWED",
       });
     }
 

@@ -18,6 +18,7 @@ import {
   toPublicImageUrl as toSeoImageUrl,
 } from "@libs/shared/seo";
 import { dealTypeLabel, productStatusLabel } from "@libs/shared/productTerms";
+import { isNoPriceCategory, petPostKindLabel } from "@libs/shared/petSpace";
 import ExploreMore from "@components/app/ExploreMore";
 import CoupangBanner from "@components/app/ads/CoupangBanner";
 import { getExploreMore } from "@libs/server/exploreMore";
@@ -69,7 +70,8 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   // 검색 결과·AI 답변에 그대로 인용되도록 상태·거래 유형·종을 앞에 둔다.
   const facts = [
     productStatusLabel(product.status),
-    dealTypeLabel(product.dealType),
+    // 강아지·고양이 글은 '분양해요·가족 찾아요·임보 구해요'(가격·유료/무료 구분이 없다).
+    isNoPriceCategory(product.category) ? petPostKindLabel(product.dealType) : dealTypeLabel(product.dealType),
     product.category,
   ].filter(Boolean);
   const description = toMetaDescription(
@@ -154,18 +156,23 @@ function generateJsonLd(product: ProductForSeo, imageUrls: string[]) {
     image: imageUrls,
     url,
     ...(product.category ? { category: product.category } : {}),
-    offers: {
-      "@type": "Offer",
-      url,
-      price: product.price ?? 0,
-      priceCurrency: "KRW",
-      availability: productAvailability(product.status),
-      seller: {
-        "@type": "Person",
-        name: sellerName,
-        ...(product.user?.id ? { url: `${SITE_URL}/profiles/${product.user.id}` } : {}),
-      },
-    },
+    // 강아지·고양이 글은 가격을 받지 않아(앱 docs/prd/pet-space.md §6) 판매 제안(Offer)을 싣지 않는다.
+    ...(isNoPriceCategory(product.category)
+      ? {}
+      : {
+          offers: {
+            "@type": "Offer",
+            url,
+            price: product.price ?? 0,
+            priceCurrency: "KRW",
+            availability: productAvailability(product.status),
+            seller: {
+              "@type": "Person",
+              name: sellerName,
+              ...(product.user?.id ? { url: `${SITE_URL}/profiles/${product.user.id}` } : {}),
+            },
+          },
+        }),
   };
 }
 

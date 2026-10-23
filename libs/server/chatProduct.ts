@@ -35,6 +35,9 @@ const chatProductSelect = {
   userId: true,
   productType: true,
   categoryId: true,
+  // 강아지·고양이 글은 가격 대신 글 종류를 보인다(productPriceText).
+  category: true,
+  dealType: true,
 } satisfies Prisma.ProductSelect;
 
 export type ChatProductRow = Prisma.ProductGetPayload<{ select: typeof chatProductSelect }>;
@@ -53,6 +56,8 @@ export function toChatMessageProduct(product: ChatProductRow): ChatMessageProduc
     image: productImage(product),
     status: product.status,
     statusLabel: productStatusLabel(product.status),
+    category: product.category ?? null,
+    dealType: product.dealType ?? null,
   };
 }
 

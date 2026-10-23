@@ -15,6 +15,7 @@ import { setViewerCacheHeader } from "@libs/server/blocks";
 import { resolveCategoryIdByName } from "@libs/server/categories";
 import { DEFAULT_DEAL_TYPE } from "@libs/shared/categories";
 import { canAttachBloodline, pedigreeNoteDbValue } from "@libs/server/bloodline-link";
+import { petInfoDbValue } from "@libs/server/petInfo";
 import { captureServerEvent, resolveClientPlatform } from "@libs/server/analytics";
 import { buildCelebrate } from "@libs/server/celebrate";
 import { getProductRail, PRODUCT_RAIL_LIMIT_DEFAULT, PRODUCT_RAIL_LIMIT_MAX } from "@libs/server/productRail";
@@ -36,6 +37,7 @@ const handler = async (
         dealType,
         bloodlineRootId,
         pedigreeNote,
+        petInfo,
       },
       user,
     } = req;
@@ -56,6 +58,7 @@ const handler = async (
         dealType,
         bloodlineRootId,
         pedigreeNote,
+        petInfo,
       },
       { requireCategory: true }
     );
@@ -107,7 +110,8 @@ const handler = async (
     const product = await client.product.create({
       data: {
         name: validation.value.name!,
-        price: validation.value.price!,
+        // 강아지·고양이는 null(가격을 받지 않는다, libs/shared/petSpace.ts).
+        price: validation.value.price ?? null,
         description: validation.value.description!,
         photos: validation.value.photos ?? [],
         category: validation.value.category!,
@@ -118,6 +122,7 @@ const handler = async (
         mainImage: validation.value.photos?.[0] || null,
         bloodlineRootId: linkedRootId,
         ...(linkedPedigree ? { pedigreeNote: pedigreeNoteDbValue(linkedPedigree) } : {}),
+        ...(validation.value.petInfo ? { petInfo: petInfoDbValue(validation.value.petInfo) } : {}),
         user: {
           connect: {
             id: user.id,
@@ -210,8 +215,15 @@ const handler = async (
         sort,
         categoryPath,
         bloodlineRootId,
+        dealGroup,
+        dealType: dealTypeQuery,
       },
     } = req;
+    // 분양 탭 '분양 | 입양'(앱 docs/prd/pet-space.md). sale·adoption 만 받는다.
+    const dealGroupFilter =
+      dealGroup === "sale" || dealGroup === "adoption" ? dealGroup : undefined;
+    const dealTypeFilter =
+      dealTypeQuery === "foster" || dealTypeQuery === "rehoming" ? dealTypeQuery : undefined;
 
     // 캐싱 전략: 필터 없는 기본 목록은 60초 캐시
     // 필터가 있는 경우 30초 캐시
@@ -241,6 +253,8 @@ const handler = async (
       minPriceFilter !== undefined ||
       maxPriceFilter !== undefined ||
       bloodlineRootFilter !== undefined ||
+      dealGroupFilter !== undefined ||
+      dealTypeFilter !== undefined ||
       (sortValue && sortValue !== "latest");
     const cacheTime = hasFilters ? 30 : 60;
     res.setHeader(
@@ -263,6 +277,8 @@ const handler = async (
       maxPrice: maxPriceFilter,
       sort: sortValue,
       bloodlineRootId: bloodlineRootFilter,
+      dealGroup: dealGroupFilter,
+      dealType: dealTypeFilter,
       viewerId,
     });
 

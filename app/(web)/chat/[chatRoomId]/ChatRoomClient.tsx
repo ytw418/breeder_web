@@ -505,6 +505,8 @@ const ChatRoomClient = () => {
         photo: roomProduct.image,
         sellerName: partner && !partnerDeleted && partner.id === roomProduct.sellerId ? partner.name : "분양자",
         productType: roomProduct.productType,
+        category: roomProduct.category ?? null,
+        dealType: roomProduct.dealType ?? null,
       }
     : null;
 

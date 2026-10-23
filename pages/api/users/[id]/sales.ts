@@ -36,6 +36,10 @@ interface Sale {
     isHidden: boolean;
     userId?: number;
     productType?: string | null;
+    /** 강아지·고양이 글은 가격 대신 글 종류를 보인다(productPriceText). */
+    category?: string | null;
+    dealType?: string | null;
+    petInfo?: unknown;
     /** 입양내역에만: 분양자(입양내역 카드 아래 '○○님에게 입양'). 탈퇴한 분양자는 '탈퇴한 사용자'. */
     user?: { id: number; name: string } | null;
     _count: {

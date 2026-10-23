@@ -7,6 +7,7 @@ import {
   PEDIGREE_WITHOUT_BLOODLINE_MESSAGE,
   type PedigreeNote,
 } from "@libs/shared/pedigree-note";
+import { isNoPriceCategory, isPetPostKind, parsePetInfo, type PetInfo } from "@libs/shared/petSpace";
 
 export const PRODUCT_NAME_MIN_LENGTH = 2;
 export const PRODUCT_NAME_MAX_LENGTH = 60;
@@ -42,13 +43,19 @@ export const PRODUCT_BLOODLINE_FORBIDDEN_MESSAGE =
 
 export interface ProductInputValue {
   name?: string;
-  price?: number;
+  /** 강아지·고양이(isNoPriceCategory)는 null — 가격을 받지도 저장하지도 않는다. */
+  price?: number | null;
   description?: string;
   photos?: string[];
   category?: string;
   productType?: string;
-  /** 거래 유형(sale/adoption/rehoming). 보내지 않으면 서버 기본값 sale. */
+  /**
+   * 거래 유형(sale/adoption/rehoming/foster). 보내지 않으면 서버 기본값 sale.
+   * 강아지·고양이는 adoption(분양해요)·rehoming(가족 찾아요)·foster(임보 구해요)만, 기본 adoption.
+   */
   dealType?: string;
+  /** 강아지·고양이 성별·나이·건강·이유·임보 기간. 보내지 않았으면 키가 없다. 다른 종은 null. */
+  petInfo?: PetInfo | null;
   /**
    * 연결한 뿌리 혈통 id. 보내지 않았으면 키가 없다(수정: 기존 값 유지).
    * null 은 해제다(이때 pedigreeNote 도 null 로 맞춘다).
@@ -98,6 +105,9 @@ const readBloodlineRootId = (raw: unknown): number | null | undefined => {
  *   등록(partial 아님)에서 혈통 없이 부모 정보만 오면 PRODUCT_PEDIGREE_WITHOUT_BLOODLINE.
  *   수정에서 부모 정보만 오면 기존 혈통이 있는지는 API 가 본다(이 함수는 기존 값을 모른다).
  *   붙일 권한(보유·출처 카드)은 API 가 libs/server/bloodline-link canAttachBloodline 으로 본다.
+ * - 강아지·고양이(앱 docs/prd/pet-space.md): 보낸 가격은 무시하고 null 로 둔다(옛 앱이 보내도).
+ *   거래 유형은 분양해요·가족 찾아요·임보 구해요만, 다른 종의 임보(foster)는 막는다.
+ *   수정에서 카테고리를 보내지 않으면 currentCategory(저장된 값)로 판단한다.
  */
 export const validateProductInput = (
   input: {
@@ -110,13 +120,22 @@ export const validateProductInput = (
     dealType?: unknown;
     bloodlineRootId?: unknown;
     pedigreeNote?: unknown;
+    petInfo?: unknown;
   },
   {
     partial = false,
     requireCategory = false,
-  }: { partial?: boolean; requireCategory?: boolean } = {}
+    currentCategory = null,
+  }: { partial?: boolean; requireCategory?: boolean; currentCategory?: string | null } = {}
 ): ProductValidationResult => {
   const value: ProductInputValue = {};
+  const sentCategory =
+    input.category !== undefined && input.category !== null && typeof input.category === "string"
+      ? input.category.trim()
+      : null;
+  const isPet = isNoPriceCategory(sentCategory ?? currentCategory);
+  // 강아지·고양이 글을 다른 종으로 바꾸는 수정: 가격을 다시 받고 종류·정보를 정리한다.
+  const leftPet = partial && !isPet && sentCategory !== null && isNoPriceCategory(currentCategory);
 
   if (!partial || input.name !== undefined) {
     const name = typeof input.name === "string" ? input.name.trim() : "";
@@ -129,7 +148,9 @@ export const validateProductInput = (
     value.name = name;
   }
 
-  if (!partial || input.price !== undefined) {
+  if (isPet) {
+    if (!partial || input.price !== undefined || sentCategory !== null) value.price = null;
+  } else if (!partial || input.price !== undefined || leftPet) {
     const rawPrice = input.price;
     const price =
       typeof rawPrice === "number"
@@ -199,10 +220,24 @@ export const validateProductInput = (
 
   if (sent(input.dealType)) {
     const dealType = trimmed(input.dealType);
-    if (!isDealType(dealType)) {
+    if (!isDealType(dealType) || (isPet ? !isPetPostKind(dealType) : dealType === "foster")) {
       return fail("PRODUCT_INVALID_DEAL_TYPE", "거래 유형을 다시 선택해주세요.");
     }
     value.dealType = dealType;
+  } else if (isPet && (!partial || !isNoPriceCategory(currentCategory))) {
+    // 강아지·고양이로 새로 쓰거나 다른 종에서 바꿨는데 종류가 없으면(옛 앱) 분양해요.
+    // 강아지·고양이 글을 고치며 종류를 안 보내면(다른 칸만 수정) 저장된 종류를 그대로 둔다.
+    value.dealType = "adoption";
+  } else if (leftPet) {
+    // 강아지·고양이에서 다른 종으로 바꿨는데 종류가 없으면 무료 분양(임보 구해요는 다른 종에 없다).
+    value.dealType = "adoption";
+  }
+
+  if (input.petInfo !== undefined) {
+    value.petInfo = isPet ? parsePetInfo(input.petInfo) : null;
+  } else if (leftPet) {
+    // 강아지·고양이에서 다른 종으로 바꾸면 정보를 지운다.
+    value.petInfo = null;
   }
 
   if (input.bloodlineRootId !== undefined) {
@@ -257,6 +292,7 @@ export const validateProductForm = ({
   category: string;
   productType: string;
 }): ProductFormErrors => {
+  const noPrice = isNoPriceCategory(category);
   const errors: ProductFormErrors = {};
   const trimmedName = name.trim();
   const trimmedDescription = description.trim();
@@ -270,7 +306,9 @@ export const validateProductForm = ({
   if (!category) errors.category = "카테고리를 선택해 주세요";
   if (!productType) errors.productType = "종류를 선택해 주세요";
 
-  if (price === null) errors.price = "가격을 입력해 주세요";
+  if (noPrice) {
+    // 강아지·고양이는 가격 칸이 없다.
+  } else if (price === null) errors.price = "가격을 입력해 주세요";
   else if (!Number.isInteger(price) || price < PRODUCT_PRICE_MIN)
     errors.price = `가격은 ${PRODUCT_PRICE_MIN}원 이상 정수로 입력해 주세요`;
   else if (price > PRODUCT_PRICE_MAX) errors.price = "가격이 너무 커요";

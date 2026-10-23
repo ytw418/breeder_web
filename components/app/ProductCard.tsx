@@ -4,9 +4,11 @@ import Image from "@components/atoms/Image";
 import { AuthorLink, CardOverlayLink, type AuthorLinkUser } from "@components/app/AuthorLink";
 import { cn, getTimeAgoString, makeImageUrl } from "@libs/client/utils";
 import { getProductPath } from "@libs/product-route";
-import { formatProductPrice } from "@libs/shared/price";
+import { productPriceText } from "@libs/shared/price";
 import { useIsUnread } from "@libs/client/unreadMarks";
 import { productStatusLabel } from "@libs/shared/productTerms";
+import { isNoPriceCategory, parsePetInfo, petFacts, petThumbTag } from "@libs/shared/petSpace";
+import { PetFactChips } from "@components/features/pet/PetFactChips";
 
 /** 목록 메타에 조회 수를 보이는 최소값. 작은 숫자는 오히려 빈 티가 나서 숨긴다. */
 export const PRODUCT_VIEW_COUNT_MIN = 10;
@@ -30,6 +32,10 @@ export type ProductCardData = {
   sellerId?: number | null;
   /** 판매자. 넘기면(홈·상품 목록·혈통 분양글) 메타 맨 앞에 아바타 16 + 닉네임을 보인다. 프로필 내역은 안 넘긴다. */
   seller?: AuthorLinkUser | null;
+  /** 거래 유형(Product.dealType). 강아지·고양이 글은 가격 대신 글 종류를 보일 때 쓴다. */
+  dealType?: string | null;
+  /** 강아지·고양이 글 정보(Product.petInfo). 가격 자리에 성별·나이·건강 칩을 보인다. */
+  petInfo?: unknown;
 };
 
 const toDate = (value: string | Date) => (value instanceof Date ? value : new Date(value));
@@ -96,6 +102,10 @@ export function ProductCard({
     href === null ? null : href ?? (isInactive ? null : getProductPath(product.id, product.name));
   const hearts = product.wishCount ?? 0;
   const seller = product.seller;
+  // 강아지·고양이 글은 가격이 없다: 가격 줄 대신 정보 칩(없으면 글 종류), 썸네일에 이유·임보 기간 딱지.
+  const isPet = isNoPriceCategory(product.category);
+  const hasPetFacts = isPet && petFacts(parsePetInfo(product.petInfo)).length > 0;
+  const thumbTag = petThumbTag(product);
 
   const content = (
     <>
@@ -122,6 +132,11 @@ export function ProductCard({
         )}
         {isDimmed ? (
           <div className="pointer-events-none absolute inset-0 bg-app-overlay opacity-50" />
+        ) : null}
+        {thumbTag ? (
+          <span className="absolute left-1.5 top-1.5 h-5 max-w-[calc(100%-12px)] truncate rounded bg-app-elevated px-1.5 text-[11px] font-semibold leading-5 text-app-text">
+            {thumbTag}
+          </span>
         ) : null}
         {photoCount > 1 ? (
           <span className="absolute bottom-1 right-1 h-[18px] min-w-[18px] rounded-full bg-app-overlay px-[5px] text-center text-[11px] font-semibold leading-[18px] text-white">
@@ -164,9 +179,13 @@ export function ProductCard({
             ) : null}
           </div>
         ) : null}
-        <span className="mt-1.5 truncate text-[16px] font-bold text-app-text">
-          {formatProductPrice(product.price)}
-        </span>
+        {hasPetFacts ? (
+          <PetFactChips petInfo={product.petInfo} wrap={false} className="mt-1.5" />
+        ) : (
+          <span className="mt-1.5 truncate text-[16px] font-bold text-app-text">
+            {productPriceText(product)}
+          </span>
+        )}
         {hearts > 0 ? (
           <span className="mt-auto inline-flex shrink-0 items-center gap-0.5 self-end text-[13px] text-app-muted">
             <svg className="h-3.5 w-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">

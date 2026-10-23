@@ -13,6 +13,7 @@ import useSWR from "swr";
 import { cn, makeImageUrl } from "@libs/client/utils";
 import useUser from "hooks/useUser";
 import SanctionNoticeModal from "@components/features/moderation/SanctionNoticeModal";
+import { PetSpaceCard, PetSpaceSheet } from "@components/features/pet/PetSpaceSheet";
 import useLogout from "hooks/useLogout";
 import { identifyPosthogUser } from "@libs/client/posthog";
 import type { LoginReason } from "@libs/shared/loginReason";
@@ -212,7 +213,9 @@ const BOTTOM_NAV_ITEMS: {
   {
     label: "분양",
     href: "/products",
-    isActive: (pathname) => pathname.startsWith("/products") || pathname.startsWith("/auctions"),
+    // 분양 탭 안 '분양 | 경매 | 입양' 전환(입양 = 강아지·고양이 공간, docs/prd/pet-space.md §5.1).
+    isActive: (pathname) =>
+      pathname.startsWith("/products") || pathname.startsWith("/auctions") || pathname.startsWith("/adoption"),
     icon: "sale",
   },
   {
@@ -385,6 +388,7 @@ function SideMenu({
   const { user } = useUser();
   const logout = useLogout();
   const [logoutConfirmOpen, setLogoutConfirmOpen] = useState(false);
+  const [spaceSheetOpen, setSpaceSheetOpen] = useState(false);
   const authed = Boolean(user);
 
   useEffect(() => {
@@ -483,6 +487,14 @@ function SideMenu({
             </div>
           )}
 
+          {/* 지금 공간(docs/prd/pet-space.md §5.2): 누르면 메뉴를 닫고 공간 시트를 연다. */}
+          <PetSpaceCard
+            onOpen={() => {
+              onClose();
+              setSpaceSheetOpen(true);
+            }}
+          />
+
           {sections.map((section) => (
             <div key={section.title}>
               <div className="h-2 bg-app-gap" />
@@ -558,6 +570,8 @@ function SideMenu({
           void logout();
         }}
       />
+
+      {spaceSheetOpen ? <PetSpaceSheet onClose={() => setSpaceSheetOpen(false)} /> : null}
     </>
   );
 }

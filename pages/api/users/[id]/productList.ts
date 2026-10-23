@@ -17,10 +17,13 @@ export interface ProductListResponse {
   products: {
     id: number;
     name: string;
-    price?: number;
+    price?: number | null;
     description: string;
     photos: string[];
     createdAt: Date;
+    /** 강아지·고양이 글은 가격 대신 글 종류를 보인다(productPriceText). */
+    category?: string | null;
+    dealType?: string | null;
     _count: {
       favs: number;
     };

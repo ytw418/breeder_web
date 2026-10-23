@@ -3,7 +3,7 @@ import { getRealtimeHotRanking } from "@libs/server/hotRealtime";
 import { getProductPath } from "@libs/product-route";
 import { toPostPath } from "@libs/post-route";
 import { toAuctionPath } from "@libs/auction-route";
-import { formatProductPrice } from "@libs/shared/price";
+import { productPriceText } from "@libs/shared/price";
 import { productStatusLabel } from "@libs/shared/productTerms";
 import { pickExploreItems, type ExploreItem, type ExploreMoreData } from "@libs/shared/exploreMore";
 
@@ -45,6 +45,7 @@ const productItem = (product: {
   name: string;
   category: string | null;
   price: number | null;
+  dealType: string;
   status: string;
   photos: string[];
   mainImage: string | null;
@@ -54,7 +55,7 @@ const productItem = (product: {
   href: getProductPath(product.id, product.name),
   title: product.name,
   image: product.mainImage || product.photos[0] || null,
-  meta: [product.category, formatProductPrice(product.price), productStatusLabel(product.status)]
+  meta: [product.category, productPriceText(product), productStatusLabel(product.status)]
     .filter(Boolean)
     .join(" · "),
 });
@@ -65,6 +66,7 @@ const PRODUCT_SELECT = {
   name: true,
   category: true,
   price: true,
+  dealType: true,
   status: true,
   photos: true,
   mainImage: true,

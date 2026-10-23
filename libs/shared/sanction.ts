@@ -88,6 +88,7 @@ export const REPORT_REASON_TO_SANCTION_REASON: Record<string, SanctionReasonCode
   "불법 개체·거래 금지 종": "ILLEGAL_ITEM",
   "거래 금지 품목(불법 개체)": "ILLEGAL_ITEM", // 옛 문구(저장된 신고·구 앱)
   "동물 학대·부적절 사육": "ANIMAL_WELFARE",
+  "업자 의심·과한 책임비": "TRADE_ABUSE", // 강아지·고양이 분양글만(report.ts PET_DEALER_REASON)
   "중복·도배 게시": "DUPLICATE",
   "욕설·부적절 내용": "ABUSE",
   "욕설·협박": "HARASSMENT",

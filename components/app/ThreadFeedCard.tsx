@@ -25,7 +25,7 @@ import type { BreederProgramSummary } from "@libs/shared/breeder-program";
 import { DEBATE_CATEGORY } from "@libs/shared/debateFormat";
 import { isNewcomer } from "@libs/shared/newcomer";
 import { toPostPlainText } from "@libs/shared/post-body";
-import { formatProductPrice } from "@libs/shared/price";
+import { productPriceText } from "@libs/shared/price";
 import { productStatusLabel } from "@libs/shared/productTerms";
 import useUser from "hooks/useUser";
 
@@ -64,6 +64,9 @@ export type ThreadProductData = {
   photos?: string[] | null;
   status?: string | null;
   location?: string | null;
+  /** 강아지·고양이 글은 가격 대신 글 종류를 보인다(productPriceText). */
+  category?: string | null;
+  dealType?: string | null;
   createdAt: string | Date;
   userId?: number | null;
   user?: ThreadUser | null;
@@ -385,7 +388,7 @@ export function ThreadProductCard({ product, className }: { product: ThreadProdu
         <span className={cn("shrink-0 text-[12px] font-semibold", onSale ? "text-app-brand-text" : "text-app-muted")}>
           {productStatusLabel(product.status ?? "판매중")}
         </span>
-        <span className="shrink-0 text-[16px] font-bold text-app-text">{formatProductPrice(product.price)}</span>
+        <span className="shrink-0 text-[16px] font-bold text-app-text">{productPriceText(product)}</span>
         {product.location ? <span className="min-w-0 truncate">· {product.location}</span> : null}
         <span className="ml-auto flex shrink-0 items-center gap-0.5 font-semibold text-app-sub">
           채팅하기

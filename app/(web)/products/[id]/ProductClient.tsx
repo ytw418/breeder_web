@@ -28,8 +28,10 @@ import { shareOrCopy, copyText, absoluteUrl } from "@libs/client/share";
 import { formatMonthDay, makeImageUrl } from "@libs/client/utils";
 import { ANALYTICS_EVENTS, trackEvent } from "@libs/client/analytics";
 import { extractProductId, getProductPath } from "@libs/product-route";
-import { formatProductPrice } from "@libs/productRules";
+import { productPriceText } from "@libs/shared/price";
 import { dealTypeLabel, productStatusLabel } from "@libs/shared/productTerms";
+import { isNoPriceCategory } from "@libs/shared/petSpace";
+import { PetInfoBlock } from "@components/features/pet/PetInfoBlock";
 import useAdminModeration from "hooks/useAdminModeration";
 import FollowButton from "@components/features/profile/FollowButton";
 import { AdopterPickerSheet, type AdopterPickerMode } from "@components/features/trade/AdopterPickerSheet";
@@ -149,6 +151,9 @@ const ProductClient = ({
   const moderation = useAdminModeration();
   // 삭제·숨김 상품은 소유자에게만 내려온다. 안내만 보이고 관리 동선(수정·삭제·상태 변경)은 숨긴다.
   const isInactive = Boolean(product?.isDeleted || product?.isHidden);
+  // 강아지·고양이 글: 가격이 없고 정보 표·글 종류를 보인다(docs/prd/pet-space.md).
+  const isPetPost = isNoPriceCategory(product?.category);
+  const isFosterPost = isPetPost && product?.dealType === "foster";
   // 운영자 이메일 계정은 남의 분양글도 수정·삭제·상태 변경한다(서버가 같은 기준으로 허용).
   const canManage = (isOwner || canEditAnyContent) && !isInactive;
   const sellerId = product?.user?.id;
@@ -569,6 +574,8 @@ const ProductClient = ({
     photo: photos[0] ?? null,
     sellerName: product.user?.name ?? "분양자",
     productType: product.productType ?? null,
+    category: product.category ?? null,
+    dealType: product.dealType ?? null,
   };
   const publicReview = review && !isHiddenTradeReview(review) ? review : null;
 
@@ -679,17 +686,19 @@ const ProductClient = ({
               ) : null}
 
               <div className="mt-2.5 flex items-center gap-2">
-                <p className="text-[20px] font-bold text-app-text">{formatProductPrice(product.price)}</p>
+                {/* 강아지·고양이 글은 가격 대신 글 종류(분양해요·가족 찾아요·임보 구해요, docs/prd/pet-space.md §5.5). */}
+                <p className="text-[20px] font-bold text-app-text">{productPriceText(product)}</p>
                 <span className="rounded bg-app-surface px-2 py-[3px] text-[12px] font-semibold text-app-text">
                   {productStatusLabel(currentStatus)}
                 </span>
                 {/* 거래 유형이 유료 분양이 아니면(무료 분양·파양) 상태 옆에 같은 pill 로 표시한다(앱과 같음). */}
-                {product.dealType && product.dealType !== "sale" ? (
+                {!isPetPost && product.dealType && product.dealType !== "sale" ? (
                   <span className="rounded bg-app-surface px-2 py-[3px] text-[12px] font-semibold text-app-text">
                     {dealTypeLabel(product.dealType)}
                   </span>
                 ) : null}
               </div>
+              {isPetPost ? <PetInfoBlock petInfo={product.petInfo} dealType={product.dealType} /> : null}
 
               <div className="mt-5">
                 <MarkdownPreview content={product.description ?? ""} emptyText="설명이 없습니다." />
@@ -835,7 +844,7 @@ const ProductClient = ({
                         )}
                       </div>
                       <p className="truncate text-[15px] text-app-text">{item.name}</p>
-                      <p className="text-[15px] font-bold text-app-text">{formatProductPrice(item.price)}</p>
+                      <p className="text-[15px] font-bold text-app-text">{productPriceText(item)}</p>
                     </Link>
                   ))}
                 </div>
@@ -899,16 +908,22 @@ const ProductClient = ({
                 <>
                   <span className="h-6 w-px shrink-0 bg-app-border" aria-hidden="true" />
                   <p className="min-w-0 flex-1 truncate text-[16px] font-bold text-app-text">
-                    {formatProductPrice(product.price)}
+                    {productPriceText(product)}
                   </p>
                   {!isOwner ? (
                     <button
                       type="button"
                       disabled={chatPending}
-                      onClick={() => void handleChat()}
+                      onClick={() => {
+                        // 임보 구해요 글의 '임보 할게요'(앱 docs/prd/pet-space.md §10, 레일 버튼은 source: rail).
+                        if (isFosterPost) {
+                          trackEvent(ANALYTICS_EVENTS.fosterRaiseHand, { product_id: product.id, source: "detail" });
+                        }
+                        void handleChat();
+                      }}
                       className="h-[52px] shrink-0 rounded-md bg-app-brand px-6 text-[16px] font-semibold text-white disabled:opacity-60"
                     >
-                      {chatPending ? "여는 중..." : "채팅하기"}
+                      {chatPending ? "여는 중..." : isFosterPost ? "임보 할게요" : "채팅하기"}
                     </button>
                   ) : null}
                 </>
@@ -933,6 +948,7 @@ const ProductClient = ({
         open={reportOpen}
         targetType="PRODUCT"
         targetId={product.id}
+        petPost={isPetPost}
         onClose={() => setReportOpen(false)}
       />
       <BlockConfirmDialog

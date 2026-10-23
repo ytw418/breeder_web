@@ -117,7 +117,7 @@ describe("POST /api/products/:id (update)", () => {
     ["가격 10억+1", { price: 1_000_000_001 }, "PRODUCT_INVALID_PRICE"],
     ["설명 9자", { description: "가".repeat(9) }, "PRODUCT_INVALID_DESCRIPTION"],
     ["설명 3001자", { description: "가".repeat(3001) }, "PRODUCT_INVALID_DESCRIPTION"],
-    ["모르는 카테고리", { category: "강아지" }, "PRODUCT_INVALID_CATEGORY"],
+    ["모르는 카테고리", { category: "공룡" }, "PRODUCT_INVALID_CATEGORY"],
     ["모르는 상품 타입", { productType: "기타" }, "PRODUCT_INVALID_PRODUCT_TYPE"],
   ])("%s 는 400으로 거절하고 저장하지 않는다", async (_label, patch, code) => {
     const res = await update({ ...validData, ...patch });
@@ -232,7 +232,7 @@ describe("POST /api/products (create)", () => {
   it.each([
     ["카테고리 없음", { category: undefined }, "PRODUCT_INVALID_CATEGORY"],
     ["빈 카테고리", { category: "" }, "PRODUCT_INVALID_CATEGORY"],
-    ["모르는 카테고리", { category: "강아지" }, "PRODUCT_INVALID_CATEGORY"],
+    ["모르는 카테고리", { category: "공룡" }, "PRODUCT_INVALID_CATEGORY"],
     ["상품 타입 없음", { productType: undefined }, "PRODUCT_INVALID_PRODUCT_TYPE"],
     ["모르는 상품 타입", { productType: "기타" }, "PRODUCT_INVALID_PRODUCT_TYPE"],
   ])("%s 는 400으로 거절한다", async (_label, patch, code) => {

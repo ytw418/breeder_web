@@ -24,11 +24,13 @@ import {
   type BloodlineAttachResult,
 } from "@components/features/bloodline/BloodlineAttachSheet";
 import { ChevronRightIcon } from "@components/features/bloodline/BloodlineScreenParts";
+import { PetPostFields } from "@components/features/pet/PetPostFields";
 import { useConfirmLeave } from "hooks/useConfirmLeave";
 import useUser from "hooks/useUser";
 import { useCelebrateSheet } from "@components/features/celebrate/CelebrateSheet";
 import type { Celebrate } from "@libs/shared/communityVibe";
 import { authFetch } from "@libs/client/authFetch";
+import { ANALYTICS_EVENTS, trackEvent } from "@libs/client/analytics";
 import { cn } from "@libs/client/utils";
 import { toast } from "@libs/client/toast";
 import { promptPushAfterProductUpload } from "@libs/client/pushPrompt";
@@ -43,6 +45,14 @@ import {
   type ProductFormErrors,
 } from "@libs/productRules";
 import { parsePedigreeNote, type PedigreeNote } from "@libs/shared/pedigree-note";
+import {
+  isNoPriceCategory,
+  isPetPostKind,
+  parsePetInfo,
+  petDescriptionPlaceholder,
+  type PetInfo,
+  type PetPostKind,
+} from "@libs/shared/petSpace";
 import type { BloodlineLinkSummary } from "@libs/shared/bloodline-card";
 import {
   markProductPhotoUploaded,
@@ -68,6 +78,8 @@ export type ProductFormInitial = {
   productType: string | null;
   /** 거래 유형(sale|adoption|rehoming). 고를 수 없는 값(파양·옛 응답)은 판매로 보여 주고 바꾸지 않으면 보내지 않는다. */
   dealType?: string | null;
+  /** 강아지·고양이 글 정보(성별·나이·건강·이유·임보 기간, docs/prd/pet-space.md §5.5). */
+  petInfo?: unknown;
   /**
    * 붙어 있는 뿌리 혈통 id. 상세 응답의 `bloodline` 요약이 있을 때만 넘긴다
    * (회수·숨김돼 요약이 없는 연결은 화면에 없는 것으로 두고, 저장 때도 건드리지 않는다).
@@ -86,6 +98,12 @@ export type ProductFormInitial = {
 
 /** 혈통을 붙일 수 있는 상품 타입(PRD S-7: 생물일 때만 행을 보인다). */
 const BLOODLINE_PRODUCT_TYPE = "생물";
+
+/** 강아지·고양이 글은 개체(생물)만 받는다 — 종류 세그먼트를 숨기고 이 값으로 보낸다. */
+const PET_PRODUCT_TYPE = "생물";
+
+/** 정보 칸 비교용 키(빈 값은 버린 뒤 비교). */
+const petInfoKey = (info: PetInfo | null | undefined) => JSON.stringify(parsePetInfo(info) ?? {});
 
 /** 규칙에 맞는 부모 정보(비면 null). 시트가 정리해 준 값이라 규칙 밖이면 보내지 않는다. */
 const normalizePedigreeNote = (note: PedigreeNote | null | undefined): PedigreeNote | null => {
@@ -198,11 +216,14 @@ function ChipRow({ children }: { children: ReactNode }) {
  * 상품 등록·수정 당근 단일 폼(앱 src/app/products/upload.tsx · [id]/edit.tsx).
  * 사진(대표·순서·10장·10MB) → 상품명 0/60 → 카테고리(대분류·하위분류 칩) → 상품 타입 세그먼트
  * → 혈통 행(생물만, 붙이기 시트) → 가격(₩, 무료 분양 칩) → 설명 0/3,000. 하단 고정 CTA 52, 업로드 진행 오버레이, 이탈 확인.
+ * 강아지·고양이를 고르면 종류·거래 유형·혈통·가격 칸 대신 '어떤 글인가요?'와 정보 칸(PetPostFields)을 둔다
+ * (docs/prd/pet-space.md §5.5 — 가격은 받지도 보내지도 않는다).
  */
 export function ProductForm({
   product,
   initialFree = false,
   initialCategory,
+  initialKind,
 }: {
   /** 있으면 수정 모드 */
   product?: ProductFormInitial;
@@ -210,6 +231,8 @@ export function ProductForm({
   initialFree?: boolean;
   /** 등록 화면 ?category=<종> → 카테고리 미리 선택(끝난 토론 '{종} 첫 분양글 올리기', 앱 docs/prd/live-talk.md §3.6) */
   initialCategory?: string;
+  /** 등록 화면 ?kind=rehoming|foster(입양 쪽 글쓰기) → 글 종류를 미리 고르고 포유류를 펼쳐 둔다. */
+  initialKind?: string;
 }) {
   const router = useRouter();
   const { mutate: globalMutate } = useSWRConfig();
@@ -218,7 +241,11 @@ export function ProductForm({
   const celebrateSheet = useCelebrateSheet("product");
 
   const initial = useMemo(() => {
-    const branch = findCategoryBranch(product ? product.category : initialCategory);
+    const kindFromLink = !product && isPetPostKind(initialKind) ? initialKind : null;
+    // 입양 쪽에서 왔으면(카테고리 링크가 없을 때) 포유류를 펼쳐 강아지·고양이를 바로 고르게 한다.
+    const branch = findCategoryBranch(
+      product ? product.category : initialCategory ?? (kindFromLink ? "포유류" : undefined)
+    );
     const productType = PRODUCT_TYPES.some((type) => type.id === product?.productType)
       ? (product?.productType as string)
       : "";
@@ -240,8 +267,10 @@ export function ProductForm({
       bloodlineRootId: attached?.bloodlineRootId ?? null,
       bloodlineName: attached?.bloodlineName ?? null,
       pedigreeNote: attached ? normalizePedigreeNote(attached.pedigreeNote) : null,
+      petKind: (isPetPostKind(product?.dealType) ? product?.dealType : kindFromLink ?? "adoption") as PetPostKind,
+      petInfo: parsePetInfo(product?.petInfo) ?? ({} as PetInfo),
     };
-  }, [product, initialFree, initialCategory]);
+  }, [product, initialFree, initialCategory, initialKind]);
 
   const [photos, setPhotos] = useState<ProductPhoto[]>(() => toRemoteProductPhotos(initial.photos));
   const [name, setName] = useState(initial.name);
@@ -249,6 +278,10 @@ export function ProductForm({
   const [subcategory, setSubcategory] = useState(initial.subcategory);
   const [productType, setProductType] = useState(initial.productType);
   const [dealType, setDealType] = useState(initial.dealType);
+  const [petKind, setPetKind] = useState<PetPostKind>(initial.petKind);
+  const [petInfo, setPetInfo] = useState<PetInfo>(initial.petInfo);
+  // 강아지·고양이(하위분류)를 고르면 가격 없는 글이 된다.
+  const isPet = isNoPriceCategory(subcategory);
   const [price, setPrice] = useState<number | null>(initial.price);
   const [isFree, setIsFree] = useState(initial.price === 0);
   const [description, setDescription] = useState(initial.description);
@@ -303,7 +336,9 @@ export function ProductForm({
           price,
           category: subcategory || category,
           productType,
-          dealType,
+          // 강아지·고양이는 글 종류(분양해요·가족 찾아요·임보 구해요)를 dealType 자리에 둔다.
+          dealType: isPet ? petKind : dealType,
+          petInfo: isPet ? parsePetInfo(petInfo) : null,
           description,
           bloodlineRootId: bloodline.rootId,
           pedigreeNote: bloodline.rootId != null ? bloodline.note : null,
@@ -321,7 +356,12 @@ export function ProductForm({
       setCategory(branch.parent);
       setSubcategory(branch.child);
       setProductType(draftPrompt.productType);
-      setDealType(draftPrompt.dealType);
+      if (isNoPriceCategory(branch.child)) {
+        setPetKind(isPetPostKind(draftPrompt.dealType) ? draftPrompt.dealType : "adoption");
+        setPetInfo(parsePetInfo(draftPrompt.petInfo) ?? {});
+      } else {
+        setDealType(draftPrompt.dealType);
+      }
       setDescription(draftPrompt.description);
       if (draftPrompt.bloodlineRootId != null) {
         setBloodline({
@@ -364,6 +404,8 @@ export function ProductForm({
     subcategory !== initial.subcategory ||
     productType !== initial.productType ||
     dealType !== initial.dealType ||
+    petKind !== initial.petKind ||
+    petInfoKey(petInfo) !== petInfoKey(initial.petInfo) ||
     price !== initial.price ||
     description !== initial.description ||
     photosChanged ||
@@ -410,7 +452,14 @@ export function ProductForm({
 
   const submit = async () => {
     if (busy) return;
-    const nextErrors = validateProductForm({ name, price, description, category, productType });
+    const nextErrors = validateProductForm({
+      name,
+      price,
+      description,
+      // 하위분류(강아지·고양이 등)까지 넘겨야 가격 없는 글을 알아본다.
+      category: subcategory || category,
+      productType: isPet ? PET_PRODUCT_TYPE : productType,
+    });
     setErrors(nextErrors);
     const nextAgreementError = needsAgreement ? "동의해야 등록할 수 있어요" : "";
     setAgreementError(nextAgreementError);
@@ -439,24 +488,40 @@ export function ProductForm({
       );
 
       setSubmitStep("submit");
-      const fields = {
-        name: name.trim(),
-        price,
-        description: description.trim(),
-        photos: photoIds,
-        category: subcategory || category,
-        productType,
-        // 등록은 항상, 수정은 바꿨을 때만 보낸다(고를 수 없는 파양 값을 판매로 덮지 않게).
-        ...(!isEdit || dealType !== initial.dealType ? { dealType } : {}),
-        ...buildProductBloodlineFields({
-          isEdit,
-          productType,
-          rootId: bloodline.rootId,
-          note: bloodline.note,
-          initialRootId: initial.bloodlineRootId,
-          initialNote: initial.pedigreeNote,
-        }),
-      };
+      const fields = isPet
+        ? {
+            // 강아지·고양이: 가격 없이 글 종류·정보를 보낸다(서버도 가격을 버린다, docs/prd/pet-space.md §5.6).
+            name: name.trim(),
+            price: null,
+            description: description.trim(),
+            photos: photoIds,
+            category: subcategory || category,
+            productType: PET_PRODUCT_TYPE,
+            dealType: petKind,
+            petInfo: parsePetInfo(petInfo),
+            ...(isEdit ? { bloodlineRootId: null } : {}),
+          }
+        : {
+            name: name.trim(),
+            price,
+            description: description.trim(),
+            photos: photoIds,
+            category: subcategory || category,
+            productType,
+            // 등록은 항상, 수정은 바꿨을 때만 보낸다(고를 수 없는 옛 값을 유료 분양으로 덮지 않게).
+            // 강아지·고양이 글을 다른 종으로 바꿀 때도 보낸다(안 보내면 서버가 무료 분양으로 정한다).
+            ...(!isEdit || dealType !== initial.dealType || isNoPriceCategory(initial.subcategory)
+              ? { dealType }
+              : {}),
+            ...buildProductBloodlineFields({
+              isEdit,
+              productType,
+              rootId: bloodline.rootId,
+              note: bloodline.note,
+              initialRootId: initial.bloodlineRootId,
+              initialNote: initial.pedigreeNote,
+            }),
+          };
       const res = await authFetch(isEdit ? `/api/products/${product!.id}` : "/api/products", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -489,6 +554,7 @@ export function ProductForm({
         });
       } else {
         const id = result.product?.id;
+        if (isPet) trackEvent(ANALYTICS_EVENTS.petPostCreate, { deal_type: petKind, category: subcategory });
         // 등록했으면 임시저장을 지운다(기다리던 저장도 버린다).
         draftAutosave.stop();
         if (draftUserId != null) deleteComposeDraft("product", draftUserId);
@@ -517,7 +583,7 @@ export function ProductForm({
     subcategory || TOP_LEVEL_CATEGORIES.find((cat) => cat.id === category)?.name || "";
   const uploadedCount = photos.filter((photo) => photo.remoteId).length;
   const ctaLabel = isEdit ? "수정하기" : "분양 등록하기";
-  const showBloodlineRow = productType === BLOODLINE_PRODUCT_TYPE;
+  const showBloodlineRow = !isPet && productType === BLOODLINE_PRODUCT_TYPE;
   const bloodlineValue =
     bloodline.rootId != null ? formatBloodlineAttachValue(bloodline.name ?? "", bloodline.note) : "";
 
@@ -610,29 +676,42 @@ export function ProductForm({
           <ErrorText className="mt-0">{errors.category}</ErrorText>
         </div>
 
-        {/* 상품 타입 */}
-        <div data-field="productType">
-          <SegmentField
-            label="종류"
-            options={PRODUCT_TYPES}
-            value={productType}
+        {isPet ? (
+          // 강아지·고양이: 글 종류 + 정보 칸(시안 pet-space ⑤). 종류·거래 유형·혈통·가격 칸은 없다.
+          <PetPostFields
+            kind={petKind}
+            onKindChange={setPetKind}
+            info={petInfo}
+            onInfoChange={setPetInfo}
             disabled={busy}
-            error={errors.productType}
-            onChange={(value) => {
-              setProductType(value);
-              clearError("productType");
-            }}
           />
-        </div>
+        ) : (
+          <>
+            {/* 상품 타입 */}
+            <div data-field="productType">
+              <SegmentField
+                label="종류"
+                options={PRODUCT_TYPES}
+                value={productType}
+                disabled={busy}
+                error={errors.productType}
+                onChange={(value) => {
+                  setProductType(value);
+                  clearError("productType");
+                }}
+              />
+            </div>
 
-        {/* 거래 유형(유료 분양/무료 분양) — 앱 ProductDealTypeSegment. 파양은 1단계 비노출. */}
-        <SegmentField
-          label="거래 유형"
-          options={DEAL_TYPE_OPTIONS}
-          value={dealType}
-          disabled={busy}
-          onChange={setDealType}
-        />
+            {/* 거래 유형(유료 분양/무료 분양) — 앱 ProductDealTypeSegment. 파양은 1단계 비노출. */}
+            <SegmentField
+              label="거래 유형"
+              options={DEAL_TYPE_OPTIONS}
+              value={dealType}
+              disabled={busy}
+              onChange={setDealType}
+            />
+          </>
+        )}
 
         {/* 혈통(생물만, 시안 A2 #S5-attach .formrow) */}
         {showBloodlineRow ? (
@@ -656,7 +735,8 @@ export function ProductForm({
           </button>
         ) : null}
 
-        {/* 가격 */}
+        {/* 가격(강아지·고양이는 없다) */}
+        {isPet ? null : (
         <div className="-mt-1.5" data-field="price">
           <div className="mb-0.5 flex h-11 items-center justify-between">
             <span className="text-[15px] font-semibold text-app-text">가격</span>
@@ -681,6 +761,7 @@ export function ProductForm({
             <p className="mt-1.5 text-[13px] text-app-muted">0원은 무료 분양으로 등록돼요</p>
           )}
         </div>
+        )}
 
         {/* 상품 설명 */}
         <div data-field="description">
@@ -695,7 +776,11 @@ export function ProductForm({
               setDescription(value);
               clearError("description");
             }}
-            placeholder="사육 정보, 상태, 거래 방식 등 입양자가 궁금할 내용을 구체적으로 작성해주세요."
+            placeholder={
+              isPet
+                ? petDescriptionPlaceholder(petKind, subcategory)
+                : "사육 정보, 상태, 거래 방식 등 입양자가 궁금할 내용을 구체적으로 작성해주세요."
+            }
             rows={9}
             hasError={Boolean(errors.description)}
           />
