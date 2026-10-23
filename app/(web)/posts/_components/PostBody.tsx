@@ -1,8 +1,42 @@
 "use client";
 
+import { useState } from "react";
 import Image from "@components/atoms/Image";
 import { cn, makeImageUrl } from "@libs/client/utils";
 import { parsePostBody, splitLinks } from "@libs/shared/post-body";
+
+/**
+ * 받기 전엔 비율을 몰라 4:3 자리로 그리고, 받은 비율은 기억해 다시 열 때 높이가 튀지 않게 한다.
+ * 아주 긴 세로 사진은 1:2 로 잘라 보인다. 앱 src/components/features/post/PostBodyImage.tsx 와 같은 규칙.
+ */
+const ratioCache = new Map<string, number>();
+const DEFAULT_RATIO = 4 / 3;
+const MIN_RATIO = 0.5;
+
+function PostBodyPhoto({ src, alt }: { src: string; alt: string }) {
+  const [ratio, setRatio] = useState<number | null>(() => ratioCache.get(src) ?? null);
+  return (
+    <span
+      className="relative block w-full"
+      style={{ aspectRatio: String(Math.max(MIN_RATIO, ratio ?? DEFAULT_RATIO)) }}
+    >
+      <Image
+        src={src}
+        alt={alt}
+        fill
+        sizes="(max-width: 640px) 100vw, 640px"
+        className="object-cover"
+        onLoad={(event) => {
+          const { naturalWidth, naturalHeight } = event.currentTarget;
+          if (!naturalWidth || !naturalHeight) return;
+          const next = naturalWidth / naturalHeight;
+          ratioCache.set(src, next);
+          setRatio(next);
+        }}
+      />
+    </span>
+  );
+}
 
 /**
  * 게시글 본문 — 줄(보통 16 · 크게 20 · 굵게)과 사진을 쓴 자리 그대로 위에서 아래로 그린다.
@@ -32,13 +66,9 @@ export function PostBody({
             onClick={() => onOpenImage(block.imageIndex)}
             className="my-3 block w-full overflow-hidden rounded-lg bg-app-placeholder"
           >
-            <Image
+            <PostBodyPhoto
               src={makeImageUrl(block.image, "public")}
               alt={`게시글 이미지 ${block.imageIndex + 1}`}
-              width={0}
-              height={0}
-              sizes="(max-width: 640px) 100vw, 640px"
-              className="h-auto w-full"
             />
           </button>
         ) : (

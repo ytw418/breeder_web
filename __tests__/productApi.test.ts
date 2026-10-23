@@ -35,6 +35,11 @@ jest.mock("@libs/server/home", () => ({
   fetchProductsResponse: jest.fn(),
 }));
 
+const mockBuildCelebrate = jest.fn(async () => null as unknown);
+jest.mock("@libs/server/celebrate", () => ({
+  buildCelebrate: (...args: unknown[]) => mockBuildCelebrate(...(args as [])),
+}));
+
 import createHandler from "../pages/api/products/index";
 import detailHandler from "../pages/api/products/[id]/index";
 import favsHandler from "../pages/api/users/[id]/favs";
@@ -117,7 +122,7 @@ describe("POST /api/products/:id (update)", () => {
     ["가격 10억+1", { price: 1_000_000_001 }, "PRODUCT_INVALID_PRICE"],
     ["설명 9자", { description: "가".repeat(9) }, "PRODUCT_INVALID_DESCRIPTION"],
     ["설명 3001자", { description: "가".repeat(3001) }, "PRODUCT_INVALID_DESCRIPTION"],
-    ["모르는 카테고리", { category: "강아지" }, "PRODUCT_INVALID_CATEGORY"],
+    ["모르는 카테고리", { category: "공룡" }, "PRODUCT_INVALID_CATEGORY"],
     ["모르는 상품 타입", { productType: "기타" }, "PRODUCT_INVALID_PRODUCT_TYPE"],
   ])("%s 는 400으로 거절하고 저장하지 않는다", async (_label, patch, code) => {
     const res = await update({ ...validData, ...patch });
@@ -232,7 +237,7 @@ describe("POST /api/products (create)", () => {
   it.each([
     ["카테고리 없음", { category: undefined }, "PRODUCT_INVALID_CATEGORY"],
     ["빈 카테고리", { category: "" }, "PRODUCT_INVALID_CATEGORY"],
-    ["모르는 카테고리", { category: "강아지" }, "PRODUCT_INVALID_CATEGORY"],
+    ["모르는 카테고리", { category: "공룡" }, "PRODUCT_INVALID_CATEGORY"],
     ["상품 타입 없음", { productType: undefined }, "PRODUCT_INVALID_PRODUCT_TYPE"],
     ["모르는 상품 타입", { productType: "기타" }, "PRODUCT_INVALID_PRODUCT_TYPE"],
   ])("%s 는 400으로 거절한다", async (_label, patch, code) => {
@@ -249,6 +254,27 @@ describe("POST /api/products (create)", () => {
       category: "기타곤충",
       productType: "용품",
     });
+  });
+
+  it("임보·가족 찾기 글은 등록 보상 시트('N번째 분양글')를 띄우지 않는다(앱 pet-space §5.5)", async () => {
+    mockBuildCelebrate.mockResolvedValue({ ordinal: 12, fact: null });
+    const sale = await create(validData);
+    expect(sale.body.celebrate).toEqual({ ordinal: 12, fact: null });
+
+    mockBuildCelebrate.mockClear();
+    const foster = await create({
+      name: "출장 2주 동안 맡아 주실 분",
+      price: null,
+      description: "사료와 병원비는 제가 드려요.",
+      photos: ["img-1"],
+      category: "강아지",
+      productType: "생물",
+      dealType: "foster",
+      petInfo: { fosterPeriod: "1m" },
+    });
+    expect(foster.statusCode).toBe(200);
+    expect(foster.body.celebrate).toBeNull();
+    expect(mockBuildCelebrate).not.toHaveBeenCalled();
   });
 });
 

@@ -4,6 +4,8 @@
  * 링크마다 utm 을 붙여 어느 방에서 들어왔는지 PostHog 로 본다.
  */
 
+import { petPriceStandIn } from "./petSpace";
+
 export const KAKAO_DIGEST_SITE_URL = "https://bredy.app";
 
 export interface KakaoDigestRoom {
@@ -51,6 +53,8 @@ export interface KakaoDigestProduct {
   price: number | null;
   dealType: string | null;
   location: string | null;
+  /** 강아지·고양이 글은 가격 대신 글 종류('분양해요' 등). 옛 호출은 안 넘긴다. */
+  category?: string | null;
 }
 
 export interface KakaoDigestPost {
@@ -92,6 +96,8 @@ export const formatDigestEndAt = (endAt: string | Date, now: Date) => {
 const formatWon = (value: number) => `${value.toLocaleString("ko-KR")}원`;
 
 const productPriceText = (product: KakaoDigestProduct) => {
+  const petKind = petPriceStandIn(product);
+  if (petKind) return petKind;
   if (product.dealType === "adoption" || product.price === 0) return "무료 분양";
   if (product.price == null) return "가격 문의";
   return formatWon(product.price);

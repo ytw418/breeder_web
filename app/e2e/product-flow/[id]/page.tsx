@@ -5,6 +5,7 @@ import type { ItemDetailResponse } from "pages/api/products/[id]";
 const e2eProduct: NonNullable<ItemDetailResponse["product"]> = {
   id: 101,
   name: "테스트 사슴벌레",
+  country: "KR",
   price: 120000,
   description: "E2E 찜 토글 테스트용 상품 설명입니다.",
   photos: ["e2e-product-image"],
@@ -31,6 +32,8 @@ const e2eProduct: NonNullable<ItemDetailResponse["product"]> = {
   productType: "생물",
   categoryId: null,
   dealType: "sale",
+  regionSido: null,
+  regionSigungu: null,
   user: {
     id: 999,
     role: "USER",
@@ -40,6 +43,8 @@ const e2eProduct: NonNullable<ItemDetailResponse["product"]> = {
     phone: null,
     pinnedCategoryIds: [],
     categoryOnboardedAt: null,
+    country: "KR",
+    locale: "ko",
     email: "seller@e2e.local",
     name: "테스트 판매자",
     nameChangedAt: null,

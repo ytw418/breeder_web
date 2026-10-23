@@ -60,9 +60,9 @@ describe("고정 목록 규칙", () => {
     expect(result.map((p) => p.id)).toEqual([1, 4]);
   });
 
-  it("최대 10개까지만 남긴다", () => {
-    const many = Array.from({ length: 12 }, (_, i) => pin(i + 1, `/c${i + 1}/`));
-    expect(normalizePins(many)).toHaveLength(10);
+  it("최대 16개까지만 남긴다", () => {
+    const many = Array.from({ length: 20 }, (_, i) => pin(i + 1, `/c${i + 1}/`));
+    expect(normalizePins(many)).toHaveLength(16);
   });
 
   it("범위 쿼리 값과 라벨을 만든다", () => {

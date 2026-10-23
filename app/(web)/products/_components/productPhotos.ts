@@ -17,10 +17,10 @@ export function toLocalProductPhotos(
   files: File[]
 ): { photos: ProductPhoto[]; error?: string } {
   if (files.some((file) => !file.type.startsWith("image/"))) {
-    return { photos: [], error: "이미지 파일만 업로드할 수 있습니다." };
+    return { photos: [], error: "사진 파일만 올릴 수 있어요" };
   }
   if (files.some((file) => file.size > MAX_IMAGE_SIZE)) {
-    return { photos: [], error: "이미지 1장당 최대 10MB까지 업로드할 수 있습니다." };
+    return { photos: [], error: "사진은 한 장에 10MB까지 올릴 수 있어요" };
   }
   return {
     photos: files.map((file) => ({
@@ -48,7 +48,7 @@ async function uploadProductImage(file: File): Promise<string> {
     id?: string;
   } | null;
   if (!urlResponse.ok || !urlResult?.uploadURL) {
-    throw new Error("이미지 업로드 URL 발급에 실패했습니다.");
+    throw new Error("사진을 올리지 못했어요. 다시 시도해 주세요");
   }
   const form = new FormData();
   form.append("file", file, file.name);
@@ -58,7 +58,7 @@ async function uploadProductImage(file: File): Promise<string> {
     result?: { id?: string };
   } | null;
   const imageId = payload?.result?.id || urlResult.id;
-  if (!uploaded.ok || !imageId) throw new Error("이미지 업로드에 실패했습니다.");
+  if (!uploaded.ok || !imageId) throw new Error("사진을 올리지 못했어요. 다시 시도해 주세요");
   return imageId;
 }
 

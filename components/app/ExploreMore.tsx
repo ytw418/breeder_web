@@ -26,20 +26,22 @@ export default function ExploreMore({
       {data.popular.length ? <ExploreSection title="지금 인기 글" items={data.popular} /> : null}
       <div className="h-2 bg-app-gap" />
       <nav aria-label="브리디 더 둘러보기" className="flex flex-col gap-2 px-4 py-5">
-        <Link
-          href="/bloodline-cards/create"
-          // 보조 버튼: 상세의 주 행동(입찰·채팅)과 다투지 않게 주황 채움 대신 회색 면(2026-10-21 디자인 리뷰).
-          className="flex h-[52px] items-center justify-center rounded-md bg-app-surface text-[16px] font-semibold text-app-text"
-        >
-          내 개체 혈통 카드 만들기
-        </Link>
+        {data.bloodlineCta ? (
+          <Link
+            href="/bloodline-cards/create"
+            // 보조 버튼: 상세의 주 행동(입찰·채팅)과 다투지 않게 주황 채움 대신 회색 면(2026-10-21 디자인 리뷰).
+            className="flex h-[52px] items-center justify-center rounded-md bg-app-surface text-[16px] font-semibold text-app-text"
+          >
+            내 개체 혈통 카드 만들기
+          </Link>
+        ) : null}
         <Link
           href={data.debateHref}
           className="flex h-[52px] items-center justify-center rounded-md bg-app-surface text-[16px] font-semibold text-app-text"
         >
           지금 뜨거운 토론 참여하기
         </Link>
-        <Link href="/" className="py-2 text-center text-[14px] text-app-muted underline underline-offset-[3px]">
+        <Link href="/" className="py-2 text-center text-[13px] text-app-muted underline underline-offset-[3px]">
           브리디 홈에서 더 보기
         </Link>
         <p className="text-center text-[12px] text-app-muted">

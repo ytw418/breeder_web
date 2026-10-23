@@ -11,7 +11,7 @@
 import Link from "next/link";
 import Image from "@components/atoms/Image";
 import { makeImageUrl } from "@libs/client/utils";
-import { formatProductPrice } from "@libs/productRules";
+import { productPriceText } from "@libs/shared/price";
 import { productStatusLabel } from "@libs/shared/productTerms";
 import type { ChatMessageProduct } from "@libs/shared/tradeChat";
 
@@ -39,7 +39,7 @@ export default function ProductMessageCard({ product }: { product: ChatMessagePr
       </div>
     );
   }
-  const price = formatProductPrice(product.price);
+  const price = productPriceText(product);
   const status = product.statusLabel || productStatusLabel(product.status);
   return (
     <Link

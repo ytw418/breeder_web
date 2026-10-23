@@ -17,7 +17,8 @@ export interface CategoriesResponse {
   error?: string;
 }
 
-export const DEAL_TYPES = ["sale", "adoption", "rehoming"] as const;
+/** foster(임보 구해요)는 강아지·고양이 글에만 쓴다(libs/shared/petSpace.ts). */
+export const DEAL_TYPES = ["sale", "adoption", "rehoming", "foster"] as const;
 export type DealType = (typeof DEAL_TYPES)[number];
 export const DEFAULT_DEAL_TYPE: DealType = "sale";
 export const isDealType = (value: unknown): value is DealType =>
@@ -39,8 +40,11 @@ export const CATEGORY_SCOPE_SURFACES = {
 /** 여러 카테고리를 함께 고정할 수 있어 쿼리 파라미터는 path 를 쉼표로 잇는다. */
 export const CATEGORY_PATH_SEPARATOR = ",";
 const CATEGORY_PATH_PATTERN = /^(\/[a-z0-9-]+)+\/$/;
-/** 한 요청에 받는 범위 수 상한(고정 수 상한과 같다). */
-export const MAX_PINNED_CATEGORIES = 10;
+/**
+ * 한 요청에 받는 범위 수 상한(고정 수 상한과 같다). 첫 질문 카드를 거의 다 고르면 14개가 돼서
+ * 2026-10-23 16 으로 올렸다(libs/shared/petSpace.ts pathsForPetPicks).
+ */
+export const MAX_PINNED_CATEGORIES = 16;
 
 export const isCategoryPath = (value: unknown): value is string =>
   typeof value === "string" && CATEGORY_PATH_PATTERN.test(value);

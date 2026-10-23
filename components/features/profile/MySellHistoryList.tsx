@@ -208,6 +208,8 @@ export default function MySellHistoryList({ kind, id }: ProductListProps) {
       photo: product.photos?.[0] ?? null,
       sellerName: product.user?.name ?? "분양자",
       productType: product.productType ?? null,
+      category: product.category ?? null,
+      dealType: product.dealType ?? null,
     };
     const productPath = getProductPath(product.id, product.name);
     setOpeningId(product.id);
@@ -300,6 +302,10 @@ export default function MySellHistoryList({ kind, id }: ProductListProps) {
                   isDeleted: product.isDeleted,
                   isHidden: product.isHidden,
                   wishCount: product._count?.favs ?? 0,
+                  dealType: product.dealType ?? null,
+                  petInfo: product.petInfo,
+                  regionSido: product.regionSido,
+                  regionSigungu: product.regionSigungu,
                 }}
               />
               {withBuyerLine ? <BuyerLine record={record} onAssign={setPickerProductId} /> : null}

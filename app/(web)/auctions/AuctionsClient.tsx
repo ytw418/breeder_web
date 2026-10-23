@@ -4,7 +4,7 @@ import { Fragment, useCallback, useEffect, useMemo, useRef, useState } from "rea
 import Link from "next/link";
 import useSWRInfinite from "swr/infinite";
 
-import SaleTabSwitch from "@components/features/product/SaleTabSwitch";
+import SaleTabSwitch, { SaleTabSwipeArea } from "@components/features/product/SaleTabSwitch";
 import Layout from "@components/features/MainLayout";
 import FloatingButton, { FAB_LIST_BOTTOM_PADDING_CLASS } from "@components/atoms/floating-button";
 import { FilterChip, FilterChipRail } from "@components/app/FilterChip";
@@ -166,137 +166,140 @@ export default function AuctionsClient() {
       <div className={`flex min-h-full flex-col bg-app-bg ${FAB_LIST_BOTTOM_PADDING_CLASS}`}>
         {/* 분양 탭 '분양 | 경매' 전환(앱 docs/prd/home-v2.md S-2). 하단 탭은 '분양'이 선택된다. */}
         <SaleTabSwitch active="auctions" />
-        {/* 검색 pill */}
-        <form
-          role="search"
-          className="px-4 pt-3"
-          onSubmit={(event) => {
-            event.preventDefault();
-            setQ(searchInput.trim());
-          }}
-        >
-          <div className="flex h-11 items-center gap-2 rounded-[22px] bg-app-surface px-3.5">
-            <SearchIcon />
-            <input
-              type="search"
-              enterKeyHint="search"
-              value={searchInput}
-              onChange={(event) => setSearchInput(event.target.value)}
-              placeholder="제목, 설명, 분양자 검색"
-              aria-label="경매 검색"
-              className="h-11 min-w-0 flex-1 border-0 bg-transparent p-0 text-[14px] text-app-text placeholder:text-app-caption focus:outline-none focus:ring-0 [&::-webkit-search-cancel-button]:hidden"
-            />
-            {searchInput || q ? (
-              <button
-                type="button"
-                onClick={onSearchReset}
-                aria-label="검색어 지우기"
-                className="-mr-1.5 flex h-8 w-8 shrink-0 items-center justify-center"
-              >
-                <ClearIcon />
-              </button>
-            ) : null}
-          </div>
-        </form>
-
-        {/* 텍스트 링크(터치 높이 44) */}
-        <div className="flex items-center gap-4 px-4">
-          {TEXT_LINKS.map((link) => (
-            <Link
-              key={link.href}
-              href={link.href}
-              className="inline-flex min-h-[44px] items-center gap-0.5 text-[13px] text-app-muted"
-            >
-              {link.label}
-              <ChevronRight />
-            </Link>
-          ))}
-        </div>
-
-        {/* 카테고리 칩 1줄 + 상태 텍스트 세그먼트(헤더 아래 고정) */}
-        <div className="sticky top-14 z-10 border-b border-app-line bg-app-bg">
-          <FilterChipRail>
-            {CATEGORY_TABS.map((tab) => (
-              <FilterChip
-                key={tab.id}
-                label={tab.name}
-                selected={category === tab.id}
-                onClick={() => setCategory(tab.id)}
+        {/* 목록을 좌우로 밀어도 칸을 넘긴다(앱 SaleTabSwipe 와 같은 규칙). */}
+        <SaleTabSwipeArea active="auctions" className="flex flex-1 flex-col">
+          {/* 검색 pill */}
+          <form
+            role="search"
+            className="px-4 pt-3"
+            onSubmit={(event) => {
+              event.preventDefault();
+              setQ(searchInput.trim());
+            }}
+          >
+            <div className="flex h-11 items-center gap-2 rounded-[22px] bg-app-surface px-3.5">
+              <SearchIcon />
+              <input
+                type="search"
+                enterKeyHint="search"
+                value={searchInput}
+                onChange={(event) => setSearchInput(event.target.value)}
+                placeholder="제목, 설명, 분양자 검색"
+                aria-label="경매 검색"
+                className="h-11 min-w-0 flex-1 border-0 bg-transparent p-0 text-[14px] text-app-text placeholder:text-app-caption focus:outline-none focus:ring-0 [&::-webkit-search-cancel-button]:hidden"
               />
-            ))}
-          </FilterChipRail>
-          <div className="flex items-center px-2.5" role="tablist" aria-label="경매 상태">
-            {STATUS_TABS.map((tab, index) => {
-              const active = status === tab;
-              return (
-                <Fragment key={tab}>
-                  {index > 0 ? (
-                    <span aria-hidden className="mx-0.5 text-[13px] text-app-border">
-                      ·
-                    </span>
-                  ) : null}
-                  <button
-                    type="button"
-                    role="tab"
-                    aria-selected={active}
-                    onClick={() => setStatus(tab)}
-                    className={cn(
-                      "min-h-[44px] px-1.5 text-[13px] leading-[18px]",
-                      active ? "font-bold text-app-text" : "font-medium text-app-muted"
-                    )}
-                  >
-                    {tab}
-                  </button>
-                </Fragment>
-              );
-            })}
-          </div>
-        </div>
-
-        {/* 경매 목록 */}
-        <div className="px-4">
-          {isLoading ? (
-            <AuctionSkeletonGrid />
-          ) : error && auctions.length === 0 ? (
-            <div className="py-4">
-              <AuctionErrorState onRetry={() => void mutate()} />
+              {searchInput || q ? (
+                <button
+                  type="button"
+                  onClick={onSearchReset}
+                  aria-label="검색어 지우기"
+                  className="-mr-1.5 flex h-8 w-8 shrink-0 items-center justify-center"
+                >
+                  <ClearIcon />
+                </button>
+              ) : null}
             </div>
-          ) : auctions.length === 0 ? (
-            <AuctionEmptyState />
-          ) : (
-            <>
-              <div className="grid grid-cols-2 gap-3 py-4">
-                {auctions.map((auction) => (
-                  <AuctionCard
-                    key={auction.id}
-                    auction={auction}
-                    nowMs={nowMs}
-                    onTimeOver={onAuctionTimeOver}
-                  />
-                ))}
-              </div>
-              {isLoadingMore ? (
-                <AuctionSkeletonGrid className="pt-0" />
-              ) : (
-                <RetryFooter
-                  error={nextPageFailed}
-                  loading={false}
-                  onRetry={() => {
-                    if (!isValidating) void mutate();
-                  }}
-                />
-              )}
-              <div ref={sentinelRef} aria-hidden className="h-px" />
-            </>
-          )}
-        </div>
+          </form>
 
-        {/* 아래로 내리면 숨겨 카드 버튼·메타를 가리지 않는다(2026-10-21 디자인 리뷰). */}
-        <FloatingButton href="/auctions/create" label="경매 등록" hideOnScroll>
-          <svg className="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden>
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
-          </svg>
-        </FloatingButton>
+          {/* 텍스트 링크(터치 높이 44) */}
+          <div className="flex items-center gap-4 px-4">
+            {TEXT_LINKS.map((link) => (
+              <Link
+                key={link.href}
+                href={link.href}
+                className="inline-flex min-h-[44px] items-center gap-0.5 text-[13px] text-app-muted"
+              >
+                {link.label}
+                <ChevronRight />
+              </Link>
+            ))}
+          </div>
+
+          {/* 카테고리 칩 1줄 + 상태 텍스트 세그먼트(헤더 아래 고정) */}
+          <div className="sticky top-14 z-10 border-b border-app-line bg-app-bg">
+            <FilterChipRail>
+              {CATEGORY_TABS.map((tab) => (
+                <FilterChip
+                  key={tab.id}
+                  label={tab.name}
+                  selected={category === tab.id}
+                  onClick={() => setCategory(tab.id)}
+                />
+              ))}
+            </FilterChipRail>
+            <div className="flex items-center px-2.5" role="tablist" aria-label="경매 상태">
+              {STATUS_TABS.map((tab, index) => {
+                const active = status === tab;
+                return (
+                  <Fragment key={tab}>
+                    {index > 0 ? (
+                      <span aria-hidden className="mx-0.5 text-[13px] text-app-border">
+                        ·
+                      </span>
+                    ) : null}
+                    <button
+                      type="button"
+                      role="tab"
+                      aria-selected={active}
+                      onClick={() => setStatus(tab)}
+                      className={cn(
+                        "min-h-[44px] px-1.5 text-[13px] leading-[18px]",
+                        active ? "font-bold text-app-text" : "font-medium text-app-muted"
+                      )}
+                    >
+                      {tab}
+                    </button>
+                  </Fragment>
+                );
+              })}
+            </div>
+          </div>
+
+          {/* 경매 목록 */}
+          <div className="px-4">
+            {isLoading ? (
+              <AuctionSkeletonGrid />
+            ) : error && auctions.length === 0 ? (
+              <div className="py-4">
+                <AuctionErrorState onRetry={() => void mutate()} />
+              </div>
+            ) : auctions.length === 0 ? (
+              <AuctionEmptyState />
+            ) : (
+              <>
+                <div className="grid grid-cols-2 gap-3 py-4">
+                  {auctions.map((auction) => (
+                    <AuctionCard
+                      key={auction.id}
+                      auction={auction}
+                      nowMs={nowMs}
+                      onTimeOver={onAuctionTimeOver}
+                    />
+                  ))}
+                </div>
+                {isLoadingMore ? (
+                  <AuctionSkeletonGrid className="pt-0" />
+                ) : (
+                  <RetryFooter
+                    error={nextPageFailed}
+                    loading={false}
+                    onRetry={() => {
+                      if (!isValidating) void mutate();
+                    }}
+                  />
+                )}
+                <div ref={sentinelRef} aria-hidden className="h-px" />
+              </>
+            )}
+          </div>
+
+          {/* 아래로 내리면 숨겨 카드 버튼·메타를 가리지 않는다(2026-10-21 디자인 리뷰). */}
+          <FloatingButton href="/auctions/create" label="경매 등록" hideOnScroll>
+            <svg className="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden>
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
+            </svg>
+          </FloatingButton>
+        </SaleTabSwipeArea>
       </div>
     </Layout>
   );

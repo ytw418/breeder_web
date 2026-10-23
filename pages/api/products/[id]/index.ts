@@ -1,4 +1,6 @@
 import { NextApiRequest, NextApiResponse } from "next";
+import { petInfoDbValue, petRegionColumns, readStoredPetInfo, relatedPetGroupWhere } from "@libs/server/petInfo";
+import type { PetInfo } from "@libs/shared/petSpace";
 import { withDetailRevalidation } from "@libs/server/pageRevalidation";
 import { extractProductId } from "@libs/product-route";
 import withHandler, { ResponseType } from "@libs/server/withHandler";
@@ -50,13 +52,15 @@ import {
 } from "@libs/server/trade";
 import { parseBuyerChoice, validateBuyerCandidate } from "@libs/server/tradeCandidates";
 
-export interface ProductWithUser extends Omit<Product, "pedigreeNote" | "bloodlineRootId"> {
+export interface ProductWithUser extends Omit<Product, "pedigreeNote" | "bloodlineRootId" | "petInfo"> {
   /** isFollowing: 상세 GET 에서만, viewer 가 분양자를 팔로우하는지(비로그인·본인 false). */
   user: User & { isFollowing?: boolean };
   /** 연결한 뿌리 혈통 id. 새 응답 필드라 optional 이다(구 응답·테스트 픽스처 호환). */
   bloodlineRootId?: number | null;
   /** 부·모 크기·누대(규칙에 맞는 키만). 혈통을 붙이지 않았으면 null. */
   pedigreeNote?: PedigreeNote | null;
+  /** 강아지·고양이 성별·나이·건강·이유·임보 기간(libs/shared/petSpace.ts). 새 응답 필드라 optional. */
+  petInfo?: PetInfo | null;
   /**
    * 상세 GET 에서만: 연결한 혈통 요약. 연결이 없거나 혈통이 ACTIVE 가 아니면(회수·숨김) null.
    * 뷰어와 무관한 값이라 웹 SSR(비로그인 fetch)과 같은 결과다.
@@ -227,15 +231,12 @@ async function handler(
     }));
 
     // 연관 상품도 목록과 같이 숨김·삭제 상품과 viewer 가 차단한 판매자의 상품을 뺀다.
+    // 강아지·고양이 글과 다른 종 글은 서로 섞지 않는다(relatedPetGroupWhere).
     const excluded = await excludedAuthorIds(user?.id);
     const relatedProducts = await client.product.findMany({
       where: {
         OR: terms,
-        AND: {
-          id: {
-            not: product.id,
-          },
-        },
+        AND: [{ id: { not: product.id } }, relatedPetGroupWhere(product.category)],
         isHidden: false,
         isDeleted: false,
         ...(excluded.length ? { userId: { notIn: excluded } } : {}),
@@ -249,6 +250,7 @@ async function handler(
         ...product,
         user: { ...product.user, isFollowing: isFollowingSeller },
         pedigreeNote: readStoredPedigreeNote(product.pedigreeNote),
+        petInfo: readStoredPetInfo(product.petInfo),
         bloodline,
       },
       isLiked,
@@ -331,7 +333,10 @@ async function handler(
           });
         }
         // 등록과 같은 규칙. 보내지 않은 필드는 기존 값을 유지한다.
-        const validation = validateProductInput(data, { partial: true });
+        const validation = validateProductInput(data, {
+          partial: true,
+          currentCategory: product.category ?? null,
+        });
         if (!validation.ok) {
           return res.status(400).json({
             success: false,
@@ -375,6 +380,23 @@ async function handler(
           attachRelation = decision.relation;
         }
 
+        // '내 동네 보이기'를 보냈으면 저장될 종·종류로 다시 정한다. 동네는 글 주인 프로필에서 복사한다(§5.9).
+        // 운영자가 남의 글을 고칠 땐 손대지 않는다(화면의 스위치는 운영자 자기 동네를 보여 주므로 주인 선택을 그대로 둔다).
+        const showPetRegion = product.userId === user.id ? validation.value.showPetRegion : undefined;
+        const regionColumns = petRegionColumns(
+          showPetRegion,
+          {
+            category: validation.value.category ?? product.category,
+            dealType: validation.value.dealType ?? product.dealType,
+          },
+          showPetRegion
+            ? await client.user.findUnique({
+                where: { id: user.id },
+                select: { regionSido: true, regionSigungu: true },
+              })
+            : null
+        );
+
         const updatedProduct = await client.product.update({
           where: { id: Number(productId) },
           data: {
@@ -395,6 +417,10 @@ async function handler(
             ...(pedigreeNote !== undefined
               ? { pedigreeNote: pedigreeNoteDbValue(pedigreeNote) }
               : {}),
+            ...(validation.value.petInfo !== undefined
+              ? { petInfo: petInfoDbValue(validation.value.petInfo) }
+              : {}),
+            ...(regionColumns ?? {}),
           },
         });
 

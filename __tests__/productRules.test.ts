@@ -120,7 +120,7 @@ describe("productRules", () => {
       expect(result.ok && result.value).toMatchObject({ category: "구피", productType: "용품" });
     });
 
-    it.each([["강아지"], [""], ["전체"], [3], [null], [undefined]])(
+    it.each([["공룡"], [""], ["전체"], [3], [null], [undefined]])(
       "알 수 없는 카테고리 %p 는 거절한다",
       (category) => {
         const result = create({ ...full, category });
@@ -144,7 +144,7 @@ describe("productRules", () => {
     });
 
     it("partial 모드도 보낸 값은 검사한다", () => {
-      const category = validateProductInput({ category: "강아지" }, { partial: true });
+      const category = validateProductInput({ category: "공룡" }, { partial: true });
       expect(!category.ok && category.errorCode).toBe("PRODUCT_INVALID_CATEGORY");
 
       const productType = validateProductInput({ productType: "기타" }, { partial: true });
@@ -157,7 +157,7 @@ describe("productRules", () => {
 
     it("requireCategory 없이 부르면(웹 수정 화면 사전 검사) 생략을 허용한다", () => {
       expect(validateProductInput(valid).ok).toBe(true);
-      const bad = validateProductInput({ ...valid, category: "강아지" });
+      const bad = validateProductInput({ ...valid, category: "공룡" });
       expect(!bad.ok && bad.errorCode).toBe("PRODUCT_INVALID_CATEGORY");
     });
   });
@@ -211,5 +211,87 @@ describe("formatProductPrice", () => {
 
   it("가격이 있으면 원 단위로 보인다", () => {
     expect(formatProductPrice(1234)).toBe("1,234원");
+  });
+});
+
+describe("강아지·고양이 분양글(앱 docs/prd/pet-space.md §5.6)", () => {
+  const pet = { ...valid, name: "말티푸 가족 찾아요", category: "강아지", productType: "생물" };
+
+  it("보낸 가격은 무시하고 null 로 둔다, 종류가 없으면 분양해요", () => {
+    const result = validateProductInput({ ...pet, price: 150000 }, { requireCategory: true });
+    expect(result.ok && result.value.price).toBeNull();
+    expect(result.ok && result.value.dealType).toBe("adoption");
+    const noPrice = validateProductInput({ ...pet, price: undefined }, { requireCategory: true });
+    expect(noPrice.ok).toBe(true);
+  });
+
+  it("가족 찾아요·임보 구해요는 강아지·고양이만, 유료 분양은 안 된다", () => {
+    expect(validateProductInput({ ...pet, dealType: "foster" }, { requireCategory: true }).ok).toBe(true);
+    expect(validateProductInput({ ...pet, dealType: "rehoming" }, { requireCategory: true }).ok).toBe(true);
+    expect(validateProductInput({ ...pet, dealType: "sale" }, { requireCategory: true }).ok).toBe(false);
+    expect(
+      validateProductInput({ ...valid, category: "파충류", productType: "생물", dealType: "foster" }, { requireCategory: true }).ok
+    ).toBe(false);
+  });
+
+  it("정보는 강아지·고양이에만 남긴다", () => {
+    const result = validateProductInput(
+      { ...pet, dealType: "foster", petInfo: { sex: "female", fosterPeriod: "2w", bad: 1 } },
+      { requireCategory: true }
+    );
+    expect(result.ok && result.value.petInfo).toEqual({ sex: "female", fosterPeriod: "2w" });
+    const reptile = validateProductInput(
+      { ...valid, category: "파충류", productType: "생물", petInfo: { sex: "female" } },
+      { requireCategory: true }
+    );
+    expect(reptile.ok && reptile.value.petInfo).toBeNull();
+    expect(reptile.ok && reptile.value.price).toBe(valid.price);
+  });
+
+  it("수정은 저장된 카테고리로 판단한다", () => {
+    const result = validateProductInput({ price: 5000 }, { partial: true, currentCategory: "고양이" });
+    expect(result.ok && result.value.price).toBeNull();
+    // 강아지·고양이 글끼리 고치며 종류를 안 보내면 저장된 임보 구해요 등을 그대로 둔다.
+    const kept = validateProductInput({ category: "강아지", name: "새 이름입니다" }, { partial: true, currentCategory: "고양이" });
+    expect(kept.ok && "dealType" in kept.value).toBe(false);
+    // 다른 종에서 강아지로 바꾸면 분양해요로 둔다(옛 유료 분양 값이 남지 않게).
+    const moved = validateProductInput({ category: "강아지" }, { partial: true, currentCategory: "파충류" });
+    expect(moved.ok && moved.value.dealType).toBe("adoption");
+    const reptile = validateProductInput({ price: 5000 }, { partial: true, currentCategory: "파충류" });
+    expect(reptile.ok && reptile.value.price).toBe(5000);
+  });
+
+  it("강아지·고양이 글을 다른 종으로 바꾸면 가격을 다시 받고 정보를 지운다", () => {
+    const noPrice = validateProductInput({ category: "파충류" }, { partial: true, currentCategory: "강아지" });
+    expect(!noPrice.ok && noPrice.errorCode).toBe("PRODUCT_INVALID_PRICE");
+    const moved = validateProductInput(
+      { category: "파충류", price: 30000 },
+      { partial: true, currentCategory: "강아지" }
+    );
+    expect(moved).toEqual({
+      ok: true,
+      value: { category: "파충류", price: 30000, dealType: "adoption", petInfo: null, showPetRegion: false },
+    });
+    // 다른 종끼리 바꾸는 수정은 예전과 같다.
+    expect(
+      validateProductInput({ category: "어류" }, { partial: true, currentCategory: "파충류" })
+    ).toEqual({ ok: true, value: { category: "어류" } });
+  });
+
+  it("'내 동네 보이기'는 true/false 를 보낸 때만, 다른 종 글이면 false (§5.9)", () => {
+    const on = validateProductInput({ ...pet, dealType: "foster", showPetRegion: true }, { requireCategory: true });
+    expect(on.ok && on.value.showPetRegion).toBe(true);
+    const off = validateProductInput({ ...pet, dealType: "foster", showPetRegion: false }, { requireCategory: true });
+    expect(off.ok && off.value.showPetRegion).toBe(false);
+    // 옛 앱은 보내지 않는다 → 키가 없어 API 가 손대지 않는다. 문자열 등 다른 값도 보내지 않은 것으로 본다.
+    const old = validateProductInput({ ...pet, dealType: "foster" }, { requireCategory: true });
+    expect(old.ok && "showPetRegion" in old.value).toBe(false);
+    const odd = validateProductInput({ ...pet, dealType: "foster", showPetRegion: "true" }, { requireCategory: true });
+    expect(odd.ok && "showPetRegion" in odd.value).toBe(false);
+    const reptile = validateProductInput(
+      { ...valid, category: "파충류", productType: "생물", showPetRegion: true },
+      { requireCategory: true }
+    );
+    expect(reptile.ok && reptile.value.showPetRegion).toBe(false);
   });
 });

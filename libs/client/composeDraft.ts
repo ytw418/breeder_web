@@ -9,6 +9,7 @@
 import { useCallback, useEffect, useRef } from "react";
 import type { DealType } from "@libs/shared/categories";
 import type { PedigreeNote } from "@libs/shared/pedigree-note";
+import type { PetInfo } from "@libs/shared/petSpace";
 
 export type ComposeDraftKind = "post" | "product";
 
@@ -37,6 +38,8 @@ export type ProductDraft = {
   pedigreeNote: PedigreeNote | null;
   /** 웹 붙이기 행이 보여 줄 혈통 이름(앱엔 없다 — 앱은 목록에서 다시 찾는다). */
   bloodlineName?: string | null;
+  /** 강아지·고양이 글 정보(docs/prd/pet-space.md §5.5). 옛 임시저장엔 없다. */
+  petInfo?: PetInfo | null;
 };
 
 type DraftOf<K extends ComposeDraftKind> = K extends "post" ? PostDraft : ProductDraft;

@@ -1,4 +1,4 @@
-import { REPORT_REASONS } from "@libs/shared/report";
+import { PET_DEALER_REASON, REPORT_REASONS } from "@libs/shared/report";
 import {
   SANCTION_REASON_CODES,
   SANCTION_REASON_LABEL,
@@ -76,6 +76,10 @@ describe("사유", () => {
         if (reason !== "기타") expect(code).not.toBe("OTHER");
       }
     }
+  });
+
+  it("강아지·고양이 분양글 '업자 의심·과한 책임비'는 비정상 거래로 이어진다", () => {
+    expect(defaultSanctionReason(PET_DEALER_REASON)).toBe("TRADE_ABUSE");
   });
 
   it("모르는 사유는 기타로 본다", () => {

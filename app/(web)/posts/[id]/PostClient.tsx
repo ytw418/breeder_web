@@ -176,7 +176,9 @@ const PostClient = ({
 
   const [comment, setComment] = useState("");
   const [likeLoading, setLikeLoading] = useState(false);
-  const [commentLoading, setCommentLoading] = useState(false);
+  // 서버에 닿기 전 낙관적으로 그린 댓글(음수 임시 id) — 흐리게 그리고 누를 수 없게 한다.
+  const [pendingCommentIds, setPendingCommentIds] = useState<ReadonlySet<number>>(() => new Set());
+  const nextTempCommentIdRef = useRef(-1);
   const commentInputRef = useRef<HTMLTextAreaElement>(null);
   const [sheetOpen, setSheetOpen] = useState(false);
   const [commentSheet, setCommentSheet] = useState<PostComment | null>(null);
@@ -331,53 +333,123 @@ const PostClient = ({
     setComposerMode(null);
   };
 
+  /** 상세 캐시의 댓글 목록·댓글 수를 고친다(낙관적 반영·되돌리기). 다시 받지 않는다. */
+  const updateCachedComments = (change: (comments: PostComment[]) => PostComment[], countDelta = 0) =>
+    mutate(
+      (current) =>
+        current?.post
+          ? {
+              ...current,
+              post: {
+                ...current.post,
+                comments: change(current.post.comments),
+                _count: {
+                  ...current.post._count,
+                  comments: Math.max(0, (current.post._count?.comments ?? 0) + countDelta),
+                },
+              },
+            }
+          : current,
+      { revalidate: false }
+    );
+
   const handleCommentSubmit = async () => {
-    if (!post || commentLoading) return;
+    if (!post) return;
     if (!user) return goLogin();
     const nextComment = comment.trim();
     if (!nextComment) return;
+    // 누르는 즉시 입력바를 비우고 목록에 반영한다(낙관적). 실패하면 되돌리고 쓰던 글을 입력칸에 돌려놓는다.
     const mode = composerMode;
-    const failMessage = mode?.kind === "edit" ? "댓글 수정에 실패했습니다." : "댓글 등록에 실패했습니다.";
-    setCommentLoading(true);
-    try {
-      const response =
-        mode?.kind === "edit"
-          ? await authFetch(`/api/posts/${post.id}/comments/${mode.comment.id}`, {
-              method: "PATCH",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({ comment: nextComment }),
-            })
-          : await authFetch(`/api/posts/${post.id}/answers`, {
-              method: "POST",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({
-                comment: nextComment,
-                ...(mode?.kind === "reply" ? { parentId: mode.targetId } : {}),
-              }),
-            });
-      const result = (await response.json().catch(() => null)) as CommentMutationResult;
-      if (response.ok && result?.success) {
-        setComment("");
-        setComposerMode(null);
-        await mutate();
-        // 새 댓글·답글로 스크롤한다(수정은 제자리).
-        if (mode?.kind !== "edit" && result.answer?.id) setScrollTargetId(result.answer.id);
-        // 게시글 목록 댓글 수와 마이페이지·내 프로필 댓글 목록·수(앱 invalidateMyActivity)
-        revalidateMyPostActivity();
-        toast.success(
-          mode?.kind === "edit"
-            ? "댓글이 수정되었습니다."
-            : mode?.kind === "reply"
-              ? "답글이 등록되었습니다."
-              : "댓글이 등록되었습니다."
+    setComment("");
+    setComposerMode(null);
+    const restoreComposer = () => {
+      setComment((prev) => prev || nextComment);
+      setComposerMode((prev) => prev ?? mode);
+    };
+    // 다시 받기는 기다리지 않는다(상세·목록 댓글 수·마이페이지 댓글 목록, 앱 invalidateMyActivity).
+    const refreshAfterChange = () => {
+      void mutate();
+      revalidateMyPostActivity();
+    };
+
+    if (mode?.kind === "edit") {
+      const original = mode.comment;
+      const patch = (text: string, editedAt: PostComment["editedAt"]) =>
+        updateCachedComments((comments) =>
+          comments.map((item) => (item.id === original.id ? { ...item, comment: text, editedAt } : item))
         );
-        return;
+      patch(nextComment, new Date());
+      try {
+        const response = await authFetch(`/api/posts/${post.id}/comments/${original.id}`, {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ comment: nextComment }),
+        });
+        const result = (await response.json().catch(() => null)) as CommentMutationResult;
+        if (!response.ok || !result?.success) throw new Error(result?.error || result?.message || "댓글 수정에 실패했습니다.");
+        refreshAfterChange();
+      } catch (error) {
+        patch(original.comment, original.editedAt);
+        restoreComposer();
+        toast.error(error instanceof Error && error.message ? error.message : "댓글 수정에 실패했습니다.");
       }
-      toast.error(result?.error || result?.message || failMessage);
-    } catch {
-      toast.error(failMessage);
-    } finally {
-      setCommentLoading(false);
+      return;
+    }
+
+    // 답글의 답글도 루트에 달린다(서버와 같다). 루트가 아닌 댓글에 단 답글이면 '@이름'을 단다.
+    const replyTarget =
+      mode?.kind === "reply" && mode.targetId !== mode.rootId
+        ? post.comments.find((item) => item.id === mode.targetId)
+        : undefined;
+    const tempId = nextTempCommentIdRef.current--;
+    const optimistic = {
+      id: tempId,
+      comment: nextComment,
+      createdAt: new Date(),
+      user: { id: user.id, name: user.name, avatar: user.avatar ?? null, breederPrograms: [] },
+      parentId: mode?.kind === "reply" ? mode.rootId : null,
+      isHidden: false,
+      editedAt: null,
+      deletedAt: null,
+      stance: null,
+      likeCount: 0,
+      isLiked: false,
+      replyToUserId: replyTarget?.user?.id ?? null,
+      replyToUser: replyTarget?.user ? { id: replyTarget.user.id, name: replyTarget.user.name } : null,
+    } as PostComment;
+    setPendingCommentIds((prev) => new Set(prev).add(tempId));
+    // 캐시 반영(비동기)이 끝난 뒤 스크롤 대상을 정해야 새 댓글을 찾는다.
+    await updateCachedComments((comments) => [...comments, optimistic], 1);
+    setScrollTargetId(tempId);
+    const clearPending = () =>
+      setPendingCommentIds((prev) => {
+        const next = new Set(prev);
+        next.delete(tempId);
+        return next;
+      });
+
+    try {
+      const response = await authFetch(`/api/posts/${post.id}/answers`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          comment: nextComment,
+          ...(mode?.kind === "reply" ? { parentId: mode.targetId } : {}),
+        }),
+      });
+      const result = (await response.json().catch(() => null)) as CommentMutationResult;
+      const newId = result?.answer?.id;
+      if (!response.ok || !result?.success || !newId) {
+        throw new Error(result?.error || result?.message || "댓글 등록에 실패했습니다.");
+      }
+      updateCachedComments((comments) => comments.map((item) => (item.id === tempId ? { ...item, id: newId } : item)));
+      clearPending();
+      refreshAfterChange();
+    } catch (error) {
+      updateCachedComments((comments) => comments.filter((item) => item.id !== tempId), -1);
+      clearPending();
+      restoreComposer();
+      toast.error(error instanceof Error && error.message ? error.message : "댓글 등록에 실패했습니다.");
     }
   };
 
@@ -685,7 +757,7 @@ const PostClient = ({
       commentThreads.some((thread) => thread.root.id === commentDelete.id && thread.replies.length > 0)
   );
 
-  const canSubmitComment = comment.trim().length > 0 && !commentLoading;
+  const canSubmitComment = comment.trim().length > 0;
 
   const renderBody = () => {
     if (!post) {
@@ -899,6 +971,7 @@ const PostClient = ({
                       isPostAuthor={Boolean(authorId && item.user?.id === authorId)}
                       highlighted={highlightedCommentId === item.id}
                       accepted={acceptedCommentId === item.id}
+                      pending={pendingCommentIds.has(item.id)}
                       onMore={() => setCommentSheet(item)}
                       onLike={() => void handleCommentLike(item)}
                       // 답글의 답글도 루트에 달고, 입력바에는 누른 댓글의 작성자를 보여 준다.
@@ -995,7 +1068,6 @@ const PostClient = ({
                     placeholder={composerMode?.kind === "reply" ? "답글을 입력해주세요" : "댓글을 입력해주세요"}
                     aria-label="댓글 입력"
                     maxLength={COMMENT_MAX_LENGTH}
-                    disabled={commentLoading}
                     className="max-h-[112px] min-h-[44px] min-w-0 flex-1 resize-none border-0 bg-transparent p-0 py-[11px] text-[15px] leading-[22px] text-app-text outline-none placeholder:text-app-caption focus:ring-0"
                   />
                   <button
@@ -1007,13 +1079,9 @@ const PostClient = ({
                       canSubmitComment ? "opacity-100" : "opacity-40"
                     )}
                   >
-                    {commentLoading ? (
-                      <span className="h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent" />
-                    ) : (
-                      <svg width={16} height={16} viewBox="0 0 24 24" fill="none" stroke="currentColor" aria-hidden="true">
+                    <svg width={16} height={16} viewBox="0 0 24 24" fill="none" stroke="currentColor" aria-hidden="true">
                         <path d="M5 12h13M12 6l6 6-6 6" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" />
                       </svg>
-                    )}
                   </button>
                 </div>
               </form>
@@ -1088,7 +1156,6 @@ const PostClient = ({
         title="이 게시글을 삭제할까요?"
         description="삭제 후에는 복구할 수 없습니다."
         confirmText="삭제"
-        cancelText="취소"
         loading={deleting}
         onCancel={() => setDeleteOpen(false)}
         onConfirm={() => void deleteCurrentPost()}
@@ -1103,7 +1170,6 @@ const PostClient = ({
             : "삭제 후에는 복구할 수 없습니다."
         }
         confirmText="삭제"
-        cancelText="취소"
         loading={commentDeleting}
         onCancel={() => setCommentDelete(null)}
         onConfirm={() => void deleteComment()}
