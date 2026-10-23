@@ -13,13 +13,13 @@ export const PRODUCT_TYPES = [
 
 export type ProductType = (typeof PRODUCT_TYPES)[number]["id"];
 
-/** 분양글 거래 유형. 1단계는 유료·무료 분양만 고를 수 있고 파양(rehoming)은 비노출이다(앱 constants/categories.ts). */
+/** 분양글 거래 유형. 유료·무료 분양만 고를 수 있다. 강아지·고양이는 가격 없이 PET_POST_KINDS(libs/shared/petSpace.ts)로 고른다. */
 export const DEAL_TYPE_OPTIONS = [
   { id: "sale", name: DEAL_TYPE_LABELS.sale },
   { id: "adoption", name: DEAL_TYPE_LABELS.adoption },
 ] as const;
 
-/** 거래 유형 표시 이름(파양은 옛 데이터·관리자 입력용). 화면 이름은 libs/shared/productTerms.ts 한 곳에서 정한다. */
+/** 거래 유형 표시 이름. 화면 이름은 libs/shared/productTerms.ts 한 곳에서 정한다. */
 export { DEAL_TYPE_LABELS };
 
 /** 분양글 카테고리 (경매와 동일한 대분류) */

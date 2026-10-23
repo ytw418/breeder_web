@@ -14,7 +14,7 @@ import { SearchResponse } from "pages/api/search";
 import { TOP_LEVEL_CATEGORIES } from "@libs/categoryTaxonomy";
 import { getProductPath } from "@libs/product-route";
 import { toPostPath } from "@libs/post-route";
-import { formatProductPrice } from "@libs/productRules";
+import { productPriceText } from "@libs/shared/price";
 import { ANALYTICS_EVENTS, trackEvent } from "@libs/client/analytics";
 import { toPostPlainText } from "@libs/shared/post-body";
 import { productStatusLabel } from "@libs/shared/productTerms";
@@ -62,6 +62,7 @@ interface RecommendProductsResponse {
     price: number | null;
     photos: string[];
     category: string | null;
+    dealType?: string | null;
     status: string;
     createdAt: string;
     _count: { favs: number };
@@ -262,7 +263,7 @@ const SearchClient = ({
                 key={product.id}
                 href={getProductPath(product.id, product.name)}
                 title={product.name}
-                description={formatProductPrice(product.price)}
+                description={productPriceText(product)}
                 meta={[product.category, productStatusLabel(product.status)].filter(Boolean).join(" · ")}
                 imageId={product.photos?.[0]}
                 imageVariant="product"
@@ -386,7 +387,7 @@ const SearchClient = ({
                     ) : null}
                   </div>
                   <p className="mt-2 truncate text-[14px] text-app-text">{p.name}</p>
-                  <p className="mt-0.5 text-[16px] font-bold text-app-text">{formatProductPrice(p.price)}</p>
+                  <p className="mt-0.5 text-[16px] font-bold text-app-text">{productPriceText(p)}</p>
                 </Link>
               ))}
             </HorizontalRail>

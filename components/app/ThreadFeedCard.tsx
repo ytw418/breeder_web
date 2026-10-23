@@ -25,7 +25,8 @@ import type { BreederProgramSummary } from "@libs/shared/breeder-program";
 import { DEBATE_CATEGORY } from "@libs/shared/debateFormat";
 import { isNewcomer } from "@libs/shared/newcomer";
 import { toPostPlainText } from "@libs/shared/post-body";
-import { formatProductPrice } from "@libs/shared/price";
+import { petPostPlace } from "@libs/shared/petSpace";
+import { productPriceText } from "@libs/shared/price";
 import { productStatusLabel } from "@libs/shared/productTerms";
 import useUser from "hooks/useUser";
 
@@ -64,6 +65,12 @@ export type ThreadProductData = {
   photos?: string[] | null;
   status?: string | null;
   location?: string | null;
+  /** 강아지·고양이 글은 가격 대신 글 종류를 보인다(productPriceText). */
+  category?: string | null;
+  dealType?: string | null;
+  /** 가족 찾아요·임보 구해요 글에 남긴 동네(§5.9). 있으면 가격 옆에 location 대신 "마포구". */
+  regionSido?: string | null;
+  regionSigungu?: string | null;
   createdAt: string | Date;
   userId?: number | null;
   user?: ThreadUser | null;
@@ -368,6 +375,7 @@ export function ThreadProductCard({ product, className }: { product: ThreadProdu
   const favs = product._count?.favs ?? 0;
   const unread = useIsUnread("product", { id: product.id, createdAt: product.createdAt, authorId: product.userId ?? null });
   const onSale = !product.status || product.status === "판매중";
+  const place = petPostPlace(product) ?? product.location;
 
   return (
     <article className={cn("relative border-b border-app-line bg-app-bg p-4", className)} data-testid="thread-product">
@@ -386,8 +394,8 @@ export function ThreadProductCard({ product, className }: { product: ThreadProdu
         <span className={cn("shrink-0 text-[12px] font-semibold", onSale ? "text-app-brand-text" : "text-app-muted")}>
           {productStatusLabel(product.status ?? "판매중")}
         </span>
-        <span className="shrink-0 text-[16px] font-bold text-app-text">{formatProductPrice(product.price)}</span>
-        {product.location ? <span className="min-w-0 truncate">· {product.location}</span> : null}
+        <span className="shrink-0 text-[16px] font-bold text-app-text">{productPriceText(product)}</span>
+        {place ? <span className="min-w-0 truncate">· {place}</span> : null}
         <span className="ml-auto flex shrink-0 items-center gap-0.5 font-semibold text-app-sub">
           채팅하기
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" aria-hidden>

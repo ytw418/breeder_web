@@ -1156,7 +1156,6 @@ const PostClient = ({
         title="이 게시글을 삭제할까요?"
         description="삭제 후에는 복구할 수 없습니다."
         confirmText="삭제"
-        cancelText="취소"
         loading={deleting}
         onCancel={() => setDeleteOpen(false)}
         onConfirm={() => void deleteCurrentPost()}
@@ -1171,7 +1170,6 @@ const PostClient = ({
             : "삭제 후에는 복구할 수 없습니다."
         }
         confirmText="삭제"
-        cancelText="취소"
         loading={commentDeleting}
         onCancel={() => setCommentDelete(null)}
         onConfirm={() => void deleteComment()}

@@ -9,8 +9,8 @@ import {
   OTHER_REASON,
   REPORT_DETAIL_MAX,
   REPORT_DETAIL_MIN_FOR_OTHER,
-  REPORT_REASONS,
   REPORT_SHEET_TITLE,
+  reportReasonsFor,
   type ReportTargetType,
 } from "@libs/shared/report";
 
@@ -21,17 +21,20 @@ import {
  * 사유가 8줄이라 낮은 화면(툴바가 보이는 모바일 Safari 등)에서는 사유 목록만 스크롤하고
  * 내용·글자 수·'신고 접수'는 시트 아래(BottomSheet footer)에 고정해 늘 보이게 한다(앱과 같다).
  * 입력 상태는 시트가 열려 있는 동안만 유지된다(닫히면 폼이 언마운트돼 초기화).
+ * 강아지·고양이 분양글(petPost)은 '업자 의심·과한 책임비' 사유가 하나 더 보인다(reportReasonsFor).
  */
 export function ReportSheet({
   open,
   targetType,
   targetId,
+  petPost = false,
   onClose,
   onSubmitted,
 }: {
   open: boolean;
   targetType: ReportTargetType;
   targetId: number | null;
+  petPost?: boolean;
   onClose: () => void;
   onSubmitted?: () => void;
 }) {
@@ -40,6 +43,7 @@ export function ReportSheet({
     <ReportForm
       targetType={targetType}
       targetId={targetId}
+      petPost={petPost}
       onClose={onClose}
       onDone={() => {
         onClose();
@@ -52,15 +56,17 @@ export function ReportSheet({
 function ReportForm({
   targetType,
   targetId,
+  petPost,
   onClose,
   onDone,
 }: {
   targetType: ReportTargetType;
   targetId: number | null;
+  petPost: boolean;
   onClose: () => void;
   onDone: () => void;
 }) {
-  const reasons = REPORT_REASONS[targetType];
+  const reasons = reportReasonsFor(targetType, { petPost });
   const [reason, setReason] = useState("");
   const [detail, setDetail] = useState("");
   const [pending, setPending] = useState(false);

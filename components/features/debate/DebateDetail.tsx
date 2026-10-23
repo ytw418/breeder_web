@@ -603,7 +603,6 @@ export default function DebateDetail({
         title="이 댓글을 삭제할까요?"
         description="삭제 후에는 복구할 수 없습니다."
         confirmText="삭제"
-        cancelText="취소"
         loading={deleting}
         onCancel={() => setDeleteFor(null)}
         onConfirm={() => void deleteComment()}
@@ -613,7 +612,6 @@ export default function DebateDetail({
         title={switchConfirmMessage(sideLabel(summary, otherSide)).split("?")[0] + "?"}
         description={switchConfirmMessage(sideLabel(summary, otherSide)).split("?")[1]?.trim()}
         confirmText="바꾸기"
-        cancelText="취소"
         onCancel={() => setSwitchOpen(false)}
         onConfirm={() => {
           setSwitchOpen(false);

@@ -20,6 +20,7 @@ import { resolvePostImagesInput, withPostImages } from "@libs/postImages";
 import { canWriteNoticePost, isNoticePostInput } from "@libs/server/postNotice";
 import { excludedAuthorIds, setViewerCacheHeader } from "@libs/server/blocks";
 import {
+  categoryOutsideWhere,
   categoryScopeWhere,
   resolveCategoryIdByName,
   speciesCategoryWhere,
@@ -349,8 +350,12 @@ const handler = async (
     }
 
     // 관심 카테고리 고정 범위(path 쉼표 목록). 없으면 숨긴 카테고리 글만 뺀다.
+    // outsideCategoryPath 를 주면 반대로 그 범위 밖 글만(홈 '다른 아이들 소식', 앱 docs/prd/pet-space.md §5.7).
     const and: Record<string, unknown>[] = [];
-    const scope = await categoryScopeWhere(categoryPath);
+    const outside = req.query.outsideCategoryPath
+      ? await categoryOutsideWhere(req.query.outsideCategoryPath)
+      : null;
+    const scope = outside ?? (await categoryScopeWhere(categoryPath));
     if (Object.keys(scope).length) and.push(scope);
 
     // 종 드롭다운. 소분류 이름으로 저장된 글도 상위 종으로 찾는다.

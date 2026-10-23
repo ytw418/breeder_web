@@ -10,7 +10,7 @@ import useSWR from "swr";
 import Image from "@components/atoms/Image";
 import { formatAuctionTimeLeft } from "@libs/auctionRules";
 import { getTimeAgoString, makeImageUrl } from "@libs/client/utils";
-import { formatProductPrice } from "@libs/shared/price";
+import { productPriceText } from "@libs/shared/price";
 import type { OnSaleItem, UserOnSaleResponse } from "pages/api/users/[id]/on-sale";
 
 export const useUserOnSale = (userId: number | string | undefined) =>
@@ -34,7 +34,7 @@ export function OnSaleCard({ item }: { item: OnSaleItem }) {
   const isAuction = item.kind === "auction";
   const href = isAuction ? `/auctions/${item.id}` : `/products/${item.id}`;
   const title = isAuction ? item.title : item.name;
-  const price = isAuction ? `${item.currentPrice.toLocaleString("ko-KR")}원` : formatProductPrice(item.price);
+  const price = isAuction ? `${item.currentPrice.toLocaleString("ko-KR")}원` : productPriceText(item);
   const meta = isAuction ? formatAuctionTimeLeft(item.endAt) : getTimeAgoString(new Date(item.createdAt));
   return (
     <Link

@@ -170,6 +170,24 @@ describe("MainLayout 셸", () => {
     expect(screen.getByText(/^버전 /)).toBeInTheDocument();
   });
 
+  it("메뉴 맨 위에 '지금 공간'(고정이 없으면 전부 보기)과 바꾸기가 있고, 누르면 공간 시트가 열린다(pet-space §5.2)", () => {
+    mockUseUser.mockReturnValue({ user: undefined, isLoading: false });
+    render(
+      <MainLayout title="홈" icon showSearch hasTabBar>
+        <p>본문</p>
+      </MainLayout>
+    );
+    fireEvent.click(screen.getByRole("button", { name: "메뉴" }));
+    const card = screen.getByTestId("pet-space-card");
+    expect(card).toHaveTextContent("지금 공간");
+    expect(card).toHaveTextContent("전부 보기");
+    fireEvent.click(card);
+    expect(screen.getByRole("dialog", { name: "어떤 공간을 볼까요?" })).toBeInTheDocument();
+    expect(screen.getByRole("radio", { name: /강아지·고양이/ })).toHaveAttribute("aria-checked", "false");
+    expect(screen.getByRole("radio", { name: /전부 보기/ })).toHaveAttribute("aria-checked", "true");
+    expect(screen.getByRole("button", { name: /직접 고르기/ })).toBeInTheDocument();
+  });
+
   // "/index": ISR 로 미리 만든 홈의 서버 렌더 경로(RSC c:["","index"]). '/' 와 똑같이 그려야 첫 방문 #418 이 안 난다(감사 #5).
   it.each(["/", "/index"])("홈(%s) 헤더는 왼쪽 로고 + 워드마크 '브리디', 가운데 제목이 없다(community-vibe §3.7)", (path) => {
     mockPathname.mockReturnValue(path);

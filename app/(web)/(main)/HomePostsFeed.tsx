@@ -31,6 +31,7 @@ import {
   subcategoryChipOptions,
 } from "@libs/shared/subcategoryChips";
 import { withoutBlocked } from "@libs/shared/blockFilter";
+import { OTHER_PETS_FEED_TITLE, otherPetsFeedSub, showsOtherPetsFeed } from "@libs/shared/petSpace";
 import { FOLLOWING_POST_FILTER, REGION_POST_CATEGORY } from "@libs/shared/postCategory";
 import { regionOf } from "@libs/shared/regions";
 import type { PostsListResponse } from "pages/api/posts";
@@ -112,6 +113,21 @@ function SkeletonPostRow() {
         <SkeletonBlock className="mt-3 aspect-[4/3] w-full rounded-lg" />
       </div>
     </div>
+  );
+}
+
+/** 홈 '다른 아이들 소식' 머리(앱 docs/prd/pet-space.md §5.7, 앱 OtherPetsHeader): 8 갭 + 제목 16/700 + 안내 13. */
+function OtherPetsHeader({ scopedEmpty }: { scopedEmpty: boolean }) {
+  return (
+    <section aria-label={OTHER_PETS_FEED_TITLE} data-testid="other-pets-header">
+      <div className="h-2 bg-app-gap" aria-hidden="true" />
+      <div className="px-4 pb-1 pt-5">
+        <h2 className="text-[16px] font-bold leading-[22px] text-app-text">{OTHER_PETS_FEED_TITLE}</h2>
+        <p className="mt-0.5 break-keep text-[13px] leading-[18px] text-app-muted">
+          {otherPetsFeedSub(scopedEmpty)}
+        </p>
+      </div>
+    </section>
   );
 }
 
@@ -386,6 +402,92 @@ export default function HomePostsFeed() {
     if (needMoreProducts) void productList.setSize(productPages + 1);
   }, [needMoreProducts, productPages]);
 
+  // 홈 '다른 아이들 소식'(앱 docs/prd/pet-space.md §5.7): 관심 분야를 고정했고 '전체'·전체 종에서 고정 범위 글을
+  // 끝까지 받았으면 아래에 범위 밖 게시글을 이어 받는다(분양글은 섞지 않는다). 이미 보인 글은 id 로 거른다
+  // (옛 서버는 outsideCategoryPath 를 몰라 전체 글을 준다).
+  const showOtherPets = showsOtherPetsFeed({
+    categoryPath: scope.categoryPath,
+    allChip: selectedCategory === "전체",
+    allSpecies: !speciesQuery,
+    scopedDone: Boolean(primaryPages) && !hasMore && !listError,
+  });
+  const otherList = useSWRInfinite<PostsListResponse>(
+    (pageIndex: number, previous: PostsListResponse | null) => {
+      if (!showOtherPets || !scope.categoryPath) return null;
+      if (previous && (!previous.posts.length || pageIndex >= previous.pages)) return null;
+      const sortParam = selectedSort !== "latest" ? `&sort=${selectedSort}` : "";
+      return `/api/posts?page=${pageIndex + 1}${sortParam}&outsideCategoryPath=${encodeURIComponent(scope.categoryPath)}`;
+    },
+    { revalidateFirstPage: false, revalidateOnFocus: false }
+  );
+  const {
+    data: otherData,
+    error: otherError,
+    size: otherSize,
+    setSize: setOtherSize,
+    isValidating: otherValidating,
+    mutate: mutateOther,
+  } = otherList;
+  const otherPosts = useMemo(() => {
+    const seen = new Set(posts.map((post) => post.id));
+    const all = (otherData ?? []).flatMap((page) => page?.posts ?? []).filter((post) => {
+      if (seen.has(post.id)) return false;
+      seen.add(post.id);
+      return true;
+    });
+    return withoutBlocked(all, blockedIds, (post) => post.user?.id);
+  }, [otherData, posts, blockedIds]);
+  const otherPages = otherData?.length ?? 0;
+  const otherHasMore = Boolean(
+    otherData?.[otherPages - 1]?.posts.length && otherPages < (otherData?.[0]?.pages ?? 0)
+  );
+  const otherLoading = showOtherPets && !otherError && otherValidating && otherSize > otherPages;
+  const scopedEmpty = rows.length === 0;
+  const otherRows = useMemo(
+    () => (showOtherPets ? otherPosts.map((post) => ({ kind: "post" as const, post })) : []),
+    [showOtherPets, otherPosts]
+  );
+  // 섹션이 처음 보일 때 한 번 센다(고정 범위가 얼마나 빨리 바닥나는지, 앱 docs/prd/pet-space.md §10).
+  const otherTracked = useRef(false);
+  useEffect(() => {
+    if (!otherRows.length || otherTracked.current) return;
+    otherTracked.current = true;
+    trackEvent(ANALYTICS_EVENTS.otherPetsFeedView, { scoped_empty: scopedEmpty });
+  }, [otherRows.length, scopedEmpty]);
+  const otherSentinelRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    const target = otherSentinelRef.current;
+    if (!target || !showOtherPets || !otherHasMore || otherError) return;
+    const observer = new IntersectionObserver(
+      (entries, self) => {
+        if (!entries[0]?.isIntersecting || otherValidating) return;
+        self.disconnect();
+        void setOtherSize(otherPages + 1);
+      },
+      { rootMargin: "600px 0px" }
+    );
+    observer.observe(target);
+    return () => observer.disconnect();
+  }, [showOtherPets, otherHasMore, otherError, otherValidating, otherPages, setOtherSize]);
+
+  // 피드 행 그리기. 8행마다 쿠팡 한 줄(앱 홈 네이티브 광고와 같은 간격). 슬롯 번호가 위치로 정해져 다음 페이지가 붙어도 그대로다.
+  // '다른 아이들 소식' 머리는 광고 간격에 세지 않고 범위 밖 첫 글 바로 앞에 둔다.
+  type FeedListRow = (typeof rows)[number] | (typeof otherRows)[number];
+  const renderFeedRows = (list: readonly FeedListRow[]) =>
+    withAdRows(list, FEED_ADS_ENABLED).flatMap((row) => {
+      const node =
+        row.kind === "ad" ? (
+          <CoupangBanner key={`ad-${row.slot}`} variant="row" />
+        ) : row.kind === "product" ? (
+          <ThreadProductCard key={`product-${row.product.id}`} product={row.product} />
+        ) : (
+          <ThreadPostCard key={row.post.id} post={row.post} />
+        );
+      return row === otherRows[0]
+        ? [<OtherPetsHeader key="other-header" scopedEmpty={scopedEmpty} />, node]
+        : [node];
+    });
+
   // 바닥 감시 칸이 보이면 다음 페이지 하나만 받는다. 더 없거나 받는 중이면 부르지 않는다
   // (스크롤마다 페이지 수를 올리면 바닥에서 1페이지를 계속 다시 받아 목록이 깜박였다).
   useEffect(() => {
@@ -541,37 +643,30 @@ export default function HomePostsFeed() {
           className="mt-2"
         />
       ) : rows.length === 0 && !hasMore ? (
-        <div className="bg-app-bg pt-5">
-          <p className="px-4 text-[14px] text-app-muted">
-            아직 올라온 글이 없어요. 질문과 정보 글을 먼저 올리면 대화가 더 빨리 시작돼요.
-          </p>
-          <div className="mt-3">
-            {BACKUP_COMMUNITY_CONTENT.map((content) => (
-              <Link
-                key={content.id}
-                href={content.href}
-                className="block border-b border-app-line px-4 py-3.5"
-              >
-                <p className="text-[16px] font-medium text-app-text">{withBreederWord(content.title, breeder)}</p>
-                <p className="mt-1 truncate text-[14px] text-app-muted">{content.description}</p>
-                <p className="mt-2 text-[13px] font-semibold text-app-brand">{content.cta}</p>
-              </Link>
-            ))}
+        <>
+          <div className="bg-app-bg pt-5">
+            <p className="px-4 text-[14px] text-app-muted">
+              아직 올라온 글이 없어요. 질문과 정보 글을 먼저 올리면 대화가 더 빨리 시작돼요.
+            </p>
+            <div className="mt-3">
+              {BACKUP_COMMUNITY_CONTENT.map((content) => (
+                <Link
+                  key={content.id}
+                  href={content.href}
+                  className="block border-b border-app-line px-4 py-3.5"
+                >
+                  <p className="text-[16px] font-medium text-app-text">{withBreederWord(content.title, breeder)}</p>
+                  <p className="mt-1 truncate text-[14px] text-app-muted">{content.description}</p>
+                  <p className="mt-2 text-[13px] font-semibold text-app-brand">{content.cta}</p>
+                </Link>
+              ))}
+            </div>
           </div>
-        </div>
+          {/* 고정 범위 글이 없어도 다른 아이들 글은 보인다(앱 docs/prd/pet-space.md §5.7). */}
+          {otherRows.length ? <div>{renderFeedRows(otherRows)}</div> : null}
+        </>
       ) : (
-        <div>
-          {/* 8행마다 쿠팡 한 줄(앱 홈 네이티브 광고와 같은 간격). 슬롯 번호가 위치로 정해져 다음 페이지가 붙어도 그대로다. */}
-          {withAdRows(rows, FEED_ADS_ENABLED).map((row) =>
-            row.kind === "ad" ? (
-              <CoupangBanner key={`ad-${row.slot}`} variant="row" />
-            ) : row.kind === "product" ? (
-              <ThreadProductCard key={`product-${row.product.id}`} product={row.product} />
-            ) : (
-              <ThreadPostCard key={row.post.id} post={row.post} />
-            ),
-          )}
-        </div>
+        <div>{renderFeedRows([...rows, ...otherRows])}</div>
       )}
 
       {primaryPages ? (
@@ -582,6 +677,12 @@ export default function HomePostsFeed() {
         />
       ) : null}
       <div ref={sentinelRef} aria-hidden="true" />
+      {showOtherPets ? (
+        <>
+          <RetryFooter loading={otherLoading} error={Boolean(otherError)} onRetry={() => void mutateOther()} />
+          <div ref={otherSentinelRef} aria-hidden="true" />
+        </>
+      ) : null}
     </>
   );
 }

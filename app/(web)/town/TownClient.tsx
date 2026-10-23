@@ -594,7 +594,6 @@ export default function TownClient() {
         title="이 메시지를 삭제할까요?"
         description="'삭제한 메시지예요'로 바뀌어요."
         confirmText="삭제"
-        cancelText="취소"
         onCancel={() => setDeleteFor(null)}
         onConfirm={() => void confirmDelete()}
       />
