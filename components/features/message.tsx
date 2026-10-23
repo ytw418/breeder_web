@@ -39,6 +39,10 @@ export interface ChatMessageGroupProps {
   unreadIds?: ReadonlySet<number>;
   /** 받은 메시지 중 계좌·외부 메신저 안내가 있는 id → 말풍선 아래 주의 줄 */
   cautionIds?: ReadonlySet<number>;
+  /** 아직 서버에 닿지 않은 내 메시지 id → 보내는 중(흐리게)·실패(빨간 '!' + 다시 보내기·삭제) */
+  sendStates?: ReadonlyMap<number, "sending" | "failed">;
+  onRetry?: (tempId: number) => void;
+  onDiscard?: (tempId: number) => void;
   onOpenImage: (imageId: string) => void;
 }
 
@@ -50,6 +54,9 @@ export default function ChatMessageGroup({
   timeLabel,
   unreadIds,
   cautionIds,
+  sendStates,
+  onRetry,
+  onDiscard,
   onOpenImage,
 }: ChatMessageGroupProps) {
   const renderBubble = (message: ChatBubbleMessage) =>
@@ -76,7 +83,8 @@ export default function ChatMessageGroup({
         key={message.id}
         className={cn(
           "max-w-[232px] whitespace-pre-wrap rounded-[20px] px-[13px] py-[9px] text-[15px] leading-[21px] tracking-[-0.2px] break-words",
-          mine ? "bg-app-brand text-white" : "bg-app-surface text-app-text"
+          mine ? "bg-app-brand text-white" : "bg-app-surface text-app-text",
+          sendStates?.get(message.id) === "sending" && "opacity-50"
         )}
       >
         {splitLinks(message.message ?? "").map((part, index) =>
@@ -106,9 +114,29 @@ export default function ChatMessageGroup({
     <div className="flex min-w-0 shrink flex-col items-end gap-[3px]">
       {messages.map((message, index) => {
         const unread = !isProductCard(message) && (unreadIds?.has(message.id) ?? false);
-        const meta = index === messages.length - 1 ? time : null;
+        const sendState = sendStates?.get(message.id);
+        // 서버에 닿기 전엔 시간을 두지 않는다(닿으면 서버 시각으로 붙는다).
+        const meta = index === messages.length - 1 && !sendState ? time : null;
         return (
           <div key={message.id} className="flex min-w-0 items-end justify-end gap-2">
+            {sendState === "failed" ? (
+              <div className="flex shrink-0 items-center gap-2 pb-0.5 text-[12px]">
+                <button type="button" onClick={() => onDiscard?.(message.id)} className="text-app-muted">
+                  삭제
+                </button>
+                <button
+                  type="button"
+                  onClick={() => onRetry?.(message.id)}
+                  aria-label="전송 실패. 다시 보내기"
+                  className="flex items-center gap-1 font-semibold text-app-danger"
+                >
+                  <span className="grid h-5 w-5 place-items-center rounded-full bg-app-danger text-[13px] font-bold leading-none text-white">
+                    !
+                  </span>
+                  다시 보내기
+                </button>
+              </div>
+            ) : null}
             {unread || meta ? (
               <div className="flex shrink-0 flex-col items-end">
                 {unread ? (
