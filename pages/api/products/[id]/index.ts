@@ -30,6 +30,7 @@ import {
 import type { BloodlineLinkSummary } from "@libs/shared/bloodline-card";
 import {
   SOLD_PRODUCT_STATUS,
+  isTradelessDeal,
   type ProductTradeInfo,
   type ProductTradeReview,
 } from "@libs/shared/tradeReview";
@@ -75,8 +76,8 @@ export interface ItemDetailResponse {
   relatedProducts?: Product[];
   isLiked?: boolean;
   hasPurchased?: boolean; // 현재 유저가 이 상품을 구매확정 했는지(되돌려 취소된 확정 제외)
-  /** 입양자 지정·입양 확정(보는 사람 기준). 앱 docs/prd/trade-review.md */
-  trade?: ProductTradeInfo;
+  /** 입양자 지정·입양 확정(보는 사람 기준). 앱 docs/prd/trade-review.md. 임보 글은 거래가 없어 null(앱 docs/prd/pet-space.md §16). */
+  trade?: ProductTradeInfo | null;
   /**
    * 이 분양글의 거래 후기(공개). 없으면 null. 운영자가 숨긴 후기는 작성자·분양자·운영자에게만 {id, hidden:true},
    * 그 외에는 null. 조회가 실패하면 필드가 빠진다(화면은 후기 블록을 그리지 않는다).
@@ -272,6 +273,7 @@ async function handler(
         if (product.user.id === user.id) {
           return res.status(400).json({ success: false, message: "자신의 분양글은 입양 확정할 수 없습니다." });
         }
+        if (isTradelessDeal(product.dealType)) return sendTradeError(res, tradeErrors.noTrade());
         if (product.status !== SOLD_PRODUCT_STATUS) {
           return sendTradeError(res, tradeErrors.notSoldForConfirm());
         }
@@ -336,6 +338,8 @@ async function handler(
         const validation = validateProductInput(data, {
           partial: true,
           currentCategory: product.category ?? null,
+          currentDealType: product.dealType,
+          currentPetInfo: product.petInfo,
         });
         if (!validation.ok) {
           return res.status(400).json({
@@ -343,6 +347,21 @@ async function handler(
             error: validation.message,
             message: validation.message,
             errorCode: validation.errorCode,
+          });
+        }
+        // 끝난 글은 임보 글과 다른 글 종류 사이를 오가지 못한다. 임보 글은 거래 기록이 없어서(앱 docs/prd/pet-space.md §16)
+        // 끝난 뒤 바꾸면 입양 확정·후기 자격이 새로 생기거나 사라진다.
+        if (
+          validation.value.dealType !== undefined &&
+          product.status === SOLD_PRODUCT_STATUS &&
+          isTradelessDeal(validation.value.dealType) !== isTradelessDeal(product.dealType)
+        ) {
+          const message = "끝난 글은 임보 글로 바꾸거나 임보 글에서 바꿀 수 없어요";
+          return res.status(400).json({
+            success: false,
+            error: message,
+            message,
+            errorCode: "PRODUCT_DEAL_TYPE_LOCKED",
           });
         }
         const { photos, bloodlineRootId, pedigreeNote } = validation.value;
@@ -441,7 +460,7 @@ async function handler(
       }
 
       // 상태 변경 (판매중/예약중). 분양완료에서 되돌리면 지금 입양자의 입양 확정·후기가 없을 때만 되고,
-      // 그때 Sale·이 글의 입양 확정을 지우지 않고 cancelled 로 바꾼다(되돌리기 UI 는 아직 없다 — 서버 가드만).
+      // 그때 Sale·이 글의 입양 확정을 지우지 않고 cancelled 로 바꾼다. 되돌리기 화면은 임보 글('다시 임보처 찾기')에만 있다.
       case "status_change": {
         const newStatus = data?.status;
         if (!["판매중", "예약중"].includes(newStatus)) {
@@ -476,12 +495,27 @@ async function handler(
           if (error instanceof TradeError) return sendTradeError(res, error);
           throw error;
         }
+        if (product.status === SOLD_PRODUCT_STATUS && isTradelessDeal(product.dealType)) {
+          await captureServerEvent(user.id, "foster_reopened", { product_id: product.id });
+        }
         return res.json({ success: true });
       }
 
       // 분양완료 처리(Sale 생성 + 상태 변경). data 없음 = 입양자 미지정(옛 앱·'나중에 정할게요'),
       // data.buyerId = 대화한 회원 지정, data.buyerExternal = 브리디 밖에서 분양. 앱 docs/prd/trade-review.md §4 A.
       case "sold": {
+        // 임보 구해요의 '임보처를 찾았어요'는 글만 닫는다. Sale·입양자를 남기지 않아 거래 완료 수·입양 확정·후기가 생기지 않고,
+        // 옛 앱이 입양자 시트에서 보낸 입양자 값은 무시한다(앱 docs/prd/pet-space.md §16).
+        if (isTradelessDeal(product.dealType)) {
+          if (product.status === SOLD_PRODUCT_STATUS) return sendTradeError(res, tradeErrors.alreadySold());
+          const closed = await client.product.updateMany({
+            where: { id: product.id, status: { not: SOLD_PRODUCT_STATUS } },
+            data: { status: SOLD_PRODUCT_STATUS },
+          });
+          if (closed.count === 0) return sendTradeError(res, tradeErrors.alreadySold());
+          await captureServerEvent(user.id, "foster_found", { product_id: product.id });
+          return res.json({ success: true, trade: null });
+        }
         const choice = parseBuyerChoice(data);
         if (!choice) return sendTradeError(res, tradeErrors.invalidBuyer());
         if (product.status === SOLD_PRODUCT_STATUS) return sendTradeError(res, tradeErrors.alreadySold());

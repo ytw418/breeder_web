@@ -56,8 +56,11 @@ import {
   PET_WRITE_STEP_TITLES,
   isNoPriceCategory,
   isPetPostKind,
+  kstToday,
+  newPetWriteAttemptId,
   parsePetInfo,
   petDescriptionPlaceholder,
+  petInfoError,
   petPostKindLabel,
   petRegionText,
   petTitlePlaceholder,
@@ -83,7 +86,7 @@ import {
 type SubmitStep = "idle" | "images" | "submit";
 
 /** 화면 위에서부터 오류 칸 순서. 검증에 걸리면 토스트 없이 첫 오류 칸으로 스크롤한다(앱 use-scroll-to-first-error). */
-const ERROR_FIELD_ORDER = ["name", "category", "productType", "price", "description", "agreement"] as const;
+const ERROR_FIELD_ORDER = ["name", "category", "petInfo", "productType", "price", "description", "agreement"] as const;
 type ErrorField = (typeof ERROR_FIELD_ORDER)[number];
 
 export type ProductFormInitial = {
@@ -485,12 +488,17 @@ export function ProductForm({
     },
   });
 
-  // 단계마다 몇 명이 남는지 본다(docs/prd/pet-space.md §10). 글 종류는 ①에서 고른 뒤(②·③)만 싣는다.
+  // 단계마다 몇 번의 글쓰기가 남는지 본다(docs/prd/pet-space.md §10). 글 종류는 ①에서 고른 뒤(②·③)만 싣는다.
   // ②·③엔 글 종류 칸이 없어 글 종류는 ①에서 카드를 누를 때(단계와 함께)만 바뀐다.
+  // attempt_id 는 이 폼을 연 한 번의 글쓰기(pet_post_create 에도 같이 싣는다).
+  const [attemptId] = useState(() => newPetWriteAttemptId());
   useEffect(() => {
     if (!stepMode) return;
-    trackEvent(ANALYTICS_EVENTS.petWriteStep, step > 1 ? { step, kind: petKind } : { step });
-  }, [stepMode, step, petKind]);
+    trackEvent(
+      ANALYTICS_EVENTS.petWriteStep,
+      step > 1 ? { step, kind: petKind, attempt_id: attemptId } : { step, attempt_id: attemptId }
+    );
+  }, [stepMode, step, petKind, attemptId]);
 
   const clearError = (field: keyof ProductFormErrors) =>
     setErrors((prev) => {
@@ -499,6 +507,26 @@ export function ProductForm({
       delete next[field];
       return next;
     });
+
+  // 글 종류마다 동의 문구가 달라서(임보 구해요는 맡기는 사람의 약속) 사람이 종류를 바꾸면 동의를 다시 받는다.
+  const changePetKind = (kind: PetPostKind) => {
+    if (kind === petKind) return;
+    setPetKind(kind);
+    setAgreedTradeRules(false);
+    clearError("petInfo");
+  };
+  const changePetInfo = (next: PetInfo) => {
+    setPetInfo(next);
+    clearError("petInfo");
+  };
+  /** 임보 구해요의 기간·날짜 검사(서버와 같은 petInfoError). 고치는 글은 저장된 날짜를 그대로 두면 지났어도 받는다. */
+  const currentPetInfoError = () =>
+    isPet || awaitingPetSpecies
+      ? petInfoError(petKind, parsePetInfo(petInfo), {
+          today: kstToday(),
+          keptUntil: parsePetInfo(initial.petInfo)?.fosterUntil ?? null,
+        })
+      : null;
 
   const toggleFree = () => {
     if (busy) return;
@@ -545,6 +573,8 @@ export function ProductForm({
       delete nextErrors.price;
       nextErrors.category = "강아지·고양이 중에 골라 주세요";
     }
+    const petError = currentPetInfoError();
+    if (petError) nextErrors.petInfo = petError;
     setErrors(nextErrors);
     const nextAgreementError = needsAgreement ? "동의해야 등록할 수 있어요" : "";
     setAgreementError(nextAgreementError);
@@ -555,8 +585,8 @@ export function ProductForm({
     const firstMessage =
       firstField === "agreement" ? nextAgreementError : firstField ? nextErrors[firstField] : "";
     announceError(firstMessage ?? "");
-    if (firstField && stepMode && firstField === "category" && step !== 2) {
-      // 단계 글쓰기: 종(②의 칸)이 비었으면 ②로 돌아가 칸 아래 문구로 알린다.
+    if (firstField && stepMode && (firstField === "category" || firstField === "petInfo") && step !== 2) {
+      // 단계 글쓰기: 종·임보 기간(②의 칸)이 비었으면 ②로 돌아가 칸 아래 문구로 알린다.
       goStep(2);
       return;
     }
@@ -650,7 +680,13 @@ export function ProductForm({
         });
       } else {
         const id = result.product?.id;
-        if (isPet) trackEvent(ANALYTICS_EVENTS.petPostCreate, { deal_type: petKind, category: subcategory });
+        if (isPet) {
+          trackEvent(ANALYTICS_EVENTS.petPostCreate, {
+            deal_type: petKind,
+            category: subcategory,
+            attempt_id: attemptId,
+          });
+        }
         // 등록했으면 임시저장을 지운다(기다리던 저장도 버린다).
         draftAutosave.stop();
         if (draftUserId != null) deleteComposeDraft("product", draftUserId);
@@ -684,14 +720,19 @@ export function ProductForm({
     if (!isEdit) onTitleChange?.(stepMode ? "" : writeLabels.title);
   }, [isEdit, onTitleChange, writeLabels.title, stepMode]);
 
-  /** 단계 글쓰기 ② '다음': 종만 고르면 된다(정보 칸은 모두 선택). */
+  /** 단계 글쓰기 ② '다음': 종과 임보 구해요의 기간만 꼭 고른다(나머지 정보 칸은 선택). */
   const nextFromInfo = () => {
-    if (awaitingPetSpecies) {
-      const message = "강아지·고양이 중에 골라 주세요";
-      setErrors((prev) => ({ ...prev, category: message }));
-      announceError(message);
+    const missing = awaitingPetSpecies
+      ? { field: "category" as const, message: "강아지·고양이 중에 골라 주세요" }
+      : (() => {
+          const message = currentPetInfoError();
+          return message ? { field: "petInfo" as const, message } : null;
+        })();
+    if (missing) {
+      setErrors((prev) => ({ ...prev, [missing.field]: missing.message }));
+      announceError(missing.message);
       formRef.current
-        ?.querySelector('[data-field="category"]')
+        ?.querySelector(`[data-field="${missing.field}"]`)
         ?.scrollIntoView({ behavior: "smooth", block: "center" });
       return;
     }
@@ -756,12 +797,13 @@ export function ProductForm({
   const petFields = (
     <PetPostFields
       kind={petKind}
-      onKindChange={setPetKind}
+      onKindChange={changePetKind}
       showKind={!kindOnTop}
       showRegionRow={!stepMode}
       filled={stepMode}
       info={petInfo}
-      onInfoChange={setPetInfo}
+      onInfoChange={changePetInfo}
+      fosterError={errors.petInfo}
       region={myRegionText}
       showRegion={showRegion}
       onShowRegionChange={setShowRegion}
@@ -796,7 +838,8 @@ export function ProductForm({
     </div>
   );
 
-  // 동의(새 글만, 등록 버튼 바로 위). 경매 '운영 룰 동의' 체크와 같은 모양. 강아지·고양이 글은 2개월·영리 분양 문구(결정 D).
+  // 동의(새 글만, 등록 버튼 바로 위). 경매 '운영 룰 동의' 체크와 같은 모양. 강아지·고양이 글은 2개월·영리 분양 문구(결정 D),
+  // 임보 구해요는 맡기는 사람의 약속(tradeRulesAgreementLabel).
   const agreementField = isEdit ? null : (
     <div data-field="agreement">
       <div className="flex items-start gap-3">
@@ -808,7 +851,7 @@ export function ProductForm({
               setAgreedTradeRules((prev) => !prev);
               setAgreementError("");
             }}
-            label={tradeRulesAgreementLabel(isPet || awaitingPetSpecies)}
+            label={tradeRulesAgreementLabel(isPet || awaitingPetSpecies ? petKind : null)}
           />
         </div>
         {/* 웹은 화면을 쌓아 둘 수 없어 쓰던 폼을 두고 새 탭으로 연다(경매 툴 '룰 전체 보기'와 같다). */}
@@ -836,7 +879,7 @@ export function ProductForm({
           <PetKindCards
             disabled={busy}
             onPick={(kind) => {
-              setPetKind(kind);
+              changePetKind(kind);
               goStep(2);
             }}
           />
@@ -917,7 +960,7 @@ export function ProductForm({
         ) : (
           <>
             {/* 강아지·고양이 글 수정: 글 종류 먼저(시안 ⑤) */}
-            {kindOnTop ? <PetKindField kind={petKind} onKindChange={setPetKind} disabled={busy} /> : null}
+            {kindOnTop ? <PetKindField kind={petKind} onKindChange={changePetKind} disabled={busy} /> : null}
 
             {/* 사진 */}
             {photosField}

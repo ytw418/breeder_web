@@ -48,11 +48,13 @@ import { TradeReviewSection } from "@components/features/trade/TradeReviewCard";
 import { useTradeReviewRefresh } from "@components/features/trade/useTradeReviewRefresh";
 import { TradeReviewReplySheet } from "@components/features/trade/TradeReviewReplySheet";
 import { postProductReview, TradeReviewSheet } from "@components/features/trade/TradeReviewSheet";
-import { isHiddenTradeReview, type ProductTradeInfo } from "@libs/shared/tradeReview";
+import { isHiddenTradeReview, isTradelessDeal, type ProductTradeInfo } from "@libs/shared/tradeReview";
 
 // 분양완료(sold)·입양 확정(purchase)은 입양자 시트·입양 확정 시트가 보낸다(앱 docs/prd/trade-review.md).
+// 임보 글의 '임보처를 찾았어요'만 입양자 없이 여기서 sold 를 보낸다(앱 docs/prd/pet-space.md §16).
 type ProductActionPayload =
   | { action: "delete" }
+  | { action: "sold" }
   | { action: "status_change"; data: { status: "판매중" | "예약중" } };
 
 type DetailProduct = NonNullable<ItemDetailResponse["product"]> & {
@@ -65,6 +67,8 @@ const successMessage = (payload: ProductActionPayload, statusText: (status: stri
   switch (payload.action) {
     case "status_change":
       return `${statusText(payload.data.status)}으로 바꿨어요`;
+    case "sold":
+      return "글을 닫았어요";
     case "delete":
       return `${noun}을 삭제했어요`;
   }
@@ -154,6 +158,8 @@ const ProductClient = ({
   // 이 분양글의 거래 후기(공개 — 비로그인 SSR 에도 실린다. 숨긴 후기는 당사자·운영자에게만 자리표시). 없으면 영역을 그리지 않는다.
   const review = (data ? data.review : initialReview) ?? null;
   const currentStatus = product?.status || "판매중";
+  // 끝난 글은 상태 버튼이 잠긴다. 임보 글만 '임보처 찾는 중'으로 다시 연다(임보가 끝나면 다시 찾는다).
+  const statusDone = currentStatus === "판매완료";
   const isOwner = Boolean(user?.id && product?.user?.id === user.id);
   // 관리자 ⋯ 조치(숨기기·숨김 해제·삭제). 관리자가 아니면 항목이 없다.
   const moderation = useAdminModeration();
@@ -162,6 +168,9 @@ const ProductClient = ({
   // 강아지·고양이 글: 가격이 없고 정보 표·글 종류를 보인다(docs/prd/pet-space.md).
   const isPetPost = isNoPriceCategory(product?.category);
   const isFosterPost = isPetPost && product?.dealType === "foster";
+  // 임보 글은 거래 기록이 없다: 입양자 시트 없이 글만 닫고, 끝난 뒤에도 다시 연다(앱 docs/prd/pet-space.md §16).
+  const tradeless = isTradelessDeal(product?.dealType);
+  const statusLocked = statusDone && !tradeless;
   // 임보·가족 찾기 글은 '분양글'·'분양중'이라 부르지 않는다(글 · 임보처 찾는 중, 2026-10-23 토스 디자인 리뷰).
   const noun = productWriteLabels(isPetPost ? product?.dealType : null).noun;
   const statusText = (status: string) =>
@@ -295,9 +304,19 @@ const ProductClient = ({
   };
 
   // 분양완료로 바꿀 때 '누구에게 분양했나요?' 시트로 입양자를 함께 고른다(확인 창을 대신한다).
-  const handleSold = () => {
+  // 임보 글은 입양자가 없어 확인 창 뒤 글만 닫는다.
+  const handleSold = async () => {
     setShowStatusMenu(false);
     if (actionPending) return;
+    if (tradeless) {
+      const ok = await confirm({
+        title: "임보처를 찾았나요?",
+        description: "글이 닫히고 '임보처 찾았어요'로 보여요. 임보가 끝나면 다시 열 수 있어요",
+        confirmText: "찾았어요",
+      });
+      if (ok) void runAction({ action: "sold" });
+      return;
+    }
     setPickerMode("sold");
   };
 
@@ -759,28 +778,28 @@ const ProductClient = ({
                 <div className="mt-5 space-y-2 border-t border-app-line pt-5">
                   <button
                     type="button"
-                    disabled={actionPending || currentStatus === "판매완료"}
+                    disabled={actionPending || statusLocked}
                     onClick={() => setShowStatusMenu((v) => !v)}
                     className="flex h-12 w-full items-center justify-center gap-1.5 rounded-md bg-app-surface disabled:cursor-default"
                     style={{ opacity: actionPending ? 0.6 : 1 }}
                   >
                     <span
                       className={
-                        currentStatus === "판매완료"
+                        statusLocked
                           ? "text-[15px] font-semibold text-app-muted"
                           : "text-[15px] font-semibold text-app-text"
                       }
                     >
-                      {actionPending ? "처리 중..." : currentStatus === "판매완료" ? statusText("판매완료") : "상태 변경"}
+                      {actionPending ? "처리 중..." : statusLocked ? statusText("판매완료") : "상태 변경"}
                     </span>
-                    {currentStatus !== "판매완료" ? (
+                    {!statusLocked ? (
                       <svg className="h-4 w-4 text-app-text" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7" />
                       </svg>
                     ) : null}
                   </button>
 
-                  {showStatusMenu && currentStatus !== "판매완료" ? (
+                  {showStatusMenu && !statusLocked ? (
                     <div className="overflow-hidden rounded-md border border-app-border bg-app-elevated">
                       {currentStatus !== "판매중" ? (
                         <button
@@ -791,7 +810,7 @@ const ProductClient = ({
                           {statusText("판매중")}으로 변경
                         </button>
                       ) : null}
-                      {currentStatus !== "예약중" ? (
+                      {currentStatus !== "예약중" && !statusDone ? (
                         <button
                           type="button"
                           onClick={() => void handleStatusChange("예약중")}
@@ -800,13 +819,15 @@ const ProductClient = ({
                           {statusText("예약중")}으로 변경
                         </button>
                       ) : null}
-                      <button
-                        type="button"
-                        onClick={() => void handleSold()}
-                        className="block w-full border-t border-app-line px-4 py-3.5 text-left text-[15px] text-app-text hover:bg-app-surface"
-                      >
-                        {adoptionSideDoneAction(product) ?? "분양완료로 변경"}
-                      </button>
+                      {!statusDone ? (
+                        <button
+                          type="button"
+                          onClick={() => void handleSold()}
+                          className="block w-full border-t border-app-line px-4 py-3.5 text-left text-[15px] text-app-text hover:bg-app-surface"
+                        >
+                          {adoptionSideDoneAction(product) ?? "분양완료로 변경"}
+                        </button>
+                      ) : null}
                     </div>
                   ) : null}
 

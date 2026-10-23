@@ -17,6 +17,7 @@ import type { CategoriesResponse } from "@libs/shared/categories";
 import {
   PET_PICK_GRID_CARDS,
   PET_PICK_NONE_CARD,
+  PET_PICK_SUB,
   pathsForPetPicks,
   petPicksForPaths,
   togglePetPick,
@@ -116,9 +117,7 @@ export function PetPickForm({
       >
         어떤 아이를 키우시나요?
       </h2>
-      <p className="mt-2 break-keep text-[15px] leading-[22px] text-app-muted">
-        고른 아이들 소식을 먼저 보여 드려요. 여러 개 골라도 돼요.
-      </p>
+      <p className="mt-2 break-keep text-[15px] leading-[22px] text-app-muted">{PET_PICK_SUB}</p>
 
       {error && !data ? (
         <QueryErrorState onRetry={() => void mutate()} />

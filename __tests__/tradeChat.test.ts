@@ -32,4 +32,23 @@ describe("chatProductAction", () => {
     expect(chatProductAction({ ...sold, viewerId: 2, purchaseConfirmed: true })).toBe("review");
     expect(chatProductAction({ ...sold, viewerId: 3 })).toBeNull();
   });
+
+  it("임보 글(noTrade)은 분양자·입양자 모두 버튼이 없다(앱 docs/prd/pet-space.md §16)", () => {
+    const foster: TradeState = {
+      viewerId: 1,
+      sellerId: 1,
+      status: "판매중",
+      buyerId: null,
+      buyerSource: null,
+      purchaseConfirmed: false,
+      hasReview: false,
+      hasReply: false,
+      isDeleted: false,
+      noTrade: true,
+    };
+    expect(chatProductAction(foster)).toBeNull();
+    expect(
+      chatProductAction({ ...foster, status: "판매완료", buyerId: 2, buyerSource: "bredy", viewerId: 2 })
+    ).toBeNull();
+  });
 });

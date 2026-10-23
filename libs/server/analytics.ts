@@ -45,7 +45,10 @@ export type ServerAnalyticsEvent =
   | "adopter_assigned"
   | "adoption_confirmed"
   | "trade_review_created"
-  | "trade_review_replied";
+  | "trade_review_replied"
+  // 임보 구해요 글 닫기·다시 열기(앱 docs/prd/pet-space.md §10·§16, 거래 기록 없이 상태만 바꾼다)
+  | "foster_found"
+  | "foster_reopened";
 
 export type ClientPlatform = "app" | "web";
 

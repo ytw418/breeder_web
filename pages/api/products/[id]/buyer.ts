@@ -22,7 +22,7 @@ import {
   withTradeLock,
 } from "@libs/server/trade";
 import { parseBuyerChoice, validateBuyerCandidate, type BuyerChoice } from "@libs/server/tradeCandidates";
-import { SOLD_PRODUCT_STATUS, type TradeBuyerSource } from "@libs/shared/tradeReview";
+import { SOLD_PRODUCT_STATUS, isTradelessDeal, type TradeBuyerSource } from "@libs/shared/tradeReview";
 
 /**
  * POST /api/products/:id/buyer {buyerId?, buyerExternal?, clear?} — 분양완료한 글의 입양자 지정·바꾸기·해제
@@ -48,6 +48,8 @@ async function handler(req: NextApiRequest, res: NextApiResponse) {
   if (product.userId !== user.id && !canEditAnyContent(user)) {
     return res.status(403).json({ success: false, message: "권한이 없습니다.", errorCode: "FORBIDDEN" });
   }
+  // 임보 글은 입양자를 두지 않는다(앱 docs/prd/pet-space.md §16).
+  if (isTradelessDeal(product.dealType)) return sendTradeError(res, tradeErrors.noTrade());
   const choice = parseBuyerChoice(req.body);
   if (!choice || choice.kind === "empty") return sendTradeError(res, tradeErrors.invalidBuyer());
   if (product.status !== SOLD_PRODUCT_STATUS) return sendTradeError(res, tradeErrors.notSoldForBuyer());

@@ -59,6 +59,7 @@ export const ANALYTICS_EVENTS = {
   petWriteStep: "pet_write_step",
   fosterRaiseHand: "foster_raise_hand",
   otherPetsFeedView: "other_pets_feed_view",
+  otherPetsFeedOpen: "other_pets_feed_open",
   sentryExampleClientErrorClicked: "sentry_example_client_error_clicked",
   sentryExampleApiErrorClicked: "sentry_example_api_error_clicked",
   sentryExampleApiErrorReceived: "sentry_example_api_error_received",

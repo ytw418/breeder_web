@@ -8,6 +8,7 @@ import {
   dogCatSaleFilters,
   dogCatSortButtonLabel,
   dogCatSortOptions,
+  FOSTER_RULES_AGREEMENT,
   fosterListHref,
   fosterPeriodLabel,
   fosterSupportLabel,
@@ -16,6 +17,10 @@ import {
   isAdoptionChip,
   isDogCatOnly,
   isNoPriceCategory,
+  isRealDateString,
+  kstToday,
+  newPetWriteAttemptId,
+  OTHER_PETS_FEED_OPEN,
   otherPetsFeedSub,
   parsePetInfo,
   PET_POST_KINDS,
@@ -23,10 +28,12 @@ import {
   PET_WRITE_STEP_TITLES,
   PET_PICK_GRID_CARDS,
   PET_PICK_NONE_CARD,
+  PET_PICK_SUB,
   pathsForPetPicks,
   petBarSummary,
   petFacts,
   petDescriptionPlaceholder,
+  petInfoError,
   petInfoRows,
   petPicksForPaths,
   petPostPlace,
@@ -101,6 +108,11 @@ describe("첫 질문 카드(앱 docs/prd/pet-space.md §4)", () => {
     ]);
     expect(PET_PICK_NONE_CARD.id).toBe("none");
     expect(PET_PICK_NONE_CARD.paths).toEqual([]);
+  });
+
+  it("제목 아래 안내는 아직 아이가 없는 입양 희망자도 키우고 싶은 아이를 고르게 한다(2026-10-24 코덱스 기획 리뷰)", () => {
+    expect(PET_PICK_SUB).toContain("키우고 싶은 아이도");
+    expect(PET_PICK_SUB).toContain("여러 개");
   });
 
   it("카드 보조 글은 360 폭 칸 한 줄에 들어간다(토스 리뷰 시안 ① — 두 줄로 접히는 칸만 커졌다)", () => {
@@ -246,6 +258,11 @@ describe("홈 '다른 아이들 소식'(§5.7)", () => {
     expect(otherPetsFeedSub(false)).toContain("다 봤어요");
     expect(otherPetsFeedSub(true)).toContain("올라오는 동안");
   });
+
+  it("고른 분야 밖 글이라는 걸 안내와 여는 버튼에서 먼저 알린다(2026-10-24 코덱스 기획 리뷰 — 눌러야 열린다)", () => {
+    for (const scopedEmpty of [true, false]) expect(otherPetsFeedSub(scopedEmpty)).toContain("다른 분야");
+    expect(OTHER_PETS_FEED_OPEN).toBe("다른 분야 글 보기");
+  });
 });
 
 describe("강아지·고양이 분양글(§5.5)", () => {
@@ -278,8 +295,13 @@ describe("강아지·고양이 분양글(§5.5)", () => {
     expect(petFacts(parsePetInfo({ health: ["vaccinating", "vaccinated"] })).map((fact) => fact.label)).toEqual(["접종 중"]);
   });
 
-  it("임보 기간은 날짜를 고른 때만 날짜를 남긴다", () => {
+  it("임보 기간은 날짜를 고른 때만, 달력에 있는 날짜만 남긴다", () => {
     expect(parsePetInfo({ fosterPeriod: "2w", fosterUntil: "2026-11-30" })).toEqual({ fosterPeriod: "2w" });
+    // 2026-10-24 코덱스 기획 리뷰 — 형식만 보던 때는 2026-99-99 가 저장됐다.
+    expect(parsePetInfo({ fosterPeriod: "date", fosterUntil: "2026-99-99" })).toEqual({ fosterPeriod: "date" });
+    expect(parsePetInfo({ fosterPeriod: "date", fosterUntil: "2026-02-30" })).toEqual({ fosterPeriod: "date" });
+    expect(isRealDateString("2028-02-29")).toBe(true);
+    expect(isRealDateString("2026-11-30T00:00")).toBe(false);
     expect(fosterPeriodLabel(parsePetInfo({ fosterPeriod: "date", fosterUntil: "2026-11-30" }))).toBe("11월 30일까지");
     expect(fosterPeriodLabel({ fosterPeriod: "open" })).toBe("가족 찾을 때까지");
     expect(fosterPeriodLabel({ fosterPeriod: "date" })).toBeNull();
@@ -638,6 +660,13 @@ describe("강아지·고양이 글쓰기 단계·동의(§5.11, 토스 리뷰 �
     expect(petWriteProgress(3)).toBe(1);
   });
 
+  it("작성 시도 id 는 시각·난수로 만든 짧은 글자다(같은 시각에도 난수가 다르면 다르다)", () => {
+    expect(newPetWriteAttemptId(0, 0)).toBe("0-000000");
+    expect(newPetWriteAttemptId(1_793_000_000_000, 0.5)).toMatch(/^[0-9a-z]+-[0-9a-z]{6}$/);
+    expect(newPetWriteAttemptId(1, 0.1)).not.toBe(newPetWriteAttemptId(1, 0.2));
+    expect(newPetWriteAttemptId()).toMatch(/^[0-9a-z]+-[0-9a-z]{6}$/);
+  });
+
   it("단계 제목은 질문 한 줄이다", () => {
     expect(PET_WRITE_STEP_TITLES).toEqual({
       1: "어떤 글인가요?",
@@ -646,13 +675,57 @@ describe("강아지·고양이 글쓰기 단계·동의(§5.11, 토스 리뷰 �
     });
   });
 
-  it("강아지·고양이 글 동의는 2개월·영리 분양 규칙을 한 줄로, 다른 글은 거래 금지 종·신고 문구 그대로다", () => {
-    expect(tradeRulesAgreementLabel(true)).toBe(PET_TRADE_RULES_AGREEMENT);
+  it("동의는 글 종류마다: 분양해요·가족 찾아요는 2개월·영리 분양 규칙, 임보 구해요는 맡기는 사람의 약속, 다른 글은 그대로", () => {
+    expect(tradeRulesAgreementLabel("adoption")).toBe(PET_TRADE_RULES_AGREEMENT);
+    expect(tradeRulesAgreementLabel("rehoming")).toBe(PET_TRADE_RULES_AGREEMENT);
     expect(PET_TRADE_RULES_AGREEMENT).toContain("2개월");
-    expect(PET_TRADE_RULES_AGREEMENT).toContain("돈을 벌려는 목적 없이");
+    // 임보는 새 가족에게 보내는 글이 아니다(2026-10-24 코덱스 기획 리뷰) — 2개월·분양 약속을 받지 않는다.
+    expect(tradeRulesAgreementLabel("foster")).toBe(FOSTER_RULES_AGREEMENT);
+    expect(FOSTER_RULES_AGREEMENT).not.toContain("2개월");
+    expect(FOSTER_RULES_AGREEMENT).not.toContain("분양");
     // 360 폭 동의 줄(체크 상자·'자세히' 옆)에서 두 줄을 넘지 않게 다른 글 문구(30자)만큼 짧게 둔다.
-    expect(PET_TRADE_RULES_AGREEMENT.length).toBeLessThanOrEqual(TRADE_RULES_AGREEMENT.length + 2);
-    expect(tradeRulesAgreementLabel(false)).toBe(TRADE_RULES_AGREEMENT);
+    for (const label of [PET_TRADE_RULES_AGREEMENT, FOSTER_RULES_AGREEMENT]) {
+      expect(label.length).toBeLessThanOrEqual(TRADE_RULES_AGREEMENT.length + 2);
+    }
+    expect(tradeRulesAgreementLabel(null)).toBe(TRADE_RULES_AGREEMENT);
     expect(TRADE_RULES_AGREEMENT).toBe("분양할 수 없는 종이 아니에요. 필요한 신고도 할게요");
+  });
+});
+
+describe("임보 기간·날짜 검사(petInfoError, 2026-10-24 코덱스 기획 리뷰)", () => {
+  const today = "2026-10-24";
+
+  it("임보 구해요만 기간을 꼭 고른다 — 다른 글 종류는 정보가 없어도 된다", () => {
+    expect(petInfoError("foster", null, { today })).toBe("임보 기간을 골라 주세요");
+    expect(petInfoError("foster", { sex: "male" }, { today })).toBe("임보 기간을 골라 주세요");
+    expect(petInfoError("foster", { fosterPeriod: "open" }, { today })).toBeNull();
+    expect(petInfoError("adoption", null, { today })).toBeNull();
+    expect(petInfoError("rehoming", {}, { today })).toBeNull();
+    expect(petInfoError(null, null, { today })).toBeNull();
+  });
+
+  it("'날짜까지'는 달력에 있는 오늘 이후 날짜만", () => {
+    expect(petInfoError("foster", { fosterPeriod: "date" }, { today })).toBe("임보가 끝나는 날짜를 골라 주세요");
+    expect(petInfoError("foster", { fosterPeriod: "date", fosterUntil: "2026-99-99" }, { today })).toBe(
+      "임보가 끝나는 날짜를 골라 주세요"
+    );
+    expect(petInfoError("foster", { fosterPeriod: "date", fosterUntil: "2026-10-23" }, { today })).toBe(
+      "지난 날짜예요. 오늘 이후 날짜를 골라 주세요"
+    );
+    expect(petInfoError("foster", { fosterPeriod: "date", fosterUntil: today }, { today })).toBeNull();
+    expect(petInfoError("foster", { fosterPeriod: "date", fosterUntil: "2027-01-31" }, { today })).toBeNull();
+  });
+
+  it("저장된 날짜를 그대로 두는 수정은 지났어도 받는다", () => {
+    const kept = { fosterPeriod: "date" as const, fosterUntil: "2026-10-01" };
+    expect(petInfoError("foster", kept, { today, keptUntil: "2026-10-01" })).toBeNull();
+    expect(petInfoError("foster", kept, { today, keptUntil: "2026-09-30" })).toBe(
+      "지난 날짜예요. 오늘 이후 날짜를 골라 주세요"
+    );
+  });
+
+  it("오늘은 한국 시간 기준이다", () => {
+    expect(kstToday(new Date("2026-10-23T15:00:00Z"))).toBe("2026-10-24");
+    expect(kstToday(new Date("2026-10-23T14:59:59Z"))).toBe("2026-10-23");
   });
 });
