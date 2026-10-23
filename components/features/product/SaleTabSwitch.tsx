@@ -3,13 +3,10 @@
 import { useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import useSWR from "swr";
 
 import { useCategoryScopeState } from "@libs/client/categoryScope";
 import { cn } from "@libs/client/utils";
-import type { ProductsResponse } from "@libs/shared/home";
 import {
-  adoptionScopePaths,
   SALE_TAB_MODE_LABELS,
   SALE_TAB_SWIPE,
   saleTabModesShowing,
@@ -40,12 +37,12 @@ const readOpened = (mode: SaleTabMode) => {
   }
 };
 
-/** 관심 분야 고정 경로와 분양 탭 칸. 공유 링크로 입양 쪽을 열었는데 강아지·고양이를 고정하지 않았으면 '입양' 칸을 붙여 지금 쪽을 보인다. */
+/** 관심 분야 고정으로 정한 분양 탭 칸. 공유 링크로 입양 쪽을 열었는데 강아지·고양이를 고정하지 않았으면 '입양' 칸을 붙여 지금 쪽을 보인다. */
 function useSaleTabModes(active: SaleTabMode) {
   const { pins } = useCategoryScopeState();
   const paths = useMemo(() => pins.map((pin) => pin.path), [pins]);
   const modes = useMemo(() => saleTabModesShowing(paths, active), [paths, active]);
-  return { paths, modes };
+  return { modes };
 }
 
 /**
@@ -54,11 +51,12 @@ function useSaleTabModes(active: SaleTabMode) {
  * (앱은 한 탭 안에서 ?mode= 로 바꾼다). 칸은 관심 분야 고정으로 정한다(saleTabModes):
  * 파충류 쪽·전체 보기는 '분양 | 경매'(지금 그대로), 강아지·고양이만이면 '분양 | 입양', 섞으면 '분양 | 경매 | 입양',
  * 소동물만이면 한 칸이라 줄을 그리지 않는다.
- * 이번 브라우저 세션에서 경매를 아직 안 열었으면 '경매' 옆에 빨간 'N'(2026-10-22 사용자 "클릭 유도"),
- * 입양 쪽을 안 열었으면 '입양' 옆에 분양중인 임보 구해요 글 수(0이면 없음). 앱은 실행마다.
+ * 이번 브라우저 세션에서 경매·입양 쪽을 아직 안 열었으면 그 칸 옆에 빨간 'N'(2026-10-22 사용자 "클릭 유도"). 앱은 실행마다.
+ * 입양 칸은 임보 구해요 글 수를 빨간 숫자로 달았다가 'N'으로 바꿨다 — 앱 전체에서 빨간 숫자는 안 읽은 알림이고,
+ * 같은 줄 경매는 'N'이라 규칙이 둘이었다(토스 리뷰 시안 ②).
  */
 export default function SaleTabSwitch({ active }: { active: SaleTabMode }) {
-  const { paths, modes } = useSaleTabModes(active);
+  const { modes } = useSaleTabModes(active);
   // 서버 렌더와 맞추려고 처음엔 숨기고, 붙은 뒤 세션 기록을 읽는다.
   const [opened, setOpened] = useState<Record<string, boolean>>({ auctions: true, adoption: true });
   useEffect(() => {
@@ -73,20 +71,6 @@ export default function SaleTabSwitch({ active }: { active: SaleTabMode }) {
     setOpened({ auctions: readOpened("auctions"), adoption: readOpened("adoption") });
   }, [active]);
 
-  const showFosterCount = modes.includes("adoption") && active !== "adoption" && !opened.adoption;
-  const fosterSearch = new URLSearchParams({
-    page: "1",
-    size: "1",
-    dealType: "foster",
-    status: "판매중",
-    categoryPath: adoptionScopePaths(paths).join(","),
-  });
-  const { data: fosterData } = useSWR<ProductsResponse>(
-    showFosterCount ? `/api/products?${fosterSearch.toString()}` : null,
-    { revalidateOnFocus: false }
-  );
-  const fosterCount = showFosterCount ? fosterData?.total ?? 0 : 0;
-
   if (modes.length < 2) return null;
   return (
     <nav
@@ -95,8 +79,7 @@ export default function SaleTabSwitch({ active }: { active: SaleTabMode }) {
     >
       {modes.map((mode) => {
         const selected = mode === active;
-        const showNew = mode === "auctions" && !selected && !opened.auctions;
-        const count = mode === "adoption" && !selected ? fosterCount : 0;
+        const showNew = !selected && opened[mode] === false;
         return (
           <Link
             key={mode}
@@ -112,18 +95,10 @@ export default function SaleTabSwitch({ active }: { active: SaleTabMode }) {
             {SALE_TAB_MODE_LABELS[mode]}
             {showNew ? (
               <span
-                aria-label="새 경매"
+                aria-label={mode === "auctions" ? "새 경매" : "새 입양 글"}
                 className="ml-1 inline-flex h-4 w-4 items-center justify-center rounded-full bg-app-danger text-[11px] font-bold leading-none text-white"
               >
                 N
-              </span>
-            ) : null}
-            {count > 0 ? (
-              <span
-                aria-label={`임보 구해요 ${count}개`}
-                className="ml-1 inline-flex h-4 min-w-4 items-center justify-center rounded-full bg-app-danger px-1 text-[10px] font-bold leading-none text-white"
-              >
-                {count > 9 ? "9+" : count}
               </span>
             ) : null}
             {selected ? <span aria-hidden className="absolute inset-x-0 -bottom-px h-0.5 bg-app-text" /> : null}

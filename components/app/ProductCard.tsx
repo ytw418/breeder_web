@@ -15,7 +15,7 @@ import {
   petPostPlace,
   petThumbTag,
 } from "@libs/shared/petSpace";
-import { PetFactChips } from "@components/features/pet/PetFactChips";
+import { PetFactLine } from "@components/features/pet/PetFactLine";
 
 /** 목록 메타에 조회 수를 보이는 최소값. 작은 숫자는 오히려 빈 티가 나서 숨긴다. */
 export const PRODUCT_VIEW_COUNT_MIN = 10;
@@ -125,7 +125,7 @@ export function ProductCard({
     href === null ? null : href ?? (isInactive ? null : getProductPath(product.id, product.name));
   const hearts = product.wishCount ?? 0;
   const seller = product.seller;
-  // 강아지·고양이 글은 가격이 없다: 가격 줄 대신 정보 칩(없으면 비운다), 썸네일에 이유·임보 기간 딱지.
+  // 강아지·고양이 글은 가격이 없다: 가격 줄 대신 정보 한 줄(없으면 비운다), 썸네일에 이유·임보 기간 딱지.
   const isPet = isNoPriceCategory(product.category);
   const hasPetFacts = isPet && petFacts(parsePetInfo(product.petInfo)).length > 0;
   const thumbTag = petThumbTag(product);
@@ -168,7 +168,7 @@ export function ProductCard({
         ) : null}
       </div>
 
-      <div className={cn("flex min-w-0 flex-1 flex-col", hasPetFacts ? "min-h-[120px]" : "h-[120px]")}>
+      <div className="flex h-[120px] min-w-0 flex-1 flex-col">
         <div className="flex items-start gap-1.5">
           {showDot ? (
             <span
@@ -203,7 +203,7 @@ export function ProductCard({
           </div>
         ) : null}
         {hasPetFacts ? (
-          <PetFactChips petInfo={product.petInfo} className="mt-1.5" />
+          <PetFactLine petInfo={product.petInfo} className="mt-1.5" />
         ) : isPet ? null : (
           <span className="mt-1.5 truncate text-[16px] font-bold text-app-text">
             {productPriceText(product)}
@@ -229,8 +229,7 @@ export function ProductCard({
   return (
     <div
       className={cn(
-        "relative flex items-start gap-3 border-b border-app-line bg-app-bg px-4 py-3.5",
-        hasPetFacts ? "min-h-[148px]" : "h-[148px]",
+        "relative flex h-[148px] items-start gap-3 border-b border-app-line bg-app-bg px-4 py-3.5",
         className
       )}
     >

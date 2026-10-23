@@ -33,28 +33,27 @@ function CheckMark() {
   );
 }
 
-/** 오른쪽 체크 원 22. 카드는 오른쪽 위, '아직 없어요' 넓은 줄은 세로 가운데. */
-function PickCheck({ on, className }: { on: boolean; className: string }) {
+/**
+ * 고른 카드의 체크 원 22. 카드는 오른쪽 위, '아직 없어요' 넓은 줄은 세로 가운데.
+ * 고르기 전엔 빈 동그라미를 그리지 않는다(토스 리뷰 시안 ① — 빈 원 8개가 고르는 일보다 먼저 보였다).
+ */
+function PickCheck({ className }: { className: string }) {
   return (
     <span
       aria-hidden="true"
-      className={cn(
-        "absolute grid h-[22px] w-[22px] place-items-center rounded-full",
-        on ? "bg-app-brand" : "border-[1.5px] border-app-caption bg-app-elevated",
-        className
-      )}
+      className={cn("absolute grid h-[22px] w-[22px] place-items-center rounded-full bg-app-brand", className)}
     >
-      {on ? <CheckMark /> : null}
+      <CheckMark />
     </span>
   );
 }
 
 /**
  * 첫 질문 "어떤 아이를 키우시나요?"(앱 docs/prd/pet-space.md §4, 시안 pet-space/A-karrot.html ①).
- * 2×4 카드(최소 높이 104 r12, 캐릭터 60, 이름 16/600, 보조 12 muted, 오른쪽 위 체크 22), 여러 개 선택.
- * '아직 없어요'는 카드 아래 넓은 줄(최소 높이 64, 캐릭터 44, 체크 세로 가운데) — 식물 카드가 따로 생겨 9장이 됐다(§12.2).
- * 이름은 캐릭터 바로 아래에 둔다(시안은 아래 정렬 — 보조 글이 두 줄로 접히는 칸과 한 줄인 칸의 이름 높이가 어긋났다,
- * 2026-10-23 브라우저 테스트). 시작 버튼은 스크롤해도 아래에 붙어 있다(시트에선 카드가 화면보다 길다).
+ * 2×4 카드(높이 112 r12, 캐릭터 50, 이름 16/600, 보조 12 muted 한 줄, 고른 카드만 오른쪽 위 체크 22), 여러 개 선택.
+ * 높이는 모든 카드가 같다 — 보조 글이 두 줄로 접히던 칸만 커져 격자가 들쭉날쭉했다(토스 리뷰 시안 ①, pet-space/B-toss.html).
+ * '아직 없어요'는 카드 아래 넓은 줄(높이 64, 캐릭터 44, 체크 세로 가운데) — 식물 카드가 따로 생겨 9장이 됐다(§12.2).
+ * 이름은 캐릭터 바로 아래에 둔다. 시작 버튼은 스크롤해도 아래에 붙어 있다(시트에선 카드가 화면보다 길다).
  * '아직 없어요'는 다른 카드와 같이 고를 수 없다. 고르면 관심 분야 고정을 그 묶음으로 바꾸고(속은 지금 고정 그대로)
  * 마친 것으로 둔다. '건너뛰기'는 전체 보기. '종까지 자세히 고르기 ›'는 지금 트리 화면(onDetail).
  * 홈 첫 방문 시트(CategoryOnboardingPrompt)와 로그인 직후 /onboarding 이 같이 쓴다. 마친 뒤 어디로 갈지는 부르는 쪽이 정한다(홈).
@@ -137,18 +136,18 @@ export function PetPickForm({
                   disabled={saving}
                   onClick={() => setPicked(togglePetPick(selected, card.id))}
                   className={cn(
-                    "relative flex min-h-[104px] flex-col justify-start rounded-xl p-3.5 text-left transition-colors",
+                    "relative flex min-h-[112px] flex-col justify-start rounded-xl pb-2 pl-3.5 pr-3 pt-2.5 text-left transition-colors",
                     on ? "bg-app-brand-surface ring-[1.5px] ring-inset ring-app-brand" : "bg-app-gap"
                   )}
                 >
-                  <PetCharacter art={card.art} size={60} className="-ml-1.5 -mt-1.5 shrink-0" />
-                  <span className="block min-w-0">
+                  <PetCharacter art={card.art} size={50} className="-ml-[3px] shrink-0" />
+                  <span className="mt-1 block w-full min-w-0">
                     <span className="block text-[16px] font-semibold leading-[22px] text-app-text">{card.label}</span>
                     {card.sub ? (
-                      <span className="mt-0.5 block break-keep text-[12px] leading-4 text-app-muted">{card.sub}</span>
+                      <span className="mt-0.5 block truncate text-[12px] leading-4 text-app-muted">{card.sub}</span>
                     ) : null}
                   </span>
-                  <PickCheck on={on} className="right-3 top-3" />
+                  {on ? <PickCheck className="right-3 top-3" /> : null}
                 </button>
               );
             })}
@@ -171,7 +170,7 @@ export function PetPickForm({
               </span>
               <span className="mt-0.5 block text-[12px] leading-4 text-app-muted">{PET_PICK_NONE_CARD.sub}</span>
             </span>
-            <PickCheck on={noneOn} className="right-3 top-1/2 -translate-y-1/2" />
+            {noneOn ? <PickCheck className="right-3 top-1/2 -translate-y-1/2" /> : null}
           </button>
         </div>
       )}

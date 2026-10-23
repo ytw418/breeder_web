@@ -10,11 +10,13 @@ import SaleTabSwitch, { SaleTabSwipeArea } from "@components/features/product/Sa
 import FloatingButton, { FAB_LIST_BOTTOM_PADDING_CLASS } from "@components/atoms/floating-button";
 import CategoryScopeBar from "@components/features/category/CategoryScopeBar";
 import FreeGiveawaySection from "@components/features/product/FreeGiveawaySection";
+import SaleSortSheet from "@components/features/pet/SaleSortSheet";
 import { FilterChip, FilterChipRail } from "@components/app/FilterChip";
 import { ProductCard } from "@components/app/ProductCard";
 import CoupangBanner from "@components/app/ads/CoupangBanner";
 import { getCoupangWebConfig } from "@libs/client/adsConfig";
 import { withAdRows } from "@libs/shared/ads/adRows";
+import { cn } from "@libs/client/utils";
 import { QueryErrorState } from "@components/app/QueryErrorState";
 import { RetryFooter } from "@components/app/RetryFooter";
 import { PRODUCT_TYPES } from "@libs/constants";
@@ -40,6 +42,7 @@ import useBlocks from "hooks/useBlocks";
 import useCategoryScope, { withCategoryPath, withinScope } from "hooks/useCategoryScope";
 import {
   dogCatSaleFilters,
+  dogCatSortButtonLabel,
   dogCatSortOptions,
   hasDogCatPin,
   isDogCatOnly,
@@ -58,7 +61,8 @@ const CATEGORY_TABS = [{ id: "전체", name: "전체" }, ...TOP_LEVEL_CATEGORIES
 
 /**
  * 분양 탭(docs/prd/home-ia.md S-2, 2026-10-15 홈 구성 A안 — 앱 src/app/(tabs)/products.tsx).
- * 필터 블록(대분류·하위분류·정렬·타입·분양중만·가격)을 헤더 아래 고정하고, 그 아래 무료 분양 섹션(분류만 고른 상태),
+ * 필터 블록(대분류·하위분류·정렬·타입·분양중만·가격)을 헤더 아래 고정하고 — 강아지·고양이만 고정했으면 종 칩 한 줄 끝 정렬 버튼
+ * 하나(정렬·'분양중만'은 그 시트 안, 토스 리뷰 시안 ③) — 그 아래 무료 분양 섹션(분류만 고른 상태),
  * 필터를 걸었을 때 '초기화', 분양글 행을 그린다. 개수 총계("전체 N개")는 보이지 않는다(community-vibe §3.1).
  * 필터는 화면 상태로 두되 바꿀 때마다 URL 에 적고(router.replace), URL 이 바뀌면(링크·뒤로가기) 다시 읽는다.
  * 그래서 상세에 갔다가 뒤로 오면 고른 필터가 그대로다(홈 "분양 더 보기 ›", 무료 분양 '전체 보기', 하위분류 링크).
@@ -87,6 +91,7 @@ export default function ProductsClient({ initialParams }: { initialParams: Produ
     router.replace(next ? `${pathname}?${next}` : pathname || "/products", { scroll: false });
   }, [filters, pathname, router]);
   const [priceSheetOpen, setPriceSheetOpen] = useState(false);
+  const [sortSheetOpen, setSortSheetOpen] = useState(false);
   const categoryRailRef = useRef<HTMLDivElement>(null);
   useRailScroll(categoryRailRef);
   const sentinelRef = useRef<HTMLDivElement>(null);
@@ -241,7 +246,11 @@ export default function ProductsClient({ initialParams }: { initialParams: Produ
       <SaleTabSwipeArea active="products">
         {/* 필터 블록(헤더 아래 고정) */}
         <div className="sticky top-14 z-10 border-b border-app-line bg-app-bg">
-          <div ref={categoryRailRef} className="flex h-11 items-center gap-2 overflow-x-auto px-4 scrollbar-hide">
+          {/* 강아지·고양이만이면 정렬·'분양중만'이 이 줄 오른쪽 끝 버튼 하나다(토스 리뷰 시안 ③) — 버튼 글자 끝이 여백 16에 오게 오른쪽 여백을 줄인다. */}
+          <div
+            ref={categoryRailRef}
+            className={cn("flex h-11 items-center gap-2 overflow-x-auto pl-4 scrollbar-hide", dogCatOnly ? "pr-2" : "pr-4")}
+          >
             <FilterChip
               label="전체"
               selected={activeFilters.category === "전체"}
@@ -266,6 +275,22 @@ export default function ProductsClient({ initialParams }: { initialParams: Produ
                 />
               );
             })}
+            {dogCatOnly ? (
+              <button
+                type="button"
+                aria-haspopup="dialog"
+                onClick={() => setSortSheetOpen(true)}
+                className="ml-auto flex h-8 shrink-0 items-center gap-0.5 whitespace-nowrap px-2 text-[13px] font-medium text-app-text"
+              >
+                {dogCatSortButtonLabel(
+                  PRODUCT_SORT_OPTIONS.find((option) => option.value === activeFilters.sort)?.label ?? "최신순",
+                  activeFilters.onSaleOnly
+                )}
+                <svg className="h-3 w-3 text-app-muted" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M19 9l-7 7-7-7" />
+                </svg>
+              </button>
+            ) : null}
           </div>
 
           {subcategories.length ? (
@@ -295,41 +320,39 @@ export default function ProductsClient({ initialParams }: { initialParams: Produ
             </FilterChipRail>
           ) : null}
 
-          <FilterChipRail>
-            <SortDropdown
-              value={activeFilters.sort}
-              onChange={(value) => updateFilters({ ...activeFilters, sort: value as ProductSort })}
-              ariaLabel="정렬 기준"
-              options={dogCatOnly ? dogCatSortOptions(PRODUCT_SORT_OPTIONS) : PRODUCT_SORT_OPTIONS}
-            />
-            {dogCatOnly
-              ? null
-              : PRODUCT_TYPES.map((type) => (
-                  <FilterChip
-                    key={type.id}
-                    label={type.name}
-                    selected={activeFilters.productType === type.id}
-                    onClick={() =>
-                      updateFilters({
-                        ...activeFilters,
-                        productType: activeFilters.productType === type.id ? "" : type.id,
-                      })
-                    }
-                  />
-                ))}
-            <FilterChip
-              label="분양중만"
-              selected={activeFilters.onSaleOnly}
-              onClick={() => updateFilters({ ...activeFilters, onSaleOnly: !activeFilters.onSaleOnly })}
-            />
-            {dogCatOnly ? null : (
+          {dogCatOnly ? null : (
+            <FilterChipRail>
+              <SortDropdown
+                value={activeFilters.sort}
+                onChange={(value) => updateFilters({ ...activeFilters, sort: value as ProductSort })}
+                ariaLabel="정렬 기준"
+                options={PRODUCT_SORT_OPTIONS}
+              />
+              {PRODUCT_TYPES.map((type) => (
+                <FilterChip
+                  key={type.id}
+                  label={type.name}
+                  selected={activeFilters.productType === type.id}
+                  onClick={() =>
+                    updateFilters({
+                      ...activeFilters,
+                      productType: activeFilters.productType === type.id ? "" : type.id,
+                    })
+                  }
+                />
+              ))}
+              <FilterChip
+                label="분양중만"
+                selected={activeFilters.onSaleOnly}
+                onClick={() => updateFilters({ ...activeFilters, onSaleOnly: !activeFilters.onSaleOnly })}
+              />
               <FilterChip
                 label={priceChipLabel(activeFilters)}
                 selected={hasPriceFilter(activeFilters)}
                 onClick={() => setPriceSheetOpen(true)}
               />
-            )}
-          </FilterChipRail>
+            </FilterChipRail>
+          )}
         </div>
 
         {showFree ? (
@@ -421,6 +444,18 @@ export default function ProductsClient({ initialParams }: { initialParams: Produ
           }
           onClose={() => setPriceSheetOpen(false)}
         />
+        {/* 강아지·고양이만: 정렬 + '분양중인 글만 보기'(토스 리뷰 시안 ③). 열 때마다 지금 값에서 시작한다. */}
+        {sortSheetOpen ? (
+          <SaleSortSheet
+            options={dogCatSortOptions(PRODUCT_SORT_OPTIONS)}
+            sort={activeFilters.sort}
+            onSaleOnly={activeFilters.onSaleOnly}
+            onApply={(next) =>
+              updateFilters({ ...activeFilters, sort: next.sort as ProductSort, onSaleOnly: next.onSaleOnly })
+            }
+            onClose={() => setSortSheetOpen(false)}
+          />
+        ) : null}
       </SaleTabSwipeArea>
     </Layout>
   );

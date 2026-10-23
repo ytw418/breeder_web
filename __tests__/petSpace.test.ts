@@ -1,19 +1,26 @@
 import {
+  adoptionChipPath,
+  adoptionChips,
   adoptionScopePaths,
   adoptionSideDoneAction,
   adoptionSideStatusLabel,
   adoptionWriteSpecies,
   dogCatSaleFilters,
+  dogCatSortButtonLabel,
   dogCatSortOptions,
+  fosterListHref,
   fosterPeriodLabel,
   fosterSupportLabel,
   hasDogCatPin,
   isAdoptionSideDealType,
+  isAdoptionChip,
   isDogCatOnly,
   isNoPriceCategory,
   otherPetsFeedSub,
   parsePetInfo,
   PET_POST_KINDS,
+  PET_TRADE_RULES_AGREEMENT,
+  PET_WRITE_STEP_TITLES,
   PET_PICK_GRID_CARDS,
   PET_PICK_NONE_CARD,
   pathsForPetPicks,
@@ -30,6 +37,9 @@ import {
   petThumbTag,
   petTitlePlaceholder,
   petWriteDefaults,
+  petWritePrevStep,
+  petWriteProgress,
+  petWriteStartStep,
   productWriteLabels,
   saleSpeciesChips,
   saleSubcategoryNames,
@@ -42,6 +52,8 @@ import {
   spaceLabelParts,
   togglePetHealth,
   togglePetPick,
+  TRADE_RULES_AGREEMENT,
+  tradeRulesAgreementLabel,
 } from "@libs/shared/petSpace";
 
 /** 앱 scripts/web-tests/petSpace.test.ts 와 같은 파일(npm run test:pet-space). */
@@ -89,6 +101,10 @@ describe("첫 질문 카드(앱 docs/prd/pet-space.md §4)", () => {
     ]);
     expect(PET_PICK_NONE_CARD.id).toBe("none");
     expect(PET_PICK_NONE_CARD.paths).toEqual([]);
+  });
+
+  it("카드 보조 글은 360 폭 칸 한 줄에 들어간다(토스 리뷰 시안 ① — 두 줄로 접히는 칸만 커졌다)", () => {
+    for (const card of PET_PICK_GRID_CARDS) expect(card.sub.length).toBeLessThanOrEqual(11);
   });
 
   it("거의 다 골라도 고정 상한(16)을 넘지 않는다", () => {
@@ -206,6 +222,11 @@ describe("공간·분양 탭 전환(§5.1·5.2)", () => {
       { value: "priceDesc", label: "가격 높은순" },
     ];
     expect(dogCatSortOptions(sorts).map((option) => option.label)).toEqual(["최신순", "인기순"]);
+  });
+
+  it("정렬 버튼은 '분양중만'을 켜 두면 글자에 붙인다(토스 리뷰 시안 ③ — 정렬 시트 안 체크)", () => {
+    expect(dogCatSortButtonLabel("최신순", false)).toBe("최신순");
+    expect(dogCatSortButtonLabel("인기순", true)).toBe("인기순 · 분양중만");
   });
 });
 
@@ -397,6 +418,23 @@ describe("분양 쪽 종 칩(§5.3, 시안 ②④)", () => {
   });
 });
 
+describe("입양 쪽 칩·임보 전체 목록(§5.4, 토스 리뷰 시안 ④)", () => {
+  it("칩은 종만 — 강아지·고양이를 둘 다 볼 때만 '전체 · 강아지 · 고양이', 한 종이면 칩 줄이 없다", () => {
+    expect(adoptionChips(["/mammal/dog/", "/mammal/cat/"])).toEqual(["all", "dog", "cat"]);
+    expect(adoptionChips(["/mammal/dog/"])).toEqual([]);
+    expect(isAdoptionChip("foster")).toBe(false);
+    expect(isAdoptionChip("cat")).toBe(true);
+  });
+
+  it("칩에 맞는 범위와 임보 전체 목록 주소", () => {
+    const both = ["/mammal/dog/", "/mammal/cat/"];
+    expect(adoptionChipPath(both, "all")).toBe("/mammal/dog/,/mammal/cat/");
+    expect(adoptionChipPath(both, "cat")).toBe("/mammal/cat/");
+    expect(fosterListHref("all")).toBe("/adoption/foster");
+    expect(fosterListHref("dog")).toBe("/adoption/foster?chip=dog");
+  });
+});
+
 describe("입양 쪽 글쓰기 종(§5.4)", () => {
   it("종 칩이나 한 종뿐인 범위면 그 종을 미리 고른다", () => {
     expect(adoptionWriteSpecies(["/mammal/dog/", "/mammal/cat/"], "cat")).toBe("고양이");
@@ -579,5 +617,42 @@ describe("토스 디자인 리뷰 바로 고칠 것(2026-10-23, 앱 docs/prd/pet
     for (const kind of PET_POST_KINDS) {
       expect(kind.hint).not.toMatch(/쪽|\./);
     }
+  });
+});
+
+describe("강아지·고양이 글쓰기 단계·동의(§5.11, 토스 리뷰 결정 A·D)", () => {
+  it("입양 쪽 글쓰기처럼 글 종류를 정해 왔으면 ②에서, 아니면 ①에서 시작한다", () => {
+    expect(petWriteStartStep(true)).toBe(2);
+    expect(petWriteStartStep(false)).toBe(1);
+  });
+
+  it("뒤로는 한 단계씩, ①에서는 닫는다", () => {
+    expect(petWritePrevStep(3)).toBe(2);
+    expect(petWritePrevStep(2)).toBe(1);
+    expect(petWritePrevStep(1)).toBeNull();
+  });
+
+  it("막대는 ① 1/3 · ② 2/3 · ③ 끝까지 찬다", () => {
+    expect(petWriteProgress(1)).toBe(1 / 3);
+    expect(petWriteProgress(2)).toBe(2 / 3);
+    expect(petWriteProgress(3)).toBe(1);
+  });
+
+  it("단계 제목은 질문 한 줄이다", () => {
+    expect(PET_WRITE_STEP_TITLES).toEqual({
+      1: "어떤 글인가요?",
+      2: "어떤 아이인가요?",
+      3: "마지막으로 글을 써 주세요",
+    });
+  });
+
+  it("강아지·고양이 글 동의는 2개월·영리 분양 규칙을 한 줄로, 다른 글은 거래 금지 종·신고 문구 그대로다", () => {
+    expect(tradeRulesAgreementLabel(true)).toBe(PET_TRADE_RULES_AGREEMENT);
+    expect(PET_TRADE_RULES_AGREEMENT).toContain("2개월");
+    expect(PET_TRADE_RULES_AGREEMENT).toContain("돈을 벌려는 목적 없이");
+    // 360 폭 동의 줄(체크 상자·'자세히' 옆)에서 두 줄을 넘지 않게 다른 글 문구(30자)만큼 짧게 둔다.
+    expect(PET_TRADE_RULES_AGREEMENT.length).toBeLessThanOrEqual(TRADE_RULES_AGREEMENT.length + 2);
+    expect(tradeRulesAgreementLabel(false)).toBe(TRADE_RULES_AGREEMENT);
+    expect(TRADE_RULES_AGREEMENT).toBe("분양할 수 없는 종이 아니에요. 필요한 신고도 할게요");
   });
 });

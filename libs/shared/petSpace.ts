@@ -34,7 +34,7 @@ export type PetArt = "dog" | "cat" | "hamster" | "lizard" | "beetle" | "fish" | 
 export interface PetPickCard {
   id: PetPickId;
   label: string;
-  /** 카드 아래 작은 글씨. 없으면 비운다. */
+  /** 카드 아래 작은 글씨. 360 폭 카드 한 줄에 들어가게 짧게 쓴다(넘치면 말줄임). 없으면 비운다. */
   sub: string;
   /** 고정할 카테고리 path. 'none'(아직 없어요)은 비어 있다 = 전체 보기. */
   paths: readonly string[];
@@ -57,10 +57,11 @@ const MAMMAL_PATH = "/mammal/";
 export const PET_PICK_CARDS: readonly PetPickCard[] = [
   { id: "dog", label: "강아지", sub: "", paths: [DOG_PATH], art: "dog" },
   { id: "cat", label: "고양이", sub: "", paths: [CAT_PATH], art: "cat" },
-  { id: "small", label: "소동물", sub: "햄스터·기니피그·토끼·고슴도치", paths: SMALL_MAMMAL_PATHS, art: "hamster" },
+  // 보조 글은 한 줄('… 등') — 두 줄로 접히는 칸만 커져 격자가 들쭉날쭉했다(토스 리뷰 시안 ①).
+  { id: "small", label: "소동물", sub: "햄스터·토끼 등", paths: SMALL_MAMMAL_PATHS, art: "hamster" },
   { id: "reptile", label: "파충류", sub: "게코·뱀·거북", paths: ["/reptile/"], art: "lizard" },
   // 타란튤라는 곤충이 아니라 절지류다(앱 분류 이름 '절지류'와 같게, 2026-10-23 페르소나 리뷰).
-  { id: "insect", label: "곤충·절지류", sub: "사슴벌레·장수풍뎅이·타란튤라", paths: ["/insect/", "/arthropod/"], art: "beetle" },
+  { id: "insect", label: "곤충·절지류", sub: "사슴벌레·타란튤라 등", paths: ["/insect/", "/arthropod/"], art: "beetle" },
   // 어항을 하는 사람은 수초도 같이 본다(수초는 분류상 식물 > 수초).
   { id: "fish", label: "물고기", sub: "구피·베타·수초", paths: ["/fish/", "/plant/aquatic-plant/"], art: "fish" },
   // 식물은 '양서류·기타' 안에 있다가 따로 나왔다(2026-10-23 페르소나 리뷰 — 식물 키우는 50대가 첫 화면에서 못 찾았다).
@@ -233,12 +234,48 @@ export function dogCatSaleFilters<F extends { productType: string; sort: string;
 }
 
 /**
+ * 강아지·고양이만 고정한 분양 쪽 정렬 버튼 글자. 종 칩 줄 오른쪽 끝 버튼 하나가 정렬과 '분양중만'을 같이 연다
+ * (토스 리뷰 시안 ③ — 칩 줄과 정렬·분양중만 줄 두 줄을 한 줄로). '분양중만'을 켜 두었으면 시트를 열지 않아도 보이게 붙인다.
+ */
+export function dogCatSortButtonLabel(sortLabel: string, onSaleOnly: boolean): string {
+  return onSaleOnly ? `${sortLabel} · 분양중만` : sortLabel;
+}
+
+/**
  * 입양 쪽 목록 범위(categoryPath): 고정 중 강아지·고양이 아래만. 포유류 전체·고정 없음이면 강아지·고양이 둘 다.
  * 늘 강아지·고양이 안에서만 찾아 다른 종의 옛 '가족 찾아요'(rehoming) 글이 섞이지 않게 한다.
  */
 export function adoptionScopePaths(paths: readonly string[]): string[] {
   const inside = paths.filter((path) => path.startsWith(DOG_PATH) || path.startsWith(CAT_PATH));
   return inside.length ? Array.from(new Set(inside)) : [DOG_PATH, CAT_PATH];
+}
+
+/** 입양 쪽 칩. 종만 둔다 — 글 종류(임보 구해요·가족 찾아요) 칩은 아래 두 섹션이 이미 나눠 보여 줘서 뺐다(토스 리뷰 시안 ④). */
+export type AdoptionChip = "all" | "dog" | "cat";
+
+export const ADOPTION_CHIP_LABELS: Record<AdoptionChip, string> = { all: "전체", dog: "강아지", cat: "고양이" };
+
+export const isAdoptionChip = (value: unknown): value is AdoptionChip =>
+  value === "all" || value === "dog" || value === "cat";
+
+/** 입양 쪽 칩 줄: 강아지·고양이를 둘 다 볼 때만 '전체 · 강아지 · 고양이'(분양 쪽과 같다). 한 종이면 고를 게 없어 줄을 그리지 않는다. */
+export function adoptionChips(scopePaths: readonly string[]): AdoptionChip[] {
+  return scopePaths.includes(DOG_PATH) && scopePaths.includes(CAT_PATH) ? ["all", "dog", "cat"] : [];
+}
+
+/** 칩에 맞는 입양 쪽 목록 범위(categoryPath, 쉼표로). 종 칩이면 그 종만. */
+export function adoptionChipPath(scopePaths: readonly string[], chip: AdoptionChip): string {
+  if (chip === "dog") return DOG_PATH;
+  if (chip === "cat") return CAT_PATH;
+  return scopePaths.join(",");
+}
+
+/**
+ * 임보 레일 '전체 ›'가 여는 임보 구해요 전체 목록 주소(앱 /adoption/foster 스택 화면, 웹 /adoption/foster). 고른 종 칩을 들고 간다.
+ * 글 종류 칩이 없어져 레일 '전체 ›'가 칩 대신 따로 화면을 연다(토스 리뷰 시안 ④).
+ */
+export function fosterListHref(chip: AdoptionChip): string {
+  return chip === "all" ? "/adoption/foster" : `/adoption/foster?chip=${chip}`;
 }
 
 /**
@@ -501,6 +538,43 @@ export function productWriteLabels(petKind: string | null | undefined): {
   if (isAdoptionSideDealType(petKind)) return { title: "글쓰기", submit: "글 올리기", noun: "글" };
   return { title: "분양 등록", submit: "분양 등록하기", noun: "분양글" };
 }
+
+/**
+ * 강아지·고양이 새 글쓰기 단계(docs/prd/pet-space.md §5.11, 시안 pet-space/B-toss.html ④ — 토스 리뷰 결정 A, 2026-10-24 사용자 선택).
+ * ① 어떤 글인가요(카드를 누르면 바로 다음) → ② 어떤 아이인가요(사진·종·정보) → ③ 마지막으로 글을 써 주세요(제목·설명·동네·동의).
+ * 강아지·고양이 글로 연 새 글쓰기(입양 쪽 글쓰기·강아지·고양이만 고정·종 링크)만 나눈다. 글 수정과, 분양 글쓰기에서 종을
+ * 강아지·고양이로 바꾼 경우는 지금처럼 한 화면이다.
+ */
+export type PetWriteStep = 1 | 2 | 3;
+export const PET_WRITE_STEP_COUNT = 3;
+export const PET_WRITE_STEP_TITLES: Record<PetWriteStep, string> = {
+  1: "어떤 글인가요?",
+  2: "어떤 아이인가요?",
+  3: "마지막으로 글을 써 주세요",
+};
+
+/** 링크가 글 종류를 정해 왔으면(입양 쪽 글쓰기 ?kind=) ②에서 시작한다. 뒤로 가면 ①에서 글 종류를 바꿀 수 있다. */
+export const petWriteStartStep = (kindFromLink: boolean): PetWriteStep => (kindFromLink ? 2 : 1);
+
+/** 단계 막대 채움 비율(① 1/3 · ② 2/3 · ③ 끝까지). */
+export const petWriteProgress = (step: PetWriteStep): number => step / PET_WRITE_STEP_COUNT;
+
+/** 뒤로 갈 단계. ①이면 null — 글쓰기를 닫는다. */
+export const petWritePrevStep = (step: PetWriteStep): PetWriteStep | null =>
+  step === 1 ? null : ((step - 1) as PetWriteStep);
+
+/** 새 분양글 동의 한 줄(등록 버튼 바로 위, 새 글만). 다른 글은 거래 금지 종·신고 의무. */
+export const TRADE_RULES_AGREEMENT = "분양할 수 없는 종이 아니에요. 필요한 신고도 할게요";
+
+/**
+ * 강아지·고양이 글 동의. 이용 규칙 §2 의 5(월령 2개월 미만 개·고양이)·6(등록 없이 영리로 되풀이하는 분양)을 한 줄로 옮겼다
+ * (결정 D, 2026-10-24 사용자 "동의 문구는 브리더 정책에 맞게 써라"). 임보 글도 같다 — 2개월이 안 된 아이는 임보만 구하고
+ * 가족은 2개월이 지난 뒤 찾는다.
+ */
+export const PET_TRADE_RULES_AGREEMENT = "2개월이 지난 아이만, 돈을 벌려는 목적 없이 분양할게요";
+
+export const tradeRulesAgreementLabel = (isPet: boolean): string =>
+  isPet ? PET_TRADE_RULES_AGREEMENT : TRADE_RULES_AGREEMENT;
 
 /**
  * 강아지·고양이 글 설명 칸 안내. 가족 찾아요·임보 구해요는 입양·임보 조건을 적게 이끈다
