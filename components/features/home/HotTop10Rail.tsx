@@ -24,10 +24,24 @@ export function hotTop10Meta(post: Pick<HotPost, "category" | "type" | "regionSi
   return post.type || postCategoryLabel(post) || "";
 }
 
+/** 제목 앞 불꽃 20(brand 채움, 이모지 대신 SVG — 앱 HotTop10Rail 과 같은 path). */
+function FlameIcon() {
+  return (
+    <svg width="20" height="20" viewBox="0 0 24 24" aria-hidden className="shrink-0 text-app-brand">
+      <path
+        d="M12 2c.6 3.2 2.7 5 4.4 6.9C18 10.7 19 12.6 19 15a7 7 0 0 1-14 0c0-2.3 1.1-4.2 2.6-5.6.2 1.7 1 3 2.4 3.6C9.6 9.6 10.4 5.4 12 2Z"
+        fill="currentColor"
+      />
+    </svg>
+  );
+}
+
 /**
  * 홈 맨 위 '인기글 TOP 10'(이번 주, 앱 docs/prd/home-v2.md S-1 2번 v2, 시안 C-threads.html ①).
- * 제목 18/700 + 바로 옆 '이번 주' 13 muted. 카드 128(사이 8): 사진 128 정사각 r8 + 왼쪽 위 순위 20/800,
- * 제목 14/600 2줄 + 종·카테고리 12 muted. 사진 없는 글은 같은 자리에 brand-surface + 제목 4줄, 아래엔 메타만.
+ * 제목 18/700 앞에 불꽃 20(brand). 카드 128(사이 8): 사진 128 정사각 r8, 제목 14/600 2줄 + 종·카테고리 12 muted.
+ * 사진 없는 글은 같은 자리에 brand-surface + 제목 4줄, 아래엔 메타만.
+ * 순위 숫자와 제목 옆 '이번 주'는 넣지 않는다(2026-10-23 사용자 "숫자 나열된 거 별로다", "이번 주 문구도 빼자").
+ * 불꽃은 같은 날 사용자 "인기글에 불꽃 이모티콘 같은 거 붙여도 좋겠다".
  * 서버 hot=weekly(7일 댓글·좋아요·투표 점수, 공지 제외). 조회수는 보이지 않는다. 0개·오류면 섹션 없음.
  * 앱 src/components/features/home/HotTop10Rail.tsx 와 같다.
  */
@@ -47,10 +61,10 @@ export default function HotTop10Rail() {
   if (!loading && posts.length === 0) return null;
   return (
     <section data-home-section="hot_top10" className="pb-5 pt-4">
-      <div className="flex items-baseline gap-1.5 px-4 pb-3">
-        <h2 className="app-t-section">인기글 TOP 10</h2>
-        <span className="text-[13px] leading-[18px] text-app-muted">이번 주</span>
-      </div>
+      <h2 className="app-t-section flex items-center gap-1 px-4 pb-3">
+        <FlameIcon />
+        인기글 TOP 10
+      </h2>
       {loading ? (
         <div className="flex gap-2 overflow-hidden px-4" aria-hidden>
           {[0, 1, 2].map((i) => (
@@ -88,17 +102,10 @@ export default function HotTop10Rail() {
                       className="h-full w-full object-cover"
                     />
                   ) : (
-                    <span className="line-clamp-4 break-keep px-3 pt-9 text-[14px] font-bold leading-5 text-app-text">
+                    <span className="line-clamp-4 break-keep px-3 pt-3 text-[14px] font-bold leading-5 text-app-text">
                       {post.title}
                     </span>
                   )}
-                  <span
-                    className={`absolute left-2 top-1 text-[20px] font-extrabold leading-7 tabular-nums ${
-                      image ? "text-white [text-shadow:0_1px_4px_rgba(0,0,0,0.45)]" : "text-app-text"
-                    }`}
-                  >
-                    {index + 1}
-                  </span>
                 </span>
                 {image ? (
                   <span className="mt-2 line-clamp-2 break-keep text-[14px] font-semibold leading-5 text-app-text">

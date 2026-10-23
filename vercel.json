@@ -28,6 +28,14 @@
     {
       "path": "/api/internal/cron/weekly-digest",
       "schedule": "0 1 * * 1"
+    },
+    {
+      "path": "/api/internal/cron/question-help",
+      "schedule": "30 3 * * *"
+    },
+    {
+      "path": "/api/internal/cron/interest-products",
+      "schedule": "0 10 * * *"
     }
   ]
 }
