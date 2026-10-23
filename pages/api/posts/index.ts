@@ -20,6 +20,7 @@ import { resolvePostImagesInput, withPostImages } from "@libs/postImages";
 import { canWriteNoticePost, isNoticePostInput } from "@libs/server/postNotice";
 import { excludedAuthorIds, setViewerCacheHeader } from "@libs/server/blocks";
 import {
+  categoryOutsideWhere,
   categoryScopeWhere,
   resolveCategoryIdByName,
   speciesCategoryWhere,
@@ -29,7 +30,7 @@ import { REGION_POST_CATEGORY } from "@libs/shared/postCategory";
 import { validatePostDescription } from "@libs/shared/post-body";
 import { captureServerEvent, resolveClientPlatform } from "@libs/server/analytics";
 import type { HotRealtimeMeta } from "@libs/shared/communityVibe";
-import { getRealtimeHotRanking } from "@libs/server/hotRealtime";
+import { getRealtimeHotRanking, getWeeklyHotRanking, WEEKLY_HOT_LIMIT } from "@libs/server/hotRealtime";
 import { getViewerRegionScope } from "@libs/server/nearby";
 import { regionScopeOr } from "@libs/shared/regionScope";
 import { buildCelebrate } from "@libs/server/celebrate";
@@ -39,6 +40,8 @@ import {
   DEBATE_DAILY_LIMIT,
   DEBATE_MIN_ACCOUNT_AGE_HOURS,
   validateDebateInput,
+  EVERGREEN_ALL,
+  isEvergreenField,
 } from "@libs/shared/debateFormat";
 import { BLOCKED_WORD_MESSAGE, hasBlockedWord } from "@libs/shared/contentFilter";
 
@@ -57,6 +60,8 @@ export interface PostWithUser extends Post {
   latestComment?: PostLatestComment | null;
   /** 찬반 토론 글이면 요약(앱 docs/prd/live-talk.md §4.2). 그 밖의 글·구 서버는 없다. */
   debate?: DebateSummary | null;
+  /** 로그인 viewer 가 좋아요했는지. 비로그인·구 서버는 없다. */
+  liked?: boolean;
 }
 
 export interface PostLatestComment {
@@ -141,6 +146,20 @@ const parseSpecialLimit = (value: unknown, fallback: number) => {
   return Number.isInteger(n) && n > 0 ? Math.min(n, SPECIAL_LIST_MAX) : fallback;
 };
 
+/**
+ * 로그인 viewer 가 좋아요한 글이면 liked: true(홈 쓰레드식 피드의 하트, 앱 docs/prd/home-v2.md S-1).
+ * 비로그인은 필드를 넣지 않는다. viewer 가 있으면 응답이 private no-store 라 공개 캐시에 남지 않는다.
+ */
+async function attachLiked<T extends { id: number }>(posts: T[], viewerId?: number): Promise<(T & { liked?: boolean })[]> {
+  if (!viewerId || !posts.length) return posts;
+  const likes = await client.like.findMany({
+    where: { userId: viewerId, postId: { in: posts.map((post) => post.id) } },
+    select: { postId: true },
+  });
+  const liked = new Set(likes.map((like) => like.postId));
+  return posts.map((post) => ({ ...post, liked: liked.has(post.id) }));
+}
+
 /** '답 기다리는 질문' 목록 한 페이지 크기(기본 1 = 홈 카드, 최대 20 = 모아 보기 화면). */
 const UNANSWERED_LIST_MAX = 20;
 const parseUnansweredLimit = (value: unknown) => {
@@ -168,15 +187,25 @@ const handler = async (
       });
     }
     // 실시간 TOP 토론: 최근 24시간 활동 점수순(libs/server/hotRealtime). 마지막 활동 시각·종류를 붙인다.
-    if (req.query.hot === "realtime") {
+    // 홈 인기글 TOP 10(hot=weekly): 이번 주 활동 점수순, 공지 뺀 모든 카테고리(libs/server/hotRealtime getWeeklyHotRanking).
+    if (req.query.hot === "realtime" || req.query.hot === "weekly") {
+      const weekly = req.query.hot === "weekly";
       const excluded = await excludedAuthorIds(viewerId);
-      res.setHeader("Cache-Control", "public, s-maxage=30, stale-while-revalidate=60");
+      res.setHeader(
+        "Cache-Control",
+        weekly
+          ? "public, s-maxage=120, stale-while-revalidate=240"
+          : "public, s-maxage=30, stale-while-revalidate=60"
+      );
       setViewerCacheHeader(res, viewerId);
-      const ranked = await getRealtimeHotRanking({
-        limit: parseSpecialLimit(req.query.limit, 3),
+      const rankingOptions = {
+        limit: parseSpecialLimit(req.query.limit, weekly ? WEEKLY_HOT_LIMIT : 3),
         categoryPath: typeof categoryPath === "string" ? categoryPath : undefined,
         excludedIds: excluded,
-      });
+      };
+      const ranked = weekly
+        ? await getWeeklyHotRanking(rankingOptions)
+        : await getRealtimeHotRanking(rankingOptions);
       if (!ranked.length) return res.json({ success: true, posts: [], pages: 0 });
       const rows = await client.post.findMany({
         where: { id: { in: ranked.map((r) => r.postId) } },
@@ -188,7 +217,11 @@ const handler = async (
         return row ? [{ ...toListPost(row), ...meta } as HotRealtimePost] : [];
       });
       // 토론 글엔 찬반 요약(debate)을 붙인다(앱 docs/prd/live-talk.md §4.2).
-      return res.json({ success: true, posts: await attachDebates(posts, viewerId), pages: 1 });
+      return res.json({
+        success: true,
+        posts: await attachLiked(await attachDebates(posts, viewerId), viewerId),
+        pages: 1,
+      });
     }
 
     // 답 기다려요: 7일 안 질문 중 질문자가 아닌 사람의 보이는 댓글이 없는 것(숨김 제외), 가장 오래된 순 + 전체 수.
@@ -240,6 +273,40 @@ const handler = async (
       });
     }
 
+    // 상시 토론(앱 docs/prd/evergreen-debate.md): debateStatus=evergreen&field= — 운영자 순서, 페이지 없음.
+    // 응답에 상시 토론이 있는 분야 키(fields)를 같이 준다(칩을 그릴지 정한다). 내 선택이 들어가 로그인이면 비공개.
+    if (req.query.debateStatus === "evergreen") {
+      const excluded = await excludedAuthorIds(viewerId);
+      res.setHeader("Cache-Control", "public, s-maxage=30, stale-while-revalidate=60");
+      setViewerCacheHeader(res, viewerId);
+      const field = typeof req.query.field === "string" && isEvergreenField(req.query.field) ? req.query.field : null;
+      const baseWhere: Prisma.PostWhereInput = {
+        category: DEBATE_CATEGORY,
+        isHidden: false,
+        debate: { endsAt: null },
+        ...(excluded.length ? { userId: { notIn: excluded } } : {}),
+      };
+      const [rows, fieldRows] = await Promise.all([
+        client.post.findMany({
+          where: field ? { ...baseWhere, debate: { endsAt: null, evergreenField: field } } : baseWhere,
+          include: postListInclude(excluded),
+          orderBy: [{ debate: { evergreenOrder: "asc" } }, { id: "asc" }],
+          take: 50,
+        }),
+        client.debate.groupBy({
+          by: ["evergreenField"],
+          where: { endsAt: null, post: { isHidden: false } },
+        }),
+      ]);
+      const posts = await attachLiked(await attachDebates(rows.map(toListPost), viewerId), viewerId);
+      return res.json({
+        success: true,
+        posts,
+        pages: 1,
+        fields: fieldRows.map((row) => row.evergreenField ?? EVERGREEN_ALL),
+      });
+    }
+
     // 동네 범위(50km, libs/shared/regionScope): 로그인 필요, 동네가 없으면 빈 목록.
     const neighborhoodScope = req.query.scope === "neighborhood";
     let neighborhoodOr: ReturnType<typeof regionScopeOr> | null = null;
@@ -283,8 +350,12 @@ const handler = async (
     }
 
     // 관심 카테고리 고정 범위(path 쉼표 목록). 없으면 숨긴 카테고리 글만 뺀다.
+    // outsideCategoryPath 를 주면 반대로 그 범위 밖 글만(홈 '다른 아이들 소식', 앱 docs/prd/pet-space.md §5.7).
     const and: Record<string, unknown>[] = [];
-    const scope = await categoryScopeWhere(categoryPath);
+    const outside = req.query.outsideCategoryPath
+      ? await categoryOutsideWhere(req.query.outsideCategoryPath)
+      : null;
+    const scope = outside ?? (await categoryScopeWhere(categoryPath));
     if (Object.keys(scope).length) and.push(scope);
 
     // 종 드롭다운. 소분류 이름으로 저장된 글도 상위 종으로 찾는다.
@@ -292,6 +363,12 @@ const handler = async (
       const speciesWhere = await speciesCategoryWhere(String(species));
       if ("type" in speciesWhere) where.type = speciesWhere.type;
       else and.push(speciesWhere);
+    }
+    // 반려생활 '인기 질문'(앱 docs/prd/evergreen-debate.md S-2): days=7&sort=comments — 최근 N일, 답(보이는 댓글)이 있는 글만.
+    const days = Number(req.query.days);
+    if (Number.isInteger(days) && days > 0 && days <= 30) {
+      and.push({ createdAt: { gte: new Date(Date.now() - days * 86_400_000) } });
+      if (selectedSort === "comments") and.push({ comments: { some: { isHidden: false, deletedAt: null } } });
     }
     if (and.length) where.AND = and;
 
@@ -338,7 +415,10 @@ const handler = async (
     // 1e30 같은 값은 DB offset 범위를 넘으므로 안전한 정수만 페이지로 받는다.
     const normalizedPage =
       Number.isSafeInteger(pageNumber) && pageNumber > 0 ? pageNumber : 1;
-    const skip = (normalizedPage - 1) * PAGE_SIZE;
+    // limit 은 반려생활 섹션처럼 몇 개만 보일 때(최대 20). 없으면 기본 페이지 크기.
+    const limitParam = Number(req.query.limit);
+    const pageSize = Number.isInteger(limitParam) && limitParam > 0 ? Math.min(limitParam, 20) : PAGE_SIZE;
+    const skip = (normalizedPage - 1) * pageSize;
 
     // 정렬·페이지 나눔은 DB 에서 한다(전체 글을 메모리로 읽지 않는다).
     // 같은 순위끼리는 최신 → id 순으로 이어 붙여 페이지가 넘어가도 순서가 흔들리지 않게 한다.
@@ -356,17 +436,17 @@ const handler = async (
         include: postListInclude(excluded),
         orderBy,
         skip,
-        take: PAGE_SIZE,
+        take: pageSize,
       }),
       client.post.count({ where }),
     ]);
 
-    const posts = await attachDebates(pagePosts.map(toListPost), viewerId);
+    const posts = await attachLiked(await attachDebates(pagePosts.map(toListPost), viewerId), viewerId);
 
     res.json({
       success: true,
       posts,
-      pages: Math.ceil(postCount / PAGE_SIZE),
+      pages: Math.ceil(postCount / pageSize),
       ...(followingCount === undefined ? {} : { followingCount }),
     });
   }

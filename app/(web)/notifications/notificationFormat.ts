@@ -35,6 +35,9 @@ export function getNotificationHref(
       return `/bloodline-management/card/${targetId}`;
     case "auction":
       return toAuctionPath(targetId);
+    case "productList":
+      // 관심 분야 새 분양 묶음(INTEREST_PRODUCTS): 분양 탭. 관심 분야 범위는 탭이 스스로 건다.
+      return "/products";
     case "town":
       // 동네 사랑방 답장·반겨 주기: 그 메시지로 스크롤한다(앱 notificationFormat 과 같다).
       return `/town?focus=${targetId}`;

@@ -16,6 +16,8 @@ export interface SearchResponse {
     photos: string[];
     category: string | null;
     productType: string | null;
+    /** 강아지·고양이 글은 가격 대신 글 종류를 보인다. */
+    dealType: string;
     status: string;
     createdAt: string;
     user: {
@@ -102,6 +104,7 @@ async function handler(
               photos: true,
               category: true,
               productType: true,
+              dealType: true,
               status: true,
               createdAt: true,
               user: {

@@ -47,7 +47,7 @@ type AwaitingAnswerCardProps =
 /**
  * 반려생활 '답 기다려요' 카드(시안 community-vibe .wait, PRD §3.5).
  * app-brand-surface r12(다크 회색 면, 2026-10-21), 아바타 40 · "질문 제목" 15/600 · 보조 12 brand-text-soft 두 줄
- * ('N일째 답을 기다리고 있어요' / '먼저 답하면 점수 2배') · '답하기' 36 주황 → 상세 #comment.
+ * ('N일째 답을 기다리고 있어요' / '먼저 답하면 점수 2배') · '답하기' 36 주황 → 상세(본문부터).
  * variant="empty": 물음표 원 40(brand-track) · 질문 권유 15/600 · '질문을 올리면 관심 분야 브리더에게 알림이 가요' · '질문하기' 36 주황.
  */
 export default function AwaitingAnswerCard(props: AwaitingAnswerCardProps) {
@@ -84,7 +84,7 @@ export default function AwaitingAnswerCard(props: AwaitingAnswerCardProps) {
     );
   }
   const { question } = props;
-  const href = `${toPostPath(question.id, question.title)}#comment`;
+  const href = toPostPath(question.id, question.title);
   return (
     <div
       className={`flex items-center gap-3 rounded-xl bg-app-brand-surface px-3.5 py-3 ${className ?? ""}`}

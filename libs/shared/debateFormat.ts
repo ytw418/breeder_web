@@ -31,10 +31,13 @@ export const DEBATE_REPORT_HIDE_COUNT = 2;
 export interface DebateSummary {
   optionA: string;
   optionB: string;
-  endsAt: string;
+  /** 상시 토론이면 null(마감 없음). */
+  endsAt: string | null;
+  /** 상시 토론(운영자가 분야별로 고정, 앱 docs/prd/evergreen-debate.md)이면 분야·첫 투표 시각. 아니면 null. */
+  evergreen: { field: string; since: string | null } | null;
   state: DebateState;
   participants: number;
-  /** open: 내가 골랐고 3표 이상일 때만. decided: 늘. undecided: null. 합은 100. */
+  /** open: 내가 골랐고 3표 이상일 때만(상시 토론은 안 골라도 3표 이상이면). decided: 늘. undecided: null. 합은 100. */
   result: { a: number; b: number } | null;
   /** decided 일 때만. 50:50 이면 tie. */
   winner: DebateSide | "tie" | null;
@@ -51,7 +54,11 @@ export interface DebateSummary {
 export interface DebateSummaryInput {
   optionA: string;
   optionB: string;
-  endsAt: Date | string;
+  endsAt: Date | string | null;
+  /** 상시 토론 분야 키(EVERGREEN_FIELDS). 회원 토론은 null. */
+  evergreenField?: string | null;
+  /** 첫 투표 시각(상시 토론의 '○년 ○월부터'). */
+  firstVoteAt?: Date | string | null;
   countA: number;
   countB: number;
   mySide: DebateSide | null;
@@ -83,9 +90,9 @@ export const withDirectionJosa = (word: string) =>
   `'${word}'${hasBatchim(word) && !hasRieulBatchim(word) ? "으로" : "로"}`;
 const toIso = (value: Date | string | null) => (value == null ? null : new Date(value).toISOString());
 
-/** 끝났는지(서버 시각 기준)와 표 수로 상태를 정한다. */
-export function debateState(endsAt: Date | string, participants: number, now = Date.now()): DebateState {
-  if (now < toTime(endsAt)) return "open";
+/** 끝났는지(서버 시각 기준)와 표 수로 상태를 정한다. 마감이 없으면(상시 토론) 늘 진행 중이다. */
+export function debateState(endsAt: Date | string | null, participants: number, now = Date.now()): DebateState {
+  if (endsAt == null || now < toTime(endsAt)) return "open";
   return participants >= DEBATE_RESULT_MIN_VOTES ? "decided" : "undecided";
 }
 
@@ -101,8 +108,11 @@ export function buildDebateSummary(input: DebateSummaryInput, now = Date.now()):
   const participants = input.countA + input.countB;
   const state = debateState(input.endsAt, participants, now);
   const percents = debatePercents(input.countA, input.countB);
+  const evergreen = input.endsAt == null;
+  // 상시 토론은 결과가 늘 보인다(사용자 2026-10-22 "결과가 계속 보이면"). 3표 미만이면 막대 대신 안내.
   const showResult =
-    state === "decided" || (state === "open" && input.mySide !== null && participants >= DEBATE_RESULT_MIN_VOTES);
+    state === "decided" ||
+    (state === "open" && (input.mySide !== null || evergreen) && participants >= DEBATE_RESULT_MIN_VOTES);
   const winner: DebateSummary["winner"] =
     state === "decided"
       ? input.countA === input.countB
@@ -114,7 +124,8 @@ export function buildDebateSummary(input: DebateSummaryInput, now = Date.now()):
   return {
     optionA: input.optionA,
     optionB: input.optionB,
-    endsAt: new Date(input.endsAt).toISOString(),
+    endsAt: input.endsAt == null ? null : new Date(input.endsAt).toISOString(),
+    evergreen: evergreen ? { field: input.evergreenField ?? EVERGREEN_ALL, since: toIso(input.firstVoteAt ?? null) } : null,
     state,
     participants,
     result: showResult ? percents : null,
@@ -136,8 +147,9 @@ export function participantsLabel(participants: number): string {
   return participants > 0 ? `${participants.toLocaleString("ko-KR")}명 참여` : "첫 투표를 기다려요";
 }
 
-/** "2일 남음" · "18시간 남음" · "곧 끝나요 · 42분" · "끝난 토론 · 10월 12일"(KST) */
-export function remainingLabel(endsAt: Date | string, now = Date.now()): string {
+/** "2일 남음" · "18시간 남음" · "곧 끝나요 · 42분" · "끝난 토론 · 10월 12일"(KST). 마감 없으면 "상시 토론". */
+export function remainingLabel(endsAt: Date | string | null, now = Date.now()): string {
+  if (endsAt == null) return "상시 토론";
   const diff = toTime(endsAt) - now;
   if (diff <= 0) {
     const kst = new Date(toTime(endsAt) + 9 * 3600_000);
@@ -304,3 +316,82 @@ export function liveDividerLabel(iso: string, now = Date.now()): string {
 /** 라이브 점: 최근 10분 안 활동이 있으면 켠다. */
 export const isLiveActive = (lastActivityAt: string | null, now = Date.now()) =>
   !!lastActivityAt && now - toTime(lastActivityAt) < 10 * 60_000;
+
+/* ── 상시 토론(앱 docs/prd/evergreen-debate.md) ── */
+
+/** 분야 무관 주제(펫샵 등). 칩 이름은 '공통'(모아보기의 '전체' 칩과 헷갈리지 않게). */
+export const EVERGREEN_ALL = "all";
+/** 운영자가 고르는 분야. path 는 서버 카테고리 트리(관심 분야 순서 정하기에 쓴다). */
+export const EVERGREEN_FIELDS = [
+  { key: "reptile", label: "파충류", path: "/reptile/" },
+  { key: "aquarium", label: "물생활", path: "/fish/" },
+  { key: "insect", label: "곤충", path: "/insect/" },
+  { key: "hamster", label: "햄스터", path: "/mammal/hamster/" },
+  { key: EVERGREEN_ALL, label: "공통", path: null },
+] as const;
+export type EvergreenFieldKey = (typeof EVERGREEN_FIELDS)[number]["key"];
+export const isEvergreenField = (value: unknown): value is EvergreenFieldKey =>
+  EVERGREEN_FIELDS.some((field) => field.key === value);
+export const evergreenFieldLabel = (key: string | null | undefined) =>
+  EVERGREEN_FIELDS.find((field) => field.key === key)?.label ?? "공통";
+
+/** 결과 카드(공유 이미지)를 만들 수 있는 최소 표 수. 적은 표로 큰 %를 홍보하지 않으려는 것. */
+export const RESULT_CARD_MIN_VOTES = 30;
+
+const overlaps = (a: string, b: string) => a.startsWith(b) || b.startsWith(a);
+
+/**
+ * 분야 칩 순서: 내 관심 분야(고정 path 와 겹치는 분야) 먼저, 그다음 기본 순서, '공통'은 맨 끝.
+ * 포유류만 고정했으면 포유류 분야와 '공통'만 남긴다(scopeTerms 의 '집사' 규칙과 같은 범위).
+ * available 은 상시 토론이 하나라도 있는 분야 키(없는 칩은 그리지 않는다).
+ */
+export function orderEvergreenFields(
+  available: readonly string[],
+  pins: readonly { path: string }[] = []
+): { key: string; label: string }[] {
+  const has = new Set(available);
+  const mammalOnly = pins.length > 0 && pins.every((pin) => pin.path.startsWith("/mammal/"));
+  const fields = EVERGREEN_FIELDS.filter(
+    (field) => has.has(field.key) && (!mammalOnly || field.path == null || field.path.startsWith("/mammal/"))
+  );
+  const mine = (path: string | null) => path != null && pins.some((pin) => overlaps(pin.path, path));
+  return [...fields]
+    .sort((a, b) => {
+      const rank = (field: (typeof fields)[number]) => (field.path == null ? 2 : mine(field.path) ? 0 : 1);
+      return rank(a) - rank(b);
+    })
+    .map(({ key, label }) => ({ key, label }));
+}
+
+/** "2026년 10월부터"(KST). 아직 표가 없으면 빈 값. */
+export function evergreenSinceLabel(since: Date | string | null): string {
+  if (!since) return "";
+  const kst = new Date(toTime(since) + 9 * 3600_000);
+  return `${kst.getUTCFullYear()}년 ${kst.getUTCMonth() + 1}월부터`;
+}
+
+/** 결과 카드 기간 "2026.10~2027.10"(KST, 첫 투표 달 ~ 이번 달). 같은 달이면 "2026.10". */
+export function resultCardPeriod(since: Date | string, now = Date.now()): string {
+  const fmt = (time: number) => {
+    const kst = new Date(time + 9 * 3600_000);
+    return `${kst.getUTCFullYear()}.${String(kst.getUTCMonth() + 1).padStart(2, "0")}`;
+  };
+  const from = fmt(toTime(since));
+  const to = fmt(now);
+  return from === to ? from : `${from}~${to}`;
+}
+
+/** 결과 카드에 크게 쓸 쪽과 %. 50:50 이면 tie. */
+export function resultCardLead(summary: Pick<DebateSummary, "optionA" | "optionB">, countA: number, countB: number) {
+  const percents = debatePercents(countA, countB);
+  if (countA === countB) return { tie: true as const, label: "팽팽해요", percent: 50, percents };
+  const side: DebateSide = countA > countB ? "A" : "B";
+  return { tie: false as const, label: sideLabel(summary, side), percent: side === "A" ? percents.a : percents.b, percents };
+}
+
+/** 상세 메타 "2026년 10월부터 1,204명 참여 · 마음 바꾼 사람 31명". */
+export function evergreenMetaLabel(summary: Pick<DebateSummary, "evergreen" | "participants" | "switchCount">): string {
+  const since = evergreenSinceLabel(summary.evergreen?.since ?? null);
+  const head = since ? `${since} ${participantsLabel(summary.participants)}` : participantsLabel(summary.participants);
+  return summary.switchCount > 0 ? `${head} · 마음 바꾼 사람 ${summary.switchCount}명` : head;
+}

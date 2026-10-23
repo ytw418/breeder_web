@@ -1,6 +1,6 @@
 /**
  * 분양글 상태·거래 유형의 화면 표시 이름(2026-10-10 용어 결정 — '상품·판매' 대신 '분양', 앱 docs/terminology.md).
- * DB·API 값(판매중·예약중·판매완료, sale·adoption·rehoming)은 그대로 두고 화면에만 바꿔 보인다.
+ * DB·API 값(판매중·예약중·판매완료, sale·adoption·rehoming·foster)은 그대로 두고 화면에만 바꿔 보인다.
  * 앱 bredy_app src/lib/productTerms.ts 와 같은 파일이라 함께 고치고 웹 `npx jest productTerms`·앱 `npm run test:product-terms` 로 확인한다.
  */
 
@@ -15,11 +15,15 @@ export const PRODUCT_STATUS_LABELS: Record<string, string> = {
 export const productStatusLabel = (status: string | null | undefined): string =>
   status ? (PRODUCT_STATUS_LABELS[status] ?? status) : "";
 
-/** 거래 유형 값(서버 Product.dealType) → 화면 이름. 파양은 옛 데이터·관리자 입력용이다. */
+/**
+ * 거래 유형 값(서버 Product.dealType) → 화면 이름. rehoming·foster 는 강아지·고양이 글 종류다
+ * (2026-10-23, 앱 docs/prd/pet-space.md — '파양'이라는 말은 화면에 쓰지 않는다).
+ */
 export const DEAL_TYPE_LABELS: Record<string, string> = {
   sale: "유료 분양",
   adoption: "무료 분양",
-  rehoming: "파양",
+  rehoming: "가족 찾아요",
+  foster: "임보 구해요",
 };
 
 /** 거래 유형 값을 화면 이름으로 바꾼다. 값이 없으면(구 서버 응답) 유료 분양. */

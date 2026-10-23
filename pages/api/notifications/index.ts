@@ -52,7 +52,8 @@ async function loadTargetImages(items: TargetRef[]): Promise<Map<string, string>
       )
     );
   const postIds = idsOf("post");
-  const productIds = idsOf("product");
+  // 관심 분야 새 분양 묶음(productList)은 맨 위 분양글 사진을 쓴다.
+  const productIds = Array.from(new Set([...idsOf("product"), ...idsOf("productList")]));
   const auctionIds = idsOf("auction");
   const cardIds = idsOf("bloodline");
   const images = new Map<string, string>();
@@ -87,7 +88,10 @@ async function loadTargetImages(items: TargetRef[]): Promise<Map<string, string>
       if (image) images.set(targetKey(type, id), image);
     };
     posts.forEach((post) => put("post", post.id, post.images[0] || post.image));
-    products.forEach((product) => put("product", product.id, product.mainImage || product.photos[0]));
+    products.forEach((product) => {
+      put("product", product.id, product.mainImage || product.photos[0]);
+      put("productList", product.id, product.mainImage || product.photos[0]);
+    });
     auctions.forEach((auction) => put("auction", auction.id, auction.photos[0]));
     cards.forEach((card) => put("bloodline", card.id, card.image));
   } catch (error) {

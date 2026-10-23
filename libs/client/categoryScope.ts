@@ -125,6 +125,22 @@ export function toPinnedCategory(
   return { id: item.id, name: item.name, path: item.path, label: categoryLabel(item, categories) };
 }
 
+/**
+ * 카테고리 path 목록 → 고정 항목(첫 질문 카드·사이드 메뉴 공간 전환, docs/prd/pet-space.md §4·5.2).
+ * 목록에 없는 path(숨긴 카테고리 등)는 뺀다.
+ */
+export function pinsForPaths(
+  paths: readonly string[],
+  categories: readonly CategoryItem[]
+): PinnedCategory[] {
+  return normalizePins(
+    paths
+      .map((path) => categories.find((item) => item.path === path))
+      .filter((item): item is CategoryItem => Boolean(item))
+      .map((item) => toPinnedCategory(item, categories))
+  );
+}
+
 /** 저장된 JSON 을 고정 목록으로 푼다. 깨졌으면 빈 목록. */
 export function parseStoredPins(raw: string | null): PinnedCategory[] {
   if (!raw) return [];

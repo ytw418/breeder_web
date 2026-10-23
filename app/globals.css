@@ -463,6 +463,11 @@ textarea {
   }
 
   /* 타이포 6단계(community-vibe §3.7, 앱 src/theme/typography.ts 와 같은 값). */
+  /* 질문 한 줄 화면 제목(첫 질문 '어떤 아이를 키우시나요?', 앱 docs/prd/pet-space.md §5.10). */
+  .app-t-question {
+    @apply text-[24px] leading-8 font-bold tracking-[-0.6px] text-app-text;
+  }
+
   .app-t-title {
     @apply text-[20px] leading-[26px] font-bold tracking-[-0.4px] text-app-text;
   }

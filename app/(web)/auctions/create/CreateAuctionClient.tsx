@@ -27,6 +27,7 @@ import {
 } from "@libs/auctionRules";
 import { getAuctionResultMessage } from "@libs/client/auctionErrorMessage";
 import { TOP_LEVEL_CATEGORIES, getSubcategories } from "@libs/categoryTaxonomy";
+import { isNoPriceCategory } from "@libs/shared/petSpace";
 import type { CreateAuctionResponse } from "pages/api/auctions";
 import { PEDIGREE_NOTE_INVALID_MESSAGE, type PedigreeNote } from "@libs/shared/pedigree-note";
 import {
@@ -169,7 +170,11 @@ const CreateAuctionClient = () => {
       Object.entries(form).some(([key, value]) => value !== initialForm[key as TextKey]));
   const { leave, dialog: leaveDialog } = useConfirmLeave(dirty);
 
-  const subcategories = !isToolRoute && selectedCategory ? getSubcategories(selectedCategory) : [];
+  // 강아지·고양이는 경매로 올릴 수 없다(서버 AUCTION_PET_CATEGORY_NOT_ALLOWED, docs/prd/pet-space.md §5.6).
+  const subcategories =
+    !isToolRoute && selectedCategory
+      ? getSubcategories(selectedCategory).filter((name) => !isNoPriceCategory(name))
+      : [];
   const categoryForSubmit = isToolRoute ? TOOL_FIXED_CATEGORY : selectedSubcategory || selectedCategory;
   const selectedEndAt = selectedDuration ? new Date(getPresetEndAtMs(selectedDuration, nowTick)).toISOString() : "";
   const bloodlineRootId = selectedBloodlineRootId ? Number(selectedBloodlineRootId) : null;

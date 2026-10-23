@@ -1,13 +1,12 @@
 "use client";
 /**
- * 앱 소개·다운로드 랜딩(/download). 공유용 한 장짜리 페이지 — 앱스토어·플레이스토어 배지, 웹으로 바로 가기, 화면 소개.
- * 배지는 애플·구글 공식 이미지(public/landing)를 쓴다(두 회사 모두 다운로드 버튼에 공식 배지를 쓰라고 정해 두었다).
- * 안드로이드 브라우저면 플레이 배지를, 그 밖에는 앱스토어 배지를 앞에 둔다.
- * 플레이 배지 주소에는 들어온 캠페인(utm)을 설치 리퍼러로 붙여 앱 PostHog 에서 설치 출처를 본다(libs/client/campaign.ts).
+ * 앱 소개·다운로드 랜딩(/download). 공유용 한 장짜리 페이지 — 설치 버튼, 웹으로 바로 가기, 화면 소개.
+ * 2026-10-23 "바로 설치하고 싶게, 버튼을 이쁘게": 공식 배지 대신 기기 스토어로 가는 큰 주황 버튼(모르면 두 스토어 버튼), 화면 콜라주, 스크롤하면 아래 설치 바.
+ * 아이폰이면 App Store, 안드로이드면 Google Play 를 주 버튼으로 둔다.
  */
 import Image from "next/image";
 import Link from "next/link";
-import { useEffect, useState } from "react";
+import { createContext, useContext, useEffect, useRef, useState } from "react";
 import { HorizontalRail } from "@components/ui/HorizontalRail";
 import { currentCampaign } from "@libs/client/campaign";
 import { shareOrCopy } from "@libs/client/share";
@@ -53,6 +52,35 @@ const FEATURES = [
   },
 ];
 
+/** 기능 아이콘 칸 색. 앱 아바타 대체 색 토큰을 돌려 쓴다(다크에서도 맞는 짝). */
+const FEATURE_TONES = [
+  "bg-app-brand-soft text-app-brand-text",
+  "bg-app-avatar-1-bg text-app-avatar-1-fg",
+  "bg-app-avatar-2-bg text-app-avatar-2-fg",
+  "bg-app-avatar-3-bg text-app-avatar-3-fg",
+  "bg-app-avatar-4-bg text-app-avatar-4-fg",
+];
+
+/** simple-icons 로고(24 격자, 채움) */
+const APPLE_LOGO =
+  "M12.152 6.896c-.948 0-2.415-1.078-3.96-1.04-2.04.027-3.91 1.183-4.961 3.014-2.117 3.675-.546 9.103 1.519 12.09 1.013 1.454 2.208 3.09 3.792 3.039 1.52-.065 2.09-.987 3.935-.987 1.831 0 2.35.987 3.96.948 1.637-.026 2.676-1.48 3.676-2.948 1.156-1.688 1.636-3.325 1.662-3.415-.039-.013-3.182-1.221-3.22-4.857-.026-3.04 2.48-4.494 2.597-4.559-1.429-2.09-3.623-2.324-4.39-2.376-2-.156-3.675 1.09-4.61 1.09zM15.53 3.83c.843-1.012 1.4-2.427 1.245-3.83-1.207.052-2.662.805-3.532 1.818-.78.896-1.454 2.338-1.273 3.714 1.338.104 2.715-.688 3.559-1.701";
+const PLAY_LOGO =
+  "M22.018 13.298l-3.919 2.218-3.515-3.493 3.543-3.521 3.891 2.202a1.49 1.49 0 0 1 0 2.594zM1.337.924a1.486 1.486 0 0 0-.112.568v21.017c0 .217.045.419.124.6l11.155-11.087L1.337.924zm12.207 10.065l3.258-3.238L3.45.195a1.466 1.466 0 0 0-.946-.179l11.04 10.973zm0 2.067l-11 10.933c.298.036.612-.016.906-.183l13.324-7.54-3.23-3.21z";
+const SHARE_ICON =
+  "M7.217 10.907a2.25 2.25 0 1 0 0 2.186m0-2.186c.18.324.283.696.283 1.093s-.103.77-.283 1.093m0-2.186 9.566-5.314m-9.566 7.5 9.566 5.314m0 0a2.25 2.25 0 1 0 3.935 2.186 2.25 2.25 0 0 0-3.935-2.186Zm0-12.814a2.25 2.25 0 1 0 3.933-2.185 2.25 2.25 0 0 0-3.933 2.185Z";
+
+type Platform = "ios" | "android" | "other";
+
+function makeStores(playHref: string) {
+  return {
+    ios: { href: APP_STORE_URL, logo: APPLE_LOGO, name: "App Store", label: "App Store에서 브리디 다운로드" },
+    android: { href: playHref, logo: PLAY_LOGO, name: "Google Play", label: "Google Play에서 브리디 다운로드" },
+  } as const;
+}
+
+/** 플레이스토어 주소에는 들어온 캠페인(utm)을 설치 리퍼러로 붙인다. 서버 HTML 은 리퍼러 없는 주소, 브라우저에서 바꾼다. */
+const StoresContext = createContext(makeStores(PLAY_STORE_URL));
+
 function Icon({ d, size = 22 }: { d: string; size?: number }) {
   return (
     <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.5} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
@@ -61,28 +89,96 @@ function Icon({ d, size = 22 }: { d: string; size?: number }) {
   );
 }
 
-function StoreBadges({ playFirst, playHref }: { playFirst: boolean; playHref: string }) {
-  const apple = (
-    <a key="apple" href={APP_STORE_URL} target="_blank" rel="noopener noreferrer" aria-label="App Store에서 브리디 다운로드" className="shrink-0">
-      <Image src="/landing/app-store-badge.svg" alt="App Store에서 다운로드" width={144} height={48} className="h-12 w-auto" unoptimized />
+function Logo({ d, size }: { d: string; size: number }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+      <path d={d} />
+    </svg>
+  );
+}
+
+/** 이 기기 스토어로 바로 가는 큰 주황 버튼. */
+function PrimaryStoreButton({ store, className = "" }: { store: "ios" | "android"; className?: string }) {
+  const STORES = useContext(StoresContext);
+  const s = STORES[store];
+  return (
+    <a
+      href={s.href}
+      target="_blank"
+      rel="noopener noreferrer"
+      aria-label={s.label}
+      className={`flex h-14 w-full items-center justify-center gap-2.5 rounded-2xl bg-app-brand text-white shadow-[0_8px_20px_-6px_rgba(249,115,22,0.55)] transition-transform active:scale-[0.98] ${className}`}
+    >
+      <Logo d={s.logo} size={22} />
+      <span className="text-[17px] font-bold tracking-[-0.3px]">무료로 앱 받기</span>
     </a>
   );
-  const play = (
-    <a key="play" href={playHref} target="_blank" rel="noopener noreferrer" aria-label="Google Play에서 브리디 다운로드" className="shrink-0">
-      <Image src="/landing/google-play-badge.png" alt="Google Play에서 받기" width={161} height={48} className="h-12 w-auto" />
-    </a>
+}
+
+/** 스토어 두 개를 나란히 — 검정(다크는 흰) 채움, 로고 + 두 줄 글자. */
+function StoreButtons({ order }: { order: ("ios" | "android")[] }) {
+  const STORES = useContext(StoresContext);
+  return (
+    <div className="grid grid-cols-2 gap-2.5">
+      {order.map((key) => {
+        const s = STORES[key];
+        return (
+          <a
+            key={key}
+            href={s.href}
+            target="_blank"
+            rel="noopener noreferrer"
+            aria-label={s.label}
+            className="flex h-14 items-center justify-center gap-2.5 rounded-2xl bg-app-inverse px-3 text-app-inverse-text transition-transform active:scale-[0.98]"
+          >
+            <Logo d={s.logo} size={key === "ios" ? 24 : 21} />
+            <span className="flex flex-col items-start leading-none">
+              <span className="text-[11px] font-medium opacity-80">무료 다운로드</span>
+              <span className="mt-1 text-[16px] font-bold tracking-[-0.3px]">{s.name}</span>
+            </span>
+          </a>
+        );
+      })}
+    </div>
   );
-  return <div className="flex flex-wrap items-center gap-3">{playFirst ? [play, apple] : [apple, play]}</div>;
+}
+
+/** 기기를 알면 큰 버튼 하나 + 다른 스토어 글자 링크, 모르면(PC) 두 버튼을 같은 무게로. */
+function InstallCta({ platform }: { platform: Platform }) {
+  const STORES = useContext(StoresContext);
+  if (platform === "other") return <StoreButtons order={["ios", "android"]} />;
+  const other = STORES[platform === "ios" ? "android" : "ios"];
+  return (
+    <>
+      <PrimaryStoreButton store={platform} />
+      <a href={other.href} target="_blank" rel="noopener noreferrer" className="mt-3 block text-center text-[13px] text-app-muted">
+        {platform === "ios" ? "안드로이드폰이라면" : "아이폰이라면"} <span className="font-semibold text-app-sub underline underline-offset-2">{other.name}에서 받기</span>
+      </a>
+    </>
+  );
 }
 
 export default function DownloadLanding() {
-  const [playFirst, setPlayFirst] = useState(false);
-  // 서버 HTML 은 리퍼러 없는 주소, 브라우저에서 캠페인을 읽어 바꾼다.
   const [playHref, setPlayHref] = useState(PLAY_STORE_URL);
+  const STORES = makeStores(playHref);
+  const [platform, setPlatform] = useState<Platform>("other");
+  const [showBar, setShowBar] = useState(false);
+  const heroCtaRef = useRef<HTMLDivElement>(null);
+
   useEffect(() => {
-    setPlayFirst(/android/i.test(navigator.userAgent));
+    const ua = navigator.userAgent;
     setPlayHref(playStoreUrlWithReferrer(currentCampaign(window.location.search)));
+    setPlatform(/android/i.test(ua) ? "android" : /iphone|ipad|ipod/i.test(ua) ? "ios" : "other");
   }, []);
+
+  // 첫 화면 버튼이 화면 밖으로 나가면 아래 고정 설치 바를 띄운다(모바일만 — PC 는 스캔할 수단이 없어 두 버튼만 둔다).
+  useEffect(() => {
+    const el = heroCtaRef.current;
+    if (!el || platform === "other") return;
+    const io = new IntersectionObserver(([entry]) => setShowBar(!entry.isIntersecting && entry.boundingClientRect.top < 0));
+    io.observe(el);
+    return () => io.disconnect();
+  }, [platform]);
 
   const share = () =>
     void shareOrCopy({
@@ -92,63 +188,92 @@ export default function DownloadLanding() {
     });
 
   return (
+    <StoresContext.Provider value={STORES}>
     <div className="break-keep bg-app-bg pb-10 text-app-text">
-      {/* 위 줄: 로고 · 웹으로 보기 */}
-      <div className="flex h-14 items-center justify-between px-4">
-        <Link href="/" className="flex items-center gap-2" aria-label="브리디 홈">
-          <Image src="/landing/app-icon.png" alt="" width={28} height={28} className="rounded-lg" />
-          <span className="text-[18px] font-bold">브리디</span>
-        </Link>
-        <Link href="/" className="text-[14px] font-semibold text-app-muted">
-          웹으로 보기
-        </Link>
+      {/* 첫 화면: 주황 빛 바탕 + 문구 + 설치 버튼 + 화면 콜라주 */}
+      <div className="overflow-hidden bg-gradient-to-b from-app-brand-surface via-app-brand-surface to-app-bg">
+        <div className="flex h-14 items-center justify-between px-4">
+          <Link href="/" className="flex items-center gap-2" aria-label="브리디 홈">
+            <Image src="/landing/app-icon.png" alt="" width={28} height={28} className="rounded-lg" />
+            <span className="text-[18px] font-bold">브리디</span>
+          </Link>
+          <Link href="/" className="text-[14px] font-semibold text-app-sub">
+            웹으로 보기 ›
+          </Link>
+        </div>
+
+        <section className="px-5 pt-5 text-center">
+          <span className="inline-flex items-center gap-1.5 rounded-full bg-app-bg px-3 py-1 text-[12px] font-semibold text-app-brand-text shadow-[0_1px_2px_rgba(0,0,0,0.06)]">
+            <span className="h-1.5 w-1.5 rounded-full bg-app-brand" />
+            아이폰 · 안드로이드 무료
+          </span>
+          <h1 className="mt-4 text-[28px] font-extrabold leading-[38px] tracking-[-0.8px]">
+            강아지·고양이부터
+            <br />
+            곤충·파충류·물고기까지
+            <br />
+            <span className="text-app-brand">키우는 사람들이 모이는 곳</span>
+          </h1>
+          <p className="mt-3 text-[15px] leading-[23px] text-app-sub">
+            사진 기록, 같은 종 키우는 사람에게 질문,
+            <br />
+            분양·경매까지 한 앱에서 해요.
+          </p>
+          <div ref={heroCtaRef} className="mx-auto mt-6 max-w-[360px]">
+            <InstallCta platform={platform} />
+          </div>
+        </section>
+
+        {/* 화면 콜라주: 가운데 홈, 양옆으로 분양·경매가 비스듬히 */}
+        <div aria-hidden="true" className="relative mx-auto mt-9 h-[330px] max-w-[400px]">
+          <Image
+            src={SCREENS[2].src}
+            alt=""
+            width={600}
+            height={1303}
+            sizes="150px"
+            className="absolute left-1/2 top-10 w-[150px] -translate-x-[150%] -rotate-[8deg] rounded-[22px] border border-app-line shadow-[0_12px_30px_-10px_rgba(0,0,0,0.25)]"
+          />
+          <Image
+            src={SCREENS[4].src}
+            alt=""
+            width={600}
+            height={1303}
+            sizes="150px"
+            className="absolute left-1/2 top-10 w-[150px] translate-x-[50%] rotate-[8deg] rounded-[22px] border border-app-line shadow-[0_12px_30px_-10px_rgba(0,0,0,0.25)]"
+          />
+          <Image
+            src={SCREENS[0].src}
+            alt=""
+            width={600}
+            height={1303}
+            sizes="180px"
+            priority
+            className="absolute left-1/2 top-0 w-[180px] -translate-x-1/2 rounded-[26px] border border-app-line shadow-[0_18px_40px_-12px_rgba(0,0,0,0.35)]"
+          />
+          <div className="absolute inset-x-0 bottom-0 h-24 bg-gradient-to-t from-app-bg to-transparent" />
+        </div>
       </div>
 
-      {/* 첫 화면 */}
-      <section className="px-4 pt-6">
-        <Image src="/landing/app-icon.png" alt="브리디 앱 아이콘" width={72} height={72} className="rounded-2xl" priority />
-        <h1 className="mt-5 text-[26px] font-bold leading-[36px] tracking-[-0.6px]">
-          강아지·고양이부터
-          <br />
-          곤충·파충류·물고기까지
-          <br />
-          키우는 사람들이 모이는 곳
-        </h1>
-        <p className="mt-3 text-[16px] leading-[25px] text-app-sub">
-          사진으로 기록하고, 궁금한 건 같은 종 키우는 사람에게 묻고, 분양·경매까지 한 앱에서 해요.
-        </p>
-        <div className="mt-6">
-          <StoreBadges playFirst={playFirst} playHref={playHref} />
-        </div>
-        <Link
-          href="/"
-          className="mt-3 flex h-12 items-center justify-center rounded-md bg-app-surface text-[15px] font-semibold text-app-text"
-        >
-          설치 없이 웹에서 바로 써보기
-        </Link>
-        <p className="mt-2.5 text-center text-[13px] text-app-muted">무료로 받을 수 있어요</p>
-      </section>
-
       {/* 화면 소개 */}
-      <section aria-label="앱 화면" className="pt-8">
-        <HorizontalRail label="앱 화면" className="snap-x snap-mandatory scroll-px-4 gap-3 px-4">
+      <section aria-label="앱 화면" className="pt-2">
+        <h2 className="px-5 text-[20px] font-bold leading-7 tracking-[-0.5px]">이런 화면이에요</h2>
+        <HorizontalRail label="앱 화면" className="mt-4 snap-x snap-mandatory scroll-px-5 gap-3 px-5">
           {SCREENS.map((s) => (
-            <span key={s.src} className="block w-[220px] shrink-0 snap-start overflow-hidden rounded-2xl border border-app-line">
-              <Image src={s.src} alt={s.alt} width={600} height={1303} sizes="220px" className="h-auto w-full" />
+            <span key={s.src} className="block w-[200px] shrink-0 snap-start overflow-hidden rounded-[20px] border border-app-line">
+              <Image src={s.src} alt={s.alt} width={600} height={1303} sizes="200px" className="h-auto w-full" />
             </span>
           ))}
         </HorizontalRail>
       </section>
 
-      <div className="mt-8 h-2 bg-app-gap" />
-
       {/* 할 수 있는 것 */}
-      <section className="px-4 pt-6">
+      <section className="px-5 pt-10">
         <h2 className="text-[20px] font-bold leading-7 tracking-[-0.5px]">브리디에서 할 수 있는 것</h2>
-        <ul className="mt-2">
-          {FEATURES.map((f) => (
-            <li key={f.title} className="flex gap-3 border-b border-app-line py-4 last:border-b-0">
-              <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-app-surface text-app-text">
+        <ul className="mt-4 grid gap-2.5">
+          {FEATURES.map((f, i) => (
+            <li key={f.title} className="flex gap-3.5 rounded-2xl bg-app-surface p-4">
+              <span className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-xl ${FEATURE_TONES[i % FEATURE_TONES.length]}`}>
                 <Icon d={f.icon} />
               </span>
               <span>
@@ -160,34 +285,89 @@ export default function DownloadLanding() {
         </ul>
         <Link
           href={GUIDE_INDEX_HREF}
-          className="mt-2 flex items-center justify-between border-t border-app-line py-4 text-[15px] font-semibold"
+          className="mt-2.5 flex items-center justify-between rounded-2xl border border-app-line px-4 py-4 text-[15px] font-semibold"
         >
           처음 키운다면, 종별 사육 가이드
           <span className="text-[13px] font-normal text-app-muted">보러 가기 ›</span>
         </Link>
       </section>
 
-      <div className="h-2 bg-app-gap" />
-
-      {/* 마무리 */}
-      <section className="px-4 pt-8 text-center">
-        <h2 className="text-[20px] font-bold leading-7">지금 받아 보세요</h2>
-        <p className="mt-1.5 text-[14px] text-app-muted">아이폰·안드로이드 모두 있어요</p>
-        <div className="mt-5 flex justify-center">
-          <StoreBadges playFirst={playFirst} playHref={playHref} />
+      {/* 마무리: 검정 카드 */}
+      <section className="px-5 pt-10">
+        <div className="rounded-3xl bg-app-inverse px-5 pb-6 pt-8 text-center text-app-inverse-text">
+          <Image src="/landing/app-icon.png" alt="" width={56} height={56} className="mx-auto rounded-2xl" />
+          <h2 className="mt-4 text-[22px] font-extrabold leading-[30px] tracking-[-0.5px]">
+            우리 아이 이야기,
+            <br />
+            브리디에서 시작해요
+          </h2>
+          <p className="mt-2 text-[14px] opacity-70">가입·분양글 올리기 모두 무료예요</p>
+          <div className="mt-6">
+            {platform === "other" ? (
+              <div className="grid grid-cols-2 gap-2.5">
+                {(["ios", "android"] as const).map((key) => (
+                  <a
+                    key={key}
+                    href={STORES[key].href}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    aria-label={STORES[key].label}
+                    className="flex h-14 items-center justify-center gap-2 rounded-2xl bg-app-bg text-[15px] font-bold text-app-text"
+                  >
+                    <Logo d={STORES[key].logo} size={20} />
+                    {STORES[key].name}
+                  </a>
+                ))}
+              </div>
+            ) : (
+              <PrimaryStoreButton store={platform} />
+            )}
+          </div>
         </div>
-        <button
-          type="button"
-          onClick={share}
-          className="mt-5 flex h-12 w-full items-center justify-center gap-2 rounded-md border border-app-border text-[15px] font-semibold text-app-text"
-        >
-          <Icon d="M7.217 10.907a2.25 2.25 0 1 0 0 2.186m0-2.186c.18.324.283.696.283 1.093s-.103.77-.283 1.093m0-2.186 9.566-5.314m-9.566 7.5 9.566 5.314m0 0a2.25 2.25 0 1 0 3.935 2.186 2.25 2.25 0 0 0-3.935-2.186Zm0-12.814a2.25 2.25 0 1 0 3.933-2.185 2.25 2.25 0 0 0-3.933 2.185Z" size={20} />
-          친구에게 링크 공유하기
-        </button>
-        <p className="mt-6 text-[13px] text-app-muted">
+        <div className="mt-3 grid grid-cols-2 gap-2.5">
+          <button
+            type="button"
+            onClick={share}
+            className="flex h-12 items-center justify-center gap-1.5 rounded-2xl bg-app-surface text-[14px] font-semibold text-app-text"
+          >
+            <Icon d={SHARE_ICON} size={18} />
+            친구에게 공유
+          </button>
+          <Link href="/" className="flex h-12 items-center justify-center rounded-2xl bg-app-surface text-[14px] font-semibold text-app-text">
+            웹에서 먼저 보기
+          </Link>
+        </div>
+        <p className="mt-6 text-center text-[13px] text-app-muted">
           문의는 <Link href="/support" className="underline underline-offset-2">고객센터</Link>로 남겨 주세요
         </p>
       </section>
+
+      {/* 아래 고정 설치 바 — 첫 화면 버튼이 지나간 뒤에만 */}
+      {platform !== "other" && (
+        <div
+          className={`fixed inset-x-0 bottom-0 z-30 mx-auto max-w-xl border-t border-app-line bg-app-bg px-4 pb-[max(calc(env(safe-area-inset-bottom)+10px),14px)] pt-2.5 transition-transform duration-300 ${showBar ? "translate-y-0" : "translate-y-full"}`}
+          aria-hidden={!showBar}
+        >
+          <div className="flex items-center gap-3">
+            <Image src="/landing/app-icon.png" alt="" width={40} height={40} className="rounded-xl" />
+            <span className="min-w-0 flex-1">
+              <b className="block text-[15px] font-bold leading-5">브리디</b>
+              <span className="block truncate text-[12px] text-app-muted">키우는 사람들의 커뮤니티 · 무료</span>
+            </span>
+            <a
+              href={STORES[platform].href}
+              target="_blank"
+              rel="noopener noreferrer"
+              tabIndex={showBar ? 0 : -1}
+              className="flex h-10 shrink-0 items-center gap-1.5 rounded-full bg-app-brand px-4 text-[14px] font-bold text-white"
+            >
+              <Logo d={STORES[platform].logo} size={16} />
+              받기
+            </a>
+          </div>
+        </div>
+      )}
     </div>
+    </StoresContext.Provider>
   );
 }

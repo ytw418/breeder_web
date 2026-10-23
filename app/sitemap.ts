@@ -40,6 +40,13 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       changeFrequency: "daily",
       priority: 0.7,
     },
+    // 분양 탭 '입양' 쪽(강아지·고양이 임보 구해요·가족 찾아요, docs/prd/pet-space.md §5.4).
+    {
+      url: "https://bredy.app/adoption",
+      lastModified: new Date(),
+      changeFrequency: "daily",
+      priority: 0.6,
+    },
     {
       url: "https://bredy.app/debates",
       lastModified: new Date(),

@@ -28,10 +28,12 @@ jest.mock("@libs/server/push", () => ({
 import reportHandler from "../pages/api/reports/index";
 import {
   OTHER_REASON,
+  PET_DEALER_REASON,
   REPORT_DETAIL_MAX,
   REPORT_REASONS,
   REPORT_TARGET_TYPES,
   isValidReportReason,
+  reportReasonsFor,
 } from "@libs/shared/report";
 
 function createRes() {
@@ -168,6 +170,22 @@ describe("신고 사유 상수(libs/shared/report)", () => {
     expect(isValidReportReason("PRODUCT", "거래 금지 품목(불법 개체)")).toBe(true);
     expect(REPORT_REASONS.PRODUCT).not.toContain("허위 매물·사기 의심");
     expect(isValidReportReason("POST", "허위 매물·사기 의심")).toBe(false);
+  });
+
+  it("강아지·고양이 분양글만 '업자 의심·과한 책임비'가 하나 더 보이고, 분양글 신고에서만 받는다", () => {
+    expect(reportReasonsFor("PRODUCT", { petPost: true })).toEqual([
+      "허위 분양글·사기 의심",
+      "업자 의심·과한 책임비",
+      "불법 개체·거래 금지 종",
+      "동물 학대·부적절 사육",
+      "중복·도배 게시",
+      "욕설·부적절 내용",
+      "기타",
+    ]);
+    expect(reportReasonsFor("PRODUCT")).toBe(REPORT_REASONS.PRODUCT);
+    expect(reportReasonsFor("POST", { petPost: true })).toBe(REPORT_REASONS.POST);
+    expect(isValidReportReason("PRODUCT", PET_DEALER_REASON)).toBe(true);
+    expect(isValidReportReason("POST", PET_DEALER_REASON)).toBe(false);
   });
 });
 

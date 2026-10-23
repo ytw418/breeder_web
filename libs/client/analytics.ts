@@ -8,6 +8,8 @@ export const ANALYTICS_EVENTS = {
   homeBannerClicked: "home_banner_clicked",
   homeCategorySelected: "home_category_selected",
   homeSectionView: "home_section_view",
+  // 홈 '인기글 TOP 10' 카드를 누름(post_id·position). 앱도 같은 이름(docs/prd/home-v2.md).
+  homeHotTop10Clicked: "home_hot_top10_clicked",
   homePopularProductClicked: "home_popular_product_clicked",
   homeOngoingAuctionClicked: "home_ongoing_auction_clicked",
   homePostLoginInstallClicked: "home_post_login_install_clicked",
@@ -49,6 +51,14 @@ export const ANALYTICS_EVENTS = {
   postsHotDiscussionClicked: "posts_hot_discussion_clicked",
   postsBreederTabClicked: "posts_breeder_tab_clicked",
   postsHighlightTabChanged: "posts_highlight_tab_changed",
+  // 강아지·고양이 공간(앱 docs/prd/pet-space.md §10). 앱도 같은 이름을 쓴다.
+  onboardingPetPick: "onboarding_pet_pick",
+  spaceSwitch: "space_switch",
+  adoptionSideView: "adoption_side_view",
+  petPostCreate: "pet_post_create",
+  petWriteStep: "pet_write_step",
+  fosterRaiseHand: "foster_raise_hand",
+  otherPetsFeedView: "other_pets_feed_view",
   sentryExampleClientErrorClicked: "sentry_example_client_error_clicked",
   sentryExampleApiErrorClicked: "sentry_example_api_error_clicked",
   sentryExampleApiErrorReceived: "sentry_example_api_error_received",

@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { getTimeAgoString } from "@libs/client/utils";
-import { formatProductPrice } from "@libs/shared/price";
+import { productPriceText } from "@libs/shared/price";
 import { toAuctionPath } from "@libs/auction-route";
 import { toPostCommentPath, toPostPath } from "@libs/post-route";
 import type { ProductListResponse } from "pages/api/users/[id]/productList";
@@ -280,7 +280,7 @@ export function ProfileProductRows({
               <p className="min-w-0 shrink truncate text-[16px] font-medium text-app-text">{product.name}</p>
               {product.isHidden ? <HiddenPill /> : null}
             </div>
-            <p className="mt-1 text-[15px] font-bold text-app-text">{formatProductPrice(product.price ?? null)}</p>
+            <p className="mt-1 text-[15px] font-bold text-app-text">{productPriceText(product)}</p>
             {showMeta ? (
               <p className="mt-1 truncate text-[13px] text-app-muted">
                 {getTimeAgoString(new Date(product.createdAt))} · 관심 {product._count?.favs ?? 0}

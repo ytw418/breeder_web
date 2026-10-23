@@ -28,6 +28,9 @@ const isNearbyKey = (key: unknown) => typeof key === "string" && key.startsWith(
  * 동네 브리더 '손 흔들어 인사하기'(앱 components/features/chat/WaveButton.tsx 와 같은 동작).
  * 32 원형 버튼(brand-soft·brand 손) → 시트에서 문구 3개 중 하나 → 보내면 채팅방이 생기고 '채팅 보기' 토스트.
  * 이미 인사했으면 회색 '인사함'(누를 수 없음), 오늘 10명을 채웠으면 누를 때 안내만 띄운다.
+ * variant "pill": 홈 동네 카드에서 팔로우 버튼과 같은 너비·높이(30 r8)로 손 + '인사'를 나란히 둔다(2026-10-22 사용자
+ * "팔로잉이랑 손바닥 아이콘 위치가 제각각"). 인사한 뒤엔 손 없이 '인사함'만 — 132 카드의 반 칸에 손까지 두면 두 줄로 꺾인다.
+ * 앱 WaveButton variant 와 같다.
  */
 export default function WaveButton({
   userId,
@@ -35,12 +38,14 @@ export default function WaveButton({
   waved,
   wavesLeftToday,
   className,
+  variant = "circle",
 }: {
   userId: number;
   name: string;
   waved?: boolean;
   wavesLeftToday?: number;
   className?: string;
+  variant?: "circle" | "pill";
 }) {
   const router = useRouter();
   const { mutate } = useSWRConfig();
@@ -106,12 +111,19 @@ export default function WaveButton({
         aria-disabled={state === "waved"}
         title={label}
         className={cn(
-          "flex h-8 w-8 shrink-0 items-center justify-center rounded-full transition-colors",
+          variant === "pill"
+            ? "flex h-[30px] w-full items-center justify-center gap-1 rounded-lg text-[13px] font-semibold transition-colors"
+            : "flex h-8 w-8 shrink-0 items-center justify-center rounded-full transition-colors",
           state === "waved" ? "cursor-default bg-app-surface text-app-muted" : "bg-app-brand-soft text-app-brand",
           className
         )}
       >
-        <Hand className="h-[18px] w-[18px]" strokeWidth={2} aria-hidden="true" />
+        {variant === "pill" && state === "waved" ? null : (
+          <Hand className={variant === "pill" ? "h-4 w-4" : "h-[18px] w-[18px]"} strokeWidth={2} aria-hidden="true" />
+        )}
+        {variant === "pill" ? (
+          <span className={cn("whitespace-nowrap", state !== "waved" && "text-app-brand-text")}>{state === "waved" ? "인사함" : "인사"}</span>
+        ) : null}
       </button>
       <BottomSheet
         open={open}

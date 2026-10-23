@@ -175,8 +175,10 @@ export default function TownClient() {
   };
   const sendText = async (value = text, fromPrompt = false) => {
     const body = value.trim();
-    if (!body) return;
-    if (await send({ type: "TEXT", body, fromPrompt })) setText("");
+    if (!body || sending) return;
+    // 누르는 즉시 입력칸을 비운다. 실패하면 쓰던 글을 돌려놓는다.
+    setText("");
+    if (!(await send({ type: "TEXT", body, fromPrompt }))) setText((prev) => prev || body);
   };
   const sendImage = async (file: File | undefined) => {
     if (!file) return;
@@ -592,7 +594,6 @@ export default function TownClient() {
         title="이 메시지를 삭제할까요?"
         description="'삭제한 메시지예요'로 바뀌어요."
         confirmText="삭제"
-        cancelText="취소"
         onCancel={() => setDeleteFor(null)}
         onConfirm={() => void confirmDelete()}
       />

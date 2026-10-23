@@ -5,6 +5,7 @@ import useSWR from "swr";
 import Layout from "@components/features/MainLayout";
 import { QueryErrorState } from "@components/app/QueryErrorState";
 import useUser from "hooks/useUser";
+import { productWriteLabels } from "@libs/shared/petSpace";
 import type { ItemDetailResponse } from "pages/api/products/[id]";
 import { ProductForm } from "../../_components/ProductForm";
 
@@ -49,7 +50,7 @@ export default function EditClient({ productId }: { productId: string }) {
     if (!product || !isOwner || product.isDeleted) {
       return (
         <div className="flex min-h-[60vh] flex-col items-center justify-center px-5 text-center">
-          <p className="text-[18px] font-bold text-app-text">수정 권한이 없습니다</p>
+          <p className="text-[18px] font-bold text-app-text">수정할 수 없는 글이에요</p>
           <p className="mt-2 text-[15px] leading-[22px] text-app-muted">
             본인이 등록한 분양글만 수정할 수 있어요.
           </p>
@@ -75,6 +76,9 @@ export default function EditClient({ productId }: { productId: string }) {
           category: product.category,
           productType: product.productType,
           dealType: product.dealType,
+          petInfo: product.petInfo,
+          regionSido: product.regionSido,
+          regionSigungu: product.regionSigungu,
           // 붙인 혈통은 상세 응답의 요약으로 채운다. 회수·숨김된 혈통은 요약이 null 이라 "붙이기"로 보이고,
           // 손대지 않으면 저장 때 혈통 필드를 보내지 않아 서버 값이 그대로 남는다.
           bloodlineRootId: product.bloodline?.id ?? null,
@@ -87,7 +91,7 @@ export default function EditClient({ productId }: { productId: string }) {
   };
 
   return (
-    <Layout canGoBack title="분양글 수정" headerRight={<></>}>
+    <Layout canGoBack title={`${productWriteLabels(product?.dealType).noun} 수정`} headerRight={<></>}>
       {renderBody()}
     </Layout>
   );

@@ -1,4 +1,5 @@
 import { NextApiRequest, NextApiResponse } from "next";
+import { isNoPriceCategory } from "@libs/shared/petSpace";
 import { withDetailRevalidation } from "@libs/server/pageRevalidation";
 import withHandler, { ResponseType } from "@libs/server/withHandler";
 import client from "@libs/server/client";
@@ -266,6 +267,15 @@ async function handler(
       minBidIncrement: requestedBidIncrement,
       pedigreeNote: requestedPedigreeNote,
     } = req.body;
+
+    // 강아지·고양이는 경매로 올릴 수 없다(앱 docs/prd/pet-space.md §5.6).
+    if (action === "update" && isNoPriceCategory(typeof category === "string" ? category.trim() : null)) {
+      return res.status(400).json({
+        success: false,
+        error: "강아지·고양이는 경매로 올릴 수 없어요. 분양 글로 가족을 찾아 주세요.",
+        errorCode: "AUCTION_PET_CATEGORY_NOT_ALLOWED",
+      });
+    }
 
     if (action !== "update") {
       return res.status(400).json({

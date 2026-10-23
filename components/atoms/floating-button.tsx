@@ -10,6 +10,8 @@ type FloatingButtonProps = {
   label?: string;
   /** 아래로 스크롤하면 숨기고 위로 올리면 다시 보인다(분양·경매 목록, 앱 useFabScrollHide). */
   hideOnScroll?: boolean;
+  /** 밖에서 숨김을 정한다(홈: 맨 위 새 소식 입력줄이 보이는 동안 숨김, 앱 docs/prd/home-v2.md S-1 FAB). */
+  hidden?: boolean;
 } & (
   | { href: string; onClick?: never }
   /** 바로 이동하지 않고 고르는 시트를 띄울 때(홈 글쓰기 FAB: 글쓰기·질문하기·토론 열기, 앱 FloatingButton onPress). */
@@ -60,8 +62,15 @@ function useHideOnWindowScroll(enabled: boolean) {
  * 주황 FAB(앱 FloatingButton): 56x56 r16 app-brand, 오른쪽 16(모바일 폭 컨테이너 기준), 탭바 위 46.
  * 다크는 그림자 없이 1px 테두리만 둔다. href 면 링크, onClick 이면 버튼.
  */
-export default function FloatingButton({ children, href, onClick, label = "등록", hideOnScroll = false }: FloatingButtonProps) {
-  const hidden = useHideOnWindowScroll(hideOnScroll);
+export default function FloatingButton({
+  children,
+  href,
+  onClick,
+  label = "등록",
+  hideOnScroll = false,
+  hidden: forceHidden = false,
+}: FloatingButtonProps) {
+  const hidden = useHideOnWindowScroll(hideOnScroll) || forceHidden;
   const className = hidden ? `${FAB_CLASS} ${FAB_HIDDEN_CLASS}` : FAB_CLASS;
   if (onClick) {
     return (

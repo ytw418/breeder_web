@@ -13,6 +13,7 @@ import type { Metadata } from "next";
 import { SITE_OG_IMAGE } from "@libs/shared/ogImage";
 import JsonLd from "@components/atoms/JsonLd";
 import { SITE_URL, toPageTitle, toPublicImageUrl } from "@libs/shared/seo";
+import { RESULT_CARD_MIN_VOTES } from "@libs/shared/debateFormat";
 import ExploreMore from "@components/app/ExploreMore";
 import AdSenseUnit from "@components/app/ads/AdSenseUnit";
 import { isNoticePostInput } from "@libs/server/postNotice";
@@ -84,9 +85,15 @@ export async function generateMetadata({
   const title = toPageTitle(data.post.title, data.post.category);
   const shareTitle = `${data.post.title} | 브리디`;
   const firstImage = data.post.images?.[0] || data.post.image;
-  const shareImage = firstImage ? toPublicImageUrl(firstImage, DEFAULT_POST_IMAGE) : DEFAULT_POST_IMAGE;
   // 찬반 토론은 공유 미리보기에 선택지·참여 수를 보인다(앱 docs/prd/live-talk.md §3.6).
   const debate = data.debate;
+  // 30표 넘은 상시 토론은 결과 카드 그림을 미리보기로 쓴다(앱 docs/prd/evergreen-debate.md S-5).
+  const resultCard = Boolean(debate?.evergreen) && (debate?.participants ?? 0) >= RESULT_CARD_MIN_VOTES;
+  const shareImage = resultCard
+    ? `${SITE_URL}/api/og/debate/${data.post.id}?size=og`
+    : firstImage
+      ? toPublicImageUrl(firstImage, DEFAULT_POST_IMAGE)
+      : DEFAULT_POST_IMAGE;
   const description = debate
     ? `${debate.optionA} vs ${debate.optionB} · ${debate.participants}명 참여 · ${
         debate.state === "open" ? "너는 어느 쪽?" : "결과 보기"
@@ -116,7 +123,7 @@ export async function generateMetadata({
       images: [
         {
           url: shareImage,
-          ...(firstImage ? {} : { width: 1200, height: 630 }),
+          ...(firstImage && !resultCard ? {} : { width: 1200, height: 630 }),
           alt: `${data.post.title} 게시글 공유 이미지`,
         },
       ],

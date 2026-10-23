@@ -105,6 +105,12 @@ const KINDS: Record<string, NotificationKind> = {
   ADOPTION_CONFIRMED: { label: "입양 확정", icon: "check", fromPerson: true },
   TRADE_REVIEW_RECEIVED: { label: "거래 후기", icon: "bubble", fromPerson: true },
   TRADE_REVIEW_REPLIED: { label: "후기 답글", icon: "bubble", fromPerson: true },
+  // 재방문 알림(2026-10-23, 앱 docs/prd/reengagement-push.md). 동네 무료 분양·답 없는 질문은 올린 사람 아바타,
+  // 토론 마감·관심 분야 새 분양 묶음은 시스템 아이콘 원. 묶음(targetType productList)은 누르면 분양 탭.
+  NEARBY_FREE_PRODUCT: { label: "동네 무료 분양", icon: "tag", fromPerson: true },
+  DEBATE_CLOSING: { label: "토론 마감", icon: "debate", fromPerson: false },
+  INTEREST_PRODUCTS: { label: "새 분양", icon: "tag", fromPerson: false },
+  QUESTION_HELP: { label: "답 기다려요", icon: "bubble", fromPerson: true },
 };
 
 const FALLBACK_KIND: NotificationKind = { label: "알림", icon: "bell", fromPerson: false };

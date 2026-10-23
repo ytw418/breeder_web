@@ -9,7 +9,7 @@
 import Link from "next/link";
 import Image from "@components/atoms/Image";
 import { cn, makeImageUrl } from "@libs/client/utils";
-import { formatProductPrice } from "@libs/productRules";
+import { productPriceText } from "@libs/shared/price";
 import type { ChatProductAction, ChatRoomProduct } from "@libs/shared/tradeChat";
 
 export type ChatTradeAction = Exclude<ChatProductAction, null>;
@@ -28,7 +28,7 @@ export function ProductContextBar({
   onAction: (action: ChatTradeAction) => void;
 }) {
   const action = product.viewerAction;
-  const price = formatProductPrice(product.price);
+  const price = productPriceText(product);
   return (
     <div className="flex shrink-0 items-center gap-3 border-b border-app-line bg-app-bg px-4 py-2.5">
       <Link

@@ -43,6 +43,9 @@ export const getNotificationUrl = (targetType?: string, targetId?: number, comme
     case "ranking":
       // 순위 상승(RANK_UP): 전체 랭킹에서 내 행으로 스크롤.
       return "/ranking?focus=me";
+    case "productList":
+      // 관심 분야 새 분양 묶음(INTEREST_PRODUCTS): 분양 탭.
+      return "/products";
     case "town":
       // 동네 사랑방 답장·반겨 주기: 사랑방, 그 메시지로 스크롤.
       return `/town?focus=${targetId}`;

@@ -3,7 +3,12 @@ import {
   debateMetaParts,
   debatePercents,
   debateState,
+  evergreenMetaLabel,
+  evergreenSinceLabel,
   mySideResultLine,
+  orderEvergreenFields,
+  resultCardLead,
+  resultCardPeriod,
   remainingLabel,
   resultHeadline,
   switchConfirmMessage,
@@ -111,5 +116,62 @@ describe("validateDebateInput", () => {
     expect(validateDebateInput({ ...ok, optionB: " " })).toMatchObject({ errorCode: "DEBATE_OPTION_LENGTH" });
     expect(validateDebateInput({ ...ok, optionB: " 찬성 " })).toMatchObject({ errorCode: "DEBATE_OPTION_SAME" });
     expect(validateDebateInput({ ...ok, durationHours: 48 })).toMatchObject({ errorCode: "DEBATE_DURATION" });
+  });
+});
+
+describe("상시 토론(앱 docs/prd/evergreen-debate.md)", () => {
+  it("마감이 없으면 늘 진행 중이고, 안 골라도 3표부터 결과가 보인다", () => {
+    expect(debateState(null, 100, NOW)).toBe("open");
+    const few = buildDebateSummary({ ...base, endsAt: null, evergreenField: "aquarium", countA: 1, countB: 1 }, NOW);
+    expect(few.result).toBeNull();
+    const summary = buildDebateSummary(
+      { ...base, endsAt: null, evergreenField: "aquarium", firstVoteAt: "2026-10-01T00:00:00Z", countA: 87, countB: 13 },
+      NOW
+    );
+    expect(summary).toMatchObject({
+      state: "open",
+      endsAt: null,
+      evergreen: { field: "aquarium", since: "2026-10-01T00:00:00.000Z" },
+      result: { a: 87, b: 13 },
+      winner: null,
+    });
+    expect(remainingLabel(null, NOW)).toBe("상시 토론");
+    expect(debateMetaParts(summary, NOW).rest).toBe("100명 참여 · 상시 토론");
+  });
+
+  it("회원 토론은 evergreen 이 null", () => {
+    expect(buildDebateSummary({ ...base, endsAt: new Date(NOW + 3600_000) }, NOW).evergreen).toBeNull();
+  });
+
+  it("분야 칩: 내 관심 분야 먼저, 공통은 맨 끝, 포유류만이면 포유류·공통만", () => {
+    const all = ["all", "reptile", "aquarium", "hamster"];
+    expect(orderEvergreenFields(all).map((f) => f.key)).toEqual(["reptile", "aquarium", "hamster", "all"]);
+    expect(orderEvergreenFields(all, [{ path: "/fish/guppy/" }]).map((f) => f.key)).toEqual([
+      "aquarium",
+      "reptile",
+      "hamster",
+      "all",
+    ]);
+    expect(orderEvergreenFields(all, [{ path: "/mammal/" }]).map((f) => f.label)).toEqual([
+      "햄스터",
+      "공통",
+    ]);
+  });
+
+  it("기간·메타·결과 카드 문구", () => {
+    expect(evergreenSinceLabel("2026-09-30T16:00:00Z")).toBe("2026년 10월부터");
+    expect(evergreenSinceLabel(null)).toBe("");
+    expect(resultCardPeriod("2026-10-01T00:00:00Z", Date.parse("2027-10-02T00:00:00Z"))).toBe("2026.10~2027.10");
+    expect(resultCardPeriod("2026-10-01T00:00:00Z", NOW)).toBe("2026.10");
+    expect(
+      evergreenMetaLabel({ evergreen: { field: "all", since: "2026-10-01T00:00:00Z" }, participants: 1204, switchCount: 31 })
+    ).toBe("2026년 10월부터 1,204명 참여 · 마음 바꾼 사람 31명");
+    expect(resultCardLead({ optionA: "가능하다", optionB: "불가능하다" }, 87, 13)).toMatchObject({
+      tie: false,
+      label: "가능하다",
+      percent: 87,
+    });
+    expect(resultCardLead({ optionA: "a", optionB: "b" }, 10, 30)).toMatchObject({ label: "b", percent: 75 });
+    expect(resultCardLead({ optionA: "a", optionB: "b" }, 20, 20).tie).toBe(true);
   });
 });
