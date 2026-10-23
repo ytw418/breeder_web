@@ -12,7 +12,7 @@ import { makeImageUrl } from "@libs/client/utils";
 import { getProductPath } from "@libs/product-route";
 import { withoutBlocked } from "@libs/shared/blockFilter";
 import type { ProductsResponse } from "@libs/shared/home";
-import { fosterPeriodLabel, fosterSupportLabel, parsePetInfo } from "@libs/shared/petSpace";
+import { fosterPeriodLabel, fosterSupportLabel, parsePetInfo, petPostPlace } from "@libs/shared/petSpace";
 import useBlocks from "hooks/useBlocks";
 import useUser from "hooks/useUser";
 
@@ -29,7 +29,7 @@ function HandIcon() {
 
 /**
  * 입양 쪽 맨 위 '임보해 주실 분 찾아요' 가로 레일(앱 docs/prd/pet-space.md §5.4, 시안 pet-space/A-karrot.html ③).
- * 분양중인 임보 구해요 글 최신 10개, 카드 148(사진 r8 + 왼쪽 위 기간 딱지 · 제목 14/600 · 지역·지원 12 muted ·
+ * 분양중인 임보 구해요 글 최신 10개, 카드 148(사진 r8 + 왼쪽 위 기간 딱지 · 제목 14/600 · 동네(시·군·구, §5.9)·지원 12 muted ·
  * '임보 할게요' 32 버튼). 버튼은 그 글을 열고 바로 채팅을 잇는다(상세의 채팅하기와 같은 흐름 — 로그인·차단 처리를 같이 쓴다).
  * 0개거나 조회 오류면 섹션을 그리지 않는다(아래 8 갭까지). '전체 ›'는 입양 쪽 '임보 구해요' 칩.
  */
@@ -89,7 +89,7 @@ export default function FosterRail({
           : items.map((item) => {
               const info = parsePetInfo(item.petInfo);
               const period = fosterPeriodLabel(info);
-              const meta = [item.location, fosterSupportLabel(info)].filter(Boolean).join(" · ");
+              const meta = [petPostPlace(item), fosterSupportLabel(info)].filter(Boolean).join(" · ");
               const mine = Boolean(user?.id && user.id === item.userId);
               return (
                 <div key={item.id} className="w-[148px] shrink-0">

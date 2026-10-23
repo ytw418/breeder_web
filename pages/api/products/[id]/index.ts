@@ -1,5 +1,5 @@
 import { NextApiRequest, NextApiResponse } from "next";
-import { petInfoDbValue, readStoredPetInfo, relatedPetGroupWhere } from "@libs/server/petInfo";
+import { petInfoDbValue, petRegionColumns, readStoredPetInfo, relatedPetGroupWhere } from "@libs/server/petInfo";
 import type { PetInfo } from "@libs/shared/petSpace";
 import { withDetailRevalidation } from "@libs/server/pageRevalidation";
 import { extractProductId } from "@libs/product-route";
@@ -380,6 +380,23 @@ async function handler(
           attachRelation = decision.relation;
         }
 
+        // '내 동네 보이기'를 보냈으면 저장될 종·종류로 다시 정한다. 동네는 글 주인 프로필에서 복사한다(§5.9).
+        // 운영자가 남의 글을 고칠 땐 손대지 않는다(화면의 스위치는 운영자 자기 동네를 보여 주므로 주인 선택을 그대로 둔다).
+        const showPetRegion = product.userId === user.id ? validation.value.showPetRegion : undefined;
+        const regionColumns = petRegionColumns(
+          showPetRegion,
+          {
+            category: validation.value.category ?? product.category,
+            dealType: validation.value.dealType ?? product.dealType,
+          },
+          showPetRegion
+            ? await client.user.findUnique({
+                where: { id: user.id },
+                select: { regionSido: true, regionSigungu: true },
+              })
+            : null
+        );
+
         const updatedProduct = await client.product.update({
           where: { id: Number(productId) },
           data: {
@@ -403,6 +420,7 @@ async function handler(
             ...(validation.value.petInfo !== undefined
               ? { petInfo: petInfoDbValue(validation.value.petInfo) }
               : {}),
+            ...(regionColumns ?? {}),
           },
         });
 

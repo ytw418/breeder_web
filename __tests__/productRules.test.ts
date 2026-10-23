@@ -270,11 +270,28 @@ describe("강아지·고양이 분양글(앱 docs/prd/pet-space.md §5.6)", () =
     );
     expect(moved).toEqual({
       ok: true,
-      value: { category: "파충류", price: 30000, dealType: "adoption", petInfo: null },
+      value: { category: "파충류", price: 30000, dealType: "adoption", petInfo: null, showPetRegion: false },
     });
     // 다른 종끼리 바꾸는 수정은 예전과 같다.
     expect(
       validateProductInput({ category: "어류" }, { partial: true, currentCategory: "파충류" })
     ).toEqual({ ok: true, value: { category: "어류" } });
+  });
+
+  it("'내 동네 보이기'는 true/false 를 보낸 때만, 다른 종 글이면 false (§5.9)", () => {
+    const on = validateProductInput({ ...pet, dealType: "foster", showPetRegion: true }, { requireCategory: true });
+    expect(on.ok && on.value.showPetRegion).toBe(true);
+    const off = validateProductInput({ ...pet, dealType: "foster", showPetRegion: false }, { requireCategory: true });
+    expect(off.ok && off.value.showPetRegion).toBe(false);
+    // 옛 앱은 보내지 않는다 → 키가 없어 API 가 손대지 않는다. 문자열 등 다른 값도 보내지 않은 것으로 본다.
+    const old = validateProductInput({ ...pet, dealType: "foster" }, { requireCategory: true });
+    expect(old.ok && "showPetRegion" in old.value).toBe(false);
+    const odd = validateProductInput({ ...pet, dealType: "foster", showPetRegion: "true" }, { requireCategory: true });
+    expect(odd.ok && "showPetRegion" in odd.value).toBe(false);
+    const reptile = validateProductInput(
+      { ...valid, category: "파충류", productType: "생물", showPetRegion: true },
+      { requireCategory: true }
+    );
+    expect(reptile.ok && reptile.value.showPetRegion).toBe(false);
   });
 });

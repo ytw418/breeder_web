@@ -7,7 +7,7 @@ import { getProductPath } from "@libs/product-route";
 import { productPriceText } from "@libs/shared/price";
 import { useIsUnread } from "@libs/client/unreadMarks";
 import { productStatusLabel } from "@libs/shared/productTerms";
-import { isNoPriceCategory, parsePetInfo, petFacts, petThumbTag } from "@libs/shared/petSpace";
+import { isNoPriceCategory, parsePetInfo, petFacts, petPostPlace, petThumbTag } from "@libs/shared/petSpace";
 import { PetFactChips } from "@components/features/pet/PetFactChips";
 
 /** 목록 메타에 조회 수를 보이는 최소값. 작은 숫자는 오히려 빈 티가 나서 숨긴다. */
@@ -36,19 +36,28 @@ export type ProductCardData = {
   dealType?: string | null;
   /** 강아지·고양이 글 정보(Product.petInfo). 가격 자리에 성별·나이·건강 칩을 보인다. */
   petInfo?: unknown;
+  /** 가족 찾아요·임보 구해요 글에 남긴 동네(Product.regionSido·regionSigungu). 있으면 메타의 카테고리 자리에 "마포구". */
+  regionSido?: string | null;
+  regionSigungu?: string | null;
 };
 
 const toDate = (value: string | Date) => (value instanceof Date ? value : new Date(value));
 
-/** "카테고리 · 3분 전 · 조회 12" (상대시간은 getTimeAgoString 문구, 조회는 PRODUCT_VIEW_COUNT_MIN 이상만). */
+/**
+ * "카테고리 · 3분 전 · 조회 12" (상대시간은 getTimeAgoString 문구, 조회는 PRODUCT_VIEW_COUNT_MIN 이상만).
+ * 강아지·고양이 가족 찾아요·임보 구해요 글에 동네가 있으면 카테고리 자리에 동네("마포구 · 2시간 전", 앱 pet-space 시안 ③).
+ */
 export function getProductCardMeta(
-  product: Pick<ProductCardData, "category" | "createdAt" | "viewCount">
+  product: Pick<
+    ProductCardData,
+    "category" | "createdAt" | "viewCount" | "dealType" | "regionSido" | "regionSigungu"
+  >
 ) {
   const date = toDate(product.createdAt);
   const timeAgo = Number.isNaN(date.getTime()) ? "" : getTimeAgoString(date);
   const views = product.viewCount ?? 0;
   return [
-    product.category || null,
+    petPostPlace(product) ?? (product.category || null),
     timeAgo || null,
     views >= PRODUCT_VIEW_COUNT_MIN ? `조회 ${views}` : null,
   ]

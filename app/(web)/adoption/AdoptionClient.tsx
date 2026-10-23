@@ -214,6 +214,8 @@ export default function AdoptionClient() {
                     seller: product.user ?? null,
                     dealType: product.dealType,
                     petInfo: product.petInfo,
+                    regionSido: product.regionSido,
+                    regionSigungu: product.regionSigungu,
                   }}
                   markUnread
                 />

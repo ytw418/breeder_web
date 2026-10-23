@@ -698,7 +698,14 @@ const ProductClient = ({
                   </span>
                 ) : null}
               </div>
-              {isPetPost ? <PetInfoBlock petInfo={product.petInfo} dealType={product.dealType} /> : null}
+              {isPetPost ? (
+                <PetInfoBlock
+                  petInfo={product.petInfo}
+                  dealType={product.dealType}
+                  regionSido={product.regionSido}
+                  regionSigungu={product.regionSigungu}
+                />
+              ) : null}
 
               <div className="mt-5">
                 <MarkdownPreview content={product.description ?? ""} emptyText="설명이 없습니다." />

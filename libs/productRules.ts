@@ -57,6 +57,12 @@ export interface ProductInputValue {
   /** 강아지·고양이 성별·나이·건강·이유·임보 기간. 보내지 않았으면 키가 없다. 다른 종은 null. */
   petInfo?: PetInfo | null;
   /**
+   * 가족 찾아요·임보 구해요 글에 작성자 동네를 남길지(앱 docs/prd/pet-space.md §5.9). true/false 를 보낸 때만 키가 있다
+   * (옛 앱·다른 종 글쓰기는 보내지 않아 손대지 않는다). 다른 종 글이면 false, 강아지·고양이에서 다른 종으로 바꾸면 false.
+   * 글 종류·작성자 동네까지 보고 저장할 값을 정하는 건 API(libs/server/petInfo.ts petRegionColumns)다.
+   */
+  showPetRegion?: boolean;
+  /**
    * 연결한 뿌리 혈통 id. 보내지 않았으면 키가 없다(수정: 기존 값 유지).
    * null 은 해제다(이때 pedigreeNote 도 null 로 맞춘다).
    */
@@ -108,6 +114,7 @@ const readBloodlineRootId = (raw: unknown): number | null | undefined => {
  * - 강아지·고양이(앱 docs/prd/pet-space.md): 보낸 가격은 무시하고 null 로 둔다(옛 앱이 보내도).
  *   거래 유형은 분양해요·가족 찾아요·임보 구해요만, 다른 종의 임보(foster)는 막는다.
  *   수정에서 카테고리를 보내지 않으면 currentCategory(저장된 값)로 판단한다.
+ *   '내 동네 보이기'(showPetRegion)는 true/false 만 받고 다른 값은 보내지 않은 것으로 본다.
  */
 export const validateProductInput = (
   input: {
@@ -121,6 +128,7 @@ export const validateProductInput = (
     bloodlineRootId?: unknown;
     pedigreeNote?: unknown;
     petInfo?: unknown;
+    showPetRegion?: unknown;
   },
   {
     partial = false,
@@ -238,6 +246,13 @@ export const validateProductInput = (
   } else if (leftPet) {
     // 강아지·고양이에서 다른 종으로 바꾸면 정보를 지운다.
     value.petInfo = null;
+  }
+
+  if (typeof input.showPetRegion === "boolean") {
+    value.showPetRegion = isPet && input.showPetRegion;
+  } else if (leftPet) {
+    // 강아지·고양이에서 다른 종으로 바꾸면 남긴 동네도 지운다.
+    value.showPetRegion = false;
   }
 
   if (input.bloodlineRootId !== undefined) {

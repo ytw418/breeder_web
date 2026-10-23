@@ -40,6 +40,9 @@ interface Sale {
     category?: string | null;
     dealType?: string | null;
     petInfo?: unknown;
+    /** 가족 찾아요·임보 구해요 글에 남긴 동네(앱 docs/prd/pet-space.md §5.9). */
+    regionSido?: string | null;
+    regionSigungu?: string | null;
     /** 입양내역에만: 분양자(입양내역 카드 아래 '○○님에게 입양'). 탈퇴한 분양자는 '탈퇴한 사용자'. */
     user?: { id: number; name: string } | null;
     _count: {

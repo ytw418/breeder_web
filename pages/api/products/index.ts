@@ -15,7 +15,7 @@ import { setViewerCacheHeader } from "@libs/server/blocks";
 import { resolveCategoryIdByName } from "@libs/server/categories";
 import { DEFAULT_DEAL_TYPE } from "@libs/shared/categories";
 import { canAttachBloodline, pedigreeNoteDbValue } from "@libs/server/bloodline-link";
-import { petInfoDbValue } from "@libs/server/petInfo";
+import { petInfoDbValue, petRegionColumns } from "@libs/server/petInfo";
 import { captureServerEvent, resolveClientPlatform } from "@libs/server/analytics";
 import { buildCelebrate } from "@libs/server/celebrate";
 import { getProductRail, PRODUCT_RAIL_LIMIT_DEFAULT, PRODUCT_RAIL_LIMIT_MAX } from "@libs/server/productRail";
@@ -38,6 +38,7 @@ const handler = async (
         bloodlineRootId,
         pedigreeNote,
         petInfo,
+        showPetRegion,
       },
       user,
     } = req;
@@ -59,6 +60,7 @@ const handler = async (
         bloodlineRootId,
         pedigreeNote,
         petInfo,
+        showPetRegion,
       },
       { requireCategory: true }
     );
@@ -107,6 +109,18 @@ const handler = async (
       });
     }
 
+    // 가족 찾아요·임보 구해요 글은 '내 동네 보이기'를 켰을 때 작성자 프로필 동네를 복사한다(앱 docs/prd/pet-space.md §5.9).
+    const regionColumns = petRegionColumns(
+      validation.value.showPetRegion,
+      { category: validation.value.category, dealType: validation.value.dealType ?? DEFAULT_DEAL_TYPE },
+      validation.value.showPetRegion
+        ? await client.user.findUnique({
+            where: { id: user.id },
+            select: { regionSido: true, regionSigungu: true },
+          })
+        : null
+    );
+
     const product = await client.product.create({
       data: {
         name: validation.value.name!,
@@ -123,6 +137,7 @@ const handler = async (
         bloodlineRootId: linkedRootId,
         ...(linkedPedigree ? { pedigreeNote: pedigreeNoteDbValue(linkedPedigree) } : {}),
         ...(validation.value.petInfo ? { petInfo: petInfoDbValue(validation.value.petInfo) } : {}),
+        ...(regionColumns ?? {}),
         user: {
           connect: {
             id: user.id,

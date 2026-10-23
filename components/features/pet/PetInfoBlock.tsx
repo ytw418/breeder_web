@@ -2,11 +2,21 @@ import { parsePetInfo, petInfoRows } from "@libs/shared/petSpace";
 
 /**
  * 강아지·고양이 분양글 상세의 정보 표(앱 docs/prd/pet-space.md §5.5). 가격 대신 성별·나이·건강,
- * 가족 찾아요는 보내는 이유, 임보 구해요는 임보 기간·지원. 값이 없으면 그리지 않는다.
+ * 가족 찾아요는 보내는 이유, 임보 구해요는 임보 기간·지원, 둘 다 남긴 동네("서울 마포구", §5.9). 값이 없으면 그리지 않는다.
  * 회색 면(r8) 안에 14/22 줄, 왼쪽 라벨 muted 80 폭.
  */
-export function PetInfoBlock({ petInfo, dealType }: { petInfo: unknown; dealType: string | null | undefined }) {
-  const rows = petInfoRows(parsePetInfo(petInfo), dealType);
+export function PetInfoBlock({
+  petInfo,
+  dealType,
+  regionSido,
+  regionSigungu,
+}: {
+  petInfo: unknown;
+  dealType: string | null | undefined;
+  regionSido?: string | null;
+  regionSigungu?: string | null;
+}) {
+  const rows = petInfoRows(parsePetInfo(petInfo), dealType, { sido: regionSido, sigungu: regionSigungu });
   if (!rows.length) return null;
   return (
     <dl className="mt-4 space-y-1 rounded-lg bg-app-gap px-4 py-3" data-testid="pet-info">

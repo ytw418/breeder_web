@@ -10,6 +10,8 @@
  * 앱 bredy_app src/lib/petSpace.ts = 웹 libs/shared/petSpace.ts 사본이라 함께 고친다.
  */
 
+import { SIDO_SHORT } from "./regions";
+
 // ── 첫 질문 카드 ────────────────────────────────────────────────
 
 export type PetPickId =
@@ -524,33 +526,80 @@ export function petThumbTag(product: {
   return null;
 }
 
+// ── 가족 찾아요·임보 구해요 글 동네 ──────────────────────────────
+// 2026-10-23 페르소나 리뷰(캣맘·강아지 키우는 20대): 어디 사는 아이인지 몰라 연락을 망설인다.
+// 글을 올릴 때 작성자 프로필 동네(시·군·구)를 Product.regionSido·regionSigungu 에 복사한다('동네' 게시글과 같은 방식).
+// 동네를 설정한 사람에게만 글쓰기 '내 동네 보이기' 스위치(기본 켬)가 보이고, 끄면 남기지 않는다. 분양해요 글엔 없다.
+
+/** 동네를 남길 수 있는 글 종류: 가족 찾아요·임보 구해요(만나서 데려가는 글). */
+export const showsPetRegion = (dealType: string | null | undefined): boolean =>
+  dealType === "rehoming" || dealType === "foster";
+
+/**
+ * 글쓰기 스위치·상세 표의 동네 한 줄: "서울 마포구", "경기 성남시", 세종은 "세종". 시·군·구까지 있어야 하고 없으면 null.
+ * 구 이름만으로는 겹쳐서(중구·강서구) 시·도 축약을 앞에 붙인다.
+ */
+export function petRegionText(
+  region: { sido?: string | null; sigungu?: string | null } | null | undefined
+): string | null {
+  const sido = region?.sido?.trim();
+  const sigungu = region?.sigungu?.trim();
+  if (!sido || !sigungu) return null;
+  const short = SIDO_SHORT[sido] ?? sido;
+  return sigungu === sido ? short : `${short} ${sigungu}`;
+}
+
+/**
+ * 목록 메타·임보 레일의 동네: 시·군·구만("마포구", 세종은 "세종", 시안 ③ '해피맘 · 마포구 · 2시간 전').
+ * 강아지·고양이 가족 찾아요·임보 구해요 글에 동네가 남아 있을 때만, 아니면 null(그 자리엔 카테고리가 그대로 보인다).
+ */
+export function petPostPlace(product: {
+  category?: string | null;
+  dealType?: string | null;
+  regionSido?: string | null;
+  regionSigungu?: string | null;
+}): string | null {
+  if (!isNoPriceCategory(product.category) || !showsPetRegion(product.dealType)) return null;
+  const sido = product.regionSido?.trim();
+  const sigungu = product.regionSigungu?.trim();
+  if (!sido || !sigungu) return null;
+  return sigungu === sido ? SIDO_SHORT[sido] ?? sido : sigungu;
+}
+
 export interface PetInfoRow {
   label: string;
   value: string;
 }
 
 /**
- * 상세 정보 표: 성별 · 나이 · 건강 · (가족 찾아요) 보내는 이유 · (임보 구해요) 임보 기간 · 지원. 빈 값은 뺀다.
- * 글 종류와 맞지 않는 값(분양해요 글의 임보 기간 등)은 보이지 않는다.
+ * 상세 정보 표: 성별 · 나이 · 건강 · (가족 찾아요) 보내는 이유 · (임보 구해요) 임보 기간 · 지원 · 동네. 빈 값은 뺀다.
+ * 글 종류와 맞지 않는 값(분양해요 글의 임보 기간·동네 등)은 보이지 않는다. 동네는 "서울 마포구"(petRegionText).
  */
-export function petInfoRows(info: PetInfo | null | undefined, dealType: string | null | undefined): PetInfoRow[] {
-  if (!info) return [];
+export function petInfoRows(
+  info: PetInfo | null | undefined,
+  dealType: string | null | undefined,
+  region?: { sido?: string | null; sigungu?: string | null } | null
+): PetInfoRow[] {
   const rows: PetInfoRow[] = [];
-  const sex = labelOf(PET_SEX_OPTIONS, info.sex);
-  if (sex) rows.push({ label: "성별", value: sex });
-  if (info.age) rows.push({ label: "나이", value: info.age });
-  const health = (info.health ?? []).map((id) => labelOf(PET_HEALTH_OPTIONS, id)!);
-  if (health.length) rows.push({ label: "건강", value: health.join(" · ") });
-  if (dealType === "rehoming") {
-    const reason = petReasonLabel(info);
-    if (reason) rows.push({ label: "보내는 이유", value: reason });
+  if (info) {
+    const sex = labelOf(PET_SEX_OPTIONS, info.sex);
+    if (sex) rows.push({ label: "성별", value: sex });
+    if (info.age) rows.push({ label: "나이", value: info.age });
+    const health = (info.health ?? []).map((id) => labelOf(PET_HEALTH_OPTIONS, id)!);
+    if (health.length) rows.push({ label: "건강", value: health.join(" · ") });
+    if (dealType === "rehoming") {
+      const reason = petReasonLabel(info);
+      if (reason) rows.push({ label: "보내는 이유", value: reason });
+    }
+    if (dealType === "foster") {
+      const period = fosterPeriodLabel(info);
+      if (period) rows.push({ label: "임보 기간", value: period });
+      const support = (info.fosterSupport ?? []).map((id) => labelOf(FOSTER_SUPPORT_OPTIONS, id)!);
+      if (support.length) rows.push({ label: "지원", value: support.join(" · ") });
+    }
   }
-  if (dealType === "foster") {
-    const period = fosterPeriodLabel(info);
-    if (period) rows.push({ label: "임보 기간", value: period });
-    const support = (info.fosterSupport ?? []).map((id) => labelOf(FOSTER_SUPPORT_OPTIONS, id)!);
-    if (support.length) rows.push({ label: "지원", value: support.join(" · ") });
-  }
+  const place = showsPetRegion(dealType) ? petRegionText(region) : null;
+  if (place) rows.push({ label: "동네", value: place });
   return rows;
 }
 

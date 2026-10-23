@@ -31,6 +31,8 @@ const e2eProduct: NonNullable<ItemDetailResponse["product"]> = {
   productType: "생물",
   categoryId: null,
   dealType: "sale",
+  regionSido: null,
+  regionSigungu: null,
   user: {
     id: 999,
     role: "USER",

@@ -304,6 +304,8 @@ export default function MySellHistoryList({ kind, id }: ProductListProps) {
                   wishCount: product._count?.favs ?? 0,
                   dealType: product.dealType ?? null,
                   petInfo: product.petInfo,
+                  regionSido: product.regionSido,
+                  regionSigungu: product.regionSigungu,
                 }}
               />
               {withBuyerLine ? <BuyerLine record={record} onAssign={setPickerProductId} /> : null}

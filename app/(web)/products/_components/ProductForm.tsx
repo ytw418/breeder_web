@@ -50,10 +50,13 @@ import {
   isPetPostKind,
   parsePetInfo,
   petDescriptionPlaceholder,
+  petRegionText,
   productWriteLabels,
+  showsPetRegion,
   type PetInfo,
   type PetPostKind,
 } from "@libs/shared/petSpace";
+import { regionOf } from "@libs/shared/regions";
 import type { BloodlineLinkSummary } from "@libs/shared/bloodline-card";
 import {
   markProductPhotoUploaded,
@@ -81,6 +84,9 @@ export type ProductFormInitial = {
   dealType?: string | null;
   /** 강아지·고양이 글 정보(성별·나이·건강·이유·임보 기간, docs/prd/pet-space.md §5.5). */
   petInfo?: unknown;
+  /** 가족 찾아요·임보 구해요 글에 남긴 동네(§5.9). 둘 다 있으면 '내 동네 보이기'를 켠 채로 연다. */
+  regionSido?: string | null;
+  regionSigungu?: string | null;
   /**
    * 붙어 있는 뿌리 혈통 id. 상세 응답의 `bloodline` 요약이 있을 때만 넘긴다
    * (회수·숨김돼 요약이 없는 연결은 화면에 없는 것으로 두고, 저장 때도 건드리지 않는다).
@@ -274,6 +280,9 @@ export function ProductForm({
       petKind: (isPetPostKind(product?.dealType) ? product?.dealType : kindFromLink ?? "adoption") as PetPostKind,
       fromAdoption: Boolean(kindFromLink),
       petInfo: parsePetInfo(product?.petInfo) ?? ({} as PetInfo),
+      // '내 동네 보이기': 새 글은 켬, 가족 찾아요·임보 구해요 글을 고칠 땐 남긴 동네가 있을 때만 켬(§5.9).
+      showRegion:
+        !product || !showsPetRegion(product.dealType) || Boolean(product.regionSido && product.regionSigungu),
     };
   }, [product, initialFree, initialCategory, initialKind]);
 
@@ -285,6 +294,9 @@ export function ProductForm({
   const [dealType, setDealType] = useState(initial.dealType);
   const [petKind, setPetKind] = useState<PetPostKind>(initial.petKind);
   const [petInfo, setPetInfo] = useState<PetInfo>(initial.petInfo);
+  const [showRegion, setShowRegion] = useState(initial.showRegion);
+  // 글에 남길 동네는 글 주인 프로필 동네다("서울 마포구"). 없으면 스위치 대신 설정 안내.
+  const myRegionText = petRegionText(regionOf(user));
   // 강아지·고양이(하위분류)를 고르면 가격 없는 글이 된다.
   const isPet = isNoPriceCategory(subcategory);
   // 입양 쪽 글쓰기로 왔는데 아직 종을 안 골랐다(강아지·고양이 둘 다 고정). 고르기 전엔 종류·거래 유형·가격 칸을 숨긴다.
@@ -413,6 +425,7 @@ export function ProductForm({
     dealType !== initial.dealType ||
     petKind !== initial.petKind ||
     petInfoKey(petInfo) !== petInfoKey(initial.petInfo) ||
+    showRegion !== initial.showRegion ||
     price !== initial.price ||
     description !== initial.description ||
     photosChanged ||
@@ -511,6 +524,8 @@ export function ProductForm({
             productType: PET_PRODUCT_TYPE,
             dealType: petKind,
             petInfo: parsePetInfo(petInfo),
+            // 가족 찾아요·임보 구해요에서 켰고 프로필 동네가 있을 때만 true. 서버가 그때 프로필 동네를 복사한다(§5.9).
+            showPetRegion: showsPetRegion(petKind) && myRegionText != null && showRegion,
             ...(isEdit ? { bloodlineRootId: null } : {}),
           }
         : {
@@ -702,6 +717,9 @@ export function ProductForm({
             onKindChange={setPetKind}
             info={petInfo}
             onInfoChange={setPetInfo}
+            region={myRegionText}
+            showRegion={showRegion}
+            onShowRegionChange={setShowRegion}
             disabled={busy}
           />
         ) : awaitingPetSpecies ? (

@@ -306,6 +306,10 @@ model Product {
   pedigreeNote    Json?
   /// 강아지·고양이 성별·나이·건강·이유·임보 기간 — libs/shared/petSpace.ts PetInfo(앱 docs/prd/pet-space.md)
   petInfo         Json?
+  /// 가족 찾아요·임보 구해요 글에 남긴 작성자 동네(글을 쓸 때 프로필 동네 복사, '내 동네 보이기'를 끄면 null).
+  /// Post.regionSido·regionSigungu 와 같은 값 — 앱 docs/prd/pet-space.md §5.9
+  regionSido      String?
+  regionSigungu   String?
 
   @@index([userId])
   @@index([category])

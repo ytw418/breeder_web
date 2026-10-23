@@ -15,7 +15,9 @@ import {
   petDescriptionPlaceholder,
   petInfoRows,
   petPicksForPaths,
+  petPostPlace,
   petPriceStandIn,
+  petRegionText,
   petSpaceForPaths,
   petSpaceLabel,
   petThumbTag,
@@ -25,6 +27,7 @@ import {
   saleTabModes,
   saleTabModesShowing,
   showsOtherPetsFeed,
+  showsPetRegion,
   spaceLabelParts,
   togglePetPick,
 } from "@libs/shared/petSpace";
@@ -363,5 +366,47 @@ describe("링크로 연 입양 쪽(§5.1)", () => {
     expect(saleTabModesShowing(["/mammal/hamster/"], "adoption")).toEqual(["products", "adoption"]);
     expect(saleTabModesShowing(["/reptile/"], "products")).toEqual(["products", "auctions"]);
     expect(saleTabModesShowing(["/mammal/dog/"], "adoption")).toEqual(["products", "adoption"]);
+  });
+});
+
+describe("가족 찾아요·임보 구해요 글 동네(§5.9)", () => {
+  const mapo = { sido: "서울특별시", sigungu: "마포구" };
+
+  it("가족 찾아요·임보 구해요만 동네를 남긴다", () => {
+    expect(showsPetRegion("rehoming")).toBe(true);
+    expect(showsPetRegion("foster")).toBe(true);
+    expect(showsPetRegion("adoption")).toBe(false);
+    expect(showsPetRegion("sale")).toBe(false);
+    expect(showsPetRegion(null)).toBe(false);
+  });
+
+  it("글쓰기·상세 동네는 시·도 축약 + 시·군·구, 세종은 한 번만", () => {
+    expect(petRegionText(mapo)).toBe("서울 마포구");
+    expect(petRegionText({ sido: "경기도", sigungu: "성남시" })).toBe("경기 성남시");
+    expect(petRegionText({ sido: "세종특별자치시", sigungu: "세종특별자치시" })).toBe("세종");
+    expect(petRegionText({ sido: "서울특별시", sigungu: null })).toBeNull();
+    expect(petRegionText({ sido: " ", sigungu: "마포구" })).toBeNull();
+    expect(petRegionText(null)).toBeNull();
+  });
+
+  it("목록 메타·레일은 시·군·구만, 강아지·고양이 가족 찾아요·임보 구해요 글에만", () => {
+    const foster = { category: "고양이", dealType: "foster", regionSido: "서울특별시", regionSigungu: "마포구" };
+    expect(petPostPlace(foster)).toBe("마포구");
+    expect(petPostPlace({ ...foster, dealType: "rehoming" })).toBe("마포구");
+    expect(petPostPlace({ ...foster, regionSido: "세종특별자치시", regionSigungu: "세종특별자치시" })).toBe("세종");
+    // 분양해요·다른 종·동네를 끈 글은 그 자리에 카테고리가 그대로 보인다.
+    expect(petPostPlace({ ...foster, dealType: "adoption" })).toBeNull();
+    expect(petPostPlace({ ...foster, category: "레오파드게코" })).toBeNull();
+    expect(petPostPlace({ ...foster, regionSido: null, regionSigungu: null })).toBeNull();
+  });
+
+  it("상세 표 맨 끝에 동네, 분양해요 글과 동네 없는 글엔 없다", () => {
+    const info = parsePetInfo({ sex: "female", age: "3개월", fosterPeriod: "2w" });
+    expect(petInfoRows(info, "foster", mapo).at(-1)).toEqual({ label: "동네", value: "서울 마포구" });
+    expect(petInfoRows(info, "rehoming", mapo).map((row) => row.label)).toEqual(["성별", "나이", "동네"]);
+    expect(petInfoRows(info, "adoption", mapo).map((row) => row.label)).toEqual(["성별", "나이"]);
+    expect(petInfoRows(info, "foster", null).map((row) => row.label)).toEqual(["성별", "나이", "임보 기간"]);
+    // 정보 칸을 비워 둔 글도 동네는 보인다.
+    expect(petInfoRows(null, "foster", mapo)).toEqual([{ label: "동네", value: "서울 마포구" }]);
   });
 });
