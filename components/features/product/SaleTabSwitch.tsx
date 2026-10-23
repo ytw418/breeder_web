@@ -156,6 +156,8 @@ let scrollTopOnArrival = false;
  * 넘길지는 앱과 같은 규칙이다(saleTabSwipeAxis·saleTabSwipeTarget — 가로로 먼저 24px 움직이고, 64px 이상 밀거나 빠르게 튕기면 옆 칸).
  * 세로 스크롤은 그대로 두려고 passive 터치만 듣고, 화면 양 끝 20px(브라우저 앞뒤 이동 몸짓)·가로로 넘치는 줄·입력칸·시트에서
  * 시작한 터치, 두 손가락, 글자를 고르는 중이면 쓰지 않는다. 고정 위치인 FAB·시트가 틀어지지 않게 감싼 상자는 움직이지 않는다.
+ * 글이 적어 목록이 화면보다 짧아도 되게 문서에서 듣는다. 목록 안이나 목록 아래 빈 바탕(감싼 상자를 품은 페이지 여백·body)에서
+ * 시작한 터치만 쓰고, 헤더·전환 줄·하단 탭·사이드 메뉴·시트(portal)에서 시작한 터치는 쓰지 않는다(앱은 목록 칸이 화면 끝까지 찬다).
  */
 export function SaleTabSwipeArea({
   active,
@@ -194,7 +196,12 @@ export function SaleTabSwipeArea({
       const touch = event.touches[0];
       if (touch.clientX < SALE_TAB_SWIPE.edge || touch.clientX > window.innerWidth - SALE_TAB_SWIPE.edge) return;
       const target = event.target instanceof Element ? event.target : null;
-      if (target?.closest(SWIPE_IGNORE) || inHorizontalScroller(target, root)) return;
+      if (!target) return;
+      if (root.contains(target)) {
+        if (target.closest(SWIPE_IGNORE) || inHorizontalScroller(target, root)) return;
+      } else if (!target.contains(root) || touch.clientY < root.getBoundingClientRect().top) {
+        return;
+      }
       start = { x: touch.clientX, y: touch.clientY };
       samples = [{ x: touch.clientX, t: event.timeStamp }];
     };
@@ -232,15 +239,15 @@ export function SaleTabSwipeArea({
       router.replace(HREFS[next], { scroll: false });
     };
     const options = { passive: true } as const;
-    root.addEventListener("touchstart", onStart, options);
-    root.addEventListener("touchmove", onMove, options);
-    root.addEventListener("touchend", onEnd, options);
-    root.addEventListener("touchcancel", reset, options);
+    document.addEventListener("touchstart", onStart, options);
+    document.addEventListener("touchmove", onMove, options);
+    document.addEventListener("touchend", onEnd, options);
+    document.addEventListener("touchcancel", reset, options);
     return () => {
-      root.removeEventListener("touchstart", onStart);
-      root.removeEventListener("touchmove", onMove);
-      root.removeEventListener("touchend", onEnd);
-      root.removeEventListener("touchcancel", reset);
+      document.removeEventListener("touchstart", onStart);
+      document.removeEventListener("touchmove", onMove);
+      document.removeEventListener("touchend", onEnd);
+      document.removeEventListener("touchcancel", reset);
     };
   }, [active, modes, router]);
 
