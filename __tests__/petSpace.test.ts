@@ -1,5 +1,6 @@
 import {
   adoptionScopePaths,
+  adoptionWriteSpecies,
   fosterPeriodLabel,
   fosterSupportLabel,
   hasDogCatPin,
@@ -16,7 +17,11 @@ import {
   petSpaceForPaths,
   petSpaceLabel,
   petThumbTag,
+  productWriteLabels,
+  saleSpeciesChips,
+  saleSubcategoryNames,
   saleTabModes,
+  saleTabModesShowing,
   showsOtherPetsFeed,
   togglePetPick,
 } from "@libs/shared/petSpace";
@@ -64,7 +69,14 @@ describe("공간·분양 탭 전환(§5.1·5.2)", () => {
     expect(petSpaceForPaths(["/mammal/dog/", "/reptile/"])).toBeNull();
     expect(petSpaceLabel(["/mammal/dog/", "/mammal/cat/"])).toBe("강아지·고양이");
     expect(petSpaceLabel([])).toBe("전부 보기");
-    expect(petSpaceLabel(["/mammal/dog/", "/reptile/"])).toBe("내가 고른 분야");
+  });
+
+  it("공간 이름: 첫 질문 카드로 고른 묶음은 카드 이름, 종 단위로 골랐으면 '내가 고른 분야'", () => {
+    expect(petSpaceLabel(["/mammal/dog/"])).toBe("강아지");
+    expect(petSpaceLabel(["/mammal/dog/", "/reptile/"])).toBe("강아지·파충류");
+    expect(petSpaceLabel(pathsForPetPicks(["dog", "reptile", "fish"]))).toBe("강아지·파충류 외 1");
+    expect(petSpaceLabel(["/reptile/leopard-gecko/"])).toBe("내가 고른 분야");
+    expect(petSpaceLabel(["/mammal/hamster/"])).toBe("내가 고른 분야");
   });
 
   it("강아지·고양이(또는 포유류 전체)를 고정했을 때만 입양이 보인다", () => {
@@ -194,7 +206,108 @@ describe("강아지·고양이 분양글(§5.5)", () => {
     expect(petThumbTag({ category: "강아지", dealType: "rehoming", petInfo: { reason: "rescued" } })).toBe("구조했어요");
     expect(petThumbTag({ category: "고양이", dealType: "foster", petInfo: { fosterPeriod: "2w" } })).toBe("임보 · 2주");
     expect(petThumbTag({ category: "고양이", dealType: "foster", petInfo: null })).toBe("임보");
+    expect(petThumbTag({ category: "강아지", dealType: "foster", petInfo: { fosterPeriod: "open" } })).toBe("임보 · 입양까지");
+    expect(
+      petThumbTag({ category: "강아지", dealType: "foster", petInfo: { fosterPeriod: "date", fosterUntil: "2026-11-30" } })
+    ).toBe("임보 · 11.30까지");
+    expect(petThumbTag({ category: "강아지", dealType: "rehoming", petInfo: { reason: "other" } })).toBeNull();
     expect(petThumbTag({ category: "강아지", dealType: "adoption", petInfo: { reason: "rescued" } })).toBeNull();
     expect(petThumbTag({ category: "파충류", dealType: "rehoming", petInfo: { reason: "rescued" } })).toBeNull();
+  });
+});
+
+describe("분양 쪽 종 칩(§5.3, 시안 ②④)", () => {
+  const dog = { name: "강아지", path: "/mammal/dog/", label: "포유류 > 강아지" };
+  const cat = { name: "고양이", path: "/mammal/cat/", label: "포유류 > 고양이" };
+  const crested = { name: "크레스티드 게코", path: "/reptile/crested-gecko/", label: "파충류 > 크레스티드 게코" };
+  const reptile = { name: "파충류", path: "/reptile/", label: "파충류" };
+  const mammal = { name: "포유류", path: "/mammal/", label: "포유류" };
+
+  it("종만 고정한 대분류는 '포유류' 대신 고른 종을 칩으로 보인다", () => {
+    expect(saleSpeciesChips(["포유류"], [dog, cat]).map((chip) => chip.label)).toEqual(["강아지", "고양이"]);
+    expect(saleSpeciesChips(["포유류"], [dog])[0]).toEqual({
+      id: "포유류/강아지",
+      label: "강아지",
+      category: "포유류",
+      subcategory: "강아지",
+    });
+  });
+
+  it("섞어 고르면 대분류 순서대로 종·대분류 칩이 섞인다", () => {
+    expect(saleSpeciesChips(["파충류", "포유류"], [crested, dog]).map((chip) => chip.label)).toEqual([
+      "크레스티드 게코",
+      "강아지",
+    ]);
+    expect(saleSpeciesChips(["파충류", "포유류"], [reptile, dog]).map((chip) => chip.id)).toEqual([
+      "파충류",
+      "포유류/강아지",
+    ]);
+  });
+
+  it("대분류를 통째로 고정했거나 고정이 없으면 대분류 칩 그대로다", () => {
+    expect(saleSpeciesChips(["포유류"], [mammal])).toEqual([
+      { id: "포유류", label: "포유류", category: "포유류", subcategory: "" },
+    ]);
+    expect(saleSpeciesChips(["곤충", "파충류"], []).map((chip) => chip.id)).toEqual(["곤충", "파충류"]);
+  });
+
+  const small = ["햄스터", "기니피그", "토끼", "고슴도치", "페럿", "친칠라"].map((name, i) => ({
+    name,
+    path: `/mammal/small-${i}/`,
+    label: `포유류 > ${name}`,
+  }));
+  const mammalSubs = ["강아지", "고양이", "고슴도치", "햄스터", "기니피그", "토끼", "페럿", "친칠라"];
+
+  it("한 대분류 아래 종이 3개를 넘으면(소동물 카드) 대분류 칩 하나로 둔다", () => {
+    expect(saleSpeciesChips(["포유류"], small).map((chip) => chip.id)).toEqual(["포유류"]);
+    expect(saleSpeciesChips(["포유류"], [dog, small[0], small[1]]).map((chip) => chip.label)).toEqual([
+      "강아지",
+      "햄스터",
+      "기니피그",
+    ]);
+  });
+
+  it("아래 종 줄: 종만 골라 고정했으면 고른 종만, 대분류째·고정 없음이면 전부", () => {
+    expect(saleSubcategoryNames("포유류", mammalSubs, small)).toEqual([
+      "고슴도치",
+      "햄스터",
+      "기니피그",
+      "토끼",
+      "페럿",
+      "친칠라",
+    ]);
+    expect(saleSubcategoryNames("포유류", mammalSubs, [mammal])).toEqual(mammalSubs);
+    expect(saleSubcategoryNames("포유류", mammalSubs, [])).toEqual(mammalSubs);
+    expect(saleSubcategoryNames("포유류", mammalSubs, [reptile])).toEqual(mammalSubs);
+  });
+});
+
+describe("입양 쪽 글쓰기 종(§5.4)", () => {
+  it("종 칩이나 한 종뿐인 범위면 그 종을 미리 고른다", () => {
+    expect(adoptionWriteSpecies(["/mammal/dog/", "/mammal/cat/"], "cat")).toBe("고양이");
+    expect(adoptionWriteSpecies(["/mammal/dog/"], "all")).toBe("강아지");
+    expect(adoptionWriteSpecies(["/mammal/cat/"])).toBe("고양이");
+    expect(adoptionWriteSpecies(["/mammal/dog/", "/mammal/cat/"], "foster")).toBeNull();
+  });
+});
+
+describe("글쓰기 제목·버튼(§5.5)", () => {
+  it("임보·가족 찾기 글은 '분양'이라 부르지 않는다", () => {
+    expect(productWriteLabels("foster")).toEqual({ title: "글쓰기", submit: "글 올리기" });
+    expect(productWriteLabels("rehoming")).toEqual({ title: "글쓰기", submit: "글 올리기" });
+  });
+
+  it("분양해요·다른 종 글은 그대로", () => {
+    expect(productWriteLabels("adoption")).toEqual({ title: "분양 등록", submit: "분양 등록하기" });
+    expect(productWriteLabels(null)).toEqual({ title: "분양 등록", submit: "분양 등록하기" });
+  });
+});
+
+describe("링크로 연 입양 쪽(§5.1)", () => {
+  it("강아지·고양이를 고정하지 않았어도 입양 쪽을 보고 있으면 '입양' 칸을 붙인다", () => {
+    expect(saleTabModesShowing(["/reptile/"], "adoption")).toEqual(["products", "auctions", "adoption"]);
+    expect(saleTabModesShowing(["/mammal/hamster/"], "adoption")).toEqual(["products", "adoption"]);
+    expect(saleTabModesShowing(["/reptile/"], "products")).toEqual(["products", "auctions"]);
+    expect(saleTabModesShowing(["/mammal/dog/"], "adoption")).toEqual(["products", "adoption"]);
   });
 });

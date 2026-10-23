@@ -50,6 +50,7 @@ import {
   isPetPostKind,
   parsePetInfo,
   petDescriptionPlaceholder,
+  productWriteLabels,
   type PetInfo,
   type PetPostKind,
 } from "@libs/shared/petSpace";
@@ -224,6 +225,7 @@ export function ProductForm({
   initialFree = false,
   initialCategory,
   initialKind,
+  onTitleChange,
 }: {
   /** 있으면 수정 모드 */
   product?: ProductFormInitial;
@@ -233,6 +235,8 @@ export function ProductForm({
   initialCategory?: string;
   /** 등록 화면 ?kind=rehoming|foster(입양 쪽 글쓰기) → 글 종류를 미리 고르고 포유류를 펼쳐 둔다. */
   initialKind?: string;
+  /** 등록 화면 헤더 제목. 임보·가족 찾기 글이면 '글쓰기'(productWriteLabels). */
+  onTitleChange?: (title: string) => void;
 }) {
   const router = useRouter();
   const { mutate: globalMutate } = useSWRConfig();
@@ -268,6 +272,7 @@ export function ProductForm({
       bloodlineName: attached?.bloodlineName ?? null,
       pedigreeNote: attached ? normalizePedigreeNote(attached.pedigreeNote) : null,
       petKind: (isPetPostKind(product?.dealType) ? product?.dealType : kindFromLink ?? "adoption") as PetPostKind,
+      fromAdoption: Boolean(kindFromLink),
       petInfo: parsePetInfo(product?.petInfo) ?? ({} as PetInfo),
     };
   }, [product, initialFree, initialCategory, initialKind]);
@@ -282,6 +287,8 @@ export function ProductForm({
   const [petInfo, setPetInfo] = useState<PetInfo>(initial.petInfo);
   // 강아지·고양이(하위분류)를 고르면 가격 없는 글이 된다.
   const isPet = isNoPriceCategory(subcategory);
+  // 입양 쪽 글쓰기로 왔는데 아직 종을 안 골랐다(강아지·고양이 둘 다 고정). 고르기 전엔 종류·거래 유형·가격 칸을 숨긴다.
+  const awaitingPetSpecies = initial.fromAdoption && category === "포유류" && !subcategory;
   const [price, setPrice] = useState<number | null>(initial.price);
   const [isFree, setIsFree] = useState(initial.price === 0);
   const [description, setDescription] = useState(initial.description);
@@ -460,6 +467,11 @@ export function ProductForm({
       category: subcategory || category,
       productType: isPet ? PET_PRODUCT_TYPE : productType,
     });
+    if (awaitingPetSpecies) {
+      delete nextErrors.productType;
+      delete nextErrors.price;
+      nextErrors.category = "강아지·고양이 중에 골라 주세요";
+    }
     setErrors(nextErrors);
     const nextAgreementError = needsAgreement ? "동의해야 등록할 수 있어요" : "";
     setAgreementError(nextAgreementError);
@@ -582,7 +594,11 @@ export function ProductForm({
   const selectedCategoryLabel =
     subcategory || TOP_LEVEL_CATEGORIES.find((cat) => cat.id === category)?.name || "";
   const uploadedCount = photos.filter((photo) => photo.remoteId).length;
-  const ctaLabel = isEdit ? "수정하기" : "분양 등록하기";
+  const writeLabels = productWriteLabels(isPet || awaitingPetSpecies ? petKind : null);
+  const ctaLabel = isEdit ? "수정하기" : writeLabels.submit;
+  useEffect(() => {
+    if (!isEdit) onTitleChange?.(writeLabels.title);
+  }, [isEdit, onTitleChange, writeLabels.title]);
   const showBloodlineRow = !isPet && productType === BLOODLINE_PRODUCT_TYPE;
   const bloodlineValue =
     bloodline.rootId != null ? formatBloodlineAttachValue(bloodline.name ?? "", bloodline.note) : "";
@@ -667,7 +683,10 @@ export function ProductForm({
                     label={sub}
                     selected={subcategory === sub}
                     // 선택된 하위분류를 다시 누르면 해제해 대분류로 저장한다.
-                    onClick={() => setSubcategory(subcategory === sub ? "" : sub)}
+                    onClick={() => {
+                      setSubcategory(subcategory === sub ? "" : sub);
+                      clearError("category");
+                    }}
                   />
                 ))}
               </ChipRow>
@@ -685,6 +704,13 @@ export function ProductForm({
             onInfoChange={setPetInfo}
             disabled={busy}
           />
+        ) : awaitingPetSpecies ? (
+          // 오류('강아지·고양이 중에 골라 주세요')가 떠 있으면 같은 말이라 안내는 숨긴다.
+          errors.category ? null : (
+            <p className="-mt-3 break-keep text-[13px] leading-[18px] text-app-muted">
+              강아지·고양이를 고르면 글 종류와 아이 정보를 적는 칸이 나와요.
+            </p>
+          )
         ) : (
           <>
             {/* 상품 타입 */}
@@ -736,7 +762,7 @@ export function ProductForm({
         ) : null}
 
         {/* 가격(강아지·고양이는 없다) */}
-        {isPet ? null : (
+        {isPet || awaitingPetSpecies ? null : (
         <div className="-mt-1.5" data-field="price">
           <div className="mb-0.5 flex h-11 items-center justify-between">
             <span className="text-[15px] font-semibold text-app-text">가격</span>
@@ -777,7 +803,7 @@ export function ProductForm({
               clearError("description");
             }}
             placeholder={
-              isPet
+              isPet || awaitingPetSpecies
                 ? petDescriptionPlaceholder(petKind, subcategory)
                 : "사육 정보, 상태, 거래 방식 등 입양자가 궁금할 내용을 구체적으로 작성해주세요."
             }

@@ -19,7 +19,7 @@ import { getCoupangWebConfig } from "@libs/client/adsConfig";
 import { withAdRows } from "@libs/shared/ads/adRows";
 import { withoutBlocked } from "@libs/shared/blockFilter";
 import type { ProductsResponse } from "@libs/shared/home";
-import { adoptionScopePaths, CAT_PATH, DOG_PATH } from "@libs/shared/petSpace";
+import { adoptionScopePaths, adoptionWriteSpecies, CAT_PATH, DOG_PATH } from "@libs/shared/petSpace";
 import { uniqueById } from "@libs/productFilters";
 import useBlocks from "hooks/useBlocks";
 import useCategoryScope from "hooks/useCategoryScope";
@@ -142,7 +142,9 @@ export default function AdoptionClient() {
     return () => observer.disconnect();
   }, [hasMore, error, isValidating, loadedPages, setSize]);
 
-  const writeHref = `/products/upload?kind=${listKind}`;
+  // 종을 알면(종 칩·한 종만 고정) 글쓰기에서 강아지·고양이를 미리 고른다.
+  const writeSpecies = adoptionWriteSpecies(scopePaths, activeChip);
+  const writeHref = `/products/upload?kind=${listKind}${writeSpecies ? `&category=${encodeURIComponent(writeSpecies)}` : ""}`;
   const empty = EMPTY_COPY[listKind];
 
   const renderState = () => {

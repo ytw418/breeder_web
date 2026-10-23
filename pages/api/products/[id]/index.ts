@@ -1,5 +1,5 @@
 import { NextApiRequest, NextApiResponse } from "next";
-import { petInfoDbValue, readStoredPetInfo } from "@libs/server/petInfo";
+import { petInfoDbValue, readStoredPetInfo, relatedPetGroupWhere } from "@libs/server/petInfo";
 import type { PetInfo } from "@libs/shared/petSpace";
 import { withDetailRevalidation } from "@libs/server/pageRevalidation";
 import { extractProductId } from "@libs/product-route";
@@ -231,15 +231,12 @@ async function handler(
     }));
 
     // 연관 상품도 목록과 같이 숨김·삭제 상품과 viewer 가 차단한 판매자의 상품을 뺀다.
+    // 강아지·고양이 글과 다른 종 글은 서로 섞지 않는다(relatedPetGroupWhere).
     const excluded = await excludedAuthorIds(user?.id);
     const relatedProducts = await client.product.findMany({
       where: {
         OR: terms,
-        AND: {
-          id: {
-            not: product.id,
-          },
-        },
+        AND: [{ id: { not: product.id } }, relatedPetGroupWhere(product.category)],
         isHidden: false,
         isDeleted: false,
         ...(excluded.length ? { userId: { notIn: excluded } } : {}),

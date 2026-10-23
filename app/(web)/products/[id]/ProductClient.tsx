@@ -823,7 +823,8 @@ const ProductClient = ({
 
             {relatedProducts.length > 0 ? (
               <section className="mt-6 border-t-8 border-app-gap pt-6">
-                <h2 className="mb-4 px-4 text-[17px] font-bold text-app-text">비슷한 분양</h2>
+                {/* 강아지·고양이 글엔 강아지·고양이 글만 온다(임보·가족 찾기 섞임 — '분양'이라 부르지 않는다, 앱 docs/prd/pet-space.md §5.8). */}
+                <h2 className="mb-4 px-4 text-[17px] font-bold text-app-text">{isPetPost ? "비슷한 글" : "비슷한 분양"}</h2>
                 {/* 앱 products/[id] 연관 상품: 2열 정사각 썸네일 그리드(이름 15 · 가격 15/700). */}
                 <div className="grid grid-cols-2 gap-4 px-4">
                   {relatedProducts.slice(0, 20).map((item) => (

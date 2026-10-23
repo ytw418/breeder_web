@@ -128,10 +128,19 @@ export const PET_SPACES: readonly PetSpace[] = [
   { id: "all", label: "전부 보기", sub: "모든 아이들", picks: [], art: "eyes" },
 ];
 
-/** 사이드 메뉴 '지금 공간' 이름: 공간과 같으면 그 이름, 직접 섞었으면 '내가 고른 분야'. */
+/**
+ * 사이드 메뉴 '지금 공간' 이름. 공간과 같으면 그 이름, 첫 질문 카드로 고른 묶음이면 카드 이름(두 개까지, 넘으면 '외 N'),
+ * 설정에서 종 단위로 골랐으면 '내가 고른 분야'. 2026-10-23 브라우저 테스트 — 강아지만 고른 사람이 '내가 고른 분야'로 보였다.
+ */
 export function petSpaceLabel(paths: readonly string[]): string {
   const id = petSpaceForPaths(paths);
-  return PET_SPACES.find((space) => space.id === id)?.label ?? CUSTOM_SPACE_LABEL;
+  const space = PET_SPACES.find((item) => item.id === id);
+  if (space) return space.label;
+  const picks = petPicksForPaths(paths);
+  const key = (list: readonly string[]) => [...list].sort().join(",");
+  if (!picks.length || key(pathsForPetPicks(picks)) !== key(paths)) return CUSTOM_SPACE_LABEL;
+  const names = picks.map((pick) => PET_PICK_CARDS.find((card) => card.id === pick)?.label ?? "");
+  return names.length > 2 ? `${names.slice(0, 2).join("·")} 외 ${names.length - 2}` : names.join("·");
 }
 
 /** 고정 path 가 어느 공간과 똑같은지. 직접 섞어 골랐으면 null('내가 고른 분야'). */
@@ -193,6 +202,20 @@ export function adoptionScopePaths(paths: readonly string[]): string[] {
   return inside.length ? Array.from(new Set(inside)) : [DOG_PATH, CAT_PATH];
 }
 
+/**
+ * 입양 쪽 글쓰기 링크에 미리 고를 종(?category=). 강아지·고양이 칩을 골랐거나 범위가 한 종뿐이면 그 종, 둘 다면 null
+ * (글쓰기에서 고른다). 2026-10-23 브라우저 테스트 — 강아지만 고른 사람도 글쓰기에서 '포유류'부터 다시 골라야 했다.
+ */
+export function adoptionWriteSpecies(scopePaths: readonly string[], chip?: string | null): "강아지" | "고양이" | null {
+  if (chip === "dog") return "강아지";
+  if (chip === "cat") return "고양이";
+  const dog = scopePaths.some((path) => path.startsWith(DOG_PATH));
+  const cat = scopePaths.some((path) => path.startsWith(CAT_PATH));
+  if (dog && !cat) return "강아지";
+  if (cat && !dog) return "고양이";
+  return null;
+}
+
 export type SaleTabMode = "products" | "auctions" | "adoption";
 
 /**
@@ -211,11 +234,68 @@ export function saleTabModes(paths: readonly string[]): SaleTabMode[] {
   return modes;
 }
 
+/**
+ * 전환 칸에 지금 보고 있는 입양 쪽을 붙인다. 강아지·고양이를 고정하지 않은 사람이 공유 링크로 입양 쪽을 열면 칸에 '입양'이 없어
+ * 아무 칸도 골라지지 않은 채 보였다(2026-10-23 브라우저 테스트). 다른 쪽으로 옮기면 다시 없어진다.
+ */
+export function saleTabModesShowing(paths: readonly string[], showing: SaleTabMode): SaleTabMode[] {
+  const modes = saleTabModes(paths);
+  return showing === "adoption" && !modes.includes("adoption") ? [...modes, "adoption"] : modes;
+}
+
 export const SALE_TAB_MODE_LABELS: Record<SaleTabMode, string> = {
   products: "분양",
   auctions: "경매",
   adoption: "입양",
 };
+
+/** 분양 쪽 종 칩 하나. category·subcategory 는 분양 목록 필터 값(대분류 이름·종 이름, 대분류 칩이면 subcategory "")이다. */
+export interface SaleSpeciesChip {
+  id: string;
+  label: string;
+  category: string;
+  subcategory: string;
+}
+
+/** 한 대분류 아래 종 칩을 펼칠 최대 개수. 넘으면 대분류 칩 하나 + 아래 종 줄이다(소동물 카드 6종 → '포유류', 지금 분양 탭과 같게). */
+const SPECIES_CHIPS_MAX = 3;
+
+type ScopePin = { name: string; path: string; label: string };
+const pinsUnder = (top: string, pins: readonly ScopePin[]) => pins.filter((pin) => pin.label.split(" > ")[0] === top);
+const isSpeciesPin = (pin: ScopePin) => pin.path.split("/").filter(Boolean).length >= 2;
+
+/**
+ * 분양 쪽 종 칩(시안 ② '전체 · 강아지 · 고양이', ④ '전체 · 크레스티드 게코 · 강아지'). '전체' 칩은 부르는 쪽이 앞에 둔다.
+ * 대분류 아래 종만 3개까지 고정했으면 대분류 칩('포유류') 대신 고정한 종을 칩으로 보이고, 대분류를 통째로 고정했거나
+ * 종이 더 많거나 고정이 없으면 대분류 칩 그대로다(그때만 아래 종 줄이 열린다, saleSubcategoryNames). 2026-10-23 브라우저 테스트 —
+ * 강아지만 고른 사람에게 '포유류' 칩이 보였다(첫 질문 카드에서도 '포유류'라는 말을 쓰지 않는다).
+ */
+export function saleSpeciesChips(topLevelNames: readonly string[], pins: readonly ScopePin[]): SaleSpeciesChip[] {
+  const chips: SaleSpeciesChip[] = [];
+  for (const top of topLevelNames) {
+    const under = pinsUnder(top, pins);
+    const species = under.filter(isSpeciesPin);
+    if (!under.length || species.length < under.length || species.length > SPECIES_CHIPS_MAX) {
+      chips.push({ id: top, label: top, category: top, subcategory: "" });
+      continue;
+    }
+    for (const pin of species) {
+      chips.push({ id: `${top}/${pin.name}`, label: pin.name, category: top, subcategory: pin.name });
+    }
+  }
+  return chips;
+}
+
+/**
+ * 대분류 칩을 골랐을 때 아래 종 줄. 대분류를 통째로 고정했거나 고정이 없으면 그 대분류의 종 전부(지금 그대로),
+ * 종만 골라 고정했으면 고른 종만 — 소동물 카드로 고른 사람에게 범위 밖이라 늘 비는 '강아지·고양이' 칩을 보이지 않는다.
+ */
+export function saleSubcategoryNames(top: string, allSubcategories: readonly string[], pins: readonly ScopePin[]): string[] {
+  const under = pinsUnder(top, pins);
+  if (!under.length || !under.every(isSpeciesPin)) return [...allSubcategories];
+  const picked = new Set(under.map((pin) => pin.name));
+  return allSubcategories.filter((name) => picked.has(name));
+}
 
 // ── 강아지·고양이 분양글 ────────────────────────────────────────
 
@@ -256,6 +336,15 @@ export function petPriceStandIn(product: {
 }): string | null {
   if (!isNoPriceCategory(product.category)) return null;
   return petPostKindLabel(product.dealType) ?? PET_POST_KINDS[0].label;
+}
+
+/**
+ * 글쓰기 화면 제목·등록 버튼. 임보·가족 찾기 글은 '분양'이라 부르지 않는다(2026-10-23 브라우저 테스트 — 임보 글에 '분양 등록하기').
+ * 강아지·고양이를 고르기 전(입양 쪽에서 들어와 종을 기다릴 때)도 들어온 글 종류를 따른다. 다른 글은 그대로다.
+ */
+export function productWriteLabels(petKind: PetPostKind | null): { title: string; submit: string } {
+  if (petKind === "foster" || petKind === "rehoming") return { title: "글쓰기", submit: "글 올리기" };
+  return { title: "분양 등록", submit: "분양 등록하기" };
 }
 
 /**
@@ -388,8 +477,22 @@ export const petReasonLabel = (info: PetInfo | null | undefined) =>
   labelOf(PET_REASON_OPTIONS, info?.reason) ?? null;
 
 /**
+ * 썸네일 딱지용 짧은 임보 기간: 2주 · 한 달 · 11.30까지 · 입양까지. 목록 썸네일(120) 안에 '임보 · ' 와 같이 들어가게
+ * 줄였다(2026-10-23 브라우저 테스트 — '임보 · 가족 찾을 …'처럼 잘렸다). 레일 카드·상세는 fosterPeriodLabel 그대로.
+ */
+export function fosterPeriodShortLabel(info: PetInfo | null | undefined): string | null {
+  if (!info?.fosterPeriod) return null;
+  if (info.fosterPeriod === "date") {
+    const match = info.fosterUntil?.match(/^\d{4}-(\d{2})-(\d{2})$/);
+    return match ? `${Number(match[1])}.${Number(match[2])}까지` : null;
+  }
+  if (info.fosterPeriod === "open") return "입양까지";
+  return labelOf(FOSTER_PERIOD_OPTIONS, info.fosterPeriod) ?? null;
+}
+
+/**
  * 목록 썸네일 왼쪽 위 딱지(시안 ③ '구조했어요'): 가족 찾아요는 보내는 이유, 임보 구해요는 '임보 · 2주'.
- * 분양해요·다른 종은 null.
+ * 이유가 '기타'면 딱지를 두지 않는다(사진 위 '기타'는 아무것도 알려 주지 않는다). 분양해요·다른 종은 null.
  */
 export function petThumbTag(product: {
   category?: string | null;
@@ -398,9 +501,9 @@ export function petThumbTag(product: {
 }): string | null {
   if (!isNoPriceCategory(product.category)) return null;
   const info = parsePetInfo(product.petInfo);
-  if (product.dealType === "rehoming") return petReasonLabel(info);
+  if (product.dealType === "rehoming") return info?.reason === "other" ? null : petReasonLabel(info);
   if (product.dealType === "foster") {
-    const period = fosterPeriodLabel(info);
+    const period = fosterPeriodShortLabel(info);
     return period ? `임보 · ${period}` : "임보";
   }
   return null;

@@ -38,7 +38,7 @@ import {
 } from "@libs/productFilters";
 import useBlocks from "hooks/useBlocks";
 import useCategoryScope, { withCategoryPath, withinScope } from "hooks/useCategoryScope";
-import { hasDogCatPin, isDogCatOnly } from "@libs/shared/petSpace";
+import { hasDogCatPin, isDogCatOnly, saleSpeciesChips, saleSubcategoryNames } from "@libs/shared/petSpace";
 import { ProductFeedEmpty } from "./_components/ProductFeedEmpty";
 import { PriceRangeSheet } from "./_components/PriceRangeSheet";
 import { ProductRowSkeleton } from "./_components/ProductRowSkeleton";
@@ -95,10 +95,24 @@ export default function ProductsClient({ initialParams }: { initialParams: Produ
   const pinPaths = scope.pins.map((pin) => pin.path);
   const withAdoptionSide = hasDogCatPin(pinPaths);
   const dogCatOnly = isDogCatOnly(pinPaths);
-  // 범위 밖 대분류를 골라 두었으면(고정을 바꾼 뒤) 전체로 본다.
-  const activeFilters: ProductFilters = categoryTabs.some((tab) => tab.id === filters.category)
-    ? filters
-    : { ...filters, category: "전체", subcategory: "" };
+  // 종 칩: 대분류 아래 종만 고정했으면 '포유류' 대신 고른 종(강아지·고양이)을 칩으로(docs/prd/pet-space.md §5.3).
+  const speciesChips = useMemo(
+    () =>
+      saleSpeciesChips(
+        categoryTabs.filter((tab) => tab.id !== "전체").map((tab) => tab.id),
+        scope.pins
+      ),
+    [categoryTabs, scope.pins]
+  );
+  // 범위 밖 대분류·종을 골라 두었으면(고정을 바꾼 뒤) 전체로 본다.
+  const activeFilters: ProductFilters =
+    filters.category === "전체" ||
+    speciesChips.some(
+      (chip) =>
+        chip.category === filters.category && (!chip.subcategory || chip.subcategory === filters.subcategory)
+    )
+      ? filters
+      : { ...filters, category: "전체", subcategory: "" };
 
   const getKey = (pageIndex: number, previous: ProductsResponse | null) => {
     if (previous && pageIndex >= (previous.pages ?? 0)) return null;
@@ -174,7 +188,10 @@ export default function ProductsClient({ initialParams }: { initialParams: Produ
     if (categoryRailRef.current) categoryRailRef.current.scrollLeft = 0;
   };
 
-  const subcategories = activeFilters.category === "전체" ? [] : getSubcategories(activeFilters.category);
+  // 아래 종 줄은 대분류 칩을 골랐을 때만(종 칩을 골랐으면 이미 종까지 고른 것이다). 종만 골라 고정했으면 고른 종만.
+  const subcategories = speciesChips.some((chip) => !chip.subcategory && chip.category === activeFilters.category)
+    ? saleSubcategoryNames(activeFilters.category, getSubcategories(activeFilters.category), scope.pins)
+    : [];
 
   const renderState = () => {
     if (isFirstLoading) return <ProductRowSkeleton count={5} />;
@@ -214,17 +231,30 @@ export default function ProductsClient({ initialParams }: { initialParams: Produ
       {/* 필터 블록(헤더 아래 고정) */}
       <div className="sticky top-14 z-10 border-b border-app-line bg-app-bg">
         <div ref={categoryRailRef} className="flex h-11 items-center gap-2 overflow-x-auto px-4 scrollbar-hide">
-          {categoryTabs.map((tab) => (
-            <FilterChip
-              key={tab.id}
-              label={tab.name}
-              selected={activeFilters.category === tab.id}
-              onClick={() => {
-                if (activeFilters.category === tab.id) return;
-                updateFilters({ ...activeFilters, category: tab.id, subcategory: "" });
-              }}
-            />
-          ))}
+          <FilterChip
+            label="전체"
+            selected={activeFilters.category === "전체"}
+            onClick={() => {
+              if (activeFilters.category === "전체") return;
+              updateFilters({ ...activeFilters, category: "전체", subcategory: "" });
+            }}
+          />
+          {speciesChips.map((chip) => {
+            const selected =
+              activeFilters.category === chip.category &&
+              (!chip.subcategory || activeFilters.subcategory === chip.subcategory);
+            return (
+              <FilterChip
+                key={chip.id}
+                label={chip.label}
+                selected={selected}
+                onClick={() => {
+                  if (selected) return;
+                  updateFilters({ ...activeFilters, category: chip.category, subcategory: chip.subcategory });
+                }}
+              />
+            );
+          })}
         </div>
 
         {subcategories.length ? (

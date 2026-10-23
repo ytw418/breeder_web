@@ -10,7 +10,7 @@ import type { ProductsResponse } from "@libs/shared/home";
 import {
   adoptionScopePaths,
   SALE_TAB_MODE_LABELS,
-  saleTabModes,
+  saleTabModesShowing,
   type SaleTabMode,
 } from "@libs/shared/petSpace";
 
@@ -48,7 +48,8 @@ const readOpened = (mode: SaleTabMode) => {
 export default function SaleTabSwitch({ active }: { active: SaleTabMode }) {
   const { pins } = useCategoryScopeState();
   const paths = useMemo(() => pins.map((pin) => pin.path), [pins]);
-  const modes = useMemo(() => saleTabModes(paths), [paths]);
+  // 공유 링크로 입양 쪽을 열었는데 강아지·고양이를 고정하지 않았으면 '입양' 칸을 붙여 지금 쪽을 보인다.
+  const modes = useMemo(() => saleTabModesShowing(paths, active), [paths, active]);
   // 서버 렌더와 맞추려고 처음엔 숨기고, 붙은 뒤 세션 기록을 읽는다.
   const [opened, setOpened] = useState<Record<string, boolean>>({ auctions: true, adoption: true });
   useEffect(() => {

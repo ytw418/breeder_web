@@ -35,6 +35,8 @@ function CheckMark() {
 /**
  * 첫 질문 "어떤 아이를 키우시나요?"(앱 docs/prd/pet-space.md §4, 시안 pet-space/A-karrot.html ①).
  * 2×4 카드(최소 높이 104 r12, 캐릭터 60, 이름 16/600, 보조 12 muted, 오른쪽 위 체크 22), 여러 개 선택.
+ * 이름은 캐릭터 바로 아래에 둔다(시안은 아래 정렬 — 보조 글이 두 줄로 접히는 칸과 한 줄인 칸의 이름 높이가 어긋났다,
+ * 2026-10-23 브라우저 테스트). 시작 버튼은 스크롤해도 아래에 붙어 있다(시트에선 카드가 화면보다 길다).
  * '아직 없어요'는 다른 카드와 같이 고를 수 없다. 고르면 관심 분야 고정을 그 묶음으로 바꾸고(속은 지금 고정 그대로)
  * 마친 것으로 둔다. '건너뛰기'는 전체 보기. '종까지 자세히 고르기 ›'는 지금 트리 화면(onDetail).
  * 홈 첫 방문 시트(CategoryOnboardingPrompt)와 로그인 직후 /onboarding 이 같이 쓴다. 마친 뒤 어디로 갈지는 부르는 쪽이 정한다(홈).
@@ -77,7 +79,7 @@ export function PetPickForm({
     <div
       className={cn(
         "relative flex flex-col px-4",
-        sheet ? "bg-app-elevated pb-3" : "min-h-[100dvh] bg-app-bg pb-[calc(24px+env(safe-area-inset-bottom))] pt-6"
+        sheet ? "bg-app-elevated" : "min-h-[100dvh] bg-app-bg pt-6"
       )}
     >
       <button
@@ -115,7 +117,7 @@ export function PetPickForm({
                 disabled={saving}
                 onClick={() => setPicked(togglePetPick(selected, card.id))}
                 className={cn(
-                  "relative flex min-h-[104px] flex-col justify-between rounded-xl p-3.5 text-left transition-colors",
+                  "relative flex min-h-[104px] flex-col justify-start rounded-xl p-3.5 text-left transition-colors",
                   on ? "bg-app-brand-soft ring-[1.5px] ring-inset ring-app-brand" : "bg-app-gap"
                 )}
               >
@@ -150,18 +152,24 @@ export function PetPickForm({
         종까지 자세히 고르기 ›
       </button>
 
-      <button
-        type="button"
-        disabled={ctaOff}
-        onClick={() => finish(selected)}
+      <div
         className={cn(
-          "mt-auto h-[52px] w-full rounded-lg text-[16px] font-semibold",
-          sheet ? "mt-4" : "mt-6",
-          ctaOff ? "bg-app-surface text-app-caption" : "bg-app-brand text-white"
+          "sticky bottom-0 -mx-4 mt-auto px-4 pt-3",
+          sheet ? "bg-app-elevated pb-3" : "bg-app-bg pb-[calc(24px+env(safe-area-inset-bottom))]"
         )}
       >
-        {ctaLabel}
-      </button>
+        <button
+          type="button"
+          disabled={ctaOff}
+          onClick={() => finish(selected)}
+          className={cn(
+            "h-[52px] w-full rounded-lg text-[16px] font-semibold",
+            ctaOff ? "bg-app-surface text-app-caption" : "bg-app-brand text-white"
+          )}
+        >
+          {ctaLabel}
+        </button>
+      </div>
     </div>
   );
 }
