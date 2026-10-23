@@ -568,6 +568,11 @@ enum NotificationType {
   ADOPTION_CONFIRMED    // 입양자가 입양 확정(분양자에게)
   TRADE_REVIEW_RECEIVED // 입양자가 거래 후기를 남김(분양자에게)
   TRADE_REVIEW_REPLIED  // 분양자가 후기에 답글(입양자에게)
+  // 재방문 알림(2026-10-23, 앱 docs/prd/reengagement-push.md, libs/server/reengagement.ts). 한 사람 하루 합계 2통, 종류마다 1통.
+  NEARBY_FREE_PRODUCT // 같은 시/군/구 분양자가 무료 분양 등록(동네를 공개한 분양자만). targetType product
+  DEBATE_CLOSING      // 관심 분야 HOT 토론이 1시간 안에 마감(아직 안 고른 회원에게). targetType post
+  INTEREST_PRODUCTS   // 관심 분야 하루 새 분양 N건 묶음(저녁 한 통). targetType productList → 분양 탭
+  QUESTION_HELP       // 답 없는 질문을 같은 분야 글을 써 본 회원에게. targetType post
 }
 
 enum SeasonKind {

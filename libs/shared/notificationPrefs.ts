@@ -23,8 +23,8 @@ export const NOTIFICATION_PREF_COPY: Record<NotificationPrefKind, { label: strin
   chat: { label: "채팅", description: "분양 문의·채팅 메시지" },
   trade: { label: "거래·경매", description: "입찰·낙찰·관심·입양자 지정·거래 후기" },
   reaction: { label: "내 글 반응", description: "좋아요·댓글·답글" },
-  follow: { label: "팔로우·새 글", description: "새 팔로워·팔로우한 브리더의 새 글·관심 분야 질문" },
-  news: { label: "브리디 소식", description: "순위·토론 결과·기록·사랑방·주간 요약·공지" },
+  follow: { label: "팔로우·새 글", description: "새 팔로워·팔로우한 브리더 새 글·관심 분야 새 글·동네 무료 분양" },
+  news: { label: "브리디 소식", description: "순위·토론 결과·마감·기록·사랑방·주간 요약·공지" },
 };
 
 export interface QuietHours {
@@ -87,6 +87,11 @@ const KIND_BY_TYPE: Record<string, NotificationPrefKind> = {
   FOLLOW: "follow",
   NEW_POST: "follow",
   NEW_PRODUCT: "follow",
+  // 재방문 알림(2026-10-23, 앱 docs/prd/reengagement-push.md). 토론 마감은 다른 토론 알림처럼 '브리디 소식'.
+  NEARBY_FREE_PRODUCT: "follow",
+  INTEREST_PRODUCTS: "follow",
+  QUESTION_HELP: "follow",
+  DEBATE_CLOSING: "news",
 };
 
 /** 알림 type → 설정 종류. 운영 알림(MODERATION)은 끌 수 없어 null. 그 밖의 type(순위·토론·기록·사랑방 등)은 news. */
