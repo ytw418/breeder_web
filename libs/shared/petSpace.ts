@@ -210,6 +210,28 @@ export function isDogCatOnly(paths: readonly string[]): boolean {
   return paths.length > 0 && paths.every((path) => path.startsWith(DOG_PATH) || path.startsWith(CAT_PATH));
 }
 
+const PRICE_SORTS: readonly string[] = ["priceAsc", "priceDesc"];
+
+/** 강아지·고양이만 고정한 분양 쪽 정렬 칸. 가격 없는 글뿐이라 가격순은 뺀다. */
+export const dogCatSortOptions = <T extends { value: string }>(options: readonly T[]): T[] =>
+  options.filter((option) => !PRICE_SORTS.includes(option.value));
+
+/**
+ * 강아지·고양이만 고정한 분양 쪽 목록 필터. 새 글은 '생물'로 고정이고 가격이 없어 생물·용품 칩·가격 칩·가격순이 없다 —
+ * 다른 공간에서 걸어 둔 값도 풀어서 본다(2026-10-23 코덱스 디자인 리뷰 — 가족을 찾는 화면에 '생물·용품' 거래 분류가 남았다).
+ */
+export function dogCatSaleFilters<F extends { productType: string; sort: string; minPrice?: number; maxPrice?: number }>(
+  filters: F
+): F {
+  return {
+    ...filters,
+    productType: "",
+    sort: PRICE_SORTS.includes(filters.sort) ? "latest" : filters.sort,
+    minPrice: undefined,
+    maxPrice: undefined,
+  } as F;
+}
+
 /**
  * 입양 쪽 목록 범위(categoryPath): 고정 중 강아지·고양이 아래만. 포유류 전체·고정 없음이면 강아지·고양이 둘 다.
  * 늘 강아지·고양이 안에서만 찾아 다른 종의 옛 '가족 찾아요'(rehoming) 글이 섞이지 않게 한다.
@@ -416,12 +438,13 @@ export const FOSTER_SUPPORT_OPTIONS = [
 ] as const;
 
 type OptionId<T extends readonly { id: string }[]> = T[number]["id"];
+export type PetHealthId = OptionId<typeof PET_HEALTH_OPTIONS>;
 
 export interface PetInfo {
   sex?: OptionId<typeof PET_SEX_OPTIONS>;
   /** '3개월', '2살 추정' 처럼 짧은 글. */
   age?: string;
-  health?: OptionId<typeof PET_HEALTH_OPTIONS>[];
+  health?: PetHealthId[];
   reason?: OptionId<typeof PET_REASON_OPTIONS>;
   fosterPeriod?: OptionId<typeof FOSTER_PERIOD_OPTIONS>;
   /** fosterPeriod 가 'date' 일 때 'YYYY-MM-DD'. */
@@ -453,7 +476,8 @@ export function parsePetInfo(raw: unknown): PetInfo | null {
     info.age = input.age.trim().slice(0, PET_AGE_MAX_LENGTH);
   }
   const health = pickIds(PET_HEALTH_OPTIONS, input.health);
-  if (health?.length) info.health = health;
+  // 접종 중·완료가 같이 오면(옛 글쓰기) '접종 중'만 남긴다 — 완료라고 더 세게 말하지 않는다.
+  if (health?.length) info.health = health.includes("vaccinating") ? health.filter((id) => id !== "vaccinated") : health;
   const reason = pickId(PET_REASON_OPTIONS, input.reason);
   if (reason) info.reason = reason;
   const fosterPeriod = pickId(FOSTER_PERIOD_OPTIONS, input.fosterPeriod);
@@ -468,6 +492,19 @@ export function parsePetInfo(raw: unknown): PetInfo | null {
   const support = pickIds(FOSTER_SUPPORT_OPTIONS, input.fosterSupport);
   if (support?.length) info.fosterSupport = support;
   return Object.keys(info).length ? info : null;
+}
+
+const PET_VACCINE_IDS: readonly PetHealthId[] = ["vaccinating", "vaccinated"];
+
+/**
+ * 건강 칩을 누른 결과. 켜고 끄되, 접종 상태('접종 중'·'접종 완료')는 하나만 — 하나를 켜면 다른 하나는 꺼진다
+ * (2026-10-23 코덱스 디자인 리뷰 — 둘 다 고르면 목록에 둘 다 보였다). 중성화·구충은 따로 고른다.
+ */
+export function togglePetHealth(health: readonly PetHealthId[] | undefined, id: PetHealthId): PetHealthId[] {
+  const current = health ?? [];
+  if (current.includes(id)) return current.filter((value) => value !== id);
+  const kept = PET_VACCINE_IDS.includes(id) ? current.filter((value) => !PET_VACCINE_IDS.includes(value)) : current;
+  return [...kept, id];
 }
 
 const labelOf = (options: readonly { id: string; label: string }[], id: string | undefined) =>

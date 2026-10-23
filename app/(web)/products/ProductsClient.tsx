@@ -38,7 +38,14 @@ import {
 } from "@libs/productFilters";
 import useBlocks from "hooks/useBlocks";
 import useCategoryScope, { withCategoryPath, withinScope } from "hooks/useCategoryScope";
-import { hasDogCatPin, isDogCatOnly, saleSpeciesChips, saleSubcategoryNames } from "@libs/shared/petSpace";
+import {
+  dogCatSaleFilters,
+  dogCatSortOptions,
+  hasDogCatPin,
+  isDogCatOnly,
+  saleSpeciesChips,
+  saleSubcategoryNames,
+} from "@libs/shared/petSpace";
 import { ProductFeedEmpty } from "./_components/ProductFeedEmpty";
 import { PriceRangeSheet } from "./_components/PriceRangeSheet";
 import { ProductRowSkeleton } from "./_components/ProductRowSkeleton";
@@ -91,7 +98,7 @@ export default function ProductsClient({ initialParams }: { initialParams: Produ
     [scope.topLevelNames]
   );
   // 강아지·고양이를 고정했으면 '입양' 쪽이 따로 있어 분양 쪽은 가족 찾아요·임보 구해요 글을 뺀다
-  // (docs/prd/pet-space.md §5.1). 강아지·고양이만이면 가격 없는 글뿐이라 가격 칩·무료 분양 섹션도 뺀다.
+  // (docs/prd/pet-space.md §5.1). 강아지·고양이만이면 가격 없는 글뿐이라 가격 칩·무료 분양 섹션도 뺀다(§5.3).
   const pinPaths = scope.pins.map((pin) => pin.path);
   const withAdoptionSide = hasDogCatPin(pinPaths);
   const dogCatOnly = isDogCatOnly(pinPaths);
@@ -105,7 +112,7 @@ export default function ProductsClient({ initialParams }: { initialParams: Produ
     [categoryTabs, scope.pins]
   );
   // 범위 밖 대분류·종을 골라 두었으면(고정을 바꾼 뒤) 전체로 본다.
-  const activeFilters: ProductFilters =
+  const scopedFilters: ProductFilters =
     filters.category === "전체" ||
     speciesChips.some(
       (chip) =>
@@ -113,6 +120,8 @@ export default function ProductsClient({ initialParams }: { initialParams: Produ
     )
       ? filters
       : { ...filters, category: "전체", subcategory: "" };
+  // 강아지·고양이만이면 생물·용품·가격 칩과 가격순이 없다. 다른 공간에서 걸어 둔 값도 풀어서 본다.
+  const activeFilters = dogCatOnly ? dogCatSaleFilters(scopedFilters) : scopedFilters;
 
   const getKey = (pageIndex: number, previous: ProductsResponse | null) => {
     if (previous && pageIndex >= (previous.pages ?? 0)) return null;
@@ -289,21 +298,23 @@ export default function ProductsClient({ initialParams }: { initialParams: Produ
             value={activeFilters.sort}
             onChange={(value) => updateFilters({ ...activeFilters, sort: value as ProductSort })}
             ariaLabel="정렬 기준"
-            options={PRODUCT_SORT_OPTIONS}
+            options={dogCatOnly ? dogCatSortOptions(PRODUCT_SORT_OPTIONS) : PRODUCT_SORT_OPTIONS}
           />
-          {PRODUCT_TYPES.map((type) => (
-            <FilterChip
-              key={type.id}
-              label={type.name}
-              selected={activeFilters.productType === type.id}
-              onClick={() =>
-                updateFilters({
-                  ...activeFilters,
-                  productType: activeFilters.productType === type.id ? "" : type.id,
-                })
-              }
-            />
-          ))}
+          {dogCatOnly
+            ? null
+            : PRODUCT_TYPES.map((type) => (
+                <FilterChip
+                  key={type.id}
+                  label={type.name}
+                  selected={activeFilters.productType === type.id}
+                  onClick={() =>
+                    updateFilters({
+                      ...activeFilters,
+                      productType: activeFilters.productType === type.id ? "" : type.id,
+                    })
+                  }
+                />
+              ))}
           <FilterChip
             label="분양중만"
             selected={activeFilters.onSaleOnly}

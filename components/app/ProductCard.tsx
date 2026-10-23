@@ -78,6 +78,7 @@ export function getProductStatusLabel(
 /**
  * 당근 톤 상품 플랫 행(앱 ProductCard). 높이 148, 120px 썸네일(r8, 시안 list-thumb/A-karrot.html A안), 하단 1px app-line.
  * [안 본 점] 이름 16/500(2줄) · [상태 pill] 메타 13 app-muted · 가격 16/700, 관심 수는 오른쪽 아래.
+ * 강아지·고양이 글은 가격 자리에 정보 칩이고, 칩이 줄을 바꾸면 행이 늘어난다(앱 docs/prd/pet-space.md §5.3).
  * markUnread: 홈·상품 목록처럼 둘러보는 목록에서만 켠다(7일 안·안 연 상품에 빨간 점, 프로필 내역은 끔).
  * 판매완료·삭제·숨김은 썸네일을 어둡게 덮는다.
  * seller 를 넘기면 메타 맨 앞에 판매자(누르면 프로필, 행 높이 그대로, 시안 author-row/A-karrot.html A-②).
@@ -154,7 +155,7 @@ export function ProductCard({
         ) : null}
       </div>
 
-      <div className="flex h-[120px] min-w-0 flex-1 flex-col">
+      <div className={cn("flex min-w-0 flex-1 flex-col", hasPetFacts ? "min-h-[120px]" : "h-[120px]")}>
         <div className="flex items-start gap-1.5">
           {showDot ? (
             <span
@@ -189,7 +190,7 @@ export function ProductCard({
           </div>
         ) : null}
         {hasPetFacts ? (
-          <PetFactChips petInfo={product.petInfo} wrap={false} className="mt-1.5" />
+          <PetFactChips petInfo={product.petInfo} className="mt-1.5" />
         ) : (
           <span className="mt-1.5 truncate text-[16px] font-bold text-app-text">
             {productPriceText(product)}
@@ -215,7 +216,8 @@ export function ProductCard({
   return (
     <div
       className={cn(
-        "relative flex h-[148px] items-start gap-3 border-b border-app-line bg-app-bg px-4 py-3.5",
+        "relative flex items-start gap-3 border-b border-app-line bg-app-bg px-4 py-3.5",
+        hasPetFacts ? "min-h-[148px]" : "h-[148px]",
         className
       )}
     >

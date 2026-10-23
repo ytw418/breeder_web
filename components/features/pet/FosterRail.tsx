@@ -77,7 +77,8 @@ export default function FosterRail({
           </button>
         ) : null}
       </div>
-      <HorizontalRail label="임보 구해요 목록" className="gap-2 px-4">
+      {/* pb-1.5: 버튼 아래로 늘린 터치 칸이 가로 스크롤 영역 밖으로 나가 세로 스크롤이 생기지 않게 둔다. */}
+      <HorizontalRail label="임보 구해요 목록" className="gap-2 px-4 pb-1.5">
         {loading
           ? [0, 1, 2].map((i) => (
               <div key={i} className="w-[148px] shrink-0" aria-hidden="true">
@@ -103,7 +104,19 @@ export default function FosterRail({
                           height={148}
                           className="h-full w-full object-cover"
                         />
-                      ) : null}
+                      ) : (
+                        // 사진 없는 글은 가운데 그림 아이콘(앱 FosterCard·ProductCard 와 같다).
+                        <span className="grid h-full w-full place-items-center text-app-caption" aria-hidden="true">
+                          <svg className="h-[22px] w-[22px]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                              strokeWidth="1.5"
+                              d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"
+                            />
+                          </svg>
+                        </span>
+                      )}
                       {period ? (
                         <span className="absolute left-1.5 top-1.5 h-5 max-w-[136px] truncate rounded bg-app-inverse px-1.5 text-[11px] font-semibold leading-5 text-app-inverse-text">
                           {period}
@@ -120,8 +133,10 @@ export default function FosterRail({
                   {mine ? null : (
                     <button
                       type="button"
+                      aria-label={`${item.name}, 임보 할게요`}
                       onClick={() => raiseHand(item)}
-                      className="mt-2 flex h-8 w-full items-center justify-center gap-1 rounded-lg bg-app-brand-soft text-[13px] font-semibold text-app-brand-text"
+                      // 보이는 32 + 위아래 6 = 터치 44(2026-10-23 코덱스 디자인 리뷰). 넓은 면이라 brand-surface(다크 회색, 앱과 같다).
+                      className="relative mt-2 flex h-8 w-full items-center justify-center gap-1 rounded-lg bg-app-brand-surface text-[13px] font-semibold text-app-brand-text after:absolute after:inset-x-0 after:-inset-y-1.5"
                     >
                       <HandIcon />
                       임보 할게요
@@ -132,7 +147,7 @@ export default function FosterRail({
             })}
       </HorizontalRail>
       {/* 아래 '가족을 기다려요'와 가르는 8 갭. 레일이 숨으면 같이 숨는다(칩 바로 아래 빈 띠가 남지 않게). */}
-      <div className="mt-5 h-2 bg-app-gap" aria-hidden="true" />
+      <div className="mt-3.5 h-2 bg-app-gap" aria-hidden="true" />
     </section>
   );
 }

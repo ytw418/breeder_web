@@ -13,6 +13,7 @@ import {
   PET_SEX_OPTIONS,
   fosterPeriodLabel,
   showsPetRegion,
+  togglePetHealth,
   type PetInfo,
   type PetPostKind,
 } from "@libs/shared/petSpace";
@@ -32,6 +33,9 @@ function Label({ children, multi }: { children: ReactNode; multi?: boolean }) {
     </p>
   );
 }
+
+/** 누르는 칸을 위아래 4씩 늘린다(보이는 36 + 8 = 44, 2026-10-23 코덱스 디자인 리뷰). 줄 간격 8 이라 칸끼리 겹치지 않는다. */
+const TOUCH_44 = "relative after:absolute after:inset-x-0 after:-inset-y-1";
 
 /** 시안 .op: 높이 36 r8, 14/500 채움 칩. 고르면 검정 채움 + 흰 글자 600. */
 function OptionChip({
@@ -53,12 +57,17 @@ function OptionChip({
       onClick={onClick}
       className={cn(
         "h-9 shrink-0 whitespace-nowrap rounded-lg px-3 text-[14px] transition-colors disabled:opacity-50",
+        TOUCH_44,
         selected ? "bg-app-text font-semibold text-app-bg" : "bg-app-gap font-medium text-app-text"
       )}
     >
       {label}
     </button>
   );
+}
+
+function ChipWrap({ children }: { children: ReactNode }) {
+  return <div className="flex flex-wrap gap-x-1.5 gap-y-2">{children}</div>;
 }
 
 const toggleIn = <T extends string>(list: readonly T[] | undefined, id: T): T[] =>
@@ -147,6 +156,7 @@ export function PetPostFields({
                 onClick={() => onKindChange(item.id)}
                 className={cn(
                   "h-9 flex-1 rounded-md text-[14px] transition-colors",
+                  TOUCH_44,
                   active
                     ? "bg-app-elevated font-semibold text-app-text shadow-card"
                     : "font-medium text-app-muted"
@@ -175,7 +185,7 @@ export function PetPostFields({
 
       <div>
         <Label>성별</Label>
-        <div className="flex flex-wrap gap-1.5">
+        <ChipWrap>
           {PET_SEX_OPTIONS.map((option) => (
             <OptionChip
               key={option.id}
@@ -185,28 +195,28 @@ export function PetPostFields({
               onClick={() => update({ sex: info.sex === option.id ? undefined : option.id })}
             />
           ))}
-        </div>
+        </ChipWrap>
       </div>
 
       <div>
         <Label multi>건강</Label>
-        <div className="flex flex-wrap gap-1.5">
+        <ChipWrap>
           {PET_HEALTH_OPTIONS.map((option) => (
             <OptionChip
               key={option.id}
               label={option.label}
               selected={(info.health ?? []).includes(option.id)}
               disabled={disabled}
-              onClick={() => update({ health: toggleIn(info.health, option.id) })}
+              onClick={() => update({ health: togglePetHealth(info.health, option.id) })}
             />
           ))}
-        </div>
+        </ChipWrap>
       </div>
 
       {kind === "rehoming" ? (
         <div>
           <Label>보내는 이유</Label>
-          <div className="flex flex-wrap gap-1.5">
+          <ChipWrap>
             {PET_REASON_OPTIONS.map((option) => (
               <OptionChip
                 key={option.id}
@@ -216,7 +226,7 @@ export function PetPostFields({
                 onClick={() => update({ reason: info.reason === option.id ? undefined : option.id })}
               />
             ))}
-          </div>
+          </ChipWrap>
         </div>
       ) : null}
 
@@ -224,7 +234,7 @@ export function PetPostFields({
         <>
           <div>
             <Label>임보 기간</Label>
-            <div className="flex flex-wrap gap-1.5">
+            <ChipWrap>
               {FOSTER_PERIOD_OPTIONS.map((option) => (
                 <OptionChip
                   key={option.id}
@@ -239,7 +249,7 @@ export function PetPostFields({
                   }
                 />
               ))}
-            </div>
+            </ChipWrap>
             {info.fosterPeriod === "date" ? (
               <input
                 type="date"
@@ -254,7 +264,7 @@ export function PetPostFields({
           </div>
           <div>
             <Label multi>지원</Label>
-            <div className="flex flex-wrap gap-1.5">
+            <ChipWrap>
               {FOSTER_SUPPORT_OPTIONS.map((option) => (
                 <OptionChip
                   key={option.id}
@@ -264,7 +274,7 @@ export function PetPostFields({
                   onClick={() => update({ fosterSupport: toggleIn(info.fosterSupport, option.id) })}
                 />
               ))}
-            </div>
+            </ChipWrap>
           </div>
         </>
       ) : null}

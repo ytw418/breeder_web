@@ -1,6 +1,8 @@
 import {
   adoptionScopePaths,
   adoptionWriteSpecies,
+  dogCatSaleFilters,
+  dogCatSortOptions,
   fosterPeriodLabel,
   fosterSupportLabel,
   hasDogCatPin,
@@ -30,6 +32,7 @@ import {
   showsOtherPetsFeed,
   showsPetRegion,
   spaceLabelParts,
+  togglePetHealth,
   togglePetPick,
 } from "@libs/shared/petSpace";
 
@@ -167,6 +170,35 @@ describe("공간·분양 탭 전환(§5.1·5.2)", () => {
     expect(saleTabModes(["/mammal/dog/", "/reptile/"])).toEqual(["products", "auctions", "adoption"]);
     expect(saleTabModes(["/mammal/hamster/"])).toEqual(["products"]);
   });
+
+  it("강아지·고양이만이면 분양 쪽에 생물·용품·가격 필터와 가격순이 없다 — 걸어 둔 값도 푼다", () => {
+    const filters = {
+      category: "전체",
+      subcategory: "",
+      productType: "용품",
+      onSaleOnly: true,
+      sort: "priceAsc" as const,
+      minPrice: 0,
+      maxPrice: 50000,
+    };
+    expect(dogCatSaleFilters(filters)).toEqual({
+      category: "전체",
+      subcategory: "",
+      productType: "",
+      onSaleOnly: true,
+      sort: "latest",
+      minPrice: undefined,
+      maxPrice: undefined,
+    });
+    expect(dogCatSaleFilters({ ...filters, sort: "popular" as const }).sort).toBe("popular");
+    const sorts = [
+      { value: "latest", label: "최신순" },
+      { value: "popular", label: "인기순" },
+      { value: "priceAsc", label: "가격 낮은순" },
+      { value: "priceDesc", label: "가격 높은순" },
+    ];
+    expect(dogCatSortOptions(sorts).map((option) => option.label)).toEqual(["최신순", "인기순"]);
+  });
 });
 
 describe("홈 '다른 아이들 소식'(§5.7)", () => {
@@ -203,6 +235,18 @@ describe("강아지·고양이 분양글(§5.5)", () => {
     expect(
       parsePetInfo({ sex: "female", age: " 4개월쯤 ", health: ["vaccinating", "zz", "dewormed"], extra: 1 })
     ).toEqual({ sex: "female", age: "4개월쯤", health: ["vaccinating", "dewormed"] });
+  });
+
+  it("접종은 '접종 중'·'접종 완료' 중 하나만, 중성화·구충은 따로 고른다", () => {
+    expect(togglePetHealth(undefined, "vaccinating")).toEqual(["vaccinating"]);
+    expect(togglePetHealth(["vaccinating", "neutered"], "vaccinated")).toEqual(["neutered", "vaccinated"]);
+    expect(togglePetHealth(["vaccinated"], "vaccinated")).toEqual([]);
+    expect(togglePetHealth(["vaccinated"], "dewormed")).toEqual(["vaccinated", "dewormed"]);
+    // 둘 다 남은 옛 값은 '접종 중'만 — 목록에 둘 다 보이지 않는다.
+    expect(parsePetInfo({ health: ["vaccinated", "vaccinating", "neutered"] })).toEqual({
+      health: ["vaccinating", "neutered"],
+    });
+    expect(petFacts(parsePetInfo({ health: ["vaccinating", "vaccinated"] })).map((fact) => fact.label)).toEqual(["접종 중"]);
   });
 
   it("임보 기간은 날짜를 고른 때만 날짜를 남긴다", () => {

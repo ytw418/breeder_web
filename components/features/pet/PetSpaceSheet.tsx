@@ -36,6 +36,23 @@ function SwapIcon() {
 }
 
 /**
+ * 공간 이름. 길면('소동물·파충류·곤충·물고기·식물') 자르지 않고 '·' 뒤에서만 접는다(감싸는 쪽이 break-keep).
+ * 사이드 메뉴 카드와 공간 시트 행이 같이 쓴다 — 시트에서 한 줄로 자르면 고른 범위가 안 보였다(2026-10-23 코덱스 디자인 리뷰).
+ */
+function SpaceName({ label }: { label: string }) {
+  return (
+    <>
+      {spaceLabelParts(label).map((part, index) => (
+        <Fragment key={index}>
+          {index ? <wbr /> : null}
+          {part}
+        </Fragment>
+      ))}
+    </>
+  );
+}
+
+/**
  * 사이드 메뉴 맨 위 '지금 공간 · 강아지·고양이 · 바꾸기'(앱 docs/prd/pet-space.md §5.2, 시안 pet-space/A-karrot.html ⑥).
  * 지금 고정이 공간 묶음과 같으면 그 이름, 직접 섞었으면 '내가 고른 분야'. 비로그인도 이 브라우저 고정이 있어 늘 보인다.
  * 이름이 길면('소동물·파충류·곤충·물고기·식물') 자르지 않고 '·' 뒤에서 두 줄로 접는다.
@@ -54,12 +71,7 @@ export function PetSpaceCard({ onOpen }: { onOpen: () => void }) {
       <span className="block text-[12px] leading-4 text-app-muted">지금 공간</span>
       <span className="mt-0.5 flex items-center justify-between gap-2">
         <span className="min-w-0 break-keep text-[16px] font-bold leading-[22px] text-app-text">
-          {spaceLabelParts(label).map((part, index) => (
-            <Fragment key={index}>
-              {index ? <wbr /> : null}
-              {part}
-            </Fragment>
-          ))}
+          <SpaceName label={label} />
         </span>
         <span className="shrink-0 text-[13px] font-semibold text-app-brand-text">바꾸기</span>
       </span>
@@ -69,7 +81,7 @@ export function PetSpaceCard({ onOpen }: { onOpen: () => void }) {
 
 /**
  * '어떤 공간을 볼까요?' 시트(시안 ⑥). 공간 = 관심 분야 고정 묶음이라 고르면 고정 값을 그 묶음으로 바꾼다
- * (설정 > 관심 카테고리와 같은 값). 행 64(캐릭터 40 r12 · 이름 16/600 · 보조 13 muted · 라디오 22),
+ * (설정 > 관심 카테고리와 같은 값). 행 64(캐릭터 40 r12 · 이름 16/600 · 보조 13 muted · 라디오 22, 이름이 접히면 늘어난다),
  * 맨 아래 '직접 고르기 ›'는 설정 트리 화면. 지금 화면은 그대로 두고 범위만 바뀐다(AC-6) — 단 입양 쪽에 있는데
  * 강아지·고양이가 빠지면 분양 쪽으로 옮긴다. 열 때마다 새로 그린다(부르는 쪽이 열릴 때만 렌더).
  */
@@ -137,15 +149,17 @@ export function PetSpaceSheet({ onClose }: { onClose: () => void }) {
                 type="button"
                 role="radio"
                 aria-checked={on}
+                // 이름을 '·' 뒤에서 접는 <wbr> 때문에 읽는 이름에 빈칸이 끼지 않게 직접 준다(앱 accessibilityLabel 과 같다).
+                aria-label={`${space.label}, ${space.sub}`}
                 onClick={() => setChoice(space.id)}
-                className="flex h-16 w-full items-center gap-3 border-b border-app-surface text-left"
+                className="flex min-h-[64px] w-full items-center gap-3 border-b border-app-surface py-2.5 text-left"
               >
                 <span className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-app-surface">
                   <PetCharacter art={space.art} size={32} />
                 </span>
                 <span className="min-w-0 flex-1">
-                  <span className="block truncate text-[16px] font-semibold leading-[22px] text-app-text">
-                    {space.label}
+                  <span className="block break-keep text-[16px] font-semibold leading-[22px] text-app-text">
+                    <SpaceName label={space.label} />
                   </span>
                   <span className="block truncate text-[13px] leading-[18px] text-app-muted">{space.sub}</span>
                 </span>

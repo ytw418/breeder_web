@@ -138,7 +138,7 @@ export function PetPickForm({
                   onClick={() => setPicked(togglePetPick(selected, card.id))}
                   className={cn(
                     "relative flex min-h-[104px] flex-col justify-start rounded-xl p-3.5 text-left transition-colors",
-                    on ? "bg-app-brand-soft ring-[1.5px] ring-inset ring-app-brand" : "bg-app-gap"
+                    on ? "bg-app-brand-surface ring-[1.5px] ring-inset ring-app-brand" : "bg-app-gap"
                   )}
                 >
                   <PetCharacter art={card.art} size={60} className="-ml-1.5 -mt-1.5 shrink-0" />
@@ -161,7 +161,7 @@ export function PetPickForm({
             onClick={() => setPicked(togglePetPick(selected, PET_PICK_NONE_CARD.id))}
             className={cn(
               "relative mt-2 flex min-h-[64px] w-full items-center gap-2 rounded-xl py-2.5 pl-2.5 pr-12 text-left transition-colors",
-              noneOn ? "bg-app-brand-soft ring-[1.5px] ring-inset ring-app-brand" : "bg-app-gap"
+              noneOn ? "bg-app-brand-surface ring-[1.5px] ring-inset ring-app-brand" : "bg-app-gap"
             )}
           >
             <PetCharacter art={PET_PICK_NONE_CARD.art} size={44} className="shrink-0" />
@@ -176,11 +176,12 @@ export function PetPickForm({
         </div>
       )}
 
+      {/* 보이는 36 + 위아래 4 = 터치 44(2026-10-23 코덱스 디자인 리뷰). */}
       <button
         type="button"
         onClick={onDetail}
         disabled={saving}
-        className="mx-auto mt-4 h-9 px-2 text-[14px] text-app-muted"
+        className="relative mx-auto mt-4 h-9 px-2 text-[14px] text-app-muted after:absolute after:inset-x-0 after:-inset-y-1"
       >
         종까지 자세히 고르기 ›
       </button>
