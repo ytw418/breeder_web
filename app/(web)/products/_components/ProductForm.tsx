@@ -24,7 +24,14 @@ import {
   type BloodlineAttachResult,
 } from "@components/features/bloodline/BloodlineAttachSheet";
 import { ChevronRightIcon } from "@components/features/bloodline/BloodlineScreenParts";
-import { PetKindField, PetPostFields } from "@components/features/pet/PetPostFields";
+import {
+  PetKindField,
+  PetPostFields,
+  PetRegionRow,
+  PetSpeciesField,
+  petInputClassName,
+} from "@components/features/pet/PetPostFields";
+import { PetKindCards, PetWriteHeading, PetWriteProgress } from "@components/features/pet/PetWriteSteps";
 import { useConfirmLeave } from "hooks/useConfirmLeave";
 import useUser from "hooks/useUser";
 import { useCelebrateSheet } from "@components/features/celebrate/CelebrateSheet";
@@ -46,16 +53,22 @@ import {
 } from "@libs/productRules";
 import { parsePedigreeNote, type PedigreeNote } from "@libs/shared/pedigree-note";
 import {
+  PET_WRITE_STEP_TITLES,
   isNoPriceCategory,
   isPetPostKind,
   parsePetInfo,
   petDescriptionPlaceholder,
+  petPostKindLabel,
   petRegionText,
   petTitlePlaceholder,
+  petWritePrevStep,
+  petWriteStartStep,
   productWriteLabels,
   showsPetRegion,
+  tradeRulesAgreementLabel,
   type PetInfo,
   type PetPostKind,
+  type PetWriteStep,
 } from "@libs/shared/petSpace";
 import { regionOf } from "@libs/shared/regions";
 import type { BloodlineLinkSummary } from "@libs/shared/bloodline-card";
@@ -225,14 +238,18 @@ function ChipRow({ children }: { children: ReactNode }) {
  * 사진(대표·순서·10장·10MB) → 상품명 0/60 → 카테고리(대분류·하위분류 칩) → 상품 타입 세그먼트
  * → 혈통 행(생물만, 붙이기 시트) → 가격(₩, 무료 분양 칩) → 설명 0/3,000. 하단 고정 CTA 52, 업로드 진행 오버레이, 이탈 확인.
  * 강아지·고양이를 고르면 종류·거래 유형·혈통·가격 칸 대신 '어떤 글인가요?'와 정보 칸(PetPostFields)을 둔다
- * (docs/prd/pet-space.md §5.5 — 가격은 받지도 보내지도 않는다). 강아지·고양이 글로 연 글쓰기(입양 쪽·강아지·고양이만
- * 고정·종 링크·강아지·고양이 글 수정)는 '어떤 글인가요?'를 사진 위 맨 위에 두고 카테고리를 한 줄로 접는다(시안 ⑤).
+ * (docs/prd/pet-space.md §5.5 — 가격은 받지도 보내지도 않는다). 강아지·고양이 글 수정은 '어떤 글인가요?'를 사진 위
+ * 맨 위에 두고 카테고리를 한 줄로 접는다(시안 ⑤).
+ * 강아지·고양이 글로 연 새 글쓰기(입양 쪽·강아지·고양이만 고정·종 링크)는 세 단계로 나눈다(§5.11, 시안 pet-space/B-toss.html ④ —
+ * 토스 리뷰 결정 A): ① 어떤 글인가요 카드 → ② 사진·종·아이 정보 → ③ 제목·설명·동네·동의. 헤더는 뒤로만 두고 아래에 단계 막대,
+ * 뒤로(헤더·브라우저)는 한 단계 앞으로 간다. 상태·저장은 한 화면과 같다(단계는 보이는 칸만 나눈다).
  */
 export function ProductForm({
   product,
   initialFree = false,
   initialCategory,
   initialKind,
+  kindPicked = false,
   onTitleChange,
 }: {
   /** 있으면 수정 모드 */
@@ -243,6 +260,8 @@ export function ProductForm({
   initialCategory?: string;
   /** 등록 화면 ?kind=rehoming|foster(입양 쪽 글쓰기) → 글 종류를 미리 고르고 포유류를 펼쳐 둔다. */
   initialKind?: string;
+  /** 링크가 글 종류를 정해 왔다(?kind=). 단계 글쓰기를 ②부터 연다 — 고정 범위 기본값(petWriteDefaults)은 ①에서 고른다. */
+  kindPicked?: boolean;
   /** 등록 화면 헤더 제목. 임보·가족 찾기 글이면 '글쓰기'(productWriteLabels). */
   onTitleChange?: (title: string) => void;
 }) {
@@ -314,6 +333,13 @@ export function ProductForm({
   const categoryCollapsed = kindOnTop && isPet && !categoryOpen;
   // 임보·가족 찾기 글이면 헤더 '글쓰기'·버튼 '글 올리기', 완료·실패 문구는 '분양글' 대신 '글'(productWriteLabels).
   const writeLabels = productWriteLabels(isPet || awaitingPetSpecies ? petKind : null);
+  // 강아지·고양이 글로 연 새 글쓰기는 세 단계(§5.11). 임시저장에서 다른 종 글을 이어 쓰면 한 화면으로 돌아간다.
+  const [stepMode, setStepMode] = useState(() => !product && initial.petFirst);
+  const [step, setStep] = useState<PetWriteStep>(() => petWriteStartStep(kindPicked));
+  const goStep = (next: PetWriteStep) => {
+    setStep(next);
+    window.scrollTo({ top: 0 });
+  };
   const [price, setPrice] = useState<number | null>(initial.price);
   const [isFree, setIsFree] = useState(initial.price === 0);
   const [description, setDescription] = useState(initial.description);
@@ -395,6 +421,11 @@ export function ProductForm({
         setDealType(draftPrompt.dealType);
       }
       setDescription(draftPrompt.description);
+      if (stepMode) {
+        // 단계는 강아지·고양이 글만 — 다른 종 글을 이어 쓰면 한 화면으로, 강아지·고양이 글이면 고른 글 종류로 ②부터.
+        if (!isNoPriceCategory(branch.child)) setStepMode(false);
+        else if (step === 1) goStep(2);
+      }
       if (draftPrompt.bloodlineRootId != null) {
         setBloodline({
           rootId: draftPrompt.bloodlineRootId,
@@ -443,7 +474,23 @@ export function ProductForm({
     description !== initial.description ||
     photosChanged ||
     bloodlineChanged;
-  const { leave, dialog } = useConfirmLeave(dirty && submitStep !== "submit");
+  // 단계 글쓰기 ②·③에선 아무것도 안 적어도 뒤로가기를 받아 한 단계 앞으로 보낸다(①에서 뒤로 가면 닫힌다).
+  const stepBackActive = stepMode && step > 1;
+  const { leave, dialog } = useConfirmLeave((dirty || stepBackActive) && submitStep !== "submit", {
+    onBack: () => {
+      const prev = stepMode && !busy ? petWritePrevStep(step) : null;
+      if (!prev) return false;
+      goStep(prev);
+      return true;
+    },
+  });
+
+  // 단계마다 몇 명이 남는지 본다(docs/prd/pet-space.md §10). 글 종류는 ①에서 고른 뒤(②·③)만 싣는다.
+  // ②·③엔 글 종류 칸이 없어 글 종류는 ①에서 카드를 누를 때(단계와 함께)만 바뀐다.
+  useEffect(() => {
+    if (!stepMode) return;
+    trackEvent(ANALYTICS_EVENTS.petWriteStep, step > 1 ? { step, kind: petKind } : { step });
+  }, [stepMode, step, petKind]);
 
   const clearError = (field: keyof ProductFormErrors) =>
     setErrors((prev) => {
@@ -508,6 +555,11 @@ export function ProductForm({
     const firstMessage =
       firstField === "agreement" ? nextAgreementError : firstField ? nextErrors[firstField] : "";
     announceError(firstMessage ?? "");
+    if (firstField && stepMode && firstField === "category" && step !== 2) {
+      // 단계 글쓰기: 종(②의 칸)이 비었으면 ②로 돌아가 칸 아래 문구로 알린다.
+      goStep(2);
+      return;
+    }
     if (firstField) {
       formRef.current
         ?.querySelector(`[data-field="${firstField}"]`)
@@ -626,279 +678,398 @@ export function ProductForm({
   const selectedCategoryLabel =
     subcategory || TOP_LEVEL_CATEGORIES.find((cat) => cat.id === category)?.name || "";
   const uploadedCount = photos.filter((photo) => photo.remoteId).length;
-  const ctaLabel = isEdit ? "수정하기" : writeLabels.submit;
+  // 단계 글쓰기 ②는 '다음', ③은 글 종류에 맞는 등록 버튼. 헤더 제목은 비운다(단계 제목이 화면에 있다, 시안 ④).
+  const ctaLabel = isEdit ? "수정하기" : stepMode && step === 2 ? "다음" : writeLabels.submit;
   useEffect(() => {
-    if (!isEdit) onTitleChange?.(writeLabels.title);
-  }, [isEdit, onTitleChange, writeLabels.title]);
+    if (!isEdit) onTitleChange?.(stepMode ? "" : writeLabels.title);
+  }, [isEdit, onTitleChange, writeLabels.title, stepMode]);
+
+  /** 단계 글쓰기 ② '다음': 종만 고르면 된다(정보 칸은 모두 선택). */
+  const nextFromInfo = () => {
+    if (awaitingPetSpecies) {
+      const message = "강아지·고양이 중에 골라 주세요";
+      setErrors((prev) => ({ ...prev, category: message }));
+      announceError(message);
+      formRef.current
+        ?.querySelector('[data-field="category"]')
+        ?.scrollIntoView({ behavior: "smooth", block: "center" });
+      return;
+    }
+    goStep(3);
+  };
   const showBloodlineRow = !isPet && productType === BLOODLINE_PRODUCT_TYPE;
   const bloodlineValue =
     bloodline.rootId != null ? formatBloodlineAttachValue(bloodline.name ?? "", bloodline.note) : "";
 
+  // 사진·제목·설명·동의 칸은 한 화면과 단계 글쓰기가 같이 쓴다(단계에선 채움 입력칸, 시안 pet-space/B-toss.html ④).
+  const photosField = (
+    <PhotoGridEditor
+      photos={photos}
+      onChange={(next) => setPhotos(next as ProductPhoto[])}
+      max={PRODUCT_PHOTOS_MAX}
+      onAdd={addFiles}
+      disabled={busy}
+      filled={stepMode}
+    />
+  );
+
+  const titleField = (
+    <div data-field="name">
+      <FieldLabel label="제목" count={`${name.length}/60`} />
+      <input
+        value={name}
+        disabled={busy}
+        maxLength={60}
+        onChange={(event) => {
+          setName(event.target.value);
+          clearError("name");
+        }}
+        // 강아지·고양이 글은 글 종류에 맞는 예시(라벨과 같은 '제목'은 안내가 안 된다, 2026-10-23 토스 디자인 리뷰).
+        placeholder={isPet || awaitingPetSpecies ? petTitlePlaceholder(petKind, subcategory) : "제목"}
+        aria-label="제목"
+        aria-invalid={Boolean(errors.name)}
+        className={petInputClassName({ filled: stepMode, error: Boolean(errors.name) })}
+      />
+      <ErrorText>{errors.name}</ErrorText>
+    </div>
+  );
+
+  // 강아지·고양이 글을 종을 알고 열었으면 카테고리를 '카테고리 강아지 ›' 한 줄로 접는다(누르면 펼친다).
+  const collapsedCategoryRow = (
+    <div data-field="category">
+      <button
+        type="button"
+        disabled={busy}
+        aria-expanded={false}
+        aria-label={`카테고리 ${selectedCategoryLabel}, 바꾸기`}
+        onClick={() => setCategoryOpen(true)}
+        className="-my-2 flex h-14 w-full min-w-0 items-center gap-1 text-left disabled:opacity-50"
+      >
+        <span className="shrink-0 text-[15px] font-semibold text-app-text">카테고리</span>
+        <span className="ml-auto min-w-0 truncate pl-3 text-[15px] text-app-text">{selectedCategoryLabel}</span>
+        <ChevronRightIcon className="h-[18px] w-[18px] shrink-0 text-app-caption" />
+      </button>
+    </div>
+  );
+
+  // 강아지·고양이: 글 종류 + 정보 칸(시안 pet-space ⑤). 종류·거래 유형·혈통·가격 칸은 없다. 단계 글쓰기는 동네를 ③에 둔다.
+  const petFields = (
+    <PetPostFields
+      kind={petKind}
+      onKindChange={setPetKind}
+      showKind={!kindOnTop}
+      showRegionRow={!stepMode}
+      filled={stepMode}
+      info={petInfo}
+      onInfoChange={setPetInfo}
+      region={myRegionText}
+      showRegion={showRegion}
+      onShowRegionChange={setShowRegion}
+      disabled={busy}
+    />
+  );
+
+  const descriptionField = (
+    <div data-field="description">
+      <FieldLabel
+        label="설명"
+        count={`${description.length.toLocaleString("ko-KR")}/${PRODUCT_DESCRIPTION_MAX_LENGTH.toLocaleString("ko-KR")}`}
+      />
+      <MarkdownEditor
+        id="description"
+        value={description}
+        onChange={(value) => {
+          setDescription(value);
+          clearError("description");
+        }}
+        placeholder={
+          isPet || awaitingPetSpecies
+            ? petDescriptionPlaceholder(petKind, subcategory)
+            : "사육 정보, 상태, 거래 방식 등 입양자가 궁금할 내용을 구체적으로 작성해주세요."
+        }
+        rows={stepMode ? 10 : 9}
+        hasError={Boolean(errors.description)}
+        simple={isPet || awaitingPetSpecies}
+        filled={stepMode}
+      />
+      <ErrorText>{errors.description}</ErrorText>
+    </div>
+  );
+
+  // 동의(새 글만, 등록 버튼 바로 위). 경매 '운영 룰 동의' 체크와 같은 모양. 강아지·고양이 글은 2개월·영리 분양 문구(결정 D).
+  const agreementField = isEdit ? null : (
+    <div data-field="agreement">
+      <div className="flex items-start gap-3">
+        {/* 단어 중간에서 줄이 끊기지 않게(word-break 는 상속된다) */}
+        <div className="min-w-0 flex-1 break-keep">
+          <AgreeRow
+            checked={agreedTradeRules}
+            onToggle={() => {
+              setAgreedTradeRules((prev) => !prev);
+              setAgreementError("");
+            }}
+            label={tradeRulesAgreementLabel(isPet || awaitingPetSpecies)}
+          />
+        </div>
+        {/* 웹은 화면을 쌓아 둘 수 없어 쓰던 폼을 두고 새 탭으로 연다(경매 툴 '룰 전체 보기'와 같다). */}
+        <Link
+          href="/content/community-rules"
+          target="_blank"
+          rel="noopener noreferrer"
+          aria-label="이용 규칙 자세히 보기"
+          // 주황은 주 버튼·선택 상태만(REFERENCE.md) — 보조 링크는 회색 밑줄 글자(2026-10-23 토스 디자인 리뷰).
+          className="shrink-0 text-[13px] leading-[22px] text-app-muted underline underline-offset-[3px]"
+        >
+          자세히
+        </Link>
+      </div>
+      <ErrorText>{agreementError}</ErrorText>
+    </div>
+  );
+
+  /** 단계 글쓰기 화면(① 글 종류 · ② 사진·종·정보 · ③ 제목·설명·동네·동의). */
+  const renderStep = () => {
+    if (step === 1) {
+      return (
+        <>
+          <PetWriteHeading title={PET_WRITE_STEP_TITLES[1]} />
+          <PetKindCards
+            disabled={busy}
+            onPick={(kind) => {
+              setPetKind(kind);
+              goStep(2);
+            }}
+          />
+        </>
+      );
+    }
+    const caption = petPostKindLabel(petKind);
+    if (step === 2) {
+      return (
+        <>
+          <PetWriteHeading caption={caption} title={PET_WRITE_STEP_TITLES[2]} />
+          <div>
+            <p className="mb-0.5 text-[15px] font-semibold leading-[22px] text-app-text">
+              사진<span className="font-normal text-app-muted"> · {PRODUCT_PHOTOS_MAX}장까지</span>
+            </p>
+            {photosField}
+          </div>
+          {categoryCollapsed ? (
+            collapsedCategoryRow
+          ) : (
+            <div data-field="category">
+              <PetSpeciesField
+                value={subcategory}
+                disabled={busy}
+                error={errors.category}
+                onChange={(species) => {
+                  setCategory("포유류");
+                  setSubcategory(species);
+                  clearError("category");
+                }}
+              />
+            </div>
+          )}
+          {petFields}
+        </>
+      );
+    }
+    return (
+      <>
+        <PetWriteHeading caption={caption} title={PET_WRITE_STEP_TITLES[3]} />
+        {titleField}
+        {descriptionField}
+        {showsPetRegion(petKind) ? (
+          <PetRegionRow region={myRegionText} on={showRegion} onChange={setShowRegion} disabled={busy} />
+        ) : null}
+        {agreementField}
+      </>
+    );
+  };
+
   return (
     <>
+      {stepMode ? <PetWriteProgress step={step} /> : null}
       <form
         ref={formRef}
         onSubmit={(event) => {
           event.preventDefault();
+          // 단계 글쓰기 ①은 카드로만 넘어가고, ②에서 Enter 는 '다음'과 같다.
+          if (stepMode && step === 1) return;
+          if (stepMode && step === 2) {
+            nextFromInfo();
+            return;
+          }
           void submit();
         }}
-        className="flex flex-col gap-5 px-5 pb-[calc(52px+40px+env(safe-area-inset-bottom))] pt-5"
+        className={cn(
+          "flex flex-col gap-5",
+          !stepMode
+            ? "px-5 pb-[calc(52px+40px+env(safe-area-inset-bottom))] pt-5"
+            : step === 1
+              ? "px-4 pb-10 pt-7"
+              : "px-4 pb-[calc(52px+40px+env(safe-area-inset-bottom))] pt-6"
+        )}
         noValidate
       >
-        {/* 강아지·고양이 글로 연 글쓰기: 글 종류 먼저(시안 ⑤) */}
-        {kindOnTop ? <PetKindField kind={petKind} onKindChange={setPetKind} disabled={busy} /> : null}
-
-        {/* 사진 */}
-        <PhotoGridEditor
-          photos={photos}
-          onChange={(next) => setPhotos(next as ProductPhoto[])}
-          max={PRODUCT_PHOTOS_MAX}
-          onAdd={addFiles}
-          disabled={busy}
-        />
-
-        {/* 상품명 */}
-        <div data-field="name">
-          <FieldLabel label="제목" count={`${name.length}/60`} />
-          <input
-            value={name}
-            disabled={busy}
-            maxLength={60}
-            onChange={(event) => {
-              setName(event.target.value);
-              clearError("name");
-            }}
-            // 강아지·고양이 글은 글 종류에 맞는 예시(라벨과 같은 '제목'은 안내가 안 된다, 2026-10-23 토스 디자인 리뷰).
-            placeholder={isPet || awaitingPetSpecies ? petTitlePlaceholder(petKind, subcategory) : "제목"}
-            aria-label="제목"
-            aria-invalid={Boolean(errors.name)}
-            className={cn(
-              "h-12 w-full rounded-lg border bg-app-bg px-3.5 text-[16px] text-app-text placeholder:text-app-caption focus:border-app-text focus:outline-none focus:ring-0 disabled:opacity-50",
-              errors.name ? "border-app-danger" : "border-app-border"
-            )}
-          />
-          <ErrorText>{errors.name}</ErrorText>
-        </div>
-
-        {/* 카테고리 — 강아지·고양이 글로 열었으면 한 줄로 접는다(누르면 칩을 펼친다) */}
-        {categoryCollapsed ? (
-          <div data-field="category">
-            <button
-              type="button"
-              disabled={busy}
-              aria-expanded={false}
-              aria-label={`카테고리 ${selectedCategoryLabel}, 바꾸기`}
-              onClick={() => setCategoryOpen(true)}
-              className="-my-2 flex h-14 w-full min-w-0 items-center gap-1 text-left disabled:opacity-50"
-            >
-              <span className="shrink-0 text-[15px] font-semibold text-app-text">카테고리</span>
-              <span className="ml-auto min-w-0 truncate pl-3 text-[15px] text-app-text">{selectedCategoryLabel}</span>
-              <ChevronRightIcon className="h-[18px] w-[18px] shrink-0 text-app-caption" />
-            </button>
-          </div>
-        ) : (
-        <div data-field="category">
-          <div className="mb-0.5 flex h-8 items-center">
-            <span className="text-[15px] font-semibold text-app-text">카테고리</span>
-            <span
-              className={cn(
-                "ml-auto max-w-[55%] truncate text-[15px]",
-                selectedCategoryLabel ? "text-app-text" : "text-app-caption"
-              )}
-            >
-              {selectedCategoryLabel || "선택"}
-            </span>
-          </div>
-          <fieldset disabled={busy} className="min-w-0">
-            <ChipRow>
-              {TOP_LEVEL_CATEGORIES.map((cat) => (
-                <FilterChip
-                  key={cat.id}
-                  label={cat.name}
-                  selected={category === cat.id}
-                  onClick={() => {
-                    // 같은 대분류를 다시 누르면 고른 하위분류를 그대로 둔다.
-                    if (category === cat.id) return;
-                    setCategory(cat.id);
-                    setSubcategory("");
-                    clearError("category");
-                  }}
-                />
-              ))}
-            </ChipRow>
-            {subcategories.length > 0 ? (
-              <ChipRow>
-                {subcategories.map((sub) => (
-                  <FilterChip
-                    key={sub}
-                    label={sub}
-                    selected={subcategory === sub}
-                    // 선택된 하위분류를 다시 누르면 해제해 대분류로 저장한다.
-                    onClick={() => {
-                      setSubcategory(subcategory === sub ? "" : sub);
-                      clearError("category");
-                    }}
-                  />
-                ))}
-              </ChipRow>
-            ) : null}
-          </fieldset>
-          <ErrorText className="mt-0">{errors.category}</ErrorText>
-        </div>
-        )}
-
-        {isPet ? (
-          // 강아지·고양이: 글 종류 + 정보 칸(시안 pet-space ⑤). 종류·거래 유형·혈통·가격 칸은 없다.
-          <PetPostFields
-            kind={petKind}
-            onKindChange={setPetKind}
-            showKind={!kindOnTop}
-            info={petInfo}
-            onInfoChange={setPetInfo}
-            region={myRegionText}
-            showRegion={showRegion}
-            onShowRegionChange={setShowRegion}
-            disabled={busy}
-          />
-        ) : awaitingPetSpecies ? (
-          // 오류('강아지·고양이 중에 골라 주세요')가 떠 있으면 같은 말이라 안내는 숨긴다.
-          errors.category ? null : (
-            <p className="-mt-3 break-keep text-[13px] leading-[18px] text-app-muted">
-              강아지·고양이를 고르면 아이 정보를 적는 칸이 나와요.
-            </p>
-          )
+        {stepMode ? (
+          renderStep()
         ) : (
           <>
-            {/* 상품 타입 */}
-            <div data-field="productType">
-              <SegmentField
-                label="종류"
-                options={PRODUCT_TYPES}
-                value={productType}
-                disabled={busy}
-                error={errors.productType}
-                onChange={(value) => {
-                  setProductType(value);
-                  clearError("productType");
-                }}
-              />
-            </div>
+            {/* 강아지·고양이 글 수정: 글 종류 먼저(시안 ⑤) */}
+            {kindOnTop ? <PetKindField kind={petKind} onKindChange={setPetKind} disabled={busy} /> : null}
 
-            {/* 거래 유형(유료 분양/무료 분양) — 앱 ProductDealTypeSegment. 파양은 1단계 비노출. */}
-            <SegmentField
-              label="거래 유형"
-              options={DEAL_TYPE_OPTIONS}
-              value={dealType}
-              disabled={busy}
-              onChange={setDealType}
-            />
-          </>
-        )}
+            {/* 사진 */}
+            {photosField}
 
-        {/* 혈통(생물만, 시안 A2 #S5-attach .formrow) */}
-        {showBloodlineRow ? (
-          <button
-            type="button"
-            disabled={busy}
-            aria-haspopup="dialog"
-            onClick={() => setAttachOpen(true)}
-            className="-my-2 flex h-14 w-full min-w-0 items-center gap-1 text-left disabled:opacity-50"
-          >
-            <span className="shrink-0 text-[15px] font-semibold text-app-text">혈통</span>
-            <span
-              className={cn(
-                "ml-auto min-w-0 truncate pl-3 text-[15px]",
-                bloodlineValue ? "text-app-text" : "text-app-muted"
-              )}
-            >
-              {bloodlineValue || "붙이기"}
-            </span>
-            <ChevronRightIcon className="h-[18px] w-[18px] shrink-0 text-app-caption" />
-          </button>
-        ) : null}
+            {/* 상품명 */}
+            {titleField}
 
-        {/* 가격(강아지·고양이는 없다) */}
-        {isPet || awaitingPetSpecies ? null : (
-        <div className="-mt-1.5" data-field="price">
-          <div className="mb-0.5 flex h-11 items-center justify-between">
-            <span className="text-[15px] font-semibold text-app-text">가격</span>
-            <FilterChip label="무료 분양" selected={isFree} onClick={toggleFree} />
-          </div>
-          <PriceInput
-            value={price}
-            onChange={(value) => {
-              setPrice(value);
-              clearError("price");
-            }}
-            max={PRODUCT_PRICE_MAX}
-            prefix="₩"
-            disabled={busy || isFree}
-            placeholder="가격을 입력해주세요"
-            aria-label="가격"
-            className={errors.price ? "border-app-danger" : undefined}
-          />
-          {errors.price ? (
-            <ErrorText>{errors.price}</ErrorText>
-          ) : (
-            <p className="mt-1.5 text-[13px] text-app-muted">0원은 무료 분양으로 등록돼요</p>
-          )}
-        </div>
-        )}
-
-        {/* 상품 설명 */}
-        <div data-field="description">
-          <FieldLabel
-            label="설명"
-            count={`${description.length.toLocaleString("ko-KR")}/${PRODUCT_DESCRIPTION_MAX_LENGTH.toLocaleString("ko-KR")}`}
-          />
-          <MarkdownEditor
-            id="description"
-            value={description}
-            onChange={(value) => {
-              setDescription(value);
-              clearError("description");
-            }}
-            placeholder={
-              isPet || awaitingPetSpecies
-                ? petDescriptionPlaceholder(petKind, subcategory)
-                : "사육 정보, 상태, 거래 방식 등 입양자가 궁금할 내용을 구체적으로 작성해주세요."
-            }
-            rows={9}
-            hasError={Boolean(errors.description)}
-            simple={isPet || awaitingPetSpecies}
-          />
-          <ErrorText>{errors.description}</ErrorText>
-        </div>
-
-        {/* 거래 금지 종·신고 의무 동의(새 글만, 등록 버튼 바로 위). 경매 '운영 룰 동의' 체크와 같은 모양 */}
-        {isEdit ? null : (
-          <div data-field="agreement">
-            <div className="flex items-start gap-3">
-              {/* 단어 중간에서 줄이 끊기지 않게(word-break 는 상속된다) */}
-              <div className="min-w-0 flex-1 break-keep">
-                <AgreeRow
-                  checked={agreedTradeRules}
-                  onToggle={() => {
-                    setAgreedTradeRules((prev) => !prev);
-                    setAgreementError("");
-                  }}
-                  label="분양할 수 없는 종이 아니에요. 필요한 신고도 할게요"
-                />
+            {/* 카테고리 — 강아지·고양이 글 수정은 한 줄로 접는다(누르면 칩을 펼친다) */}
+            {categoryCollapsed ? (
+              collapsedCategoryRow
+            ) : (
+              <div data-field="category">
+                <div className="mb-0.5 flex h-8 items-center">
+                  <span className="text-[15px] font-semibold text-app-text">카테고리</span>
+                  <span
+                    className={cn(
+                      "ml-auto max-w-[55%] truncate text-[15px]",
+                      selectedCategoryLabel ? "text-app-text" : "text-app-caption"
+                    )}
+                  >
+                    {selectedCategoryLabel || "선택"}
+                  </span>
+                </div>
+                <fieldset disabled={busy} className="min-w-0">
+                  <ChipRow>
+                    {TOP_LEVEL_CATEGORIES.map((cat) => (
+                      <FilterChip
+                        key={cat.id}
+                        label={cat.name}
+                        selected={category === cat.id}
+                        onClick={() => {
+                          // 같은 대분류를 다시 누르면 고른 하위분류를 그대로 둔다.
+                          if (category === cat.id) return;
+                          setCategory(cat.id);
+                          setSubcategory("");
+                          clearError("category");
+                        }}
+                      />
+                    ))}
+                  </ChipRow>
+                  {subcategories.length > 0 ? (
+                    <ChipRow>
+                      {subcategories.map((sub) => (
+                        <FilterChip
+                          key={sub}
+                          label={sub}
+                          selected={subcategory === sub}
+                          // 선택된 하위분류를 다시 누르면 해제해 대분류로 저장한다.
+                          onClick={() => {
+                            setSubcategory(subcategory === sub ? "" : sub);
+                            clearError("category");
+                          }}
+                        />
+                      ))}
+                    </ChipRow>
+                  ) : null}
+                </fieldset>
+                <ErrorText className="mt-0">{errors.category}</ErrorText>
               </div>
-              {/* 웹은 화면을 쌓아 둘 수 없어 쓰던 폼을 두고 새 탭으로 연다(경매 툴 '룰 전체 보기'와 같다). */}
-              <Link
-                href="/content/community-rules"
-                target="_blank"
-                rel="noopener noreferrer"
-                aria-label="이용 규칙 자세히 보기"
-                // 주황은 주 버튼·선택 상태만(REFERENCE.md) — 보조 링크는 회색 밑줄 글자(2026-10-23 토스 디자인 리뷰).
-                className="shrink-0 text-[13px] leading-[22px] text-app-muted underline underline-offset-[3px]"
+            )}
+
+            {isPet ? (
+              petFields
+            ) : awaitingPetSpecies ? (
+              // 오류('강아지·고양이 중에 골라 주세요')가 떠 있으면 같은 말이라 안내는 숨긴다.
+              errors.category ? null : (
+                <p className="-mt-3 break-keep text-[13px] leading-[18px] text-app-muted">
+                  강아지·고양이를 고르면 아이 정보를 적는 칸이 나와요.
+                </p>
+              )
+            ) : (
+              <>
+                {/* 상품 타입 */}
+                <div data-field="productType">
+                  <SegmentField
+                    label="종류"
+                    options={PRODUCT_TYPES}
+                    value={productType}
+                    disabled={busy}
+                    error={errors.productType}
+                    onChange={(value) => {
+                      setProductType(value);
+                      clearError("productType");
+                    }}
+                  />
+                </div>
+
+                {/* 거래 유형(유료 분양/무료 분양) — 앱 ProductDealTypeSegment. 파양은 1단계 비노출. */}
+                <SegmentField
+                  label="거래 유형"
+                  options={DEAL_TYPE_OPTIONS}
+                  value={dealType}
+                  disabled={busy}
+                  onChange={setDealType}
+                />
+              </>
+            )}
+
+            {/* 혈통(생물만, 시안 A2 #S5-attach .formrow) */}
+            {showBloodlineRow ? (
+              <button
+                type="button"
+                disabled={busy}
+                aria-haspopup="dialog"
+                onClick={() => setAttachOpen(true)}
+                className="-my-2 flex h-14 w-full min-w-0 items-center gap-1 text-left disabled:opacity-50"
               >
-                자세히
-              </Link>
+                <span className="shrink-0 text-[15px] font-semibold text-app-text">혈통</span>
+                <span
+                  className={cn(
+                    "ml-auto min-w-0 truncate pl-3 text-[15px]",
+                    bloodlineValue ? "text-app-text" : "text-app-muted"
+                  )}
+                >
+                  {bloodlineValue || "붙이기"}
+                </span>
+                <ChevronRightIcon className="h-[18px] w-[18px] shrink-0 text-app-caption" />
+              </button>
+            ) : null}
+
+            {/* 가격(강아지·고양이는 없다) */}
+            {isPet || awaitingPetSpecies ? null : (
+            <div className="-mt-1.5" data-field="price">
+              <div className="mb-0.5 flex h-11 items-center justify-between">
+                <span className="text-[15px] font-semibold text-app-text">가격</span>
+                <FilterChip label="무료 분양" selected={isFree} onClick={toggleFree} />
+              </div>
+              <PriceInput
+                value={price}
+                onChange={(value) => {
+                  setPrice(value);
+                  clearError("price");
+                }}
+                max={PRODUCT_PRICE_MAX}
+                prefix="₩"
+                disabled={busy || isFree}
+                placeholder="가격을 입력해주세요"
+                aria-label="가격"
+                className={errors.price ? "border-app-danger" : undefined}
+              />
+              {errors.price ? (
+                <ErrorText>{errors.price}</ErrorText>
+              ) : (
+                <p className="mt-1.5 text-[13px] text-app-muted">0원은 무료 분양으로 등록돼요</p>
+              )}
             </div>
-            <ErrorText>{agreementError}</ErrorText>
-          </div>
+            )}
+
+            {descriptionField}
+
+            {agreementField}
+          </>
         )}
 
         {/* 스크린 리더 전용 오류 안내(화면에는 칸 아래 문구만 보인다) */}
@@ -906,28 +1077,31 @@ export function ProductForm({
           {errorAnnouncement}
         </p>
 
-        {/* 하단 고정 CTA */}
-        <div className="fixed inset-x-0 bottom-0 mx-auto max-w-xl z-30 border-t border-app-line bg-app-bg pb-[env(safe-area-inset-bottom)]">
-          <div className="mx-auto max-w-xl px-5 py-2">
-            <button
-              type="submit"
-              aria-label={ctaLabel}
-              aria-disabled={busy}
-              disabled={busy}
-              className={cn(
-                "flex h-[52px] w-full items-center justify-center rounded-md text-[16px] font-semibold",
-                // 동의 전·빈 칸이 있어도 꺼진 색으로 두지 않는다. 누르면 첫 오류 칸으로 데려간다(요청은 보내지 않는다).
-                busy ? "bg-app-surface text-app-caption" : "bg-app-brand text-white"
-              )}
-            >
-              {busy ? (
-                <span className="h-5 w-5 animate-spin rounded-full border-2 border-app-border border-t-app-caption" />
-              ) : (
-                ctaLabel
-              )}
-            </button>
+        {/* 하단 고정 CTA(단계 글쓰기 ①은 카드가 곧 버튼이라 없다) */}
+        {stepMode && step === 1 ? null : (
+          <div className="fixed inset-x-0 bottom-0 mx-auto max-w-xl z-30 border-t border-app-line bg-app-bg pb-[env(safe-area-inset-bottom)]">
+            <div className={cn("mx-auto max-w-xl py-2", stepMode ? "px-4" : "px-5")}>
+              <button
+                type="submit"
+                aria-label={ctaLabel}
+                aria-disabled={busy}
+                disabled={busy}
+                className={cn(
+                  "flex h-[52px] w-full items-center justify-center text-[16px] font-semibold",
+                  stepMode ? "rounded-lg" : "rounded-md",
+                  // 동의 전·빈 칸이 있어도 꺼진 색으로 두지 않는다. 누르면 첫 오류 칸으로 데려간다(요청은 보내지 않는다).
+                  busy ? "bg-app-surface text-app-caption" : "bg-app-brand text-white"
+                )}
+              >
+                {busy ? (
+                  <span className="h-5 w-5 animate-spin rounded-full border-2 border-app-border border-t-app-caption" />
+                ) : (
+                  ctaLabel
+                )}
+              </button>
+            </div>
           </div>
-        </div>
+        )}
       </form>
 
       {busy ? (

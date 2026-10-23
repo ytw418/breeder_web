@@ -26,6 +26,11 @@ export interface ConfirmLeaveOptions {
   stayText?: string;
   /** 나가기 버튼 문구 */
   leaveText?: string;
+  /**
+   * 뒤로가기(헤더 뒤로·브라우저 뒤로)를 화면 안에서 먼저 받는다. true 를 돌려주면 처리한 것으로 보고 확인 창 없이
+   * 센티널을 다시 쌓는다 — 단계로 나눈 글쓰기가 한 단계 앞으로 돌아갈 때 쓴다(강아지·고양이 글쓰기, 앱 use-confirm-leave stepBack).
+   */
+  onBack?: () => boolean;
 }
 
 const SENTINEL_KEY = "__bredyLeaveGuard";
@@ -50,6 +55,11 @@ export function useConfirmLeave(
   const sentinelRef = useRef<SentinelState>(createSentinelState());
   const afterPopRef = useRef<Array<() => void>>([]);
   const popTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  // 뒤로가기는 그린 뒤에만 오므로 커밋 뒤에 최신 onBack 으로 바꿔 둔다(렌더 중에 ref 를 쓰지 않는다).
+  const onBackRef = useRef(options.onBack);
+  useEffect(() => {
+    onBackRef.current = options.onBack;
+  }, [options.onBack]);
 
   const run = useCallback(
     (target: LeaveTarget | null) => {
@@ -143,6 +153,11 @@ export function useConfirmLeave(
         return;
       }
       if (kind !== "userBack") return;
+      // 화면이 뒤로가기를 직접 받았으면(한 단계 앞으로) 나가지 않고 센티널을 다시 쌓는다.
+      if (shouldBlockLeave(stateRef.current) && onBackRef.current?.()) {
+        pushSentinel();
+        return;
+      }
       // 사용자가 뒤로가기로 센티널을 뺐다. 막아야 하면 확인 창, 아니면 실제로 한 칸 더 뒤로 간다.
       if (shouldBlockLeave(stateRef.current)) {
         dispatch({ type: "attempt", target: { kind: "back" } });
@@ -152,7 +167,7 @@ export function useConfirmLeave(
     };
     window.addEventListener("popstate", onPopState);
     return () => window.removeEventListener("popstate", onPopState);
-  }, [dispatch, flushAfterPop]);
+  }, [dispatch, flushAfterPop, pushSentinel]);
 
   useEffect(
     () => () => {

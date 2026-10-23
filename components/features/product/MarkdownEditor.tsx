@@ -14,6 +14,8 @@ interface MarkdownEditorProps {
   hasError?: boolean;
   /** 강아지·고양이 글: 서식 버튼을 굵게·목록만 둔다(파충류 사육 템플릿·번호·제목·링크 없음, 2026-10-23 토스 디자인 리뷰). */
   simple?: boolean;
+  /** 강아지·고양이 단계 글쓰기: 테두리 없는 회색 면 입력칸(누르면 테두리, 시안 pet-space/B-toss.html ④-3). */
+  filled?: boolean;
 }
 
 const DESCRIPTION_TEMPLATE = `## 개체 정보
@@ -73,6 +75,7 @@ const MarkdownEditor = ({
   rows = 8,
   hasError = false,
   simple = false,
+  filled = false,
 }: MarkdownEditorProps) => {
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const [mode, setMode] = useState<"write" | "preview">("write");
@@ -189,8 +192,13 @@ const MarkdownEditor = ({
           aria-invalid={hasError || undefined}
           style={{ minHeight: editorMinHeight }}
           className={cn(
-            "w-full resize-y rounded-lg border bg-app-bg px-3.5 py-3 text-[15px] leading-[22px] text-app-text placeholder:text-app-caption focus:outline-none focus:ring-0",
-            hasError ? "border-app-danger focus:border-app-danger" : "border-app-border focus:border-app-text"
+            "w-full resize-y rounded-lg border px-3.5 py-3 text-[15px] leading-[22px] text-app-text placeholder:text-app-caption focus:outline-none focus:ring-0",
+            filled ? "bg-app-gap" : "bg-app-bg",
+            hasError
+              ? "border-app-danger focus:border-app-danger"
+              : filled
+                ? "border-transparent focus:border-app-text"
+                : "border-app-border focus:border-app-text"
           )}
         />
       ) : (
@@ -198,7 +206,7 @@ const MarkdownEditor = ({
           style={{ minHeight: editorMinHeight, maxHeight: Math.max(editorMinHeight, 260) }}
           className={cn(
             "overflow-y-auto rounded-lg border bg-app-gap p-3.5",
-            hasError ? "border-app-danger" : "border-app-border"
+            hasError ? "border-app-danger" : filled ? "border-transparent" : "border-app-border"
           )}
         >
           <MarkdownPreview content={value} emptyClassName="border-0 bg-transparent p-0" />

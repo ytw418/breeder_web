@@ -56,6 +56,7 @@ export const ANALYTICS_EVENTS = {
   spaceSwitch: "space_switch",
   adoptionSideView: "adoption_side_view",
   petPostCreate: "pet_post_create",
+  petWriteStep: "pet_write_step",
   fosterRaiseHand: "foster_raise_hand",
   otherPetsFeedView: "other_pets_feed_view",
   sentryExampleClientErrorClicked: "sentry_example_client_error_clicked",

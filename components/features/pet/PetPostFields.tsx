@@ -6,6 +6,7 @@ import { cn } from "@libs/client/utils";
 import {
   FOSTER_PERIOD_OPTIONS,
   FOSTER_SUPPORT_OPTIONS,
+  NO_PRICE_CATEGORIES,
   PET_AGE_MAX_LENGTH,
   PET_HEALTH_OPTIONS,
   PET_POST_KINDS,
@@ -70,6 +71,18 @@ function ChipWrap({ children }: { children: ReactNode }) {
   return <div className="flex flex-wrap gap-x-1.5 gap-y-2">{children}</div>;
 }
 
+/**
+ * 한 줄 입력칸. 기본은 테두리 칸, filled 는 단계 글쓰기의 채움 칸(시안 pet-space/B-toss.html ④ — 회색 면, 누르면 테두리).
+ * 앱 Input filled 와 같다.
+ */
+export function petInputClassName({ filled, error }: { filled?: boolean; error?: boolean } = {}) {
+  return cn(
+    "h-12 w-full rounded-lg border px-3.5 text-[16px] text-app-text placeholder:text-app-caption focus:border-app-text focus:outline-none focus:ring-0 disabled:opacity-50",
+    filled ? "bg-app-gap" : "bg-app-bg",
+    error ? "border-app-danger" : filled ? "border-transparent" : "border-app-border"
+  );
+}
+
 const toggleIn = <T extends string>(list: readonly T[] | undefined, id: T): T[] =>
   (list ?? []).includes(id) ? (list ?? []).filter((item) => item !== id) : [...(list ?? []), id];
 
@@ -77,7 +90,7 @@ const toggleIn = <T extends string>(list: readonly T[] | undefined, id: T): T[] 
  * 가족 찾아요·임보 구해요 '내 동네 보이기'(앱 docs/prd/pet-space.md §5.9). 프로필 동네가 있으면 스위치(새 글은 켬)와
  * "서울 마포구 · 가까운 분이 찾기 쉬워요", 없으면 설정 안내 한 줄. 끄면 글에 동네를 남기지 않는다.
  */
-function PetRegionRow({
+export function PetRegionRow({
   region,
   on,
   onChange,
@@ -165,6 +178,8 @@ export function PetPostFields({
   kind,
   onKindChange,
   showKind = true,
+  showRegionRow = true,
+  filled,
   info,
   onInfoChange,
   region,
@@ -176,6 +191,10 @@ export function PetPostFields({
   onKindChange: (kind: PetPostKind) => void;
   /** false 면 '어떤 글인가요?'를 빼고 그린다(폼이 맨 위에 PetKindField 를 따로 둘 때). */
   showKind?: boolean;
+  /** false 면 '내 동네 보이기'를 빼고 그린다(단계 글쓰기는 ③에 따로 둔다). */
+  showRegionRow?: boolean;
+  /** 단계 글쓰기의 채움 입력칸(petInputClassName). */
+  filled?: boolean;
   info: PetInfo;
   onInfoChange: (info: PetInfo) => void;
   region: string | null;
@@ -200,7 +219,7 @@ export function PetPostFields({
           onChange={(event) => update({ age: event.target.value })}
           placeholder="예: 4개월쯤, 2살 추정"
           aria-label="나이"
-          className="h-12 w-full rounded-lg border border-app-border bg-app-bg px-3.5 text-[16px] text-app-text placeholder:text-app-caption focus:border-app-text focus:outline-none focus:ring-0 disabled:opacity-50"
+          className={petInputClassName({ filled })}
         />
       </div>
 
@@ -300,9 +319,45 @@ export function PetPostFields({
         </>
       ) : null}
 
-      {showsPetRegion(kind) ? (
+      {showRegionRow && showsPetRegion(kind) ? (
         <PetRegionRow region={region} on={showRegion} onChange={onShowRegionChange} disabled={disabled} />
       ) : null}
+    </div>
+  );
+}
+
+/**
+ * 단계 글쓰기 ②의 종 고르기(강아지·고양이 둘만). 입양 쪽에서 종을 정하지 않고 들어왔거나, 접힌 '카테고리 강아지 ›'를 눌러
+ * 바꿀 때 보인다. 다른 종은 고를 수 없다 — 이 흐름은 강아지·고양이 글만 쓴다. 앱 PetPostFields.tsx 와 같다.
+ */
+export function PetSpeciesField({
+  value,
+  onChange,
+  error,
+  disabled,
+}: {
+  value: string;
+  onChange: (species: (typeof NO_PRICE_CATEGORIES)[number]) => void;
+  error?: string;
+  disabled?: boolean;
+}) {
+  return (
+    <div>
+      <Label>카테고리</Label>
+      <div role="radiogroup" aria-label="카테고리">
+        <ChipWrap>
+          {NO_PRICE_CATEGORIES.map((species) => (
+            <OptionChip
+              key={species}
+              label={species}
+              selected={value === species}
+              disabled={disabled}
+              onClick={() => onChange(species)}
+            />
+          ))}
+        </ChipWrap>
+      </div>
+      {error ? <p className="mt-1.5 text-[13px] text-app-danger">{error}</p> : null}
     </div>
   );
 }
