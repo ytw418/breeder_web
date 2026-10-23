@@ -5,7 +5,7 @@ import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import useSWRInfinite from "swr/infinite";
 
 import Layout from "@components/features/MainLayout";
-import SaleTabSwitch from "@components/features/product/SaleTabSwitch";
+import SaleTabSwitch, { SaleTabSwipeArea } from "@components/features/product/SaleTabSwitch";
 import FloatingButton, { FAB_LIST_BOTTOM_PADDING_CLASS } from "@components/atoms/floating-button";
 import CategoryScopeBar from "@components/features/category/CategoryScopeBar";
 import FosterRail from "@components/features/pet/FosterRail";
@@ -171,77 +171,80 @@ export default function AdoptionClient() {
     <Layout icon hasTabBar title="분양" seoTitle="입양" showSearch>
       <CategoryScopeBar />
       <SaleTabSwitch active="adoption" />
-      <div className="sticky top-14 z-10 border-b border-app-line bg-app-bg">
-        <FilterChipRail>
-          {chips.map((id) => (
-            <FilterChip
-              key={id}
-              label={CHIP_LABELS[id]}
-              selected={activeChip === id}
-              onClick={() => selectChip(id)}
-            />
-          ))}
-        </FilterChipRail>
-      </div>
+      {/* 목록을 좌우로 밀어도 칸을 넘긴다(앱 SaleTabSwipe 와 같은 규칙). */}
+      <SaleTabSwipeArea active="adoption">
+        <div className="sticky top-14 z-10 border-b border-app-line bg-app-bg">
+          <FilterChipRail>
+            {chips.map((id) => (
+              <FilterChip
+                key={id}
+                label={CHIP_LABELS[id]}
+                selected={activeChip === id}
+                onClick={() => selectChip(id)}
+              />
+            ))}
+          </FilterChipRail>
+        </div>
 
-      {withRail ? (
-        <>
-          <FosterRail key={categoryPath} categoryPath={categoryPath} onShowAll={() => selectChip("foster")} />
-          <h2 className="px-4 pb-1 pt-5 text-[16px] font-bold leading-[22px] text-app-text">가족을 기다려요</h2>
-        </>
-      ) : null}
-
-      <div className={FAB_LIST_BOTTOM_PADDING_CLASS}>
-        {products.length > 0
-          ? withAdRows(products, ADOPTION_ADS_ENABLED).map((product) =>
-              "kind" in product ? (
-                <CoupangBanner key={`ad-${product.slot}`} variant="row" />
-              ) : (
-                <ProductCard
-                  key={product.id}
-                  product={{
-                    id: product.id,
-                    name: product.name,
-                    price: product.price,
-                    image: product.photos?.[0],
-                    createdAt: product.createdAt,
-                    category: product.category,
-                    status: product.status,
-                    wishCount: product._count?.favs,
-                    viewCount: product.viewCount,
-                    photoCount: product.photos?.length ?? 0,
-                    sellerId: product.userId,
-                    seller: product.user ?? null,
-                    dealType: product.dealType,
-                    petInfo: product.petInfo,
-                    regionSido: product.regionSido,
-                    regionSigungu: product.regionSigungu,
-                  }}
-                  markUnread
-                />
-              )
-            )
-          : renderState()}
-
-        {products.length > 0 ? (
-          nextPageError || isLoadingMore ? (
-            <RetryFooter
-              loading={isLoadingMore}
-              error={nextPageError}
-              onRetry={() => void setSize(loadedPages + 1)}
-            />
-          ) : !hasMore ? (
-            <p className="py-6 text-center text-[13px] text-app-muted">모든 글을 봤어요</p>
-          ) : null
+        {withRail ? (
+          <>
+            <FosterRail key={categoryPath} categoryPath={categoryPath} onShowAll={() => selectChip("foster")} />
+            <h2 className="px-4 pb-1 pt-5 text-[16px] font-bold leading-[22px] text-app-text">가족을 기다려요</h2>
+          </>
         ) : null}
-        <div ref={sentinelRef} aria-hidden="true" />
-      </div>
 
-      <FloatingButton href={writeHref} label={listKind === "foster" ? "임보 구하는 글 쓰기" : "가족 찾는 글 쓰기"} hideOnScroll>
-        <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
-        </svg>
-      </FloatingButton>
+        <div className={FAB_LIST_BOTTOM_PADDING_CLASS}>
+          {products.length > 0
+            ? withAdRows(products, ADOPTION_ADS_ENABLED).map((product) =>
+                "kind" in product ? (
+                  <CoupangBanner key={`ad-${product.slot}`} variant="row" />
+                ) : (
+                  <ProductCard
+                    key={product.id}
+                    product={{
+                      id: product.id,
+                      name: product.name,
+                      price: product.price,
+                      image: product.photos?.[0],
+                      createdAt: product.createdAt,
+                      category: product.category,
+                      status: product.status,
+                      wishCount: product._count?.favs,
+                      viewCount: product.viewCount,
+                      photoCount: product.photos?.length ?? 0,
+                      sellerId: product.userId,
+                      seller: product.user ?? null,
+                      dealType: product.dealType,
+                      petInfo: product.petInfo,
+                      regionSido: product.regionSido,
+                      regionSigungu: product.regionSigungu,
+                    }}
+                    markUnread
+                  />
+                )
+              )
+            : renderState()}
+
+          {products.length > 0 ? (
+            nextPageError || isLoadingMore ? (
+              <RetryFooter
+                loading={isLoadingMore}
+                error={nextPageError}
+                onRetry={() => void setSize(loadedPages + 1)}
+              />
+            ) : !hasMore ? (
+              <p className="py-6 text-center text-[13px] text-app-muted">모든 글을 봤어요</p>
+            ) : null
+          ) : null}
+          <div ref={sentinelRef} aria-hidden="true" />
+        </div>
+
+        <FloatingButton href={writeHref} label={listKind === "foster" ? "임보 구하는 글 쓰기" : "가족 찾는 글 쓰기"} hideOnScroll>
+          <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
+          </svg>
+        </FloatingButton>
+      </SaleTabSwipeArea>
     </Layout>
   );
 }

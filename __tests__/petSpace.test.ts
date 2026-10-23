@@ -30,6 +30,8 @@ import {
   saleSubcategoryNames,
   saleTabModes,
   saleTabModesShowing,
+  saleTabSwipeAxis,
+  saleTabSwipeTarget,
   showsOtherPetsFeed,
   showsPetRegion,
   spaceLabelParts,
@@ -441,6 +443,50 @@ describe("링크로 연 입양 쪽(§5.1)", () => {
     expect(saleTabModesShowing(["/mammal/hamster/"], "adoption")).toEqual(["products", "adoption"]);
     expect(saleTabModesShowing(["/reptile/"], "products")).toEqual(["products", "auctions"]);
     expect(saleTabModesShowing(["/mammal/dog/"], "adoption")).toEqual(["products", "adoption"]);
+  });
+});
+
+describe("분양 탭 좌우로 밀어 넘기기(§5.1, 2026-10-23)", () => {
+  const two = ["products", "auctions"] as const;
+  const three = ["products", "auctions", "adoption"] as const;
+
+  it("세로로 먼저 16 넘게 움직이면 놓고, 가로로 먼저 24 넘게 움직이면 잡는다", () => {
+    expect(saleTabSwipeAxis(10, 5)).toBeNull();
+    expect(saleTabSwipeAxis(30, 10)).toBe("x");
+    expect(saleTabSwipeAxis(-30, -10)).toBe("x");
+    expect(saleTabSwipeAxis(10, 20)).toBe("y");
+    // 둘 다 넘었으면 세로 스크롤이 먼저다.
+    expect(saleTabSwipeAxis(30, 20)).toBe("y");
+  });
+
+  it("왼쪽으로 밀면 오른쪽 칸, 오른쪽으로 밀면 왼쪽 칸으로 간다", () => {
+    expect(saleTabSwipeTarget(two, "products", { dx: -80, dy: 6 })).toBe("auctions");
+    expect(saleTabSwipeTarget(two, "auctions", { dx: 80, dy: -6 })).toBe("products");
+    expect(saleTabSwipeTarget(three, "auctions", { dx: -70, dy: 0 })).toBe("adoption");
+    expect(saleTabSwipeTarget(three, "adoption", { dx: 70, dy: 0 })).toBe("auctions");
+  });
+
+  it("끝 칸에서 바깥으로 밀면 그대로다", () => {
+    expect(saleTabSwipeTarget(two, "products", { dx: 120, dy: 0 })).toBeNull();
+    expect(saleTabSwipeTarget(two, "auctions", { dx: -120, dy: 0 })).toBeNull();
+    expect(saleTabSwipeTarget(["products"], "products", { dx: -120, dy: 0 })).toBeNull();
+  });
+
+  it("덜 밀었으면 넘기지 않고, 짧아도 민 방향으로 빠르게 튕겼으면 넘긴다", () => {
+    expect(saleTabSwipeTarget(two, "products", { dx: -40, dy: 0, vx: -200 })).toBeNull();
+    expect(saleTabSwipeTarget(two, "products", { dx: -30, dy: 0, vx: -900 })).toBe("auctions");
+    // 반대로 튕기며 놓은 건 넘기지 않는다.
+    expect(saleTabSwipeTarget(two, "products", { dx: -30, dy: 0, vx: 900 })).toBeNull();
+    // 활성 거리보다 짧으면 빨라도 넘기지 않는다.
+    expect(saleTabSwipeTarget(two, "products", { dx: -20, dy: 0, vx: -1500 })).toBeNull();
+  });
+
+  it("세로로 더 많이 움직였으면 넘기지 않는다", () => {
+    expect(saleTabSwipeTarget(two, "products", { dx: -80, dy: 120 })).toBeNull();
+  });
+
+  it("지금 칸이 전환 줄에 없으면 넘기지 않는다", () => {
+    expect(saleTabSwipeTarget(two, "adoption", { dx: -80, dy: 0 })).toBeNull();
   });
 });
 

@@ -300,6 +300,44 @@ export const SALE_TAB_MODE_LABELS: Record<SaleTabMode, string> = {
   adoption: "입양",
 };
 
+/**
+ * 분양 탭 목록을 좌우로 밀어 전환 칸을 넘기는 규칙(2026-10-23 사용자 "좌우로 슥 넘기면 탭 전환", 앱 GestureDetector · 웹 터치).
+ * 가로로 activate 를 먼저 넘으면 잡고, 그 전에 세로로 failY 를 넘으면 놓는다(목록 세로 스크롤은 그대로).
+ * 앱 Android 는 세로 목록이 세로 8dp(터치 슬롭)만에 터치를 가져가서 두 값을 절반으로 쓴다(가로:세로 1.5 는 같다).
+ * 손을 뗄 때 distance 이상 밀었거나, activate 이상 밀면서 초당 velocity 이상으로 튕겼으면 넘긴다.
+ * 화면 양 끝 edge 안에서 시작한 몸짓은 시스템 뒤로 가기·브라우저 앞뒤 이동 몸짓이라 쓰지 않는다. 단위는 dp(웹 CSS px).
+ */
+export const SALE_TAB_SWIPE = { activate: 24, failY: 16, distance: 64, velocity: 600, edge: 20 } as const;
+
+/** 지금까지 움직인 만큼으로 몸짓의 축을 정한다. 'y'(세로 스크롤)면 놓고 'x'면 잡는다. 아직 모르면 null. */
+export function saleTabSwipeAxis(dx: number, dy: number): "x" | "y" | null {
+  if (Math.abs(dy) > SALE_TAB_SWIPE.failY) return "y";
+  if (Math.abs(dx) > SALE_TAB_SWIPE.activate) return "x";
+  return null;
+}
+
+/**
+ * 밀고 손을 뗐을 때 갈 칸. 왼쪽으로 밀면(dx < 0) 오른쪽 칸, 오른쪽으로 밀면 왼쪽 칸이다.
+ * 덜 밀었거나 세로가 더 컸거나 끝 칸에서 더 밀었으면 null. vx 는 초당 거리이고 민 방향과 같을 때만 튕김으로 본다.
+ */
+export function saleTabSwipeTarget(
+  modes: readonly SaleTabMode[],
+  current: SaleTabMode,
+  swipe: { dx: number; dy: number; vx?: number }
+): SaleTabMode | null {
+  const { dx, dy, vx = 0 } = swipe;
+  if (Math.abs(dx) <= Math.abs(dy)) return null;
+  const far = Math.abs(dx) >= SALE_TAB_SWIPE.distance;
+  const flung =
+    Math.abs(dx) >= SALE_TAB_SWIPE.activate &&
+    Math.abs(vx) >= SALE_TAB_SWIPE.velocity &&
+    Math.sign(vx) === Math.sign(dx);
+  if (!far && !flung) return null;
+  const index = modes.indexOf(current);
+  if (index < 0) return null;
+  return modes[index + (dx < 0 ? 1 : -1)] ?? null;
+}
+
 /** 분양 쪽 종 칩 하나. category·subcategory 는 분양 목록 필터 값(대분류 이름·종 이름, 대분류 칩이면 subcategory "")이다. */
 export interface SaleSpeciesChip {
   id: string;
