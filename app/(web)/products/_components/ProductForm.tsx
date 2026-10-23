@@ -57,6 +57,7 @@ import {
   isNoPriceCategory,
   isPetPostKind,
   kstToday,
+  newPetWriteAttemptId,
   parsePetInfo,
   petDescriptionPlaceholder,
   petInfoError,
@@ -487,12 +488,17 @@ export function ProductForm({
     },
   });
 
-  // 단계마다 몇 명이 남는지 본다(docs/prd/pet-space.md §10). 글 종류는 ①에서 고른 뒤(②·③)만 싣는다.
+  // 단계마다 몇 번의 글쓰기가 남는지 본다(docs/prd/pet-space.md §10). 글 종류는 ①에서 고른 뒤(②·③)만 싣는다.
   // ②·③엔 글 종류 칸이 없어 글 종류는 ①에서 카드를 누를 때(단계와 함께)만 바뀐다.
+  // attempt_id 는 이 폼을 연 한 번의 글쓰기(pet_post_create 에도 같이 싣는다).
+  const [attemptId] = useState(() => newPetWriteAttemptId());
   useEffect(() => {
     if (!stepMode) return;
-    trackEvent(ANALYTICS_EVENTS.petWriteStep, step > 1 ? { step, kind: petKind } : { step });
-  }, [stepMode, step, petKind]);
+    trackEvent(
+      ANALYTICS_EVENTS.petWriteStep,
+      step > 1 ? { step, kind: petKind, attempt_id: attemptId } : { step, attempt_id: attemptId }
+    );
+  }, [stepMode, step, petKind, attemptId]);
 
   const clearError = (field: keyof ProductFormErrors) =>
     setErrors((prev) => {
@@ -674,7 +680,13 @@ export function ProductForm({
         });
       } else {
         const id = result.product?.id;
-        if (isPet) trackEvent(ANALYTICS_EVENTS.petPostCreate, { deal_type: petKind, category: subcategory });
+        if (isPet) {
+          trackEvent(ANALYTICS_EVENTS.petPostCreate, {
+            deal_type: petKind,
+            category: subcategory,
+            attempt_id: attemptId,
+          });
+        }
         // 등록했으면 임시저장을 지운다(기다리던 저장도 버린다).
         draftAutosave.stop();
         if (draftUserId != null) deleteComposeDraft("product", draftUserId);

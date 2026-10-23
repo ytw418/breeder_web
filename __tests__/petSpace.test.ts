@@ -19,6 +19,8 @@ import {
   isNoPriceCategory,
   isRealDateString,
   kstToday,
+  newPetWriteAttemptId,
+  OTHER_PETS_FEED_OPEN,
   otherPetsFeedSub,
   parsePetInfo,
   PET_POST_KINDS,
@@ -26,6 +28,7 @@ import {
   PET_WRITE_STEP_TITLES,
   PET_PICK_GRID_CARDS,
   PET_PICK_NONE_CARD,
+  PET_PICK_SUB,
   pathsForPetPicks,
   petBarSummary,
   petFacts,
@@ -105,6 +108,11 @@ describe("첫 질문 카드(앱 docs/prd/pet-space.md §4)", () => {
     ]);
     expect(PET_PICK_NONE_CARD.id).toBe("none");
     expect(PET_PICK_NONE_CARD.paths).toEqual([]);
+  });
+
+  it("제목 아래 안내는 아직 아이가 없는 입양 희망자도 키우고 싶은 아이를 고르게 한다(2026-10-24 코덱스 기획 리뷰)", () => {
+    expect(PET_PICK_SUB).toContain("키우고 싶은 아이도");
+    expect(PET_PICK_SUB).toContain("여러 개");
   });
 
   it("카드 보조 글은 360 폭 칸 한 줄에 들어간다(토스 리뷰 시안 ① — 두 줄로 접히는 칸만 커졌다)", () => {
@@ -249,6 +257,11 @@ describe("홈 '다른 아이들 소식'(§5.7)", () => {
   it("고정 범위 글이 없었으면 안내가 다르다", () => {
     expect(otherPetsFeedSub(false)).toContain("다 봤어요");
     expect(otherPetsFeedSub(true)).toContain("올라오는 동안");
+  });
+
+  it("고른 분야 밖 글이라는 걸 안내와 여는 버튼에서 먼저 알린다(2026-10-24 코덱스 기획 리뷰 — 눌러야 열린다)", () => {
+    for (const scopedEmpty of [true, false]) expect(otherPetsFeedSub(scopedEmpty)).toContain("다른 분야");
+    expect(OTHER_PETS_FEED_OPEN).toBe("다른 분야 글 보기");
   });
 });
 
@@ -645,6 +658,13 @@ describe("강아지·고양이 글쓰기 단계·동의(§5.11, 토스 리뷰 �
     expect(petWriteProgress(1)).toBe(1 / 3);
     expect(petWriteProgress(2)).toBe(2 / 3);
     expect(petWriteProgress(3)).toBe(1);
+  });
+
+  it("작성 시도 id 는 시각·난수로 만든 짧은 글자다(같은 시각에도 난수가 다르면 다르다)", () => {
+    expect(newPetWriteAttemptId(0, 0)).toBe("0-000000");
+    expect(newPetWriteAttemptId(1_793_000_000_000, 0.5)).toMatch(/^[0-9a-z]+-[0-9a-z]{6}$/);
+    expect(newPetWriteAttemptId(1, 0.1)).not.toBe(newPetWriteAttemptId(1, 0.2));
+    expect(newPetWriteAttemptId()).toMatch(/^[0-9a-z]+-[0-9a-z]{6}$/);
   });
 
   it("단계 제목은 질문 한 줄이다", () => {
