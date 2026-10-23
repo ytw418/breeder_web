@@ -31,7 +31,12 @@ import {
   subcategoryChipOptions,
 } from "@libs/shared/subcategoryChips";
 import { withoutBlocked } from "@libs/shared/blockFilter";
-import { OTHER_PETS_FEED_TITLE, otherPetsFeedSub, showsOtherPetsFeed } from "@libs/shared/petSpace";
+import {
+  OTHER_PETS_FEED_OPEN,
+  OTHER_PETS_FEED_TITLE,
+  otherPetsFeedSub,
+  showsOtherPetsFeed,
+} from "@libs/shared/petSpace";
 import { FOLLOWING_POST_FILTER, REGION_POST_CATEGORY } from "@libs/shared/postCategory";
 import { regionOf } from "@libs/shared/regions";
 import type { PostsListResponse } from "pages/api/posts";
@@ -116,16 +121,37 @@ function SkeletonPostRow() {
   );
 }
 
-/** 홈 '다른 아이들 소식' 머리(앱 docs/prd/pet-space.md §5.7, 앱 OtherPetsHeader): 8 갭 + 제목 16/700 + 안내 13. */
-function OtherPetsHeader({ scopedEmpty }: { scopedEmpty: boolean }) {
+/**
+ * 홈 '다른 아이들 소식' 머리(앱 docs/prd/pet-space.md §5.7, 앱 OtherPetsHeader): 8 갭 + 제목 16/700 + 안내 13.
+ * 열기 전엔 아래에 '다른 분야 글 보기'(36 r8 회색 채움)를 두고, 눌러야 범위 밖 글을 받는다(onOpen).
+ */
+function OtherPetsHeader({
+  scopedEmpty,
+  open,
+  onOpen,
+}: {
+  scopedEmpty: boolean;
+  open: boolean;
+  onOpen: () => void;
+}) {
   return (
     <section aria-label={OTHER_PETS_FEED_TITLE} data-testid="other-pets-header">
       <div className="h-2 bg-app-gap" aria-hidden="true" />
-      <div className="px-4 pb-1 pt-5">
+      <div className={cn("px-4 pt-5", open ? "pb-1" : "pb-6")}>
         <h2 className="text-[16px] font-bold leading-[22px] text-app-text">{OTHER_PETS_FEED_TITLE}</h2>
         <p className="mt-0.5 break-keep text-[13px] leading-[18px] text-app-muted">
           {otherPetsFeedSub(scopedEmpty)}
         </p>
+        {open ? null : (
+          <button
+            type="button"
+            onClick={onOpen}
+            // 보이는 36 그대로 누르는 칸만 위아래 4씩 늘려 44(강아지·고양이 칩과 같다).
+            className="relative mt-3 h-9 rounded-lg bg-app-surface px-3.5 text-[14px] font-semibold text-app-text after:absolute after:inset-x-0 after:-inset-y-1"
+          >
+            {OTHER_PETS_FEED_OPEN}
+          </button>
+        )}
       </div>
     </section>
   );
@@ -403,7 +429,8 @@ export default function HomePostsFeed() {
   }, [needMoreProducts, productPages]);
 
   // 홈 '다른 아이들 소식'(앱 docs/prd/pet-space.md §5.7): 관심 분야를 고정했고 '전체'·전체 종에서 고정 범위 글을
-  // 끝까지 받았으면 아래에 범위 밖 게시글을 이어 받는다(분양글은 섞지 않는다). 이미 보인 글은 id 로 거른다
+  // 끝까지 받았으면 아래에 머리를 두고, '다른 분야 글 보기'를 눌러야 범위 밖 게시글을 이어 받는다(분양글은 섞지 않는다,
+  // 2026-10-24 코덱스 기획 리뷰). 연 것은 그 관심 분야에서만 기억한다. 이미 보인 글은 id 로 거른다
   // (옛 서버는 outsideCategoryPath 를 몰라 전체 글을 준다).
   const showOtherPets = showsOtherPetsFeed({
     categoryPath: scope.categoryPath,
@@ -411,9 +438,12 @@ export default function HomePostsFeed() {
     allSpecies: !speciesQuery,
     scopedDone: Boolean(primaryPages) && !hasMore && !listError,
   });
+  const [otherOpenFor, setOtherOpenFor] = useState<string | null>(null);
+  const otherOpen = Boolean(scope.categoryPath) && otherOpenFor === scope.categoryPath;
+  const loadOther = showOtherPets && otherOpen;
   const otherList = useSWRInfinite<PostsListResponse>(
     (pageIndex: number, previous: PostsListResponse | null) => {
-      if (!showOtherPets || !scope.categoryPath) return null;
+      if (!loadOther || !scope.categoryPath) return null;
       if (previous && (!previous.posts.length || pageIndex >= previous.pages)) return null;
       const sortParam = selectedSort !== "latest" ? `&sort=${selectedSort}` : "";
       return `/api/posts?page=${pageIndex + 1}${sortParam}&outsideCategoryPath=${encodeURIComponent(scope.categoryPath)}`;
@@ -441,23 +471,28 @@ export default function HomePostsFeed() {
   const otherHasMore = Boolean(
     otherData?.[otherPages - 1]?.posts.length && otherPages < (otherData?.[0]?.pages ?? 0)
   );
-  const otherLoading = showOtherPets && !otherError && otherValidating && otherSize > otherPages;
+  const otherLoading = loadOther && !otherError && otherValidating && otherSize > otherPages;
   const scopedEmpty = rows.length === 0;
   const otherRows = useMemo(
-    () => (showOtherPets ? otherPosts.map((post) => ({ kind: "post" as const, post })) : []),
-    [showOtherPets, otherPosts]
+    () => (loadOther ? otherPosts.map((post) => ({ kind: "post" as const, post })) : []),
+    [loadOther, otherPosts]
   );
-  // 섹션이 처음 보일 때 한 번 센다(고정 범위가 얼마나 빨리 바닥나는지, 앱 docs/prd/pet-space.md §10).
+  // 머리가 처음 보일 때(고정 범위가 얼마나 빨리 바닥나는지)와 '다른 분야 글 보기'를 누를 때 센다(앱 docs/prd/pet-space.md §10).
   const otherTracked = useRef(false);
   useEffect(() => {
-    if (!otherRows.length || otherTracked.current) return;
+    if (!showOtherPets || otherTracked.current) return;
     otherTracked.current = true;
     trackEvent(ANALYTICS_EVENTS.otherPetsFeedView, { scoped_empty: scopedEmpty });
-  }, [otherRows.length, scopedEmpty]);
+  }, [showOtherPets, scopedEmpty]);
+  const openOtherPets = () => {
+    if (!scope.categoryPath) return;
+    setOtherOpenFor(scope.categoryPath);
+    trackEvent(ANALYTICS_EVENTS.otherPetsFeedOpen, { scoped_empty: scopedEmpty });
+  };
   const otherSentinelRef = useRef<HTMLDivElement>(null);
   useEffect(() => {
     const target = otherSentinelRef.current;
-    if (!target || !showOtherPets || !otherHasMore || otherError) return;
+    if (!target || !loadOther || !otherHasMore || otherError) return;
     const observer = new IntersectionObserver(
       (entries, self) => {
         if (!entries[0]?.isIntersecting || otherValidating) return;
@@ -468,25 +503,38 @@ export default function HomePostsFeed() {
     );
     observer.observe(target);
     return () => observer.disconnect();
-  }, [showOtherPets, otherHasMore, otherError, otherValidating, otherPages, setOtherSize]);
+  }, [loadOther, otherHasMore, otherError, otherValidating, otherPages, setOtherSize]);
 
   // 피드 행 그리기. 8행마다 쿠팡 한 줄(앱 홈 네이티브 광고와 같은 간격). 슬롯 번호가 위치로 정해져 다음 페이지가 붙어도 그대로다.
-  // '다른 아이들 소식' 머리는 광고 간격에 세지 않고 범위 밖 첫 글 바로 앞에 둔다.
+  // '다른 아이들 소식' 머리는 광고 간격에 세지 않고 고정 범위 마지막 글 바로 뒤에 둔다(열기 전후로 자리가 그대로다).
+  // 그 자리에 올 광고(고정 범위 글이 8의 배수로 끝날 때)는 빼서 머리 아래 첫 줄이 늘 범위 밖 첫 글이다.
   type FeedListRow = (typeof rows)[number] | (typeof otherRows)[number];
-  const renderFeedRows = (list: readonly FeedListRow[]) =>
-    withAdRows(list, FEED_ADS_ENABLED).flatMap((row) => {
-      const node =
-        row.kind === "ad" ? (
-          <CoupangBanner key={`ad-${row.slot}`} variant="row" />
-        ) : row.kind === "product" ? (
-          <ThreadProductCard key={`product-${row.product.id}`} product={row.product} />
-        ) : (
-          <ThreadPostCard key={row.post.id} post={row.post} />
-        );
-      return row === otherRows[0]
-        ? [<OtherPetsHeader key="other-header" scopedEmpty={scopedEmpty} />, node]
-        : [node];
-    });
+  const renderFeedRows = (scoped: readonly FeedListRow[], other: readonly FeedListRow[]) => {
+    const withAds = withAdRows<FeedListRow>([...scoped, ...other], FEED_ADS_ENABLED);
+    const lastScoped = scoped[scoped.length - 1];
+    const headerAt = lastScoped ? withAds.indexOf(lastScoped) + 1 : 0;
+    const list =
+      showOtherPets && withAds[headerAt]?.kind === "ad"
+        ? [...withAds.slice(0, headerAt), ...withAds.slice(headerAt + 1)]
+        : withAds;
+    const nodes = list.map((row) =>
+      row.kind === "ad" ? (
+        <CoupangBanner key={`ad-${row.slot}`} variant="row" />
+      ) : row.kind === "product" ? (
+        <ThreadProductCard key={`product-${row.product.id}`} product={row.product} />
+      ) : (
+        <ThreadPostCard key={row.post.id} post={row.post} />
+      )
+    );
+    if (showOtherPets) {
+      nodes.splice(
+        headerAt,
+        0,
+        <OtherPetsHeader key="other-header" scopedEmpty={scopedEmpty} open={otherOpen} onOpen={openOtherPets} />
+      );
+    }
+    return nodes;
+  };
 
   // 바닥 감시 칸이 보이면 다음 페이지 하나만 받는다. 더 없거나 받는 중이면 부르지 않는다
   // (스크롤마다 페이지 수를 올리면 바닥에서 1페이지를 계속 다시 받아 목록이 깜박였다).
@@ -662,11 +710,11 @@ export default function HomePostsFeed() {
               ))}
             </div>
           </div>
-          {/* 고정 범위 글이 없어도 다른 아이들 글은 보인다(앱 docs/prd/pet-space.md §5.7). */}
-          {otherRows.length ? <div>{renderFeedRows(otherRows)}</div> : null}
+          {/* 고정 범위 글이 없어도 '다른 분야 글 보기'로 다른 아이들 글을 열 수 있다(앱 docs/prd/pet-space.md §5.7). */}
+          {showOtherPets ? <div>{renderFeedRows([], otherRows)}</div> : null}
         </>
       ) : (
-        <div>{renderFeedRows([...rows, ...otherRows])}</div>
+        <div>{renderFeedRows(rows, otherRows)}</div>
       )}
 
       {primaryPages ? (
@@ -677,7 +725,7 @@ export default function HomePostsFeed() {
         />
       ) : null}
       <div ref={sentinelRef} aria-hidden="true" />
-      {showOtherPets ? (
+      {loadOther ? (
         <>
           <RetryFooter loading={otherLoading} error={Boolean(otherError)} onRetry={() => void mutateOther()} />
           <div ref={otherSentinelRef} aria-hidden="true" />

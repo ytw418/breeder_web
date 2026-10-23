@@ -12,6 +12,16 @@ export const SOLD_PRODUCT_STATUS = "판매완료";
 /** 용품 분양글(Product.productType). 용품에는 개체 키워드('생물')를 보이지 않는다. */
 const SUPPLY_PRODUCT_TYPE = "용품";
 
+/**
+ * 거래 기록(입양자 지정·입양 확정·거래 후기·'거래 완료 N')을 남기지 않는 글 종류(Product.dealType).
+ * 임보 구해요는 입양이 아니라 잠시 맡기는 일이라 '임보처를 찾았어요'는 글만 닫는다(2026-10-24 코덱스 기획 리뷰,
+ * 앱 docs/prd/pet-space.md §16).
+ */
+const TRADELESS_DEAL_TYPES: readonly string[] = ["foster"];
+
+export const isTradelessDeal = (dealType: string | null | undefined): boolean =>
+  TRADELESS_DEAL_TYPES.includes(dealType ?? "");
+
 export type TradeReviewKeywordScope = "all" | "생물";
 
 export interface TradeReviewKeyword {
@@ -91,6 +101,8 @@ export interface TradeState {
   /** 그 후기에 분양자 답글이 있는지 */
   hasReply: boolean;
   isDeleted: boolean;
+  /** 거래 기록을 남기지 않는 글(임보 구해요, isTradelessDeal). 입양 확정·입양자 지정·지정 요청을 막는다. 옛 호출은 비워 둔다. */
+  noTrade?: boolean;
 }
 
 /** 상세 trade.buyer(분양자·운영자에게만). 탈퇴한 입양자는 name 이 '탈퇴한 사용자#id'(화면에서 정규화). */
@@ -161,14 +173,21 @@ export function tradeViewerRole(state: TradeState): TradeViewerRole {
 
 const isSold = (state: TradeState) => state.status === SOLD_PRODUCT_STATUS;
 
-/** 하단 바 '입양 확정'. 지정된 입양자 · 분양완료 · 아직 확정 전 · 지워지지 않은 글. */
+/** 하단 바 '입양 확정'. 지정된 입양자 · 분양완료 · 아직 확정 전 · 지워지지 않은 글 · 임보 글 아님. */
 export function canConfirmAdoption(state: TradeState): boolean {
-  return tradeViewerRole(state) === "buyer" && isSold(state) && !state.purchaseConfirmed && !state.isDeleted;
+  return (
+    !state.noTrade &&
+    tradeViewerRole(state) === "buyer" &&
+    isSold(state) &&
+    !state.purchaseConfirmed &&
+    !state.isDeleted
+  );
 }
 
 /**
  * '거래 후기 쓰기'. 입양 확정한 입양자 · 아직 후기 없음.
  * 자격은 입양 확정 때 정해지므로 그 뒤 글 삭제·숨김·차단으로 막지 않는다(분양자가 후기를 막지 못하게).
+ * 임보 글은 입양 확정이 생기지 않아 따로 막지 않는다(글 종류 바꾸기로 후기를 막지 못하게 — 서버 update 가드).
  */
 export function canWriteTradeReview(state: TradeState): boolean {
   return tradeViewerRole(state) === "buyer" && state.purchaseConfirmed && !state.hasReview;
@@ -179,9 +198,10 @@ export function canReplyTradeReview(state: TradeState): boolean {
   return tradeViewerRole(state) === "seller" && state.hasReview && !state.hasReply;
 }
 
-/** 분양자의 '지정하기·바꾸기'. 분양완료 · 지금 입양자의 입양 확정·후기 전 · 지워지지 않은 글. */
+/** 분양자의 '지정하기·바꾸기'. 분양완료 · 지금 입양자의 입양 확정·후기 전 · 지워지지 않은 글 · 임보 글 아님. */
 export function canChangeBuyer(state: TradeState): boolean {
   return (
+    !state.noTrade &&
     tradeViewerRole(state) === "seller" &&
     isSold(state) &&
     !(state.purchaseConfirmed || state.hasReview) &&
@@ -190,11 +210,11 @@ export function canChangeBuyer(state: TradeState): boolean {
 }
 
 /**
- * 분양자가 보는 상세 입양자 행 문구. 분양완료가 아니면 null.
+ * 분양자가 보는 상세 입양자 행 문구. 분양완료가 아니거나 임보 글이면 null.
  * "입양자를 아직 정하지 않았어요" / "입양자 ○○ · 입양 확정 대기" / "입양자 ○○ · 입양 확정 완료" / "브리디 밖에서 분양"
  */
 export function tradeStatusLine(state: TradeState, buyerName?: string | null): string | null {
-  if (!isSold(state)) return null;
+  if (!isSold(state) || state.noTrade) return null;
   if (state.buyerSource === "external") return "브리디 밖에서 분양";
   if (state.buyerId == null) return "입양자를 아직 정하지 않았어요";
   const name = buyerName?.trim();

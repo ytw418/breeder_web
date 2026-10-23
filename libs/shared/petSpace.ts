@@ -70,6 +70,12 @@ export const PET_PICK_CARDS: readonly PetPickCard[] = [
   { id: "none", label: "아직 없어요", sub: "다 둘러볼래요", paths: [], art: "eyes" },
 ];
 
+/**
+ * 첫 질문 제목 아래 한 줄. 아직 아이가 없는 입양 희망자도 키우고 싶은 아이를 고르게 이끈다(2026-10-24 코덱스 기획 리뷰 —
+ * '아직 없어요'를 고른 입양 희망자는 입양 칸을 찾기 어렵다).
+ */
+export const PET_PICK_SUB = "고른 아이들 소식을 먼저 보여 드려요. 키우고 싶은 아이도, 여러 개도 괜찮아요.";
+
 /** 2열 카드 8장. '아직 없어요'는 그 아래 넓은 줄 하나로 따로 그린다(식물 카드가 생겨 9장이 됐다). */
 export const PET_PICK_GRID_CARDS: readonly PetPickCard[] = PET_PICK_CARDS.filter((card) => card.id !== "none");
 export const PET_PICK_NONE_CARD: PetPickCard = PET_PICK_CARDS.find((card) => card.id === "none")!;
@@ -179,8 +185,9 @@ export const OTHER_PETS_FEED_TITLE = "다른 아이들 소식";
 
 /**
  * 홈 피드 아래 '다른 아이들 소식'(docs/prd/pet-space.md §5.7, 2026-10-23 페르소나 리뷰 — 강아지만 고르면 첫날 홈이
- * 빈다). 관심 분야를 고정했고 '전체' 칩·전체 종에서 고정 범위 글을 끝까지 받았을 때만 범위 밖 게시글을 이어 보인다.
- * 분양글은 섞지 않는다(다른 종 가격표가 강아지·고양이 사람 홈에 끼지 않게).
+ * 빈다). 관심 분야를 고정했고 '전체' 칩·전체 종에서 고정 범위 글을 끝까지 받았을 때만 머리(제목·안내·'다른 분야 글 보기')를
+ * 두고, 그 버튼을 눌러야 범위 밖 게시글을 이어 받는다(2026-10-24 코덱스 기획 리뷰 — 뱀·귀뚜라미 사진을 피하려고 고른
+ * 공간에 다른 종 글이 저절로 붙었다). 분양글은 섞지 않는다(다른 종 가격표가 강아지·고양이 사람 홈에 끼지 않게).
  */
 export function showsOtherPetsFeed(input: {
   categoryPath: string | null | undefined;
@@ -191,11 +198,14 @@ export function showsOtherPetsFeed(input: {
   return Boolean(input.categoryPath) && input.allChip && input.allSpecies && input.scopedDone;
 }
 
-/** 섹션 제목 아래 한 줄. 고정 범위 글이 하나도 없었으면 다르게 말한다. */
+/** 섹션 제목 아래 한 줄. 고정 범위 글이 하나도 없었으면 다르게 말한다. 고른 분야 밖 글이라는 걸 먼저 알린다. */
 export const otherPetsFeedSub = (scopedEmpty: boolean) =>
   scopedEmpty
-    ? "고른 분야 글이 올라오는 동안 다른 아이들 이야기를 둘러보세요."
-    : "고른 분야 글은 다 봤어요. 다른 아이들 이야기도 둘러보세요.";
+    ? "고른 분야 글이 올라오는 동안 다른 분야 아이들 이야기를 둘러보세요."
+    : "고른 분야 글은 다 봤어요. 다른 분야 아이들 이야기도 둘러보세요.";
+
+/** 머리의 여는 버튼. 누르기 전엔 범위 밖 글을 받지 않는다. */
+export const OTHER_PETS_FEED_OPEN = "다른 분야 글 보기";
 
 // ── 분양 탭 위 전환 ─────────────────────────────────────────────
 
@@ -559,6 +569,15 @@ export const petWriteStartStep = (kindFromLink: boolean): PetWriteStep => (kindF
 /** 단계 막대 채움 비율(① 1/3 · ② 2/3 · ③ 끝까지). */
 export const petWriteProgress = (step: PetWriteStep): number => step / PET_WRITE_STEP_COUNT;
 
+/**
+ * 글쓰기 한 번(화면을 연 때부터 닫을 때까지)을 묶는 작성 시도 id. `pet_write_step`·`pet_post_create` 에 같이 실어
+ * 단계마다 몇 명이 남는지를 사람 단위가 아니라 시도 단위로 센다(2026-10-24 코덱스 기획 리뷰 §10). 개인정보는 없다.
+ */
+export const newPetWriteAttemptId = (now: number = Date.now(), random: number = Math.random()): string =>
+  `${now.toString(36)}-${Math.floor(random * 36 ** 6)
+    .toString(36)
+    .padStart(6, "0")}`;
+
 /** 뒤로 갈 단계. ①이면 null — 글쓰기를 닫는다. */
 export const petWritePrevStep = (step: PetWriteStep): PetWriteStep | null =>
   step === 1 ? null : ((step - 1) as PetWriteStep);
@@ -567,14 +586,20 @@ export const petWritePrevStep = (step: PetWriteStep): PetWriteStep | null =>
 export const TRADE_RULES_AGREEMENT = "분양할 수 없는 종이 아니에요. 필요한 신고도 할게요";
 
 /**
- * 강아지·고양이 글 동의. 이용 규칙 §2 의 5(월령 2개월 미만 개·고양이)·6(등록 없이 영리로 되풀이하는 분양)을 한 줄로 옮겼다
- * (결정 D, 2026-10-24 사용자 "동의 문구는 브리더 정책에 맞게 써라"). 임보 글도 같다 — 2개월이 안 된 아이는 임보만 구하고
- * 가족은 2개월이 지난 뒤 찾는다.
+ * 강아지·고양이 분양해요·가족 찾아요 동의. 이용 규칙 §2 의 5(월령 2개월 미만 개·고양이)·6(허가 없이 영리로 되풀이하는 분양)을
+ * 한 줄로 옮겼다(결정 D, 2026-10-24 사용자 "동의 문구는 브리더 정책에 맞게 써라").
  */
 export const PET_TRADE_RULES_AGREEMENT = "2개월이 지난 아이만, 돈을 벌려는 목적 없이 분양할게요";
 
-export const tradeRulesAgreementLabel = (isPet: boolean): string =>
-  isPet ? PET_TRADE_RULES_AGREEMENT : TRADE_RULES_AGREEMENT;
+/**
+ * 임보 구해요 동의. 임보는 새 가족에게 보내는 글이 아니라 2개월·분양 약속 대신 맡기는 사람의 약속을 받는다
+ * (2026-10-24 코덱스 기획 리뷰 — 임보 글에도 '분양' 약속을 받고 있었다). 2개월이 안 된 아이도 임보는 구할 수 있다.
+ */
+export const FOSTER_RULES_AGREEMENT = "아이 상태를 숨기지 않고, 임보 뒤에도 책임질게요";
+
+/** 새 글 동의 한 줄(등록 버튼 바로 위, 새 글만). kind 는 강아지·고양이 글 종류, 다른 종 글이면 null. */
+export const tradeRulesAgreementLabel = (kind: PetPostKind | null): string =>
+  kind === "foster" ? FOSTER_RULES_AGREEMENT : kind ? PET_TRADE_RULES_AGREEMENT : TRADE_RULES_AGREEMENT;
 
 /**
  * 강아지·고양이 글 설명 칸 안내. 가족 찾아요·임보 구해요는 입양·임보 조건을 적게 이끈다
@@ -643,6 +668,22 @@ const pickIds = <T extends readonly { id: string }[]>(options: T, value: unknown
     ? (options.filter((option) => value.includes(option.id)).map((option) => option.id) as OptionId<T>[])
     : undefined;
 
+/** 'YYYY-MM-DD' 이면서 달력에 있는 날인지(2026-02-30·2026-99-99 는 false). */
+export function isRealDateString(value: unknown): value is string {
+  if (typeof value !== "string") return false;
+  const match = value.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  if (!match) return false;
+  const [year, month, day] = [Number(match[1]), Number(match[2]), Number(match[3])];
+  const date = new Date(Date.UTC(year, month - 1, day));
+  return date.getUTCFullYear() === year && date.getUTCMonth() === month - 1 && date.getUTCDate() === day;
+}
+
+const KST_OFFSET_MS = 9 * 60 * 60 * 1000;
+
+/** 한국 시간 오늘 'YYYY-MM-DD'. 임보 날짜 검사는 서버·앱·웹 모두 이 날을 기준으로 한다. */
+export const kstToday = (now: Date = new Date()): string =>
+  new Date(now.getTime() + KST_OFFSET_MS).toISOString().slice(0, 10);
+
 /**
  * 요청 값 → PetInfo. 모르는 키·값은 버린다(형식이 틀려도 글쓰기를 막지 않는다).
  * 객체가 아니거나 남은 값이 없으면 null.
@@ -663,16 +704,31 @@ export function parsePetInfo(raw: unknown): PetInfo | null {
   if (reason) info.reason = reason;
   const fosterPeriod = pickId(FOSTER_PERIOD_OPTIONS, input.fosterPeriod);
   if (fosterPeriod) info.fosterPeriod = fosterPeriod;
-  if (
-    fosterPeriod === "date" &&
-    typeof input.fosterUntil === "string" &&
-    /^\d{4}-\d{2}-\d{2}$/.test(input.fosterUntil)
-  ) {
+  if (fosterPeriod === "date" && isRealDateString(input.fosterUntil)) {
     info.fosterUntil = input.fosterUntil;
   }
   const support = pickIds(FOSTER_SUPPORT_OPTIONS, input.fosterSupport);
   if (support?.length) info.fosterSupport = support;
   return Object.keys(info).length ? info : null;
+}
+
+/**
+ * 글 종류에 맞는 정보인지. 맞으면 null, 아니면 칸 아래에 보일 문구(서버는 400 PRODUCT_INVALID_PET_INFO).
+ * 임보 구해요만 본다: 기간은 꼭 고르고, '날짜까지'면 오늘(한국 시간) 이후 날짜다(2026-10-24 코덱스 기획 리뷰 —
+ * 기간 없는 임보 글은 맡을 사람이 판단하지 못하고, 2026-99-99 같은 날짜가 저장됐다). 다른 글의 정보는 모두 선택이다.
+ * keptUntil 은 저장된 날짜다. 그 날짜를 그대로 두는 수정은 지났어도 받는다(다른 칸만 고칠 수 있게).
+ */
+export function petInfoError(
+  kind: string | null | undefined,
+  info: PetInfo | null | undefined,
+  { today, keptUntil = null }: { today: string; keptUntil?: string | null }
+): string | null {
+  if (kind !== "foster") return null;
+  if (!info?.fosterPeriod) return "임보 기간을 골라 주세요";
+  if (info.fosterPeriod !== "date") return null;
+  if (!isRealDateString(info.fosterUntil)) return "임보가 끝나는 날짜를 골라 주세요";
+  if (info.fosterUntil === keptUntil) return null;
+  return info.fosterUntil < today ? "지난 날짜예요. 오늘 이후 날짜를 골라 주세요" : null;
 }
 
 const PET_VACCINE_IDS: readonly PetHealthId[] = ["vaccinating", "vaccinated"];

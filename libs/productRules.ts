@@ -7,7 +7,14 @@ import {
   PEDIGREE_WITHOUT_BLOODLINE_MESSAGE,
   type PedigreeNote,
 } from "@libs/shared/pedigree-note";
-import { isNoPriceCategory, isPetPostKind, parsePetInfo, type PetInfo } from "@libs/shared/petSpace";
+import {
+  isNoPriceCategory,
+  isPetPostKind,
+  kstToday,
+  parsePetInfo,
+  petInfoError,
+  type PetInfo,
+} from "@libs/shared/petSpace";
 
 export const PRODUCT_NAME_MIN_LENGTH = 2;
 export const PRODUCT_NAME_MAX_LENGTH = 60;
@@ -34,7 +41,8 @@ export type ProductValidationErrorCode =
   | "PRODUCT_INVALID_DEAL_TYPE"
   | "PRODUCT_INVALID_BLOODLINE_ROOT"
   | "PRODUCT_INVALID_PEDIGREE_NOTE"
-  | "PRODUCT_PEDIGREE_WITHOUT_BLOODLINE";
+  | "PRODUCT_PEDIGREE_WITHOUT_BLOODLINE"
+  | "PRODUCT_INVALID_PET_INFO";
 
 /** 상품 혈통 연결 오류 문구(앱 src/lib/bloodlineErrors.ts BLOODLINE_LINK_ERROR_MESSAGES 와 같다). */
 export const PRODUCT_INVALID_BLOODLINE_ROOT_MESSAGE = "연결할 혈통을 찾을 수 없어요";
@@ -115,6 +123,8 @@ const readBloodlineRootId = (raw: unknown): number | null | undefined => {
  *   거래 유형은 분양해요·가족 찾아요·임보 구해요만, 다른 종의 임보(foster)는 막는다.
  *   수정에서 카테고리를 보내지 않으면 currentCategory(저장된 값)로 판단한다.
  *   '내 동네 보이기'(showPetRegion)는 true/false 만 받고 다른 값은 보내지 않은 것으로 본다.
+ *   임보 구해요는 기간이 필수이고 날짜는 오늘(한국 시간) 이후여야 한다(petInfoError → PRODUCT_INVALID_PET_INFO).
+ *   수정은 글 종류나 정보를 보냈을 때만 보고, 보내지 않은 쪽은 currentDealType·currentPetInfo(저장된 값)로 채운다.
  */
 export const validateProductInput = (
   input: {
@@ -134,7 +144,18 @@ export const validateProductInput = (
     partial = false,
     requireCategory = false,
     currentCategory = null,
-  }: { partial?: boolean; requireCategory?: boolean; currentCategory?: string | null } = {}
+    currentDealType = null,
+    currentPetInfo = null,
+    today = kstToday(),
+  }: {
+    partial?: boolean;
+    requireCategory?: boolean;
+    currentCategory?: string | null;
+    currentDealType?: string | null;
+    currentPetInfo?: unknown;
+    /** 임보 날짜 기준일 'YYYY-MM-DD'(테스트용, 기본 한국 시간 오늘) */
+    today?: string;
+  } = {}
 ): ProductValidationResult => {
   const value: ProductInputValue = {};
   const sentCategory =
@@ -248,6 +269,16 @@ export const validateProductInput = (
     value.petInfo = null;
   }
 
+  if (isPet && (!partial || value.dealType !== undefined || value.petInfo !== undefined)) {
+    const stored = parsePetInfo(currentPetInfo);
+    const message = petInfoError(
+      value.dealType ?? currentDealType,
+      value.petInfo !== undefined ? value.petInfo : stored,
+      { today, keptUntil: stored?.fosterUntil ?? null }
+    );
+    if (message) return fail("PRODUCT_INVALID_PET_INFO", message);
+  }
+
   if (typeof input.showPetRegion === "boolean") {
     value.showPetRegion = isPet && input.showPetRegion;
   } else if (leftPet) {
@@ -285,6 +316,8 @@ export const validateProductInput = (
 export type ProductFormErrors = {
   name?: string;
   category?: string;
+  /** 강아지·고양이 정보(임보 기간·날짜, libs/shared/petSpace petInfoError). validateProductForm 은 채우지 않는다. */
+  petInfo?: string;
   productType?: string;
   price?: string;
   description?: string;

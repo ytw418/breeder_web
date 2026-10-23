@@ -1,10 +1,11 @@
 import type { ReactNode } from "react";
-import { act, render, screen } from "@testing-library/react";
+import { act, fireEvent, render, screen } from "@testing-library/react";
 import { SWRConfig } from "swr";
 
 /**
  * 홈 '다른 아이들 소식'(앱 docs/prd/pet-space.md §5.7): 관심 분야를 고정한 사람이 고정 범위 글을 끝까지 보면
- * 아래에 범위 밖 게시글(outsideCategoryPath)을 이어 받는다.
+ * 아래에 머리(제목·안내·'다른 분야 글 보기')를 두고, 그 버튼을 눌러야 범위 밖 게시글(outsideCategoryPath)을 이어 받는다
+ * (2026-10-24 코덱스 기획 리뷰 — 저절로 붙이지 않는다).
  */
 
 const DOG = "/mammal/dog/";
@@ -136,8 +137,14 @@ beforeAll(() => {
 
 afterEach(() => observers.clear());
 
+const openOtherPets = async () => {
+  await act(async () => {
+    fireEvent.click(await screen.findByRole("button", { name: "다른 분야 글 보기" }));
+  });
+};
+
 describe("홈 '다른 아이들 소식'", () => {
-  it("고정 범위 글을 다 받으면 제목 아래에 범위 밖 글을 이어 받고, 바닥에서 다음 페이지도 받는다", async () => {
+  it("고정 범위 글을 다 받으면 머리만 두고, '다른 분야 글 보기'를 눌러야 범위 밖 글을 받는다 — 바닥에서 다음 페이지도", async () => {
     const { fetcher, outsideRequests } = makeFetcher({
       scoped: [[post(1, "강아지 글")]],
       outside: [[post(50, "다른 글 50")], [post(51, "다른 글 51")]],
@@ -146,8 +153,18 @@ describe("홈 '다른 아이들 소식'", () => {
 
     expect(await screen.findByText("강아지 글")).toBeTruthy();
     expect(await screen.findByRole("heading", { name: "다른 아이들 소식" })).toBeTruthy();
-    expect(screen.getByText("고른 분야 글은 다 봤어요. 다른 아이들 이야기도 둘러보세요.")).toBeTruthy();
+    expect(screen.getByText("고른 분야 글은 다 봤어요. 다른 분야 아이들 이야기도 둘러보세요.")).toBeTruthy();
+    // 누르기 전엔 범위 밖 글을 받지 않는다(바닥 감시 칸이 보여도).
+    await act(async () => {
+      showSentinel();
+      await wait(50);
+    });
+    expect(outsideRequests).toEqual([]);
+    expect(screen.queryByText("다른 글 50")).toBeNull();
+
+    await openOtherPets();
     expect(await screen.findByText("다른 글 50")).toBeTruthy();
+    expect(screen.queryByRole("button", { name: "다른 분야 글 보기" })).toBeNull();
     expect(outsideRequests[0]).toContain(`outsideCategoryPath=${encodeURIComponent(DOG)}`);
     expect(new URL(outsideRequests[0], "http://localhost").searchParams.has("categoryPath")).toBe(false);
 
@@ -171,6 +188,7 @@ describe("홈 '다른 아이들 소식'", () => {
     });
     expect(outsideRequests).toEqual([]);
     expect(screen.queryByRole("heading", { name: "다른 아이들 소식" })).toBeNull();
+    expect(screen.queryByRole("button", { name: "다른 분야 글 보기" })).toBeNull();
   });
 
   it("이미 보인 글은 다시 보이지 않는다(범위를 모르는 옛 서버)", async () => {
@@ -180,16 +198,21 @@ describe("홈 '다른 아이들 소식'", () => {
     });
     renderWith(fetcher);
 
+    expect(await screen.findByText("강아지 글")).toBeTruthy();
+    await openOtherPets();
     expect(await screen.findByText("다른 글 52")).toBeTruthy();
     expect(screen.getAllByText("강아지 글")).toHaveLength(1);
   });
 
-  it("고정 범위 글이 하나도 없으면 빈 안내 아래에 다른 아이들 글을 보인다", async () => {
-    const { fetcher } = makeFetcher({ scoped: [[]], outside: [[post(60, "다른 글 60")]] });
+  it("고정 범위 글이 하나도 없으면 빈 안내 아래에 머리를 두고, 눌러야 다른 아이들 글을 보인다", async () => {
+    const { fetcher, outsideRequests } = makeFetcher({ scoped: [[]], outside: [[post(60, "다른 글 60")]] });
     renderWith(fetcher);
 
+    expect(await screen.findByText(/아직 올라온 글이 없어요/)).toBeTruthy();
+    expect(await screen.findByText("고른 분야 글이 올라오는 동안 다른 분야 아이들 이야기를 둘러보세요.")).toBeTruthy();
+    expect(outsideRequests).toEqual([]);
+
+    await openOtherPets();
     expect(await screen.findByText("다른 글 60")).toBeTruthy();
-    expect(screen.getByText(/아직 올라온 글이 없어요/)).toBeTruthy();
-    expect(screen.getByText("고른 분야 글이 올라오는 동안 다른 아이들 이야기를 둘러보세요.")).toBeTruthy();
   });
 });

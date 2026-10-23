@@ -6,9 +6,11 @@ import {
   canConfirmAdoption,
   canReplyTradeReview,
   canWriteTradeReview,
+  isTradelessDeal,
   keywordsForProduct,
   normalizeReviewKeywords,
   tradeReviewSummary,
+  tradeStatusLine,
   type TradeState,
 } from "@libs/shared/tradeReview";
 
@@ -53,6 +55,20 @@ describe("거래 단계별 버튼", () => {
     expect(can(reviewed)).toEqual({ confirm: false, review: false, reply: false, changeBuyer: false });
     expect(canReplyTradeReview({ ...reviewed, viewerId: SELLER })).toBe(true);
     expect(canReplyTradeReview({ ...reviewed, viewerId: SELLER, hasReply: true })).toBe(false);
+  });
+
+  it("임보 글(noTrade)은 입양 확정·입양자 지정·입양자 행이 없다(앱 docs/prd/pet-space.md §16)", () => {
+    expect(isTradelessDeal("foster")).toBe(true);
+    expect(isTradelessDeal("adoption")).toBe(false);
+    expect(isTradelessDeal("rehoming")).toBe(false);
+    expect(isTradelessDeal(null)).toBe(false);
+
+    const foster = { ...assigned, noTrade: true };
+    expect(can(foster)).toEqual({ confirm: false, review: false, reply: false, changeBuyer: false });
+    expect(canChangeBuyer({ ...foster, viewerId: SELLER })).toBe(false);
+    expect(tradeStatusLine({ ...foster, viewerId: SELLER }, "입양자")).toBeNull();
+    // 고치기 전에 입양 확정까지 간 글은 후기 자격을 그대로 둔다(글 종류를 바꿔 후기를 막지 못하게).
+    expect(canWriteTradeReview({ ...foster, purchaseConfirmed: true })).toBe(true);
   });
 });
 
