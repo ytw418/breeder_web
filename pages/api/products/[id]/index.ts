@@ -338,6 +338,8 @@ async function handler(
         const validation = validateProductInput(data, {
           partial: true,
           currentCategory: product.category ?? null,
+          currentDealType: product.dealType,
+          currentPetInfo: product.petInfo,
         });
         if (!validation.ok) {
           return res.status(400).json({

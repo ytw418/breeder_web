@@ -226,7 +226,9 @@ describe("강아지·고양이 분양글(앱 docs/prd/pet-space.md §5.6)", () =
   });
 
   it("가족 찾아요·임보 구해요는 강아지·고양이만, 유료 분양은 안 된다", () => {
-    expect(validateProductInput({ ...pet, dealType: "foster" }, { requireCategory: true }).ok).toBe(true);
+    expect(
+      validateProductInput({ ...pet, dealType: "foster", petInfo: { fosterPeriod: "2w" } }, { requireCategory: true }).ok
+    ).toBe(true);
     expect(validateProductInput({ ...pet, dealType: "rehoming" }, { requireCategory: true }).ok).toBe(true);
     expect(validateProductInput({ ...pet, dealType: "sale" }, { requireCategory: true }).ok).toBe(false);
     expect(
@@ -279,19 +281,48 @@ describe("강아지·고양이 분양글(앱 docs/prd/pet-space.md §5.6)", () =
   });
 
   it("'내 동네 보이기'는 true/false 를 보낸 때만, 다른 종 글이면 false (§5.9)", () => {
-    const on = validateProductInput({ ...pet, dealType: "foster", showPetRegion: true }, { requireCategory: true });
+    const foster = { ...pet, dealType: "foster", petInfo: { fosterPeriod: "open" } };
+    const on = validateProductInput({ ...foster, showPetRegion: true }, { requireCategory: true });
     expect(on.ok && on.value.showPetRegion).toBe(true);
-    const off = validateProductInput({ ...pet, dealType: "foster", showPetRegion: false }, { requireCategory: true });
+    const off = validateProductInput({ ...foster, showPetRegion: false }, { requireCategory: true });
     expect(off.ok && off.value.showPetRegion).toBe(false);
     // 옛 앱은 보내지 않는다 → 키가 없어 API 가 손대지 않는다. 문자열 등 다른 값도 보내지 않은 것으로 본다.
-    const old = validateProductInput({ ...pet, dealType: "foster" }, { requireCategory: true });
+    const old = validateProductInput(foster, { requireCategory: true });
     expect(old.ok && "showPetRegion" in old.value).toBe(false);
-    const odd = validateProductInput({ ...pet, dealType: "foster", showPetRegion: "true" }, { requireCategory: true });
+    const odd = validateProductInput({ ...foster, showPetRegion: "true" }, { requireCategory: true });
     expect(odd.ok && "showPetRegion" in odd.value).toBe(false);
     const reptile = validateProductInput(
       { ...valid, category: "파충류", productType: "생물", showPetRegion: true },
       { requireCategory: true }
     );
     expect(reptile.ok && reptile.value.showPetRegion).toBe(false);
+  });
+
+  it("임보 구해요는 기간이 필수이고 날짜는 오늘 이후다 — 수정은 글 종류·정보를 보낸 때만 본다(2026-10-24 코덱스 기획 리뷰)", () => {
+    const today = "2026-10-24";
+    const create = (petInfo?: unknown) =>
+      validateProductInput({ ...pet, dealType: "foster", petInfo }, { requireCategory: true, today });
+    const missing = create();
+    expect(!missing.ok && missing.errorCode).toBe("PRODUCT_INVALID_PET_INFO");
+    expect(!missing.ok && missing.message).toBe("임보 기간을 골라 주세요");
+    const badDate = create({ fosterPeriod: "date", fosterUntil: "2026-99-99" });
+    expect(!badDate.ok && badDate.message).toBe("임보가 끝나는 날짜를 골라 주세요");
+    const past = create({ fosterPeriod: "date", fosterUntil: "2026-10-01" });
+    expect(!past.ok && past.message).toBe("지난 날짜예요. 오늘 이후 날짜를 골라 주세요");
+    expect(create({ fosterPeriod: "date", fosterUntil: "2026-11-30" }).ok).toBe(true);
+
+    const stored = { fosterPeriod: "date", fosterUntil: "2026-10-01" };
+    const current = { partial: true, currentCategory: "강아지", currentDealType: "foster", currentPetInfo: stored, today };
+    // 다른 칸만 고치면 지난 날짜·기간 없는 옛 임보 글도 막지 않는다.
+    expect(validateProductInput({ name: "새 이름입니다" }, current).ok).toBe(true);
+    expect(validateProductInput({ name: "새 이름입니다" }, { ...current, currentPetInfo: null }).ok).toBe(true);
+    // 저장된 날짜를 그대로 보내면 지났어도 받고, 새로 고른 지난 날짜는 막는다.
+    expect(validateProductInput({ dealType: "foster", petInfo: stored }, current).ok).toBe(true);
+    const moved = validateProductInput({ petInfo: { fosterPeriod: "date", fosterUntil: "2026-10-02" } }, current);
+    expect(!moved.ok && moved.errorCode).toBe("PRODUCT_INVALID_PET_INFO");
+    // 정보만 보내도 저장된 글 종류(임보)로 본다. 다른 글 종류로 바꾸면 기간이 없어도 된다.
+    const noPeriod = validateProductInput({ petInfo: { sex: "male" } }, current);
+    expect(!noPeriod.ok && noPeriod.errorCode).toBe("PRODUCT_INVALID_PET_INFO");
+    expect(validateProductInput({ dealType: "rehoming", petInfo: { sex: "male" } }, current).ok).toBe(true);
   });
 });

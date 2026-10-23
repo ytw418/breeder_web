@@ -567,14 +567,20 @@ export const petWritePrevStep = (step: PetWriteStep): PetWriteStep | null =>
 export const TRADE_RULES_AGREEMENT = "분양할 수 없는 종이 아니에요. 필요한 신고도 할게요";
 
 /**
- * 강아지·고양이 글 동의. 이용 규칙 §2 의 5(월령 2개월 미만 개·고양이)·6(등록 없이 영리로 되풀이하는 분양)을 한 줄로 옮겼다
- * (결정 D, 2026-10-24 사용자 "동의 문구는 브리더 정책에 맞게 써라"). 임보 글도 같다 — 2개월이 안 된 아이는 임보만 구하고
- * 가족은 2개월이 지난 뒤 찾는다.
+ * 강아지·고양이 분양해요·가족 찾아요 동의. 이용 규칙 §2 의 5(월령 2개월 미만 개·고양이)·6(허가 없이 영리로 되풀이하는 분양)을
+ * 한 줄로 옮겼다(결정 D, 2026-10-24 사용자 "동의 문구는 브리더 정책에 맞게 써라").
  */
 export const PET_TRADE_RULES_AGREEMENT = "2개월이 지난 아이만, 돈을 벌려는 목적 없이 분양할게요";
 
-export const tradeRulesAgreementLabel = (isPet: boolean): string =>
-  isPet ? PET_TRADE_RULES_AGREEMENT : TRADE_RULES_AGREEMENT;
+/**
+ * 임보 구해요 동의. 임보는 새 가족에게 보내는 글이 아니라 2개월·분양 약속 대신 맡기는 사람의 약속을 받는다
+ * (2026-10-24 코덱스 기획 리뷰 — 임보 글에도 '분양' 약속을 받고 있었다). 2개월이 안 된 아이도 임보는 구할 수 있다.
+ */
+export const FOSTER_RULES_AGREEMENT = "아이 상태를 숨기지 않고, 임보 뒤에도 책임질게요";
+
+/** 새 글 동의 한 줄(등록 버튼 바로 위, 새 글만). kind 는 강아지·고양이 글 종류, 다른 종 글이면 null. */
+export const tradeRulesAgreementLabel = (kind: PetPostKind | null): string =>
+  kind === "foster" ? FOSTER_RULES_AGREEMENT : kind ? PET_TRADE_RULES_AGREEMENT : TRADE_RULES_AGREEMENT;
 
 /**
  * 강아지·고양이 글 설명 칸 안내. 가족 찾아요·임보 구해요는 입양·임보 조건을 적게 이끈다
@@ -643,6 +649,22 @@ const pickIds = <T extends readonly { id: string }[]>(options: T, value: unknown
     ? (options.filter((option) => value.includes(option.id)).map((option) => option.id) as OptionId<T>[])
     : undefined;
 
+/** 'YYYY-MM-DD' 이면서 달력에 있는 날인지(2026-02-30·2026-99-99 는 false). */
+export function isRealDateString(value: unknown): value is string {
+  if (typeof value !== "string") return false;
+  const match = value.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  if (!match) return false;
+  const [year, month, day] = [Number(match[1]), Number(match[2]), Number(match[3])];
+  const date = new Date(Date.UTC(year, month - 1, day));
+  return date.getUTCFullYear() === year && date.getUTCMonth() === month - 1 && date.getUTCDate() === day;
+}
+
+const KST_OFFSET_MS = 9 * 60 * 60 * 1000;
+
+/** 한국 시간 오늘 'YYYY-MM-DD'. 임보 날짜 검사는 서버·앱·웹 모두 이 날을 기준으로 한다. */
+export const kstToday = (now: Date = new Date()): string =>
+  new Date(now.getTime() + KST_OFFSET_MS).toISOString().slice(0, 10);
+
 /**
  * 요청 값 → PetInfo. 모르는 키·값은 버린다(형식이 틀려도 글쓰기를 막지 않는다).
  * 객체가 아니거나 남은 값이 없으면 null.
@@ -663,16 +685,31 @@ export function parsePetInfo(raw: unknown): PetInfo | null {
   if (reason) info.reason = reason;
   const fosterPeriod = pickId(FOSTER_PERIOD_OPTIONS, input.fosterPeriod);
   if (fosterPeriod) info.fosterPeriod = fosterPeriod;
-  if (
-    fosterPeriod === "date" &&
-    typeof input.fosterUntil === "string" &&
-    /^\d{4}-\d{2}-\d{2}$/.test(input.fosterUntil)
-  ) {
+  if (fosterPeriod === "date" && isRealDateString(input.fosterUntil)) {
     info.fosterUntil = input.fosterUntil;
   }
   const support = pickIds(FOSTER_SUPPORT_OPTIONS, input.fosterSupport);
   if (support?.length) info.fosterSupport = support;
   return Object.keys(info).length ? info : null;
+}
+
+/**
+ * 글 종류에 맞는 정보인지. 맞으면 null, 아니면 칸 아래에 보일 문구(서버는 400 PRODUCT_INVALID_PET_INFO).
+ * 임보 구해요만 본다: 기간은 꼭 고르고, '날짜까지'면 오늘(한국 시간) 이후 날짜다(2026-10-24 코덱스 기획 리뷰 —
+ * 기간 없는 임보 글은 맡을 사람이 판단하지 못하고, 2026-99-99 같은 날짜가 저장됐다). 다른 글의 정보는 모두 선택이다.
+ * keptUntil 은 저장된 날짜다. 그 날짜를 그대로 두는 수정은 지났어도 받는다(다른 칸만 고칠 수 있게).
+ */
+export function petInfoError(
+  kind: string | null | undefined,
+  info: PetInfo | null | undefined,
+  { today, keptUntil = null }: { today: string; keptUntil?: string | null }
+): string | null {
+  if (kind !== "foster") return null;
+  if (!info?.fosterPeriod) return "임보 기간을 골라 주세요";
+  if (info.fosterPeriod !== "date") return null;
+  if (!isRealDateString(info.fosterUntil)) return "임보가 끝나는 날짜를 골라 주세요";
+  if (info.fosterUntil === keptUntil) return null;
+  return info.fosterUntil < today ? "지난 날짜예요. 오늘 이후 날짜를 골라 주세요" : null;
 }
 
 const PET_VACCINE_IDS: readonly PetHealthId[] = ["vaccinating", "vaccinated"];

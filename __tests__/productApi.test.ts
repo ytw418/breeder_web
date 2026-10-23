@@ -686,7 +686,7 @@ describe("입양자 지정·입양 확정(앱 docs/prd/trade-review.md)", () => 
       expect(res.body.errorCode).toBe("PRODUCT_DEAL_TYPE_LOCKED");
 
       mockClient.product.findUnique.mockResolvedValue({ ...closedFoster, dealType: "adoption" });
-      res = await post(me, { action: "update", data: { dealType: "foster" } });
+      res = await post(me, { action: "update", data: { dealType: "foster", petInfo: { fosterPeriod: "2w" } } });
       expect(res.statusCode).toBe(400);
       expect(res.body.errorCode).toBe("PRODUCT_DEAL_TYPE_LOCKED");
       expect(mockClient.product.update).not.toHaveBeenCalled();

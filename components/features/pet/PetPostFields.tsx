@@ -13,18 +13,12 @@ import {
   PET_REASON_OPTIONS,
   PET_SEX_OPTIONS,
   fosterPeriodLabel,
+  kstToday,
   showsPetRegion,
   togglePetHealth,
   type PetInfo,
   type PetPostKind,
 } from "@libs/shared/petSpace";
-
-/** 오늘 날짜 'YYYY-MM-DD'(임보 날짜 고르기 최솟값). */
-const todayIso = () => {
-  const now = new Date();
-  const pad = (n: number) => String(n).padStart(2, "0");
-  return `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`;
-};
 
 function Label({ children, multi }: { children: ReactNode; multi?: boolean }) {
   return (
@@ -170,7 +164,8 @@ export function PetKindField({
 /**
  * 강아지·고양이 분양글 칸(앱 docs/prd/pet-space.md §5.5, 시안 pet-space/A-karrot.html ⑤).
  * '어떤 글인가요?'(showKind 일 때, PetKindField), 나이(짧은 글), 성별, 건강(여러 개),
- * 가족 찾아요면 보내는 이유, 임보 구해요면 임보 기간(날짜까지 → 날짜 칸)·지원(여러 개). 모두 선택 칸이다.
+ * 가족 찾아요면 보내는 이유, 임보 구해요면 임보 기간(날짜까지 → 날짜 칸)·지원(여러 개). 임보 기간만 꼭 고르고(fosterError 가
+ * 칸 아래 빨간 글자, 폼이 petInfoError 로 정한다) 나머지는 선택 칸이다.
  * 가족 찾아요·임보 구해요는 맨 끝에 '내 동네 보이기'(region = 프로필 동네 "서울 마포구", 없으면 null).
  * 가격 칸은 없다(폼이 가격·거래 유형·혈통 칸을 숨긴다).
  */
@@ -182,6 +177,7 @@ export function PetPostFields({
   filled,
   info,
   onInfoChange,
+  fosterError,
   region,
   showRegion,
   onShowRegionChange,
@@ -197,6 +193,8 @@ export function PetPostFields({
   filled?: boolean;
   info: PetInfo;
   onInfoChange: (info: PetInfo) => void;
+  /** 임보 기간·날짜 오류(petInfoError). 있으면 기간 칸 아래 빨간 글자. */
+  fosterError?: string;
   region: string | null;
   showRegion: boolean;
   onShowRegionChange: (next: boolean) => void;
@@ -272,7 +270,7 @@ export function PetPostFields({
 
       {kind === "foster" ? (
         <>
-          <div>
+          <div data-field="petInfo">
             <Label>임보 기간</Label>
             <ChipWrap>
               {FOSTER_PERIOD_OPTIONS.map((option) => (
@@ -294,13 +292,19 @@ export function PetPostFields({
               <input
                 type="date"
                 value={info.fosterUntil ?? ""}
-                min={todayIso()}
+                // 오늘(한국 시간)부터. 저장 검사(petInfoError)와 같은 날을 쓴다.
+                min={kstToday()}
                 disabled={disabled}
                 onChange={(event) => update({ fosterUntil: event.target.value || undefined })}
                 aria-label="임보 끝나는 날"
-                className="mt-2 h-12 w-full rounded-lg border border-app-border bg-app-bg px-3.5 text-[16px] text-app-text focus:border-app-text focus:outline-none focus:ring-0 disabled:opacity-50"
+                aria-invalid={Boolean(fosterError)}
+                className={cn(
+                  "mt-2 h-12 w-full rounded-lg border bg-app-bg px-3.5 text-[16px] text-app-text focus:border-app-text focus:outline-none focus:ring-0 disabled:opacity-50",
+                  fosterError ? "border-app-danger" : "border-app-border"
+                )}
               />
             ) : null}
+            {fosterError ? <p className="mt-1.5 text-[13px] text-app-danger">{fosterError}</p> : null}
           </div>
           <div>
             <Label multi>지원</Label>
