@@ -37,6 +37,11 @@ export const REPORT_DETAIL_MIN_FOR_OTHER = 5;
 /** 반려생물 커뮤니티라 따로 두는 사유(2026-10-21 커뮤니티 감사 #12). 제재 코드 ANIMAL_WELFARE·ILLEGAL_ITEM 로 이어진다. */
 export const ANIMAL_WELFARE_REASON = "동물 학대·부적절 사육";
 export const ILLEGAL_SPECIES_REASON = "불법 개체·거래 금지 종";
+/**
+ * 강아지·고양이 분양글에만 보이는 사유(앱 docs/prd/pet-space.md, 2026-10-23 페르소나 리뷰 — 가정 분양인 척하는
+ * 펫숍·번식업자, 책임비를 과하게 받는 글). 제재 코드 TRADE_ABUSE 로 이어진다.
+ */
+export const PET_DEALER_REASON = "업자 의심·과한 책임비";
 
 const CONTENT_REASONS = [
   "스팸·광고",
@@ -95,6 +100,19 @@ export const REPORT_REASONS: Record<ReportTargetType, readonly string[]> = {
   ],
 };
 
+/**
+ * 신고 시트에 보일 사유. 강아지·고양이 분양글(petPost)이면 '허위 분양글·사기 의심' 바로 아래에 업자 의심 사유를 더한다.
+ * 앱 report-reasons.ts reportReasonsFor 와 같다.
+ */
+export function reportReasonsFor(
+  type: ReportTargetType,
+  options: { petPost?: boolean } = {}
+): readonly string[] {
+  const reasons = REPORT_REASONS[type];
+  if (type !== "PRODUCT" || !options.petPost) return reasons;
+  return [reasons[0], PET_DEALER_REASON, ...reasons.slice(1)];
+}
+
 /** 관리자 메뉴 '신고 관리 (N)'의 N(처리 대기 신고 수)만 묻는 주소. 신고를 처리한 화면이 이 키를 다시 불러 숫자를 맞춘다. */
 export const ADMIN_REPORT_SUMMARY_API = "/api/admin/reports?summary=1";
 
@@ -118,6 +136,7 @@ export const LEGACY_REPORT_REASONS: Partial<Record<ReportTargetType, readonly st
 
 export const isValidReportReason = (type: ReportTargetType, reason: string) =>
   REPORT_REASONS[type].includes(reason) ||
+  (type === "PRODUCT" && reason === PET_DEALER_REASON) ||
   (LEGACY_REPORT_REASONS[type]?.includes(reason) ?? false);
 
 /**

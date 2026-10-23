@@ -15,10 +15,13 @@ import { setViewerCacheHeader } from "@libs/server/blocks";
 import { resolveCategoryIdByName } from "@libs/server/categories";
 import { DEFAULT_DEAL_TYPE } from "@libs/shared/categories";
 import { canAttachBloodline, pedigreeNoteDbValue } from "@libs/server/bloodline-link";
+import { petInfoDbValue, petRegionColumns } from "@libs/server/petInfo";
+import { isAdoptionSideDealType } from "@libs/shared/petSpace";
 import { captureServerEvent, resolveClientPlatform } from "@libs/server/analytics";
 import { buildCelebrate } from "@libs/server/celebrate";
 import { getProductRail, PRODUCT_RAIL_LIMIT_DEFAULT, PRODUCT_RAIL_LIMIT_MAX } from "@libs/server/productRail";
 import { assertWriteAllowed } from "@libs/server/writeLimits";
+import { notifyNearbyFreeProduct } from "@libs/server/reengagement";
 
 const handler = async (
   req: NextApiRequest,
@@ -36,6 +39,8 @@ const handler = async (
         dealType,
         bloodlineRootId,
         pedigreeNote,
+        petInfo,
+        showPetRegion,
       },
       user,
     } = req;
@@ -56,6 +61,8 @@ const handler = async (
         dealType,
         bloodlineRootId,
         pedigreeNote,
+        petInfo,
+        showPetRegion,
       },
       { requireCategory: true }
     );
@@ -104,10 +111,23 @@ const handler = async (
       });
     }
 
+    // 가족 찾아요·임보 구해요 글은 '내 동네 보이기'를 켰을 때 작성자 프로필 동네를 복사한다(앱 docs/prd/pet-space.md §5.9).
+    const regionColumns = petRegionColumns(
+      validation.value.showPetRegion,
+      { category: validation.value.category, dealType: validation.value.dealType ?? DEFAULT_DEAL_TYPE },
+      validation.value.showPetRegion
+        ? await client.user.findUnique({
+            where: { id: user.id },
+            select: { regionSido: true, regionSigungu: true },
+          })
+        : null
+    );
+
     const product = await client.product.create({
       data: {
         name: validation.value.name!,
-        price: validation.value.price!,
+        // 강아지·고양이는 null(가격을 받지 않는다, libs/shared/petSpace.ts).
+        price: validation.value.price ?? null,
         description: validation.value.description!,
         photos: validation.value.photos ?? [],
         category: validation.value.category!,
@@ -118,6 +138,8 @@ const handler = async (
         mainImage: validation.value.photos?.[0] || null,
         bloodlineRootId: linkedRootId,
         ...(linkedPedigree ? { pedigreeNote: pedigreeNoteDbValue(linkedPedigree) } : {}),
+        ...(validation.value.petInfo ? { petInfo: petInfoDbValue(validation.value.petInfo) } : {}),
+        ...(regionColumns ?? {}),
         user: {
           connect: {
             id: user.id,
@@ -142,6 +164,9 @@ const handler = async (
       });
     }
 
+    // 무료 분양이면 같은 동네 회원에게 알린다(재방문 알림 ①, libs/server/reengagement). 실패해도 등록은 그대로.
+    await notifyNearbyFreeProduct(product.id);
+
     // 계측은 응답 직전에 기다린다(서버리스는 응답 뒤 작업을 보장하지 않는다. 1.5초 상한, 실패해도 무시).
     await captureServerEvent(user.id, "product_created", {
       product_id: product.id,
@@ -163,14 +188,17 @@ const handler = async (
     }
 
     // 등록 보상 시트(앱 community-vibe §3.4). 실패하면 null.
-    const celebrate = await buildCelebrate({
-      target: "product",
-      id: product.id,
-      userId: user.id,
-      createdAt: product.createdAt,
-      species: product.category ?? null,
-      categoryId: product.categoryId ?? null,
-    });
+    // 임보·가족 찾기 글은 '몇 번째 분양글' 시트 대신 화면의 '글이 등록되었습니다' 토스트만 둔다(앱 docs/prd/pet-space.md §5.5).
+    const celebrate = isAdoptionSideDealType(product.dealType)
+      ? null
+      : await buildCelebrate({
+          target: "product",
+          id: product.id,
+          userId: user.id,
+          createdAt: product.createdAt,
+          species: product.category ?? null,
+          categoryId: product.categoryId ?? null,
+        });
 
     return res.json({
       success: true,
@@ -210,8 +238,15 @@ const handler = async (
         sort,
         categoryPath,
         bloodlineRootId,
+        dealGroup,
+        dealType: dealTypeQuery,
       },
     } = req;
+    // 분양 탭 '분양 | 입양'(앱 docs/prd/pet-space.md). sale·adoption 만 받는다.
+    const dealGroupFilter =
+      dealGroup === "sale" || dealGroup === "adoption" ? dealGroup : undefined;
+    const dealTypeFilter =
+      dealTypeQuery === "foster" || dealTypeQuery === "rehoming" ? dealTypeQuery : undefined;
 
     // 캐싱 전략: 필터 없는 기본 목록은 60초 캐시
     // 필터가 있는 경우 30초 캐시
@@ -241,6 +276,8 @@ const handler = async (
       minPriceFilter !== undefined ||
       maxPriceFilter !== undefined ||
       bloodlineRootFilter !== undefined ||
+      dealGroupFilter !== undefined ||
+      dealTypeFilter !== undefined ||
       (sortValue && sortValue !== "latest");
     const cacheTime = hasFilters ? 30 : 60;
     res.setHeader(
@@ -263,6 +300,8 @@ const handler = async (
       maxPrice: maxPriceFilter,
       sort: sortValue,
       bloodlineRootId: bloodlineRootFilter,
+      dealGroup: dealGroupFilter,
+      dealType: dealTypeFilter,
       viewerId,
     });
 

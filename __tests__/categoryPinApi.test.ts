@@ -189,6 +189,19 @@ describe("GET /api/posts?categoryPath=", () => {
     expect(whereOf().AND).toEqual([{ OR: [{ categoryId: null }, { categoryId: { notIn: [31] } }] }]);
   });
 
+  it("outsideCategoryPath 는 그 범위 밖 글만(범위·상위 분류·숨긴 카테고리 제외, 종 없는 글은 보인다)", async () => {
+    await call(postsHandler, {
+      method: "GET",
+      query: { outsideCategoryPath: "/mammal/hamster/", categoryPath: "/mammal/hamster/" },
+    });
+    expect(whereOf().AND).toEqual([{ OR: [{ categoryId: null }, { categoryId: { notIn: [5, 30, 31] } }] }]);
+  });
+
+  it("outsideCategoryPath 가 틀린 값이면 범위 조건(categoryPath)으로 돌아간다", async () => {
+    await call(postsHandler, { method: "GET", query: { outsideCategoryPath: "nope", categoryPath: "/reptile/" } });
+    expect(whereOf().AND).toEqual([{ categoryId: { in: [3] } }]);
+  });
+
   it("종 드롭다운(species=포유류)은 소분류 이름으로 저장된 글까지 카테고리 하위로 찾는다", async () => {
     await call(postsHandler, { method: "GET", query: { species: "포유류" } });
     expect(whereOf().type).toBeUndefined();

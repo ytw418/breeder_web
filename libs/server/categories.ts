@@ -142,6 +142,21 @@ export const categoryScopeWhere = async (
 };
 
 /**
+ * 고정 범위 밖 글만 고르는 조건(홈 '다른 아이들 소식', 앱 docs/prd/pet-space.md §5.7).
+ * 범위 안 카테고리(고정한 노드의 상위 분류 자체 포함)와 숨긴 카테고리를 빼고, 종이 없는 글은 범위 밖으로 본다.
+ * 범위가 없거나 틀린 값이면 null(조건을 쓰지 않는다 — 부르는 쪽이 보통 범위 조건으로 돌아간다).
+ */
+export const categoryOutsideWhere = async (
+  categoryPath: string | string[] | undefined | null
+): Promise<Record<string, unknown> | null> => {
+  const ids = await resolveScopeCategoryIds(categoryPath);
+  if (!ids) return null;
+  const excluded = Array.from(new Set([...ids, ...(await getHiddenCategoryIds())]));
+  if (!excluded.length) return {};
+  return { OR: [{ categoryId: null }, { categoryId: { notIn: excluded } }] };
+};
+
+/**
  * 반려생활 종 드롭다운(`species=포유류`) → 목록 where 조건.
  * 트리에 있는 이름이면 그 카테고리와 하위 전부를 categoryId 로 찾는다(글에 '강아지'처럼 소분류 이름이
  * 저장돼도 '포유류'로 찾게 하려는 것이다). 트리에 없는 이름이면 예전처럼 이름으로 비교한다.

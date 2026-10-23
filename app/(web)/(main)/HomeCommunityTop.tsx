@@ -39,8 +39,9 @@ const HOT_FETCH_COUNT = 8;
  * 홈 위쪽 커뮤니티(docs/prd/home-ia.md S-1 2·3·4번, 2026-10-15 홈 구성 A안 — 앱 (tabs)/index.tsx·HomeRealtimeSection 과 같다).
  * 공지 한 줄 → '실시간 TOP 토론' 사진 레일 → '답 기다려요' 카드.
  * 옛 반려생활 세그먼트(실시간 TOP 토론 · 답 기다려요 · 동네 · 랭킹)는 없앴다. 동네·랭킹은 홈의 '우리 동네 브리더'·'이번 주 TOP 브리더'가 맡는다.
+ * noticeOnly 면 공지 한 줄만 그린다(반려생활 탭 v3 — 실시간 토론·답 기다려요 자리는 상시 토론·인기 질문이 맡는다).
  */
-export default function HomeCommunityTop() {
+export default function HomeCommunityTop({ noticeOnly = false }: { noticeOnly?: boolean } = {}) {
   const { blockedIds } = useBlocks();
   // 관심 카테고리 고정 범위(앱 category-pin). 실시간 토론도 같은 범위를 쓴다.
   const scope = useCategoryScope();
@@ -55,14 +56,14 @@ export default function HomeCommunityTop() {
     mutate: mutateRealtime,
   } = useSWR<RealtimePostsResponse>(
     // 레일엔 토론 글을 넣지 않으니(맨 위 카드·모아보기가 맡는다) 넉넉히 받아 3장을 채운다(앱과 같다).
-    withCategoryPath(`/api/posts?hot=realtime&limit=${HOT_FETCH_COUNT}`, scope.categoryPath),
+    noticeOnly ? null : withCategoryPath(`/api/posts?hot=realtime&limit=${HOT_FETCH_COUNT}`, scope.categoryPath),
     { revalidateOnFocus: false }
   );
   const realtimeUnsupported = Boolean(
     realtimeError || (realtimeData && !realtimeData.posts?.some((post) => post.lastActivityAt))
   );
   const { data: homeFeedData } = useSWR<{ hotDiscussions: HotDiscussionItem[] }>(
-    realtimeUnsupported ? withCategoryPath("/api/home/feed?scope=public", scope.categoryPath) : null,
+    realtimeUnsupported && !noticeOnly ? withCategoryPath("/api/home/feed?scope=public", scope.categoryPath) : null,
     { revalidateOnFocus: false }
   );
   // 맨 위 토론 카드: 진행 중 토론 중 내가 안 고른 것의 활동 점수 1위(live-talk §3.2). 없으면 레일만.
@@ -71,14 +72,14 @@ export default function HomeCommunityTop() {
     error: homeDebateError,
     mutate: mutateHomeDebate,
   } = useSWR<HomeDebateResult>(
-    withCategoryPath("/api/debates/home", scope.categoryPath),
+    noticeOnly ? null : withCategoryPath("/api/debates/home", scope.categoryPath),
     { revalidateOnFocus: false, shouldRetryOnError: false }
   );
   const homeDebate =
     homeDebateData?.post && !blockedIds.has(homeDebateData.post.userId) ? homeDebateData.post : null;
   // 답 기다려요: 가장 오래 답 없는 질문 1개 + 개수(관심 카테고리 범위). 없으면 '물어보기' 카드.
   const { data: unansweredData, error: unansweredError } = useSWR<UnansweredResponse>(
-    withCategoryPath("/api/posts?unanswered=1&limit=1", scope.categoryPath),
+    noticeOnly ? null : withCategoryPath("/api/posts?unanswered=1&limit=1", scope.categoryPath),
     { revalidateOnFocus: false }
   );
 
@@ -172,8 +173,8 @@ export default function HomeCommunityTop() {
         </div>
       ) : null}
 
-      {/* 실시간 TOP 토론 + 답 기다려요 */}
-      <section className="pb-2 pt-5" data-home-section="realtime_discussion">
+      {/* 실시간 TOP 토론 + 답 기다려요 — 반려생활 탭 v3(앱 docs/prd/evergreen-debate.md S-1)은 공지만 쓴다 */}
+      {noticeOnly ? null : <section className="pb-2 pt-5" data-home-section="realtime_discussion">
         {/* 오른쪽: 토론 열기(만들기) · 모아보기(진행 중·끝난 토론) — 2026-10-15 사용자 요청 */}
         <div className="flex items-end justify-between gap-3 px-4">
           <h2 className="app-t-section">실시간 TOP 토론</h2>
@@ -254,7 +255,7 @@ export default function HomeCommunityTop() {
             <div aria-hidden="true" className="mx-4 mt-4 h-[78px] animate-pulse rounded-xl bg-app-placeholder" />
           ) : null}
         </div>
-      </section>
+      </section>}
     </>
   );
 }

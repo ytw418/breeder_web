@@ -75,6 +75,9 @@ export interface ChatMessageProduct {
   status: string;
   /** 화면 이름(분양중·예약중·분양완료) */
   statusLabel: string;
+  /** 종 이름·거래 유형. 강아지·고양이 글은 가격 대신 글 종류를 보인다(price.ts productPriceText). 옛 응답엔 없다. */
+  category?: string | null;
+  dealType?: string | null;
 }
 
 /** GET /api/chat/:id?card=1 의 chatRoom.product — 문맥 바·추천 칩. */

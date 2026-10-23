@@ -21,6 +21,8 @@ export type OnSaleItem =
       photo: string | null;
       status: string;
       dealType: string;
+      /** 강아지·고양이 글은 가격 대신 글 종류를 보인다(productPriceText). 가이드 응답엔 없다. */
+      category?: string | null;
       createdAt: string;
     }
   | {
@@ -76,6 +78,7 @@ async function handler(req: NextApiRequest, res: NextApiResponse<ResponseType | 
         mainImage: true,
         status: true,
         dealType: true,
+        category: true,
         createdAt: true,
       },
       orderBy: [{ createdAt: "desc" }, { id: "desc" }],
@@ -120,6 +123,7 @@ async function handler(req: NextApiRequest, res: NextApiResponse<ResponseType | 
       photo: product.mainImage || product.photos?.[0] || null,
       status: product.status,
       dealType: product.dealType,
+      category: product.category ?? null,
       createdAt: product.createdAt.toISOString(),
     })),
   ].slice(0, limit);

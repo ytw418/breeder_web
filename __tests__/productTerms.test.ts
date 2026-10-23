@@ -20,7 +20,8 @@ describe("dealTypeLabel", () => {
   it("거래 유형은 유료·무료 분양으로 보인다", () => {
     expect(dealTypeLabel("sale")).toBe("유료 분양");
     expect(dealTypeLabel("adoption")).toBe("무료 분양");
-    expect(dealTypeLabel("rehoming")).toBe("파양");
+    expect(dealTypeLabel("rehoming")).toBe("가족 찾아요");
+    expect(dealTypeLabel("foster")).toBe("임보 구해요");
   });
 
   it("거래 유형이 없으면(구 서버) 유료 분양, 모르는 값은 그대로", () => {

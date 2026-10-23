@@ -101,6 +101,7 @@ export function PostCommentItem({
   isPostAuthor = false,
   highlighted = false,
   accepted = false,
+  pending = false,
   onMore,
   onReply,
   onLike,
@@ -110,6 +111,8 @@ export function PostCommentItem({
   isPostAuthor?: boolean;
   highlighted?: boolean;
   accepted?: boolean;
+  /** 서버에 닿기 전(낙관적 등록) — 흐리게 그리고 누를 수 없다. */
+  pending?: boolean;
   onMore: () => void;
   onReply: () => void;
   onLike: () => void;
@@ -132,7 +135,11 @@ export function PostCommentItem({
 
   const likeCount = item.likeCount ?? 0;
   return (
-    <div id={commentAnchorId(item.id)} className={rowClass}>
+    <div
+      id={commentAnchorId(item.id)}
+      aria-busy={pending || undefined}
+      className={cn(rowClass, pending && "pointer-events-none opacity-50")}
+    >
       <div className={cn("flex pb-2 pt-3.5", isReply ? "gap-2 pl-[46px]" : "gap-2.5")}>
         <Link href={`/profiles/${item.user?.id}`} aria-label="댓글 작성자 프로필" className="shrink-0">
           <PostAvatar user={item.user} size={isReply ? 28 : 36} />

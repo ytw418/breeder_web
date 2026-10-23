@@ -202,7 +202,8 @@ function SectionTitle({ showAll }: { showAll: boolean }) {
   const { breeder } = useScopeTerms();
   return (
     <div className="flex items-end justify-between gap-3 px-4">
-      <h2 className="app-t-section">우리 동네 {breeder}</h2>
+      {/* 반려생활 탭 v3(2026-10-22 사용자 "동네 친구 찾기") — 옛 이름 '우리 동네 브리더' */}
+      <h2 className="text-[16px] font-bold leading-[22px] tracking-[-0.3px] text-app-text">동네 친구</h2>
       {showAll ? (
         <Link
           href={NEIGHBORHOOD_ALL_HREF}
@@ -255,18 +256,21 @@ function NeighborCardView({ card, wavesLeftToday }: { card: NeighborCard; wavesL
         <span className="block w-full truncate text-[12px] leading-4 text-app-muted">{card.species ?? " "}</span>
         <span className="mt-0.5 block w-full truncate text-[11px] leading-[14px] text-app-muted">{card.place}</span>
       </Link>
+      {/* 팔로우 + 손 흔들어 인사: 같은 너비·높이 30 두 칸(2026-10-22 사용자 "위치가 제각각", 앱과 같다). */}
       {card.isFollowing !== null ? (
-        <div className="mt-2.5 flex w-full items-center gap-1.5">
+        <div className="mt-2.5 flex w-full gap-1.5">
           <div className="min-w-0 flex-1">
             <FollowButton userId={card.id} isFollowing={card.isFollowing} returnPath={RETURN_PATH} size="nearby" />
           </div>
-          <WaveButton
-            userId={card.id}
-            name={card.name}
-            waved={card.waved}
-            wavesLeftToday={wavesLeftToday}
-            className="h-[30px] w-[30px]"
-          />
+          <div className="min-w-0 flex-1">
+            <WaveButton
+              userId={card.id}
+              name={card.name}
+              waved={card.waved}
+              wavesLeftToday={wavesLeftToday}
+              variant="pill"
+            />
+          </div>
         </div>
       ) : null}
     </div>
@@ -277,9 +281,10 @@ export function NeighborhoodBreederSectionView({ state }: { state: HomeNeighborh
   const { breeder, mammalOnly } = useScopeTerms();
   if (state.kind === "hidden") return null;
   const label = state.kind === "near" || state.kind === "none" ? state.label : null;
+  const railCards = state.kind === "near" ? state.items.filter((card) => card.isFollowing !== true) : [];
 
   return (
-    <section className="px-0 pt-6" aria-label={`우리 동네 ${breeder}`} data-home-section="neighborhood_breeders">
+    <section className="px-0 pt-4" aria-label="동네 친구" data-home-section="neighborhood_breeders">
       <SectionTitle showAll={Boolean(label)} />
       {state.kind === "none" ? <SubtitleRow label={state.label} /> : null}
 
@@ -333,25 +338,28 @@ export function NeighborhoodBreederSectionView({ state }: { state: HomeNeighborh
             <em className="font-semibold not-italic text-app-brand">{state.total}명</em>
             {state.greetingCount > 0 ? ` · 이번 주 인사 글 ${state.greetingCount}개` : null}
           </SubtitleRow>
-          <NeighborRail>
-            {state.items.map((card) => (
-              <NeighborCardView key={card.id} card={card} wavesLeftToday={state.wavesLeftToday} />
-            ))}
-            {state.me ? (
-              <div className="flex w-[132px] shrink-0 flex-col items-center rounded-xl bg-app-brand-soft p-3 text-center" data-testid="neighborhood-me-card">
-                <InitialAvatar name={state.me.name} avatar={state.me.image} size={44} />
-                <span className="mt-2 block w-full truncate text-[14px] font-semibold leading-5 text-app-text">나</span>
-                <span className="block w-full truncate text-[12px] leading-4 text-app-muted">{state.me.species ?? " "}</span>
-                <span className="mt-0.5 block text-[11px] leading-[14px] text-app-muted">아직 안 보여요</span>
-                <Link
-                  href={REGION_SETTINGS}
-                  className="mt-2.5 flex h-[30px] w-full items-center justify-center rounded-lg bg-app-brand text-[13px] font-semibold text-white"
-                >
-                  나도 보이기
-                </Link>
-              </div>
-            ) : null}
-          </NeighborRail>
+          {/* 이미 팔로우한 사람은 레일에서 뺀다. 팔로우를 누르면 낙관적 갱신으로 바로 빠진다(2026-10-22 사용자 "팔로우하면 목록에서 안 보이게"). */}
+          {railCards.length || state.me ? (
+            <NeighborRail>
+              {railCards.map((card) => (
+                <NeighborCardView key={card.id} card={card} wavesLeftToday={state.wavesLeftToday} />
+              ))}
+              {state.me ? (
+                <div className="flex w-[132px] shrink-0 flex-col items-center rounded-xl bg-app-brand-soft p-3 text-center" data-testid="neighborhood-me-card">
+                  <InitialAvatar name={state.me.name} avatar={state.me.image} size={44} />
+                  <span className="mt-2 block w-full truncate text-[14px] font-semibold leading-5 text-app-text">나</span>
+                  <span className="block w-full truncate text-[12px] leading-4 text-app-muted">{state.me.species ?? " "}</span>
+                  <span className="mt-0.5 block text-[11px] leading-[14px] text-app-muted">아직 안 보여요</span>
+                  <Link
+                    href={REGION_SETTINGS}
+                    className="mt-2.5 flex h-[30px] w-full items-center justify-center rounded-lg bg-app-brand text-[13px] font-semibold text-white"
+                  >
+                    나도 보이기
+                  </Link>
+                </div>
+              ) : null}
+            </NeighborRail>
+          ) : null}
           <TownPreviewStrip className="mt-3" />
           <div className="mt-2 flex gap-2 px-4">
             <Link href={LOUNGE_HREF} className={cn(BUTTON, SOFT)}>

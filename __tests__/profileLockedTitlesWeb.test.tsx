@@ -44,7 +44,7 @@ describe("프로필 잠금 칭호·신뢰 줄·완성 카드(community-vibe §3.
     expect(lockedTitleText({ key: "x", label: "분양왕", remaining: { kind: "listing", count: 2 } })).toBe("분양왕까지 분양글 2");
   });
 
-  it("완성 카드: 'N / 7' 주황 숫자와 주황 진행 바, 다음 할 일", () => {
+  it("완성 카드: 'N / 6' 주황 숫자와 주황 진행 바, 다음 할 일", () => {
     render(
       <ProfileCompletionCard
         user={{ avatar: null, bio: "안녕", _count: {} }}
@@ -54,7 +54,7 @@ describe("프로필 잠금 칭호·신뢰 줄·완성 카드(community-vibe §3.
       />
     );
     const card = screen.getByTestId("profile-completion-card");
-    expect(card.textContent).toContain("1 / 7");
+    expect(card.textContent).toContain("1 / 6");
     expect(card.textContent).toContain("프로필 사진");
     expect(screen.getByRole("progressbar")).toHaveClass("bg-app-brand-track");
   });

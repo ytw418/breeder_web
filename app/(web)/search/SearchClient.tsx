@@ -14,7 +14,7 @@ import { SearchResponse } from "pages/api/search";
 import { TOP_LEVEL_CATEGORIES } from "@libs/categoryTaxonomy";
 import { getProductPath } from "@libs/product-route";
 import { toPostPath } from "@libs/post-route";
-import { formatProductPrice } from "@libs/productRules";
+import { productPriceText } from "@libs/shared/price";
 import { ANALYTICS_EVENTS, trackEvent } from "@libs/client/analytics";
 import { toPostPlainText } from "@libs/shared/post-body";
 import { productStatusLabel } from "@libs/shared/productTerms";
@@ -43,14 +43,14 @@ function replaceSearchUrl(q: string, tab: SearchTab) {
 
 /** 인기 검색어 목록(앱과 같다) */
 const POPULAR_KEYWORDS = [
+  "아잔틱",
+  "비숑",
+  "크레",
+  "테라핀",
+  "몬스테라",
+  "랙돌",
   "헤라클레스",
-  "사슴벌레",
-  "극태",
-  "왕사",
-  "장수풍뎅이",
-  "넓적사슴벌레",
-  "코카서스",
-  "건조표본",
+  "구피",
 ];
 
 /** 추천 상품 응답 타입 */
@@ -62,6 +62,7 @@ interface RecommendProductsResponse {
     price: number | null;
     photos: string[];
     category: string | null;
+    dealType?: string | null;
     status: string;
     createdAt: string;
     _count: { favs: number };
@@ -262,7 +263,7 @@ const SearchClient = ({
                 key={product.id}
                 href={getProductPath(product.id, product.name)}
                 title={product.name}
-                description={formatProductPrice(product.price)}
+                description={productPriceText(product)}
                 meta={[product.category, productStatusLabel(product.status)].filter(Boolean).join(" · ")}
                 imageId={product.photos?.[0]}
                 imageVariant="product"
@@ -386,7 +387,7 @@ const SearchClient = ({
                     ) : null}
                   </div>
                   <p className="mt-2 truncate text-[14px] text-app-text">{p.name}</p>
-                  <p className="mt-0.5 text-[16px] font-bold text-app-text">{formatProductPrice(p.price)}</p>
+                  <p className="mt-0.5 text-[16px] font-bold text-app-text">{productPriceText(p)}</p>
                 </Link>
               ))}
             </HorizontalRail>

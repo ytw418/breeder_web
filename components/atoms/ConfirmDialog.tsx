@@ -27,7 +27,7 @@ export default function ConfirmDialog({
   title,
   description,
   confirmText = "확인",
-  cancelText = "취소",
+  cancelText = "닫기",
   tone = "default",
   confirmKeyword = "",
   confirmKeywordLabel = "확인 키워드",

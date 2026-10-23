@@ -65,7 +65,7 @@ export async function buildKakaoDigest(
         where: productWhere,
         orderBy: { createdAt: "desc" },
         take: LIST_LIMIT.products,
-        select: { id: true, name: true, price: true, dealType: true, location: true },
+        select: { id: true, name: true, price: true, dealType: true, location: true, category: true },
       }),
       client.product.count({ where: productWhere }),
       client.post.findMany({

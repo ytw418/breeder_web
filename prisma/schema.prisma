@@ -119,6 +119,10 @@ model User {
   notificationPrefs Json?
   /// 마지막 활동(로그인한 요청이 들어온) 시각. 인증(libs/server/auth.ts)에서 KST 하루 한 번만 갱신한다. 배포 전 활동은 비어 있다. 주간 요약 푸시·운영자 발송 대상(커뮤니티 감사 #22)
   lastActiveAt    DateTime?
+  /// 나라(ISO 3166-1 alpha-2). 해외 진출 대비, 지금은 모두 KR.
+  country         String      @default("KR")
+  /// 화면·글 언어(BCP 47, 예 ko·ja·zh-TW). 지금은 모두 ko.
+  locale          String      @default("ko")
   createdAt       DateTime    @default(now())
   updatedAt       DateTime    @updatedAt
   products        Product[]
@@ -267,6 +271,8 @@ model Product {
   price       Int?
   description String
   photos      String[]
+  /// 나라(ISO 3166-1 alpha-2). 해외 진출 대비, 지금은 모두 KR.
+  country     String      @default("KR")
   createdAt   DateTime    @default(now())
   updatedAt   DateTime    @updatedAt
   user        User        @relation(fields: [userId], references: [id])
@@ -298,12 +304,18 @@ model Product {
   productType    String?    // 생물, 용품
   /// Category.id (가장 구체적인 분류 1개). category 문자열과 함께 저장한다(카테고리 고정 범위 조회용).
   categoryId     Int?
-  /// 거래 유형: sale(판매) / adoption(분양) / rehoming(파양)
+  /// 거래 유형: sale(유료 분양) / adoption(무료 분양·분양해요) / rehoming(가족 찾아요) / foster(임보 구해요)
   dealType       String     @default("sale")
   /// 연결한 혈통(BloodlineCard, cardType=BLOODLINE). FK 없음(relationMode=prisma). 회수되면 상세 요약만 사라진다.
   bloodlineRootId Int?
   /// { sireMm?: number; damMm?: number; generation?: "F1".."F9" | "unknown" } — libs/shared/pedigree-note.ts
   pedigreeNote    Json?
+  /// 강아지·고양이 성별·나이·건강·이유·임보 기간 — libs/shared/petSpace.ts PetInfo(앱 docs/prd/pet-space.md)
+  petInfo         Json?
+  /// 가족 찾아요·임보 구해요 글에 남긴 작성자 동네(글을 쓸 때 프로필 동네 복사, '내 동네 보이기'를 끄면 null).
+  /// Post.regionSido·regionSigungu 와 같은 값 — 앱 docs/prd/pet-space.md §5.9
+  regionSido      String?
+  regionSigungu   String?
 
   @@index([userId])
   @@index([category])
@@ -314,6 +326,10 @@ model Product {
 
 model Post {
   id        Int         @id @default(autoincrement())
+  /// 나라(ISO 3166-1 alpha-2). 해외 진출 대비, 지금은 모두 KR.
+  country   String      @default("KR")
+  /// 화면·글 언어(BCP 47, 예 ko·ja·zh-TW). 지금은 모두 ko.
+  locale    String      @default("ko")
   createdAt DateTime    @default(now())
   updatedAt DateTime    @updatedAt
   user      User        @relation(fields: [userId], references: [id], onDelete: Cascade)
@@ -568,6 +584,11 @@ enum NotificationType {
   ADOPTION_CONFIRMED    // 입양자가 입양 확정(분양자에게)
   TRADE_REVIEW_RECEIVED // 입양자가 거래 후기를 남김(분양자에게)
   TRADE_REVIEW_REPLIED  // 분양자가 후기에 답글(입양자에게)
+  // 재방문 알림(2026-10-23, 앱 docs/prd/reengagement-push.md, libs/server/reengagement.ts). 한 사람 하루 합계 2통, 종류마다 1통.
+  NEARBY_FREE_PRODUCT // 같은 시/군/구 분양자가 무료 분양 등록(동네를 공개한 분양자만). targetType product
+  DEBATE_CLOSING      // 관심 분야 HOT 토론이 1시간 안에 마감(아직 안 고른 회원에게). targetType post
+  INTEREST_PRODUCTS   // 관심 분야 하루 새 분양 N건 묶음(저녁 한 통). targetType productList → 분양 탭
+  QUESTION_HELP       // 답 없는 질문을 같은 분야 글을 써 본 회원에게. targetType post
 }
 
 enum SeasonKind {
@@ -800,8 +821,12 @@ model Auction {
   round           Int       @default(1)
   /// 경매 목록 정렬 시각. 등록·다시 시작 때 now. 이 열을 만들기 전 경매는 모두 마이그레이션 시각이라 목록은 id 로 한 번 더 정렬한다.
   listedAt        DateTime  @default(now())
+  /// 상세 조회 수(분양자 본인 제외, POST /api/auctions/:id/view). 목록 '지금 많이 보는 중' 딱지 기준(libs/shared/auctionBadge.ts).
+  viewCount       Int       @default(0)
   restarts        AuctionRestart[]
 
+  /// 나라(ISO 3166-1 alpha-2). 해외 진출 대비, 지금은 모두 KR.
+  country         String    @default("KR")
   createdAt       DateTime  @default(now())
   updatedAt       DateTime  @updatedAt
 
@@ -1394,7 +1419,12 @@ model Debate {
   postId           Int          @id
   optionA          String       @db.VarChar(12)
   optionB          String       @db.VarChar(12)
-  endsAt           DateTime
+  /// null = 상시 토론(운영자만 연다, 마감 없음). 회원 토론은 API 가 늘 채운다. 앱 docs/prd/evergreen-debate.md
+  endsAt           DateTime?
+  /// 상시 토론 분야 키(libs/shared/debateFormat EVERGREEN_FIELDS). 회원 토론은 null.
+  evergreenField   String?      @db.VarChar(20)
+  /// 같은 분야 안 순서(작을수록 위).
+  evergreenOrder   Int?
   /// 작성자 말고 처음 투표한 시각. 이 뒤엔 질문·선택지를 못 고친다.
   firstOtherVoteAt DateTime?
   /// 앱 안 결과 알림을 만든 시각(한 번만).
@@ -1403,6 +1433,7 @@ model Debate {
   votes            DebateVote[]
 
   @@index([endsAt])
+  @@index([evergreenField, evergreenOrder])
 }
 
 /// 토론 투표. 한 사람 한 표, 끝나기 전엔 쪽을 바꿀 수 있다(switchedAt = 마지막으로 바꾼 시각).

@@ -11,9 +11,9 @@ import { HeaderIconButton } from "@components/app/HeaderIconButton";
 import logo from "@images/logo.png";
 import useSWR from "swr";
 import { cn, makeImageUrl } from "@libs/client/utils";
-import useScopeTerms from "@/hooks/useScopeTerms";
 import useUser from "hooks/useUser";
 import SanctionNoticeModal from "@components/features/moderation/SanctionNoticeModal";
+import { PetSpaceCard, PetSpaceSheet } from "@components/features/pet/PetSpaceSheet";
 import useLogout from "hooks/useLogout";
 import { identifyPosthogUser } from "@libs/client/posthog";
 import type { LoginReason } from "@libs/shared/loginReason";
@@ -117,7 +117,7 @@ function StrokeIcon({
  * 탭바 아이콘 한 세트(community-vibe §3.7: stroke 1.5, Lucide 계열). 선택 탭은 채움.
  * 시안 bredy_app design/mockups/community-vibe/A-karrot.html 의 path 그대로. 경매는 동전 대신 망치.
  */
-type TabIconName = "home" | "posts" | "sale" | "auctions" | "chat" | "my";
+type TabIconName = "home" | "posts" | "sale" | "auctions" | "life" | "chat" | "my";
 
 export function TabBarIcon({ name, active }: { name: TabIconName; active: boolean }) {
   const common = {
@@ -163,6 +163,17 @@ export function TabBarIcon({ name, active }: { name: TabIconName; active: boolea
           <path d="M14 4 20 10" />
         </svg>
       );
+    case "life":
+      // 반려생활 탭 발바닥(앱 docs/prd/home-v2.md S-4, 앱 Icon "tab-life").
+      return (
+        <svg {...common} fill={fill}>
+          <ellipse cx="12" cy="16" rx="4.5" ry="3.5" />
+          <circle cx="6" cy="10.5" r="1.8" />
+          <circle cx="9.5" cy="6.5" r="1.8" />
+          <circle cx="14.5" cy="6.5" r="1.8" />
+          <circle cx="18" cy="10.5" r="1.8" />
+        </svg>
+      );
     case "chat":
       return (
         <svg {...common} fill={fill}>
@@ -198,18 +209,20 @@ const BOTTOM_NAV_ITEMS: {
   icon: TabIconName;
 }[] = [
   { label: "홈", href: "/", isActive: (pathname) => pathname === "/", icon: "home" },
-  // 2026-10-15 홈 구성 A안(docs/prd/home-ia.md): 반려생활 내용은 홈으로, 분양 목록이 자기 탭을 갖는다(앱 mainTabs.ts 와 같다).
+  // 2026-10-22 홈 v2(앱 docs/prd/home-v2.md S-4): 분양·경매는 한 탭(위 '분양 | 경매' 전환), 반려생활 탭을 다시 둔다(앱 mainTabs.ts 와 같다).
   {
     label: "분양",
     href: "/products",
-    isActive: (pathname) => pathname.startsWith("/products"),
+    // 분양 탭 안 '분양 | 경매 | 입양' 전환(입양 = 강아지·고양이 공간, docs/prd/pet-space.md §5.1).
+    isActive: (pathname) =>
+      pathname.startsWith("/products") || pathname.startsWith("/auctions") || pathname.startsWith("/adoption"),
     icon: "sale",
   },
   {
-    label: "경매",
-    href: "/auctions",
-    isActive: (pathname) => pathname.startsWith("/auctions"),
-    icon: "auctions",
+    label: "반려생활",
+    href: "/life",
+    isActive: (pathname) => pathname.startsWith("/life"),
+    icon: "life",
   },
   {
     label: "채팅",
@@ -375,6 +388,7 @@ function SideMenu({
   const { user } = useUser();
   const logout = useLogout();
   const [logoutConfirmOpen, setLogoutConfirmOpen] = useState(false);
+  const [spaceSheetOpen, setSpaceSheetOpen] = useState(false);
   const authed = Boolean(user);
 
   useEffect(() => {
@@ -473,6 +487,14 @@ function SideMenu({
             </div>
           )}
 
+          {/* 지금 공간(docs/prd/pet-space.md §5.2): 누르면 메뉴를 닫고 공간 시트를 연다. */}
+          <PetSpaceCard
+            onOpen={() => {
+              onClose();
+              setSpaceSheetOpen(true);
+            }}
+          />
+
           {sections.map((section) => (
             <div key={section.title}>
               <div className="h-2 bg-app-gap" />
@@ -540,7 +562,6 @@ function SideMenu({
         open={logoutConfirmOpen}
         title="로그아웃할까요?"
         confirmText="로그아웃"
-        cancelText="취소"
         tone="danger"
         onCancel={() => setLogoutConfirmOpen(false)}
         onConfirm={() => {
@@ -548,6 +569,8 @@ function SideMenu({
           void logout();
         }}
       />
+
+      {spaceSheetOpen ? <PetSpaceSheet onClose={() => setSpaceSheetOpen(false)} /> : null}
     </>
   );
 }
@@ -663,11 +686,8 @@ export default function MainLayout({
     useState<BeforeInstallPromptEvent | null>(null);
   const [installLoading, setInstallLoading] = useState(false);
   const { user, isAdmin, isCrew, isLoading: userLoading } = useUser();
-  // 포유류만 고정했으면 하단 경매 탭을 뺀다(앱 mainTabs useMainTabs, 앱 docs/prd/category-pin.md §15).
-  const { showAuctions } = useScopeTerms();
-  const bottomNavItems = showAuctions
-    ? BOTTOM_NAV_ITEMS
-    : BOTTOM_NAV_ITEMS.filter((item) => item.href !== "/auctions");
+  // 경매는 분양 탭 안 '분양 | 경매' 전환으로 들어간다(포유류만 고정이면 전환을 숨긴다, SaleTabSwitch).
+  const bottomNavItems = BOTTOM_NAV_ITEMS;
   const { data: unreadData } = useSWR<UnreadCountResponse>(
     user ? "/api/chat/unread-count" : null,
     { revalidateOnFocus: false, refreshInterval: UNREAD_REFRESH_MS }

@@ -25,6 +25,7 @@ import {
 import { getAuctionResultMessage } from "@libs/client/auctionErrorMessage";
 import { extractAuctionIdFromPath, toAuctionPath } from "@libs/auction-route";
 import { TOP_LEVEL_CATEGORIES, findCategoryBranch, getSubcategories } from "@libs/categoryTaxonomy";
+import { isNoPriceCategory } from "@libs/shared/petSpace";
 import { PEDIGREE_NOTE_INVALID_MESSAGE, type PedigreeNote } from "@libs/shared/pedigree-note";
 import {
   BID_INCREMENT_ERROR,
@@ -178,7 +179,10 @@ function AuctionEditFormBody({
 
   // 수정은 저장된 입찰 단위로 채우고, 시작가를 바꿔도 따라 바꾸지 않는다.
   const bidIncrement = useBidIncrementInput(resolveBidIncrement(auction));
-  const subcategories = selectedCategory ? getSubcategories(selectedCategory) : [];
+  // 강아지·고양이는 경매로 올릴 수 없다(서버 AUCTION_PET_CATEGORY_NOT_ALLOWED, docs/prd/pet-space.md §5.6).
+  const subcategories = selectedCategory
+    ? getSubcategories(selectedCategory).filter((name) => !isNoPriceCategory(name))
+    : [];
   const categoryForSubmit = selectedSubcategory || selectedCategory;
   const bloodlineRootId = selectedBloodlineRootId ? Number(selectedBloodlineRootId) : null;
   // 혈통이 없거나 칸이 비면 null, 규칙에 안 맞으면 "invalid"(저장을 막는다).

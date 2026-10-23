@@ -104,7 +104,7 @@ describe("MainLayout 셸", () => {
     expect(screen.getByRole("link", { name: "알림" })).toBeInTheDocument();
   });
 
-  it("하단 탭(분양·경매)에는 안 본 새 글 점을 달지 않는다", () => {
+  it("하단 탭(분양·반려생활)에는 안 본 새 글 점을 달지 않는다", () => {
     mockUseUser.mockReturnValue({ user: undefined, isLoading: false });
     render(
       <MainLayout title="홈" icon hasTabBar>
@@ -112,8 +112,21 @@ describe("MainLayout 셸", () => {
       </MainLayout>
     );
     expect(screen.queryByLabelText("안 본 새 글")).not.toBeInTheDocument();
-    expect(screen.getByRole("link", { name: "경매" })).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "반려생활" })).toBeInTheDocument();
     expect(screen.getByRole("link", { name: "분양" })).toBeInTheDocument();
+    // 경매는 분양 탭 안 '분양 | 경매' 전환으로 들어간다(앱 docs/prd/home-v2.md S-4).
+    expect(screen.queryByRole("link", { name: "경매" })).not.toBeInTheDocument();
+  });
+
+  it("경매 화면(/auctions)에서도 하단 '분양' 탭이 선택된다", () => {
+    mockPathname.mockReturnValue("/auctions");
+    mockUseUser.mockReturnValue({ user: undefined, isLoading: false });
+    render(
+      <MainLayout title="경매" icon hasTabBar>
+        <p>본문</p>
+      </MainLayout>
+    );
+    expect(screen.getByRole("link", { name: "분양" })).toHaveAttribute("aria-current", "page");
   });
 
   it("headerRight 는 뒤로가기 화면의 벨·메뉴 자리를 바꾼다", () => {
@@ -155,6 +168,24 @@ describe("MainLayout 셸", () => {
       expect(screen.getByText(section)).toBeInTheDocument();
     }
     expect(screen.getByText(/^버전 /)).toBeInTheDocument();
+  });
+
+  it("메뉴 맨 위에 '지금 공간'(고정이 없으면 전부 보기)과 바꾸기가 있고, 누르면 공간 시트가 열린다(pet-space §5.2)", () => {
+    mockUseUser.mockReturnValue({ user: undefined, isLoading: false });
+    render(
+      <MainLayout title="홈" icon showSearch hasTabBar>
+        <p>본문</p>
+      </MainLayout>
+    );
+    fireEvent.click(screen.getByRole("button", { name: "메뉴" }));
+    const card = screen.getByTestId("pet-space-card");
+    expect(card).toHaveTextContent("지금 공간");
+    expect(card).toHaveTextContent("전부 보기");
+    fireEvent.click(card);
+    expect(screen.getByRole("dialog", { name: "어떤 공간을 볼까요?" })).toBeInTheDocument();
+    expect(screen.getByRole("radio", { name: /강아지·고양이/ })).toHaveAttribute("aria-checked", "false");
+    expect(screen.getByRole("radio", { name: /전부 보기/ })).toHaveAttribute("aria-checked", "true");
+    expect(screen.getByRole("button", { name: /직접 고르기/ })).toBeInTheDocument();
   });
 
   // "/index": ISR 로 미리 만든 홈의 서버 렌더 경로(RSC c:["","index"]). '/' 와 똑같이 그려야 첫 방문 #418 이 안 난다(감사 #5).
@@ -205,7 +236,7 @@ describe("MainLayout 셸", () => {
     expect(screen.queryByRole("heading", { name: "상세" })).toBeNull();
   });
 
-  it("탭바는 한 세트 아이콘이고 선택 탭만 채움, 경매는 망치 아이콘", () => {
+  it("탭바는 한 세트 아이콘이고 선택 탭만 채움, 반려생활은 발바닥 아이콘", () => {
     mockUseUser.mockReturnValue({ user: undefined, isLoading: false });
     const { container } = render(
       <MainLayout title="반려생활" icon hasTabBar>
@@ -213,11 +244,11 @@ describe("MainLayout 셸", () => {
       </MainLayout>
     );
     const icons = Array.from(container.querySelectorAll("nav svg[data-icon]"));
-    // 2026-10-15 홈 구성 A안(docs/prd/home-ia.md): 반려생활 탭 → 분양 탭(가격표).
+    // 2026-10-22 홈 v2(앱 docs/prd/home-v2.md S-4): 홈 · 분양(분양|경매) · 반려생활 · 채팅 · 마이페이지.
     expect(icons.map((el) => el.getAttribute("data-icon"))).toEqual([
       "home",
       "sale",
-      "auctions",
+      "life",
       "chat",
       "my",
     ]);

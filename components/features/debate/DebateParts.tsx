@@ -134,6 +134,8 @@ export function DebateResult({
 const VOTE_SIZE = {
   home: "h-12 rounded-xl text-[15px]",
   card: "h-10 rounded-lg text-[14px]",
+  /** 홈 쓰레드 피드(앱 docs/prd/home-v2.md v2): 테두리 없는 surface 채움 36. */
+  feed: "h-9 rounded-lg text-[14px]",
   detail: "h-14 rounded-xl text-[16px]",
   mini: "h-8 rounded-lg px-3 text-[13px]",
 } as const;
@@ -167,11 +169,23 @@ export function DebateVoteButtons({
           className={cn(
             "flex min-w-0 items-center justify-center gap-2 border font-semibold text-app-text transition-colors active:bg-app-surface",
             size === "mini" ? "shrink-0" : "flex-1",
-            pendingSide === side ? "border-app-text bg-app-surface" : "border-app-border bg-app-bg",
+            size === "feed"
+              ? pendingSide === side
+                ? "border-app-text bg-app-surface"
+                : "border-transparent bg-app-surface"
+              : pendingSide === side
+                ? "border-app-text bg-app-surface"
+                : "border-app-border bg-app-bg",
             VOTE_SIZE[size]
           )}
         >
-          <i className={cn("block h-2 w-2 shrink-0 rounded-full", side === "A" ? "bg-app-brand" : "bg-app-text")} />
+          <i
+            className={cn(
+              "block shrink-0 rounded-full",
+              size === "feed" ? "h-1.5 w-1.5" : "h-2 w-2",
+              side === "A" ? "bg-app-brand" : "bg-app-text"
+            )}
+          />
           <span className="truncate">{sideLabel(summary, side)}</span>
         </button>
       ))}
@@ -186,14 +200,14 @@ const toLoginHref = (next: string) => `/auth/login?next=${encodeURIComponent(nex
 const PENDING_VOTE_KEY = "bredy:pending-vote";
 const PENDING_VOTE_TTL_MS = 10 * 60_000;
 
-/** 고르기 직후 화면(서버 응답 전): 내 선택만 바꾸고 참여 수를 올린다. 결과는 서버가 준다. */
+/** 고르기 직후 화면(서버 응답 전): 내 선택만 바꾸고 참여 수를 올린다. 결과는 서버가 준다(상시 토론은 지금 결과를 그대로 둔다). */
 function optimisticVote(summary: DebateSummary, side: DebateSide): DebateSummary {
   return {
     ...summary,
     mySide: side,
     participants: summary.mySide ? summary.participants : summary.participants + 1,
     switchCount: summary.mySide && summary.mySide !== side ? summary.switchCount + 1 : summary.switchCount,
-    result: summary.mySide ? summary.result : null,
+    result: summary.mySide || summary.evergreen ? summary.result : null,
   };
 }
 

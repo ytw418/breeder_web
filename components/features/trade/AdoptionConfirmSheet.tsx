@@ -7,7 +7,7 @@ import { authFetch } from "@libs/client/authFetch";
 import { ANALYTICS_EVENTS, trackEvent } from "@libs/client/analytics";
 import { toast } from "@libs/client/toast";
 import { cn, makeImageUrl } from "@libs/client/utils";
-import { formatProductPrice } from "@libs/shared/price";
+import { productPriceText } from "@libs/shared/price";
 import {
   keywordsForProduct,
   TRADE_REVIEW_MAX_KEYWORDS,
@@ -23,6 +23,9 @@ export interface AdoptionConfirmProduct {
   sellerName: string;
   /** 용품이면 개체 키워드를 빼고 공통 5개만 보인다(keywordsForProduct). */
   productType: string | null;
+  /** 강아지·고양이 글은 가격 대신 글 종류를 보인다(productPriceText). */
+  category?: string | null;
+  dealType?: string | null;
 }
 
 export type AdoptionConfirmResult = { trade?: ProductTradeInfo; reviewFailed?: boolean };
@@ -174,7 +177,7 @@ export function TradeProductSummary({ product }: { product: AdoptionConfirmProdu
       <span className="min-w-0 flex-1">
         <span className="block truncate text-[14px] font-semibold text-app-text">{product.name}</span>
         <span className="mt-0.5 block truncate text-[12px] text-app-muted">
-          {`${product.sellerName} · ${formatProductPrice(product.price)}`}
+          {`${product.sellerName} · ${productPriceText(product)}`}
         </span>
       </span>
     </div>

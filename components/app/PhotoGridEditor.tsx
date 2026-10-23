@@ -1,6 +1,7 @@
 "use client";
 
 import { useRef } from "react";
+import { cn } from "@libs/client/utils";
 import { toast } from "@libs/client/toast";
 
 export type PhotoItem = {
@@ -17,23 +18,27 @@ export type PhotoItem = {
  * - 맨 앞 "카메라 n/max" 칸을 누르면 파일 선택 → onAdd(files) (남은 장수만큼만 넘긴다)
  * - 첫 장에 "대표" 표시, 다른 사진을 누르면 맨 앞으로 옮겨 대표로 바꾼다(순서 변경)
  * - 오른쪽 위 x 로 삭제
+ * - filled: 강아지·고양이 단계 글쓰기(시안 pet-space/B-toss.html ④-2) — 칸 r12, 추가 칸은 테두리 없는 회색 면.
  */
 export function PhotoGridEditor({
   photos,
   onChange,
   max = 10,
   onAdd,
-  label = "첫 번째 사진이 대표로 보여요. 사진을 누르면 대표로 바꿀 수 있어요",
+  label = "첫 사진이 대표예요. 눌러서 바꿀 수 있어요",
   disabled = false,
+  filled = false,
 }: {
   photos: PhotoItem[];
   onChange: (photos: PhotoItem[]) => void;
   max?: number;
   onAdd: (files: File[]) => void;
-  /** 아래 안내 문구. 빈 문자열이면 숨긴다. */
+  /** 아래 안내 문구. 빈 문자열이면 숨긴다. 사진이 2장 이상일 때만 보인다(바꿀 사진이 있을 때만 필요하다). */
   label?: string;
   disabled?: boolean;
+  filled?: boolean;
 }) {
+  const radius = filled ? "rounded-xl" : "rounded-md";
   const inputRef = useRef<HTMLInputElement>(null);
   const remaining = Math.max(max - photos.length, 0);
 
@@ -58,7 +63,11 @@ export function PhotoGridEditor({
             aria-label="사진 추가"
             disabled={disabled}
             onClick={() => inputRef.current?.click()}
-            className="flex h-20 w-20 shrink-0 flex-col items-center justify-center gap-1 rounded-md border border-app-border bg-app-bg disabled:opacity-50"
+            className={cn(
+              "flex h-20 w-20 shrink-0 flex-col items-center justify-center gap-1 disabled:opacity-50",
+              radius,
+              filled ? "bg-app-gap" : "border border-app-border bg-app-bg"
+            )}
           >
             <svg className="h-6 w-6 text-app-muted" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
               <path
@@ -88,14 +97,14 @@ export function PhotoGridEditor({
         />
 
         {photos.map((photo, index) => (
-          <div key={photo.key} className="relative h-20 w-20 shrink-0 rounded-md bg-app-placeholder">
+          <div key={photo.key} className={cn("relative h-20 w-20 shrink-0 bg-app-placeholder", radius)}>
             <button
               type="button"
               disabled={disabled || index === 0}
               onClick={() => makeRepresentative(index)}
               aria-label={index === 0 ? "대표 사진" : `첨부 사진 ${index + 1}`}
               title={index === 0 ? undefined : "누르면 대표 사진으로 설정해요"}
-              className="block h-20 w-20 overflow-hidden rounded-md disabled:cursor-default"
+              className={cn("block h-20 w-20 overflow-hidden disabled:cursor-default", radius)}
             >
               {/* 로컬 blob 미리보기도 그려야 해서 next/image 대신 img 를 쓴다. */}
               {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -120,7 +129,7 @@ export function PhotoGridEditor({
           </div>
         ))}
       </div>
-      {label ? <p className="mt-2 text-[13px] text-app-muted">{label}</p> : null}
+      {label && photos.length > 1 ? <p className="mt-2 text-[13px] text-app-muted">{label}</p> : null}
     </div>
   );
 }

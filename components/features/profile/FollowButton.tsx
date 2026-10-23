@@ -4,8 +4,12 @@
  * 팔로우 전은 brand 채움 + 흰 글자, 팔로잉은 surface 배경 + text 글자(시안).
  * - lg: 프로필 블록(높이 36 · r8, 남은 폭을 나눠 가진다)
  * - sm: 팔로워·팔로잉 행(74×32)
- * - card: 홈 '우리 동네 브리더' 카드(높이 32 · r8, 카드 폭을 채운다)
- * sm 은 게시글·분양글·경매 상세 작성자 줄과 랭킹 행에도 쓴다(2026-10-21).
+ * - card: 카드(높이 32 · r8, 카드 폭을 채운다)
+ * - nearby: 홈 '우리 동네 브리더' 카드(높이 30 · r8, 옆 '인사' 버튼과 폭을 나눈다). 색은 다른 크기와 같다 — 예전엔 팔로잉을
+ *   주황 채움으로 칠해 팔로우했는지 헷갈렸다(2026-10-22 사용자). 팔로우하면 카드가 레일에서 빠지므로 토스트로 알린다.
+ * - detail: 분양글 상세 분양자 줄(높이 36 · r8 회색 채움). 아래 바 주 버튼과 무게가 겹치지 않게 팔로우 전도 주황을 쓰지 않고,
+ *   팔로잉은 글자만 muted 다(2026-10-23 토스 디자인 리뷰, 앱 docs/prd/pet-space.md §5.10).
+ * sm 은 게시글·경매 상세 작성자 줄과 랭킹 행에도 쓴다(2026-10-21).
  * '팔로잉'을 누르면 '팔로우 취소' 하나만 있는 시트를 거친다(PRD F-11). 팔로우는 바로 된다.
  * 누르는 즉시 캐시(프로필 숫자·목록 행)를 바꾸고, 실패하면 그 사람 몫만 되돌린다. 바꿀 상태를 보내고, 응답이 최종 상태다.
  */
@@ -149,9 +153,10 @@ export default function FollowButton({
   isFollowing: boolean;
   /** 비로그인으로 누르면 로그인 뒤 돌아올 경로. */
   returnPath: string;
-  /** nearby: 홈 동네 카드(30 r8, 팔로우는 흰 바탕+테두리, 팔로잉은 주황 채움 — community-vibe 시안 .nbc .f). */
-  size: "lg" | "sm" | "card" | "nearby";
+  /** nearby: 홈 동네 카드(30 r8, 색은 다른 크기와 같다). detail: 분양글 상세(36 r8 회색 채움). */
+  size: "lg" | "sm" | "card" | "nearby" | "detail";
 }) {
+  const { user: me } = useUser();
   const { toggle, pending } = useFollowMutation(userId, returnPath);
   const [confirming, setConfirming] = useState(false);
 
@@ -168,18 +173,20 @@ export default function FollowButton({
           event.preventDefault();
           event.stopPropagation();
           if (isFollowing) setConfirming(true);
-          else void toggle(false);
+          else {
+            void toggle(false);
+            if (size === "nearby" && me) toast.success("팔로우했어요");
+          }
         }}
         className={cn(
           "inline-flex shrink-0 items-center justify-center font-semibold transition-opacity",
           size === "lg" && "h-9 flex-1 rounded-lg text-[14px]",
           size === "sm" && "h-8 w-[74px] rounded-md text-[13px]",
           size === "card" && "h-8 w-full rounded-lg text-[13px]",
-          size === "nearby" && "h-[30px] w-full rounded-lg border text-[13px]",
-          size === "nearby"
-            ? isFollowing
-              ? "border-app-brand bg-app-brand text-white"
-              : "border-app-border bg-app-bg text-app-text"
+          size === "nearby" && "h-[30px] w-full rounded-lg text-[13px]",
+          size === "detail" && "h-9 min-w-[74px] rounded-lg px-3.5 text-[13px]",
+          size === "detail"
+            ? cn("bg-app-surface", isFollowing ? "text-app-muted" : "text-app-text")
             : isFollowing
               ? "bg-app-surface text-app-text"
               : "bg-app-brand text-white",

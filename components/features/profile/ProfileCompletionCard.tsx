@@ -1,7 +1,7 @@
 "use client";
 /**
  * 본인 프로필 완성 카드(앱 ProfileCompletionCard, 앱 docs/prd/profile.md v5 F-19). 본인에게만 보인다.
- * community-vibe §3.8: brand-soft r16, 제목 16/700 + "2 / 7" 주황, 진행 바 6(#FDE1CC 트랙 + 주황),
+ * community-vibe §3.8: brand-soft r16, 제목 16/700 + "2 / 6" 주황, 진행 바 6(#FDE1CC 트랙 + 주황),
  * 다음 할 일 행(흰 36 사각 아이콘 + 할 일 15/600 + 보상 문구 12 brand-text-soft + ›).
  * 보상 문구·목적지는 profileCompletion 의 reward·href 를 쓰고, 없으면(옛 사본) 할 일 이름만 보인다.
  * 다 채웠거나 판정에 쓸 값을 아직 못 받았으면 그리지 않는다.
@@ -39,7 +39,6 @@ export default function ProfileCompletionCard({
     hasAvatar: Boolean(user.avatar),
     hasBio: Boolean(user.bio?.trim()),
     hasBanner: Boolean(user.profileBanner),
-    hasLink: Boolean(user.profileLink),
     hasPinnedPhoto: photoPosts.some((post) => Boolean(post.profilePinnedAt)),
     hasAlbum: userAlbumCount > 0,
     hasListing: (user._count?.products ?? 0) + (user._count?.auctions ?? 0) > 0,

@@ -183,3 +183,38 @@ describe("GET /api/posts?hot=realtime", () => {
     expect(res.body).toEqual({ success: true, posts: [], pages: 0 });
   });
 });
+
+describe("GET /api/posts?hot=weekly (홈 인기글 TOP 10)", () => {
+  it("7일 활동 점수순으로 최대 10개, 공지만 빼고 모든 카테고리를 본다", async () => {
+    comments = Array.from({ length: 12 }, (_, i) => ({ postId: i + 1, createdAt: ago(24 * 3 + i) }));
+    const res = await getHot({ hot: "weekly" });
+    expect(res.body.posts).toHaveLength(10);
+    expect(res.body.posts[0].id).toBe(1);
+    // 7일 한 번만 보고(24시간부터 넓히지 않는다), 카테고리는 공지만 뺀다
+    expect(mockClient.comment.findMany).toHaveBeenCalledTimes(1);
+    const where = mockClient.comment.findMany.mock.calls[0][0].where;
+    expect(since(where)).toBe(ago(24 * 7).getTime());
+    expect(where.post.category).toEqual({ not: "공지" });
+    expect(res.headers["cache-control"]).toContain("s-maxage=120");
+  });
+
+  it("반감기 3일: 3일 전 댓글 2개가 방금 좋아요 1개보다 앞선다", async () => {
+    comments = [
+      { postId: 1, createdAt: ago(72) },
+      { postId: 1, createdAt: ago(72) },
+    ];
+    likes = [{ postId: 2, createdAt: ago(0.1) }];
+    const res = await getHot({ hot: "weekly" });
+    expect(res.body.posts.map((p: any) => p.id).slice(0, 2)).toEqual([1, 2]);
+  });
+
+  it("모자라면 7일 안 새 글로 채운다", async () => {
+    comments = [{ postId: 1, createdAt: ago(1) }];
+    freshPosts = [
+      { id: 5, createdAt: ago(2) },
+      { id: 6, createdAt: ago(30) },
+    ];
+    const res = await getHot({ hot: "weekly" });
+    expect(res.body.posts.map((p: any) => p.id)).toEqual([1, 5, 6]);
+  });
+});
