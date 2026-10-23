@@ -6,10 +6,11 @@
  */
 import Image from "next/image";
 import Link from "next/link";
-import { useEffect, useRef, useState } from "react";
+import { createContext, useContext, useEffect, useRef, useState } from "react";
 import { HorizontalRail } from "@components/ui/HorizontalRail";
+import { currentCampaign } from "@libs/client/campaign";
 import { shareOrCopy } from "@libs/client/share";
-import { APP_STORE_URL, DOWNLOAD_PAGE_PATH, PLAY_STORE_URL } from "@libs/shared/appLinks";
+import { APP_STORE_URL, DOWNLOAD_PAGE_PATH, PLAY_STORE_URL, playStoreUrlWithReferrer } from "@libs/shared/appLinks";
 import { GUIDE_INDEX_HREF } from "@libs/shared/guides";
 
 /** 스토어 스크린샷과 같은 디자인 세트(bredy_app store-assets/screenshots/ios, 2026-10-20). 문구가 이미지 안에 있어 alt 로 같은 문구를 둔다. */
@@ -70,10 +71,15 @@ const SHARE_ICON =
 
 type Platform = "ios" | "android" | "other";
 
-const STORES = {
-  ios: { href: APP_STORE_URL, logo: APPLE_LOGO, name: "App Store", label: "App Store에서 브리디 다운로드" },
-  android: { href: PLAY_STORE_URL, logo: PLAY_LOGO, name: "Google Play", label: "Google Play에서 브리디 다운로드" },
-} as const;
+function makeStores(playHref: string) {
+  return {
+    ios: { href: APP_STORE_URL, logo: APPLE_LOGO, name: "App Store", label: "App Store에서 브리디 다운로드" },
+    android: { href: playHref, logo: PLAY_LOGO, name: "Google Play", label: "Google Play에서 브리디 다운로드" },
+  } as const;
+}
+
+/** 플레이스토어 주소에는 들어온 캠페인(utm)을 설치 리퍼러로 붙인다. 서버 HTML 은 리퍼러 없는 주소, 브라우저에서 바꾼다. */
+const StoresContext = createContext(makeStores(PLAY_STORE_URL));
 
 function Icon({ d, size = 22 }: { d: string; size?: number }) {
   return (
@@ -92,7 +98,8 @@ function Logo({ d, size }: { d: string; size: number }) {
 }
 
 /** 이 기기 스토어로 바로 가는 큰 주황 버튼. */
-function PrimaryStoreButton({ store, className = "" }: { store: keyof typeof STORES; className?: string }) {
+function PrimaryStoreButton({ store, className = "" }: { store: "ios" | "android"; className?: string }) {
+  const STORES = useContext(StoresContext);
   const s = STORES[store];
   return (
     <a
@@ -109,7 +116,8 @@ function PrimaryStoreButton({ store, className = "" }: { store: keyof typeof STO
 }
 
 /** 스토어 두 개를 나란히 — 검정(다크는 흰) 채움, 로고 + 두 줄 글자. */
-function StoreButtons({ order }: { order: (keyof typeof STORES)[] }) {
+function StoreButtons({ order }: { order: ("ios" | "android")[] }) {
+  const STORES = useContext(StoresContext);
   return (
     <div className="grid grid-cols-2 gap-2.5">
       {order.map((key) => {
@@ -137,6 +145,7 @@ function StoreButtons({ order }: { order: (keyof typeof STORES)[] }) {
 
 /** 기기를 알면 큰 버튼 하나 + 다른 스토어 글자 링크, 모르면(PC) 두 버튼을 같은 무게로. */
 function InstallCta({ platform }: { platform: Platform }) {
+  const STORES = useContext(StoresContext);
   if (platform === "other") return <StoreButtons order={["ios", "android"]} />;
   const other = STORES[platform === "ios" ? "android" : "ios"];
   return (
@@ -150,12 +159,15 @@ function InstallCta({ platform }: { platform: Platform }) {
 }
 
 export default function DownloadLanding() {
+  const [playHref, setPlayHref] = useState(PLAY_STORE_URL);
+  const STORES = makeStores(playHref);
   const [platform, setPlatform] = useState<Platform>("other");
   const [showBar, setShowBar] = useState(false);
   const heroCtaRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     const ua = navigator.userAgent;
+    setPlayHref(playStoreUrlWithReferrer(currentCampaign(window.location.search)));
     setPlatform(/android/i.test(ua) ? "android" : /iphone|ipad|ipod/i.test(ua) ? "ios" : "other");
   }, []);
 
@@ -176,6 +188,7 @@ export default function DownloadLanding() {
     });
 
   return (
+    <StoresContext.Provider value={STORES}>
     <div className="break-keep bg-app-bg pb-10 text-app-text">
       {/* 첫 화면: 주황 빛 바탕 + 문구 + 설치 버튼 + 화면 콜라주 */}
       <div className="overflow-hidden bg-gradient-to-b from-app-brand-surface via-app-brand-surface to-app-bg">
@@ -355,5 +368,6 @@ export default function DownloadLanding() {
         </div>
       )}
     </div>
+    </StoresContext.Provider>
   );
 }
