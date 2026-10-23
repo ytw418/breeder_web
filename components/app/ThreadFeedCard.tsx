@@ -331,7 +331,8 @@ export function ThreadPostCard({ post, className }: { post: ThreadPostData; clas
       {awaitingAnswer ? (
         <Link
           href={href}
-          className="relative z-[2] mt-3 flex h-9 items-center gap-1.5 rounded-lg bg-app-surface px-3 text-[15px] text-app-muted active:opacity-80"
+          // 바탕 없이 글자만(2026-10-23 사용자 "백그라운드 컬러가 있어서 좀 구린 거 같아", 앱과 같다). 높이 36 은 누르는 자리.
+          className="relative z-[2] mt-2 flex h-9 items-center gap-1.5 text-[15px] text-app-muted active:opacity-80"
         >
           아직 답이 없어요
           <span className="ml-auto text-[13px] font-semibold text-app-brand-text">첫 답 남기기</span>
