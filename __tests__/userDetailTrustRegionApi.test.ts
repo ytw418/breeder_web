@@ -102,13 +102,13 @@ beforeEach(() => {
 });
 
 describe("GET /api/users/:id 거래 완료 수·받은 거래 후기 수", () => {
-  it("판매자가 완료한 거래 중 지우거나 숨기지 않은 상품만 세고, 후기는 숨긴 후기·숨긴 분양글의 후기를 뺀다", async () => {
+  it("판매자가 완료한 거래 중 지우거나 숨기지 않은 상품만 세고(임보 글은 거래가 아니라 뺀다), 후기는 숨긴 후기·숨긴 분양글의 후기를 뺀다", async () => {
     const res = await getUser(OWNER);
     expect(mockClient.sale.count).toHaveBeenCalledWith({
       where: {
         userId: OWNER,
         status: "completed",
-        product: { isDeleted: false, isHidden: false, status: "판매완료" },
+        product: { isDeleted: false, isHidden: false, status: "판매완료", dealType: { not: "foster" } },
       },
     });
     expect(res.body.user._count.completedSales).toBe(12);
