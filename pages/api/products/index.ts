@@ -19,6 +19,7 @@ import { captureServerEvent, resolveClientPlatform } from "@libs/server/analytic
 import { buildCelebrate } from "@libs/server/celebrate";
 import { getProductRail, PRODUCT_RAIL_LIMIT_DEFAULT, PRODUCT_RAIL_LIMIT_MAX } from "@libs/server/productRail";
 import { assertWriteAllowed } from "@libs/server/writeLimits";
+import { notifyNearbyFreeProduct } from "@libs/server/reengagement";
 
 const handler = async (
   req: NextApiRequest,
@@ -141,6 +142,9 @@ const handler = async (
         targetType: "product",
       });
     }
+
+    // 무료 분양이면 같은 동네 회원에게 알린다(재방문 알림 ①, libs/server/reengagement). 실패해도 등록은 그대로.
+    await notifyNearbyFreeProduct(product.id);
 
     // 계측은 응답 직전에 기다린다(서버리스는 응답 뒤 작업을 보장하지 않는다. 1.5초 상한, 실패해도 무시).
     await captureServerEvent(user.id, "product_created", {
