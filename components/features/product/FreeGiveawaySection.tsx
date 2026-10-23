@@ -82,7 +82,13 @@ export default function FreeGiveawaySection({
             ? [0, 1, 2].map((i) => (
                 <div key={i} className="w-[120px] shrink-0" aria-hidden="true">
                   <div className="h-[120px] w-[120px] animate-pulse rounded-xl bg-app-placeholder" />
-                  <div className="mt-1.5 h-4 w-3/4 animate-pulse rounded bg-app-placeholder" />
+                  {/* 제목 줄(20)·닉네임 줄(18)과 같은 높이로 잡아 목록이 들어올 때 아래가 밀리지 않게 한다 */}
+                  <div className="mt-1.5 flex h-5 items-center">
+                    <div className="h-4 w-3/4 animate-pulse rounded bg-app-placeholder" />
+                  </div>
+                  <div className="flex h-[18px] items-center">
+                    <div className="h-3 w-1/2 animate-pulse rounded bg-app-placeholder" />
+                  </div>
                 </div>
               ))
             : items.map((item) => (

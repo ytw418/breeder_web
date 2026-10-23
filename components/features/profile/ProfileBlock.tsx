@@ -141,6 +141,7 @@ export function ProfileBlock({
   onRetry,
   isMine,
   actions,
+  coverPlaceholder = false,
 }: {
   userId: number | string;
   user?: ProfileBlockUser;
@@ -153,6 +154,8 @@ export function ProfileBlock({
   onRetry?: () => void;
   isMine: boolean;
   actions?: ReactNode;
+  /** 받기 전인데 커버가 있다고 알 때(서버 렌더 값) 커버 자리를 미리 잡아 받은 뒤 아래가 밀리지 않게 한다. */
+  coverPlaceholder?: boolean;
 }) {
   const { showAuctions } = useScopeTerms();
   const [avatarOpen, setAvatarOpen] = useState(false);
@@ -162,6 +165,7 @@ export function ProfileBlock({
   const species = user?.topSpecies?.filter(Boolean) ?? [];
   const bio = user?.bio?.trim() ?? "";
   const banner = user?.profileBanner ?? null;
+  const hasCover = Boolean(banner) || (loading && coverPlaceholder);
   const link = user?.profileLink ?? null;
   const badges = user?.badges ?? [];
   const showBioPrompt = isMine && !bio && !loading && Boolean(user);
@@ -211,13 +215,15 @@ export function ProfileBlock({
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img src={makeImageUrl(banner, "public")} alt={`${name} 커버 사진`} className="h-full w-full object-cover" />
         </button>
+      ) : hasCover ? (
+        <div aria-hidden="true" className="aspect-[2/1] w-full animate-pulse bg-app-placeholder" />
       ) : null}
-      <div className={cn("px-4 pb-4", banner ? "relative" : "pt-3")}>
+      <div className={cn("px-4 pb-4", hasCover ? "relative" : "pt-3")}>
         <div
-          className={cn("flex", banner ? "items-end" : "items-center")}
-          style={banner ? { marginTop: -COVER_OVERLAP } : undefined}
+          className={cn("flex", hasCover ? "items-end" : "items-center")}
+          style={hasCover ? { marginTop: -COVER_OVERLAP } : undefined}
         >
-          <span className={cn("shrink-0 rounded-full", banner && "-m-[3px] bg-app-bg p-[3px]")}>
+          <span className={cn("shrink-0 rounded-full", hasCover && "-m-[3px] bg-app-bg p-[3px]")}>
             {avatar ? (
               <button
                 type="button"

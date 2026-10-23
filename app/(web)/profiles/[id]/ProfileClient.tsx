@@ -30,7 +30,6 @@ import ProfilePinSheet from "@components/features/profile/ProfilePinSheet";
 import UnderlineTabs, { scrollToProfileTabs } from "@components/features/profile/UnderlineTabs";
 import {
   LineIcon,
-  LoadingBlock,
   SectionGap,
   TransactionMenu,
 } from "@components/features/profile/ProfileRows";
@@ -62,9 +61,12 @@ const isDeletedUser = (name?: string | null) =>
 
 const ProfileClient = ({
   initialName,
+  initialHasBanner,
 }: {
   /** 서버가 아는 이름. 화면이 사용자 정보를 받기 전에도 헤더 제목(h1)이 비지 않게 한다(검색 최적화). */
   initialName?: string;
+  /** 서버가 아는 커버 유무. 불러오는 동안 커버 자리까지 같은 높이로 잡는다. */
+  initialHasBanner?: boolean;
 } = {}) => {
   const router = useRouter();
   const params = useParams();
@@ -214,7 +216,16 @@ const ProfileClient = ({
 
   let body: ReactNode;
   if (isLoading) {
-    body = <LoadingBlock height={320} />;
+    // 프로필 블록 모양 그대로(커버 자리 포함) 그려 받은 뒤 화면이 밀리지 않게 한다.
+    body = id ? (
+      <ProfileBlock
+        userId={id}
+        loading
+        fallbackName={initialName}
+        isMine={false}
+        coverPlaceholder={Boolean(initialHasBanner)}
+      />
+    ) : null;
   } else if (error && !data) {
     body = (
       <div className="flex flex-col items-center justify-center px-5 py-24 text-center">
@@ -246,6 +257,7 @@ const ProfileClient = ({
             albums={albumsQuery.data?.albums}
             userAlbums={userAlbumsQuery.data?.albums}
             isOwner={isMyProfile}
+            loading={!albumsQuery.error && Boolean(user?._count?.posts)}
           />
         ) : null}
         {!isBlocked && !isDeleted ? (
