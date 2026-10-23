@@ -923,7 +923,7 @@ const ProductClient = ({
                       type="button"
                       disabled={chatPending}
                       onClick={() => {
-                        // 임보 구해요 글의 '임보 할게요'(앱 docs/prd/pet-space.md §10, 레일 버튼은 source: rail).
+                        // 임보 구해요 글의 '임보 문의하기'(앱 docs/prd/pet-space.md §10, 레일 버튼은 source: rail).
                         if (isFosterPost) {
                           trackEvent(ANALYTICS_EVENTS.fosterRaiseHand, { product_id: product.id, source: "detail" });
                         }
@@ -931,7 +931,7 @@ const ProductClient = ({
                       }}
                       className="h-[52px] shrink-0 rounded-md bg-app-brand px-6 text-[16px] font-semibold text-white disabled:opacity-60"
                     >
-                      {chatPending ? "여는 중..." : isFosterPost ? "임보 할게요" : "채팅하기"}
+                      {chatPending ? "여는 중..." : isFosterPost ? "임보 문의하기" : "채팅하기"}
                     </button>
                   ) : null}
                 </>

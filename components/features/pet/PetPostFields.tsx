@@ -109,8 +109,54 @@ function PetRegionRow({
 }
 
 /**
+ * '어떤 글인가요?' 3칸(분양해요·가족 찾아요·임보 구해요) + 안내 한 줄. 강아지·고양이 글로 연 글쓰기는 폼이 이 칸을
+ * 맨 위(사진 위)에 따로 두고, 그 밖엔 PetPostFields 첫 칸으로 둔다(시안 ⑤, 2026-10-23 코덱스 디자인 리뷰 결정 A).
+ */
+export function PetKindField({
+  kind,
+  onKindChange,
+  disabled,
+}: {
+  kind: PetPostKind;
+  onKindChange: (kind: PetPostKind) => void;
+  disabled?: boolean;
+}) {
+  const hint = PET_POST_KINDS.find((item) => item.id === kind)?.hint ?? "";
+  return (
+    <div data-testid="pet-kind-field">
+      <Label>어떤 글인가요?</Label>
+      <div className="flex gap-1 rounded-lg bg-app-surface p-1" role="radiogroup" aria-label="어떤 글인가요?">
+        {PET_POST_KINDS.map((item) => {
+          const active = item.id === kind;
+          return (
+            <button
+              key={item.id}
+              type="button"
+              role="radio"
+              aria-checked={active}
+              disabled={disabled}
+              onClick={() => onKindChange(item.id)}
+              className={cn(
+                "h-9 flex-1 rounded-md text-[14px] transition-colors",
+                TOUCH_44,
+                active
+                  ? "bg-app-elevated font-semibold text-app-text shadow-card"
+                  : "font-medium text-app-muted"
+              )}
+            >
+              {item.label}
+            </button>
+          );
+        })}
+      </div>
+      <p className="mt-1.5 text-[13px] leading-[18px] text-app-muted">{hint}</p>
+    </div>
+  );
+}
+
+/**
  * 강아지·고양이 분양글 칸(앱 docs/prd/pet-space.md §5.5, 시안 pet-space/A-karrot.html ⑤).
- * '어떤 글인가요?' 3칸(분양해요·가족 찾아요·임보 구해요) + 안내 한 줄, 나이(짧은 글), 성별, 건강(여러 개),
+ * '어떤 글인가요?'(showKind 일 때, PetKindField), 나이(짧은 글), 성별, 건강(여러 개),
  * 가족 찾아요면 보내는 이유, 임보 구해요면 임보 기간(날짜까지 → 날짜 칸)·지원(여러 개). 모두 선택 칸이다.
  * 가족 찾아요·임보 구해요는 맨 끝에 '내 동네 보이기'(region = 프로필 동네 "서울 마포구", 없으면 null).
  * 가격 칸은 없다(폼이 가격·거래 유형·혈통 칸을 숨긴다).
@@ -118,6 +164,7 @@ function PetRegionRow({
 export function PetPostFields({
   kind,
   onKindChange,
+  showKind = true,
   info,
   onInfoChange,
   region,
@@ -127,6 +174,8 @@ export function PetPostFields({
 }: {
   kind: PetPostKind;
   onKindChange: (kind: PetPostKind) => void;
+  /** false 면 '어떤 글인가요?'를 빼고 그린다(폼이 맨 위에 PetKindField 를 따로 둘 때). */
+  showKind?: boolean;
   info: PetInfo;
   onInfoChange: (info: PetInfo) => void;
   region: string | null;
@@ -135,40 +184,12 @@ export function PetPostFields({
   disabled?: boolean;
 }) {
   const update = (patch: Partial<PetInfo>) => onInfoChange({ ...info, ...patch });
-  const hint = PET_POST_KINDS.find((item) => item.id === kind)?.hint ?? "";
   const dateLabel =
     info.fosterPeriod === "date" && info.fosterUntil ? fosterPeriodLabel(info) : null;
 
   return (
     <div className="flex flex-col gap-5" data-testid="pet-post-fields">
-      <div>
-        <Label>어떤 글인가요?</Label>
-        <div className="flex gap-1 rounded-lg bg-app-surface p-1" role="radiogroup" aria-label="어떤 글인가요?">
-          {PET_POST_KINDS.map((item) => {
-            const active = item.id === kind;
-            return (
-              <button
-                key={item.id}
-                type="button"
-                role="radio"
-                aria-checked={active}
-                disabled={disabled}
-                onClick={() => onKindChange(item.id)}
-                className={cn(
-                  "h-9 flex-1 rounded-md text-[14px] transition-colors",
-                  TOUCH_44,
-                  active
-                    ? "bg-app-elevated font-semibold text-app-text shadow-card"
-                    : "font-medium text-app-muted"
-                )}
-              >
-                {item.label}
-              </button>
-            );
-          })}
-        </div>
-        <p className="mt-1.5 text-[13px] leading-[18px] text-app-muted">{hint}</p>
-      </div>
+      {showKind ? <PetKindField kind={kind} onKindChange={onKindChange} disabled={disabled} /> : null}
 
       <div>
         <Label>나이</Label>

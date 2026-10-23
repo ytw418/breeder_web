@@ -255,6 +255,18 @@ export function adoptionWriteSpecies(scopePaths: readonly string[], chip?: strin
   return null;
 }
 
+/**
+ * 강아지·고양이만 고정한 사람의 분양글 쓰기 기본값(2026-10-23 코덱스 디자인 리뷰 결정 A — 시안 ⑤처럼 '어떤 글인가요?'부터).
+ * 링크가 글 종류(?kind=)·종(?category=)을 정하지 않았을 때 쓴다. '분양해요'로 열고 한 종만 고정했으면 그 종을 미리 고른다
+ * (둘 다면 category null — 입양 쪽 글쓰기처럼 포유류를 펼쳐 둔다). 다른 사람은 null(글쓰기 그대로).
+ */
+export function petWriteDefaults(
+  pinPaths: readonly string[]
+): { kind: PetPostKind; category: "강아지" | "고양이" | null } | null {
+  if (!isDogCatOnly(pinPaths)) return null;
+  return { kind: "adoption", category: adoptionWriteSpecies(pinPaths) };
+}
+
 export type SaleTabMode = "products" | "auctions" | "adoption";
 
 /**
@@ -522,17 +534,22 @@ export function fosterPeriodLabel(info: PetInfo | null | undefined): string | nu
 
 export interface PetFact {
   label: string;
-  /** 건강 칩은 초록으로 보인다. */
+  /** 마친 건강 정보(접종 완료·중성화·구충)는 초록으로 보인다. */
   good: boolean;
 }
 
-/** 목록 행 정보 칩: 성별 · 나이 · 건강(초록). '몰라요' 성별은 뺀다. */
+/**
+ * 목록 행 정보 칩: 성별 · 나이 · 건강. '몰라요' 성별은 뺀다. 건강은 마친 것만 초록이고 '접종 중'은 회색이다
+ * (2026-10-23 코덱스 디자인 리뷰 결정 D — 모두 초록이면 '접종 중'도 끝난 것처럼 읽힌다).
+ */
 export function petFacts(info: PetInfo | null | undefined): PetFact[] {
   if (!info) return [];
   const facts: PetFact[] = [];
   if (info.sex && info.sex !== "unknown") facts.push({ label: labelOf(PET_SEX_OPTIONS, info.sex)!, good: false });
   if (info.age) facts.push({ label: info.age, good: false });
-  for (const id of info.health ?? []) facts.push({ label: labelOf(PET_HEALTH_OPTIONS, id)!, good: true });
+  for (const id of info.health ?? []) {
+    facts.push({ label: labelOf(PET_HEALTH_OPTIONS, id)!, good: id !== "vaccinating" });
+  }
   return facts;
 }
 

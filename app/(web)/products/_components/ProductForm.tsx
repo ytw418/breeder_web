@@ -24,7 +24,7 @@ import {
   type BloodlineAttachResult,
 } from "@components/features/bloodline/BloodlineAttachSheet";
 import { ChevronRightIcon } from "@components/features/bloodline/BloodlineScreenParts";
-import { PetPostFields } from "@components/features/pet/PetPostFields";
+import { PetKindField, PetPostFields } from "@components/features/pet/PetPostFields";
 import { useConfirmLeave } from "hooks/useConfirmLeave";
 import useUser from "hooks/useUser";
 import { useCelebrateSheet } from "@components/features/celebrate/CelebrateSheet";
@@ -224,7 +224,8 @@ function ChipRow({ children }: { children: ReactNode }) {
  * 사진(대표·순서·10장·10MB) → 상품명 0/60 → 카테고리(대분류·하위분류 칩) → 상품 타입 세그먼트
  * → 혈통 행(생물만, 붙이기 시트) → 가격(₩, 무료 분양 칩) → 설명 0/3,000. 하단 고정 CTA 52, 업로드 진행 오버레이, 이탈 확인.
  * 강아지·고양이를 고르면 종류·거래 유형·혈통·가격 칸 대신 '어떤 글인가요?'와 정보 칸(PetPostFields)을 둔다
- * (docs/prd/pet-space.md §5.5 — 가격은 받지도 보내지도 않는다).
+ * (docs/prd/pet-space.md §5.5 — 가격은 받지도 보내지도 않는다). 강아지·고양이 글로 연 글쓰기(입양 쪽·강아지·고양이만
+ * 고정·종 링크·강아지·고양이 글 수정)는 '어떤 글인가요?'를 사진 위 맨 위에 두고 카테고리를 한 줄로 접는다(시안 ⑤).
  */
 export function ProductForm({
   product,
@@ -278,7 +279,11 @@ export function ProductForm({
       bloodlineName: attached?.bloodlineName ?? null,
       pedigreeNote: attached ? normalizePedigreeNote(attached.pedigreeNote) : null,
       petKind: (isPetPostKind(product?.dealType) ? product?.dealType : kindFromLink ?? "adoption") as PetPostKind,
+      // 글 종류를 정하고 들어왔다(입양 쪽 글쓰기, 강아지·고양이만 고정한 사람의 글쓰기 — UploadClient).
       fromAdoption: Boolean(kindFromLink),
+      // 강아지·고양이 글로 열었다: '어떤 글인가요?'를 맨 위에 둔다(2026-10-23 코덱스 디자인 리뷰 결정 A, 시안 ⑤).
+      // 처음 연 때만 정한다 — 분양 글쓰기에서 카테고리를 강아지로 바꿨다고 사진 위에 칸이 생기면 보던 자리가 밀린다.
+      petFirst: Boolean(kindFromLink) || isNoPriceCategory(branch.child),
       petInfo: parsePetInfo(product?.petInfo) ?? ({} as PetInfo),
       // '내 동네 보이기': 새 글은 켬, 가족 찾아요·임보 구해요 글을 고칠 땐 남긴 동네가 있을 때만 켬(§5.9).
       showRegion:
@@ -301,6 +306,11 @@ export function ProductForm({
   const isPet = isNoPriceCategory(subcategory);
   // 입양 쪽 글쓰기로 왔는데 아직 종을 안 골랐다(강아지·고양이 둘 다 고정). 고르기 전엔 종류·거래 유형·가격 칸을 숨긴다.
   const awaitingPetSpecies = initial.fromAdoption && category === "포유류" && !subcategory;
+  const kindOnTop = initial.petFirst && (isPet || awaitingPetSpecies);
+  // 맨 위에 글 종류를 둔 강아지·고양이 글은 카테고리를 '카테고리 강아지 ›' 한 줄로 접고, 누르면 칩을 펼친다.
+  // 처음부터 종을 알 때만 접는다 — 여기서 종을 고르는 사람에겐 펼친 채로 둔다(누르던 칩이 사라지지 않게).
+  const [categoryOpen, setCategoryOpen] = useState(() => !isNoPriceCategory(initial.subcategory));
+  const categoryCollapsed = kindOnTop && isPet && !categoryOpen;
   // 임보·가족 찾기 글이면 헤더 '글쓰기'·버튼 '글 올리기', 완료·실패 문구는 '분양글' 대신 '글'(productWriteLabels).
   const writeLabels = productWriteLabels(isPet || awaitingPetSpecies ? petKind : null);
   const [price, setPrice] = useState<number | null>(initial.price);
@@ -632,6 +642,9 @@ export function ProductForm({
         className="flex flex-col gap-5 px-5 pb-[calc(52px+40px+env(safe-area-inset-bottom))] pt-5"
         noValidate
       >
+        {/* 강아지·고양이 글로 연 글쓰기: 글 종류 먼저(시안 ⑤) */}
+        {kindOnTop ? <PetKindField kind={petKind} onKindChange={setPetKind} disabled={busy} /> : null}
+
         {/* 사진 */}
         <PhotoGridEditor
           photos={photos}
@@ -663,7 +676,23 @@ export function ProductForm({
           <ErrorText>{errors.name}</ErrorText>
         </div>
 
-        {/* 카테고리 */}
+        {/* 카테고리 — 강아지·고양이 글로 열었으면 한 줄로 접는다(누르면 칩을 펼친다) */}
+        {categoryCollapsed ? (
+          <div data-field="category">
+            <button
+              type="button"
+              disabled={busy}
+              aria-expanded={false}
+              aria-label={`카테고리 ${selectedCategoryLabel}, 바꾸기`}
+              onClick={() => setCategoryOpen(true)}
+              className="-my-2 flex h-14 w-full min-w-0 items-center gap-1 text-left disabled:opacity-50"
+            >
+              <span className="shrink-0 text-[15px] font-semibold text-app-text">카테고리</span>
+              <span className="ml-auto min-w-0 truncate pl-3 text-[15px] text-app-text">{selectedCategoryLabel}</span>
+              <ChevronRightIcon className="h-[18px] w-[18px] shrink-0 text-app-caption" />
+            </button>
+          </div>
+        ) : (
         <div data-field="category">
           <div className="mb-0.5 flex h-8 items-center">
             <span className="text-[15px] font-semibold text-app-text">카테고리</span>
@@ -712,12 +741,14 @@ export function ProductForm({
           </fieldset>
           <ErrorText className="mt-0">{errors.category}</ErrorText>
         </div>
+        )}
 
         {isPet ? (
           // 강아지·고양이: 글 종류 + 정보 칸(시안 pet-space ⑤). 종류·거래 유형·혈통·가격 칸은 없다.
           <PetPostFields
             kind={petKind}
             onKindChange={setPetKind}
+            showKind={!kindOnTop}
             info={petInfo}
             onInfoChange={setPetInfo}
             region={myRegionText}
@@ -729,7 +760,7 @@ export function ProductForm({
           // 오류('강아지·고양이 중에 골라 주세요')가 떠 있으면 같은 말이라 안내는 숨긴다.
           errors.category ? null : (
             <p className="-mt-3 break-keep text-[13px] leading-[18px] text-app-muted">
-              강아지·고양이를 고르면 글 종류와 아이 정보를 적는 칸이 나와요.
+              강아지·고양이를 고르면 아이 정보를 적는 칸이 나와요.
             </p>
           )
         ) : (

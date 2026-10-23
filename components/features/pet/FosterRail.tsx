@@ -30,7 +30,8 @@ function HandIcon() {
 /**
  * 입양 쪽 맨 위 '임보해 주실 분 찾아요' 가로 레일(앱 docs/prd/pet-space.md §5.4, 시안 pet-space/A-karrot.html ③).
  * 분양중인 임보 구해요 글 최신 10개, 카드 148(사진 r8 + 왼쪽 위 기간 딱지 · 제목 14/600 · 동네(시·군·구, §5.9)·지원 12 muted ·
- * '임보 할게요' 32 버튼). 버튼은 그 글을 열고 바로 채팅을 잇는다(상세의 채팅하기와 같은 흐름 — 로그인·차단 처리를 같이 쓴다).
+ * '임보 문의하기' 32 버튼). 버튼은 그 글을 열고 바로 채팅을 잇는다(상세의 채팅하기와 같은 흐름 — 로그인·차단 처리를 같이 쓴다).
+ * 문구는 '임보 할게요'에서 바꿨다(2026-10-23 코덱스 디자인 리뷰 결정 B — 누르면 대화가 열리는데 신청·수락처럼 읽혔다).
  * 0개거나 조회 오류면 섹션을 그리지 않는다(아래 8 갭까지). '전체 ›'는 입양 쪽 '임보 구해요' 칩.
  */
 export default function FosterRail({
@@ -62,7 +63,7 @@ export default function FosterRail({
   const raiseHand = (product: { id: number; name: string }) => {
     const path = getProductPath(product.id, product.name);
     trackEvent(ANALYTICS_EVENTS.fosterRaiseHand, { product_id: product.id, source: "rail" });
-    // 로그인했으면 상세에 들어가자마자 채팅을 연다(상세 usePendingAction). 아니면 상세의 '임보 할게요'가 로그인을 묻는다.
+    // 로그인했으면 상세에 들어가자마자 채팅을 연다(상세 usePendingAction). 아니면 상세의 '임보 문의하기'가 로그인을 묻는다.
     if (user) setPendingAction({ kind: "chat", targetId: product.id, returnPath: path });
     router.push(path);
   };
@@ -133,13 +134,13 @@ export default function FosterRail({
                   {mine ? null : (
                     <button
                       type="button"
-                      aria-label={`${item.name}, 임보 할게요`}
+                      aria-label={`${item.name}, 임보 문의하기`}
                       onClick={() => raiseHand(item)}
                       // 보이는 32 + 위아래 6 = 터치 44(2026-10-23 코덱스 디자인 리뷰). 넓은 면이라 brand-surface(다크 회색, 앱과 같다).
                       className="relative mt-2 flex h-8 w-full items-center justify-center gap-1 rounded-lg bg-app-brand-surface text-[13px] font-semibold text-app-brand-text after:absolute after:inset-x-0 after:-inset-y-1.5"
                     >
                       <HandIcon />
-                      임보 할게요
+                      임보 문의하기
                     </button>
                   )}
                 </div>

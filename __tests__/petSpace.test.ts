@@ -24,6 +24,7 @@ import {
   petSpaceForPaths,
   petSpaceLabel,
   petThumbTag,
+  petWriteDefaults,
   productWriteLabels,
   saleSpeciesChips,
   saleSubcategoryNames,
@@ -265,6 +266,11 @@ describe("강아지·고양이 분양글(§5.5)", () => {
       { label: "중성화", good: true },
     ]);
     expect(petFacts({ sex: "unknown" })).toEqual([]);
+    // '접종 중'은 아직 끝나지 않아 회색(코덱스 디자인 리뷰 결정 D).
+    expect(petFacts({ health: ["vaccinating", "dewormed"] })).toEqual([
+      { label: "접종 중", good: false },
+      { label: "구충", good: true },
+    ]);
     expect(fosterSupportLabel({ fosterSupport: ["food", "vet"] })).toBe("사료·병원비 지원");
     expect(fosterSupportLabel({})).toBeNull();
   });
@@ -390,6 +396,15 @@ describe("입양 쪽 글쓰기 종(§5.4)", () => {
     expect(adoptionWriteSpecies(["/mammal/dog/"], "all")).toBe("강아지");
     expect(adoptionWriteSpecies(["/mammal/cat/"])).toBe("고양이");
     expect(adoptionWriteSpecies(["/mammal/dog/", "/mammal/cat/"], "foster")).toBeNull();
+  });
+
+  it("강아지·고양이만 고정한 사람의 분양글 쓰기는 '분양해요'부터 연다(코덱스 디자인 리뷰 결정 A)", () => {
+    expect(petWriteDefaults(["/mammal/dog/"])).toEqual({ kind: "adoption", category: "강아지" });
+    expect(petWriteDefaults(["/mammal/dog/", "/mammal/cat/"])).toEqual({ kind: "adoption", category: null });
+    // 다른 분야가 섞였거나 고정이 없으면 글쓰기 그대로.
+    expect(petWriteDefaults(["/mammal/dog/", "/reptile/"])).toBeNull();
+    expect(petWriteDefaults(["/mammal/"])).toBeNull();
+    expect(petWriteDefaults([])).toBeNull();
   });
 });
 
