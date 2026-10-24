@@ -26,10 +26,10 @@ import type { ProductsResponse } from "@libs/shared/home";
 import {
   ADOPTION_CHIP_LABELS,
   adoptionChipPath,
-  adoptionChips,
   adoptionScopePaths,
   adoptionWriteSpecies,
-  isAdoptionChip,
+  SHELTER_CHIPS,
+  shelterInitialChip,
   type AdoptionChip,
 } from "@libs/shared/petSpace";
 import {
@@ -47,12 +47,12 @@ const PAGE_SIZE = 20;
 
 type SheetName = "region" | "breed" | "size" | "sort";
 
-/** 입양 쪽 범위(강아지만·고양이만·둘 다)의 보호소 공고 수. 서브탭 숫자와 첫 줄 제목이 같이 쓴다. */
+/** 보호소 칩·총 공고 수는 고정 범위와 상관없이 강아지·고양이 전체 기준이다(2026-10-24 사용자 결정). */
+const SHELTER_SCOPE_PATHS = adoptionScopePaths([]);
+
+/** 보호소 전체 공고 수. 서브탭 숫자와 첫 줄 제목이 같이 쓴다. */
 export function useShelterTotal(): number | undefined {
-  const scope = useCategoryScope();
-  const scopePaths = useMemo(() => adoptionScopePaths(scope.pins.map((pin) => pin.path)), [scope.pins]);
-  const category = adoptionWriteSpecies(scopePaths) ?? undefined;
-  const { data } = useSWR<ShelterFacetsResponse>(shelterFacetsUrl({ category }), { revalidateOnFocus: false });
+  const { data } = useSWR<ShelterFacetsResponse>(shelterFacetsUrl({}), { revalidateOnFocus: false });
   return data?.total;
 }
 
@@ -99,7 +99,7 @@ function FilterPill({
 
 /**
  * 입양 쪽 '보호소 아이들' 서브탭(앱 design/mockups/adoption-v2/A-karrot.html (a)~(c), 앱 docs/prd/shelter-animals.md).
- * 첫 줄 '전국 보호소에서 가족을 기다리는 아이 N마리' + '3시간마다 새 공고가 올라와요', 종 칩, 필터 알약(지역·품종·크기(강아지일 때만)·정렬),
+ * 첫 줄 '전국 보호소에서 가족을 기다리는 아이 N마리' + '3시간마다 새 공고가 올라와요', 종 칩(늘 전체·강아지·고양이, 처음엔 한 종만 고정한 사람은 그 종), 필터 알약(지역·품종·크기(강아지일 때만)·정렬),
  * 정사각 사진 2열 카드 무한 스크롤. 필터는 주소 쿼리(?sido=&sigungu=&breed=&dogSize=&sort=)에 적어 공유·검색에 쓰고,
  * 종 칩은 기존대로 ?chip=. 글쓰기 버튼은 없다(보호소 글은 서버가 쓴다). /adoption?tab=shelter 와 검색용 /adoption/shelter 가 같이 쓴다.
  */
@@ -111,13 +111,12 @@ export default function ShelterTab() {
   const { blockedIds } = useBlocks();
   const scope = useCategoryScope();
   const scopePaths = useMemo(() => adoptionScopePaths(scope.pins.map((pin) => pin.path)), [scope.pins]);
-  const chips = adoptionChips(scopePaths);
-  const rawChip = searchParams?.get("chip") ?? null;
-  const chip: AdoptionChip = isAdoptionChip(rawChip) ? rawChip : "all";
-  const activeChip = chips.includes(chip) ? chip : "all";
-  const categoryPath = adoptionChipPath(scopePaths, activeChip);
-  // 종 칩을 골랐거나 범위가 한 종뿐이면 그 종. 둘 다면 undefined(크기·품종 시트가 이걸로 갈린다).
-  const species = adoptionWriteSpecies(scopePaths, activeChip) ?? undefined;
+  // ?chip= 링크가 먼저, 없으면 한 종만 고정한 사람은 그 종, 그 밖엔 전체. 목록·숫자는 고정 범위와 상관없이 전체 기준이다.
+  const defaultChip = shelterInitialChip(scopePaths);
+  const activeChip: AdoptionChip = shelterInitialChip(scopePaths, searchParams?.get("chip"));
+  const categoryPath = adoptionChipPath(SHELTER_SCOPE_PATHS, activeChip);
+  // 종 칩이 전체면 undefined(크기·품종 시트가 이걸로 갈린다).
+  const species = adoptionWriteSpecies(SHELTER_SCOPE_PATHS, activeChip) ?? undefined;
   const urlFilters = useMemo(() => parseShelterFilters(searchParams), [searchParams]);
   const filters: ShelterFilters = {
     ...urlFilters,
@@ -153,7 +152,8 @@ export default function ShelterTab() {
   const selectChip = (next: AdoptionChip) => {
     if (next === activeChip) return;
     writeParams((params) => {
-      if (next === "all") params.delete("chip");
+      // 기본 칩과 같으면 주소에서 뺀다. 한 종만 고정한 사람은 '전체'도 ?chip=all 로 적어야 기본 종으로 돌아가지 않는다.
+      if (next === defaultChip) params.delete("chip");
       else params.set("chip", next);
       // 품종·크기는 종마다 달라서 종을 바꾸면 푼다.
       params.delete("breed");
@@ -167,7 +167,7 @@ export default function ShelterTab() {
     });
 
   const getKey = (pageIndex: number, previous: ProductsResponse | null) => {
-    if (previous && pageIndex >= (previous.pages ?? 0)) return null;
+    if (!scope.hydrated || (previous && pageIndex >= (previous.pages ?? 0))) return null;
     return `/api/products?${shelterListParams(filters, categoryPath, {
       page: String(pageIndex + 1),
       size: String(PAGE_SIZE),
@@ -279,19 +279,17 @@ export default function ShelterTab() {
       </div>
 
       <div className="sticky top-14 z-10 bg-app-bg">
-        {chips.length ? (
-          <FilterChipRail>
-            {chips.map((id) => (
-              <FilterChip
-                key={id}
-                label={ADOPTION_CHIP_LABELS[id]}
-                selected={activeChip === id}
-                onClick={() => selectChip(id)}
-              />
-            ))}
-          </FilterChipRail>
-        ) : null}
-        <HorizontalRail label="보호소 아이들 필터" className={cn("gap-1.5 px-4 pb-3", chips.length ? "pt-0" : "pt-3")}>
+        <FilterChipRail>
+          {SHELTER_CHIPS.map((id) => (
+            <FilterChip
+              key={id}
+              label={ADOPTION_CHIP_LABELS[id]}
+              selected={activeChip === id}
+              onClick={() => selectChip(id)}
+            />
+          ))}
+        </FilterChipRail>
+        <HorizontalRail label="보호소 아이들 필터" className="gap-1.5 px-4 pb-3 pt-0">
           <FilterPill
             label={summary.region.label}
             applied={summary.region.applied}
