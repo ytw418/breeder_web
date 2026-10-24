@@ -209,6 +209,38 @@ describe("GET /api/products 보호소 글(externalSource)", () => {
   });
 });
 
+describe("GET /api/products 보호소 필터(지역·품종·크기·마감순)", () => {
+  it("지역·품종·크기는 AND 로 걸고(크기 키는 dogSize), 고양이에는 크기를 걸지 않으며, sort=deadline 은 마감 안 지난 공고를 마감 임박순으로 먼저 준다", async () => {
+    const res = await list({ source: "shelter", sido: "경기도", sigungu: "수원시,화성시", breed: "말티즈", dogSize: "medium", size: "12" });
+    expect(lastFindMany().where.AND).toEqual([
+      { regionSido: { in: ["경기도"] } },
+      { regionSigungu: { in: ["수원시", "화성시"] } },
+      { externalBreed: { in: ["말티즈"] } },
+      { externalWeightKg: { gt: 7, lte: 15 } },
+    ]);
+    expect(lastFindMany().take).toBe(12);
+    expect(res.headers["cache-control"]).toContain("s-maxage=30");
+
+    await list({ source: "shelter", category: "고양이", dogSize: "large" });
+    expect(JSON.stringify(lastFindMany().where)).not.toContain("externalWeightKg");
+
+    // 마감 안 지난 공고 3건(마감 임박순) 뒤에 마감을 모르거나 지난 공고. size 2 의 2번째 쪽 = A 마지막 1건 + B 1건.
+    const ongoing = (where: unknown) => JSON.stringify(where).includes('"externalNoticeEnd":{"gte"');
+    mockClient.product.count.mockImplementation(async ({ where }: any) => (ongoing(where) ? 3 : 4));
+    mockClient.product.findMany.mockImplementation(async ({ where, orderBy, skip, take }: any) =>
+      Array.from({ length: take }, (_, i) => ({
+        id: (ongoing(where) ? 10 : 100) + skip + i,
+        order: orderBy,
+        user: { breederPrograms: [] },
+      }))
+    );
+    const deadline = await list({ source: "shelter", sort: "deadline", page: "2", size: "2" });
+    expect(deadline.body.products.map((p: any) => p.id)).toEqual([12, 100]);
+    expect(deadline.body.products[0].order).toEqual([{ externalNoticeEnd: "asc" }, { id: "desc" }]);
+    expect(deadline.body).toMatchObject({ total: 7 });
+  });
+});
+
 describe("GET /api/products 전체 개수", () => {
   it("조건에 맞는 전체 상품 수를 total 로 함께 준다", async () => {
     mockClient.product.count.mockResolvedValue(37);

@@ -3,7 +3,9 @@
  */
 import {
   isShelterProduct,
+  shelterNoticeEnd,
   shelterTelHref,
+  shelterWeightKg,
   toShelterProduct,
   SHELTER_SOURCE,
   type ShelterApiItem,
@@ -101,5 +103,23 @@ describe("buildShelterSeo", () => {
     expect(buildShelterSeo({ name: "직접 쓴 제목", category: "고양이", regionSigungu: "서구", petInfo: { sex: "female" } }).title).toBe(
       "서구 유기묘 입양 · 고양이 여아 새 가족 찾아요 | 고양이 무료분양·무료입양 - 브리디"
     );
+  });
+});
+
+describe("필터용 칸 읽기(품종·몸무게·공고 마감)", () => {
+  it("품종은 머리표를 떼고 기타는 null, 몸무게는 범위면 평균·읽을 수 없으면 null, 공고 마감은 그날 끝(KST)", () => {
+    expect(toShelterProduct(item(1), "강아지")).toMatchObject({
+      externalBreed: "비숑 프리제",
+      externalWeightKg: 4.5,
+      externalNoticeEnd: new Date("2026-10-30T23:59:59.999+09:00"),
+    });
+    expect(toShelterProduct(item(2, { kindNm: "[고양이] 기타", weight: "" }), "고양이")).toMatchObject({
+      externalBreed: null,
+      externalWeightKg: null,
+    });
+    expect([shelterWeightKg("3.2(Kg)"), shelterWeightKg("11"), shelterWeightKg("3~4(Kg)"), shelterWeightKg("약 5"), shelterWeightKg("0(Kg)")]).toEqual([
+      3.2, 11, 3.5, null, null,
+    ]);
+    expect([shelterNoticeEnd("20260230"), shelterNoticeEnd("")]).toEqual([null, null]);
   });
 });

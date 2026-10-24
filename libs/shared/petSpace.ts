@@ -325,19 +325,23 @@ export function petWriteDefaults(
 export type SaleTabMode = "products" | "auctions" | "adoption";
 
 /**
- * 분양 탭 위 전환 칸. 1칸이면 전환 줄을 그리지 않는다.
- * - 강아지·고양이 + 포유류만: 분양 | 입양
- * - 강아지·고양이 + 다른 분야: 분양 | 경매 | 입양
+ * 분양 탭 위 전환 칸. 1칸이면 전환 줄을 그리지 않는다. 강아지·고양이가 들어 있으면 입양이 맨 왼쪽이다
+ * (2026-10-24 입양 탭 개편 — 앱 design/mockups/adoption-v2: 보호소 공고가 첫 화면의 주인공).
+ * - 강아지·고양이 + 포유류만: 입양 | 분양
+ * - 강아지·고양이 + 다른 분야: 입양 | 분양 | 경매
  * - 포유류만(소동물만): 분양 (지금처럼 전환 없음)
  * - 그 밖(파충류 쪽·전체 보기): 분양 | 경매 (지금 그대로)
  */
 export function saleTabModes(paths: readonly string[]): SaleTabMode[] {
   const mammalOnly = paths.length > 0 && paths.every((path) => path.startsWith(MAMMAL_PATH));
-  const adoption = hasDogCatPin(paths);
-  const modes: SaleTabMode[] = ["products"];
+  const modes: SaleTabMode[] = hasDogCatPin(paths) ? ["adoption", "products"] : ["products"];
   if (!mammalOnly) modes.push("auctions");
-  if (adoption) modes.push("adoption");
   return modes;
+}
+
+/** 분양 탭을 처음 열 때 보이는 칸. 강아지·고양이만 고정했으면 입양, 나머지는 분양. */
+export function saleTabDefaultMode(paths: readonly string[]): SaleTabMode {
+  return isDogCatOnly(paths) ? "adoption" : "products";
 }
 
 /**
@@ -346,7 +350,7 @@ export function saleTabModes(paths: readonly string[]): SaleTabMode[] {
  */
 export function saleTabModesShowing(paths: readonly string[], showing: SaleTabMode): SaleTabMode[] {
   const modes = saleTabModes(paths);
-  return showing === "adoption" && !modes.includes("adoption") ? [...modes, "adoption"] : modes;
+  return showing === "adoption" && !modes.includes("adoption") ? ["adoption", ...modes] : modes;
 }
 
 export const SALE_TAB_MODE_LABELS: Record<SaleTabMode, string> = {

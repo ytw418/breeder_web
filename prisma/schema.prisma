@@ -320,8 +320,13 @@ model Product {
   /// externalSource 'animal.go.kr' + externalId 구조번호(desertionNo). 동기화가 이 둘로 찾아 고치고 숨긴다.
   externalSource  String?
   externalId      String?
+  /// 보호소 아이들 필터용(2026-10-24 입양 탭 개편 — 앱 design/mockups/adoption-v2). 공고의 품종·몸무게(kg)·공고 마감일. 회원 글은 null.
+  externalBreed     String?
+  externalWeightKg  Float?
+  externalNoticeEnd DateTime?
 
   @@unique([externalSource, externalId])
+  @@index([externalSource, category, regionSido])
   @@index([userId])
   @@index([category])
   @@index([status])

@@ -3,7 +3,13 @@
  * buildDescription 줄 형식이 바뀌면 여기서 깨진다.
  */
 import { toShelterProduct } from "@libs/shared/shelterAnimal";
-import { parseShelterContact, shelterDeadlineLabel, shelterNoticeUrl, stripShelterContact } from "@libs/shared/shelterNotice";
+import {
+  parseShelterContact,
+  shelterDeadlineLabel,
+  shelterNoticeLabel,
+  shelterNoticeUrl,
+  stripShelterContact,
+} from "@libs/shared/shelterNotice";
 
 const base = {
   desertionNo: "448000000000001",
@@ -55,5 +61,16 @@ describe("shelterNotice", () => {
       "https://www.animal.go.kr/front/awtis/protection/protectionDtl.do?desertionNo=448000000000001"
     );
     expect(shelterNoticeUrl(null)).toBeNull();
+  });
+});
+
+describe("shelterNoticeLabel", () => {
+  it("공고 마감 칸(그날 끝 KST)으로 D-n 을 세고, 칸이 없으면 본문 줄로, 지난 공고는 null", () => {
+    const { description } = toShelterProduct(base, "강아지");
+    const end = new Date("2026-10-30T23:59:59.999+09:00");
+    expect(shelterNoticeLabel({ externalNoticeEnd: end }, "2026-10-20")).toBe("공고 D-10");
+    expect(shelterNoticeLabel({ externalNoticeEnd: end }, "2026-10-30")).toBe("공고 오늘 마감");
+    expect(shelterNoticeLabel({ externalNoticeEnd: end }, "2026-10-31")).toBeNull();
+    expect(shelterNoticeLabel({ externalNoticeEnd: null, description }, "2026-10-28")).toBe("공고 D-2");
   });
 });

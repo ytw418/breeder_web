@@ -100,6 +100,24 @@ describe("runShelterSync", () => {
     expect(rows.find((r) => r.externalId === "D3")!.createdAt.getTime()).toBeGreaterThan(rows.find((r) => r.externalId === "D1")!.createdAt.getTime());
   });
 
+  it("필터용 칸(품종·몸무게·공고 마감)은 칸이 생기기 전에 들어온 기존 글도 다음 회차가 고쳐 채운다", async () => {
+    const { db, rows } = createDb();
+    const fetchImpl = apiFetch([item(1, { kindNm: "[개] 말티즈", weight: "3~4(Kg)" }), item(2, { kindNm: "[개] 기타", weight: "" })]);
+    await run(db, fetchImpl);
+    expect(rows.find((r) => r.externalId === "D1")).toMatchObject({
+      externalBreed: "말티즈",
+      externalWeightKg: 3.5,
+      externalNoticeEnd: new Date("2026-10-30T23:59:59.999+09:00"),
+    });
+    expect(rows.find((r) => r.externalId === "D2")).toMatchObject({ externalBreed: null, externalWeightKg: null });
+
+    // 칸이 생기기 전 글처럼 비운다 → 새로 만들지 않고 고쳐 채운다. 다시 돌리면 바뀐 게 없다.
+    rows.forEach((r) => Object.assign(r, { externalBreed: null, externalWeightKg: null, externalNoticeEnd: null }));
+    expect(await run(db, fetchImpl)).toMatchObject({ created: 0, updated: 2 });
+    expect(rows.find((r) => r.externalId === "D1")).toMatchObject({ externalBreed: "말티즈", externalWeightKg: 3.5 });
+    expect(await run(db, fetchImpl)).toMatchObject({ created: 0, updated: 0 });
+  });
+
   it("AC-2: 연속 두 번 성공한 회차에서 빠진 공고만 숨기고, 중간에 다시 나타나면 세지 않는다. 숨긴 글은 다시 나타나면 되살린다", async () => {
     const { db, rows } = createDb();
     const all = [item(1), item(2), item(3), item(4), item(5)];
