@@ -1,4 +1,8 @@
 const { withSentryConfig } = require("@sentry/nextjs");
+const createNextIntlPlugin = require("next-intl/plugin");
+
+// 다국어(next-intl) 설정 파일. docs/prd/i18n.md · i18n/request.ts
+const withNextIntl = createNextIntlPlugin("./i18n/request.ts");
 
 /** @type {import('next').NextConfig} */
 const nextConfig = {
@@ -82,7 +86,7 @@ const nextConfig = {
   },
 };
 
-module.exports = withSentryConfig(nextConfig, {
+module.exports = withSentryConfig(withNextIntl(nextConfig), {
   org: "bredy",
   project: "javascript-nextjs",
   silent: !process.env.CI,
