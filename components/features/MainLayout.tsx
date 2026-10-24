@@ -760,6 +760,8 @@ export default function MainLayout({
   const openSideMenu = React.useCallback(() => setMenuOpen(true), []);
   const scrolled = useScrolled();
   const isHomeRoot = pathname === "/";
+  // 분양 탭 루트(분양·경매·입양 첫 화면)도 로고 옆에 '브리디'를 붙인다(2026-10-24 사용자 "분양탭 헤더에 아이콘 옆에 브리디").
+  const isSaleRoot = pathname === "/products" || pathname === "/auctions" || pathname === "/adoption";
 
   const defaultRight = (
     <>
@@ -846,8 +848,8 @@ export default function MainLayout({
           ) : null}
           {icon && !isToolPath ? (
             <>
-              {/* 탭 루트: 왼쪽 브리디 로고(누르면 홈). 홈만 워드마크 '브리디'를 붙이고 다른 탭은 이름을 쓰지 않는다(2026-10-12 사용자). */}
-              <BrandHomeLink wordmark={isHomeRoot} className="absolute left-4" />
+              {/* 탭 루트: 왼쪽 브리디 로고(누르면 홈). 홈과 분양 탭만 워드마크 '브리디'를 붙이고 다른 탭은 이름을 쓰지 않는다(2026-10-12·10-24 사용자). */}
+              <BrandHomeLink wordmark={isHomeRoot || isSaleRoot} className="absolute left-4" />
               {/* 홈도 h1 을 둔다(워드마크와 같은 글자라도). 렌더 경로에 따라 빠지면 검색 진단에 'h1 없음'으로 잡힌다. */}
               {title && !bodyHasH1 ? <h1 className="sr-only">{title}</h1> : null}
               <div className="absolute right-2 flex items-center gap-0.5">

@@ -205,8 +205,16 @@ describe("MainLayout 셸", () => {
     expect(screen.getByRole("link", { name: "홈" })).toHaveAttribute("aria-current", "page");
   });
 
-  it("다른 탭 루트는 왼쪽 로고만(누르면 홈), 탭 이름 글자는 보이지 않는다", () => {
+  it("다른 탭 루트는 왼쪽 로고만(누르면 홈), 탭 이름 글자는 보이지 않는다 — 분양 탭 루트는 홈처럼 '브리디'(2026-10-24)", () => {
     mockUseUser.mockReturnValue({ user: undefined, isLoading: false });
+    const { unmount } = render(
+      <MainLayout title="분양" icon showSearch hasTabBar>
+        <p>본문</p>
+      </MainLayout>
+    );
+    expect(screen.getByTestId("header-brand").textContent).toBe("브리디");
+    unmount();
+    mockPathname.mockReturnValue("/posts");
     render(
       <MainLayout title="반려생활" icon showSearch hasTabBar>
         <p>본문</p>
