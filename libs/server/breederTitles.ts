@@ -40,7 +40,7 @@ export async function refreshTitleKeys(): Promise<{ checked: number; updated: nu
       where: { isHidden: false, ...notNotice, user: RANKABLE_USER_WHERE },
       select: { userId: true, image: true, images: true, _count: { select: { Likes: true } } },
     }),
-    client.product.groupBy({ by: ["userId"], where: { isDeleted: false, isHidden: false }, _count: { _all: true } }),
+    client.product.groupBy({ by: ["userId"], where: { isDeleted: false, isHidden: false, externalSource: null }, _count: { _all: true } }),
     client.comment.groupBy({ by: ["userId"], where: { isHidden: false, deletedAt: null }, _count: { _all: true } }),
     client.bid.groupBy({ by: ["userId"], where: { archivedAt: null }, _count: { _all: true } }),
     client.auction.groupBy({ by: ["userId"], where: { isHidden: false }, _count: { _all: true } }),

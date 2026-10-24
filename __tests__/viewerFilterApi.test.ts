@@ -362,7 +362,7 @@ describe("GET /api/products 목록 (buildProductsResponse)", () => {
 
     expect(res.statusCode).toBe(200);
     const where = mockClient.product.findMany.mock.calls[0][0].where;
-    expect(where).toEqual({ isHidden: false, isDeleted: false });
+    expect(where).toEqual({ isHidden: false, isDeleted: false, externalSource: null });
     expect(mockClient.product.count.mock.calls[0][0].where).toEqual(where);
     expect(res.headers["cache-control"]).toMatch(/^public, s-maxage=/);
     expect(res.headers["vary"]).toBe(VARY_AUTHORIZATION);
@@ -380,6 +380,7 @@ describe("GET /api/products 목록 (buildProductsResponse)", () => {
     expect(where).toEqual({
       isHidden: false,
       isDeleted: false,
+      externalSource: null,
       status: "판매중",
       userId: { notIn: [BLOCKED_A] },
     });
@@ -397,6 +398,7 @@ describe("GET /api/products 목록 (buildProductsResponse)", () => {
     expect(where).toEqual({
       isHidden: false,
       isDeleted: false,
+      externalSource: null,
       status: "판매중",
       price: 0,
     });
@@ -411,6 +413,7 @@ describe("GET /api/products 목록 (buildProductsResponse)", () => {
       expect(mockClient.product.findMany.mock.calls[0][0].where).toEqual({
         isHidden: false,
         isDeleted: false,
+        externalSource: null,
       });
     }
   });
@@ -422,6 +425,7 @@ describe("GET /api/products 목록 (buildProductsResponse)", () => {
     expect(mockClient.product.findMany.mock.calls[0][0].where).toEqual({
       isHidden: false,
       isDeleted: false,
+      externalSource: null,
     });
   });
 });
@@ -431,7 +435,7 @@ describe("GET /api/products/popular", () => {
     const res = await call(popularHandler, {});
 
     const where = mockClient.product.findMany.mock.calls[0][0].where;
-    expect(where).toEqual({ isHidden: false, isDeleted: false });
+    expect(where).toEqual({ isHidden: false, isDeleted: false, externalSource: null });
     expect(res.headers["cache-control"]).toMatch(/^public, s-maxage=/);
     expect(res.headers["vary"]).toBe(VARY_AUTHORIZATION);
   });
@@ -444,6 +448,7 @@ describe("GET /api/products/popular", () => {
     expect(where).toEqual({
       isHidden: false,
       isDeleted: false,
+      externalSource: null,
       userId: { notIn: [BLOCKED_A, BLOCKED_B] },
     });
     expect(res.headers["cache-control"]).toBe(PRIVATE_NO_STORE);

@@ -61,6 +61,8 @@ function toSentMessage(row: SentMessageRow, product: ChatProductRow | null): Sen
   };
 }
 
+const SHELTER_CHAT_MESSAGE = "보호소 공고는 보호소로 문의해 주세요";
+
 const INVALID_PRODUCT_RESPONSE = {
   success: false,
   error: "이 채팅방에서 보낼 수 없는 분양글이에요.",
@@ -154,6 +156,10 @@ async function handler(
     const cardProduct = productId === null ? null : await findRoomProduct(productId, memberIds);
     if (productId !== null && !cardProduct) {
       return res.status(400).json(INVALID_PRODUCT_RESPONSE);
+    }
+    // 보호소 공고 글은 채팅으로 문의받지 않는다(보호소로 직접 문의).
+    if (cardProduct?.externalSource) {
+      return res.status(400).json({ success: false, error: SHELTER_CHAT_MESSAGE, errorCode: "SHELTER_PRODUCT" });
     }
     const withCard = cardProduct ? await needsProductCard(+chatRoomId!, cardProduct.id) : false;
 

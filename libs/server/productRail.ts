@@ -49,6 +49,8 @@ export async function getProductRail({
     isHidden: false,
     isDeleted: false,
     status: { not: "판매완료" },
+    // 보호소 공고 글은 홈 '지금 올라온 분양'에 싣지 않는다(앱 docs/prd/shelter-animals.md F-5).
+    externalSource: null,
   };
 
   const [latest, firstOfViewer] = await Promise.all([

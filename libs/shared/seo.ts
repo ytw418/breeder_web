@@ -14,7 +14,9 @@ export const toPublicImageUrl = (
   variant = "public"
 ) => {
   const value = imageId || fallback;
-  if (value.startsWith("http://") || value.startsWith("https://")) return value;
+  if (value.startsWith("https://")) return value;
+  // 보호소 공고 사진(animal.go.kr)처럼 주소가 그대로 저장된 사진은 https 로 바꿔 쓴다.
+  if (value.startsWith("http://")) return `https://${value.slice("http://".length)}`;
   if (value.startsWith("/")) return `${SITE_URL}${value}`;
   return `${CLOUDFLARE_IMAGE_BASE}/${value}/${variant}`;
 };

@@ -253,7 +253,12 @@ const countByGroup = async (
     return rows.map((row) => ({ key: row.userId, count: row._count._all }));
   }
   if (model === "product") {
-    const rows = await client.product.groupBy({ by: ["userId"], where, _count: { _all: true } });
+    // 보호소 공고 글(externalSource)은 점수·개수·칭호 어디에도 세지 않는다(앱 docs/prd/shelter-animals.md F-7).
+    const rows = await client.product.groupBy({
+      by: ["userId"],
+      where: { ...where, externalSource: null },
+      _count: { _all: true },
+    });
     return rows.map((row) => ({ key: row.userId, count: row._count._all }));
   }
   if (model === "comment") {
@@ -1160,6 +1165,7 @@ export const getFreeGiveawayProducts = async ({
       status: "판매중",
       isDeleted: false,
       isHidden: false,
+      externalSource: null,
       AND: [scope],
     },
     select: {

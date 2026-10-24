@@ -289,6 +289,14 @@ export function fosterListHref(chip: AdoptionChip): string {
 }
 
 /**
+ * '보호소에서 기다려요' 레일 '전체 ›'가 여는 보호소 아이들 전체 목록 주소(앱 /adoption/shelter, 웹 /adoption/shelter,
+ * 앱 docs/prd/shelter-animals.md S-2). 임보 레일처럼 고른 종 칩을 들고 간다.
+ */
+export function shelterListHref(chip: AdoptionChip): string {
+  return chip === "all" ? "/adoption/shelter" : `/adoption/shelter?chip=${chip}`;
+}
+
+/**
  * 입양 쪽 글쓰기 링크에 미리 고를 종(?category=). 강아지·고양이 칩을 골랐거나 범위가 한 종뿐이면 그 종, 둘 다면 null
  * (글쓰기에서 고른다). 2026-10-23 브라우저 테스트 — 강아지만 고른 사람도 글쓰기에서 '포유류'부터 다시 골라야 했다.
  */

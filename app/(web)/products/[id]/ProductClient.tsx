@@ -39,6 +39,9 @@ import {
 } from "@libs/shared/petSpace";
 import { PRODUCT_VIEW_COUNT_MIN } from "@components/app/ProductCard";
 import { PetInfoBlock } from "@components/features/pet/PetInfoBlock";
+import { ShelterActionBar, ShelterSourceBox } from "@components/features/pet/ShelterDetail";
+import { isShelterProduct } from "@libs/shared/shelterAnimal";
+import { parseShelterContact, stripShelterContact } from "@libs/shared/shelterNotice";
 import useAdminModeration from "hooks/useAdminModeration";
 import FollowButton from "@components/features/profile/FollowButton";
 import { AdopterPickerSheet, type AdopterPickerMode } from "@components/features/trade/AdopterPickerSheet";
@@ -168,6 +171,8 @@ const ProductClient = ({
   // 강아지·고양이 글: 가격이 없고 정보 표·글 종류를 보인다(docs/prd/pet-space.md).
   const isPetPost = isNoPriceCategory(product?.category);
   const isFosterPost = isPetPost && product?.dealType === "foster";
+  // 보호소 공고 글(externalSource 있음, 앱 docs/prd/shelter-animals.md S-3): 채팅·찜·가격 바 대신 '보호소에 전화'·'공고 원문 보기'.
+  const isShelter = isShelterProduct(product);
   // 임보 글은 거래 기록이 없다: 입양자 시트 없이 글만 닫고, 끝난 뒤에도 다시 연다(앱 docs/prd/pet-space.md §16).
   const tradeless = isTradelessDeal(product?.dealType);
   const statusLocked = statusDone && !tradeless;
@@ -470,15 +475,23 @@ const ProductClient = ({
   // 로그인 벽에서 누른 찜·채팅하기를 로그인 뒤 이어 한다. 찜은 토글이라 로그인한 계정 기준 상세를 받은 뒤
   // 아직 찜하지 않았을 때만 누른다.
   const detailReady = Boolean(user && data?.product && !isValidating);
+  // 보호소 공고 글에는 찜·채팅이 없으므로 로그인 뒤에도 이어 하지 않는다(기억해 둔 동작은 쓰고 지운다).
   usePendingAction(
     "fav",
     Number(productId) || null,
     () => {
-      if (!isLiked) void handleFavorite();
+      if (!isShelter && !isLiked) void handleFavorite();
     },
     detailReady
   );
-  usePendingAction("chat", Number(productId) || null, () => void handleChat(), detailReady);
+  usePendingAction(
+    "chat",
+    Number(productId) || null,
+    () => {
+      if (!isShelter) void handleChat();
+    },
+    detailReady
+  );
 
   // ── 로딩·오류 ─────────────────────────────────────────────────────────
   if (!product) {
@@ -624,6 +637,7 @@ const ProductClient = ({
     dealType: product.dealType ?? null,
   };
   const publicReview = review && !isHiddenTradeReview(review) ? review : null;
+  const shelterContact = parseShelterContact(isShelter ? product.description : null);
 
   return (
     <Layout canGoBack homeAction title={product.name || "상세 정보"} seoTitle={product.name} headerRight={headerRight}>
@@ -754,8 +768,17 @@ const ProductClient = ({
               ) : null}
 
               <div className="mt-5">
-                <MarkdownPreview content={product.description ?? ""} emptyText="설명이 없어요" />
+                {/* 보호소 글은 연락처·출처 줄을 아래 출처 상자가 보여 주므로 본문에서는 뺀다. */}
+                <MarkdownPreview
+                  content={isShelter ? stripShelterContact(product.description) : (product.description ?? "")}
+                  emptyText="설명이 없어요"
+                />
               </div>
+              {isShelter ? (
+                <div className="mt-6">
+                  <ShelterSourceBox contact={shelterContact} />
+                </div>
+              ) : null}
 
               <div className="mt-5 flex items-center justify-between">
                 <p className="text-[13px] text-app-muted">{countsText}</p>
@@ -907,94 +930,110 @@ const ProductClient = ({
             {footer}
           </div>
 
-          {/* 하단 고정 바: 찜 · 가격 · 채팅하기(판매자는 ⋮ 시트나 본문 관리 블록을 쓴다) */}
-          <div className="fixed inset-x-0 bottom-0 mx-auto max-w-xl z-40 border-t border-app-border bg-app-bg pb-[env(safe-area-inset-bottom)]">
-            <div className="mx-auto flex max-w-xl items-center gap-3 px-4 py-2.5">
-              <button
-                type="button"
-                data-testid="favorite-toggle"
-                aria-label={isLiked ? "찜 취소" : "찜 추가"}
-                aria-pressed={isLiked}
-                disabled={favPending}
-                onClick={() => void handleFavorite()}
-                className={
-                  isLiked
-                    ? "flex h-12 w-12 shrink-0 items-center justify-center rounded-md border border-app-border bg-app-bg text-app-brand disabled:opacity-60"
-                    : "flex h-12 w-12 shrink-0 items-center justify-center rounded-md border border-app-border bg-app-bg text-app-muted disabled:opacity-60"
-                }
-              >
-                <svg
-                  className="h-6 w-6"
-                  fill={isLiked ? "currentColor" : "none"}
-                  stroke="currentColor"
-                  viewBox="0 0 24 24"
-                  aria-hidden="true"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth="1.5"
-                    d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z"
-                  />
-                </svg>
-              </button>
-              {tradePrimary ? (
-                // 지정된 입양자: '채팅하기'는 보조, 주 버튼이 '입양 확정'·'거래 후기 쓰기'. 두 버튼이 남은 폭을 나누고
-                // 가격은 본문에만 둔다(시안 #detail-buyer-assigned #detail-buyer-confirmed).
-                <>
+          {isShelter ? (
+            <ShelterActionBar
+              tel={shelterContact.tel}
+              externalId={product.externalId}
+              onCall={() =>
+                trackEvent(ANALYTICS_EVENTS.shelterCallClick, {
+                  desertionNo: product.externalId ?? null,
+                  species: product.category ?? null,
+                  sido: product.regionSido ?? null,
+                })
+              }
+            />
+          ) : (
+            <>
+              {/* 하단 고정 바: 찜 · 가격 · 채팅하기(판매자는 ⋮ 시트나 본문 관리 블록을 쓴다) */}
+              <div className="fixed inset-x-0 bottom-0 mx-auto max-w-xl z-40 border-t border-app-border bg-app-bg pb-[env(safe-area-inset-bottom)]">
+                <div className="mx-auto flex max-w-xl items-center gap-3 px-4 py-2.5">
                   <button
                     type="button"
-                    disabled={chatPending}
-                    onClick={() => void handleChat()}
-                    className="h-[52px] min-w-0 flex-1 rounded-md bg-app-surface text-[16px] font-semibold text-app-text disabled:opacity-60"
+                    data-testid="favorite-toggle"
+                    aria-label={isLiked ? "찜 취소" : "찜 추가"}
+                    aria-pressed={isLiked}
+                    disabled={favPending}
+                    onClick={() => void handleFavorite()}
+                    className={
+                      isLiked
+                        ? "flex h-12 w-12 shrink-0 items-center justify-center rounded-md border border-app-border bg-app-bg text-app-brand disabled:opacity-60"
+                        : "flex h-12 w-12 shrink-0 items-center justify-center rounded-md border border-app-border bg-app-bg text-app-muted disabled:opacity-60"
+                    }
                   >
-                    {chatPending ? "여는 중..." : "채팅하기"}
-                  </button>
-                  <button
-                    type="button"
-                    onClick={tradePrimary.onClick}
-                    className="h-[52px] min-w-0 flex-1 rounded-md bg-app-brand text-[16px] font-semibold text-white"
-                  >
-                    {tradePrimary.label}
-                  </button>
-                </>
-              ) : (
-                <>
-                  {hasBarText ? <span className="h-6 w-px shrink-0 bg-app-border" aria-hidden="true" /> : null}
-                  {barText ? (
-                    <p className="min-w-0 flex-1 truncate text-[16px] font-bold text-app-text">{barText}</p>
-                  ) : petBar ? (
-                    <div className="min-w-0 flex-1">
-                      <p className="truncate text-[15px] font-semibold leading-5 text-app-text">{petBar.title}</p>
-                      {petBar.sub ? (
-                        <p className="truncate text-[12px] leading-4 text-app-muted">{petBar.sub}</p>
-                      ) : null}
-                    </div>
-                  ) : null}
-                  {!isOwner ? (
-                    <button
-                      type="button"
-                      disabled={chatPending}
-                      onClick={() => {
-                        // 임보 구해요 글의 '임보 문의하기'(앱 docs/prd/pet-space.md §10, 레일 버튼은 source: rail).
-                        if (isFosterPost) {
-                          trackEvent(ANALYTICS_EVENTS.fosterRaiseHand, { product_id: product.id, source: "detail" });
-                        }
-                        void handleChat();
-                      }}
-                      // 가운데 글이 없으면(강아지·고양이 글) 버튼이 남은 폭을 채운다.
-                      className={cn(
-                        "h-[52px] rounded-md bg-app-brand px-6 text-[16px] font-semibold text-white disabled:opacity-60",
-                        hasBarText ? "shrink-0" : "flex-1"
-                      )}
+                    <svg
+                      className="h-6 w-6"
+                      fill={isLiked ? "currentColor" : "none"}
+                      stroke="currentColor"
+                      viewBox="0 0 24 24"
+                      aria-hidden="true"
                     >
-                      {chatPending ? "여는 중..." : isFosterPost ? "임보 문의하기" : "채팅하기"}
-                    </button>
-                  ) : null}
-                </>
-              )}
-            </div>
-          </div>
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth="1.5"
+                        d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z"
+                      />
+                    </svg>
+                  </button>
+                  {tradePrimary ? (
+                    // 지정된 입양자: '채팅하기'는 보조, 주 버튼이 '입양 확정'·'거래 후기 쓰기'. 두 버튼이 남은 폭을 나누고
+                    // 가격은 본문에만 둔다(시안 #detail-buyer-assigned #detail-buyer-confirmed).
+                    <>
+                      <button
+                        type="button"
+                        disabled={chatPending}
+                        onClick={() => void handleChat()}
+                        className="h-[52px] min-w-0 flex-1 rounded-md bg-app-surface text-[16px] font-semibold text-app-text disabled:opacity-60"
+                      >
+                        {chatPending ? "여는 중..." : "채팅하기"}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={tradePrimary.onClick}
+                        className="h-[52px] min-w-0 flex-1 rounded-md bg-app-brand text-[16px] font-semibold text-white"
+                      >
+                        {tradePrimary.label}
+                      </button>
+                    </>
+                  ) : (
+                    <>
+                      {hasBarText ? <span className="h-6 w-px shrink-0 bg-app-border" aria-hidden="true" /> : null}
+                      {barText ? (
+                        <p className="min-w-0 flex-1 truncate text-[16px] font-bold text-app-text">{barText}</p>
+                      ) : petBar ? (
+                        <div className="min-w-0 flex-1">
+                          <p className="truncate text-[15px] font-semibold leading-5 text-app-text">{petBar.title}</p>
+                          {petBar.sub ? (
+                            <p className="truncate text-[12px] leading-4 text-app-muted">{petBar.sub}</p>
+                          ) : null}
+                        </div>
+                      ) : null}
+                      {!isOwner ? (
+                        <button
+                          type="button"
+                          disabled={chatPending}
+                          onClick={() => {
+                            // 임보 구해요 글의 '임보 문의하기'(앱 docs/prd/pet-space.md §10, 레일 버튼은 source: rail).
+                            if (isFosterPost) {
+                              trackEvent(ANALYTICS_EVENTS.fosterRaiseHand, { product_id: product.id, source: "detail" });
+                            }
+                            void handleChat();
+                          }}
+                          // 가운데 글이 없으면(강아지·고양이 글) 버튼이 남은 폭을 채운다.
+                          className={cn(
+                            "h-[52px] rounded-md bg-app-brand px-6 text-[16px] font-semibold text-white disabled:opacity-60",
+                            hasBarText ? "shrink-0" : "flex-1"
+                          )}
+                        >
+                          {chatPending ? "여는 중..." : isFosterPost ? "임보 문의하기" : "채팅하기"}
+                        </button>
+                      ) : null}
+                    </>
+                  )}
+                </div>
+              </div>
+            </>
+          )}
 
           <ImageLightbox
             images={photoUrls}
