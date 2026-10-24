@@ -19,7 +19,7 @@ export async function getLockedTitleStats(userId: number): Promise<LockedTitleSt
         where: { userId, isHidden: false, OR: [{ category: null }, { category: { not: "공지" } }] },
         select: { image: true, images: true, _count: { select: { Likes: true } } },
       }),
-      client.product.count({ where: { userId, isDeleted: false, isHidden: false } }),
+      client.product.count({ where: { userId, isDeleted: false, isHidden: false, externalSource: null } }),
       client.comment.count({ where: { userId, isHidden: false, deletedAt: null } }),
       client.bid.count({ where: { userId, archivedAt: null } }),
       client.auction.count({ where: { userId, isHidden: false } }),

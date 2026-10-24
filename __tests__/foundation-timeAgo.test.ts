@@ -1,4 +1,4 @@
-import { getTimeAgoString } from "@libs/client/utils";
+import { getTimeAgoString, makeImageUrl } from "@libs/client/utils";
 
 describe("getTimeAgoString (상품 행 상대시간, 앱 formatRelativeTime 과 같은 문구)", () => {
   const NOW = new Date("2026-10-06T12:00:00.000Z");
@@ -27,5 +27,13 @@ describe("getTimeAgoString (상품 행 상대시간, 앱 formatRelativeTime 과 
     [2 * 365 * DAY, "2년 전"],
   ])("%d ms 전 → %s", (ms, expected) => {
     expect(getTimeAgoString(ago(ms))).toBe(expected);
+  });
+});
+
+describe("makeImageUrl (저장된 사진 주소)", () => {
+  it("보호소 공고 사진 같은 http 주소는 https 로 바꿔 그대로 쓰고, Cloudflare id 는 변환 주소로 만든다", () => {
+    expect(makeImageUrl("http://www.animal.go.kr/files/a.jpg", "product")).toBe("https://www.animal.go.kr/files/a.jpg");
+    expect(makeImageUrl("https://www.animal.go.kr/files/a.jpg")).toBe("https://www.animal.go.kr/files/a.jpg");
+    expect(makeImageUrl("abc123", "product")).toBe("https://imagedelivery.net/OvWZrAz6J6K7n9LKUH5pKw/abc123/product");
   });
 });

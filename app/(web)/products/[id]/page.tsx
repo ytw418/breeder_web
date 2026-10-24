@@ -22,6 +22,7 @@ import { isNoPriceCategory, petPostKindLabel } from "@libs/shared/petSpace";
 import ExploreMore from "@components/app/ExploreMore";
 import CoupangBanner from "@components/app/ads/CoupangBanner";
 import { getExploreMore } from "@libs/server/exploreMore";
+import { buildShelterSeo } from "@libs/shared/shelterSeo";
 
 const DEFAULT_OG_IMAGE = SITE_OG_IMAGE;
 const toPublicImageUrl = (imageId: string | null | undefined) =>
@@ -94,13 +95,28 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   if (product.category) keywordSet.add(product.category);
   if (product.productType) keywordSet.add(product.productType);
 
+  // 보호소 공고 글(externalSource)은 색인하고(2026-10-24 사용자 결정), 유기견·유기묘 입양 검색어를 제목·설명·keywords 에 싣는다.
+  const shelterSeo = product.externalSource
+    ? buildShelterSeo({
+        name: String(product.name),
+        category: product.category,
+        regionSido: product.regionSido,
+        regionSigungu: product.regionSigungu,
+      })
+    : null;
+  const metaDescription = shelterSeo?.description ?? description;
+  const metaTitle = shelterSeo
+    ? { absolute: shelterSeo.title }
+    : toPageTitle(String(product.name) || "제목 없음", product.category ? `${product.category} 분양` : null);
+  const metaKeywords = shelterSeo ? shelterSeo.keywords : Array.from(keywordSet);
+
   return {
-    title: toPageTitle(String(product.name) || "제목 없음", product.category ? `${product.category} 분양` : null),
-    description,
-    keywords: Array.from(keywordSet),
+    title: metaTitle,
+    description: metaDescription,
+    keywords: metaKeywords,
     openGraph: {
-      title: product.name,
-      description,
+      title: shelterSeo?.title ?? product.name,
+      description: metaDescription,
       images: normalizedImages.map((imageUrl) => ({
         url: imageUrl,
         width: 800,
@@ -114,8 +130,8 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
     },
     twitter: {
       card: "summary_large_image",
-      title: product.name,
-      description,
+      title: shelterSeo?.title ?? product.name,
+      description: metaDescription,
       images: [twitterImage],
     },
     alternates: {

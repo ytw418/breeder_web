@@ -82,6 +82,7 @@ const similarProducts = (category: string | null, excludeId?: number) =>
     where: {
       isHidden: false,
       isDeleted: false,
+      externalSource: null,
       status: { not: "판매완료" },
       ...(category ? { category } : {}),
       ...(excludeId ? { id: { not: excludeId } } : {}),

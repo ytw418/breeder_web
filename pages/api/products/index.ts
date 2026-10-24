@@ -240,6 +240,7 @@ const handler = async (
         bloodlineRootId,
         dealGroup,
         dealType: dealTypeQuery,
+        source,
       },
     } = req;
     // 분양 탭 '분양 | 입양'(앱 docs/prd/pet-space.md). sale·adoption 만 받는다.
@@ -247,6 +248,8 @@ const handler = async (
       dealGroup === "sale" || dealGroup === "adoption" ? dealGroup : undefined;
     const dealTypeFilter =
       dealTypeQuery === "foster" || dealTypeQuery === "rehoming" ? dealTypeQuery : undefined;
+    // 보호소 공고 글만(앱 docs/prd/shelter-animals.md). 이 값이 없으면 모든 목록에서 보호소 글을 뺀다.
+    const sourceFilter = source === "shelter" ? "shelter" : undefined;
 
     // 캐싱 전략: 필터 없는 기본 목록은 60초 캐시
     // 필터가 있는 경우 30초 캐시
@@ -278,6 +281,7 @@ const handler = async (
       bloodlineRootFilter !== undefined ||
       dealGroupFilter !== undefined ||
       dealTypeFilter !== undefined ||
+      sourceFilter !== undefined ||
       (sortValue && sortValue !== "latest");
     const cacheTime = hasFilters ? 30 : 60;
     res.setHeader(
@@ -302,6 +306,7 @@ const handler = async (
       bloodlineRootId: bloodlineRootFilter,
       dealGroup: dealGroupFilter,
       dealType: dealTypeFilter,
+      source: sourceFilter,
       viewerId,
     });
 

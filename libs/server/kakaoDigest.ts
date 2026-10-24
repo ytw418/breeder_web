@@ -42,6 +42,7 @@ export async function buildKakaoDigest(
   const productWhere = {
     isHidden: false,
     isDeleted: false,
+    externalSource: null,
     status: "판매중",
     createdAt: { gte: since },
     ...speciesWhere("category", ids, room.aliases),

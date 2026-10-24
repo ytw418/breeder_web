@@ -316,7 +316,12 @@ model Product {
   /// Post.regionSido·regionSigungu 와 같은 값 — 앱 docs/prd/pet-space.md §5.9
   regionSido      String?
   regionSigungu   String?
+  /// 외부 공고에서 옮겨 온 글(보호소 아이들, 2026-10-24 — 앱 docs/prd/shelter-animals.md). 회원 글은 둘 다 null.
+  /// externalSource 'animal.go.kr' + externalId 구조번호(desertionNo). 동기화가 이 둘로 찾아 고치고 숨긴다.
+  externalSource  String?
+  externalId      String?
 
+  @@unique([externalSource, externalId])
   @@index([userId])
   @@index([category])
   @@index([status])

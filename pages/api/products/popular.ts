@@ -32,6 +32,7 @@ const handler = async (
     where: {
       isHidden: false,
       isDeleted: false,
+      externalSource: null,
       ...(excluded.length ? { userId: { notIn: excluded } } : {}),
     },
     include: {

@@ -1,4 +1,5 @@
 import { unstable_cache } from "next/cache";
+import type { Prisma } from "@prisma/client";
 import { ADOPTION_SIDE_DEAL_TYPES } from "@libs/shared/petSpace";
 
 import client from "@libs/server/client";
@@ -114,6 +115,11 @@ type ProductQueryOptions = {
   dealGroup?: "sale" | "adoption";
   /** 입양 쪽 칩 '임보 구해요'·'가족 찾아요'. foster·rehoming 만 쓴다(dealGroup 보다 우선). */
   dealType?: "foster" | "rehoming";
+  /**
+   * 'shelter' 면 보호소 공고 글(externalSource 있는 글)만 돌려주고, 로그인 viewer 의 regionSido 와 같은 글을 앞에 둔다.
+   * 없으면 보호소 글을 모든 목록에서 뺀다(회원 '가족을 기다려요'·홈 레일 등, 앱 docs/prd/shelter-animals.md F-5).
+   */
+  source?: "shelter";
   /**
    * 로그인한 viewer. 있으면 viewer 가 차단한 판매자의 상품을 뺀다.
    * unstable_cache 경로(getCachedDefaultProducts)에는 넣지 않는다(공개 캐시).
@@ -314,6 +320,7 @@ const buildProductsResponse = async ({
   bloodlineRootId,
   dealGroup,
   dealType,
+  source,
   viewerId,
 }: ProductQueryOptions = {}): Promise<ProductsResponse> => {
   const pageNumber = Number(page);
@@ -327,6 +334,9 @@ const buildProductsResponse = async ({
 
   // 숨김(관리자 조치·탈퇴)·삭제 상품은 목록에 노출하지 않는다.
   const where: Record<string, unknown> = { isHidden: false, isDeleted: false };
+  // 보호소 공고 글(externalSource 있음)은 source=shelter 목록에서만 보인다. 그 밖의 모든 목록에서는 뺀다.
+  const shelterOnly = source === "shelter";
+  where.externalSource = shelterOnly ? { not: null } : null;
   if (category && category !== "전체") {
     where.category = { in: getCategoryFilterValues(String(category)) };
   }
@@ -362,35 +372,72 @@ const buildProductsResponse = async ({
     where.userId = { notIn: excluded };
   }
 
-  const [products, productCount] = await Promise.all([
-    client.product.findMany({
-      where,
-      include: {
-        // 목록 카드의 판매자 표시(아바타·닉네임·브리더 프로그램 프레임·대표 칭호).
-        user: {
-          select: {
-            id: true,
-            name: true,
-            avatar: true,
-            titleKey: true,
-            breederPrograms: {
-              where: { status: "ACTIVE" as const },
-              select: breederProgramSummarySelect,
-            },
-          },
-        },
-        _count: {
-          select: {
-            favs: true,
-          },
+  const include = {
+    // 목록 카드의 판매자 표시(아바타·닉네임·브리더 프로그램 프레임·대표 칭호).
+    user: {
+      select: {
+        id: true,
+        name: true,
+        avatar: true,
+        titleKey: true,
+        breederPrograms: {
+          where: { status: "ACTIVE" as const },
+          select: breederProgramSummarySelect,
         },
       },
-      orderBy: productOrderBy(isProductSort(sort) ? sort : "latest"),
-      take: normalizedSize,
-      skip: (normalizedPage - 1) * normalizedSize,
-    }),
-    client.product.count({ where }),
-  ]);
+    },
+    _count: {
+      select: {
+        favs: true,
+      },
+    },
+  };
+  const orderBy = productOrderBy(isProductSort(sort) ? sort : "latest");
+  const offset = (normalizedPage - 1) * normalizedSize;
+
+  // 보호소 목록: 로그인 viewer 의 시/도와 같은 글을 먼저, 그 안·밖은 최신순(createdAt desc, id desc).
+  // Prisma orderBy 로는 '같은 시/도 먼저'를 표현할 수 없어 두 묶음으로 나눠 페이지 창(offset~offset+size)을 걸친다.
+  //   묶음 A = 같은 시/도(M건), 묶음 B = 나머지. 합친 순서는 A 전체 뒤에 B 이므로
+  //   A 에서 skip=min(offset,M), take=clamp(M-offset,0,size), B 에서 skip=max(offset-M,0), take=size-A가져온수.
+  // 묶음별로 정렬이 안정적이라(id 로 동점 정리) 페이지를 넘겨도 순서가 흔들리지 않는다. viewer 시/도가 없으면 단일 쿼리.
+  const viewerSido =
+    shelterOnly && viewerId
+      ? (await client.user.findUnique({ where: { id: viewerId }, select: { regionSido: true } }))?.regionSido ?? null
+      : null;
+
+  const findProducts = (w: Record<string, unknown>, skip: number, take: number) =>
+    client.product.findMany({ where: w, include, orderBy, take, skip });
+  let products: Awaited<ReturnType<typeof findProducts>>;
+  let productCount: number;
+
+  if (shelterOnly && viewerSido) {
+    const baseAnd = (where.AND as Prisma.ProductWhereInput[] | undefined) ?? [];
+    const sameSido = { ...where, AND: [...baseAnd, { regionSido: viewerSido }] };
+    // NOT(regionSido = x) 는 NULL 행을 빼므로 OR 로 NULL 을 함께 건다.
+    const otherSido = {
+      ...where,
+      AND: [...baseAnd, { OR: [{ regionSido: null }, { regionSido: { not: viewerSido } }] }],
+    };
+    const [sameCount, otherCount] = await Promise.all([
+      client.product.count({ where: sameSido }),
+      client.product.count({ where: otherSido }),
+    ]);
+    const takeSame = Math.max(0, Math.min(normalizedSize, sameCount - offset));
+    const skipSame = Math.min(offset, sameCount);
+    const takeOther = normalizedSize - takeSame;
+    const skipOther = Math.max(0, offset - sameCount);
+    const [sameRows, otherRows] = await Promise.all([
+      takeSame > 0 ? findProducts(sameSido, skipSame, takeSame) : Promise.resolve([]),
+      takeOther > 0 ? findProducts(otherSido, skipOther, takeOther) : Promise.resolve([]),
+    ]);
+    products = [...sameRows, ...otherRows] as typeof products;
+    productCount = sameCount + otherCount;
+  } else {
+    [products, productCount] = await Promise.all([
+      findProducts(where, offset, normalizedSize),
+      client.product.count({ where }),
+    ]);
+  }
 
   return {
     success: true,
@@ -469,6 +516,7 @@ export async function getProductsResponse(options: ProductQueryOptions = {}) {
     options.bloodlineRootId === undefined &&
     !options.dealGroup &&
     !options.dealType &&
+    !options.source &&
     Number(options.page ?? 1) === 1 &&
     Number(options.size ?? 10) === 10;
 

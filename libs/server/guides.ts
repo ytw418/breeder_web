@@ -30,7 +30,7 @@ export async function getGuideCommunity(species: string): Promise<GuideCommunity
     if (!ids.length) return { counts: { posts: 0, products: 0, auctions: 0, bloodlines: 0 }, posts: [], onSale: [] };
     const categoryId = { in: ids };
     const postWhere = { categoryId, isHidden: false, NOT: { category: "공지" } };
-    const productWhere = { categoryId, isDeleted: false, isHidden: false, status: { in: ["판매중", "예약중"] } };
+    const productWhere = { categoryId, isDeleted: false, isHidden: false, externalSource: null, status: { in: ["판매중", "예약중"] } };
     const auctionWhere = { categoryId, isHidden: false, status: "진행중", endAt: { gt: new Date() } };
 
     const [posts, products, auctions, postCount, productCount, auctionCount, bloodlineCount] = await Promise.all([

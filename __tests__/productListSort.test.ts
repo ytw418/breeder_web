@@ -14,6 +14,7 @@ const mockClient = {
   category: { findMany: jest.fn(async () => []) },
   product: { findMany: jest.fn(), count: jest.fn() },
   userBlock: { findMany: jest.fn() },
+  user: { findUnique: jest.fn() },
 };
 jest.mock("@libs/server/client", () => ({
   __esModule: true,
@@ -128,6 +129,7 @@ describe("GET /api/products 가격 범위", () => {
     expect(lastFindMany().where).toEqual({
       isHidden: false,
       isDeleted: false,
+      externalSource: null,
       price: { gte: 10000, lte: 50000 },
     });
     expect(mockClient.product.count.mock.calls.at(-1)[0].where).toEqual(
@@ -172,6 +174,37 @@ describe("GET /api/products 가격 범위", () => {
     res = await list({ price: "9999999999" });
     expect(res.statusCode).toBe(200);
     expect(lastFindMany().where.price).toBe(2147483647);
+  });
+});
+
+describe("GET /api/products 보호소 글(externalSource)", () => {
+  // 앱 docs/prd/shelter-animals.md AC-6·AC-7
+  it("기본 목록·가족을 기다려요는 보호소 글을 빼고, source=shelter 는 보호소 글만 같은 시/도 먼저 준다", async () => {
+    for (const query of [{}, { dealType: "rehoming" }, { dealGroup: "adoption" }] as Record<string, string>[]) {
+      await list(query);
+      expect(lastFindMany().where.externalSource).toBeNull();
+    }
+
+    // 비로그인: 시/도 순서 없이 보호소 글만 최신순.
+    await list({ source: "shelter" });
+    expect(lastFindMany().where.externalSource).toEqual({ not: null });
+    expect(lastFindMany().orderBy).toEqual({ createdAt: "desc" });
+
+    // 로그인(서울): 서울 묶음 → 나머지 묶음 순으로 이어 페이지 창을 맞춘다. 서울 3건 + 나머지 5건, size 2 의 2번째 페이지 = 서울 마지막 1건 + 나머지 1건.
+    mockClient.user.findUnique.mockResolvedValue({ regionSido: "서울" });
+    const isSeoul = (where: unknown) => JSON.stringify(where).includes('"regionSido":"서울"');
+    mockClient.product.count.mockImplementation(async ({ where }: any) => (isSeoul(where) ? 3 : 5));
+    mockClient.product.findMany.mockImplementation(async ({ where, skip, take }: any) =>
+      Array.from({ length: take }, (_, i) => ({ id: (isSeoul(where) ? 10 : 100) + skip + i, user: { breederPrograms: [] } }))
+    );
+    const res = createRes();
+    await productsHandler(
+      { method: "GET", headers: {}, query: { source: "shelter", page: "2", size: "2" }, body: {}, cookies: {}, user: { id: 7 } } as unknown as NextApiRequest,
+      res as unknown as NextApiResponse
+    );
+    expect(res.body.products.map((p: any) => p.id)).toEqual([12, 100]);
+    expect(res.body).toMatchObject({ total: 8, pages: 4 });
+    expect(res.headers["cache-control"]).toMatch(/private/);
   });
 });
 

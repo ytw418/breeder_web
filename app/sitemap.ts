@@ -47,6 +47,13 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       changeFrequency: "daily",
       priority: 0.6,
     },
+    // 보호소 아이들 전체 목록(유기견·유기묘 입양 검색 유입, 앱 docs/prd/shelter-animals.md). 3시간마다 바뀐다.
+    {
+      url: "https://bredy.app/adoption/shelter",
+      lastModified: new Date(),
+      changeFrequency: "hourly",
+      priority: 0.7,
+    },
     {
       url: "https://bredy.app/debates",
       lastModified: new Date(),

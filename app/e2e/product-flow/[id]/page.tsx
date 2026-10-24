@@ -34,6 +34,8 @@ const e2eProduct: NonNullable<ItemDetailResponse["product"]> = {
   dealType: "sale",
   regionSido: null,
   regionSigungu: null,
+  externalSource: null,
+  externalId: null,
   user: {
     id: 999,
     role: "USER",
