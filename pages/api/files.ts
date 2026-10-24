@@ -2,6 +2,8 @@ import { NextApiRequest, NextApiResponse } from "next";
 import withHandler, { ResponseType } from "@libs/server/withHandler";
 
 import { withAuth } from "@libs/server/auth";
+import { takeUploadSlot, UPLOAD_LIMIT_MESSAGE } from "@libs/server/uploadLimit";
+import { isAdminEmail } from "@libs/shared/adminEmail";
 
 /**
  * Cloudflare direct_upload 은 가끔 일시 오류를 낸다(2026-10-21 "처음엔 업로드 URL 오류, 두 번째엔 성공").
@@ -50,9 +52,13 @@ async function requestDirectUpload(): Promise<
 }
 
 async function handler(
-  _req: NextApiRequest,
+  req: NextApiRequest,
   res: NextApiResponse<ResponseType>
 ) {
+  const user = req.user;
+  if (user && !isAdminEmail(user.email) && !takeUploadSlot(user.id)) {
+    return res.status(429).json({ success: false, error: UPLOAD_LIMIT_MESSAGE });
+  }
   for (let attempt = 1; attempt <= DIRECT_UPLOAD_ATTEMPTS; attempt += 1) {
     const upload = await requestDirectUpload();
     if (upload.ok) {

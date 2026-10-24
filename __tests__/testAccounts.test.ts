@@ -10,6 +10,9 @@ describe("test account helpers", () => {
     expect(shouldShowTestLoginForEnv("production")).toBe(false);
     expect(shouldShowTestLoginForEnv("prod")).toBe(false);
     expect(shouldShowTestLoginForEnv("preview")).toBe(true);
+    // 허용 목록: 비었거나 낯선 값이면 닫는다(env 가 어긋나도 운영에서 열리지 않게).
+    expect(shouldShowTestLoginForEnv("")).toBe(false);
+    expect(shouldShowTestLoginForEnv("staging")).toBe(false);
     expect(isProductionLikeEnv("development")).toBe(false);
   });
 
