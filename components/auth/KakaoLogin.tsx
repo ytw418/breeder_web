@@ -80,7 +80,6 @@ export const KakaoLogin = () => {
     if (data?.error) {
       // 인가 코드 교환 실패. 로그인 직후 뒤로 가기로 이 화면에 다시 오면 이미 쓴 코드라 카카오가 invalid_grant 를
       // 돌려준다 — 예전엔 여기서 스피너만 돌았다(2026-10-11 제보 '지역 설정 후 무한 로딩').
-      console.log("로그인 data :>> ", data);
       if (hasTokens()) {
         router.replace("/");
         return;
@@ -92,7 +91,6 @@ export const KakaoLogin = () => {
     }
 
     if (data && !data.error) {
-      console.log(" https://kauth.kakao.com :>> ", data);
       loginWithKakao();
       return;
     }
@@ -119,8 +117,6 @@ export const KakaoLogin = () => {
         },
       } = userData;
 
-      console.log("userData :>> ", userData);
-      console.log("카카오 로그인 요청 성공 :>> ");
 
       const body: LoginReqBody = {
         token: data.access_token,
@@ -133,7 +129,6 @@ export const KakaoLogin = () => {
       login({
         data: body,
         onCompleted(result) {
-          console.log("result :>> ", result);
           if (result.success) {
             if (result.accessToken && result.refreshToken) {
               setTokens({

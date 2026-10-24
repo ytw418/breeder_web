@@ -8,7 +8,7 @@ import { hasAdminAccess } from "@libs/server/adminAccess";
 import { role as UserRole, UserStatus } from "@prisma/client";
 import {
   getAppRuntimeEnv,
-  isProductionLikeEnv,
+  isOpenTestLoginEnv,
   isTestAccountUser,
 } from "@libs/shared/test-accounts";
 
@@ -67,7 +67,7 @@ const FORBIDDEN_MESSAGE =
  * (마이페이지 전환 목록과 같은 기준). 개발·프리뷰는 로그인 화면 테스트 로그인을 위해 열어 둔다.
  */
 async function canUseTestAccounts(viewerId?: number): Promise<boolean> {
-  if (!isProductionLikeEnv(getAppRuntimeEnv())) return true;
+  if (isOpenTestLoginEnv(getAppRuntimeEnv())) return true;
   if (!viewerId) return false;
 
   const viewer = await client.user.findUnique({

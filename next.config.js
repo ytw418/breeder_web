@@ -58,6 +58,21 @@ const nextConfig = {
   // 개인정보처리방침·이용약관을 bredy.app 주소로도 연다. Google OAuth 동의 화면(브랜딩 인증)과
   // 스토어 등록은 정책 링크가 앱 도메인에 있어야 한다. 원문은 Notion(libs/constants.ts 와 같은 주소).
   // 나중에 자체 페이지로 옮길 수 있게 영구(308)가 아닌 임시 이동으로 둔다.
+  // 기본 보안 헤더(2026-10-24 보안 점검). 클릭재킹(다른 사이트 iframe)·MIME 추측·주소 유출을 막는다.
+  // CSP 는 광고(AdSense·쿠팡)·PostHog·카카오 스크립트가 많아 따로 Report-Only 로 시작한다.
+  async headers() {
+    return [
+      {
+        source: "/:path*",
+        headers: [
+          { key: "X-Frame-Options", value: "SAMEORIGIN" },
+          { key: "X-Content-Type-Options", value: "nosniff" },
+          { key: "Referrer-Policy", value: "strict-origin-when-cross-origin" },
+          { key: "Strict-Transport-Security", value: "max-age=63072000; includeSubDomains" },
+        ],
+      },
+    ];
+  },
   async redirects() {
     return [
       {
