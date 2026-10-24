@@ -925,7 +925,6 @@ export function ProductForm({
         {showsPetRegion(petKind) ? (
           <PetRegionRow region={myRegionText} on={showRegion} onChange={setShowRegion} disabled={busy} />
         ) : null}
-        {agreementField}
       </>
     );
   };
@@ -948,10 +947,10 @@ export function ProductForm({
         className={cn(
           "flex flex-col gap-5",
           !stepMode
-            ? "px-5 pb-[calc(52px+40px+env(safe-area-inset-bottom))] pt-5"
+            ? "px-5 pb-[calc(52px+40px+56px+env(safe-area-inset-bottom))] pt-5"
             : step === 1
               ? "px-4 pb-10 pt-7"
-              : "px-4 pb-[calc(52px+40px+env(safe-area-inset-bottom))] pt-6"
+              : "px-4 pb-[calc(52px+40px+56px+env(safe-area-inset-bottom))] pt-6"
         )}
         noValidate
       >
@@ -1111,7 +1110,6 @@ export function ProductForm({
 
             {descriptionField}
 
-            {agreementField}
           </>
         )}
 
@@ -1124,6 +1122,8 @@ export function ProductForm({
         {stepMode && step === 1 ? null : (
           <div className="fixed inset-x-0 bottom-0 mx-auto max-w-xl z-30 border-t border-app-line bg-app-bg pb-[env(safe-area-inset-bottom)]">
             <div className={cn("mx-auto max-w-xl py-2", stepMode ? "px-4" : "px-5")}>
+              {/* 동의는 버튼 바로 위에 붙여 둔다(2026-10-24 사용자 — 본문 끝에 두면 고정 버튼 아래로 밀려 보였다). ②의 '다음'엔 없다. */}
+              {stepMode && step === 2 ? null : agreementField ? <div className="pb-2">{agreementField}</div> : null}
               <button
                 type="submit"
                 aria-label={ctaLabel}

@@ -1,4 +1,4 @@
-import { getSafeNextPath, resolvePostLoginDestination } from "@libs/client/postLogin";
+import { getSafeNextPath, needsHomeCategoryPrompt, resolvePostLoginDestination } from "@libs/client/postLogin";
 
 describe("로그인 뒤 이동 경로", () => {
   it("같은 사이트 경로만 허용한다", () => {
@@ -34,5 +34,15 @@ describe("로그인 뒤 이동 경로", () => {
     expect(resolvePostLoginDestination({ ...base, next: "/onboarding?next=%2Fposts" })).toBe(
       "/onboarding?next=/posts"
     );
+  });
+});
+
+describe("홈 첫 방문 관심 분야 팝업", () => {
+  it("고른 분야가 브라우저·계정 둘 다 없으면 예전에 건너뛰었어도 다시 묻고, 이번 방문에 닫았으면 묻지 않는다", () => {
+    const none = { serverPinnedIds: undefined, localPinCount: 0, dismissedThisVisit: false };
+    expect(needsHomeCategoryPrompt(none)).toBe(true);
+    expect(needsHomeCategoryPrompt({ ...none, localPinCount: 1 })).toBe(false);
+    expect(needsHomeCategoryPrompt({ ...none, serverPinnedIds: [3] })).toBe(false);
+    expect(needsHomeCategoryPrompt({ ...none, dismissedThisVisit: true })).toBe(false);
   });
 });
