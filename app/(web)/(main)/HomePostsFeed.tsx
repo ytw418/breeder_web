@@ -610,7 +610,8 @@ export default function HomePostsFeed() {
 
       {/* 카테고리 칩 + 종·정렬: 스크롤하면 헤더 바로 아래에 붙는다(틈 없음). */}
       <div className="sticky top-14 z-10 bg-app-bg" data-testid="posts-sticky-filters">
-        <FilterChipRail className="h-[52px]">
+        {/* 오른쪽으로 더 넘길 수 있는 동안 끝에 흐림 띠(scrollHint), 오른쪽 여백은 줄여 끝 칩이 걸쳐 보이게 한다. */}
+        <FilterChipRail className="h-[52px] pr-2" scrollHint>
           {HOME_POST_TABS.map((tab) => (
             <FilterChip
               key={tab.id}
