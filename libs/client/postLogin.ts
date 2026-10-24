@@ -51,6 +51,23 @@ export function needsCategoryOnboarding({
   return !(serverOnboarded || onboarded || localPinCount > 0 || (serverPinnedIds?.length ?? 0) > 0);
 }
 
+/**
+ * 홈 첫 방문 팝업을 띄울지(2026-10-24 사용자 "로컬스토리지에도 계정에도 데이터가 없으면 떠야").
+ * 고른 분야(고정)가 브라우저·계정 어디에도 없으면 띄운다 — 예전에 '건너뛰기'로 닫아 onboarded 만 남은 경우도 다시 묻는다.
+ * 같은 방문(탭) 안에서 닫았으면 다시 띄우지 않는다(홈에 올 때마다 뜨지 않게).
+ */
+export function needsHomeCategoryPrompt({
+  serverPinnedIds,
+  localPinCount,
+  dismissedThisVisit,
+}: {
+  serverPinnedIds: readonly number[] | undefined;
+  localPinCount: number;
+  dismissedThisVisit: boolean;
+}) {
+  return !dismissedThisVisit && localPinCount === 0 && (serverPinnedIds?.length ?? 0) === 0;
+}
+
 /** 로그인 뒤 갈 곳. 관심 카테고리를 고른 적이 있으면 바로 가고, 아니면 온보딩을 거친다. */
 export function resolvePostLoginDestination({ next, ...record }: CategoryOnboardingRecord & { next: string }) {
   const target = getSafeNextPath(next);
