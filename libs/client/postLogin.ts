@@ -26,7 +26,8 @@ export const getSafeNextPath = (rawPath: string | null | undefined) => {
   } catch {
     // noop
   }
-  if (!normalized.startsWith("/") || normalized.startsWith("//")) return "/";
+  // `/\evil.com` 은 브라우저가 `//evil.com` 으로 읽어 외부로 나간다 — 역슬래시·제어 문자가 있으면 홈으로.
+  if (!normalized.startsWith("/") || normalized.startsWith("//") || /[\\\u0000-\u001f]/.test(normalized)) return "/";
   return normalized;
 };
 

@@ -5,6 +5,8 @@ describe("로그인 뒤 이동 경로", () => {
     expect(getSafeNextPath(null)).toBe("/");
     expect(getSafeNextPath("//evil.com")).toBe("/");
     expect(getSafeNextPath("https://evil.com")).toBe("/");
+    expect(getSafeNextPath("/\\evil.com")).toBe("/");
+    expect(getSafeNextPath("%2F%5Cevil.com")).toBe("/");
     expect(getSafeNextPath("%2Fposts%2F3")).toBe("/posts/3");
   });
 
