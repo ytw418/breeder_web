@@ -11,6 +11,8 @@
  *   받은 목록이 덜 왔거나(고유 공고 수가 총수에 못 미침) 총수가 지난 회차보다 30% 넘게 줄었으면(E-2) 숨김·표시를 모두 건너뛴다.
  *   종 하나의 총수가 0이거나 그 종의 보이는 글 수의 70% 미만이면 그 종만 건너뛴다.
  * - 동기화가 숨긴 글(isHidden + 표시 태그)은 온전한 회차에서 다시 나타나면 되살린다. 표시 태그 없이 숨긴 글(운영 제재)은 그대로 둔다.
+ * - 필터용 칸(externalBreed·externalWeightKg·externalNoticeEnd, 입양 탭 개편)도 비교에 넣어서, 칸이 생기기 전에 들어온 기존 글은
+ *   다음 회차들이 고쳐 채운다(새로 만들지 않고 고친다. 한 회차에 고치는 양은 시간 한도 안, 나머지는 pendingUpdates).
  * - 새 글의 createdAt 은 공고 시작일(KST 0시)이라 보호소 목록(createdAt desc)에 최근 공고가 먼저 나온다.
  * - 회차가 실패로 끝나면(받기 오류·저장 실패·시간 한도로 새 글 0건) ok:false 라 GitHub Action 이 실패로 표시한다.
  * - DB 와 fetch 는 주입받는다(테스트는 모의로).
@@ -176,6 +178,10 @@ const contentData = (p: ShelterProduct) => ({
   petInfo: { ...p.petInfo } as Prisma.InputJsonValue,
   regionSido: p.regionSido,
   regionSigungu: p.regionSigungu,
+  // 필터용 칸(품종·몸무게·공고 마감). 비교에도 들어가서 새로 생긴 칸은 다음 회차가 기존 글에도 채운다.
+  externalBreed: p.externalBreed,
+  externalWeightKg: p.externalWeightKg,
+  externalNoticeEnd: p.externalNoticeEnd,
 });
 
 const sourceLine = (noticeNo: string) => `출처: 국가동물보호정보시스템 공고 ${noticeNo}`;
@@ -268,6 +274,9 @@ export async function runShelterSync(options: ShelterSyncOptions): Promise<Shelt
       petInfo: true,
       regionSido: true,
       regionSigungu: true,
+      externalBreed: true,
+      externalWeightKg: true,
+      externalNoticeEnd: true,
     },
   });
   const existingById = new Map<string, (typeof existing)[number]>();
@@ -293,6 +302,9 @@ export async function runShelterSync(options: ShelterSyncOptions): Promise<Shelt
       row.photos.join("\n") === product.photos.join("\n") &&
       row.regionSido === product.regionSido &&
       row.regionSigungu === product.regionSigungu &&
+      row.externalBreed === product.externalBreed &&
+      row.externalWeightKg === product.externalWeightKg &&
+      (row.externalNoticeEnd?.getTime() ?? null) === (product.externalNoticeEnd?.getTime() ?? null) &&
       petKey(parsePetInfo(row.petInfo)) === petKey(product.petInfo);
     if (!same) changes.push({ rowId: row.id, product });
   }

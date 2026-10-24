@@ -1,6 +1,7 @@
 import { unstable_cache } from "next/cache";
 import type { Prisma } from "@prisma/client";
 import { ADOPTION_SIDE_DEAL_TYPES } from "@libs/shared/petSpace";
+import { shelterSizeRange, type ShelterFilters } from "@libs/shared/shelterFilters";
 
 import client from "@libs/server/client";
 import { getRealtimeHotDiscussions } from "@libs/server/hotRealtime";
@@ -120,6 +121,11 @@ type ProductQueryOptions = {
    * 없으면 보호소 글을 모든 목록에서 뺀다(회원 '가족을 기다려요'·홈 레일 등, 앱 docs/prd/shelter-animals.md F-5).
    */
   source?: "shelter";
+  /**
+   * source=shelter 목록의 지역·품종·크기 필터(libs/shared/shelterFilters). category·sort 는 이 안이 아니라 위쪽 category·sort 를 쓴다.
+   * sort 는 'deadline' 이면 공고 마감이 가까운 순(마감 안 지난 공고 먼저, 마감을 모르거나 지난 공고는 뒤 — 최신순).
+   */
+  shelterFilters?: Pick<ShelterFilters, "sido" | "sigungu" | "breed" | "size">;
   /**
    * 로그인한 viewer. 있으면 viewer 가 차단한 판매자의 상품을 뺀다.
    * unstable_cache 경로(getCachedDefaultProducts)에는 넣지 않는다(공개 캐시).
@@ -306,6 +312,24 @@ const priceRangeFilter = (minPrice?: number, maxPrice?: number) => {
   };
 };
 
+/**
+ * 보호소 목록 필터 → AND 조건 목록. 시·군·구 이름은 여러 시/도에서 겹치므로 시/도 조건과 함께 건다.
+ * 크기는 몸무게 구간(고양이만 보는 목록엔 걸지 않는다)이고 몸무게를 모르는 글은 빠진다.
+ */
+export function shelterFilterConditions(
+  filters: Pick<ShelterFilters, "sido" | "sigungu" | "breed" | "size"> & { category?: string },
+  options: { catOnly?: boolean } = {}
+): Prisma.ProductWhereInput[] {
+  const conditions: Prisma.ProductWhereInput[] = [];
+  if (filters.sido?.length) conditions.push({ regionSido: { in: filters.sido } });
+  if (filters.sigungu?.length) conditions.push({ regionSigungu: { in: filters.sigungu } });
+  if (filters.breed?.length) conditions.push({ externalBreed: { in: filters.breed } });
+  if (filters.size && !options.catOnly && filters.category !== "고양이") {
+    conditions.push({ externalWeightKg: shelterSizeRange(filters.size) });
+  }
+  return conditions;
+}
+
 const buildProductsResponse = async ({
   page = 1,
   size = 10,
@@ -321,6 +345,7 @@ const buildProductsResponse = async ({
   dealGroup,
   dealType,
   source,
+  shelterFilters,
   viewerId,
 }: ProductQueryOptions = {}): Promise<ProductsResponse> => {
   const pageNumber = Number(page);
@@ -342,9 +367,12 @@ const buildProductsResponse = async ({
   }
   // 관심 카테고리 고정 범위. 없으면 숨긴 카테고리 상품만 뺀다.
   const scope = await categoryScopeWhere(categoryPath);
-  if (Object.keys(scope).length) {
-    where.AND = [scope];
+  const andConditions: Prisma.ProductWhereInput[] = [];
+  if (Object.keys(scope).length) andConditions.push(scope);
+  if (shelterOnly && shelterFilters) {
+    andConditions.push(...shelterFilterConditions({ ...shelterFilters, category: category ? String(category) : undefined }));
   }
+  if (andConditions.length) where.AND = andConditions;
   if (productType && productType !== "전체") {
     where.productType = productType;
   }
@@ -394,54 +422,64 @@ const buildProductsResponse = async ({
   };
   const sortKey = isProductSort(sort) ? sort : "latest";
   // 보호소 목록은 기본 최신순에도 id 로 동점을 정리해 페이지를 넘겨도 순서가 흔들리지 않게 한다(공고 시작일이 같은 글이 많다).
-  const orderBy =
-    shelterOnly && sortKey === "latest"
-      ? [{ createdAt: "desc" as const }, { id: "desc" as const }]
-      : productOrderBy(sortKey);
+  const latestOrder = [{ createdAt: "desc" as const }, { id: "desc" as const }];
+  const orderBy = shelterOnly && sortKey === "latest" ? latestOrder : productOrderBy(sortKey);
   const offset = (normalizedPage - 1) * normalizedSize;
+  const baseAnd = (where.AND as Prisma.ProductWhereInput[] | undefined) ?? [];
 
-  // 보호소 목록: 로그인 viewer 의 시/도와 같은 글을 먼저, 그 안·밖은 최신순(위 orderBy: createdAt desc, id desc).
-  // Prisma orderBy 로는 '같은 시/도 먼저'를 표현할 수 없어 두 묶음으로 나눠 페이지 창(offset~offset+size)을 걸친다.
-  //   묶음 A = 같은 시/도(M건), 묶음 B = 나머지. 합친 순서는 A 전체 뒤에 B 이므로
-  //   A 에서 skip=min(offset,M), take=clamp(M-offset,0,size), B 에서 skip=max(offset-M,0), take=size-A가져온수.
-  // 묶음별로 정렬이 안정적이라(id 로 동점 정리) 페이지를 넘겨도 순서가 흔들리지 않는다. viewer 시/도가 없으면 단일 쿼리.
-  const viewerSido =
-    shelterOnly && viewerId
-      ? (await client.user.findUnique({ where: { id: viewerId }, select: { regionSido: true } }))?.regionSido ?? null
-      : null;
-
-  const findProducts = (w: Record<string, unknown>, skip: number, take: number) =>
-    client.product.findMany({ where: w, include, orderBy, take, skip });
+  const findProducts = (w: Record<string, unknown>, order: Prisma.ProductFindManyArgs["orderBy"], skip: number, take: number) =>
+    client.product.findMany({ where: w, include, orderBy: order, take, skip });
   let products: Awaited<ReturnType<typeof findProducts>>;
   let productCount: number;
 
-  if (shelterOnly && viewerSido) {
-    const baseAnd = (where.AND as Prisma.ProductWhereInput[] | undefined) ?? [];
-    const sameSido = { ...where, AND: [...baseAnd, { regionSido: viewerSido }] };
-    // NOT(regionSido = x) 는 NULL 행을 빼므로 OR 로 NULL 을 함께 건다.
-    const otherSido = {
-      ...where,
-      AND: [...baseAnd, { OR: [{ regionSido: null }, { regionSido: { not: viewerSido } }] }],
-    };
-    const [sameCount, otherCount] = await Promise.all([
-      client.product.count({ where: sameSido }),
-      client.product.count({ where: otherSido }),
+  // 두 묶음으로 나눠 이어 붙이는 목록: Prisma orderBy 로는 '같은 시/도 먼저'·'마감 안 지난 공고 먼저'를 표현할 수 없어
+  // 묶음 A(M건) 전체 뒤에 묶음 B 를 붙이고, 페이지 창(offset~offset+size)을 걸쳐 가져온다.
+  //   A 에서 skip=min(offset,M), take=clamp(M-offset,0,size), B 에서 skip=max(offset-M,0), take=size-A가져온수.
+  // 묶음별 정렬이 안정적이라(id 로 동점 정리) 페이지를 넘겨도 순서가 흔들리지 않는다.
+  type Group = { where: Record<string, unknown>; order: Prisma.ProductFindManyArgs["orderBy"] };
+  const findAcross = async (a: Group, b: Group) => {
+    const [countA, countB] = await Promise.all([client.product.count({ where: a.where }), client.product.count({ where: b.where })]);
+    const takeA = Math.max(0, Math.min(normalizedSize, countA - offset));
+    const takeB = normalizedSize - takeA;
+    const [rowsA, rowsB] = await Promise.all([
+      takeA > 0 ? findProducts(a.where, a.order, Math.min(offset, countA), takeA) : Promise.resolve([]),
+      takeB > 0 ? findProducts(b.where, b.order, Math.max(0, offset - countA), takeB) : Promise.resolve([]),
     ]);
-    const takeSame = Math.max(0, Math.min(normalizedSize, sameCount - offset));
-    const skipSame = Math.min(offset, sameCount);
-    const takeOther = normalizedSize - takeSame;
-    const skipOther = Math.max(0, offset - sameCount);
-    const [sameRows, otherRows] = await Promise.all([
-      takeSame > 0 ? findProducts(sameSido, skipSame, takeSame) : Promise.resolve([]),
-      takeOther > 0 ? findProducts(otherSido, skipOther, takeOther) : Promise.resolve([]),
-    ]);
-    products = [...sameRows, ...otherRows] as typeof products;
-    productCount = sameCount + otherCount;
+    return { rows: [...rowsA, ...rowsB] as typeof products, count: countA + countB };
+  };
+
+  if (shelterOnly && sort === "deadline") {
+    // 공고 마감이 가까운 순. 마감 안 지난 공고(A)가 마감일 오름차순으로 먼저, 마감을 모르거나 이미 지난 공고(B)는 뒤에서 최신순.
+    const now = new Date();
+    const across = await findAcross(
+      { where: { ...where, AND: [...baseAnd, { externalNoticeEnd: { gte: now } }] }, order: [{ externalNoticeEnd: "asc" }, { id: "desc" }] },
+      {
+        where: { ...where, AND: [...baseAnd, { OR: [{ externalNoticeEnd: null }, { externalNoticeEnd: { lt: now } }] }] },
+        order: latestOrder,
+      }
+    );
+    products = across.rows;
+    productCount = across.count;
   } else {
-    [products, productCount] = await Promise.all([
-      findProducts(where, offset, normalizedSize),
-      client.product.count({ where }),
-    ]);
+    // 보호소 최신순 목록: 로그인 viewer 의 시/도와 같은 글을 먼저, 그 안·밖은 최신순. 시/도 필터를 걸었으면 이미 그 시/도라 나누지 않는다.
+    const viewerSido =
+      shelterOnly && viewerId && !shelterFilters?.sido?.length
+        ? (await client.user.findUnique({ where: { id: viewerId }, select: { regionSido: true } }))?.regionSido ?? null
+        : null;
+    if (shelterOnly && viewerSido) {
+      // NOT(regionSido = x) 는 NULL 행을 빼므로 OR 로 NULL 을 함께 건다.
+      const across = await findAcross(
+        { where: { ...where, AND: [...baseAnd, { regionSido: viewerSido }] }, order: orderBy },
+        { where: { ...where, AND: [...baseAnd, { OR: [{ regionSido: null }, { regionSido: { not: viewerSido } }] }] }, order: orderBy }
+      );
+      products = across.rows;
+      productCount = across.count;
+    } else {
+      [products, productCount] = await Promise.all([
+        findProducts(where, orderBy, offset, normalizedSize),
+        client.product.count({ where }),
+      ]);
+    }
   }
 
   return {

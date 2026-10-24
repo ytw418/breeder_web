@@ -53,6 +53,12 @@ export interface ShelterProduct {
   noticeNo: string;
   /** 공고 마감일 YYYYMMDD 원문. */
   noticeEdt: string;
+  /** 필터용 칸(2026-10-24 입양 탭 개편). 품종은 '[개]' 머리표를 뗀 이름이고 '기타'·모름이면 null. */
+  externalBreed: string | null;
+  /** 몸무게 kg. 범위("3~4")는 평균, 읽을 수 없으면 null. */
+  externalWeightKg: number | null;
+  /** 공고 마감일의 마지막 순간(그날 23:59:59.999 KST). 모르면 null. */
+  externalNoticeEnd: Date | null;
 }
 
 export const SHELTER_TITLE_MAX = 60;
@@ -119,10 +125,42 @@ const SEX_ID: Record<string, NonNullable<PetInfo["sex"]>> = { M: "male", F: "fem
 const NOUN: Record<ShelterSpecies, string> = { 강아지: "유기견", 고양이: "유기묘" };
 const FORBIDDEN_WORDS = /판매|구매|상품/;
 
-/** "[개] 믹스견" → "믹스견". 품종이 '기타'거나 비면 강아지·고양이로 부른다. */
-function breedOf(item: ShelterApiItem, species: ShelterSpecies): string {
-  const breed = clean(item.kindNm ?? item.kindCd).replace(/^\[[^\]]+\]\s*/, "");
-  return !breed || breed === "기타" || /^\d+$/.test(breed) ? species : breed;
+/** "[개] 믹스견" → "믹스견". 품종이 '기타'거나 비었거나 숫자 코드뿐이면 null. 필터·카드 제목이 같이 쓴다. */
+export function shelterBreedOf(item: Pick<ShelterApiItem, "kindNm" | "kindCd">): string | null {
+  const breed = clean(item.kindNm ?? item.kindCd)
+    .replace(/^\[[^\]]+\]\s*/, "")
+    .slice(0, 40)
+    .trim();
+  return !breed || breed === "기타" || /^\d+$/.test(breed) ? null : breed;
+}
+
+/** 제목·본문에 쓰는 품종. 모르면 강아지·고양이로 부른다. */
+const breedOf = (item: ShelterApiItem, species: ShelterSpecies): string => shelterBreedOf(item) ?? species;
+
+const WEIGHT_PATTERN = /^(\d+(?:\.\d+)?)(?:\s*[~\-]\s*(\d+(?:\.\d+)?))?$/;
+
+/**
+ * 공고 몸무게 글 → kg. "3.2(Kg)" → 3.2, "11" → 11, "3~4(Kg)" → 3.5(범위는 평균).
+ * 숫자가 아니거나 0 이하이거나 200kg 을 넘으면 null(필터에서는 '크기 모름'으로 빠진다).
+ */
+export function shelterWeightKg(weight: string | null | undefined): number | null {
+  const text = clean(weight).replace(/\(\s*kg\s*\)|kg|㎏/gi, "").trim();
+  const match = WEIGHT_PATTERN.exec(text);
+  if (!match) return null;
+  const low = Number(match[1]);
+  const high = match[2] === undefined ? low : Number(match[2]);
+  const kg = Math.round(((low + high) / 2) * 100) / 100;
+  return kg > 0 && kg <= 200 ? kg : null;
+}
+
+/** 공고 마감일 YYYYMMDD → 그날의 마지막 순간(23:59:59.999 KST). 형식이 틀리거나 없는 날이면 null. */
+export function shelterNoticeEnd(edt: string | null | undefined): Date | null {
+  const match = /^(\d{4})(\d{2})(\d{2})$/.exec(clean(edt));
+  if (!match) return null;
+  const [year, month, day] = [Number(match[1]), Number(match[2]), Number(match[3])];
+  const probe = new Date(Date.UTC(year, month - 1, day));
+  if (probe.getUTCFullYear() !== year || probe.getUTCMonth() !== month - 1 || probe.getUTCDate() !== day) return null;
+  return new Date(Date.UTC(year, month - 1, day, 23, 59, 59, 999) - 9 * 60 * 60 * 1000);
 }
 
 /** "2024(년생)" → "2024년생", "2026(60일미만)(년생)" → "2026년생(60일 미만)". */
@@ -364,5 +402,8 @@ export function toShelterProduct(item: ShelterApiItem, species: ShelterSpecies):
     externalId,
     noticeNo: clean(item.noticeNo),
     noticeEdt: clean(item.noticeEdt),
+    externalBreed: shelterBreedOf(item),
+    externalWeightKg: shelterWeightKg(item.weight),
+    externalNoticeEnd: shelterNoticeEnd(item.noticeEdt),
   };
 }

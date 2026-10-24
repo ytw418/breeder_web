@@ -17,6 +17,7 @@ import { DEFAULT_DEAL_TYPE } from "@libs/shared/categories";
 import { canAttachBloodline, pedigreeNoteDbValue } from "@libs/server/bloodline-link";
 import { petInfoDbValue, petRegionColumns } from "@libs/server/petInfo";
 import { isAdoptionSideDealType } from "@libs/shared/petSpace";
+import { hasShelterFilters, parseShelterFilters } from "@libs/shared/shelterFilters";
 import { captureServerEvent, resolveClientPlatform } from "@libs/server/analytics";
 import { buildCelebrate } from "@libs/server/celebrate";
 import { getProductRail, PRODUCT_RAIL_LIMIT_DEFAULT, PRODUCT_RAIL_LIMIT_MAX } from "@libs/server/productRail";
@@ -250,6 +251,8 @@ const handler = async (
       dealTypeQuery === "foster" || dealTypeQuery === "rehoming" ? dealTypeQuery : undefined;
     // 보호소 공고 글만(앱 docs/prd/shelter-animals.md). 이 값이 없으면 모든 목록에서 보호소 글을 뺀다.
     const sourceFilter = source === "shelter" ? "shelter" : undefined;
+    // 보호소 목록의 지역(sido·sigungu)·품종(breed)·크기(dogSize) 필터. sort=deadline 은 아래 sort 로 같이 들어간다(쪽 크기 size 와 겹치지 않게 크기 키는 dogSize).
+    const shelterFilters = sourceFilter ? parseShelterFilters(req.query) : undefined;
 
     // 캐싱 전략: 필터 없는 기본 목록은 60초 캐시
     // 필터가 있는 경우 30초 캐시
@@ -282,6 +285,7 @@ const handler = async (
       dealGroupFilter !== undefined ||
       dealTypeFilter !== undefined ||
       sourceFilter !== undefined ||
+      (shelterFilters && hasShelterFilters(shelterFilters)) ||
       (sortValue && sortValue !== "latest");
     const cacheTime = hasFilters ? 30 : 60;
     res.setHeader(
@@ -307,6 +311,7 @@ const handler = async (
       dealGroup: dealGroupFilter,
       dealType: dealTypeFilter,
       source: sourceFilter,
+      shelterFilters,
       viewerId,
     });
 

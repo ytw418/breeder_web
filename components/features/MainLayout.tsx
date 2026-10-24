@@ -16,6 +16,8 @@ import SanctionNoticeModal from "@components/features/moderation/SanctionNoticeM
 import { PetSpaceCard, PetSpaceSheet } from "@components/features/pet/PetSpaceSheet";
 import useLogout from "hooks/useLogout";
 import { identifyPosthogUser } from "@libs/client/posthog";
+import { useCategoryScopeState } from "@libs/client/categoryScope";
+import { saleTabDefaultMode } from "@libs/shared/petSpace";
 import type { LoginReason } from "@libs/shared/loginReason";
 import { version as APP_VERSION } from "../../package.json";
 
@@ -687,7 +689,13 @@ export default function MainLayout({
   const [installLoading, setInstallLoading] = useState(false);
   const { user, isAdmin, isCrew, isLoading: userLoading } = useUser();
   // 경매는 분양 탭 안 '분양 | 경매' 전환으로 들어간다(포유류만 고정이면 전환을 숨긴다, SaleTabSwitch).
-  const bottomNavItems = BOTTOM_NAV_ITEMS;
+  // 강아지·고양이만 고정했으면 분양 탭은 입양 쪽부터 열린다(2026-10-24 입양 탭 개편, saleTabDefaultMode).
+  const { pins: scopePins } = useCategoryScopeState();
+  const saleTabHref =
+    saleTabDefaultMode(scopePins.map((pin) => pin.path)) === "adoption" ? "/adoption" : "/products";
+  const bottomNavItems = BOTTOM_NAV_ITEMS.map((item) =>
+    item.icon === "sale" ? { ...item, href: saleTabHref } : item
+  );
   const { data: unreadData } = useSWR<UnreadCountResponse>(
     user ? "/api/chat/unread-count" : null,
     { revalidateOnFocus: false, refreshInterval: UNREAD_REFRESH_MS }
