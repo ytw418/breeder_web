@@ -50,6 +50,7 @@ import {
   productWriteLabels,
   saleSpeciesChips,
   saleSubcategoryNames,
+  saleTabDefaultMode,
   saleTabModes,
   saleTabModesShowing,
   saleTabSwipeAxis,
@@ -201,10 +202,16 @@ describe("공간·분양 탭 전환(§5.1·5.2)", () => {
     expect(saleTabModes(["/reptile/", "/fish/"])).toEqual(["products", "auctions"]);
   });
 
-  it("강아지·고양이만이면 분양 | 입양, 섞으면 분양 | 경매 | 입양, 소동물만이면 분양 하나", () => {
-    expect(saleTabModes(["/mammal/dog/", "/mammal/cat/"])).toEqual(["products", "adoption"]);
-    expect(saleTabModes(["/mammal/dog/", "/reptile/"])).toEqual(["products", "auctions", "adoption"]);
+  it("강아지·고양이가 있으면 입양이 맨 왼쪽(입양 | 분양, 섞으면 입양 | 분양 | 경매), 소동물만이면 분양 하나", () => {
+    expect(saleTabModes(["/mammal/dog/", "/mammal/cat/"])).toEqual(["adoption", "products"]);
+    expect(saleTabModes(["/mammal/dog/", "/reptile/"])).toEqual(["adoption", "products", "auctions"]);
     expect(saleTabModes(["/mammal/hamster/"])).toEqual(["products"]);
+  });
+
+  it("처음 열리는 칸은 강아지·고양이만 고정했을 때만 입양", () => {
+    expect(saleTabDefaultMode(["/mammal/dog/", "/mammal/cat/"])).toBe("adoption");
+    expect(saleTabDefaultMode(["/mammal/dog/", "/reptile/"])).toBe("products");
+    expect(saleTabDefaultMode([])).toBe("products");
   });
 
   it("강아지·고양이만이면 분양 쪽에 생물·용품·가격 필터와 가격순이 없다 — 걸어 둔 값도 푼다", () => {
@@ -504,10 +511,10 @@ describe("글쓰기 제목·버튼(§5.5)", () => {
 
 describe("링크로 연 입양 쪽(§5.1)", () => {
   it("강아지·고양이를 고정하지 않았어도 입양 쪽을 보고 있으면 '입양' 칸을 붙인다", () => {
-    expect(saleTabModesShowing(["/reptile/"], "adoption")).toEqual(["products", "auctions", "adoption"]);
-    expect(saleTabModesShowing(["/mammal/hamster/"], "adoption")).toEqual(["products", "adoption"]);
+    expect(saleTabModesShowing(["/reptile/"], "adoption")).toEqual(["adoption", "products", "auctions"]);
+    expect(saleTabModesShowing(["/mammal/hamster/"], "adoption")).toEqual(["adoption", "products"]);
     expect(saleTabModesShowing(["/reptile/"], "products")).toEqual(["products", "auctions"]);
-    expect(saleTabModesShowing(["/mammal/dog/"], "adoption")).toEqual(["products", "adoption"]);
+    expect(saleTabModesShowing(["/mammal/dog/"], "adoption")).toEqual(["adoption", "products"]);
   });
 });
 

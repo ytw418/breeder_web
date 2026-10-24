@@ -41,6 +41,26 @@ export function shelterDeadlineLabel(description: string | null | undefined, tod
   return days === 0 ? "공고 오늘 마감" : `공고 D-${days}`;
 }
 
+/**
+ * 2열 카드의 '공고 D-10'. 공고 마감 칸(Product.externalNoticeEnd, 그날 23:59:59.999 KST)을 한국 시간 오늘과 견준다.
+ * 칸이 비었거나 읽을 수 없으면 옛 글처럼 본문 줄에서 센다(shelterDeadlineLabel). 이미 지난 공고는 null.
+ */
+export function shelterNoticeLabel(
+  item: { externalNoticeEnd?: string | Date | null; description?: string | null },
+  today: string = kstToday()
+): string | null {
+  if (item.externalNoticeEnd) {
+    const end = new Date(item.externalNoticeEnd);
+    if (!Number.isNaN(end.getTime())) {
+      const endDay = new Date(end.getTime() + 9 * 60 * 60 * 1000).toISOString().slice(0, 10);
+      const days = Math.round((Date.parse(`${endDay}T00:00:00Z`) - Date.parse(`${today}T00:00:00Z`)) / DAY_MS);
+      if (days < 0) return null;
+      return days === 0 ? "공고 오늘 마감" : `공고 D-${days}`;
+    }
+  }
+  return shelterDeadlineLabel(item.description, today);
+}
+
 export interface ShelterContact {
   /** 보호소 이름. */
   name: string | null;

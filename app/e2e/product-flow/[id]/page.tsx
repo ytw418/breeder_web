@@ -36,6 +36,9 @@ const e2eProduct: NonNullable<ItemDetailResponse["product"]> = {
   regionSigungu: null,
   externalSource: null,
   externalId: null,
+  externalBreed: null,
+  externalWeightKg: null,
+  externalNoticeEnd: null,
   user: {
     id: 999,
     role: "USER",
