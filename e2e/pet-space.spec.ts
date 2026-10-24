@@ -338,7 +338,7 @@ test.describe("글쓰기 (AC-4·14·15)", () => {
     // ③ 단계
     await expect(page.getByText(FOSTER_AGREE)).toBeVisible();
     console.log("STEP3\n" + (await page.locator("main, body").first().innerText()).slice(0, 900));
-    await page.screenshot({ path: `${SHOT}/12-write-step3-foster.png`, fullPage: true });
+    await page.screenshot({ path: `${SHOT}/12-write-step3-foster.png`, fullPage: false });
     // 뒤로가기: 화면을 닫지 않고 ②로, 적은 내용 유지
     await page.goBack();
     await expect(page.getByText("어떤 아이인가요?")).toBeVisible();
@@ -358,6 +358,6 @@ test.describe("글쓰기 (AC-4·14·15)", () => {
     await page.getByRole("button", { name: "다음", exact: true }).click();
     await expect(page.getByText(TRADE_AGREE)).toBeVisible();
     await expect(page.getByText(FOSTER_AGREE)).toHaveCount(0);
-    await page.screenshot({ path: `${SHOT}/13-write-step3-adoption.png`, fullPage: true });
+    await page.screenshot({ path: `${SHOT}/13-write-step3-adoption.png`, fullPage: false });
   });
 });
