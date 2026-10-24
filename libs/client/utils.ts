@@ -52,8 +52,11 @@ export function makeImageUrl(
     // 내부 정적 경로(public/*)는 그대로 사용
     return normalized;
   }
+  if (/^http:\/\//i.test(normalized)) {
+    // 구글·카카오 프로필 사진, 보호소 공고 사진(animal.go.kr)은 주소가 저장돼 있다. http 는 https 로 바꿔 쓴다.
+    return normalized.replace(/^http:\/\//i, "https://");
+  }
   if (normalized.includes("http")) {
-    // 구글이나 카카오 로그인시 프로필 사진의 경우
     return normalized;
   }
   return `https://imagedelivery.net/OvWZrAz6J6K7n9LKUH5pKw/${normalized}/${variant}`;

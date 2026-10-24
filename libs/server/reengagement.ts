@@ -309,6 +309,7 @@ export async function runInterestProductsDigest(now: Date = new Date()): Promise
             categoryId: { in: scopeIds },
             isHidden: false,
             isDeleted: false,
+            externalSource: null,
             status: "판매중",
             user: { status: "ACTIVE" },
           },

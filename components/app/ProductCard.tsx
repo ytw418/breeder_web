@@ -46,6 +46,10 @@ export type ProductCardData = {
   /** 가족 찾아요·임보 구해요 글에 남긴 동네(Product.regionSido·regionSigungu). 있으면 메타의 카테고리 자리에 "마포구". */
   regionSido?: string | null;
   regionSigungu?: string | null;
+  /** 외부 공고에서 옮겨 온 글이면 값이 있다(Product.externalSource 'animal.go.kr'). 썸네일에 '보호소' 딱지(앱 docs/prd/shelter-animals.md S-2). */
+  externalSource?: string | null;
+  /** 보호소 글의 '공고 D-3'(shelterDeadlineLabel). 있으면 정보 줄 아래 왼쪽 아래에 검은 pill. */
+  noticeLabel?: string | null;
 };
 
 const toDate = (value: string | Date) => (value instanceof Date ? value : new Date(value));
@@ -128,7 +132,7 @@ export function ProductCard({
   // 강아지·고양이 글은 가격이 없다: 가격 줄 대신 정보 한 줄(없으면 비운다), 썸네일에 이유·임보 기간 딱지.
   const isPet = isNoPriceCategory(product.category);
   const hasPetFacts = isPet && petFacts(parsePetInfo(product.petInfo)).length > 0;
-  const thumbTag = petThumbTag(product);
+  const thumbTag = product.externalSource ? "보호소" : petThumbTag(product);
 
   const content = (
     <>
@@ -209,6 +213,11 @@ export function ProductCard({
             {productPriceText(product)}
           </span>
         )}
+        {product.noticeLabel ? (
+          <span className="mt-auto h-5 self-start rounded bg-app-inverse px-1.5 text-[12px] font-semibold leading-5 text-app-inverse-text">
+            {product.noticeLabel}
+          </span>
+        ) : null}
         {hearts > 0 ? (
           <span className="mt-auto inline-flex shrink-0 items-center gap-0.5 self-end text-[13px] text-app-muted">
             <svg className="h-3.5 w-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">

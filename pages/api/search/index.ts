@@ -87,6 +87,8 @@ async function handler(
             where: {
               isHidden: false,
               isDeleted: false,
+              // 보호소 공고 글은 검색 결과에 섞지 않는다(보호소 목록에서만 보인다).
+              externalSource: null,
               ...authorFilter,
               OR: [
                 { name: { contains: keyword, mode: "insensitive" } },

@@ -240,6 +240,8 @@ async function handler(
         AND: [{ id: { not: product.id } }, relatedPetGroupWhere(product.category)],
         isHidden: false,
         isDeleted: false,
+        // 보호소 공고 글끼리, 회원 글끼리만 이어 준다(앱 docs/prd/shelter-animals.md F-5).
+        externalSource: product.externalSource ? { not: null } : null,
         ...(excluded.length ? { userId: { notIn: excluded } } : {}),
       },
       take: 20,

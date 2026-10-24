@@ -58,6 +58,8 @@ export const ANALYTICS_EVENTS = {
   petPostCreate: "pet_post_create",
   petWriteStep: "pet_write_step",
   fosterRaiseHand: "foster_raise_hand",
+  // 보호소 글 상세 '보호소에 전화'를 누름(desertionNo·species·sido, 앱 docs/prd/shelter-animals.md AC-14). 앱도 같은 이름을 쓴다.
+  shelterCallClick: "shelter_call_click",
   otherPetsFeedView: "other_pets_feed_view",
   otherPetsFeedOpen: "other_pets_feed_open",
   sentryExampleClientErrorClicked: "sentry_example_client_error_clicked",
