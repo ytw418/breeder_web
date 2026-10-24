@@ -111,7 +111,8 @@ async function fetchPage(
   });
   const signal = typeof AbortSignal !== "undefined" && "timeout" in AbortSignal ? AbortSignal.timeout(REQUEST_TIMEOUT_MS) : undefined;
   const res = await fetchImpl(`${API_URL}?${params.toString()}`, signal ? { signal } : undefined);
-  if (!res.ok) throw new Error(`HTTP ${res.status}`);
+  // 실패 응답 본문 앞부분을 남긴다(키 값은 응답에 없다). data.go.kr 은 키·파라미터 오류를 본문으로 알려 준다.
+  if (!res.ok) throw new Error(`HTTP ${res.status} ${(await res.text().catch(() => "")).replace(/\s+/g, " ").slice(0, 160)}`);
   const data = await res.json().catch(() => null);
   if (!data) throw new Error("응답이 JSON 이 아닙니다");
   const code = String(data?.response?.header?.resultCode ?? "");
