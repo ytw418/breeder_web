@@ -102,6 +102,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
         category: product.category,
         regionSido: product.regionSido,
         regionSigungu: product.regionSigungu,
+        petInfo: product.petInfo,
       })
     : null;
   const metaDescription = shelterSeo?.description ?? description;

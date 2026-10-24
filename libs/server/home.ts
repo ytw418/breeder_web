@@ -392,10 +392,15 @@ const buildProductsResponse = async ({
       },
     },
   };
-  const orderBy = productOrderBy(isProductSort(sort) ? sort : "latest");
+  const sortKey = isProductSort(sort) ? sort : "latest";
+  // 보호소 목록은 기본 최신순에도 id 로 동점을 정리해 페이지를 넘겨도 순서가 흔들리지 않게 한다(공고 시작일이 같은 글이 많다).
+  const orderBy =
+    shelterOnly && sortKey === "latest"
+      ? [{ createdAt: "desc" as const }, { id: "desc" as const }]
+      : productOrderBy(sortKey);
   const offset = (normalizedPage - 1) * normalizedSize;
 
-  // 보호소 목록: 로그인 viewer 의 시/도와 같은 글을 먼저, 그 안·밖은 최신순(createdAt desc, id desc).
+  // 보호소 목록: 로그인 viewer 의 시/도와 같은 글을 먼저, 그 안·밖은 최신순(위 orderBy: createdAt desc, id desc).
   // Prisma orderBy 로는 '같은 시/도 먼저'를 표현할 수 없어 두 묶음으로 나눠 페이지 창(offset~offset+size)을 걸친다.
   //   묶음 A = 같은 시/도(M건), 묶음 B = 나머지. 합친 순서는 A 전체 뒤에 B 이므로
   //   A 에서 skip=min(offset,M), take=clamp(M-offset,0,size), B 에서 skip=max(offset-M,0), take=size-A가져온수.

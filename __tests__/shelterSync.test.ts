@@ -1,5 +1,6 @@
 /**
  * 보호소 아이들 동기화(앱 docs/prd/shelter-animals.md AC-1·AC-2·AC-3·AC-13). DB 와 fetch 는 모두 모의다.
+ * 리뷰 보강: 새 글 createdAt=공고 시작일(H1), 실패 시 ok:false(M1), 종별 가드(M2), 숨긴 글 되살리기, 표시 태그만 떼기.
  */
 import { runShelterSync, SHELTER_MISSED_TAG, type ShelterDb } from "@libs/server/shelterSync";
 import { SHELTER_SOURCE, type ShelterApiItem } from "@libs/shared/shelterAnimal";
@@ -8,7 +9,7 @@ type Row = Record<string, any>;
 
 /** 이 테스트가 쓰는 질의만 흉내 내는 메모리 DB. */
 function createDb(seed: Row[] = []) {
-  const rows: Row[] = seed.map((r) => ({ tags: [], isHidden: false, photos: [], externalSource: null, externalId: null, ...r }));
+  const rows: Row[] = seed.map((r) => ({ tags: [], isHidden: false, isDeleted: false, photos: [], externalSource: null, externalId: null, ...r }));
   let nextId = 1000;
   const matches = (row: Row, where: Row) =>
     Object.keys(where).every((key) => {
@@ -25,7 +26,7 @@ function createDb(seed: Row[] = []) {
   const product = {
     findMany: jest.fn(async ({ where }: Row) => rows.filter((r) => matches(r, where)).map((r) => ({ ...r }))),
     create: jest.fn(async ({ data }: Row) => {
-      const row = { id: nextId++, tags: [], isHidden: false, ...data };
+      const row = { id: nextId++, tags: [], isHidden: false, isDeleted: false, ...data };
       rows.push(row);
       return { ...row };
     }),
@@ -40,7 +41,7 @@ function createDb(seed: Row[] = []) {
       return { count: hit.length };
     }),
   };
-  return { db: { product } as unknown as ShelterDb, rows };
+  return { db: { product } as unknown as ShelterDb, rows, product };
 }
 
 const item = (n: number, over: Partial<ShelterApiItem> = {}): ShelterApiItem => ({
@@ -94,23 +95,34 @@ describe("runShelterSync", () => {
     expect(rows.every((r) => r.externalSource === SHELTER_SOURCE && r.userId === 87 && r.dealType === "rehoming")).toBe(true);
     expect(rows.find((r) => r.externalId === "D1")).toMatchObject({ categoryId: 11, photos: ["https://www.animal.go.kr/files/1.jpg"] });
     expect(rows.find((r) => r.externalId === "D4")).toMatchObject({ category: "고양이", categoryId: 12 });
+    // H1: 새 글의 createdAt 은 공고 시작일 0시(KST)라 최근 공고가 목록(createdAt desc) 앞에 온다.
+    expect(rows.find((r) => r.externalId === "D1")!.createdAt).toEqual(new Date("2026-10-11T00:00:00+09:00"));
+    expect(rows.find((r) => r.externalId === "D3")!.createdAt.getTime()).toBeGreaterThan(rows.find((r) => r.externalId === "D1")!.createdAt.getTime());
   });
 
-  it("AC-2: 연속 두 번 성공한 회차에서 빠진 공고만 숨기고, 중간에 다시 나타나면 세지 않는다", async () => {
+  it("AC-2: 연속 두 번 성공한 회차에서 빠진 공고만 숨기고, 중간에 다시 나타나면 세지 않는다. 숨긴 글은 다시 나타나면 되살린다", async () => {
     const { db, rows } = createDb();
     const all = [item(1), item(2), item(3), item(4), item(5)];
     await run(db, apiFetch(all));
-    const D1 = () => rows.find((r) => r.externalId === "D1")!;
+    const row = (id: string) => rows.find((r) => r.externalId === id)!;
 
     expect(await run(db, apiFetch(all.slice(1)))).toMatchObject({ marked: 1, hidden: 0 });
-    expect(D1()).toMatchObject({ isHidden: false, tags: [SHELTER_MISSED_TAG] });
+    expect(row("D1")).toMatchObject({ isHidden: false, tags: [SHELTER_MISSED_TAG] });
 
+    // 표시만 떼고 다른 태그는 남긴다.
+    row("D1").tags.push("keep");
     expect(await run(db, apiFetch(all))).toMatchObject({ recovered: 1, hidden: 0 });
-    expect(D1().tags).toEqual([]);
+    expect(row("D1").tags).toEqual(["keep"]);
 
     await run(db, apiFetch(all.slice(1)));
     expect(await run(db, apiFetch(all.slice(1)))).toMatchObject({ hidden: 1 });
     expect(rows.filter((r) => r.isHidden).map((r) => r.externalId)).toEqual(["D1"]);
+
+    // 동기화가 숨긴 글(숨김 + 표시)은 온전한 회차에 다시 나타나면 되살리고, 표시 없이 숨긴 글(운영 제재)은 그대로 둔다.
+    row("D2").isHidden = true;
+    expect(await run(db, apiFetch(all))).toMatchObject({ resurrected: 1 });
+    expect(row("D1")).toMatchObject({ isHidden: false, tags: ["keep"] });
+    expect(row("D2").isHidden).toBe(true);
   });
 
   it("AC-3: 받기 실패(E-1)나 총수 30% 넘는 감소(E-2)면 아무것도 숨기거나 표시하지 않는다", async () => {
@@ -130,6 +142,31 @@ describe("runShelterSync", () => {
     expect(await run(db, apiFetch(all.slice(0, 8)))).toMatchObject({ marked: 2 });
   });
 
+  it("M1: 저장에 실패하거나 시간 한도로 새 글을 하나도 못 넣으면 ok:false 로 알린다", async () => {
+    const { db, product } = createDb();
+    const fetchImpl = apiFetch([item(1), item(2)]);
+
+    expect(await run(db, fetchImpl, { timeBudgetMs: -1 })).toMatchObject({ ok: false, created: 0, remaining: 2 });
+
+    // 가장 최근 공고(D2)부터 넣다 실패해도 나머지는 넣고, 실패가 있으니 ok:false.
+    product.create.mockRejectedValueOnce(new Error("db down"));
+    expect(await run(db, fetchImpl)).toMatchObject({ ok: false, failed: 1, created: 1 });
+    expect(await run(db, fetchImpl)).toMatchObject({ ok: true, created: 1 });
+  });
+
+  it("M2: 종 하나의 총수가 0이거나 그 종의 보이는 글 70% 미만이면 그 종만 표시·숨김을 건너뛴다", async () => {
+    const { db, rows } = createDb();
+    const dogs = Array.from({ length: 10 }, (_v, i) => item(i + 1));
+    const cats = Array.from({ length: 4 }, (_v, i) => item(i + 11, { kindNm: "[고양이] 코리안 숏헤어" }));
+    await run(db, apiFetch(dogs, cats));
+
+    // 고양이 응답이 비었다(총수 0): 개 10건은 정상이라 전체 가드는 통과하지만 고양이는 건드리지 않는다.
+    expect(await run(db, apiFetch(dogs, []))).toMatchObject({ marked: 0, hidden: 0, skippedSpecies: ["고양이"] });
+    // 고양이 4건 중 1건만 왔다(25%): 고양이는 건너뛰고, 개는 빠진 1건(D1)만 표시한다.
+    expect(await run(db, apiFetch(dogs.slice(1), cats.slice(0, 1)))).toMatchObject({ marked: 1, skippedSpecies: ["고양이"] });
+    expect(rows.filter((r) => r.tags.length).map((r) => r.externalId)).toEqual(["D1"]);
+  });
+
   it("손으로 올린 옛 글(externalId 없음)은 출처 줄의 공고번호로 이어받고 새로 만들지 않는다", async () => {
     const legacy = {
       id: 5,
@@ -139,10 +176,13 @@ describe("runShelterSync", () => {
       name: "옛 제목",
     };
     const other = { id: 6, userId: 99, dealType: "rehoming", description: "출처: 국가동물보호정보시스템 공고 경기-화성-2026-2", name: "회원 글" };
-    const { db, rows } = createDb([legacy, other]);
+    // 지웠거나 숨긴 옛 글은 이어받지 않는다.
+    const deleted = { id: 7, userId: 87, dealType: "rehoming", isDeleted: true, description: "출처: 국가동물보호정보시스템 공고 경기-화성-2026-3", name: "지운 글" };
+    const { db, rows } = createDb([legacy, other, deleted]);
 
-    expect(await run(db, apiFetch([item(1), item(2)]))).toMatchObject({ adopted: 1, created: 1 });
-    expect(rows).toHaveLength(3);
+    expect(await run(db, apiFetch([item(1), item(2), item(3)]))).toMatchObject({ adopted: 1, created: 2 });
+    expect(rows).toHaveLength(5);
+    expect(rows.find((r) => r.id === 7)!.externalId).toBeNull();
     expect(rows.find((r) => r.id === 5)).toMatchObject({ externalSource: SHELTER_SOURCE, externalId: "D1" });
     expect(rows.find((r) => r.id === 5)!.name).not.toBe("옛 제목");
     expect(rows.find((r) => r.id === 6)!.externalId).toBeNull();

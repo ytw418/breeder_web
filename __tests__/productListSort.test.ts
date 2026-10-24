@@ -188,7 +188,8 @@ describe("GET /api/products 보호소 글(externalSource)", () => {
     // 비로그인: 시/도 순서 없이 보호소 글만 최신순.
     await list({ source: "shelter" });
     expect(lastFindMany().where.externalSource).toEqual({ not: null });
-    expect(lastFindMany().orderBy).toEqual({ createdAt: "desc" });
+    // 보호소 목록은 최신순에 id 로 동점을 정리한다(공고 시작일이 같은 글이 많다).
+    expect(lastFindMany().orderBy).toEqual([{ createdAt: "desc" }, { id: "desc" }]);
 
     // 로그인(서울): 서울 묶음 → 나머지 묶음 순으로 이어 페이지 창을 맞춘다. 서울 3건 + 나머지 5건, size 2 의 2번째 페이지 = 서울 마지막 1건 + 나머지 1건.
     mockClient.user.findUnique.mockResolvedValue({ regionSido: "서울" });

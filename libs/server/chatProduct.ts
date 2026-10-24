@@ -38,6 +38,8 @@ const chatProductSelect = {
   // 강아지·고양이 글은 가격 대신 글 종류를 보인다(productPriceText).
   category: true,
   dealType: true,
+  // 보호소 공고 글(externalSource 있음)은 채팅 카드로 보내지 않는다(message API 가 막는다).
+  externalSource: true,
 } satisfies Prisma.ProductSelect;
 
 export type ChatProductRow = Prisma.ProductGetPayload<{ select: typeof chatProductSelect }>;

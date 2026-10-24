@@ -126,15 +126,18 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       select: {
         id: true,
         name: true,
+        createdAt: true,
         updatedAt: true,
+        externalSource: true,
       },
     });
 
+    // 보호소 공고 글은 조회수 갱신으로 updatedAt 이 계속 바뀌므로 createdAt(공고 시작일)을 쓰고, 우선순위를 낮춘다.
     const productPages: MetadataRoute.Sitemap = products.map((product) => ({
       url: `https://bredy.app${getProductPath(product.id, product.name)}`,
-      lastModified: product.updatedAt,
+      lastModified: product.externalSource ? product.createdAt : product.updatedAt,
       changeFrequency: "daily",
-      priority: 0.9,
+      priority: product.externalSource ? 0.5 : 0.9,
     }));
 
     const auctions = await client.auction.findMany({

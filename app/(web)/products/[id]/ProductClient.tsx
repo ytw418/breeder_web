@@ -475,15 +475,23 @@ const ProductClient = ({
   // 로그인 벽에서 누른 찜·채팅하기를 로그인 뒤 이어 한다. 찜은 토글이라 로그인한 계정 기준 상세를 받은 뒤
   // 아직 찜하지 않았을 때만 누른다.
   const detailReady = Boolean(user && data?.product && !isValidating);
+  // 보호소 공고 글에는 찜·채팅이 없으므로 로그인 뒤에도 이어 하지 않는다(기억해 둔 동작은 쓰고 지운다).
   usePendingAction(
     "fav",
     Number(productId) || null,
     () => {
-      if (!isLiked) void handleFavorite();
+      if (!isShelter && !isLiked) void handleFavorite();
     },
     detailReady
   );
-  usePendingAction("chat", Number(productId) || null, () => void handleChat(), detailReady);
+  usePendingAction(
+    "chat",
+    Number(productId) || null,
+    () => {
+      if (!isShelter) void handleChat();
+    },
+    detailReady
+  );
 
   // ── 로딩·오류 ─────────────────────────────────────────────────────────
   if (!product) {

@@ -8,6 +8,7 @@ import {
   SHELTER_SOURCE,
   type ShelterApiItem,
 } from "@libs/shared/shelterAnimal";
+import { buildShelterSeo } from "@libs/shared/shelterSeo";
 
 const item = (n: number, over: Partial<ShelterApiItem> = {}): ShelterApiItem => ({
   desertionNo: `44${String(n).padStart(12, "0")}`,
@@ -84,5 +85,21 @@ describe("toShelterProduct", () => {
     expect(shelterTelHref("문의 바람")).toBeNull();
     expect(isShelterProduct({ externalSource: SHELTER_SOURCE })).toBe(true);
     expect(isShelterProduct({ externalSource: null })).toBe(false);
+  });
+});
+
+describe("buildShelterSeo", () => {
+  it("M6: 제목 틀이 무엇이든 시군구·품종·성별로 한 줄을 만들고, '[ '·겹친 유기견 없이 검색어를 한 번만 넣는다", () => {
+    for (let n = 1; n <= 24; n += 1) {
+      const dog = toShelterProduct(item(n), "강아지");
+      const { title } = buildShelterSeo({ ...dog, petInfo: dog.petInfo });
+      expect(title).toBe(`화성시 유기견 입양 · 비숑 프리제 ${n % 2 ? "여아" : "남아"} 새 가족 찾아요 | 강아지 무료분양·무료입양 - 브리디`);
+      expect(title).not.toContain("[ ");
+      expect(title.split("유기견")).toHaveLength(2);
+    }
+    // 제목 틀에 맞지 않는 글은 종 + 성별로 쓴다.
+    expect(buildShelterSeo({ name: "직접 쓴 제목", category: "고양이", regionSigungu: "서구", petInfo: { sex: "female" } }).title).toBe(
+      "서구 유기묘 입양 · 고양이 여아 새 가족 찾아요 | 고양이 무료분양·무료입양 - 브리디"
+    );
   });
 });

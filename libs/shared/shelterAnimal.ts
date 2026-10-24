@@ -206,6 +206,27 @@ const TITLE_TEMPLATES: ReadonlyArray<(c: TitleCtx) => string> = [
   (c) => `[${c.city}] ${c.who} ${c.noun}, 새 가족이 되어 주실래요?`,
 ];
 
+/** 제목 틀마다 '품종 성별' 자리(who)만 캡처하는 정규식. 글 제목에서 who 를 되찾을 때 쓴다. */
+const WHO_PATTERNS: RegExp[] = TITLE_TEMPLATES.map((template) => {
+  const probe = template({ city: "\u0001", noun: "\u0002", who: "\u0003" });
+  const source = probe
+    .replace(/[.*+?^${}()|[\]\\]/g, "\\$&")
+    .replace(/\u0001/g, ".+?")
+    .replace(/\u0002/g, "유기[견묘]")
+    .replace(/\u0003/g, "(.+?)");
+  return new RegExp(`^${source}$`);
+});
+
+/** 글 제목 → '품종 성별'("믹스견 남아"). 제목 틀과 맞지 않으면 null(검색 메타 제목이 제목 조각을 오려 쓰지 않으려고 쓴다). */
+export function shelterWhoOfTitle(name: string | null | undefined): string | null {
+  const title = clean(name);
+  for (const pattern of WHO_PATTERNS) {
+    const who = pattern.exec(title)?.[1]?.trim();
+    if (who) return who;
+  }
+  return null;
+}
+
 function buildTitle(ctx: TitleCtx, seed: string): string {
   const start = hash32(`title:${seed}`) % TITLE_TEMPLATES.length;
   for (let i = 0; i < TITLE_TEMPLATES.length; i += 1) {
