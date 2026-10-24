@@ -62,6 +62,7 @@ import {
   togglePetPick,
   TRADE_RULES_AGREEMENT,
   tradeRulesAgreementLabel,
+  shelterInitialChip,
 } from "@libs/shared/petSpace";
 
 /** 앱 scripts/web-tests/petSpace.test.ts 와 같은 파일(npm run test:pet-space). */
@@ -461,6 +462,18 @@ describe("입양 쪽 칩·임보 전체 목록(§5.4, 토스 리뷰 시안 ④)"
     expect(adoptionChipPath(both, "cat")).toBe("/mammal/cat/");
     expect(fosterListHref("all")).toBe("/adoption/foster");
     expect(fosterListHref("dog")).toBe("/adoption/foster?chip=dog");
+  });
+});
+
+describe("보호소 아이들 처음 종 칩", () => {
+  it("한 종만 고정했으면 그 종, 둘 다·없음이면 전체, ?chip= 링크가 먼저", () => {
+    expect(shelterInitialChip(["/mammal/dog/"])).toBe("dog");
+    expect(shelterInitialChip(["/mammal/cat/"])).toBe("cat");
+    expect(shelterInitialChip(["/mammal/dog/", "/mammal/cat/"])).toBe("all");
+    expect(shelterInitialChip(adoptionScopePaths([]))).toBe("all");
+    expect(shelterInitialChip(["/mammal/dog/"], "all")).toBe("all");
+    expect(shelterInitialChip(["/mammal/dog/"], "cat")).toBe("cat");
+    expect(shelterInitialChip(["/mammal/dog/"], "bogus")).toBe("dog");
   });
 });
 

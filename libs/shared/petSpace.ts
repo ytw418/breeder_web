@@ -310,6 +310,19 @@ export function adoptionWriteSpecies(scopePaths: readonly string[], chip?: strin
   return null;
 }
 
+/** 보호소 아이들 탭의 종 칩. 고정 범위와 상관없이 늘 '전체 · 강아지 · 고양이'(2026-10-24 사용자 결정 — 강아지만 고정해도 고양이 공고를 본다). */
+export const SHELTER_CHIPS: readonly AdoptionChip[] = ["all", "dog", "cat"];
+
+/**
+ * 보호소 아이들 탭에서 처음 고를 종 칩. ?chip= 링크가 있으면 그것, 없으면 고정 범위가 강아지 또는 고양이 한 종뿐일 때 그 종,
+ * 그 밖(둘 다·고정 없음)은 '전체'. 칩 줄과 총 공고 수는 범위와 상관없이 전체 기준이다.
+ */
+export function shelterInitialChip(scopePaths: readonly string[], chipParam?: string | null): AdoptionChip {
+  if (isAdoptionChip(chipParam)) return chipParam;
+  const species = adoptionWriteSpecies(scopePaths, "all");
+  return species === "강아지" ? "dog" : species === "고양이" ? "cat" : "all";
+}
+
 /**
  * 강아지·고양이만 고정한 사람의 분양글 쓰기 기본값(2026-10-23 코덱스 디자인 리뷰 결정 A — 시안 ⑤처럼 '어떤 글인가요?'부터).
  * 링크가 글 종류(?kind=)·종(?category=)을 정하지 않았을 때 쓴다. '분양해요'로 열고 한 종만 고정했으면 그 종을 미리 고른다
