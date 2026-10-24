@@ -40,6 +40,12 @@ describe("assertWriteAllowed", () => {
       createdAt: new Date(Date.now() - DAY_MS),
     });
     await expect(assertWriteAllowed({ userId: 1, kind: "product", text: "레오파드게코 분양" })).resolves.toBeNull();
+
+    // env 로 지정한 운영 계정(보호소 소식 계정 등)도 새 계정 한도를 받지 않는다.
+    process.env.WRITE_LIMIT_EXEMPT_USER_IDS = "87, 300";
+    mockClient.user.findUnique.mockResolvedValueOnce({ id: 87, email: null, createdAt: new Date(Date.now() - DAY_MS) });
+    await expect(assertWriteAllowed({ userId: 87, kind: "product", text: "보호소 공고" })).resolves.toBeNull();
+    delete process.env.WRITE_LIMIT_EXEMPT_USER_IDS;
   });
 
   it("분양글 카드가 새로 들어가는 메시지 본문만 같은 본문 한도에서 빼고, 카드 행은 세지 않는다", async () => {

@@ -9,6 +9,8 @@ import { isAdminEmail } from "@libs/shared/adminEmail";
  * - 모든 계정: 같은 본문(분양글 설명·경매 설명·텍스트 메시지)은 10분에 3번까지.
  *   메시지는 10자 이상만 센다('네'·'감사합니다' 같은 짧은 답을 여러 방에 보내는 것은 막지 않는다).
  * - 운영자 이메일·운영 크루(id 범위)는 제외한다. 크루 이름 꼬리('·크루')는 누구나 붙일 수 있어 보지 않는다.
+ * - env WRITE_LIMIT_EXEMPT_USER_IDS(쉼표 구분 id)로 지정한 운영 계정도 제외한다 — 보호소 소식 계정처럼 크루 범위 밖에서
+ *   만든 운영 계정용. dev·운영의 id 가 달라 env 로 둔다(2026-10-24 사용자 결정).
  * - 분양글 카드(Message.productId, 서버가 넣는 행)는 같은 본문으로 세지 않는다. 그 카드가 이번 요청에서 새로 들어가는
  *   입양 희망자의 첫 메시지(추천 칩 '아직 분양 중인가요?' 등, 방·글당 1번)도 한도에서 뺀다(앱 docs/prd/trade-review.md §3.6).
  * 넘으면 429 + 문구를 돌려준다. 앱(구버전 포함)·웹은 서버 error 문구를 토스트로 그대로 보여 준다.
@@ -53,8 +55,15 @@ const DUPLICATE_BLOCK: WriteLimitBlock = {
   errorCode: "WRITE_LIMIT_DUPLICATE",
 };
 
+const exemptUserIds = (): number[] =>
+  (process.env.WRITE_LIMIT_EXEMPT_USER_IDS ?? "")
+    .split(",")
+    .map((value) => Number(value.trim()))
+    .filter((id) => Number.isInteger(id) && id > 0);
+
 function isExempt(user: { id: number; email: string | null }): boolean {
   if (isAdminEmail(user.email)) return true;
+  if (exemptUserIds().includes(user.id)) return true;
   return user.id >= CREW_USER_ID_MIN && user.id <= CREW_USER_ID_MAX;
 }
 
