@@ -3,6 +3,7 @@ import type { Viewport } from "next";
 import { SITE_OG_IMAGE, SITE_TWITTER_IMAGE } from "@libs/shared/ogImage";
 import { Inter } from "next/font/google";
 import Script from "next/script";
+import { NextIntlClientProvider } from "next-intl";
 import JsonLd from "@components/atoms/JsonLd";
 import "./globals.css";
 import { VariousProvider } from "@libs/client/VariousProvider";
@@ -185,14 +186,17 @@ export default function RootLayout({
           enableSystem
           disableTransitionOnChange
         >
-          <VariousProvider>
-            <ClientComp />
-            <CategoryScopeSync />
-            <PushPermissionPrompt />
-            <Analytics />
-            {children}
-          </VariousProvider>
-          <AppToastContainer />
+          {/* 다국어: 언어·문구는 i18n/request.ts 에서 받는다(1단계는 항상 한국어). */}
+          <NextIntlClientProvider>
+            <VariousProvider>
+              <ClientComp />
+              <CategoryScopeSync />
+              <PushPermissionPrompt />
+              <Analytics />
+              {children}
+            </VariousProvider>
+            <AppToastContainer />
+          </NextIntlClientProvider>
         </ThemeProvider>
       </body>
     </html>
