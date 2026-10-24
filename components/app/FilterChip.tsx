@@ -1,7 +1,7 @@
 "use client";
 
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import { HorizontalRail } from "@components/ui/HorizontalRail";
-import type { ReactNode } from "react";
 import { cn } from "@libs/client/utils";
 
 /**
@@ -45,26 +45,67 @@ export function FilterChip({
   );
 }
 
-/** 칩 가로 레일: h44 px16 gap8 가로 스크롤. sticky 면 헤더(h-14) 아래 고정. */
+/**
+ * 칩 가로 레일: h44 px16 gap8 가로 스크롤. sticky 면 헤더(h-14) 아래 고정.
+ * scrollHint: 오른쪽으로 더 넘길 수 있는 동안에만 오른쪽 끝에 배경색으로 흐려지는 32px 띠를 덮는다(터치 통과, 다크는 --app-bg 를 따른다).
+ * 끝까지 넘기거나 칩이 다 들어가면 사라진다. 홈 칩 줄이 쓴다(2026-10-25 "칩이 더 있는 줄 모른다").
+ */
 export function FilterChipRail({
   children,
   sticky = false,
   className,
+  scrollHint = false,
 }: {
   children: ReactNode;
   sticky?: boolean;
   className?: string;
+  scrollHint?: boolean;
 }) {
+  const railRef = useRef<HTMLDivElement>(null);
+  const [canScrollMore, setCanScrollMore] = useState(false);
+
+  useEffect(() => {
+    if (!scrollHint) return;
+    const el = railRef.current;
+    if (!el) return;
+    const update = () => setCanScrollMore(el.scrollLeft + el.clientWidth < el.scrollWidth - 1);
+    update();
+    el.addEventListener("scroll", update, { passive: true });
+    window.addEventListener("resize", update);
+    // 칩 너비는 선택(굵기)·글꼴 로드로 바뀌므로 레일과 칩 크기 변화를 따라간다.
+    const observer = typeof ResizeObserver === "undefined" ? null : new ResizeObserver(update);
+    if (observer) {
+      observer.observe(el);
+      Array.from(el.children).forEach((child) => observer.observe(child));
+    }
+    return () => {
+      el.removeEventListener("scroll", update);
+      window.removeEventListener("resize", update);
+      observer?.disconnect();
+    };
+  }, [scrollHint]);
+
+  const railClassName = cn(
+    "h-11 items-center gap-2 px-4",
+    sticky && !scrollHint && "sticky top-14 z-10 bg-app-bg",
+    className
+  );
+  if (!scrollHint) return <HorizontalRail className={railClassName}>{children}</HorizontalRail>;
   return (
-    <HorizontalRail
-      className={cn(
-        "h-11 items-center gap-2 px-4",
-        sticky && "sticky top-14 z-10 bg-app-bg",
-        className
-      )}
-    >
-      {children}
-    </HorizontalRail>
+    <div className={cn("relative", sticky && "sticky top-14 z-10 bg-app-bg")}>
+      <HorizontalRail ref={railRef} className={railClassName}>
+        {children}
+      </HorizontalRail>
+      <span
+        aria-hidden="true"
+        data-testid="chip-rail-fade"
+        data-visible={canScrollMore ? "true" : "false"}
+        className={cn(
+          "pointer-events-none absolute inset-y-0 right-0 w-8 bg-gradient-to-r from-transparent to-app-bg transition-opacity duration-150",
+          canScrollMore ? "opacity-100" : "opacity-0"
+        )}
+      />
+    </div>
   );
 }
 

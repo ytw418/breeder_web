@@ -54,6 +54,13 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       changeFrequency: "hourly",
       priority: 0.7,
     },
+    // 게시글 전체보기(홈 인기글 TOP 10 '전체보기 ›', 카테고리·정렬 필터는 canonical 로 이 주소 하나).
+    {
+      url: "https://bredy.app/posts/all",
+      lastModified: new Date(),
+      changeFrequency: "daily",
+      priority: 0.6,
+    },
     {
       url: "https://bredy.app/debates",
       lastModified: new Date(),

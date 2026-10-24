@@ -12,6 +12,7 @@ import { ANALYTICS_EVENTS, trackEvent } from "@libs/client/analytics";
 import { makeImageUrl } from "@libs/client/utils";
 import { toPostPath } from "@libs/post-route";
 import { withoutBlocked } from "@libs/shared/blockFilter";
+import { ALL_POSTS_POPULAR_HREF } from "@libs/shared/allPostsFilter";
 import { DEBATE_CATEGORY } from "@libs/shared/debateFormat";
 import { postCategoryLabel } from "@libs/shared/postCategory";
 import type { PostsListResponse } from "pages/api/posts";
@@ -61,10 +62,22 @@ export default function HotTop10Rail() {
   if (!loading && posts.length === 0) return null;
   return (
     <section data-home-section="hot_top10" className="pb-5 pt-4">
-      <h2 className="app-t-section flex items-center gap-1 px-4 pb-3">
-        <FlameIcon />
-        인기글 TOP 10
-      </h2>
+      <div className="flex items-end justify-between gap-3 px-4 pb-3">
+        <h2 className="app-t-section flex items-center gap-1">
+          <FlameIcon />
+          인기글 TOP 10
+        </h2>
+        {/* 전체 인기글 목록(게시글 전체보기, 인기순). '실시간 TOP 토론'의 '모아보기 ›' 와 같은 모양. */}
+        <Link
+          href={ALL_POSTS_POPULAR_HREF}
+          className="inline-flex shrink-0 items-center gap-0.5 text-[13px] leading-[18px] text-app-muted"
+        >
+          전체보기
+          <svg width={14} height={14} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} aria-hidden="true">
+            <path d="m9 6 6 6-6 6" />
+          </svg>
+        </Link>
+      </div>
       {loading ? (
         <div className="flex gap-2 overflow-hidden px-4" aria-hidden>
           {[0, 1, 2].map((i) => (
